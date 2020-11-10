@@ -53,7 +53,7 @@ final class JmxSystemAccessProvider implements SystemAccessProvider {
     try {
       diagnosticCommandMBean = new ObjectName("com.sun.management:type=DiagnosticCommand");
     } catch (final MalformedObjectNameException ex) {
-      log.warn("Error during executeDiagnosticCommand: ", ex);
+      log.debug("Error during executeDiagnosticCommand: ", ex);
       return ex.getMessage();
     }
     try {
@@ -62,7 +62,7 @@ final class JmxSystemAccessProvider implements SystemAccessProvider {
               .invoke(diagnosticCommandMBean, command, args, sig);
       return result != null ? result.toString().trim() : null;
     } catch (final Throwable ex) {
-      log.warn("Error invoking diagnostic command: ", ex);
+      log.debug("Error invoking diagnostic command: ", ex);
       return ex.getMessage();
     }
   }
@@ -74,7 +74,7 @@ final class JmxSystemAccessProvider implements SystemAccessProvider {
     try {
       args = runtimeMXBean.getInputArguments();
     } catch (final Throwable ex) {
-      log.warn("Error invoking runtimeMxBean.getInputArguments: ", ex);
+      log.debug("Error invoking runtimeMxBean.getInputArguments: ", ex);
     }
     return args;
   }

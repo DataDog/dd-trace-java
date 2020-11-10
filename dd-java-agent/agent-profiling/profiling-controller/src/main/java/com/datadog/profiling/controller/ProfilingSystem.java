@@ -138,7 +138,7 @@ public final class ProfilingSystem {
       final int stackDepth = Integer.parseInt(userSpecifiedDepth);
 
       // client specified a value considered safe
-      if (stackDepth < MAX_STACK_DEPTH) {
+      if (stackDepth <= MAX_STACK_DEPTH) {
         log.info("skip setting JFR.configure stackdepth, using " + userSpecifiedDepth);
         return stackDepth;
       }
