@@ -394,7 +394,7 @@ public class ProfilingSystemTest {
   }
 
   @ParameterizedTest
-  @CsvSource({",256", "foo,256", "512,512", "1025,1024"})
+  @CsvSource({",256", "foo,256", "512,-1", "1024,-1", "1025,1024"})
   public void testStackDepthFromClient(final String input, final int expected) {
     assertEquals(expected, ProfilingSystem.stackDepthFromClient(input));
   }

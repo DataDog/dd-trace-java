@@ -140,7 +140,7 @@ public final class ProfilingSystem {
       // client specified a value considered safe
       if (stackDepth <= MAX_STACK_DEPTH) {
         log.info("skip setting JFR.configure stackdepth, using " + userSpecifiedDepth);
-        return stackDepth;
+        return -1;
       }
 
       // limit how deep a stack depth we'll collect
@@ -160,6 +160,11 @@ public final class ProfilingSystem {
         readJFRStackDepth(SystemAccess.getVMArguments());
     if (userSpecifiedStackDepth.isPresent()) {
       maxFrames = stackDepthFromClient(userSpecifiedStackDepth.get());
+    }
+
+    if (maxFrames < 0) {
+      // user already specified a max stack depth considered safe, skip setting
+      return;
     }
 
     final String result =
