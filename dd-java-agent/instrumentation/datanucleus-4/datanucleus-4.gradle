@@ -1,0 +1,39 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+muzzle {
+
+  pass {
+    group = "org.datanucleus"
+    module = "datanucleus-core"
+    versions = "[4.0+]"
+    assertInverse = true
+  }
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+def datanucleusVersion = '4.0.5'
+
+dependencies {
+  compileOnly group: 'org.datanucleus', name: 'datanucleus-core', version: datanucleusVersion
+  compileOnly group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: datanucleusVersion
+  compileOnly group: 'org.datanucleus', name: 'datanucleus-rdbms', version: datanucleusVersion
+  compileOnly group: 'org.datanucleus', name: 'javax.jdo', version: '3.2.0-m1'
+
+  testCompile project(':dd-java-agent:instrumentation:jdbc')
+
+  latestDepTestCompile group: 'org.datanucleus', name: 'datanucleus-core', version: '+'
+  latestDepTestCompile group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: '+'
+  latestDepTestCompile group: 'org.datanucleus', name: 'datanucleus-rdbms', version: '+'
+  latestDepTestCompile group: 'org.datanucleus', name: 'javax.jdo', version: '+'
+}
