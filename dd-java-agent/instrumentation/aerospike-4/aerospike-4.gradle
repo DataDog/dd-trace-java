@@ -21,5 +21,6 @@ dependencies {
   compileOnly group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
 
   testCompile group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
+  testCompile group: 'org.testcontainers', name: 'testcontainers', version: '1.15.0'
   latestDepTestCompile group: 'com.aerospike', name: 'aerospike-client', version: '+'
 }

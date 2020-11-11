@@ -129,6 +129,8 @@ jobs:
       - image: memcached
         # This is used by rabbitmq instrumentation tests
       - image: rabbitmq
+        # This is used by aerospike instrumentation tests
+      - image: aerospike
 
     parameters:
       testTask:
