@@ -11,6 +11,10 @@ public class DatanucleusDecorator extends OrmClientDecorator {
 
   public static final CharSequence DATANUCLEUS_FIND_OBJECT =
       UTF8BytesString.createConstant("datanucleus.findObject");
+  public static final CharSequence DATANUCLEUS_QUERY_EXECUTE =
+      UTF8BytesString.createConstant("datanucleus.query.execute");
+  public static final CharSequence DATANUCLEUS_QUERY_DELETE =
+      UTF8BytesString.createConstant("datanucleus.query.delete");
   public static final CharSequence JAVA_DATANUCLEUS =
       UTF8BytesString.createConstant("java-datanucleus");
 
