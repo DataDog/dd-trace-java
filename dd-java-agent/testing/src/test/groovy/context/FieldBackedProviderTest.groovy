@@ -18,11 +18,16 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.util.concurrent.atomic.AtomicReference
 
+import static context.ContextTestInstrumentation.DisabledKeyClass
 import static context.ContextTestInstrumentation.IncorrectCallUsageKeyClass
 import static context.ContextTestInstrumentation.IncorrectContextClassUsageKeyClass
 import static context.ContextTestInstrumentation.IncorrectKeyClassUsageKeyClass
+import static context.ContextTestInstrumentation.InvalidInheritsSerializableKeyClass
+import static context.ContextTestInstrumentation.InvalidSerializableKeyClass
 import static context.ContextTestInstrumentation.KeyClass
 import static context.ContextTestInstrumentation.UntransformableKeyClass
+import static context.ContextTestInstrumentation.ValidInheritsSerializableKeyClass
+import static context.ContextTestInstrumentation.ValidSerializableKeyClass
 import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 
 class FieldBackedProviderTest extends AgentTestRunner {
@@ -74,12 +79,18 @@ class FieldBackedProviderTest extends AgentTestRunner {
     isTransient == shouldModifyStructure
     hasMarkerInterface == shouldModifyStructure
     hasAccessorInterface == shouldModifyStructure
-    keyClass.newInstance().isInstrumented() == shouldModifyStructure
+    keyClass.newInstance().isInstrumented() == isInstrumented
 
     where:
-    keyClass                | keyClassName             | shouldModifyStructure
-    KeyClass                | keyClass.getSimpleName() | true
-    UntransformableKeyClass | keyClass.getSimpleName() | false
+    keyClass                            | shouldModifyStructure | isInstrumented
+    KeyClass                            | true                  | true
+    UntransformableKeyClass             | false                 | false
+    ValidSerializableKeyClass           | true                  | true
+    InvalidSerializableKeyClass         | false                 | true
+    ValidInheritsSerializableKeyClass   | true                  | true
+    InvalidInheritsSerializableKeyClass | false                 | true
+
+    keyClassName = keyClass.getSimpleName()
   }
 
   def "correct api usage stores state in map"() {
@@ -107,6 +118,30 @@ class FieldBackedProviderTest extends AgentTestRunner {
     instance1                     | _
     new KeyClass()                | _
     new UntransformableKeyClass() | _
+  }
+
+  def "serializability not impacted"() {
+    expect:
+    serialVersionUID(serializable) == serialVersionUID
+
+    where:
+    serializable                        | serialVersionUID // These are calculated with the corresponding declarations in ContextTestInstrumentation removed
+    ValidSerializableKeyClass           | 123
+    InvalidSerializableKeyClass         | -7962971793425055368
+    ValidInheritsSerializableKeyClass   | 456
+    InvalidInheritsSerializableKeyClass | 3138394217499921470
+  }
+
+  static final long serialVersionUID(Class<? extends Serializable> klass) throws Exception {
+    try {
+      def field = klass.getDeclaredField("serialVersionUID")
+      field.setAccessible(true)
+      return (long) field.get(null)
+    } catch (NoSuchFieldException ex) {
+      def method = ObjectStreamClass.getDeclaredMethod("computeDefaultSUID", Class)
+      method.setAccessible(true)
+      return (long) method.invoke(null, klass)
+    }
   }
 
   def "works with cglib enhanced instances which duplicates context getter and setter methods"() {
@@ -195,7 +230,7 @@ class FieldBackedProviderTest extends AgentTestRunner {
 class FieldBackedProviderFieldInjectionDisabledTest extends AgentTestRunner {
   def "Check that structure is not modified when structure modification is disabled"() {
     setup:
-    def keyClass = ContextTestInstrumentation.DisabledKeyClass
+    def keyClass = DisabledKeyClass
     boolean hasField = false
     for (Field field : keyClass.getDeclaredFields()) {
       if (field.getName().startsWith("__datadog")) {
