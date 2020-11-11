@@ -26,7 +26,6 @@ import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import okio.BufferedSink;
 
 /** The API pointing to a DD agent */
 @Slf4j
@@ -144,7 +143,7 @@ public class DDAgentApi {
           prepareRequest(tracesUrl)
               .addHeader(DATADOG_CLIENT_COMPUTED_STATS, metricsReportingEnabled ? "true" : "")
               .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.representativeCount()))
-              .put(new MsgPackRequestBody(payload))
+              .put(payload.toRequest())
               .build();
       this.totalTraces += payload.representativeCount();
       this.receivedTraces += payload.traceCount();
@@ -433,30 +432,6 @@ public class DDAgentApi {
 
     public final String response() {
       return response;
-    }
-  }
-
-  private static class MsgPackRequestBody extends RequestBody {
-
-    private final Payload payload;
-
-    private MsgPackRequestBody(Payload payload) {
-      this.payload = payload;
-    }
-
-    @Override
-    public MediaType contentType() {
-      return MSGPACK;
-    }
-
-    @Override
-    public long contentLength() {
-      return payload.sizeInBytes();
-    }
-
-    @Override
-    public void writeTo(BufferedSink sink) throws IOException {
-      payload.writeTo(sink);
     }
   }
 }

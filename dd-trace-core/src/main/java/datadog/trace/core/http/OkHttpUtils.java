@@ -6,12 +6,18 @@ import datadog.common.container.ContainerInfo;
 import datadog.trace.common.writer.ddagent.unixdomainsockets.UnixDomainSocketFactory;
 import datadog.trace.core.DDTraceCoreInfo;
 import java.io.File;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.List;
 import okhttp3.ConnectionSpec;
 import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
+import okio.BufferedSink;
 
 public final class OkHttpUtils {
 
@@ -69,6 +75,44 @@ public final class OkHttpUtils {
       return builder;
     } else {
       return builder.addHeader(DATADOG_CONTAINER_ID, containerId);
+    }
+  }
+
+  public static RequestBody msgpackRequestBodyOf(List<ByteBuffer> buffers) {
+    return new ByteBufferRequestBody(buffers);
+  }
+
+  private static final class ByteBufferRequestBody extends RequestBody {
+
+    private static final MediaType MSGPACK = MediaType.get("application/msgpack");
+
+    private final List<ByteBuffer> buffers;
+
+    private ByteBufferRequestBody(List<ByteBuffer> buffers) {
+      this.buffers = buffers;
+    }
+
+    @Override
+    public long contentLength() {
+      long length = 0;
+      for (ByteBuffer buffer : buffers) {
+        length += buffer.remaining();
+      }
+      return length;
+    }
+
+    @Override
+    public MediaType contentType() {
+      return MSGPACK;
+    }
+
+    @Override
+    public void writeTo(BufferedSink sink) throws IOException {
+      for (ByteBuffer buffer : buffers) {
+        while (buffer.hasRemaining()) {
+          sink.write(buffer);
+        }
+      }
     }
   }
 }
