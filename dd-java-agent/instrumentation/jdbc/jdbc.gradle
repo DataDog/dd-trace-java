@@ -9,6 +9,10 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {
+  oldH2Test {
+    dirName = 'test'
+  }
+
   latestDepTest {
     dirName = 'test'
   }
@@ -26,6 +30,11 @@ dependencies {
   testCompile group: 'com.zaxxer', name: 'HikariCP', version: '2.4.0'
   testCompile group: 'com.mchange', name: 'c3p0', version: '0.9.5'
 
+  // Test pre jdk 1.6 H2
+  oldH2TestCompile(group: 'com.h2database', name: 'h2', version: '1.3.168') {
+    force = true
+  }
+
   latestDepTestCompile group: 'com.h2database', name: 'h2', version: '+'
   latestDepTestCompile group: 'org.apache.derby', name: 'derby', version: '10.14.+'
   latestDepTestCompile group: 'org.hsqldb', name: 'hsqldb', version: '+'
@@ -35,3 +44,5 @@ dependencies {
   latestDepTestCompile group: 'com.zaxxer', name: 'HikariCP', version: '+'
   latestDepTestCompile group: 'com.mchange', name: 'c3p0', version: '+'
 }
+
+test.dependsOn oldH2Test

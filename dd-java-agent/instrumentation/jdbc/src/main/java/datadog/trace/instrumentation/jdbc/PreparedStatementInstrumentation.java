@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCUtils.connectionFromStatement;
+import static datadog.trace.instrumentation.jdbc.JDBCUtils.unwrappedStatement;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
@@ -58,7 +59,7 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Default
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCUtils", packageName + ".JDBCDecorator",
+      packageName + ".JDBCUtils", packageName + ".JDBCUtils$1", packageName + ".JDBCDecorator",
     };
   }
 
@@ -73,7 +74,9 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Default
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This final PreparedStatement statement) {
-      final Connection connection = connectionFromStatement(statement);
+      PreparedStatement actualStatement = unwrappedStatement(statement);
+
+      final Connection connection = connectionFromStatement(actualStatement);
       if (connection == null) {
         return null;
       }
@@ -84,7 +87,8 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Default
       }
 
       UTF8BytesString sql =
-          InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class).get(statement);
+          InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class)
+              .get(actualStatement);
 
       final AgentSpan span = startSpan(DATABASE_QUERY);
       DECORATE.afterStart(span);
