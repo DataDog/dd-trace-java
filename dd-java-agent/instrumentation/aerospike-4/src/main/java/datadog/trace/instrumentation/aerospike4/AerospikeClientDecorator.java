@@ -4,7 +4,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.cluster.Cluster;
 import com.aerospike.client.cluster.Node;
+import com.aerospike.client.cluster.Partition;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -15,6 +18,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 
 public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Node> {
   public static final UTF8BytesString AEROSPIKE_JAVA =
@@ -62,17 +67,36 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
     return null;
   }
 
-  @Override
-  public AgentSpan onConnection(final AgentSpan span, final Node node) {
-    span.setTag(Tags.PEER_HOSTNAME, node.getHost().name);
-    span.setTag(Tags.PEER_PORT, node.getHost().port);
-    final InetAddress remoteAddress = node.getAddress().getAddress();
+  public AgentSpan onConnection(
+      final AgentSpan span, final Node node, final Cluster cluster, final Partition partition) {
+
+    final InetSocketAddress socketAddress = node.getAddress();
+    span.setTag(Tags.PEER_HOSTNAME, socketAddress.getHostName());
+    span.setTag(Tags.PEER_PORT, socketAddress.getPort());
+    final InetAddress remoteAddress = socketAddress.getAddress();
     if (remoteAddress instanceof Inet4Address) {
       span.setTag(Tags.PEER_HOST_IPV4, remoteAddress.getHostAddress());
     } else if (remoteAddress instanceof Inet6Address) {
       span.setTag(Tags.PEER_HOST_IPV6, remoteAddress.getHostAddress());
     }
-    return super.onConnection(span, node);
+
+    if (cluster != null && cluster.getUser() != null) {
+      span.setTag(Tags.DB_USER, new String(cluster.getUser(), StandardCharsets.UTF_8));
+    }
+
+    if (partition != null) {
+      String instanceName = partition.toString();
+      final int namespaceEnd = instanceName.indexOf(':');
+      if (namespaceEnd > 0) {
+        instanceName = instanceName.substring(0, namespaceEnd);
+      }
+      span.setTag(Tags.DB_INSTANCE, instanceName);
+      if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
+        span.setTag(DDTags.SERVICE_NAME, instanceName);
+      }
+    }
+
+    return span;
   }
 
   public void withMethod(final AgentSpan span, final String methodName) {
