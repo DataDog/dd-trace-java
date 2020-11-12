@@ -78,7 +78,9 @@ public final class FlowableInstrumentation extends Instrumenter.Default {
         AgentSpan parentSpan =
             InstrumentationContext.get(Flowable.class, AgentSpan.class).get(flowable);
         if (parentSpan != null) {
+          // wrap the subscriber so spans from its events treat the captured span as their parent
           subscriber = new TracingSubscriber<>(subscriber, parentSpan);
+          // activate the span here in case additional subscribers are created during subscribe
           return activateSpan(parentSpan);
         }
       }

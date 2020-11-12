@@ -7,6 +7,7 @@ import datadog.trace.context.TraceScope;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
+/** Wrapper that makes sure spans from subscriber events treat the captured span as their parent. */
 public final class TracingSubscriber<T> implements Subscriber<T> {
   private final Subscriber<T> subscriber;
   private final AgentSpan parentSpan;

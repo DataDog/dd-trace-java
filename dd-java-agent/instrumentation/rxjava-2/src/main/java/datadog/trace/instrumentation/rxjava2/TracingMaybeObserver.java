@@ -7,6 +7,7 @@ import datadog.trace.context.TraceScope;
 import io.reactivex.MaybeObserver;
 import io.reactivex.disposables.Disposable;
 
+/** Wrapper that makes sure spans from observer events treat the captured span as their parent. */
 public final class TracingMaybeObserver<T> implements MaybeObserver<T> {
   private final MaybeObserver<T> observer;
   private final AgentSpan parentSpan;

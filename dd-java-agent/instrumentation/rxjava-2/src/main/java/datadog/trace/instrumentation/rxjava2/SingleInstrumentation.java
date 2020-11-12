@@ -78,7 +78,9 @@ public final class SingleInstrumentation extends Instrumenter.Default {
         AgentSpan parentSpan =
             InstrumentationContext.get(Single.class, AgentSpan.class).get(single);
         if (parentSpan != null) {
+          // wrap the observer so spans from its events treat the captured span as their parent
           observer = new TracingSingleObserver<>(observer, parentSpan);
+          // activate the span here in case additional observers are created during subscribe
           return activateSpan(parentSpan);
         }
       }

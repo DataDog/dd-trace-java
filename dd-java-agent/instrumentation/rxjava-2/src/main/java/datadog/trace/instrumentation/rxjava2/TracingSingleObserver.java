@@ -7,6 +7,7 @@ import datadog.trace.context.TraceScope;
 import io.reactivex.SingleObserver;
 import io.reactivex.disposables.Disposable;
 
+/** Wrapper that makes sure spans from observer events treat the captured span as their parent. */
 public final class TracingSingleObserver<T> implements SingleObserver<T> {
   private final SingleObserver<T> observer;
   private final AgentSpan parentSpan;

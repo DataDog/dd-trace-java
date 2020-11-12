@@ -77,7 +77,9 @@ public final class MaybeInstrumentation extends Instrumenter.Default {
       if (observer != null) {
         AgentSpan parentSpan = InstrumentationContext.get(Maybe.class, AgentSpan.class).get(maybe);
         if (parentSpan != null) {
+          // wrap the observer so spans from its events treat the captured span as their parent
           observer = new TracingMaybeObserver<>(observer, parentSpan);
+          // activate the span here in case additional observers are created during subscribe
           return activateSpan(parentSpan);
         }
       }
