@@ -29,7 +29,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.context.TraceScope;
 import java.util.Map;
@@ -41,6 +40,39 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
+/**
+ * This instrumentation wraps the user supplied request handler {@code Flow} for the akka-http
+ * {@code bindAndHandle} method and adds spans to the incoming requests from the server flow part of
+ * the machinery.
+ *
+ * <p>Context and background:
+ *
+ * <p>An Akka stream is driven by a state machine where the {@code GraphStageLogic} that is
+ * constructed in the {@code createLogic} method is signalling demand by pulling and propagating
+ * elements by pushing. This logic part of the state machine is driven by an {@code Actor} only
+ * executed by one thread at a time, and is hence thread safe.
+ *
+ * <p>The {@code GraphStage} described below is a blueprint, and there will be one instance of the
+ * {@code GraphStageLogic} created per connection to the server, so all requests over the same HTTP
+ * connection will be handled by a single instance, with further guarantees that the request and
+ * response elements will match up according to this.
+ * https://doc.akka.io/docs/akka-http/current/server-side/low-level-api.html#request-response-cycle
+ *
+ * <p>Inside a stream the elements are propagated by responding to demand, {@code onPull}, and
+ * moving elements, {@code onPush}, between an {@code Inlet} and an {@code Outlet}. This means that
+ * when the logic push the {@code HttpRequest} to the user code and return, we have not yet run any
+ * of the user request handling code, so there is no straight call chain where we send in an {@code
+ * HttpRequest} and get back an {@code HttpResponse}. Instead we need to keep track of the {@code
+ * Span} and {@code Scope} corresponding to a {@code HttpRequest} / {@code HttpResponse} pair in a
+ * queue on the side, and close the {@code Span} at the head of the queue when the corresponding
+ * {@code HttpResponse} comes back. Furthermore, this also means that there is no place where we are
+ * guaranteed to see the same scope on the top of the stack for the same thread, so we can easily
+ * close it. Instead the {@code Scope} is deliberately leaked when {@code HttpRequest} is pushed to
+ * the user code, and if the same scope is on the top if the stack when the {@code HttpResponse}
+ * comes back, it is immediately closed. If on the other hand, the scope has escaped, it will be
+ * closed by cleanup code in the message processing instrumentation for the {@code Actor} and its
+ * {@code Mailbox}.
+ */
 @Slf4j
 @AutoService(Instrumenter.class)
 public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
@@ -129,14 +161,9 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
         BidiShape.of(responseInlet, responseOutlet, requestInlet, requestOutlet);
 
     private final int pipeliningLimit;
-    private final AgentScope DUMMY_SCOPE;
 
     public DatadogServerRequestResponseFlowWrapper(final ServerSettings settings) {
       this.pipeliningLimit = settings.getPipeliningLimit();
-      AgentSpan span = new AgentTracer.NoopAgentSpan();
-      // Create a dummy scope that we can store in the queue if we can't create a scope
-      DUMMY_SCOPE = activateSpan(span, false);
-      DUMMY_SCOPE.close();
     }
 
     @Override
@@ -153,7 +180,8 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
     public GraphStageLogic createLogic(final Attributes inheritedAttributes) throws Exception {
       return new GraphStageLogic(shape) {
         {
-          // The request/response is guaranteed to be in order according to the docs at
+          // The is one instance of this logic per connection, and the request/response is
+          // guaranteed to be in order according to the docs at
           // https://doc.akka.io/docs/akka-http/current/server-side/low-level-api.html#request-response-cycle
           // and there can never be more outstanding requests than the pipeliningLimit
           // that this connection was created with. This means that we can safely
@@ -169,11 +197,7 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
                 public void onPush() throws Exception {
                   final HttpRequest request = grab(requestInlet);
                   final AgentScope scope = DatadogWrapperHelper.createSpan(request);
-                  if (scope != null) {
-                    scopes.add(scope);
-                  } else {
-                    scopes.add(DUMMY_SCOPE);
-                  }
+                  scopes.add(scope);
                   push(requestOutlet, request);
                   // Since we haven't instrumented the akka stream state machine, we can't rely
                   // on spans and scopes being propagated during the push and pull of the
@@ -197,7 +221,7 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
                 }
               });
 
-          // This is where the requests goes out to the user code
+          // This is where demand comes in from the user code
           setHandler(
               requestOutlet,
               new AbstractOutHandler() {
@@ -221,7 +245,7 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
                 public void onPush() throws Exception {
                   final HttpResponse response = grab(responseInlet);
                   final AgentScope scope = scopes.poll();
-                  if (scope != null && scope != DUMMY_SCOPE) {
+                  if (scope != null) {
                     DatadogWrapperHelper.finishSpan(scope.span(), response);
                     // Check if the active scope is still the scope from when the request came in,
                     // and close it. If it's not, then it will be cleaned up actor message
@@ -240,9 +264,7 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
                   // remaining spans
                   AgentScope scope = scopes.poll();
                   while (scope != null) {
-                    if (scope != DUMMY_SCOPE) {
-                      scope.span().finish();
-                    }
+                    scope.span().finish();
                     scope = scopes.poll();
                   }
                   completeStage();
@@ -251,7 +273,7 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
                 @Override
                 public void onUpstreamFailure(final Throwable ex) throws Exception {
                   AgentScope scope = scopes.poll();
-                  if (scope != null && scope != DUMMY_SCOPE) {
+                  if (scope != null) {
                     // Mark the span as failed
                     DatadogWrapperHelper.finishSpan(scope.span(), ex);
                   }
@@ -259,16 +281,14 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
                   // remaining spans
                   scope = scopes.poll();
                   while (scope != null) {
-                    if (scope != DUMMY_SCOPE) {
-                      scope.span().finish();
-                    }
+                    scope.span().finish();
                     scope = scopes.poll();
                   }
                   fail(responseOutlet, ex);
                 }
               });
 
-          // This is where the response goes back to the server and TCP layer
+          // This is where demand comes in from the server and TCP layer
           setHandler(
               responseOutlet,
               new AbstractOutHandler() {

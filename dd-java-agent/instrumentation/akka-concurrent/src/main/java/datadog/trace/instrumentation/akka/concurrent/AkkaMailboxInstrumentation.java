@@ -53,6 +53,17 @@ public class AkkaMailboxInstrumentation extends Instrumenter.Default
     return excludedTypes;
   }
 
+  /**
+   * This instrumentation is defensive and closes all scopes on the scope stack that were not there
+   * when we started processing this actor mailbox. The reason for that is twofold.
+   *
+   * <p>1) An actor is self contained, and driven by a thread that could serve many other purposes,
+   * and a scope should not leak out after a mailbox has been processed.
+   *
+   * <p>2) We rely on this cleanup mechanism to be able to intentionally leak the scope in the
+   * {@code AkkaHttpServerInstrumentation} so that it propagates to the user provided request
+   * handling code that will execute on the same thread in the same actor.
+   */
   public static final class SuppressMailboxRunAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter() {

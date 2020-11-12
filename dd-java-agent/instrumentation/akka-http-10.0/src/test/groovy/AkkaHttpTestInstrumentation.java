@@ -29,6 +29,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 
+/**
+ * See {@link datadog.trace.instrumentation.akkahttp.AkkaHttpServerInstrumentation} for an
+ * explanation about how the instrumentation works.
+ */
 @AutoService(Instrumenter.class)
 public class AkkaHttpTestInstrumentation implements Instrumenter {
 
@@ -108,7 +112,7 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
                     // Since we haven't instrumented the akka stream state machine and the state
                     // machine will only execute events in this flow before picking up the next
                     // message, we let the scope leak, and be cleaned up by actor message
-                    // processing.
+                    // processing. See AkkaHttpServerInstrumentation.
                   }
                 }
 
@@ -127,7 +131,7 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
                 }
               });
 
-          // This is where the requests goes out to the user code
+          // This is where demand comes in from the user code
           setHandler(
               requestOutlet,
               new AbstractOutHandler() {
@@ -184,7 +188,7 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
                 }
               });
 
-          // This is where the response goes back to the server and TCP layer
+          // This is where demand comes in from the server and TCP layer
           setHandler(
               responseOutlet,
               new AbstractOutHandler() {
