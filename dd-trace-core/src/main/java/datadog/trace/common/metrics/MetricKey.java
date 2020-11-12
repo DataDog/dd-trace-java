@@ -3,6 +3,7 @@ package datadog.trace.common.metrics;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Objects;
 
+/** The aggregation key for tracked metrics. */
 public final class MetricKey {
   private final UTF8BytesString resource;
   private final UTF8BytesString service;

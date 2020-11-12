@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+/** Not thread-safe. Accumulates counts and durations. */
 public final class AggregateMetric {
   private int errorCount;
   private int hitCount;

@@ -2,6 +2,15 @@ package datadog.trace.common.metrics;
 
 import java.util.Arrays;
 
+/**
+ * This is a thread-safe container for partial conflating and accumulating partial aggregates on the
+ * same key.
+ *
+ * <p>Updates to an already consumed batch are rejected.
+ *
+ * <p>A batch can currently take at most 64 values. Attempts to add the 65th update will be
+ * rejected.
+ */
 public final class Batch {
 
   public static final Batch NULL = new Batch(null);
@@ -30,18 +39,23 @@ public final class Batch {
   }
 
   public boolean add(boolean error, long durationNanos) {
-    if (null != key) {
+    if (null != key && count < 64) {
       synchronized (this) {
         if (null != key) {
-          if (count < 64) {
-            if (error) {
-              errorMask |= (1L << count);
-            }
-            durations[count++] = durationNanos;
-            return true;
-          }
+          return addExclusive(error, durationNanos);
         }
       }
+    }
+    return false;
+  }
+
+  boolean addExclusive(boolean error, long durationNanos) {
+    if (count < 64) {
+      if (error) {
+        errorMask |= (1L << count);
+      }
+      durations[count++] = durationNanos;
+      return true;
     }
     return false;
   }

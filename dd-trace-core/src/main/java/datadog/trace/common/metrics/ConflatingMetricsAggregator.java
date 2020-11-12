@@ -103,15 +103,21 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         new MetricKey(span.getResourceName(), span.getServiceName(), span.getOperationName(), 0);
     Batch batch = pending.get(key);
     if (null != batch) {
+      // there is a pending batch, try to win the race to add to it
+      // returning false means that either the batch can't take any
+      // more data, or it has already been consumed
       if (batch.add(error, durationNanos)) {
-        // added to a pending batch, skip the queue
+        // added to a pending batch prior to consumption
+        // so skip publishing to the queue
         return;
       }
     }
     batch = newBatch(key);
-    batch.add(error, durationNanos);
-    // overwrite the last one if present, it's already full
+    batch.addExclusive(error, durationNanos);
+    // overwrite the last one if present, it was already full
+    // or had been consumed by the time we tried to add to it
     pending.put(key, batch);
+    // must offer to the queue after adding to pending
     inbox.offer(batch);
   }
 
