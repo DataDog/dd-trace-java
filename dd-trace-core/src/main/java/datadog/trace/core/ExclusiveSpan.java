@@ -52,6 +52,10 @@ public final class ExclusiveSpan {
     return context.getErrorFlag();
   }
 
+  public boolean isMeasured() {
+    return context.isMeasured();
+  }
+
   public void setError(final boolean error) {
     context.setErrorFlag(error);
   }
