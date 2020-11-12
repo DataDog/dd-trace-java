@@ -21,30 +21,38 @@ public final class UTF8BytesString implements CharSequence {
     } else if (sequence instanceof UTF8BytesString) {
       return (UTF8BytesString) sequence;
     } else {
-      return new UTF8BytesString(sequence);
+      return new UTF8BytesString(String.valueOf(sequence));
     }
   }
 
   private final String string;
-  private final byte[] utf8Bytes;
+  private byte[] utf8Bytes;
 
-  private UTF8BytesString(CharSequence chars) {
-    this.string = String.valueOf(chars);
-    this.utf8Bytes = string.getBytes(UTF_8);
+  private UTF8BytesString(String string) {
+    this.string = string;
   }
 
   /** Writes the UTF8 encoding of the wrapped {@code String}. */
   public void transferTo(ByteBuffer buffer) {
+    encodeIfNecessary();
     buffer.put(utf8Bytes);
   }
 
   public int encodedLength() {
+    encodeIfNecessary();
     return utf8Bytes.length;
   }
 
   @Override
   public String toString() {
     return string;
+  }
+
+  private void encodeIfNecessary() {
+    // benign and intentional race condition
+    if (null == utf8Bytes) {
+      utf8Bytes = string.getBytes(UTF_8);
+    }
   }
 
   @Override
