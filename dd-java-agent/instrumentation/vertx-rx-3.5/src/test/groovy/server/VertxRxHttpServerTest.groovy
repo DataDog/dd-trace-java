@@ -1,9 +1,9 @@
 package server
 
 
+import io.vertx.core.AbstractVerticle
 import io.vertx.core.Future
-import io.vertx.reactivex.core.AbstractVerticle
-import io.vertx.reactivex.ext.web.Router
+import io.vertx.ext.web.Router
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
