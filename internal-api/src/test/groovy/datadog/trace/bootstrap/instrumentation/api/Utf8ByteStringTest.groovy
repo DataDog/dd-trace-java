@@ -33,12 +33,10 @@ class Utf8ByteStringTest extends DDSpecification {
     "foo"                                                         | false
     "bar"                                                         | false
     "alongerstring"                                               | false
-    new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | false
     null                                                          | true
     "foo"                                                         | true
     "bar"                                                         | true
     "alongerstring"                                               | true
-    new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | true
   }
 
   def "behave like a proper CharSequence"() {
@@ -63,12 +61,10 @@ class Utf8ByteStringTest extends DDSpecification {
     new StringBuffer("bar")                                       | true
     new StringBuffer("someotherlongstring")                       | true
     UTF8BytesString.create("utf8string")                          | true
-    new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | true
     null                                                          | false
     "foo"                                                         | false
     new StringBuffer("bar")                                       | false
     new StringBuffer("someotherlongstring")                       | false
     UTF8BytesString.create("utf8string")                          | false
-    new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | false
   }
 }
