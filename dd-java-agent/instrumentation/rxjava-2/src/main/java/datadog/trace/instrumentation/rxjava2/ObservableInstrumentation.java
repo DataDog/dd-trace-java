@@ -48,37 +48,38 @@ public final class ObservableInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(isConstructor(), packageName + ".ObservableInstrumentation$ObservableAdvice");
+    Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+    transformers.put(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
     transformers.put(
         isMethod()
             .and(named("subscribe"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("io.reactivex.Observer"))),
-        packageName + ".ObservableInstrumentation$SubscribeAdvice");
+        getClass().getName() + "$PropagateParentSpanAdvice");
     return transformers;
   }
 
-  public static class ObservableAdvice {
+  public static class CaptureParentSpanAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onConstruct(@Advice.This final Observable<?> thiz) {
-      AgentSpan span = activeSpan();
-      if (span != null) {
-        InstrumentationContext.get(Observable.class, AgentSpan.class).put(thiz, span);
+    public static void onConstruct(@Advice.This final Observable<?> observable) {
+      AgentSpan parentSpan = activeSpan();
+      if (parentSpan != null) {
+        InstrumentationContext.get(Observable.class, AgentSpan.class).put(observable, parentSpan);
       }
     }
   }
 
-  public static class SubscribeAdvice {
+  public static class PropagateParentSpanAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope openScope(
-        @Advice.This final Observable<?> thiz,
+    public static AgentScope onSubscribe(
+        @Advice.This final Observable<?> observable,
         @Advice.Argument(value = 0, readOnly = false) Observer<?> observer) {
       if (observer != null) {
-        AgentSpan span = InstrumentationContext.get(Observable.class, AgentSpan.class).get(thiz);
-        if (span != null) {
-          observer = new TracingObserver<>(observer, span);
-          return activateSpan(span);
+        AgentSpan parentSpan =
+            InstrumentationContext.get(Observable.class, AgentSpan.class).get(observable);
+        if (parentSpan != null) {
+          observer = new TracingObserver<>(observer, parentSpan);
+          return activateSpan(parentSpan);
         }
       }
       return null;

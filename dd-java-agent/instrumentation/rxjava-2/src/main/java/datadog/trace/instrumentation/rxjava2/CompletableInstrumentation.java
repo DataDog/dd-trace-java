@@ -48,38 +48,38 @@ public final class CompletableInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
-        isConstructor(), packageName + ".CompletableInstrumentation$CompletableAdvice");
+    Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+    transformers.put(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
     transformers.put(
         isMethod()
             .and(named("subscribe"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("io.reactivex.CompletableObserver"))),
-        packageName + ".CompletableInstrumentation$SubscribeAdvice");
+        getClass().getName() + "$PropagateParentSpanAdvice");
     return transformers;
   }
 
-  public static class CompletableAdvice {
+  public static class CaptureParentSpanAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onConstruct(@Advice.This final Completable thiz) {
-      AgentSpan span = activeSpan();
-      if (span != null) {
-        InstrumentationContext.get(Completable.class, AgentSpan.class).put(thiz, span);
+    public static void onConstruct(@Advice.This final Completable completable) {
+      AgentSpan parentSpan = activeSpan();
+      if (parentSpan != null) {
+        InstrumentationContext.get(Completable.class, AgentSpan.class).put(completable, parentSpan);
       }
     }
   }
 
-  public static class SubscribeAdvice {
+  public static class PropagateParentSpanAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope openScope(
-        @Advice.This final Completable thiz,
+    public static AgentScope onSubscribe(
+        @Advice.This final Completable completable,
         @Advice.Argument(value = 0, readOnly = false) CompletableObserver observer) {
       if (observer != null) {
-        AgentSpan span = InstrumentationContext.get(Completable.class, AgentSpan.class).get(thiz);
-        if (span != null) {
-          observer = new TracingCompletableObserver(observer, span);
-          return activateSpan(span);
+        AgentSpan parentSpan =
+            InstrumentationContext.get(Completable.class, AgentSpan.class).get(completable);
+        if (parentSpan != null) {
+          observer = new TracingCompletableObserver(observer, parentSpan);
+          return activateSpan(parentSpan);
         }
       }
       return null;

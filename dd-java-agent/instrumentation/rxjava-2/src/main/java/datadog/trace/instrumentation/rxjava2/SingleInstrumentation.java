@@ -48,37 +48,38 @@ public final class SingleInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(isConstructor(), packageName + ".SingleInstrumentation$SingleAdvice");
+    Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+    transformers.put(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
     transformers.put(
         isMethod()
             .and(named("subscribe"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("io.reactivex.SingleObserver"))),
-        packageName + ".SingleInstrumentation$SubscribeAdvice");
+        getClass().getName() + "$PropagateParentSpanAdvice");
     return transformers;
   }
 
-  public static class SingleAdvice {
+  public static class CaptureParentSpanAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onConstruct(@Advice.This final Single<?> thiz) {
-      AgentSpan span = activeSpan();
-      if (span != null) {
-        InstrumentationContext.get(Single.class, AgentSpan.class).put(thiz, span);
+    public static void onConstruct(@Advice.This final Single<?> single) {
+      AgentSpan parentSpan = activeSpan();
+      if (parentSpan != null) {
+        InstrumentationContext.get(Single.class, AgentSpan.class).put(single, parentSpan);
       }
     }
   }
 
-  public static class SubscribeAdvice {
+  public static class PropagateParentSpanAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope openScope(
-        @Advice.This final Single<?> thiz,
+    public static AgentScope onSubscribe(
+        @Advice.This final Single<?> single,
         @Advice.Argument(value = 0, readOnly = false) SingleObserver<?> observer) {
       if (observer != null) {
-        AgentSpan span = InstrumentationContext.get(Single.class, AgentSpan.class).get(thiz);
-        if (span != null) {
-          observer = new TracingSingleObserver<>(observer, span);
-          return activateSpan(span);
+        AgentSpan parentSpan =
+            InstrumentationContext.get(Single.class, AgentSpan.class).get(single);
+        if (parentSpan != null) {
+          observer = new TracingSingleObserver<>(observer, parentSpan);
+          return activateSpan(parentSpan);
         }
       }
       return null;

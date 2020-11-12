@@ -48,37 +48,37 @@ public final class MaybeInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(isConstructor(), packageName + ".MaybeInstrumentation$MaybeAdvice");
+    Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+    transformers.put(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
     transformers.put(
         isMethod()
             .and(named("subscribe"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("io.reactivex.MaybeObserver"))),
-        packageName + ".MaybeInstrumentation$SubscribeAdvice");
+        getClass().getName() + "$PropagateParentSpanAdvice");
     return transformers;
   }
 
-  public static class MaybeAdvice {
+  public static class CaptureParentSpanAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onConstruct(@Advice.This final Maybe<?> thiz) {
-      AgentSpan span = activeSpan();
-      if (span != null) {
-        InstrumentationContext.get(Maybe.class, AgentSpan.class).put(thiz, span);
+    public static void onConstruct(@Advice.This final Maybe<?> maybe) {
+      AgentSpan parentSpan = activeSpan();
+      if (parentSpan != null) {
+        InstrumentationContext.get(Maybe.class, AgentSpan.class).put(maybe, parentSpan);
       }
     }
   }
 
-  public static class SubscribeAdvice {
+  public static class PropagateParentSpanAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope openScope(
-        @Advice.This final Maybe<?> thiz,
+    public static AgentScope onSubscribe(
+        @Advice.This final Maybe<?> maybe,
         @Advice.Argument(value = 0, readOnly = false) MaybeObserver<?> observer) {
       if (observer != null) {
-        AgentSpan span = InstrumentationContext.get(Maybe.class, AgentSpan.class).get(thiz);
-        if (span != null) {
-          observer = new TracingMaybeObserver<>(observer, span);
-          return activateSpan(span);
+        AgentSpan parentSpan = InstrumentationContext.get(Maybe.class, AgentSpan.class).get(maybe);
+        if (parentSpan != null) {
+          observer = new TracingMaybeObserver<>(observer, parentSpan);
+          return activateSpan(parentSpan);
         }
       }
       return null;

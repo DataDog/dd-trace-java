@@ -48,37 +48,38 @@ public final class FlowableInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(isConstructor(), packageName + ".FlowableInstrumentation$FlowableAdvice");
+    Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+    transformers.put(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
     transformers.put(
         isMethod()
             .and(named("subscribe"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.reactivestreams.Subscriber"))),
-        packageName + ".FlowableInstrumentation$SubscribeAdvice");
+        getClass().getName() + "$PropagateParentSpanAdvice");
     return transformers;
   }
 
-  public static class FlowableAdvice {
+  public static class CaptureParentSpanAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onConstruct(@Advice.This final Flowable<?> thiz) {
-      AgentSpan span = activeSpan();
-      if (span != null) {
-        InstrumentationContext.get(Flowable.class, AgentSpan.class).put(thiz, span);
+    public static void onConstruct(@Advice.This final Flowable<?> flowable) {
+      AgentSpan parentSpan = activeSpan();
+      if (parentSpan != null) {
+        InstrumentationContext.get(Flowable.class, AgentSpan.class).put(flowable, parentSpan);
       }
     }
   }
 
-  public static class SubscribeAdvice {
+  public static class PropagateParentSpanAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope openScope(
-        @Advice.This final Flowable<?> thiz,
-        @Advice.Argument(value = 0, readOnly = false) Subscriber<?> observer) {
-      if (observer != null) {
-        AgentSpan span = InstrumentationContext.get(Flowable.class, AgentSpan.class).get(thiz);
-        if (span != null) {
-          observer = new TracingSubscriber<>(observer, span);
-          return activateSpan(span);
+    public static AgentScope onSubscribe(
+        @Advice.This final Flowable<?> flowable,
+        @Advice.Argument(value = 0, readOnly = false) Subscriber<?> subscriber) {
+      if (subscriber != null) {
+        AgentSpan parentSpan =
+            InstrumentationContext.get(Flowable.class, AgentSpan.class).get(flowable);
+        if (parentSpan != null) {
+          subscriber = new TracingSubscriber<>(subscriber, parentSpan);
+          return activateSpan(parentSpan);
         }
       }
       return null;
