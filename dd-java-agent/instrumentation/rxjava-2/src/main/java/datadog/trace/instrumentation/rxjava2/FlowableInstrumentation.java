@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.rxjava2;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -12,7 +14,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.reactivex.Flowable;
 import java.util.HashMap;
 import java.util.Map;
@@ -61,11 +62,10 @@ public final class FlowableInstrumentation extends Instrumenter.Default {
   public static class FlowableAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstruct(@Advice.This final Flowable<?> thiz) {
-      AgentSpan span = AgentTracer.activeSpan();
-      if (span == null) {
-        span = AgentTracer.noopSpan();
+      AgentSpan span = activeSpan();
+      if (span != null) {
+        InstrumentationContext.get(Flowable.class, AgentSpan.class).put(thiz, span);
       }
-      InstrumentationContext.get(Flowable.class, AgentSpan.class).put(thiz, span);
     }
   }
 
@@ -78,7 +78,7 @@ public final class FlowableInstrumentation extends Instrumenter.Default {
         AgentSpan span = InstrumentationContext.get(Flowable.class, AgentSpan.class).get(thiz);
         if (span != null) {
           observer = new TracingSubscriber<>(observer, span);
-          return AgentTracer.activateSpan(span);
+          return activateSpan(span);
         }
       }
       return null;
