@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope.Continuation;
 
-public class AbstractTracingListener<L> {
+public abstract class AbstractTracingListener<L> {
   protected final AgentSpan clientSpan;
   protected final Continuation continuation;
   protected final L listener;
