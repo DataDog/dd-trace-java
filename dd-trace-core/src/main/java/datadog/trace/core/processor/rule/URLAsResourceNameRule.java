@@ -8,14 +8,6 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
 
   private static final BitSlicedBitapSearch PROTOCOL_SEARCH = new BitSlicedBitapSearch("://");
 
-  private final ThreadLocal<StringBuilder> resourceNameBuilder =
-      new ThreadLocal<StringBuilder>() {
-        @Override
-        protected StringBuilder initialValue() {
-          return new StringBuilder(100);
-        }
-      };
-
   @Override
   public String[] aliases() {
     return new String[] {"URLAsResourceName", "Status404Rule", "Status404Decorator"};
@@ -39,7 +31,7 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
   }
 
   private String extractResourceNameFromURL(final Object method, final String url) {
-    StringBuilder resourceName = resourceNameBuilder.get();
+    StringBuilder resourceName = new StringBuilder(128);
     try {
       if (method != null) {
         final String verb = method.toString().toUpperCase().trim();
