@@ -1,3 +1,8 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
 muzzle {
   pass {
     group = "io.reactivex.rxjava2"
@@ -20,6 +25,8 @@ dependencies {
   compileOnly group: 'org.reactivestreams', name: 'reactive-streams', version: '1.0.0'
   compileOnly group: 'io.reactivex.rxjava2', name: 'rxjava', version: '2.0.0'
 
-  testCompile group: 'io.reactivex.rxjava2', name: 'rxjava', version: '2.0.0'
+  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
+
+  testCompile group: 'io.reactivex.rxjava2', name: 'rxjava', version: '2.0.5'
   latestDepTestCompile group: 'io.reactivex.rxjava2', name: 'rxjava', version: '+'
 }
