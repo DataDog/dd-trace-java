@@ -27,10 +27,6 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   Map<CharSequence, Number> getMetrics();
 
-  Map<String, String> getBaggage();
-
-  Map<String, Object> getTags();
-
   CharSequence getType();
 
   void processTagsAndBaggage(TagsAndBaggageConsumer consumer);

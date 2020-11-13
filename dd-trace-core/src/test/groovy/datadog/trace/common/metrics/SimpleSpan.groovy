@@ -87,16 +87,6 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
-  Map<String, String> getBaggage() {
-    return null
-  }
-
-  @Override
-  Map<String, Object> getTags() {
-    return null
-  }
-
-  @Override
   CharSequence getType() {
     return null
   }

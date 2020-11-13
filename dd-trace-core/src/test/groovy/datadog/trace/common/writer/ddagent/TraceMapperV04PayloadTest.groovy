@@ -1,7 +1,5 @@
 package datadog.trace.common.writer.ddagent
 
-
-import datadog.trace.core.CoreSpan
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
@@ -34,14 +32,14 @@ class TraceMapperV04PayloadTest extends DDSpecification {
 
   def "test traces written correctly"() {
     setup:
-    List<List<CoreSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
+    List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4()
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
     MsgPackWriter packer = new MsgPackWriter(verifier, ByteBuffer.allocate(bufferSize))
     when:
     boolean tracesFitInBuffer = true
     try {
-      for (List<CoreSpan> trace : traces) {
+      for (List<TraceGenerator.PojoSpan> trace : traces) {
         packer.format(trace, traceMapper)
       }
     } catch (BufferOverflowException e) {
@@ -78,13 +76,13 @@ class TraceMapperV04PayloadTest extends DDSpecification {
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
-    private final List<List<CoreSpan>> expectedTraces
+    private final List<List<TraceGenerator.PojoSpan>> expectedTraces
     private final TraceMapperV0_4 mapper
     private final ByteBuffer captured = ByteBuffer.allocate(200 << 10)
 
     private int position = 0
 
-    private PayloadVerifier(List<List<CoreSpan>> traces, TraceMapperV0_4 mapper) {
+    private PayloadVerifier(List<List<TraceGenerator.PojoSpan>> traces, TraceMapperV0_4 mapper) {
       this.expectedTraces = traces
       this.mapper = mapper
     }
@@ -98,11 +96,11 @@ class TraceMapperV04PayloadTest extends DDSpecification {
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured)
         int traceCount = unpacker.unpackArrayHeader()
         for (int i = 0; i < traceCount; ++i) {
-          List<CoreSpan> expectedTrace = expectedTraces.get(position++)
+          List<TraceGenerator.PojoSpan> expectedTrace = expectedTraces.get(position++)
           int spanCount = unpacker.unpackArrayHeader()
           assertEquals(expectedTrace.size(), spanCount)
           for (int k = 0; k < spanCount; ++k) {
-            CoreSpan expectedSpan = expectedTrace.get(k)
+            TraceGenerator.PojoSpan expectedSpan = expectedTrace.get(k)
             int elementCount = unpacker.unpackMapHeader()
             assertEquals(12, elementCount)
             assertEquals("service", unpacker.unpackString())

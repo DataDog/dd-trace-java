@@ -189,12 +189,10 @@ class TraceGenerator {
       return metrics
     }
 
-    @Override
     Map<String, String> getBaggage() {
       return baggage
     }
 
-    @Override
     Map<String, Object> getTags() {
       return tags
     }
