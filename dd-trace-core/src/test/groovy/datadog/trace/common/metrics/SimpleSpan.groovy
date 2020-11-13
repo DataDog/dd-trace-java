@@ -77,6 +77,16 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
+  <U> U getTag(CharSequence name, U defaultValue) {
+    return defaultValue
+  }
+
+  @Override
+  <U> U getTag(CharSequence name) {
+    return null
+  }
+
+  @Override
   boolean isMeasured() {
     return measured
   }

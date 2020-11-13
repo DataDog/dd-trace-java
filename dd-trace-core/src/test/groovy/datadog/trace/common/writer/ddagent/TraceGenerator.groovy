@@ -241,5 +241,15 @@ class TraceGenerator {
     PojoSpan setFlag(CharSequence name, boolean value) {
       return this
     }
+
+    @Override
+    <U> U getTag(CharSequence name, U defaultValue) {
+      return tags.get(String.valueOf(name), defaultValue) as U
+    }
+
+    @Override
+    <U> U getTag(CharSequence name) {
+      return tags.get(String.valueOf(name)) as U
+    }
   }
 }

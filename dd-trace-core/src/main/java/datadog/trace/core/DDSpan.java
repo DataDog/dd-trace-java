@@ -426,6 +426,18 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
+  public <U> U getTag(CharSequence name, U defaultValue) {
+    Object tag = getTag(String.valueOf(name));
+    return null == tag ? defaultValue : (U) tag;
+  }
+
+  @Override
+  public <U> U getTag(CharSequence name) {
+    return getTag(name, null);
+  }
+
+  @Override
   public boolean isMeasured() {
     return context.isMeasured();
   }

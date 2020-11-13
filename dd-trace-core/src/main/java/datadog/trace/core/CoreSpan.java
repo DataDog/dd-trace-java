@@ -23,6 +23,10 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   int getError();
 
+  <U> U getTag(CharSequence name, U defaultValue);
+
+  <U> U getTag(CharSequence name);
+
   boolean isMeasured();
 
   Map<CharSequence, Number> getMetrics();
