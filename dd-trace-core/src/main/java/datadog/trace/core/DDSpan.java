@@ -1,7 +1,5 @@
 package datadog.trace.core;
 
-import static datadog.trace.common.sampling.RateByServiceSampler.SAMPLING_AGENT_RATE;
-
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -303,9 +301,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
-  public DDSpan setSamplingPriority(int samplingPriority, double sampleRate) {
+  public DDSpan setSamplingPriority(int samplingPriority, CharSequence rate, double sampleRate) {
     if (context.setSamplingPriority(samplingPriority)) {
-      setMetric(SAMPLING_AGENT_RATE, sampleRate);
+      setMetric(rate, sampleRate);
     }
     return this;
   }

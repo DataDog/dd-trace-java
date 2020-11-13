@@ -4,13 +4,13 @@ import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.DROP;
 import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.KEEP;
 
 import datadog.trace.api.Config;
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.CoreSpan;
 import java.util.Map;
 import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 
 /** Main interface to sample a collection of traces. */
-public interface Sampler {
+public interface Sampler<T extends CoreSpan<T>> {
 
   /**
    * Sample a collection of traces based on the parent span
@@ -18,7 +18,7 @@ public interface Sampler {
    * @param span the parent span with its context
    * @return true when the trace/spans has to be reported/written
    */
-  boolean sample(DDSpan span);
+  boolean sample(T span);
 
   @Slf4j
   final class Builder {

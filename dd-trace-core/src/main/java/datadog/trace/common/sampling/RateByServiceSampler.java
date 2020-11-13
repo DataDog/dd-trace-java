@@ -5,7 +5,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.CoreSpan;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -17,15 +17,17 @@ import lombok.extern.slf4j.Slf4j;
  * <p>The configuration of (serviceName,env)->rate is configured by the core agent.
  */
 @Slf4j
-public class RateByServiceSampler implements Sampler, PrioritySampler, DDAgentResponseListener {
+public class RateByServiceSampler<T extends CoreSpan<T>>
+    implements Sampler<T>, PrioritySampler<T>, DDAgentResponseListener {
   public static final String SAMPLING_AGENT_RATE = "_dd.agent_psr";
 
   private static final double DEFAULT_RATE = 1.0;
 
-  private volatile RateSamplersByEnvAndService serviceRates = new RateSamplersByEnvAndService();
+  private volatile RateSamplersByEnvAndService<T> serviceRates =
+      new RateSamplersByEnvAndService<>();
 
   @Override
-  public boolean sample(final DDSpan span) {
+  public boolean sample(final T span) {
     // Priority sampling sends all traces to the core agent, including traces marked dropped.
     // This allows the core agent to collect stats on all traces.
     return true;
@@ -33,23 +35,24 @@ public class RateByServiceSampler implements Sampler, PrioritySampler, DDAgentRe
 
   /** If span is a root span, set the span context samplingPriority to keep or drop */
   @Override
-  public void setSamplingPriority(final DDSpan span) {
+  public void setSamplingPriority(final T span) {
     final String serviceName = span.getServiceName();
     final String env = getSpanEnv(span);
 
-    final RateSamplersByEnvAndService rates = serviceRates;
-    RateSampler sampler = rates.getSampler(new EnvAndService(env, serviceName));
+    final RateSamplersByEnvAndService<T> rates = serviceRates;
+    RateSampler<T> sampler = rates.getSampler(new EnvAndService(env, serviceName));
 
     if (sampler.sample(span)) {
-      span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, sampler.getSampleRate());
+      span.setSamplingPriority(
+          PrioritySampling.SAMPLER_KEEP, SAMPLING_AGENT_RATE, sampler.getSampleRate());
     } else {
-      span.setSamplingPriority(PrioritySampling.SAMPLER_DROP, sampler.getSampleRate());
+      span.setSamplingPriority(
+          PrioritySampling.SAMPLER_DROP, SAMPLING_AGENT_RATE, sampler.getSampleRate());
     }
   }
 
-  private static String getSpanEnv(final DDSpan span) {
-    Object env = span.getTag("env");
-    return null == env ? "" : String.valueOf(env);
+  private String getSpanEnv(final T span) {
+    return span.getTag("env", "");
   }
 
   @Override
@@ -58,20 +61,20 @@ public class RateByServiceSampler implements Sampler, PrioritySampler, DDAgentRe
     final Map<String, Number> newServiceRates = responseJson.get("rate_by_service");
     if (null != newServiceRates) {
       log.debug("Update service sampler rates: {} -> {}", endpoint, responseJson);
-      final Map<EnvAndService, RateSampler> updatedServiceRates =
+      final Map<EnvAndService, RateSampler<T>> updatedServiceRates =
           new HashMap<>(newServiceRates.size() * 2);
       for (final Map.Entry<String, Number> entry : newServiceRates.entrySet()) {
         if (entry.getValue() != null) {
           updatedServiceRates.put(
               EnvAndService.fromString(entry.getKey()),
-              createRateSampler(entry.getValue().doubleValue()));
+              RateByServiceSampler.<T>createRateSampler(entry.getValue().doubleValue()));
         }
       }
-      serviceRates = new RateSamplersByEnvAndService(updatedServiceRates);
+      serviceRates = new RateSamplersByEnvAndService<>(updatedServiceRates);
     }
   }
 
-  private static RateSampler createRateSampler(final double sampleRate) {
+  private static <T extends CoreSpan<T>> RateSampler<T> createRateSampler(final double sampleRate) {
     final double sanitizedRate;
     if (sampleRate < 0) {
       log.error("SampleRate is negative or null, disabling the sampler");
@@ -82,25 +85,26 @@ public class RateByServiceSampler implements Sampler, PrioritySampler, DDAgentRe
       sanitizedRate = sampleRate;
     }
 
-    return new DeterministicSampler(sanitizedRate);
+    return new DeterministicSampler<>(sanitizedRate);
   }
 
-  private static final class RateSamplersByEnvAndService {
-    private static final RateSampler DEFAULT = createRateSampler(DEFAULT_RATE);
+  private static final class RateSamplersByEnvAndService<T extends CoreSpan<T>> {
+    private static final RateSampler<?> DEFAULT = createRateSampler(DEFAULT_RATE);
 
-    private final Map<EnvAndService, RateSampler> serviceRates;
+    private final Map<EnvAndService, RateSampler<T>> serviceRates;
 
     RateSamplersByEnvAndService() {
-      this(new HashMap<EnvAndService, RateSampler>(0));
+      this(new HashMap<EnvAndService, RateSampler<T>>(0));
     }
 
-    RateSamplersByEnvAndService(Map<EnvAndService, RateSampler> serviceRates) {
+    RateSamplersByEnvAndService(Map<EnvAndService, RateSampler<T>> serviceRates) {
       this.serviceRates = serviceRates;
     }
 
-    public RateSampler getSampler(EnvAndService key) {
-      RateSampler sampler = serviceRates.get(key);
-      return null == sampler ? DEFAULT : sampler;
+    @SuppressWarnings("unchecked")
+    public RateSampler<T> getSampler(EnvAndService key) {
+      RateSampler<T> sampler = serviceRates.get(key);
+      return null == sampler ? (RateSampler<T>) DEFAULT : sampler;
     }
   }
 
