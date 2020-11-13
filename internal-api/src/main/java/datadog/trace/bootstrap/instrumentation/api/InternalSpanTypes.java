@@ -22,6 +22,8 @@ public class InternalSpanTypes {
       UTF8BytesString.createConstant(DDSpanTypes.ELASTICSEARCH);
   public static final CharSequence HIBERNATE =
       UTF8BytesString.createConstant(DDSpanTypes.HIBERNATE);
+  public static final CharSequence AEROSPIKE =
+      UTF8BytesString.createConstant(DDSpanTypes.AEROSPIKE);
 
   // these are all the same thing but don't want to be taken by surprise by changes in DDSpanTypes
   public static final CharSequence MESSAGE_CONSUMER =

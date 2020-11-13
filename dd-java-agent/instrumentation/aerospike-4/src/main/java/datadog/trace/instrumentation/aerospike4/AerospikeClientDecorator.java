@@ -8,17 +8,18 @@ import com.aerospike.client.cluster.Cluster;
 import com.aerospike.client.cluster.Node;
 import com.aerospike.client.cluster.Partition;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
 public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Node> {
-  public static final UTF8BytesString AEROSPIKE_JAVA =
-      UTF8BytesString.createConstant("aerospike-java");
+  public static final UTF8BytesString JAVA_AEROSPIKE = UTF8BytesString.create("java-aerospike");
+  public static final UTF8BytesString AEROSPIKE_COMMAND =
+      UTF8BytesString.create("aerospike.command");
 
   public static final AerospikeClientDecorator DECORATE = new AerospikeClientDecorator();
 
@@ -34,12 +35,12 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
 
   @Override
   protected CharSequence component() {
-    return "java-aerospike";
+    return JAVA_AEROSPIKE;
   }
 
   @Override
   protected CharSequence spanType() {
-    return DDSpanTypes.AEROSPIKE;
+    return InternalSpanTypes.AEROSPIKE;
   }
 
   @Override
@@ -91,7 +92,7 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
   }
 
   public AgentScope startAerospikeSpan(final String methodName) {
-    final AgentSpan span = startSpan(AEROSPIKE_JAVA);
+    final AgentSpan span = startSpan(AEROSPIKE_COMMAND);
     afterStart(span);
     withMethod(span, methodName);
     return activateSpan(span);
