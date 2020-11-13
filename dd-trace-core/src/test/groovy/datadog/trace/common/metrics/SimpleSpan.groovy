@@ -110,4 +110,34 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   SimpleSpan setSamplingPriority(int samplingPriority) {
     return this
   }
+
+  @Override
+  SimpleSpan setSamplingPriority(int samplingPriority, double sampleRate) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setMetric(CharSequence name, int value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setMetric(CharSequence name, long value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setMetric(CharSequence name, float value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setMetric(CharSequence name, double value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setFlag(CharSequence name, boolean value) {
+    return this
+  }
 }

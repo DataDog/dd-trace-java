@@ -40,18 +40,10 @@ public class RateByServiceSampler implements Sampler, PrioritySampler, DDAgentRe
     final RateSamplersByEnvAndService rates = serviceRates;
     RateSampler sampler = rates.getSampler(new EnvAndService(env, serviceName));
 
-    final boolean priorityWasSet;
-
     if (sampler.sample(span)) {
-      priorityWasSet = span.context().setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
+      span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP, sampler.getSampleRate());
     } else {
-      priorityWasSet = span.context().setSamplingPriority(PrioritySampling.SAMPLER_DROP);
-    }
-
-    // Only set metrics if we actually set the sampling priority
-    // We don't know until the call is completed because the lock is internal to DDSpanContext
-    if (priorityWasSet) {
-      span.context().setMetric(SAMPLING_AGENT_RATE, sampler.getSampleRate());
+      span.setSamplingPriority(PrioritySampling.SAMPLER_DROP, sampler.getSampleRate());
     }
   }
 

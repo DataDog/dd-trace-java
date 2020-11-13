@@ -1,5 +1,7 @@
 package datadog.trace.core;
 
+import static datadog.trace.common.sampling.RateByServiceSampler.SAMPLING_AGENT_RATE;
+
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -209,6 +211,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
+  public DDSpan setMetric(CharSequence name, float value) {
+    context.setMetric(name, value);
+    return this;
+  }
+
+  @Override
   public DDSpan setMetric(final CharSequence metric, final long value) {
     context.setMetric(metric, value);
     return this;
@@ -217,6 +225,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public DDSpan setMetric(final CharSequence metric, final double value) {
     context.setMetric(metric, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setFlag(CharSequence name, boolean value) {
+    context.setMetric(name, value ? 1 : 0);
     return this;
   }
 
@@ -285,6 +299,14 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public final DDSpan setSamplingPriority(final int newPriority) {
     context.setSamplingPriority(newPriority);
+    return this;
+  }
+
+  @Override
+  public DDSpan setSamplingPriority(int samplingPriority, double sampleRate) {
+    if (context.setSamplingPriority(samplingPriority)) {
+      setMetric(SAMPLING_AGENT_RATE, sampleRate);
+    }
     return this;
   }
 

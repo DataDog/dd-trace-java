@@ -213,5 +213,35 @@ class TraceGenerator {
     PojoSpan setSamplingPriority(int samplingPriority) {
       return this
     }
+
+    @Override
+    PojoSpan setSamplingPriority(int samplingPriority, double sampleRate) {
+      return this
+    }
+
+    @Override
+    PojoSpan setMetric(CharSequence name, int value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setMetric(CharSequence name, long value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setMetric(CharSequence name, float value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setMetric(CharSequence name, double value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setFlag(CharSequence name, boolean value) {
+      return this
+    }
   }
 }

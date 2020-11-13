@@ -36,4 +36,16 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   void processTagsAndBaggage(TagsAndBaggageConsumer consumer);
 
   T setSamplingPriority(int samplingPriority);
+
+  T setSamplingPriority(int samplingPriority, double sampleRate);
+
+  T setMetric(CharSequence name, int value);
+
+  T setMetric(CharSequence name, long value);
+
+  T setMetric(CharSequence name, float value);
+
+  T setMetric(CharSequence name, double value);
+
+  T setFlag(CharSequence name, boolean value);
 }
