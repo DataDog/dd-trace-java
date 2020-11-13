@@ -19,7 +19,6 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 
 public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Node> {
   public static final UTF8BytesString AEROSPIKE_JAVA =
@@ -81,7 +80,7 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
     }
 
     if (cluster != null && cluster.getUser() != null) {
-      span.setTag(Tags.DB_USER, new String(cluster.getUser(), StandardCharsets.UTF_8));
+      span.setTag(Tags.DB_USER, UTF8BytesString.create(cluster.getUser()));
     }
 
     if (partition != null) {
