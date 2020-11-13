@@ -5,6 +5,7 @@ import static datadog.trace.instrumentation.aerospike4.AerospikeClientDecorator.
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -43,7 +44,7 @@ public final class PartitionInstrumentation extends Instrumenter.Default {
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         isMethod()
-            .and(named("getNodeRead").or(named("getNodeWrite")))
+            .and(namedOneOf("getNodeRead", "getNodeWrite"))
             .and(takesArgument(0, named("com.aerospike.client.cluster.Cluster")))
             .and(returns(named("com.aerospike.client.cluster.Node"))),
         getClass().getName() + "$GetNodeAdvice");
