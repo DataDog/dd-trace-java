@@ -128,11 +128,11 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def beforeTest(boolean enableV05) {
     Monitoring monitoring = new Monitoring(statsDClient, 1, TimeUnit.SECONDS)
-    api = new DDAgentApi(String.format("http://%s:%d", agentContainerHost, agentContainerPort), null, 5000, enableV05, monitoring)
+    api = new DDAgentApi(String.format("http://%s:%d", agentContainerHost, agentContainerPort), null, 5000, enableV05, false, monitoring)
     api.addResponseListener(responseListener)
     mapper = api.selectTraceMapper()
     version = mapper instanceof TraceMapperV0_5 ? "v0.5" : "v0.4"
-    unixDomainSocketApi = new DDAgentApi(String.format("http://%s:%d", SOMEHOST, SOMEPORT), socketPath.toString(), 5000, enableV05, monitoring)
+    unixDomainSocketApi = new DDAgentApi(String.format("http://%s:%d", SOMEHOST, SOMEPORT), socketPath.toString(), 5000, enableV05, false, monitoring)
     unixDomainSocketApi.addResponseListener(responseListener)
   }
 

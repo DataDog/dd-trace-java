@@ -1,5 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
+import static datadog.trace.core.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.trace.core.serialization.EncodingCachingStrategies.NO_CACHING;
 import static datadog.trace.core.serialization.Util.integerToStringBuffer;
 import static datadog.trace.core.serialization.Util.writeLongAsString;
@@ -17,9 +18,11 @@ import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import okhttp3.RequestBody;
 
 public final class TraceMapperV0_5 implements TraceMapper {
 
@@ -165,8 +168,6 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   private static class PayloadV0_5 extends Payload {
 
-    // msgpack array header with 2 elements (FIXARRAY | 2)
-    private final ByteBuffer header = ByteBuffer.allocate(1).put(0, (byte) 0x92);
     private final ByteBuffer dictionary;
 
     private PayloadV0_5(final ByteBuffer dictionary) {
@@ -175,14 +176,27 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
     @Override
     int sizeInBytes() {
-      return sizeInBytes(header) + sizeInBytes(dictionary) + sizeInBytes(body);
+      return 1 + dictionary.remaining() + body.remaining();
     }
 
     @Override
-    public void writeTo(final WritableByteChannel channel) throws IOException {
-      writeBufferToChannel(header, channel);
-      writeBufferToChannel(dictionary, channel);
-      writeBufferToChannel(body, channel);
+    void writeTo(WritableByteChannel channel) throws IOException {
+      for (ByteBuffer buffer : toList()) {
+        while (buffer.hasRemaining()) {
+          channel.write(buffer);
+        }
+      }
+    }
+
+    @Override
+    RequestBody toRequest() {
+      return msgpackRequestBodyOf(toList());
+    }
+
+    private List<ByteBuffer> toList() {
+      return Arrays.asList(
+          // msgpack array header with 2 elements (FIXARRAY | 2)
+          ByteBuffer.allocate(1).put(0, (byte) 0x92), dictionary, body);
     }
   }
 

@@ -16,17 +16,20 @@ import static datadog.trace.core.serialization.EncodingCachingStrategies.CONSTAN
 import static datadog.trace.core.serialization.EncodingCachingStrategies.NO_CACHING;
 import static datadog.trace.core.serialization.Util.integerToStringBuffer;
 import static datadog.trace.core.serialization.Util.writeLongAsString;
+import static java.util.Collections.singletonList;
 
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanData;
 import datadog.trace.core.TagsAndBaggageConsumer;
+import datadog.trace.core.http.OkHttpUtils;
 import datadog.trace.core.serialization.Writable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
 import java.util.Map;
+import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
 
@@ -169,12 +172,19 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     @Override
     int sizeInBytes() {
-      return sizeInBytes(body);
+      return body.remaining();
     }
 
     @Override
-    public void writeTo(WritableByteChannel channel) throws IOException {
-      writeBufferToChannel(body, channel);
+    void writeTo(WritableByteChannel channel) throws IOException {
+      while (body.hasRemaining()) {
+        channel.write(body);
+      }
+    }
+
+    @Override
+    RequestBody toRequest() {
+      return OkHttpUtils.msgpackRequestBodyOf(singletonList(body));
     }
   }
 }

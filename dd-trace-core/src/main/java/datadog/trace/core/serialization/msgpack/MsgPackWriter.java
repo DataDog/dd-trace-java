@@ -8,6 +8,7 @@ import datadog.trace.core.serialization.Codec;
 import datadog.trace.core.serialization.EncodingCache;
 import datadog.trace.core.serialization.WritableFormatter;
 import java.nio.ByteBuffer;
+import java.util.EnumSet;
 
 /** Not thread-safe (use one per thread). */
 public class MsgPackWriter extends WritableFormatter {
@@ -57,7 +58,12 @@ public class MsgPackWriter extends WritableFormatter {
 
   public MsgPackWriter(
       Codec codec, ByteBufferConsumer sink, ByteBuffer buffer, boolean manualReset) {
-    super(codec, sink, buffer, manualReset, 5);
+    super(
+        codec,
+        sink,
+        buffer,
+        manualReset ? EnumSet.of(Feature.MANUAL_RESET) : EnumSet.noneOf(Feature.class),
+        5);
   }
 
   public MsgPackWriter(Codec codec, ByteBufferConsumer sink, ByteBuffer buffer) {
@@ -66,6 +72,11 @@ public class MsgPackWriter extends WritableFormatter {
 
   public MsgPackWriter(ByteBufferConsumer sink, ByteBuffer buffer) {
     this(Codec.INSTANCE, sink, buffer);
+  }
+
+  public MsgPackWriter(
+      ByteBufferConsumer sink, ByteBuffer buffer, EnumSet<WritableFormatter.Feature> features) {
+    super(Codec.INSTANCE, sink, buffer, features, 5);
   }
 
   public MsgPackWriter(ByteBufferConsumer sink, ByteBuffer buffer, boolean manualReset) {
@@ -85,11 +96,15 @@ public class MsgPackWriter extends WritableFormatter {
   }
 
   @Override
-  protected void writeHeader() {
-    int pos = headerPosition();
-    buffer.position(pos);
-    startArray(messageCount);
-    buffer.position(pos);
+  protected void writeHeader(boolean writeArray) {
+    if (writeArray) {
+      int pos = headerPosition();
+      buffer.position(pos);
+      startArray(messageCount);
+      buffer.position(pos);
+    } else {
+      buffer.position(MAX_ARRAY_HEADER_SIZE);
+    }
   }
 
   private int headerPosition() {

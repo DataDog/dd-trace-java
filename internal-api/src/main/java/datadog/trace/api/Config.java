@@ -57,6 +57,9 @@ import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
+import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
@@ -332,6 +335,10 @@ public class Config {
   @Getter private final Integer healthMetricsStatsdPort;
   @Getter private final boolean perfMetricsEnabled;
 
+  @Getter private final boolean tracerMetricsEnabled;
+  @Getter private final int tracerMetricsMaxAggregates;
+  @Getter private final int tracerMetricsMaxPending;
+
   @Getter private final boolean logsInjectionEnabled;
   @Getter private final boolean logsMDCTagsInjectionEnabled;
   @Getter private final boolean reportHostName;
@@ -587,6 +594,10 @@ public class Config {
         runtimeMetricsEnabled
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
+    tracerMetricsEnabled = configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+    tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 1000);
+    tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
+
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
     logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, false);
@@ -719,6 +730,10 @@ public class Config {
     }
 
     return Collections.unmodifiableMap(result);
+  }
+
+  public WellKnownTags getWellKnownTags() {
+    return new WellKnownTags(getHostName(), tags.get(ENV), serviceName, tags.get(VERSION));
   }
 
   public Map<String, String> getMergedSpanTags() {

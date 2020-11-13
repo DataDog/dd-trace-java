@@ -18,9 +18,9 @@ class TraceMapperRealAgentTest extends DDSpecification {
   @Shared
   Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
   @Shared
-  DDAgentApi v05Api = new DDAgentApi("http://localhost:8126", null, 30_000, true, monitoring)
+  DDAgentApi v05Api = new DDAgentApi("http://localhost:8126", null, 30_000, true, false, monitoring)
   @Shared
-  DDAgentApi v04Api = new DDAgentApi("http://localhost:8126", null, 30_000, false, monitoring)
+  DDAgentApi v04Api = new DDAgentApi("http://localhost:8126", null, 30_000, false, false, monitoring)
 
   def "send random traces"() {
     setup:
