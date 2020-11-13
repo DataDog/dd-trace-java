@@ -35,9 +35,9 @@ public final class TracingListener
         ExecuteListener,
         DeleteListener {
 
-  protected final AgentSpan clientSpan;
-  protected final Continuation continuation;
-  protected final Object listener;
+  private final AgentSpan clientSpan;
+  private final Continuation continuation;
+  private final Object listener;
 
   public TracingListener(
       final AgentSpan clientSpan, final Continuation continuation, final Object listener) {
@@ -69,120 +69,109 @@ public final class TracingListener
 
   @Override
   public void onSuccess(final Key key, final boolean exists) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
-        if (listener instanceof ExistsListener) {
-          ((ExistsListener) listener).onSuccess(key, exists);
-        } else if (listener instanceof DeleteListener) {
-          ((DeleteListener) listener).onSuccess(key, exists);
-        }
-      }
-    } else {
-      continuation.cancel();
-    }
+    onSuccess(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (listener instanceof ExistsListener) {
+              ((ExistsListener) listener).onSuccess(key, exists);
+            } else if (listener instanceof DeleteListener) {
+              ((DeleteListener) listener).onSuccess(key, exists);
+            }
+          }
+        });
   }
 
   @Override
   public void onSuccess(final Key[] keys, final boolean[] exists) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
-        ((ExistsArrayListener) listener).onSuccess(keys, exists);
-      }
-    } else {
-      continuation.cancel();
-    }
+    onSuccess(
+        new Runnable() {
+          @Override
+          public void run() {
+            ((ExistsArrayListener) listener).onSuccess(keys, exists);
+          }
+        });
   }
 
   @Override
   public void onSuccess(final Key key, final Record record) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
-        ((RecordListener) listener).onSuccess(key, record);
-      }
-    } else {
-      continuation.cancel();
-    }
+    onSuccess(
+        new Runnable() {
+          @Override
+          public void run() {
+            ((RecordListener) listener).onSuccess(key, record);
+          }
+        });
   }
 
   @Override
   public void onSuccess(final Key[] keys, final Record[] records) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
-        ((RecordArrayListener) listener).onSuccess(keys, records);
-      }
-    } else {
-      continuation.cancel();
-    }
+    onSuccess(
+        new Runnable() {
+          @Override
+          public void run() {
+            ((RecordArrayListener) listener).onSuccess(keys, records);
+          }
+        });
   }
 
   @Override
   public void onSuccess(final List<BatchRead> records) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
-        ((BatchListListener) listener).onSuccess(records);
-      }
-    } else {
-      continuation.cancel();
-    }
+    onSuccess(
+        new Runnable() {
+          @Override
+          public void run() {
+            ((BatchListListener) listener).onSuccess(records);
+          }
+        });
   }
 
   @Override
   public void onSuccess(final Key key) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
-        ((WriteListener) listener).onSuccess(key);
-      }
-    } else {
-      continuation.cancel();
-    }
+    onSuccess(
+        new Runnable() {
+          @Override
+          public void run() {
+            ((WriteListener) listener).onSuccess(key);
+          }
+        });
   }
 
   @Override
   public void onSuccess(final Key key, final Object obj) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final TraceScope scope = continuation.activate()) {
-        ((ExecuteListener) listener).onSuccess(key, obj);
-      }
-    } else {
-      continuation.cancel();
-    }
+    onSuccess(
+        new Runnable() {
+          @Override
+          public void run() {
+            ((ExecuteListener) listener).onSuccess(key, obj);
+          }
+        });
   }
 
   @Override
   public void onSuccess() {
+    onSuccess(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (listener instanceof ExistsSequenceListener) {
+              ((ExistsSequenceListener) listener).onSuccess();
+            } else if (listener instanceof RecordSequenceListener) {
+              ((RecordSequenceListener) listener).onSuccess();
+            } else if (listener instanceof BatchSequenceListener) {
+              ((BatchSequenceListener) listener).onSuccess();
+            }
+          }
+        });
+  }
+
+  private void onSuccess(final Runnable runnable) {
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish();
 
     if (listener != null) {
       try (final TraceScope scope = continuation.activate()) {
-        if (listener instanceof ExistsSequenceListener) {
-          ((ExistsSequenceListener) listener).onSuccess();
-        } else if (listener instanceof RecordSequenceListener) {
-          ((RecordSequenceListener) listener).onSuccess();
-        } else if (listener instanceof BatchSequenceListener) {
-          ((BatchSequenceListener) listener).onSuccess();
-        }
+        runnable.run();
       }
     } else {
       continuation.cancel();
