@@ -6,5 +6,5 @@ import java.util.List;
 public interface MetricsAggregator extends AutoCloseable {
   void start();
 
-  void publish(List<? extends CoreSpan> trace);
+  void publish(List<? extends CoreSpan<?>> trace);
 }

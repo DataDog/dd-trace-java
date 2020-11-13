@@ -86,7 +86,7 @@ class TraceGenerator {
     return new String(chars)
   }
 
-  static class PojoSpan implements CoreSpan {
+  static class PojoSpan implements CoreSpan<PojoSpan> {
 
     private final CharSequence serviceName
     private final CharSequence operationName
@@ -207,6 +207,11 @@ class TraceGenerator {
     @Override
     void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
       consumer.accept(tags, baggage)
+    }
+
+    @Override
+    PojoSpan setSamplingPriority(int samplingPriority) {
+      return this
     }
   }
 }

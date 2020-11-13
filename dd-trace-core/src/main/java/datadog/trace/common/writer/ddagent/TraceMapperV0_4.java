@@ -93,9 +93,9 @@ public final class TraceMapperV0_4 implements TraceMapper {
   private final MetaWriter metaWriter = new MetaWriter();
 
   @Override
-  public void map(List<? extends CoreSpan> trace, final Writable writable) {
+  public void map(List<? extends CoreSpan<?>> trace, final Writable writable) {
     writable.startArray(trace.size());
-    for (CoreSpan span : trace) {
+    for (CoreSpan<?> span : trace) {
       writable.startMap(12);
       /* 1  */
       writable.writeUTF8(SERVICE);

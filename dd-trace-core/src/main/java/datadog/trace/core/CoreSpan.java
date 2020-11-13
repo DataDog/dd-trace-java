@@ -3,7 +3,7 @@ package datadog.trace.core;
 import datadog.trace.api.DDId;
 import java.util.Map;
 
-public interface CoreSpan {
+public interface CoreSpan<T extends CoreSpan<T>> {
 
   String getServiceName();
 
@@ -34,4 +34,6 @@ public interface CoreSpan {
   CharSequence getType();
 
   void processTagsAndBaggage(TagsAndBaggageConsumer consumer);
+
+  T setSamplingPriority(int samplingPriority);
 }

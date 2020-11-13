@@ -4,7 +4,7 @@ import datadog.trace.api.DDId
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.TagsAndBaggageConsumer
 
-class SimpleSpan implements CoreSpan {
+class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   private final String serviceName
   private final String operationName
@@ -104,5 +104,10 @@ class SimpleSpan implements CoreSpan {
   @Override
   void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
 
+  }
+
+  @Override
+  SimpleSpan setSamplingPriority(int samplingPriority) {
+    return this
   }
 }

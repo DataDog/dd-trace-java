@@ -86,9 +86,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   @Override
-  public void publish(List<? extends CoreSpan> trace) {
+  public void publish(List<? extends CoreSpan<?>> trace) {
     if (enabled) {
-      for (CoreSpan span : trace) {
+      for (CoreSpan<?> span : trace) {
         if (span.isMeasured()) {
           publish(span);
         }
@@ -96,7 +96,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     }
   }
 
-  private void publish(CoreSpan span) {
+  private void publish(CoreSpan<?> span) {
     boolean error = span.getError() > 0;
     long durationNanos = span.getDurationNano();
     MetricKey key =

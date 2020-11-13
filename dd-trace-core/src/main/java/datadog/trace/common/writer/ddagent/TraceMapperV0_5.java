@@ -57,9 +57,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   @Override
-  public void map(final List<? extends CoreSpan> trace, final Writable writable) {
+  public void map(final List<? extends CoreSpan<?>> trace, final Writable writable) {
     writable.startArray(trace.size());
-    for (final CoreSpan span : trace) {
+    for (final CoreSpan<?> span : trace) {
       writable.startArray(12);
       /* 1  */
       writeDictionaryEncoded(writable, span.getServiceName());

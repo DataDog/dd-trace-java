@@ -40,7 +40,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     droppedCount.incrementAndGet();
   }
 
-  void addTrace(List<? extends CoreSpan> trace) {
+  void addTrace(List<? extends CoreSpan<?>> trace) {
     selectTraceMapper();
     // the call below is blocking and will trigger IO if a flush is necessary
     // there are alternative approaches to avoid blocking here, such as
