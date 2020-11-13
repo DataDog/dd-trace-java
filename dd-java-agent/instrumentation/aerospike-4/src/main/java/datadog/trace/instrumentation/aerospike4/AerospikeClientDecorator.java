@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.aerospike4;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
 import com.aerospike.client.AerospikeClient;
@@ -9,7 +8,6 @@ import com.aerospike.client.cluster.Node;
 import com.aerospike.client.cluster.Partition;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -91,22 +89,18 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
     span.setTag(DDTags.RESOURCE_NAME, spanNameForMethod(AerospikeClient.class, methodName));
   }
 
-  public AgentScope startAerospikeSpan(final String methodName) {
+  public AgentSpan startAerospikeSpan(final String methodName) {
     final AgentSpan span = startSpan(AEROSPIKE_COMMAND);
     afterStart(span);
     withMethod(span, methodName);
-    return activateSpan(span);
+    return span;
   }
 
-  public void finishAerospikeSpan(final AgentScope scope, final Throwable error) {
-    if (scope != null) {
-      final AgentSpan span = scope.span();
-      if (error != null) {
-        onError(span, error);
-      }
-      beforeFinish(span);
-      span.finish();
-      scope.close();
+  public void finishAerospikeSpan(final AgentSpan span, final Throwable error) {
+    if (error != null) {
+      onError(span, error);
     }
+    beforeFinish(span);
+    span.finish();
   }
 }
