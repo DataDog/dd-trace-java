@@ -1,6 +1,6 @@
 package datadog.trace.common.metrics;
 
-import datadog.trace.core.DDSpanData;
+import datadog.trace.core.CoreSpan;
 import java.util.List;
 
 public final class NoOpMetricsAggregator implements MetricsAggregator {
@@ -11,7 +11,7 @@ public final class NoOpMetricsAggregator implements MetricsAggregator {
   public void start() {}
 
   @Override
-  public void publish(List<? extends DDSpanData> trace) {}
+  public void publish(List<? extends CoreSpan> trace) {}
 
   @Override
   public void close() {}

@@ -1,10 +1,10 @@
 package datadog.trace.common.metrics
 
 import datadog.trace.api.DDId
-import datadog.trace.core.DDSpanData
+import datadog.trace.core.CoreSpan
 import datadog.trace.core.TagsAndBaggageConsumer
 
-class SimpleSpan implements DDSpanData {
+class SimpleSpan implements CoreSpan {
 
   private final String serviceName
   private final String operationName

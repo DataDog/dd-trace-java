@@ -3,7 +3,7 @@ package datadog.trace.core;
 import datadog.trace.api.DDId;
 import java.util.Map;
 
-public interface DDSpanData {
+public interface CoreSpan {
 
   String getServiceName();
 

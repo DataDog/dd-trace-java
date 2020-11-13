@@ -20,7 +20,7 @@ import lombok.extern.slf4j.Slf4j;
  * according to the DD agent.
  */
 @Slf4j
-public class DDSpan implements AgentSpan, DDSpanData {
+public class DDSpan implements AgentSpan, CoreSpan {
 
   static DDSpan create(final long timestampMicro, final DDSpanContext context) {
     final DDSpan span = new DDSpan(timestampMicro, context);
@@ -236,10 +236,6 @@ public class DDSpan implements AgentSpan, DDSpanData {
   public AgentSpan removeTag(final String tag) {
     context.setTag(tag, null);
     return this;
-  }
-
-  public Object getAndRemoveTag(final String tag) {
-    return context.getAndRemoveTag(tag);
   }
 
   @Override

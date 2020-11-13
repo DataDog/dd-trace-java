@@ -1,7 +1,7 @@
 package datadog.trace.common.writer.ddagent
 
 import datadog.trace.api.DDId
-import datadog.trace.core.DDSpanData
+import datadog.trace.core.CoreSpan
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
@@ -40,7 +40,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     int dictionarySpacePerTrace = 4 * (36 + 2)
     int dictionarySize = 10 * 1024
     int traceCountToOverflowDictionary = dictionarySize / dictionarySpacePerTrace + 1
-    List<List<DDSpanData>> traces = new ArrayList<>(traceCountToOverflowDictionary)
+    List<List<CoreSpan>> traces = new ArrayList<>(traceCountToOverflowDictionary)
     for (int i = 0; i < traceCountToOverflowDictionary; ++i) {
       // these traces must have deterministic size, but each string value
       // must be unique to ensure no dictionary code reuse
@@ -62,14 +62,14 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       )))
     }
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize)
-    List<List<DDSpanData>> flushedTraces = new ArrayList<>(traces)
+    List<List<CoreSpan>> flushedTraces = new ArrayList<>(traces)
     // the last one won't be flushed
     flushedTraces.remove(traces.size() - 1)
     PayloadVerifier verifier = new PayloadVerifier(flushedTraces, traceMapper)
     // 100KB body
     MsgPackWriter packer = new MsgPackWriter(verifier, ByteBuffer.allocate(100 * 1024))
     when:
-    for (List<DDSpanData> trace : traces) {
+    for (List<CoreSpan> trace : traces) {
       packer.format(trace, traceMapper)
     }
     then:
@@ -83,7 +83,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     // enough space for two traces with distinct string values, plus the header
     int dictionarySize = dictionarySpacePerTrace * 2 + 5
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize)
-    List<DDSpanData> repeatedTrace = Collections.singletonList(new TraceGenerator.PojoSpan(
+    List<CoreSpan> repeatedTrace = Collections.singletonList(new TraceGenerator.PojoSpan(
       UUID.randomUUID().toString(),
       UUID.randomUUID().toString(),
       UUID.randomUUID().toString(),
@@ -100,19 +100,19 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       false))
     int traceSize = calculateSize(repeatedTrace)
     int tracesRequiredToOverflowBody = traceMapper.messageBufferSize() / traceSize
-    List<List<DDSpanData>> traces = new ArrayList<>(tracesRequiredToOverflowBody)
+    List<List<CoreSpan>> traces = new ArrayList<>(tracesRequiredToOverflowBody)
     for (int i = 0; i < tracesRequiredToOverflowBody; ++i) {
       traces.add(repeatedTrace)
     }
     // the last one won't be flushed
-    List<List<DDSpanData>> flushedTraces = new ArrayList<>(traces)
+    List<List<CoreSpan>> flushedTraces = new ArrayList<>(traces)
     flushedTraces.remove(traces.size() - 1)
     // need space for the overflowing buffer, the dictionary, and two small array headers
     PayloadVerifier verifier = new PayloadVerifier(flushedTraces, traceMapper, (2 << 20) + dictionarySize + 1 + 1 + 5)
     // 2MB body
     MsgPackWriter packer = new MsgPackWriter(verifier, ByteBuffer.allocate(2 << 20))
     when:
-    for (List<DDSpanData> trace : traces) {
+    for (List<CoreSpan> trace : traces) {
       packer.format(trace, traceMapper)
     }
     then:
@@ -121,14 +121,14 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
   def "test dictionary compressed traces written correctly"() {
     setup:
-    List<List<DDSpanData>> traces = generateRandomTraces(traceCount, lowCardinality)
+    List<List<CoreSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize)
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
     MsgPackWriter packer = new MsgPackWriter(verifier, ByteBuffer.allocate(bufferSize))
     when:
     boolean tracesFitInBuffer = true
     try {
-      for (List<DDSpanData> trace : traces) {
+      for (List<CoreSpan> trace : traces) {
         packer.format(trace, traceMapper)
       }
     } catch (BufferOverflowException e) {
@@ -176,17 +176,17 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
-    private final List<List<DDSpanData>> expectedTraces
+    private final List<List<CoreSpan>> expectedTraces
     private final TraceMapperV0_5 mapper
     private final ByteBuffer captured
 
     private int position = 0
 
-    private PayloadVerifier(List<List<DDSpanData>> traces, TraceMapperV0_5 mapper) {
+    private PayloadVerifier(List<List<CoreSpan>> traces, TraceMapperV0_5 mapper) {
       this (traces, mapper, 200 << 10)
     }
 
-    private PayloadVerifier(List<List<DDSpanData>> traces, TraceMapperV0_5 mapper, int size) {
+    private PayloadVerifier(List<List<CoreSpan>> traces, TraceMapperV0_5 mapper, int size) {
       this.expectedTraces = traces
       this.mapper = mapper
       this.captured = ByteBuffer.allocate(size)
@@ -208,11 +208,11 @@ class TraceMapperV05PayloadTest extends DDSpecification {
         }
         int traceCount = unpacker.unpackArrayHeader()
         for (int i = 0; i < traceCount; ++i) {
-          List<DDSpanData> expectedTrace = expectedTraces.get(position++)
+          List<CoreSpan> expectedTrace = expectedTraces.get(position++)
           int spanCount = unpacker.unpackArrayHeader()
           assertEquals(expectedTrace.size(), spanCount)
           for (int k = 0; k < spanCount; ++k) {
-            DDSpanData expectedSpan = expectedTrace.get(k)
+            CoreSpan expectedSpan = expectedTrace.get(k)
             int elementCount = unpacker.unpackArrayHeader()
             assertEquals(12, elementCount)
             String serviceName = dictionary[unpacker.unpackInt()]
@@ -330,7 +330,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     }
   }
 
-  static int calculateSize(List<DDSpanData> trace) {
+  static int calculateSize(List<CoreSpan> trace) {
     ByteBuffer buffer = ByteBuffer.allocate(1024)
     AtomicInteger size = new AtomicInteger()
     def packer = new MsgPackWriter(new ByteBufferConsumer() {

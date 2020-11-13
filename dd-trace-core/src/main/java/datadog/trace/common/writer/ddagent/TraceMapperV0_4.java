@@ -20,7 +20,7 @@ import static java.util.Collections.singletonList;
 
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.DDSpanData;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.TagsAndBaggageConsumer;
 import datadog.trace.core.http.OkHttpUtils;
 import datadog.trace.core.serialization.Writable;
@@ -93,9 +93,9 @@ public final class TraceMapperV0_4 implements TraceMapper {
   private final MetaWriter metaWriter = new MetaWriter();
 
   @Override
-  public void map(List<? extends DDSpanData> trace, final Writable writable) {
+  public void map(List<? extends CoreSpan> trace, final Writable writable) {
     writable.startArray(trace.size());
-    for (DDSpanData span : trace) {
+    for (CoreSpan span : trace) {
       writable.startMap(12);
       /* 1  */
       writable.writeUTF8(SERVICE);
@@ -135,7 +135,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
   }
 
-  private static void writeMetrics(DDSpanData span, Writable writable) {
+  private static void writeMetrics(CoreSpan span, Writable writable) {
     writable.writeUTF8(METRICS);
     Map<CharSequence, Number> metrics = span.getMetrics();
     int elementCount = metrics.size() + (span.isMeasured() ? 1 : 0);

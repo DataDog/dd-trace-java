@@ -6,7 +6,7 @@ import static datadog.trace.core.serialization.Util.integerToStringBuffer;
 import static datadog.trace.core.serialization.Util.writeLongAsString;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.DDSpanData;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.StringTables;
 import datadog.trace.core.TagsAndBaggageConsumer;
 import datadog.trace.core.serialization.ByteBufferConsumer;
@@ -57,9 +57,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   @Override
-  public void map(final List<? extends DDSpanData> trace, final Writable writable) {
+  public void map(final List<? extends CoreSpan> trace, final Writable writable) {
     writable.startArray(trace.size());
-    for (final DDSpanData span : trace) {
+    for (final CoreSpan span : trace) {
       writable.startArray(12);
       /* 1  */
       writeDictionaryEncoded(writable, span.getServiceName());
