@@ -297,11 +297,6 @@ public class Agent {
     }
     initializeJmxSystemAccessProvider(AGENT_CLASSLOADER);
 
-    if (PROFILING_CLASSLOADER == null) {
-      throw new IllegalStateException("Datadog profiling agent should have been started already");
-    }
-    initializeJmxSystemAccessProvider(PROFILING_CLASSLOADER);
-
     registerDeadlockDetectionEvent(bootstrapURL);
   }
 
