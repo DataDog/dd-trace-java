@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -206,6 +208,35 @@ public class DDId {
    */
   public String toHexString() {
     return Long.toHexString(this.id);
+  }
+
+  private static final byte[] HEX_DIGITS = {
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+  };
+
+  /**
+   * Returns the zero padded hex representation, in lower case, of the unsigned 64 bit id. The size
+   * will be rounded up to 16 or 32 characters. The hex {@code String} will NOT be cached.
+   *
+   * @param size the size in characters of the 0 padded String (rounded up to 16 or 32)
+   * @return zero padded hex String
+   */
+  public String toHexStringPadded(int size) {
+    if (size > 16) {
+      size = 32;
+    } else if (size < 16) {
+      size = 16;
+    }
+    byte[] bytes = new byte[size];
+    long remaining = this.id;
+    int nibbleCount = Long.numberOfLeadingZeros(remaining) >>> 2;
+    Arrays.fill(bytes, 0, (size - 16) + nibbleCount, (byte) '0');
+    for (int i = 0; i < 16 - nibbleCount; i++) {
+      int b = (int) (remaining & 0xF);
+      bytes[size - 1 - i] = HEX_DIGITS[b];
+      remaining >>>= 4;
+    }
+    return new String(bytes, StandardCharsets.ISO_8859_1);
   }
 
   /**

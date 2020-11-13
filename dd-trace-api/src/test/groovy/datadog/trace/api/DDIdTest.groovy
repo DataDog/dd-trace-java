@@ -54,6 +54,10 @@ class DDIdTest extends DDSpecification {
   def "convert ids from/to hex String"() {
     when:
     final ddid = DDId.fromHex(hexId)
+    final padded16 = hexId.length() <= 16 ?
+      ("0" * 16).substring(0, 16 - hexId.length()) + hexId :
+      hexId.substring(hexId.length() - 16, hexId.length())
+    final padded32 = ("0" * 32).substring(0, 32 - hexId.length()) + hexId
 
     then:
     ddid == expectedId
@@ -61,6 +65,8 @@ class DDIdTest extends DDSpecification {
       hexId = hexId.replaceAll("^0+", "") // drop leading zeros
     }
     ddid.toHexString() == hexId
+    ddid.toHexStringPadded(16) == padded16
+    ddid.toHexStringPadded(32) == padded32
 
     where:
     hexId                    | expectedId
@@ -70,6 +76,8 @@ class DDIdTest extends DDSpecification {
     "7" + "f" * 15           | DDId.from(Long.MAX_VALUE)
     "8" + "0" * 15           | DDId.from(Long.MIN_VALUE)
     "0" * 4 + "8" + "0" * 15 | DDId.from(Long.MIN_VALUE)
+    "cafebabe"               | DDId.from(3405691582)
+    "123456789abcdef"        | DDId.from(81985529216486895)
   }
 
   def "fail on illegal hex String"() {
