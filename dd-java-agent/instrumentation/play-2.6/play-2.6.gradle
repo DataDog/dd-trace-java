@@ -49,6 +49,7 @@ dependencies {
   testCompile project(':dd-java-agent:instrumentation:scala-concurrent')
   testCompile project(':dd-java-agent:instrumentation:scala-promise-2.10')
   testCompile project(':dd-java-agent:instrumentation:scala-promise-2.13')
+  testCompile(project(path: ':dd-java-agent:instrumentation:akka-http-10.0', configuration: 'testArtifacts'))
 
   testCompile group: 'com.typesafe.play', name: "play-java_$scalaVersion", version: playVersion
   // TODO: Play WS is a separately versioned library starting with 2.6 and needs separate instrumentation.

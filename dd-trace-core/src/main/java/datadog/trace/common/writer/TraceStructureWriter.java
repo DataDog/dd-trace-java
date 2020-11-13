@@ -10,16 +10,28 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class TraceStructureWriter implements Writer {
 
   private final PrintStream out;
+  private final boolean debugLog;
 
   public TraceStructureWriter() {
-    this("");
+    this("", false);
+  }
+
+  public TraceStructureWriter(boolean debugLog) {
+    this("", debugLog);
   }
 
   public TraceStructureWriter(String outputFile) {
+    this(outputFile, false);
+  }
+
+  public TraceStructureWriter(String outputFile, boolean debugLog) {
+    this.debugLog = debugLog;
     try {
       this.out =
           outputFile.isEmpty() || outputFile.equals(":")
@@ -33,7 +45,7 @@ public class TraceStructureWriter implements Writer {
   @Override
   public void write(List<DDSpan> trace) {
     if (trace.isEmpty()) {
-      out.println("[]");
+      output("[]", null, null);
     } else {
       DDId traceId = trace.get(0).getTraceId();
       DDId rootSpanId = trace.get(0).getSpanId();
@@ -48,8 +60,8 @@ public class TraceStructureWriter implements Writer {
       // build the tree
       for (DDSpan span : trace) {
         if (!traceId.equals(span.getTraceId())) {
-          out.println(
-              "ERROR: Trace "
+          String message =
+              "Trace "
                   + traceId
                   + " has broken trace link at "
                   + span.getSpanId()
@@ -57,14 +69,18 @@ public class TraceStructureWriter implements Writer {
                   + span.getOperationName()
                   + ")"
                   + "->"
-                  + span.getTraceId());
+                  + span.getTraceId();
+          out.println("ERROR: " + message);
+          if (debugLog) {
+            log.error(message);
+          }
           return;
         }
         if (!rootSpanId.equals(span.getSpanId())) {
           Node parent = nodesById.get(span.getParentId());
           if (null == parent) {
-            out.println(
-                "ERROR: Trace "
+            String message =
+                "Trace "
                     + traceId
                     + " has broken link at "
                     + span.getSpanId()
@@ -72,13 +88,37 @@ public class TraceStructureWriter implements Writer {
                     + span.getOperationName()
                     + ")"
                     + "->"
-                    + span.getParentId());
+                    + span.getParentId();
+            out.println("ERROR: " + message);
+            if (debugLog) {
+              log.error(message);
+            }
             return;
           }
           parent.addChild(nodesById.get(span.getSpanId()));
         }
       }
-      out.println(nodesById.get(rootSpanId));
+      output(String.valueOf(nodesById.get(rootSpanId)), traceId, rootSpanId);
+    }
+  }
+
+  private void output(String trace, DDId traceId, DDId rootSpanId) {
+    out.println(trace);
+    if (debugLog && log.isDebugEnabled()) {
+      StringBuilder start = new StringBuilder();
+      if (traceId != null) {
+        start.append("t_id=").append(traceId);
+      }
+      if (rootSpanId != null) {
+        if (start.length() > 0) {
+          start.append(", ");
+        }
+        start.append("s_id=").append(rootSpanId);
+      }
+      if (start.length() > 0) {
+        start.append(" -> ");
+      }
+      log.debug("{}wrote {}", start, trace);
     }
   }
 

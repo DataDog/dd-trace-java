@@ -39,13 +39,17 @@ class TraceUtils {
     try {
       return r.call()
     } catch (final Exception e) {
-      DECORATOR.onError(span, e)
+      handleException(span, e)
       throw e
     } finally {
       DECORATOR.beforeFinish(span)
       scope.close()
       span.finish()
     }
+  }
+
+  static handleException(final AgentSpan span, final Exception e) {
+    DECORATOR.onError(span, e)
   }
 
   static basicSpan(TraceAssert trace, String spanName, Object parentSpan = null, Throwable exception = null) {

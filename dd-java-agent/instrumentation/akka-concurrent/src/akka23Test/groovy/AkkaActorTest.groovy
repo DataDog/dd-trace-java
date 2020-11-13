@@ -1,35 +1,82 @@
-import datadog.trace.core.DDSpan
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.agent.test.AgentTestRunner
+import spock.lang.Shared
 
 class AkkaActorTest extends AgentTestRunner {
+  @Shared
+  def akkaTester = new AkkaActors()
 
-  def "akka #testMethod"() {
+  def "akka actor send #name #iterations"() {
     setup:
-    AkkaActors akkaTester = new AkkaActors()
-    akkaTester."$testMethod"()
+    def barrier = akkaTester.block(name)
 
-    TEST_WRITER.waitForTraces(1)
-    List<DDSpan> trace = TEST_WRITER.get(0)
+    when:
+    (1..iterations).each {i ->
+      akkaTester.send(name, "$who $i")
+    }
+    barrier.release()
 
-    expect:
-    TEST_WRITER.size() == 1
-    trace.size() == 2
-    trace[0].resourceName.toString() == "AkkaActors.$testMethod"
-    findSpan(trace, "$expectedGreeting, Akka").context().getParentId() == trace[0].getSpanId()
-
-    where:
-    testMethod     | expectedGreeting
-    "basicTell"    | "Howdy"
-    "basicAsk"     | "Howdy"
-    "basicForward" | "Hello"
-  }
-
-  private DDSpan findSpan(List<DDSpan> trace, String opName) {
-    for (DDSpan span : trace) {
-      if (span.getOperationName() == opName) {
-        return span
+    then:
+    assertTraces(iterations) {
+      (1..iterations).each {i ->
+        trace(2) {
+          sortSpansByStart()
+          span {
+            resourceName "AkkaActors.send"
+            operationName "$name"
+            tags {
+              "$Tags.COMPONENT" "trace"
+              defaultTags()
+            }
+          }
+          span {
+            resourceName "Receiver.tracedChild"
+            operationName "$expectedGreeting, $who $i"
+            childOf(span(0))
+            tags {
+              "$Tags.COMPONENT" "trace"
+              defaultTags()
+            }
+          }
+        }
       }
     }
-    return null
+
+    where:
+    name      | who     | expectedGreeting | iterations
+    "tell"    | "Akka"  | "Howdy"          | 1
+    "ask"     | "Makka" | "Hi-diddly-ho"   | 1
+    "forward" | "Pakka" | "Hello"          | 1
+    "tell"    | "Pakka" | "Howdy"          | 10
+    "ask"     | "Makka" | "Hi-diddly-ho"   | 10
+    "forward" | "Akka"  | "Hello"          | 10
+  }
+
+  def "actor message handling should close leaked scopes"() {
+    when:
+    akkaTester.leak("Leaker", "drip")
+
+    then:
+    assertTraces(1) {
+      trace(2) {
+        sortSpansByStart()
+        span {
+          resourceName "AkkaActors.leak"
+          operationName "leak all the things"
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+        span {
+          resourceName("drip")
+          operationName "Howdy, Leaker"
+          childOf(span(0))
+          tags {
+            defaultTags()
+          }
+        }
+      }
+    }
   }
 }

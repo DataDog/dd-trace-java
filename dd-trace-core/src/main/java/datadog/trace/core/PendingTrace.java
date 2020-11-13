@@ -245,7 +245,7 @@ public class PendingTrace implements AgentTrace {
   private void partialFlush() {
     int size = write(true);
     if (log.isDebugEnabled()) {
-      log.debug("t_id={} -> writing partial trace of size {}", traceId, size);
+      log.debug("t_id={} -> wrote partial trace of size {}", traceId, size);
     }
   }
 
@@ -254,7 +254,7 @@ public class PendingTrace implements AgentTrace {
     rootSpanWritten.set(true);
     int size = write(false);
     if (log.isDebugEnabled()) {
-      log.debug("t_id={} -> writing {} spans to {}.", traceId, size, tracer.writer);
+      log.debug("t_id={} -> wrote {} spans to {}.", traceId, size, tracer.writer);
     }
   }
 

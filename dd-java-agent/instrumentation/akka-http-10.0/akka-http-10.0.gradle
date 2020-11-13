@@ -69,6 +69,15 @@ muzzle {
   }
 }
 
+configurations {
+  testArtifacts
+}
+
+// Create test artifacts so play-2.6 can reuse the akka-http test instrumentation
+artifacts {
+  testArtifacts testJar
+}
+
 dependencies {
   main_java8CompileOnly group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.0'
 
