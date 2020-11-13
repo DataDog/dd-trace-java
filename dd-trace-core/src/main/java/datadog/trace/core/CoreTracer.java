@@ -87,7 +87,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Writer is an charge of reporting traces and spans to the desired endpoint */
   final Writer writer;
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
-  final Sampler sampler;
+  final Sampler<DDSpan> sampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final AgentScopeManager scopeManager;
 
@@ -157,7 +157,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.config = config;
       serviceName(config.getServiceName());
       // Explicitly skip setting writer to avoid allocating resources prematurely.
-      sampler(Sampler.Builder.forConfig(config));
+      sampler(Sampler.Builder.<DDSpan>forConfig(config));
       injector(HttpCodec.createInjector(config));
       extractor(HttpCodec.createExtractor(config, config.getHeaderTags()));
       // Explicitly skip setting scope manager because it depends on statsDClient
@@ -178,7 +178,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final String serviceName,
       final Writer writer,
       final IdGenerationStrategy idGenerationStrategy,
-      final Sampler sampler,
+      final Sampler<DDSpan> sampler,
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
       final AgentScopeManager scopeManager,
@@ -449,6 +449,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
   }
 
+  @SuppressWarnings("unchecked")
   void setSamplingPriorityIfNecessary(final DDSpan rootSpan) {
     // There's a race where multiple threads can see PrioritySampling.UNSET here
     // This check skips potential complex sampling priority logic when we know its redundant
@@ -458,7 +459,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         && rootSpan != null
         && rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
 
-      ((PrioritySampler) sampler).setSamplingPriority(rootSpan);
+      ((PrioritySampler<DDSpan>) sampler).setSamplingPriority(rootSpan);
     }
   }
 
@@ -471,7 +472,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public String getTraceId() {
     final AgentSpan activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
-      return ((DDSpan) activeSpan).getTraceId().toString();
+      return activeSpan.getTraceId().toString();
     }
     return "0";
   }
@@ -609,8 +610,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public AgentSpan start() {
-      final AgentSpan span = buildSpan();
-      return span;
+      return buildSpan();
     }
 
     @Override
