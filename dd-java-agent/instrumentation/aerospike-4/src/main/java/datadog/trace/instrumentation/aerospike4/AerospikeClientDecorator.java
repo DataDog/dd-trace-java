@@ -15,10 +15,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 
 public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Node> {
   public static final UTF8BytesString AEROSPIKE_JAVA =
@@ -69,15 +65,7 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
   public AgentSpan onConnection(
       final AgentSpan span, final Node node, final Cluster cluster, final Partition partition) {
 
-    final InetSocketAddress socketAddress = node.getAddress();
-    span.setTag(Tags.PEER_HOSTNAME, socketAddress.getHostName());
-    span.setTag(Tags.PEER_PORT, socketAddress.getPort());
-    final InetAddress remoteAddress = socketAddress.getAddress();
-    if (remoteAddress instanceof Inet4Address) {
-      span.setTag(Tags.PEER_HOST_IPV4, remoteAddress.getHostAddress());
-    } else if (remoteAddress instanceof Inet6Address) {
-      span.setTag(Tags.PEER_HOST_IPV6, remoteAddress.getHostAddress());
-    }
+    onPeerConnection(span, node.getAddress());
 
     if (cluster != null && cluster.getUser() != null) {
       span.setTag(Tags.DB_USER, UTF8BytesString.create(cluster.getUser()));
