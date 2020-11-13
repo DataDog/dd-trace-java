@@ -109,7 +109,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
-  public AgentSpan setMeasured(boolean measured) {
+  public DDSpan setMeasured(boolean measured) {
     context.setMeasured(measured);
     return this;
   }
@@ -148,12 +148,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
-  public AgentSpan setErrorMessage(final String errorMessage) {
+  public DDSpan setErrorMessage(final String errorMessage) {
     return setTag(DDTags.ERROR_MSG, errorMessage);
   }
 
   @Override
-  public AgentSpan addThrowable(final Throwable error) {
+  public DDSpan addThrowable(final Throwable error) {
     setError(true);
 
     setTag(DDTags.ERROR_MSG, error.getMessage());
@@ -179,19 +179,19 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
-  public AgentSpan setTag(final String tag, final int value) {
+  public DDSpan setTag(final String tag, final int value) {
     context.setTag(tag, value);
     return this;
   }
 
   @Override
-  public AgentSpan setTag(final String tag, final long value) {
+  public DDSpan setTag(final String tag, final long value) {
     context.setTag(tag, value);
     return this;
   }
 
   @Override
-  public AgentSpan setTag(final String tag, final double value) {
+  public DDSpan setTag(final String tag, final double value) {
     context.setTag(tag, value);
     return this;
   }
@@ -245,7 +245,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   // FIXME [API] this is not on AgentSpan or MutableSpan
-  public AgentSpan removeTag(final String tag) {
+  public DDSpan removeTag(final String tag) {
     context.setTag(tag, null);
     return this;
   }

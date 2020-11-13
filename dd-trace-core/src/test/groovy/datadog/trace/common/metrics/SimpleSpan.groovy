@@ -32,6 +32,11 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
+  SimpleSpan getLocalRootSpan() {
+    return this
+  }
+
+  @Override
   String getServiceName() {
     return serviceName
   }
@@ -74,6 +79,66 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   @Override
   int getError() {
     return error ? 1 : 0
+  }
+
+  @Override
+  SimpleSpan setMeasured(boolean measured) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setErrorMessage(String errorMessage) {
+    return this
+  }
+
+  @Override
+  SimpleSpan addThrowable(Throwable error) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, String value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, boolean value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, int value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, long value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, double value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, Number value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, CharSequence value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, Object value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan removeTag(String tag) {
+    return this
   }
 
   @Override

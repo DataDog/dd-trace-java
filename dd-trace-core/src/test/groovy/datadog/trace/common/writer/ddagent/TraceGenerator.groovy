@@ -135,6 +135,11 @@ class TraceGenerator {
     }
 
     @Override
+    PojoSpan getLocalRootSpan() {
+      return this
+    }
+
+    @Override
     String getServiceName() {
       return serviceName
     }
@@ -177,6 +182,66 @@ class TraceGenerator {
     @Override
     int getError() {
       return error
+    }
+
+    @Override
+    PojoSpan setMeasured(boolean measured) {
+      return this
+    }
+
+    @Override
+    PojoSpan setErrorMessage(String errorMessage) {
+      return this
+    }
+
+    @Override
+    PojoSpan addThrowable(Throwable error) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, String value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, boolean value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, int value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, long value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, double value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, Number value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, CharSequence value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, Object value) {
+      return this
+    }
+
+    @Override
+    PojoSpan removeTag(String tag) {
+      return this
     }
 
     @Override
