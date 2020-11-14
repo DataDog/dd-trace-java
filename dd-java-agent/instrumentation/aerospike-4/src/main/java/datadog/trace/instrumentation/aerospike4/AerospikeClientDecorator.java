@@ -77,7 +77,7 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
         instanceName = instanceName.substring(0, namespaceEnd);
       }
       span.setTag(Tags.DB_INSTANCE, instanceName);
-      if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
+      if (Config.get().isDbClientSplitByInstance()) {
         span.setTag(DDTags.SERVICE_NAME, instanceName);
       }
     }
