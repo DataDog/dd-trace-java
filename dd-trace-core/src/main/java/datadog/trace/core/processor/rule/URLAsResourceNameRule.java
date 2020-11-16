@@ -31,33 +31,29 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
   }
 
   private String extractResourceNameFromURL(final Object method, final String url) {
-    StringBuilder resourceName = new StringBuilder(128);
-    try {
+    if (url.isEmpty()) {
+      return null == method ? "/" : method.toString().toUpperCase().trim() + " /";
+    } else {
+      StringBuilder resourceName = new StringBuilder(16);
       if (method != null) {
         final String verb = method.toString().toUpperCase().trim();
         resourceName.append(verb).append(' ');
       }
-      if (url.isEmpty()) {
-        resourceName.append('/');
-      } else {
-        // skip the protocol info if present
-        int start = protocolPosition(url);
-        boolean hasProtocol = start >= 0;
-        start += hasProtocol ? 3 : 1;
-        if (hasProtocol) { // then we need to terminate when an ? or # is found
-          start = url.indexOf('/', start);
-          if (start == -1) { // then this is just a hostname
-            resourceName.append('/');
-          } else { // ignore the hostname and remove any high cardinality info
-            cleanResourceName(url, resourceName, start);
-          }
-        } else { // just need to remove any high cardinality info
+      // skip the protocol info if present
+      int start = protocolPosition(url);
+      boolean hasProtocol = start >= 0;
+      start += hasProtocol ? 3 : 1;
+      if (hasProtocol) { // then we need to terminate when an ? or # is found
+        start = url.indexOf('/', start);
+        if (start == -1) { // then this is just a hostname
+          resourceName.append('/');
+        } else { // ignore the hostname and remove any high cardinality info
           cleanResourceName(url, resourceName, start);
         }
+      } else { // just need to remove any high cardinality info
+        cleanResourceName(url, resourceName, start);
       }
       return resourceName.toString();
-    } finally {
-      resourceName.setLength(0);
     }
   }
 
