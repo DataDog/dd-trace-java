@@ -26,7 +26,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.start()
 
     when:
-    aggregator.publish([new SimpleSpan("", "", "", false, false, 0, 0)])
+    aggregator.publish([new SimpleSpan("", "", "", "", false, false, 0, 0)])
 
     then:
     0 * sink._
@@ -44,9 +44,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       Mock(Sink), writer, 10, 10, reportingInterval, SECONDS)
     long duration = 100
     List<CoreSpan> trace = [
-      new SimpleSpan("service", "operation", "resource", true, false, 0, duration),
-      new SimpleSpan("service1", "operation1", "resource1", false, false, 0, 0),
-      new SimpleSpan("service2", "operation2", "resource2", true, false, 0, duration * 2)
+      new SimpleSpan("service", "operation", "resource", "type", true, false, 0, duration),
+      new SimpleSpan("service1", "operation1", "resource1", "type", false, false, 0, 0),
+      new SimpleSpan("service2", "operation2", "resource2", "type", true, false, 0, duration * 2)
     ]
     aggregator.start()
 
@@ -61,10 +61,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "metrics should be conflated"
     1 * writer.finishBucket() >> { latch.countDown() }
     1 * writer.startBucket(2, _, SECONDS.toNanos(reportingInterval))
-    1 * writer.add(new MetricKey("resource", "service", "operation", 0), _) >> {
+    1 * writer.add(new MetricKey("resource", "service", "operation", "type", "", 0), _) >> {
       MetricKey key, AggregateMetric value -> value.getHitCount() == count && value.getDuration() == count * duration
     }
-    1 * writer.add(new MetricKey("resource2", "service2", "operation2", 0), _) >> {
+    1 * writer.add(new MetricKey("resource2", "service2", "operation2", "type", "", 0), _) >> {
       MetricKey key, AggregateMetric value -> value.getHitCount() == count && value.getDuration() == count * duration * 2
     }
 

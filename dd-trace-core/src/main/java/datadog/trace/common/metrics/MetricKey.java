@@ -8,13 +8,22 @@ public final class MetricKey {
   private final UTF8BytesString resource;
   private final UTF8BytesString service;
   private final UTF8BytesString operationName;
+  private final UTF8BytesString type;
+  private final UTF8BytesString dbType;
   private final int httpStatusCode;
 
   public MetricKey(
-      CharSequence resource, CharSequence service, CharSequence operationName, int httpStatusCode) {
-    this.resource = UTF8BytesString.create(resource);
-    this.service = UTF8BytesString.create(service);
-    this.operationName = UTF8BytesString.create(operationName);
+      CharSequence resource,
+      CharSequence service,
+      CharSequence operationName,
+      CharSequence type,
+      CharSequence dbType,
+      int httpStatusCode) {
+    this.resource = UTF8BytesString.create(null == resource ? "" : resource);
+    this.service = UTF8BytesString.create(null == service ? "" : service);
+    this.operationName = UTF8BytesString.create(null == operationName ? "" : operationName);
+    this.type = UTF8BytesString.create(null == type ? "" : type);
+    this.dbType = UTF8BytesString.create(null == dbType ? "" : dbType);
     this.httpStatusCode = httpStatusCode;
   }
 
@@ -30,6 +39,14 @@ public final class MetricKey {
     return operationName;
   }
 
+  public UTF8BytesString getType() {
+    return type;
+  }
+
+  public UTF8BytesString getDbType() {
+    return dbType;
+  }
+
   public int getHttpStatusCode() {
     return httpStatusCode;
   }
@@ -42,11 +59,13 @@ public final class MetricKey {
     return httpStatusCode == metricKey.httpStatusCode
         && resource.equals(metricKey.resource)
         && service.equals(metricKey.service)
-        && operationName.equals(metricKey.operationName);
+        && operationName.equals(metricKey.operationName)
+        && type.equals(metricKey.type)
+        && dbType.equals(metricKey.dbType);
   }
 
   @Override
   public int hashCode() {
-    return 97 * Objects.hash(resource, service, operationName) + httpStatusCode;
+    return 97 * Objects.hash(resource, service, operationName, type, dbType) + httpStatusCode;
   }
 }

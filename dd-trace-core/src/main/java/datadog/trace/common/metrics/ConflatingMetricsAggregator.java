@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.LRUCache;
 import java.util.List;
@@ -21,6 +22,8 @@ import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 
 @Slf4j
 public final class ConflatingMetricsAggregator implements MetricsAggregator, EventListener {
+
+  private static final Integer ZERO = 0;
 
   private static final Batch POISON_PILL = Batch.NULL;
 
@@ -97,10 +100,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private void publish(CoreSpan<?> span) {
+    MetricKey key =
+        new MetricKey(
+            span.getResourceName(),
+            span.getServiceName(),
+            span.getOperationName(),
+            span.getType(),
+            span.getTag(Tags.DB_TYPE, (CharSequence) ""),
+            span.getTag(Tags.HTTP_STATUS, ZERO));
     boolean error = span.getError() > 0;
     long durationNanos = span.getDurationNano();
-    MetricKey key =
-        new MetricKey(span.getResourceName(), span.getServiceName(), span.getOperationName(), 0);
     Batch batch = pending.get(key);
     if (null != batch) {
       // there is a pending batch, try to win the race to add to it
