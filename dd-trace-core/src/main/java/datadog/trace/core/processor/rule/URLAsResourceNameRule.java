@@ -6,6 +6,8 @@ import datadog.trace.core.processor.TraceProcessor;
 
 public class URLAsResourceNameRule implements TraceProcessor.Rule {
 
+  private static final Integer NOT_FOUND = 404;
+
   private static final BitSlicedBitapSearch PROTOCOL_SEARCH = new BitSlicedBitapSearch("://");
 
   @Override
@@ -19,7 +21,7 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
       return;
     }
     final Object httpStatus = span.getTag(Tags.HTTP_STATUS);
-    if (null != httpStatus && (httpStatus.equals(404) || "404".equals(httpStatus))) {
+    if (NOT_FOUND.equals(httpStatus) || "404".equals(httpStatus)) {
       span.setResourceName("404");
       return;
     }
