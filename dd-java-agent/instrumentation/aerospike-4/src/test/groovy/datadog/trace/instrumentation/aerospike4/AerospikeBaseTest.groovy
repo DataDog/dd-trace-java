@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.aerospike4
 
-
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
@@ -10,12 +9,14 @@ import org.testcontainers.containers.GenericContainer
 import spock.lang.Requires
 import spock.lang.Shared
 
+import static datadog.trace.agent.test.utils.PortUtils.waitForPortToOpen
+import static java.util.concurrent.TimeUnit.SECONDS
 import static org.testcontainers.containers.wait.strategy.Wait.forLogMessage
 
 // Do not run tests locally on Java7 since testcontainers are not compatible with Java7
-// It is fine to run on CI because CI provides rabbitmq externally, not through testcontainers
+// It is fine to run on CI because CI provides aerospike externally, not through testcontainers
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
-class AerospikeBaseTest extends AgentTestRunner {
+abstract class AerospikeBaseTest extends AgentTestRunner {
 
   @Shared
   def aerospike
@@ -41,6 +42,8 @@ class AerospikeBaseTest extends AgentTestRunner {
 
       aerospikePort = aerospike.getMappedPort(3000)
     }
+
+    waitForPortToOpen(aerospikePort, 10, SECONDS)
   }
 
   def cleanup() throws Exception {
