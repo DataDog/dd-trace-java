@@ -2,11 +2,7 @@ package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static datadog.trace.agent.tooling.context.ContextStoreUtils.unpackContextStore;
-import static net.bytebuddy.matcher.ElementMatchers.declaresField;
-import static net.bytebuddy.matcher.ElementMatchers.fieldType;
-import static net.bytebuddy.matcher.ElementMatchers.isFinal;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Instrumenter.Default;
@@ -18,9 +14,7 @@ import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
-import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 /**
  * InstrumentationContextProvider which stores context in a field that is injected into a class and
@@ -145,14 +139,6 @@ public final class FieldBackedProvider implements InstrumentationContextProvider
                     .type(safeHasSuperType(named(entry.getKey())), classLoaderMatcher)
                     .and(ShouldInjectFieldsMatcher.of(entry.getKey(), entry.getValue()))
                     .and(Default.NOT_DECORATOR_MATCHER)
-                    .and(
-                        not(safeHasSuperType(named("java.io.Serializable")))
-                            .or(
-                                declaresField(
-                                    named("serialVersionUID")
-                                        .and(ElementMatchers.<FieldDescription>isStatic())
-                                        .and(isFinal())
-                                        .and(fieldType(long.class)))))
                     .transform(
                         fieldInjector.fieldAccessTransformer(entry.getKey(), entry.getValue()));
           }
