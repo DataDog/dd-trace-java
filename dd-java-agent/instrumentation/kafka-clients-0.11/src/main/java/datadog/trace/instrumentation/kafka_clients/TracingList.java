@@ -1,18 +1,26 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
-public class TracingList extends TracingIterable implements List<ConsumerRecord> {
-  private final List<ConsumerRecord> delegate;
+public class TracingList implements List<ConsumerRecord<?, ?>> {
+  private final List<ConsumerRecord<?, ?>> delegate;
+  private final CharSequence operationName;
+  private final KafkaDecorator decorator;
+
+  // TODO: not thread safe wrapping
+  //  in case of batch consumer and requesting iterator of consumed list from different threads
+  private boolean firstIteration = true;
 
   public TracingList(
-      final List<ConsumerRecord> delegate,
+      final List<ConsumerRecord<?, ?>> delegate,
       final CharSequence operationName,
       final KafkaDecorator decorator) {
-    super(delegate, operationName, decorator);
+    this.operationName = operationName;
+    this.decorator = decorator;
     this.delegate = delegate;
   }
 
@@ -29,6 +37,11 @@ public class TracingList extends TracingIterable implements List<ConsumerRecord>
   @Override
   public boolean contains(final Object o) {
     return delegate.contains(o);
+  }
+
+  @Override
+  public Iterator<ConsumerRecord<?, ?>> iterator() {
+    return listIterator(0);
   }
 
   @Override
@@ -57,12 +70,12 @@ public class TracingList extends TracingIterable implements List<ConsumerRecord>
   }
 
   @Override
-  public boolean addAll(final Collection<? extends ConsumerRecord> c) {
+  public boolean addAll(final Collection<? extends ConsumerRecord<?, ?>> c) {
     return delegate.addAll(c);
   }
 
   @Override
-  public boolean addAll(final int index, final Collection<? extends ConsumerRecord> c) {
+  public boolean addAll(final int index, final Collection<? extends ConsumerRecord<?, ?>> c) {
     return delegate.addAll(index, c);
   }
 
@@ -113,25 +126,26 @@ public class TracingList extends TracingIterable implements List<ConsumerRecord>
   }
 
   @Override
-  public ListIterator<ConsumerRecord> listIterator() {
-    // TODO: the API for ListIterator is not really good to instrument it in context of Kafka
-    // Consumer so we will not do that for now
-    return delegate.listIterator();
+  public ListIterator<ConsumerRecord<?, ?>> listIterator() {
+    return listIterator(0);
   }
 
   @Override
-  public ListIterator<ConsumerRecord> listIterator(final int index) {
-    // TODO: the API for ListIterator is not really good to instrument it in context of Kafka
-    // Consumer so we will not do that for now
-    return delegate.listIterator(index);
+  public ListIterator<ConsumerRecord<?, ?>> listIterator(final int index) {
+    final ListIterator<ConsumerRecord<?, ?>> maybeTracingListIterator;
+    if (firstIteration) {
+      System.out.println("list iterator wrapped");
+      maybeTracingListIterator =
+          new TracingListIterator(delegate.listIterator(index), operationName, decorator);
+      firstIteration = false;
+    } else {
+      maybeTracingListIterator = delegate.listIterator(index);
+    }
+    return maybeTracingListIterator;
   }
 
   @Override
-  public List<ConsumerRecord> subList(final int fromIndex, final int toIndex) {
-    // TODO: the API for subList is not really good to instrument it in context of Kafka
-    // Consumer so we will not do that for now
-    // Kafka is essentially a sequential commit log. We should only enable tracing when traversing
-    // sequentially with an iterator
+  public List<ConsumerRecord<?, ?>> subList(final int fromIndex, final int toIndex) {
     return delegate.subList(fromIndex, toIndex);
   }
 }

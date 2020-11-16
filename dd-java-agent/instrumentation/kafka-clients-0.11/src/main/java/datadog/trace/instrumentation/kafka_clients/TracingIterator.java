@@ -14,8 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 @Slf4j
-public class TracingIterator implements Iterator<ConsumerRecord> {
-  private final Iterator<ConsumerRecord> delegateIterator;
+public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
+  private final Iterator<ConsumerRecord<?, ?>> delegateIterator;
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
 
@@ -26,7 +26,7 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
   private AgentScope currentScope;
 
   public TracingIterator(
-      final Iterator<ConsumerRecord> delegateIterator,
+      final Iterator<ConsumerRecord<?, ?>> delegateIterator,
       final CharSequence operationName,
       final KafkaDecorator decorator) {
     this.delegateIterator = delegateIterator;
@@ -36,40 +36,43 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
 
   @Override
   public boolean hasNext() {
-    if (currentScope != null) {
-      finish();
-    }
+    maybeClosePreviousIterationScope();
     return delegateIterator.hasNext();
   }
 
   @Override
-  public ConsumerRecord next() {
+  public ConsumerRecord<?, ?> next() {
+    maybeClosePreviousIterationScope(); // in case they didn't call hasNext()...
+    final ConsumerRecord<?, ?> next = delegateIterator.next();
+    decorate(next);
+    return next;
+  }
+
+  protected void maybeClosePreviousIterationScope() {
     if (currentScope != null) {
-      // in case they didn't call hasNext()...
       finish();
     }
+  }
 
-    final ConsumerRecord next = delegateIterator.next();
-
+  protected void decorate(ConsumerRecord<?, ?> val) {
     try {
-      if (next != null) {
-        final Context spanContext = propagate().extract(next.headers(), GETTER);
+      if (val != null) {
+        final Context spanContext = propagate().extract(val.headers(), GETTER);
         final AgentSpan span = startSpan(operationName, spanContext);
-        if (next.value() == null) {
+        if (val.value() == null) {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
         }
         decorator.afterStart(span);
-        decorator.onConsume(span, next);
+        decorator.onConsume(span, val);
         currentScope = activateSpan(span);
         currentScope.setAsyncPropagation(true);
       }
     } catch (final Exception e) {
       log.debug("Error during decoration", e);
     }
-    return next;
   }
 
-  private void finish() {
+  protected void finish() {
     currentScope.close();
     decorator.finishConsumerSpan(currentScope.span());
     currentScope = null;

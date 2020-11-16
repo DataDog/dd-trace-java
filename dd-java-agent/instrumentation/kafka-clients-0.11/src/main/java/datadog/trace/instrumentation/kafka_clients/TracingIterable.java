@@ -3,14 +3,14 @@ package datadog.trace.instrumentation.kafka_clients;
 import java.util.Iterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
-public class TracingIterable implements Iterable<ConsumerRecord> {
-  private final Iterable<ConsumerRecord> delegate;
+public class TracingIterable implements Iterable<ConsumerRecord<?, ?>> {
+  private final Iterable<ConsumerRecord<?, ?>> delegate;
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
   private boolean firstIterator = true;
 
   public TracingIterable(
-      final Iterable<ConsumerRecord> delegate,
+      final Iterable<ConsumerRecord<?, ?>> delegate,
       final CharSequence operationName,
       final KafkaDecorator decorator) {
     this.delegate = delegate;
@@ -19,8 +19,8 @@ public class TracingIterable implements Iterable<ConsumerRecord> {
   }
 
   @Override
-  public Iterator<ConsumerRecord> iterator() {
-    final Iterator<ConsumerRecord> it;
+  public Iterator<ConsumerRecord<?, ?>> iterator() {
+    final Iterator<ConsumerRecord<?, ?>> it;
     // We should only return one iterator with tracing.
     // However, this is not thread-safe, but usually the first (hopefully only) traversal of
     // ConsumerRecords is performed in the same thread that called poll()
