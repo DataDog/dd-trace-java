@@ -12,7 +12,8 @@ import java.util.concurrent.Future
 import java.util.concurrent.Phaser
 import java.util.concurrent.TimeUnit
 
-import static org.junit.Assume.assumeFalse
+import static datadog.trace.api.Platform.isJavaVersionAtLeast
+import static org.junit.Assume.assumeTrue
 
 class DatadogClassLoaderTest extends Specification {
   @Shared
@@ -64,7 +65,7 @@ class DatadogClassLoaderTest extends Specification {
 
   def "test delegate class load to parent"() {
     given:
-    assumeFalse(System.getProperty("java.version").contains("1.7"))
+    assumeTrue(isJavaVersionAtLeast(8))
     DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy =
       new DatadogClassLoader.BootstrapClassLoaderProxy()
     DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
@@ -81,7 +82,7 @@ class DatadogClassLoaderTest extends Specification {
 
   def "test delegate class load to bootstrap"() {
     given:
-    assumeFalse(System.getProperty("java.version").contains("1.7"))
+    assumeTrue(isJavaVersionAtLeast(8))
     DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy =
       new DatadogClassLoader.BootstrapClassLoaderProxy()
     DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
@@ -97,7 +98,7 @@ class DatadogClassLoaderTest extends Specification {
 
   def "test class load managed by child"() {
     given:
-    assumeFalse(System.getProperty("java.version").contains("1.7"))
+    assumeTrue(isJavaVersionAtLeast(8))
     DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy =
       new DatadogClassLoader.BootstrapClassLoaderProxy()
     DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
@@ -128,7 +129,7 @@ class DatadogClassLoaderTest extends Specification {
 
   def "test parent classloader successfully loads classes concurrently"() {
     given:
-    assumeFalse(System.getProperty("java.version").startsWith("1.7"))
+    assumeTrue(isJavaVersionAtLeast(8))
     DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy = new DatadogClassLoader.BootstrapClassLoaderProxy()
 
     DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
@@ -165,7 +166,7 @@ class DatadogClassLoaderTest extends Specification {
 
   def "test delegate classloader successfully loads classes concurrently"() {
     given:
-    assumeFalse(System.getProperty("java.version").startsWith("1.7"))
+    assumeTrue(isJavaVersionAtLeast(8))
     DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy = new DatadogClassLoader.BootstrapClassLoaderProxy()
     DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
 

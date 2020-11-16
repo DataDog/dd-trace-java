@@ -1,5 +1,6 @@
 package datadog.trace.core.serialization.msgpack;
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -15,8 +16,7 @@ public class MsgPackWriter extends WritableFormatter {
 
   private static final int MAX_ARRAY_HEADER_SIZE = 5;
 
-  private static final boolean IS_JVM_9_OR_LATER =
-      !System.getProperty("java.version").startsWith("1.");
+  private static final boolean IS_JVM_9_OR_LATER = isJavaVersionAtLeast(9);
 
   // see https://github.com/msgpack/msgpack/blob/master/spec.md
   private static final byte NULL = (byte) 0xC0;

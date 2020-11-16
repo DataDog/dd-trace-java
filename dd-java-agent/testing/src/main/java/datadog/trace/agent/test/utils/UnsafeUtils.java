@@ -1,22 +1,12 @@
 package datadog.trace.agent.test.utils;
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
 public class UnsafeUtils {
   private UnsafeUtils() {}
-
-  public static final int JAVA_VERSION = getJavaVersion();
-
-  private static int getJavaVersion() {
-    final String javaVersion = System.getProperty("java.version", "0.");
-    final int beg = javaVersion.startsWith("1.") ? 2 : 0;
-    int end = javaVersion.indexOf('.', beg);
-    if (end < 0) {
-      end = javaVersion.length();
-    }
-    return Integer.parseInt(javaVersion.substring(beg, end));
-  }
 
   private static void setStaticBooleanFieldViaUnsafe(final Field field, final boolean newValue)
       throws Exception {
@@ -44,11 +34,11 @@ public class UnsafeUtils {
 
   public static void setStaticBooleanField(final Field field, final boolean newValue)
       throws Exception {
-    if (JAVA_VERSION < 12) {
-      setStaticFieldViaReflection(field, newValue);
-    } else {
+    if (isJavaVersionAtLeast(12)) {
       // since 12 we can't use reflection: http://hg.openjdk.java.net/jdk/jdk/rev/f55a4bc91ef4
       setStaticBooleanFieldViaUnsafe(field, newValue);
+    } else {
+      setStaticFieldViaReflection(field, newValue);
     }
   }
 }
