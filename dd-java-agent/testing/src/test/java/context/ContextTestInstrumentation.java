@@ -7,7 +7,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -52,14 +51,9 @@ public class ContextTestInstrumentation extends Instrumenter.Default {
   @Override
   public Map<String, String> contextStoreForAll() {
     final Map<String, String> store = new HashMap<>(2);
-    String prefix = getClass().getName() + "$";
-    store.put(prefix + "KeyClass", prefix + "Context");
-    store.put(prefix + "UntransformableKeyClass", prefix + "Context");
-    store.put(prefix + "DisabledKeyClass", prefix + "Context");
-    store.put(prefix + "ValidSerializableKeyClass", prefix + "Context");
-    store.put(prefix + "InvalidSerializableKeyClass", prefix + "Context");
-    store.put(prefix + "ValidInheritsSerializableKeyClass", prefix + "Context");
-    store.put(prefix + "InvalidInheritsSerializableKeyClass", prefix + "Context");
+    store.put(getClass().getName() + "$KeyClass", getClass().getName() + "$Context");
+    store.put(getClass().getName() + "$UntransformableKeyClass", getClass().getName() + "$Context");
+    store.put(getClass().getName() + "$DisabledKeyClass", getClass().getName() + "$Context");
     return store;
   }
 
@@ -191,22 +185,6 @@ public class ContextTestInstrumentation extends Instrumenter.Default {
       return false;
     }
   }
-
-  /** A class that is serializable with serialVersionUID. */
-  public static class ValidSerializableKeyClass extends KeyClass implements Serializable {
-    private static final long serialVersionUID = 123;
-  }
-
-  /** A class that is serializable with no serialVersionUID. */
-  public static class InvalidSerializableKeyClass extends KeyClass implements Serializable {}
-
-  /** A class that inherits serializable with serialVersionUID. */
-  public static class ValidInheritsSerializableKeyClass extends InvalidSerializableKeyClass {
-    private static final long serialVersionUID = 456;
-  }
-
-  /** A class that inherits serializable with no serialVersionUID. */
-  public static class InvalidInheritsSerializableKeyClass extends ValidSerializableKeyClass {}
 
   public static class IncorrectKeyClassUsageKeyClass {
     public boolean isInstrumented() {
