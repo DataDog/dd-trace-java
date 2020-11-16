@@ -1,7 +1,7 @@
 package datadog.trace.common.writer.ddagent
 
 import com.timgroup.statsd.NoOpStatsDClient
-import datadog.trace.core.DDSpanData
+import datadog.trace.core.CoreSpan
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.test.util.DDSpecification
@@ -26,9 +26,9 @@ class TraceMapperRealAgentTest extends DDSpecification {
     setup:
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     PayloadDispatcher dispatcher = new PayloadDispatcher(v05 ? v05Api : v04Api, healthMetrics, monitoring)
-    List<List<DDSpanData>> traces = generateRandomTraces(traceCount, lowCardinality)
+    List<List<CoreSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     when:
-    for (List<DDSpanData> trace : traces) {
+    for (List<CoreSpan> trace : traces) {
       dispatcher.addTrace(trace)
     }
     dispatcher.flush()

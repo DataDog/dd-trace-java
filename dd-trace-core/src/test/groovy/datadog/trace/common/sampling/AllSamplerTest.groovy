@@ -22,20 +22,25 @@ class AllSamplerTest extends DDSpecification {
 
   def "test skip tag sampler"() {
     setup:
-    final Map<String, Object> tags = new HashMap<>()
-    2 * span.getTags() >> tags
     sampler.addSkipTagPattern("http.url", Pattern.compile(".*/hello"))
 
     when:
-    tags.put("http.url", "http://a/hello")
+    boolean sampled = sampler.sample(span)
 
     then:
-    !sampler.sample(span)
+    1 * span.getTag("http.url") >> "http://a/hello"
+
+    expect:
+    !sampled
 
     when:
-    tags.put("http.url", "http://a/hello2")
+    sampled = sampler.sample(span)
 
     then:
-    sampler.sample(span)
+    span.getTag("http.url") >> "http://a/hello2"
+
+    expect:
+    sampled
+
   }
 }

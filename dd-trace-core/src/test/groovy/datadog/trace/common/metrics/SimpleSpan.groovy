@@ -1,10 +1,10 @@
 package datadog.trace.common.metrics
 
 import datadog.trace.api.DDId
-import datadog.trace.core.DDSpanData
+import datadog.trace.core.CoreSpan
 import datadog.trace.core.TagsAndBaggageConsumer
 
-class SimpleSpan implements DDSpanData {
+class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   private final String serviceName
   private final String operationName
@@ -29,6 +29,11 @@ class SimpleSpan implements DDSpanData {
     this.error = error
     this.startTime = startTime
     this.duration = duration
+  }
+
+  @Override
+  SimpleSpan getLocalRootSpan() {
+    return this
   }
 
   @Override
@@ -77,22 +82,82 @@ class SimpleSpan implements DDSpanData {
   }
 
   @Override
+  SimpleSpan setMeasured(boolean measured) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setErrorMessage(String errorMessage) {
+    return this
+  }
+
+  @Override
+  SimpleSpan addThrowable(Throwable error) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, String value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, boolean value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, int value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, long value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, double value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, Number value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, CharSequence value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setTag(String tag, Object value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan removeTag(String tag) {
+    return this
+  }
+
+  @Override
+  <U> U getTag(CharSequence name, U defaultValue) {
+    return defaultValue
+  }
+
+  @Override
+  <U> U getTag(CharSequence name) {
+    return null
+  }
+
+  @Override
   boolean isMeasured() {
     return measured
   }
 
   @Override
   Map<CharSequence, Number> getMetrics() {
-    return null
-  }
-
-  @Override
-  Map<String, String> getBaggage() {
-    return null
-  }
-
-  @Override
-  Map<String, Object> getTags() {
     return null
   }
 
@@ -104,5 +169,40 @@ class SimpleSpan implements DDSpanData {
   @Override
   void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
 
+  }
+
+  @Override
+  SimpleSpan setSamplingPriority(int samplingPriority) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setSamplingPriority(int samplingPriority, CharSequence rate, double sampleRate) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setMetric(CharSequence name, int value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setMetric(CharSequence name, long value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setMetric(CharSequence name, float value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setMetric(CharSequence name, double value) {
+    return this
+  }
+
+  @Override
+  SimpleSpan setFlag(CharSequence name, boolean value) {
+    return this
   }
 }

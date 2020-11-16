@@ -7,7 +7,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
-import datadog.trace.core.DDSpanData;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.LRUCache;
 import java.util.List;
 import java.util.Map;
@@ -86,9 +86,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   @Override
-  public void publish(List<? extends DDSpanData> trace) {
+  public void publish(List<? extends CoreSpan<?>> trace) {
     if (enabled) {
-      for (DDSpanData span : trace) {
+      for (CoreSpan<?> span : trace) {
         if (span.isMeasured()) {
           publish(span);
         }
@@ -96,7 +96,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     }
   }
 
-  private void publish(DDSpanData span) {
+  private void publish(CoreSpan<?> span) {
     boolean error = span.getError() > 0;
     long durationNanos = span.getDurationNano();
     MetricKey key =

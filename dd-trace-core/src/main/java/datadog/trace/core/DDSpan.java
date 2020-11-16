@@ -20,7 +20,7 @@ import lombok.extern.slf4j.Slf4j;
  * according to the DD agent.
  */
 @Slf4j
-public class DDSpan implements AgentSpan, DDSpanData {
+public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   static DDSpan create(final long timestampMicro, final DDSpanContext context) {
     final DDSpan span = new DDSpan(timestampMicro, context);
@@ -109,7 +109,7 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   @Override
-  public AgentSpan setMeasured(boolean measured) {
+  public DDSpan setMeasured(boolean measured) {
     context.setMeasured(measured);
     return this;
   }
@@ -148,12 +148,12 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   @Override
-  public AgentSpan setErrorMessage(final String errorMessage) {
+  public DDSpan setErrorMessage(final String errorMessage) {
     return setTag(DDTags.ERROR_MSG, errorMessage);
   }
 
   @Override
-  public AgentSpan addThrowable(final Throwable error) {
+  public DDSpan addThrowable(final Throwable error) {
     setError(true);
 
     setTag(DDTags.ERROR_MSG, error.getMessage());
@@ -179,19 +179,19 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   @Override
-  public AgentSpan setTag(final String tag, final int value) {
+  public DDSpan setTag(final String tag, final int value) {
     context.setTag(tag, value);
     return this;
   }
 
   @Override
-  public AgentSpan setTag(final String tag, final long value) {
+  public DDSpan setTag(final String tag, final long value) {
     context.setTag(tag, value);
     return this;
   }
 
   @Override
-  public AgentSpan setTag(final String tag, final double value) {
+  public DDSpan setTag(final String tag, final double value) {
     context.setTag(tag, value);
     return this;
   }
@@ -209,6 +209,12 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   @Override
+  public DDSpan setMetric(CharSequence name, float value) {
+    context.setMetric(name, value);
+    return this;
+  }
+
+  @Override
   public DDSpan setMetric(final CharSequence metric, final long value) {
     context.setMetric(metric, value);
     return this;
@@ -217,6 +223,12 @@ public class DDSpan implements AgentSpan, DDSpanData {
   @Override
   public DDSpan setMetric(final CharSequence metric, final double value) {
     context.setMetric(metric, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setFlag(CharSequence name, boolean value) {
+    context.setMetric(name, value ? 1 : 0);
     return this;
   }
 
@@ -233,13 +245,9 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   // FIXME [API] this is not on AgentSpan or MutableSpan
-  public AgentSpan removeTag(final String tag) {
+  public DDSpan removeTag(final String tag) {
     context.setTag(tag, null);
     return this;
-  }
-
-  public Object getAndRemoveTag(final String tag) {
-    return context.getAndRemoveTag(tag);
   }
 
   @Override
@@ -289,6 +297,14 @@ public class DDSpan implements AgentSpan, DDSpanData {
   @Override
   public final DDSpan setSamplingPriority(final int newPriority) {
     context.setSamplingPriority(newPriority);
+    return this;
+  }
+
+  @Override
+  public DDSpan setSamplingPriority(int samplingPriority, CharSequence rate, double sampleRate) {
+    if (context.setSamplingPriority(samplingPriority)) {
+      setMetric(rate, sampleRate);
+    }
     return this;
   }
 
@@ -408,11 +424,22 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
+  public <U> U getTag(CharSequence name, U defaultValue) {
+    Object tag = getTag(String.valueOf(name));
+    return null == tag ? defaultValue : (U) tag;
+  }
+
+  @Override
+  public <U> U getTag(CharSequence name) {
+    return getTag(name, null);
+  }
+
+  @Override
   public boolean isMeasured() {
     return context.isMeasured();
   }
 
-  @Override
   public Map<String, String> getBaggage() {
     return Collections.unmodifiableMap(context.getBaggageItems());
   }

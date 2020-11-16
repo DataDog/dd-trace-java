@@ -3,7 +3,7 @@ package datadog.trace.common.writer.ddagent
 import datadog.trace.api.DDId
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
-import datadog.trace.core.DDSpanData
+import datadog.trace.core.CoreSpan
 import datadog.trace.core.TagsAndBaggageConsumer
 
 import java.util.concurrent.ThreadLocalRandom
@@ -11,8 +11,8 @@ import java.util.concurrent.TimeUnit
 
 class TraceGenerator {
 
-  static List<List<DDSpanData>> generateRandomTraces(int howMany, boolean lowCardinality) {
-    List<List<DDSpanData>> traces = new ArrayList<>(howMany)
+  static List<List<CoreSpan>> generateRandomTraces(int howMany, boolean lowCardinality) {
+    List<List<CoreSpan>> traces = new ArrayList<>(howMany)
     for (int i = 0; i < howMany; ++i) {
       int traceSize = ThreadLocalRandom.current().nextInt(2, 20)
       traces.add(generateRandomTrace(traceSize, lowCardinality))
@@ -20,8 +20,8 @@ class TraceGenerator {
     return traces
   }
 
-  private static List<DDSpanData> generateRandomTrace(int size, boolean lowCardinality) {
-    List<DDSpanData> trace = new ArrayList<>(size)
+  private static List<CoreSpan> generateRandomTrace(int size, boolean lowCardinality) {
+    List<CoreSpan> trace = new ArrayList<>(size)
     long traceId = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE)
     for (int i = 0; i < size; ++i) {
       trace.add(randomSpan(traceId, lowCardinality))
@@ -29,7 +29,7 @@ class TraceGenerator {
     return trace
   }
 
-  private static DDSpanData randomSpan(long traceId, boolean lowCardinality) {
+  private static CoreSpan randomSpan(long traceId, boolean lowCardinality) {
     Map<String, String> baggage = new HashMap<>()
     if (ThreadLocalRandom.current().nextBoolean()) {
       baggage.put("baggage-key", lowCardinality ? "x" : randomString(100))
@@ -86,7 +86,7 @@ class TraceGenerator {
     return new String(chars)
   }
 
-  static class PojoSpan implements DDSpanData {
+  static class PojoSpan implements CoreSpan<PojoSpan> {
 
     private final CharSequence serviceName
     private final CharSequence operationName
@@ -135,6 +135,11 @@ class TraceGenerator {
     }
 
     @Override
+    PojoSpan getLocalRootSpan() {
+      return this
+    }
+
+    @Override
     String getServiceName() {
       return serviceName
     }
@@ -180,6 +185,66 @@ class TraceGenerator {
     }
 
     @Override
+    PojoSpan setMeasured(boolean measured) {
+      return this
+    }
+
+    @Override
+    PojoSpan setErrorMessage(String errorMessage) {
+      return this
+    }
+
+    @Override
+    PojoSpan addThrowable(Throwable error) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, String value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, boolean value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, int value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, long value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, double value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, Number value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, CharSequence value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setTag(String tag, Object value) {
+      return this
+    }
+
+    @Override
+    PojoSpan removeTag(String tag) {
+      return this
+    }
+
+    @Override
     boolean isMeasured() {
       return measured
     }
@@ -189,12 +254,10 @@ class TraceGenerator {
       return metrics
     }
 
-    @Override
     Map<String, String> getBaggage() {
       return baggage
     }
 
-    @Override
     Map<String, Object> getTags() {
       return tags
     }
@@ -207,6 +270,51 @@ class TraceGenerator {
     @Override
     void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
       consumer.accept(tags, baggage)
+    }
+
+    @Override
+    PojoSpan setSamplingPriority(int samplingPriority) {
+      return this
+    }
+
+    @Override
+    PojoSpan setSamplingPriority(int samplingPriority, CharSequence rate, double sampleRate) {
+      return this
+    }
+
+    @Override
+    PojoSpan setMetric(CharSequence name, int value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setMetric(CharSequence name, long value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setMetric(CharSequence name, float value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setMetric(CharSequence name, double value) {
+      return this
+    }
+
+    @Override
+    PojoSpan setFlag(CharSequence name, boolean value) {
+      return this
+    }
+
+    @Override
+    <U> U getTag(CharSequence name, U defaultValue) {
+      return tags.get(String.valueOf(name), defaultValue) as U
+    }
+
+    @Override
+    <U> U getTag(CharSequence name) {
+      return tags.get(String.valueOf(name)) as U
     }
   }
 }

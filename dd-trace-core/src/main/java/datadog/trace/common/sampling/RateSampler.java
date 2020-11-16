@@ -1,5 +1,7 @@
 package datadog.trace.common.sampling;
 
-public interface RateSampler extends Sampler {
+import datadog.trace.core.CoreSpan;
+
+public interface RateSampler<T extends CoreSpan<T>> extends Sampler<T> {
   double getSampleRate();
 }
