@@ -382,6 +382,8 @@ public class Config {
   @Getter private final boolean servletPrincipalEnabled;
   @Getter private final boolean servletAsyncTimeoutError;
 
+  @Getter private final boolean tempJarsCleanOnBoot;
+
   @Getter private final boolean traceAgentV05Enabled;
 
   @Getter private final boolean debugEnabled;
@@ -704,6 +706,10 @@ public class Config {
 
     servletAsyncTimeoutError =
         configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR, true);
+
+    tempJarsCleanOnBoot =
+        configProvider.getBoolean(TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT, false)
+            && isWindowsOS();
 
     debugEnabled = isDebugMode();
 
@@ -1044,7 +1050,7 @@ public class Config {
     String possibleHostname;
 
     // Try environment variable.  This works in almost all environments
-    if (System.getProperty("os.name").startsWith("Windows")) {
+    if (isWindowsOS()) {
       possibleHostname = System.getenv("COMPUTERNAME");
     } else {
       possibleHostname = System.getenv("HOSTNAME");
@@ -1077,6 +1083,10 @@ public class Config {
     }
 
     return null;
+  }
+
+  private static boolean isWindowsOS() {
+    return System.getProperty("os.name").startsWith("Windows");
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize

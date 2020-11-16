@@ -38,5 +38,7 @@ public final class TraceInstrumentationConfig {
   public static final String SERVLET_PRINCIPAL_ENABLED = "trace.servlet.principal.enabled";
   public static final String SERVLET_ASYNC_TIMEOUT_ERROR = "trace.servlet.async-timeout.error";
 
+  public static final String TEMP_JARS_CLEAN_ON_BOOT = "temp.jars.clean.on.boot";
+
   private TraceInstrumentationConfig() {}
 }
