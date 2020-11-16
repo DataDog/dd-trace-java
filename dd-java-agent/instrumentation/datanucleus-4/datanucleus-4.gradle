@@ -39,37 +39,34 @@ muzzle {
 
 apply from: "${rootDir}/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
-
 def datanucleusVersion = '4.0.5'
 
 // Datanucleus modifies persistable objects with bytecode manipulation
 // The unofficial plugin (org.rm3l.datanucleus-gradle-plugin) doesn't work with our build
 // The enhancement is done manually here for the test classes
+// LatestDepTest can't be used because the enhancer class generates incompatible code
+// Specifically, org.datanucleus.enhancer.Persistable changes package
+// Only one version can be set as the script classpath in the 'buildScript' block
 task enhance {
   doLast {
-    DataNucleusEnhancer enhancer = new DataNucleusEnhancer("JDO", null)
-    enhancer.setVerbose(true).addPersistenceUnit("testPersistenceUnit")
-
     def outputUrls = (sourceSets.test.output.classesDirs.files + sourceSets.test.output.resourcesDir)
       .collect { it.toURI().toURL() } as URL[]
 
-    def classloader = new URLClassLoader(outputUrls, Thread.currentThread().getContextClassLoader())
-    enhancer.setClassLoader(classloader)
+    def testClassloader = new URLClassLoader(outputUrls, Thread.currentThread().getContextClassLoader())
+
+    DataNucleusEnhancer enhancer = new DataNucleusEnhancer("JDO", null)
+    enhancer.setVerbose(true).addPersistenceUnit("testPersistenceUnit")
     enhancer.setSystemOut(true)
+    enhancer.setClassLoader(testClassloader)
     enhancer.enhance()
   }
 
   dependsOn testClasses
 }
 
-test.dependsOn enhance
+tasks.withType(Test).configureEach {
+  dependsOn enhance
+}
 
 dependencies {
   compileOnly group: 'org.datanucleus', name: 'datanucleus-core', version: datanucleusVersion
@@ -82,8 +79,4 @@ dependencies {
   testCompile group: 'org.datanucleus', name: 'datanucleus-rdbms', version: datanucleusVersion
   testCompile group: 'org.datanucleus', name: 'javax.jdo', version: '3.2.0-m1'
   testCompile group: 'com.h2database', name: 'h2', version: '1.3.169'
-
-  latestDepTestCompile group: 'org.datanucleus', name: 'datanucleus-core', version: '+'
-  latestDepTestCompile group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: '+'
-  latestDepTestCompile group: 'org.datanucleus', name: 'javax.jdo', version: '+'
 }
