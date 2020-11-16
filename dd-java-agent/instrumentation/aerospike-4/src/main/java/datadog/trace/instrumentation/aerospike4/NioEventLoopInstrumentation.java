@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.aerospike4;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static java.util.Collections.singletonMap;
@@ -43,9 +42,15 @@ public final class NioEventLoopInstrumentation extends Instrumenter.Default {
   public static final class WrapAsFutureTaskAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enterExecute(@Advice.Argument(value = 0, readOnly = false) Runnable task) {
-      if (activeScope() != null && !(task instanceof RunnableFuture) && !exclude(RUNNABLE, task)) {
-        task = new FutureTask<>(task, null);
+      if (task == null || task instanceof RunnableFuture || exclude(RUNNABLE, task)) {
+        return;
       }
+      // don't wrap Runnables belonging to NioEventLoop(s) as they want to propagate CloseException
+      // outside of the event loop on close() and wrapping them in FutureTask interferes with that
+      if (task.getClass().getName().startsWith("com.aerospike.client.async.NioEventLoop")) {
+        return;
+      }
+      task = new FutureTask<Void>(task, null);
     }
   }
 }
