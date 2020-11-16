@@ -6,12 +6,14 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
+@AutoService(Instrumenter.class)
 public class HttpServerResponseEndHandlerInstrumentation extends Instrumenter.Default {
   public HttpServerResponseEndHandlerInstrumentation() {
     super("vertx", "vertx-3.4");
@@ -20,7 +22,10 @@ public class HttpServerResponseEndHandlerInstrumentation extends Instrumenter.De
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".EndHandlerWrapper", packageName + ".VertxRouterDecorator",
+      packageName + ".EndHandlerWrapper",
+      packageName + ".VertxRouterDecorator",
+      packageName + ".VertxRouterDecorator$1",
+      packageName + ".VertxRouterDecorator$VertxURIDataAdapter",
     };
   }
 
