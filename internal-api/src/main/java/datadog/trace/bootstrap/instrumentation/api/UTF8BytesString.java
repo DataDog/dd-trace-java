@@ -25,11 +25,24 @@ public final class UTF8BytesString implements CharSequence {
     }
   }
 
+  public static UTF8BytesString create(byte[] utf8Bytes) {
+    if (null == utf8Bytes) {
+      return null;
+    } else {
+      return new UTF8BytesString(utf8Bytes);
+    }
+  }
+
   private final String string;
   private byte[] utf8Bytes;
 
   private UTF8BytesString(String string) {
     this.string = string;
+  }
+
+  private UTF8BytesString(byte[] utf8Bytes) {
+    this.string = new String(utf8Bytes, UTF_8);
+    this.utf8Bytes = utf8Bytes;
   }
 
   /** Writes the UTF8 encoding of the wrapped {@code String}. */
