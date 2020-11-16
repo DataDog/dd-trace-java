@@ -34,16 +34,7 @@ public final class AerospikeClientInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AerospikeClientDecorator",
-      packageName + ".TracingListener",
-      packageName + ".TracingListener$1",
-      packageName + ".TracingListener$2",
-      packageName + ".TracingListener$3",
-      packageName + ".TracingListener$4",
-      packageName + ".TracingListener$5",
-      packageName + ".TracingListener$6",
-      packageName + ".TracingListener$7",
-      packageName + ".TracingListener$8",
+      packageName + ".AerospikeClientDecorator", packageName + ".TracingListener",
     };
   }
 
@@ -66,7 +57,7 @@ public final class AerospikeClientInstrumentation extends Instrumenter.Default {
   public static final class TraceSyncRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beginRequest(@Advice.Origin("#m") final String methodName) {
-      final AgentSpan clientSpan = DECORATE.startAerospikeSpan(methodName);
+      AgentSpan clientSpan = DECORATE.startAerospikeSpan(methodName);
       return activateSpan(clientSpan);
     }
 
@@ -83,8 +74,8 @@ public final class AerospikeClientInstrumentation extends Instrumenter.Default {
     public static AgentScope beginRequest(
         @Advice.Origin("#m") final String methodName,
         @Advice.Argument(value = 1, readOnly = false, typing = DYNAMIC) Object listener) {
-      final AgentSpan clientSpan = DECORATE.startAerospikeSpan(methodName);
-      final AgentScope scope = activateSpan(clientSpan);
+      AgentSpan clientSpan = DECORATE.startAerospikeSpan(methodName);
+      AgentScope scope = activateSpan(clientSpan);
       // always want to wrap even when there's no listener so we get the true async time
       listener = new TracingListener(clientSpan, scope.capture(), listener);
       return scope;
