@@ -2,10 +2,15 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.BOOTSTRAP_CLASSLOADER;
 
+import datadog.trace.api.Config;
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.SecureClassLoader;
 import java.util.Arrays;
 import java.util.Collection;
@@ -37,6 +42,12 @@ public class HelperInjector implements Transformer {
           return "<bootstrap>";
         }
       };
+
+  static {
+    if (Config.get().isTempJarsCleanOnBoot()) {
+      cleanTempJars();
+    }
+  }
 
   private final String requestingName;
 
@@ -195,7 +206,7 @@ public class HelperInjector implements Transformer {
 
   private static File createTempDir() throws IOException {
     try {
-      return Files.createTempDirectory("datadog-temp-jars").toFile();
+      return Files.createTempDirectory(DATADOG_TEMP_JARS).toFile();
     } catch (final IOException e) {
       if (log.isErrorEnabled()) {
         log.error(
@@ -217,6 +228,52 @@ public class HelperInjector implements Transformer {
       log.debug("file '{}' added to shutdown delete hook", file);
     } else {
       log.debug("file '{}' deleted", file);
+    }
+  }
+
+  private static final String DATADOG_TEMP_JARS = "datadog-temp-jars";
+  private static final int MAX_CLEANUP_MILLIS = 1_000;
+
+  private static void cleanTempJars() {
+    try {
+      final Path tmpDir = Paths.get(System.getProperty("java.io.tmpdir"));
+      log.debug("Cleaning temp jar directories under {}", tmpDir);
+
+      final long maxTimeMillis = System.currentTimeMillis() + MAX_CLEANUP_MILLIS;
+      try (final DirectoryStream<Path> paths =
+          Files.newDirectoryStream(tmpDir, DATADOG_TEMP_JARS + "*")) {
+        for (final Path dir : paths) {
+          if (System.currentTimeMillis() > maxTimeMillis) {
+            break; // avoid attempting too much cleanup on boot
+          }
+          cleanTempJars(dir.toFile());
+        }
+      }
+    } catch (final Throwable e) {
+      log.debug("Problem cleaning temp jar directories", e);
+    }
+  }
+
+  private static void cleanTempJars(final File tempJarDir) {
+    final File[] tempJars =
+        tempJarDir.listFiles(
+            new FilenameFilter() {
+              @Override
+              public boolean accept(final File dir, final String name) {
+                return name.startsWith("jar") && name.endsWith(".jar");
+              }
+            });
+
+    if (tempJars != null) {
+      for (final File jar : tempJars) {
+        if (jar.delete()) {
+          log.debug("file '{}' deleted", jar);
+        }
+      }
+    }
+
+    if (tempJarDir.delete()) {
+      log.debug("file '{}' deleted", tempJarDir);
     }
   }
 }
