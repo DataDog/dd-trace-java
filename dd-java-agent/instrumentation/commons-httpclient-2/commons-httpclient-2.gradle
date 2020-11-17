@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = "commons-httpclient"
     module = "commons-httpclient"
-    versions = "[2.0,]"
+    versions = "[2.0,20000000]" // limit highest version to avoid odd one with date 20020423 as version number
     skipVersions += "3.1-jenkins-1" // odd version in jcenter
     assertInverse = true
   }
@@ -22,5 +22,5 @@ dependencies {
 
   testCompile group: 'commons-httpclient', name: 'commons-httpclient', version: '2.0'
 
-  latestDepTestCompile group: 'commons-httpclient', name: 'commons-httpclient', version: '+'
+  latestDepTestCompile group: 'commons-httpclient', name: 'commons-httpclient', version: '"[2.0,20000000]"'
 }
