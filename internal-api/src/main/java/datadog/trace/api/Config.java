@@ -733,7 +733,10 @@ public class Config {
   }
 
   public WellKnownTags getWellKnownTags() {
-    return new WellKnownTags(getHostName(), tags.get(ENV), serviceName, tags.get(VERSION));
+    CharSequence env = tags.get(ENV);
+    CharSequence version = tags.get(VERSION);
+    return new WellKnownTags(
+        getHostName(), null == env ? "" : env, serviceName, null == version ? "" : version);
   }
 
   public Map<String, String> getMergedSpanTags() {
