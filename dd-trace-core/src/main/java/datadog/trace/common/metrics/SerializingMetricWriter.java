@@ -20,12 +20,12 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] SERVICE = "Service".getBytes(US_ASCII);
   private static final byte[] RESOURCE = "Resource".getBytes(US_ASCII);
   private static final byte[] VERSION = "Version".getBytes(US_ASCII);
-  // can use this, but are not
-  // private static final byte[] OTHER_TAGS = "OtherTags".getBytes(US_ASCII);
   private static final byte[] HITS = "Hits".getBytes(US_ASCII);
   private static final byte[] ERRORS = "Errors".getBytes(US_ASCII);
   private static final byte[] DURATION = "Duration".getBytes(US_ASCII);
-  private static final byte[] TOP_LEVEL = "TopLevel".getBytes(US_ASCII);
+  private static final byte[] TYPE = "Type".getBytes(US_ASCII);
+  private static final byte[] DBTYPE = "DBType".getBytes(US_ASCII);
+  private static final byte[] HTTP_STATUS_CODE = "HTTPStatusCode".getBytes(US_ASCII);
   private static final byte[] START = "Start".getBytes(US_ASCII);
   private static final byte[] STATS = "Stats".getBytes(US_ASCII);
 
@@ -37,18 +37,21 @@ public final class SerializingMetricWriter implements MetricWriter {
     this.writer =
         new MsgPackWriter(
             // 64KB
-            sink, ByteBuffer.allocate(64 << 20), EnumSet.of(RESIZEABLE, SINGLE_MESSAGE));
+            sink, ByteBuffer.allocate(64 << 10), EnumSet.of(RESIZEABLE, SINGLE_MESSAGE));
   }
 
   @Override
   public void startBucket(int metricCount, long start, long duration) {
-    writer.startMap(3);
+    writer.startMap(4);
 
     writer.writeUTF8(HOSTNAME);
     writer.writeUTF8(wellKnownTags.getHostname());
 
     writer.writeUTF8(ENV);
     writer.writeUTF8(wellKnownTags.getEnv());
+
+    writer.writeUTF8(VERSION);
+    writer.writeUTF8(wellKnownTags.getVersion());
 
     writer.writeUTF8(STATS);
     writer.startArray(1);
@@ -72,29 +75,30 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeUTF8(NAME);
     writer.writeUTF8(key.getOperationName());
 
-    writer.writeUTF8(ENV);
-    writer.writeUTF8(wellKnownTags.getEnv());
-
     writer.writeUTF8(SERVICE);
     writer.writeUTF8(key.getService());
 
     writer.writeUTF8(RESOURCE);
     writer.writeUTF8(key.getResource());
 
-    writer.writeUTF8(VERSION);
-    writer.writeUTF8(wellKnownTags.getVersion());
+    writer.writeUTF8(TYPE);
+    writer.writeUTF8(key.getType());
+
+    writer.writeUTF8(DBTYPE);
+    writer.writeUTF8(key.getDbType());
+
+    writer.writeUTF8(HTTP_STATUS_CODE);
+    writer.writeInt(key.getHttpStatusCode());
 
     writer.writeUTF8(HITS);
-    writer.writeFloat(aggregate.getHitCount());
+    writer.writeInt(aggregate.getHitCount());
 
     writer.writeUTF8(ERRORS);
-    writer.writeFloat(aggregate.getErrorCount());
+    writer.writeInt(aggregate.getErrorCount());
 
     writer.writeUTF8(DURATION);
-    writer.writeDouble(aggregate.getDuration());
+    writer.writeLong(aggregate.getDuration());
 
-    writer.writeUTF8(TOP_LEVEL);
-    writer.writeFloat(0);
     // TODO sketches go here when ready
   }
 

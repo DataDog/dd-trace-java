@@ -41,7 +41,7 @@ class AggregateMetricTest extends DDSpecification {
       .addHits(10)
       .addErrors(1)
 
-    Batch batch = new Batch().withKey(new MetricKey("foo", "bar", "qux", 0))
+    Batch batch = new Batch().withKey(new MetricKey("foo", "bar", "qux", "type", "", 0))
     batch.add(false, 10)
     batch.add(false, 10)
     batch.add(false, 10)
@@ -77,7 +77,7 @@ class AggregateMetricTest extends DDSpecification {
   def "consistent under concurrent attempts to read and write"() {
     given:
     AggregateMetric aggregate = new AggregateMetric()
-    MetricKey key = new MetricKey("foo", "bar", "qux", 0)
+    MetricKey key = new MetricKey("foo", "bar", "qux", "type", "", 0)
     BlockingDeque<Batch> queue = new LinkedBlockingDeque<>(1000)
     ExecutorService reader = Executors.newSingleThreadExecutor()
     int writerCount = 10

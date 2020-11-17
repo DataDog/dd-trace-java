@@ -242,7 +242,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     pendingTraceFactory = new PendingTrace.Factory(this, PENDING_TRACE_BUFFER);
     this.writer.start();
 
-    this.metricsAggregator = createMetricsAggregator(config);
+    metricsAggregator = createMetricsAggregator(config);
+    metricsAggregator.start();
 
     shutdownCallback = new ShutdownHook(this);
     try {

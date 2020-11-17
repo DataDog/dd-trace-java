@@ -9,6 +9,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   private final String serviceName
   private final String operationName
   private final String resourceName
+  private final String type
   private final boolean measured
   private final boolean error
 
@@ -18,6 +19,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   SimpleSpan(String serviceName,
              String operationName,
              String resourceName,
+             String type,
              boolean measured,
              boolean error,
              long startTime,
@@ -25,6 +27,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
     this.serviceName = serviceName
     this.operationName = operationName
     this.resourceName = resourceName
+    this.type = type
     this.measured = measured
     this.error = error
     this.startTime = startTime
@@ -163,7 +166,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   CharSequence getType() {
-    return null
+    return type
   }
 
   @Override

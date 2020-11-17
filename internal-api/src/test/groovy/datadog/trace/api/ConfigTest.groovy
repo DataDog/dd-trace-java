@@ -1356,6 +1356,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.mergedSpanTags == ["env": "test_env", "version": "1.2.3"]
+    config.getWellKnownTags().getEnv() as String == "test_env"
+    config.getWellKnownTags().getVersion() as String == "1.2.3"
   }
 
   def "explicit DD_ENV and DD_VERSION overwrites dd.trace.global.tags"() {
@@ -1370,6 +1372,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.mergedSpanTags == ["version": "1.2.3", "env": "production-us", "other_tag": "test"]
+    config.getWellKnownTags().getEnv() as String == "production-us"
+    config.getWellKnownTags().getVersion() as String == "1.2.3"
   }
 
   def "merge env from dd.trace.global.tags and DD_VERSION"() {
