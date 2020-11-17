@@ -4,6 +4,7 @@ muzzle {
     module = "commons-httpclient"
     versions = "[2.0,]"
     skipVersions += "3.1-jenkins-1" // odd version in jcenter
+    skipVersions += "20020423" // ancient pre-release version
     assertInverse = true
   }
 }
@@ -22,5 +23,5 @@ dependencies {
 
   testCompile group: 'commons-httpclient', name: 'commons-httpclient', version: '2.0'
 
-  latestDepTestCompile group: 'commons-httpclient', name: 'commons-httpclient', version: '+'
+  latestDepTestCompile group: 'commons-httpclient', name: 'commons-httpclient', version: '(2.0,20000000]'
 }
