@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -40,13 +41,13 @@ public class JavaForkJoinPoolInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    if (System.getProperty("java.version").startsWith("1.7")) {
+    if (Platform.isJavaVersionAtLeast(8)) {
       return singletonMap(
-          isMethod().and(namedOneOf("forkOrSubmit", "invoke")),
+          isMethod().and(namedOneOf("externalPush", "externalSubmit")),
           getClass().getName() + "$ExternalPush");
     }
     return singletonMap(
-        isMethod().and(namedOneOf("externalPush", "externalSubmit")),
+        isMethod().and(namedOneOf("forkOrSubmit", "invoke")),
         getClass().getName() + "$ExternalPush");
   }
 

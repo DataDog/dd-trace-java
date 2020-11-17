@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.log.injection.LogContextInjectionTestBase
+import datadog.trace.api.Platform
 import org.apache.log4j.MDC
 import spock.lang.Requires
 
@@ -7,7 +8,7 @@ import spock.lang.Requires
  - it thinks it runs on ancient version. For example this happens for java13.
  See {@link org.apache.log4j.helpers.Loader}.
  */
-@Requires({ System.getProperty("java.version").contains(".") })
+@Requires({ !Platform.isJavaVersionAtLeast(9) })
 class Log4j1MDCTest extends LogContextInjectionTestBase {
 
   @Override

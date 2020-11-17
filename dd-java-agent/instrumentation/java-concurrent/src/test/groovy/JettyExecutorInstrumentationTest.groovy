@@ -10,10 +10,11 @@ import spock.lang.Shared
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static org.junit.Assume.assumeTrue
 
-@Requires({!System.getProperty("java.version").startsWith("1.7")})
+@Requires({ isJavaVersionAtLeast(8)})
 class JettyExecutorInstrumentationTest extends AgentTestRunner {
 
   @Shared
