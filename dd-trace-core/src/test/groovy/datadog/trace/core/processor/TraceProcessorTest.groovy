@@ -1,7 +1,6 @@
 package datadog.trace.core.processor
 
 
-import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.SpanFactory
@@ -51,41 +50,6 @@ class TraceProcessorTest extends DDSpecification {
 
     then:
     span.getResourceName() == "404"
-  }
-
-  def "#type status #status code error=#error"() {
-    setup:
-    if (type) {
-      span.setSpanType(DDSpanTypes."$type")
-    } else {
-      span.setSpanType(null)
-    }
-    span.setTag(Tags.HTTP_STATUS, status)
-
-    when:
-    processor.onTraceComplete(trace)
-
-    then:
-    span.isError() == error
-
-    where:
-    type          | status | error
-    null          | 400    | false
-    null          | 500    | false
-    "HTTP_CLIENT" | 400    | true
-    "HTTP_CLIENT" | 404    | true
-    "HTTP_CLIENT" | 499    | true
-    "HTTP_CLIENT" | 500    | false
-    "HTTP_CLIENT" | 550    | false
-    "HTTP_CLIENT" | 599    | false
-    "HTTP_CLIENT" | 600    | false
-    "HTTP_SERVER" | 400    | false
-    "HTTP_SERVER" | 404    | false
-    "HTTP_SERVER" | 499    | false
-    "HTTP_SERVER" | 500    | true
-    "HTTP_SERVER" | 550    | true
-    "HTTP_SERVER" | 599    | true
-    "HTTP_SERVER" | 600    | false
   }
 
   def "resource name set with url path #url to #resourceName"() {

@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import java.util.BitSet;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,6 +23,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   private static final Pattern VALID_IPV4_ADDRESS =
       Pattern.compile(
           "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
+
+  private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
 
   protected abstract String method(REQUEST request);
 
@@ -118,6 +121,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       final int status = status(response);
       if (status != 0) {
         span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.get(status));
+      }
+      if (SERVER_ERROR_STATUSES.get(status)) {
+        span.setError(true);
       }
     }
     return span;
