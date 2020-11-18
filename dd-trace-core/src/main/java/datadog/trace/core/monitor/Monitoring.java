@@ -1,7 +1,11 @@
 package datadog.trace.core.monitor;
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+
+import com.datadoghq.sketch.ddsketch.DDSketch;
 import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.StatsDClient;
+import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.TimeUnit;
 
 public final class Monitoring {
@@ -25,21 +29,25 @@ public final class Monitoring {
   }
 
   public Recording newTimer(final String name) {
-    if (!enabled) {
+    if (!enabled || !isJavaVersionAtLeast(8)) {
       return NoOpRecording.NO_OP;
     }
-    return new Timer(name, statsd, flushAfterNanos);
+    DDSketch sketch = SketchFactory.createHistogram();
+    return null == sketch ? NoOpRecording.NO_OP : new Timer(name, sketch, statsd, flushAfterNanos);
   }
 
   public Recording newTimer(final String name, final String... tags) {
-    if (!enabled) {
+    if (!enabled || !isJavaVersionAtLeast(8)) {
       return NoOpRecording.NO_OP;
     }
-    return new Timer(name, tags, statsd, flushAfterNanos);
+    DDSketch sketch = SketchFactory.createHistogram();
+    return null == sketch
+        ? NoOpRecording.NO_OP
+        : new Timer(name, sketch, tags, statsd, flushAfterNanos);
   }
 
   public Recording newThreadLocalTimer(final String name) {
-    if (!enabled) {
+    if (!enabled || !isJavaVersionAtLeast(8)) {
       return NoOpRecording.NO_OP;
     }
     return new ThreadLocalRecording(
@@ -52,10 +60,13 @@ public final class Monitoring {
   }
 
   public Recording newCPUTimer(final String name) {
-    if (!enabled) {
+    if (!enabled || !isJavaVersionAtLeast(8)) {
       return NoOpRecording.NO_OP;
     }
-    return new CPUTimer(name, statsd, flushAfterNanos);
+    DDSketch sketch = SketchFactory.createHistogram();
+    return null == sketch
+        ? NoOpRecording.NO_OP
+        : new CPUTimer(name, sketch, statsd, flushAfterNanos);
   }
 
   public Counter newCounter(final String name) {
@@ -63,5 +74,18 @@ public final class Monitoring {
       return NoOpCounter.NO_OP;
     }
     return new StatsDCounter(name, statsd);
+  }
+
+  private static class SketchFactory {
+    static DDSketch createHistogram() {
+      try {
+        return (DDSketch)
+            DDSketch.class
+                .getDeclaredMethod("fastCollapsingLowest", double.class, int.class)
+                .invoke(null, 0.01, 1024);
+      } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+        return null;
+      }
+    }
   }
 }

@@ -1,11 +1,14 @@
 package datadog.trace.core.monitor
 
 import com.timgroup.statsd.StatsDClient
+import datadog.trace.api.Platform
 import datadog.trace.core.util.SystemAccess
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
 import org.junit.Assume
+import spock.lang.Requires
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.lang.management.ManagementFactory.getThreadMXBean
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
@@ -13,6 +16,7 @@ class TimingTest extends DDSpecification {
 
   def "timer times stuff"() {
     setup:
+    Assume.assumeTrue(isJavaVersionAtLeast(8))
     StatsDClient statsd = Mock(StatsDClient)
     Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
     def timer = monitoring.newTimer("my_timer")
@@ -21,7 +25,6 @@ class TimingTest extends DDSpecification {
     Thread.sleep(200)
     recording.close()
     then:
-    1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, "stat:avg")
     1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, "stat:p50")
     1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, "stat:p99")
     1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, "stat:max")
@@ -30,6 +33,7 @@ class TimingTest extends DDSpecification {
 
   def "threadlocal timer times stuff"() {
     setup:
+    Assume.assumeTrue(isJavaVersionAtLeast(8))
     StatsDClient statsd = Mock(StatsDClient)
     Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
     def timer = monitoring.newThreadLocalTimer("my_timer")
@@ -38,7 +42,6 @@ class TimingTest extends DDSpecification {
     Thread.sleep(200)
     recording.close()
     then:
-    1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, { it[0] == "stat:avg" && it[1].startsWith("thread:") })
     1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, { it[0] == "stat:p50" && it[1].startsWith("thread:") })
     1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, { it[0] == "stat:p99" && it[1].startsWith("thread:") })
     1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, { it[0] == "stat:max" && it[1].startsWith("thread:") })
@@ -47,6 +50,7 @@ class TimingTest extends DDSpecification {
 
   def "reset timer"() {
     setup:
+    Assume.assumeTrue(isJavaVersionAtLeast(8))
     StatsDClient statsd = Mock(StatsDClient)
     Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
     def timer = timerCreator(monitoring)
@@ -73,6 +77,17 @@ class TimingTest extends DDSpecification {
     Monitoring.DISABLED.newCPUTimer("foo") instanceof NoOpRecording
   }
 
+  def "monitoring produces no op timers on JDK7"() {
+    setup:
+    Assume.assumeFalse(isJavaVersionAtLeast(8))
+    Monitoring monitoring = new Monitoring(Mock(StatsDClient), 100, MILLISECONDS)
+    expect:
+    monitoring.newTimer("foo") instanceof NoOpRecording
+    monitoring.newTimer("foo", "tag") instanceof NoOpRecording
+    monitoring.newThreadLocalTimer("foo") instanceof NoOpRecording
+    monitoring.newCPUTimer("foo") instanceof NoOpRecording
+  }
+
   def "no ops are safe to use"() {
     expect:
     try {
@@ -91,6 +106,7 @@ class TimingTest extends DDSpecification {
 
   def "cpu timing records CPU time when enabled"() {
     setup:
+    Assume.assumeTrue(isJavaVersionAtLeast(8))
     Assume.assumeTrue(getThreadMXBean().isCurrentThreadCpuTimeSupported())
     StatsDClient statsd = Mock(StatsDClient)
     Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
@@ -101,7 +117,6 @@ class TimingTest extends DDSpecification {
     Thread.sleep(200)
     recording.close()
     then:
-    1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, { it[0] == "stat:avg" && it[1].startsWith("thread:") })
     1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, { it[0] == "stat:p50" && it[1].startsWith("thread:") })
     1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, { it[0] == "stat:p99" && it[1].startsWith("thread:") })
     1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, { it[0] == "stat:max" && it[1].startsWith("thread:") })

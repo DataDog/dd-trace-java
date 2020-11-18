@@ -1,5 +1,6 @@
 package datadog.trace.core.monitor;
 
+import com.datadoghq.sketch.ddsketch.DDSketch;
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.core.util.SystemAccess;
 
@@ -12,8 +13,8 @@ public class CPUTimer extends Timer {
   private long start;
   private long cpuTime = 0;
 
-  CPUTimer(String name, StatsDClient statsd, long flushAfterNanos) {
-    super(name, getTags(), statsd, flushAfterNanos);
+  CPUTimer(String name, DDSketch histogram, StatsDClient statsd, long flushAfterNanos) {
+    super(name, histogram, getTags(), statsd, flushAfterNanos);
     this.name = name + ".cpu";
     this.statsd = statsd;
   }
