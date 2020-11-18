@@ -14,17 +14,12 @@ import io.vertx.ext.web.RoutingContext;
 public class VertxRouterDecorator
     extends HttpServerDecorator<RoutingContext, RoutingContext, HttpServerResponse> {
 
-  static final CharSequence INSTRUMENTATION_NAME = UTF8BytesString.createConstant("vertx.router");
+  static final CharSequence INSTRUMENTATION_NAME = UTF8BytesString.create("vertx.route-handler");
 
-  private static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("vertx");
+  private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("vertx");
 
   private static final Function<Pair<String, Object>, CharSequence> RESOURCE_NAME_JOINER =
-      new Function<Pair<String, Object>, CharSequence>() {
-        @Override
-        public CharSequence apply(final Pair<String, Object> input) {
-          return UTF8BytesString.create(input.getLeft() + " " + input.getRight());
-        }
-      };
+      input -> UTF8BytesString.create(input.getLeft() + " " + input.getRight());
   private static final DDCache<Pair<String, Object>, CharSequence> RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(64);
 

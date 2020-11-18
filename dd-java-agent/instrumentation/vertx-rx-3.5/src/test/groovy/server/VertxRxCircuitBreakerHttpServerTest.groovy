@@ -12,12 +12,19 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 class VertxRxCircuitBreakerHttpServerTest extends VertxHttpServerTest {
 
   @Override
   protected Class<AbstractVerticle> verticle() {
     return VertxRxCircuitBreakerWebTestServer
+  }
+
+  // TODO not handled without rx instrumentation
+  @Override
+  boolean testExceptionTag() {
+    false
   }
 
   static class VertxRxCircuitBreakerWebTestServer extends AbstractVerticle {

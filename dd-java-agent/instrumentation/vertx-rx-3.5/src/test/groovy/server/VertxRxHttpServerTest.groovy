@@ -4,18 +4,27 @@ package server
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Future
 import io.vertx.ext.web.Router
+import spock.lang.Ignore
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
+@Ignore("This test isn't different from VertxHttpServerTest. Needs rework to meet intent")
 class VertxRxHttpServerTest extends VertxHttpServerTest {
 
   @Override
   protected Class<AbstractVerticle> verticle() {
     return VertxRxWebTestServer
+  }
+
+  // TODO not handled without rx instrumentation
+  @Override
+  boolean testExceptionTag() {
+    false
   }
 
   static class VertxRxWebTestServer extends AbstractVerticle {

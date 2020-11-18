@@ -48,6 +48,17 @@ class TraceUtils {
     }
   }
 
+  @SneakyThrows
+  static <T> void runnableUnderTrace(final String rootOperationName, final Runnable r) {
+    runUnderTrace(rootOperationName, new Callable<T>() {
+      @Override
+      T call() throws Exception {
+        r.run()
+        return null
+      }
+    })
+  }
+
   static handleException(final AgentSpan span, final Exception e) {
     DECORATOR.onError(span, e)
   }

@@ -24,7 +24,6 @@ public class HttpServerResponseEndHandlerInstrumentation extends Instrumenter.De
     return new String[] {
       packageName + ".EndHandlerWrapper",
       packageName + ".VertxRouterDecorator",
-      packageName + ".VertxRouterDecorator$1",
       packageName + ".VertxRouterDecorator$VertxURIDataAdapter",
     };
   }

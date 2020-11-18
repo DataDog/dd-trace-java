@@ -25,7 +25,6 @@ public class RouteHandlerInstrumentation extends Instrumenter.Default {
       packageName + ".EndHandlerWrapper",
       packageName + ".RouteHandlerWrapper",
       packageName + ".VertxRouterDecorator",
-      packageName + ".VertxRouterDecorator$1",
       packageName + ".VertxRouterDecorator$VertxURIDataAdapter",
     };
   }

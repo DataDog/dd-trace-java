@@ -26,10 +26,16 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     final AgentSpan span = startSpan(INSTRUMENTATION_NAME);
     routingContext.response().endHandler(new EndHandlerWrapper(span, routingContext.response()));
     DECORATE.afterStart(span);
+    span.setResourceName(actual.getClass().getName());
 
     try (final AgentScope scope = activateSpan(span)) {
       scope.setAsyncPropagation(true);
-      actual.handle(routingContext);
+      try {
+        actual.handle(routingContext);
+      } catch (final Throwable t) {
+        DECORATE.onError(span, t);
+        throw t;
+      }
     }
   }
 }

@@ -19,10 +19,13 @@ public class EndHandlerWrapper implements Handler<Void> {
 
   @Override
   public void handle(final Void event) {
-    if (actual != null) {
-      actual.handle(event);
+    try {
+      if (actual != null) {
+        actual.handle(event);
+      }
+    } finally {
+      DECORATE.onResponse(span, response);
+      span.finish();
     }
-    DECORATE.onResponse(span, response);
-    span.finish();
   }
 }
