@@ -5,12 +5,15 @@ import datadog.trace.bootstrap.instrumentation.api.Pair
 import datadog.trace.test.util.DDSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
+import spock.lang.Requires
 
 import java.nio.ByteBuffer
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
+@Requires({ isJavaVersionAtLeast(8) })
 class SerializingMetricWriterTest extends DDSpecification {
 
   def "should produce correct message" () {

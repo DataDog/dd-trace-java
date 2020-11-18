@@ -3,12 +3,15 @@ package datadog.trace.common.metrics
 import datadog.trace.api.WellKnownTags
 import datadog.trace.core.CoreSpan
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Requires
 
 import java.util.concurrent.CountDownLatch
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
+@Requires({ isJavaVersionAtLeast(8) })
 class ConflatingMetricAggregatorTest extends DDSpecification {
 
   def "should ignore traces with no measured spans"() {

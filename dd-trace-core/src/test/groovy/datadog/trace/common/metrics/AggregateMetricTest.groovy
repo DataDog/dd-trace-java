@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics
 
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Requires
 
 import java.util.concurrent.BlockingDeque
 import java.util.concurrent.CountDownLatch
@@ -10,6 +11,9 @@ import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast
+
+@Requires({ isJavaVersionAtLeast(8) })
 class AggregateMetricTest extends DDSpecification {
 
   def "record durations sums up to total"() {
