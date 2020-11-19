@@ -1,83 +1,38 @@
 package server
 
 
-import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import io.vertx.core.AbstractVerticle
-import io.vertx.core.DeploymentOptions
 import io.vertx.core.Future
-import io.vertx.core.Vertx
-import io.vertx.core.VertxOptions
-import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.Router
-
-import java.util.concurrent.CompletableFuture
+import spock.lang.Ignore
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
-class VertxHttpServerTest extends HttpServerTest<Vertx> {
-  public static final String CONFIG_HTTP_SERVER_PORT = "http.server.port"
-
-  @Override
-  Vertx startServer(int port) {
-    def server = Vertx.vertx(new VertxOptions()
-    // Useful for debugging:
-    // .setBlockedThreadCheckInterval(Integer.MAX_VALUE)
-      .setClusterPort(port))
-    final CompletableFuture<Void> future = new CompletableFuture<>()
-    server.deployVerticle(verticle().name,
-      new DeploymentOptions()
-        .setConfig(new JsonObject().put(CONFIG_HTTP_SERVER_PORT, port))
-        .setInstances(3)) { res ->
-      if (!res.succeeded()) {
-        throw new RuntimeException("Cannot deploy server Verticle", res.cause())
-      }
-      future.complete(null)
-    }
-
-    future.get()
-    return server
-  }
-
-  protected Class<io.vertx.reactivex.core.AbstractVerticle> verticle() {
-    return VertxWebTestServer
-  }
+@Ignore("This test isn't different from VertxHttpServerTest. Needs rework to meet intent")
+class VertxRxHttpServerTest extends VertxHttpServerTest {
 
   @Override
-  void stopServer(Vertx server) {
-    server.close()
+  protected Class<AbstractVerticle> verticle() {
+    return VertxRxWebTestServer
   }
 
+  // TODO not handled without rx instrumentation
   @Override
-  String component() {
-    return NettyHttpServerDecorator.DECORATE.component()
-  }
-
-  @Override
-  String expectedOperationName() {
-    "netty.request"
-  }
-
-  @Override
-  boolean testExceptionBody() {
+  boolean testExceptionTag() {
     false
   }
 
-  @Override
-  boolean reorderControllerSpan() {
-    true
-  }
-
-  static class VertxWebTestServer extends AbstractVerticle {
+  static class VertxRxWebTestServer extends AbstractVerticle {
 
     @Override
     void start(final Future<Void> startFuture) {
       final int port = config().getInteger(CONFIG_HTTP_SERVER_PORT)
-      final Router router = Router.router(vertx)
+      final Router router = Router.router(super.@vertx)
 
       router.route(SUCCESS.path).handler { ctx ->
         controller(SUCCESS) {
@@ -105,7 +60,7 @@ class VertxHttpServerTest extends HttpServerTest<Vertx> {
         }
       }
 
-      vertx.createHttpServer()
+      super.@vertx.createHttpServer()
         .requestHandler { router.accept(it) }
         .listen(port) { startFuture.complete() }
     }

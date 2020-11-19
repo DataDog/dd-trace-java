@@ -2,6 +2,7 @@ package server
 
 import datadog.trace.agent.test.base.HttpServerTest
 import io.vertx.circuitbreaker.CircuitBreakerOptions
+import io.vertx.core.Future
 import io.vertx.reactivex.circuitbreaker.CircuitBreaker
 import io.vertx.reactivex.core.AbstractVerticle
 import io.vertx.reactivex.ext.web.Router
@@ -11,6 +12,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 class VertxRxCircuitBreakerHttpServerTest extends VertxHttpServerTest {
 
@@ -19,10 +21,16 @@ class VertxRxCircuitBreakerHttpServerTest extends VertxHttpServerTest {
     return VertxRxCircuitBreakerWebTestServer
   }
 
+  // TODO not handled without rx instrumentation
+  @Override
+  boolean testExceptionTag() {
+    false
+  }
+
   static class VertxRxCircuitBreakerWebTestServer extends AbstractVerticle {
 
     @Override
-    void start(final io.vertx.core.Future<Void> startFuture) {
+    void start(final Future<Void> startFuture) {
       final int port = config().getInteger(CONFIG_HTTP_SERVER_PORT)
       final Router router = Router.router(super.@vertx)
       final CircuitBreaker breaker =
