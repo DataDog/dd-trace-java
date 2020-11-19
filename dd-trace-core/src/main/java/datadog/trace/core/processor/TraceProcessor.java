@@ -3,7 +3,6 @@ package datadog.trace.core.processor;
 import datadog.trace.api.Config;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.ExclusiveSpan;
-import datadog.trace.core.processor.rule.AnalyticsSampleRateRule;
 import datadog.trace.core.processor.rule.DBStatementRule;
 import datadog.trace.core.processor.rule.ErrorRule;
 import datadog.trace.core.processor.rule.ResourceNameRule;
@@ -17,11 +16,7 @@ public class TraceProcessor {
   final Rule[] DEFAULT_RULES =
       new Rule[] {
         // Rules are applied in order.
-        new DBStatementRule(),
-        new ResourceNameRule(),
-        new ErrorRule(),
-        new URLAsResourceNameRule(),
-        new AnalyticsSampleRateRule(),
+        new DBStatementRule(), new ResourceNameRule(), new ErrorRule(), new URLAsResourceNameRule()
       };
 
   private final List<Rule> rules;

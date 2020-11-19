@@ -37,7 +37,7 @@ public abstract class BaseDecorator {
 
   protected final boolean endToEndDurationsEnabled;
   protected final boolean traceAnalyticsEnabled;
-  protected final float traceAnalyticsSampleRate;
+  protected final Double traceAnalyticsSampleRate;
 
   protected BaseDecorator() {
     final Config config = Config.get();
@@ -47,7 +47,7 @@ public abstract class BaseDecorator {
             && config.isTraceAnalyticsIntegrationEnabled(
                 traceAnalyticsDefault(), instrumentationNames);
     this.traceAnalyticsSampleRate =
-        config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
+        (double) config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
     this.endToEndDurationsEnabled =
         instrumentationNames.length > 0
             && config.isEndToEndDurationEnabled(endToEndDurationsDefault(), instrumentationNames);
@@ -74,7 +74,7 @@ public abstract class BaseDecorator {
     }
     span.setTag(Tags.COMPONENT, component());
     if (traceAnalyticsEnabled) {
-      span.setTag(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate);
+      span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate);
     }
     if (endToEndDurationsEnabled) {
       if (null == span.getBaggageItem(DDTags.TRACE_START_TIME)) {

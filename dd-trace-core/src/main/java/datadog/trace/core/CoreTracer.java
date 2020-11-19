@@ -594,6 +594,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean errorFlag;
     private CharSequence spanType;
     private boolean ignoreScope = false;
+    private Number analyticsSampleRate = null;
 
     public CoreSpanBuilder(final CharSequence operationName) {
       this.operationName = operationName;
@@ -673,6 +674,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     @Override
     public CoreSpanBuilder withTag(final String tag, final Object value) {
       switch (tag) {
+        case DDTags.ANALYTICS_SAMPLE_RATE:
+          analyticsSampleRate = getOrTryParse(value);
+          break;
         case DDTags.SPAN_TYPE:
           if (value instanceof CharSequence) {
             return withSpanType((CharSequence) value);
@@ -687,8 +691,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           } else {
             tagMap.put(tag, value);
           }
-          return this;
       }
+      return this;
     }
 
     /**
@@ -799,6 +803,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               CoreTracer.this,
               serviceNameMappings);
 
+      if (null != analyticsSampleRate) {
+        context.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, analyticsSampleRate);
+      }
+
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
       // set in the builder should come last, so that they override other tags.
@@ -807,6 +815,19 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
       return context;
+    }
+
+    private Number getOrTryParse(Object value) {
+      if (value instanceof Number) {
+        return (Number) value;
+      } else if (value instanceof String) {
+        try {
+          return Double.parseDouble((String) value);
+        } catch (NumberFormatException ignore) {
+
+        }
+      }
+      return null;
     }
   }
 

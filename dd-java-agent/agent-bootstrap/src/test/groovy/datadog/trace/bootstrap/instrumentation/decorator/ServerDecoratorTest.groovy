@@ -24,7 +24,7 @@ class ServerDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(SPAN_KIND, "server")
     1 * span.setSpanType(decorator.spanType())
     if (decorator.traceAnalyticsEnabled) {
-      1 * span.setTag(ANALYTICS_SAMPLE_RATE, 1.0)
+      1 * span.setMetric(ANALYTICS_SAMPLE_RATE, 1.0)
     }
     0 * _
   }
