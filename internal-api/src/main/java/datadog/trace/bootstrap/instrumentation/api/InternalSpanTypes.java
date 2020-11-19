@@ -12,7 +12,7 @@ public class InternalSpanTypes {
   public static final CharSequence SQL = UTF8BytesString.createConstant(DDSpanTypes.SQL);
   public static final CharSequence MONGO = UTF8BytesString.createConstant(DDSpanTypes.MONGO);
   public static final CharSequence CASSANDRA =
-      UTF8BytesString.createConstant(DDSpanTypes.CASSANDRA);;
+      UTF8BytesString.createConstant(DDSpanTypes.CASSANDRA);
   public static final CharSequence COUCHBASE =
       UTF8BytesString.createConstant(DDSpanTypes.COUCHBASE); // Using generic for now.
   public static final CharSequence REDIS = UTF8BytesString.createConstant(DDSpanTypes.REDIS);
@@ -24,6 +24,8 @@ public class InternalSpanTypes {
       UTF8BytesString.createConstant(DDSpanTypes.HIBERNATE);
   public static final CharSequence AEROSPIKE =
       UTF8BytesString.createConstant(DDSpanTypes.AEROSPIKE);
+  public static final CharSequence DATANUCLEUS =
+      UTF8BytesString.createConstant(DDSpanTypes.DATANUCLEUS);
 
   // these are all the same thing but don't want to be taken by surprise by changes in DDSpanTypes
   public static final CharSequence MESSAGE_CONSUMER =
