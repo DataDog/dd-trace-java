@@ -129,6 +129,9 @@ repositories {
   mavenCentral()
   maven {
     url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
+    mavenContent {
+      snapshotsOnly()
+    }
   }
   maven {
     url "https://repo.typesafe.com/typesafe/releases"
