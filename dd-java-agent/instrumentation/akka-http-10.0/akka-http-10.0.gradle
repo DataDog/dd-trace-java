@@ -49,14 +49,14 @@ muzzle {
     group = 'com.typesafe.akka'
     module = 'akka-http_2.11'
     versions = "[10.1.0,)"
-    // later versions of akka-http expect streams to be provided
+    skipVersions += '10.1.13' // not resolvable for now
     extraDependency 'com.typesafe.akka:akka-stream_2.11:2.5.11'
   }
   pass {
     group = 'com.typesafe.akka'
     module = 'akka-http_2.12'
     versions = "[10.1.0,)"
-    // later versions of akka-http expect streams to be provided
+    skipVersions += '10.1.13' // not resolvable for now
     extraDependency 'com.typesafe.akka:akka-stream_2.12:2.5.11'
   }
   //There is no akka-http 10.0.x series for scala 2.13
@@ -64,7 +64,7 @@ muzzle {
     group = 'com.typesafe.akka'
     module = 'akka-http_2.13'
     versions = "[10.1.8,)"
-    // later versions of akka-http expect streams to be provided
+    skipVersions += '10.1.13' // not resolvable for now
     extraDependency 'com.typesafe.akka:akka-stream_2.13:2.5.23'
   }
 }
@@ -101,7 +101,8 @@ dependencies {
   version101TestCompile group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.1.0'
   version101TestCompile group: 'com.typesafe.akka', name: 'akka-stream_2.11', version: '2.5.11'
 
-  latestDepTestCompile group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '+'
+  // '10.1.13' not resolvable for now
+  latestDepTestCompile group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '[10,10.1.13)'
   latestDepTestCompile group: 'com.typesafe.akka', name: 'akka-stream_2.11', version: '+'
 }
 
