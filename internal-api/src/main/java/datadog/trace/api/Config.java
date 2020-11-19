@@ -69,7 +69,9 @@ import datadog.trace.api.config.JmxFetchConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -286,6 +288,7 @@ public class Config {
   @Getter private final String site;
 
   @Getter private final String serviceName;
+  @Getter private final boolean serviceNameSetByUser;
   @Getter private final boolean traceEnabled;
   @Getter private final boolean integrationsEnabled;
   @Getter private final String writerType;
@@ -411,7 +414,8 @@ public class Config {
     // Note: we do not use defined default here
     // FIXME: We should use better authentication mechanism
     final String apiKeyFile = configProvider.getString(API_KEY_FILE);
-    String tmpApiKey = configProvider.getStringBypassSysProps(API_KEY, null);
+    String tmpApiKey =
+        configProvider.getStringExcludingSource(API_KEY, null, SystemPropertiesConfigSource.class);
     if (apiKeyFile != null) {
       try {
         tmpApiKey =
@@ -421,7 +425,17 @@ public class Config {
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
-    serviceName = configProvider.getString(SERVICE, DEFAULT_SERVICE_NAME, SERVICE_NAME);
+    String userProvidedServiceName =
+        configProvider.getStringExcludingSource(
+            SERVICE, null, CapturedEnvironmentConfigSource.class, SERVICE_NAME);
+
+    if (userProvidedServiceName == null) {
+      serviceNameSetByUser = false;
+      serviceName = configProvider.getString(SERVICE, DEFAULT_SERVICE_NAME, SERVICE_NAME);
+    } else {
+      serviceNameSetByUser = true;
+      serviceName = userProvidedServiceName;
+    }
 
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     integrationsEnabled =

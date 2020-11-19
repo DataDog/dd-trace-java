@@ -3,6 +3,8 @@ package datadog.trace.core.taginterceptor
 
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.sampling.AllSampler
@@ -119,6 +121,31 @@ class TagInterceptorTest extends DDSpecification {
     ""              | "my-service"         | "my-service"
     "/some-context" | "my-service"         | "my-service"
     "other-context" | "my-service"         | "my-service"
+  }
+
+  def "setting service name as a property disables servlet.context with context '#context'"() {
+    when:
+    injectSysConfig("service", serviceName)
+    def span = CoreTracer.builder().writer(writer).build().buildSpan("test").start()
+    span.setTag("servlet.context", context)
+
+    then:
+    span.serviceName == serviceName
+
+    where:
+    context         | serviceName
+    "/"             | DEFAULT_SERVICE_NAME
+    ""              | DEFAULT_SERVICE_NAME
+    "/some-context" | DEFAULT_SERVICE_NAME
+    "other-context" | DEFAULT_SERVICE_NAME
+    "/"             | CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
+    ""              | CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
+    "/some-context" | CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
+    "other-context" | CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
+    "/"             | "my-service"
+    ""              | "my-service"
+    "/some-context" | "my-service"
+    "other-context" | "my-service"
   }
 
   def "mapping causes servlet.context to not change service name"() {

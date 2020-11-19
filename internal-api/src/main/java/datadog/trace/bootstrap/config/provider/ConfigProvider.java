@@ -47,12 +47,14 @@ public final class ConfigProvider {
     return defaultValue;
   }
 
-  public final String getStringBypassSysProps(String key, String defaultValue) {
+  public final String getStringExcludingSource(
+      String key, String defaultValue, Class clazz, String... aliases) {
     for (ConfigProvider.Source source : sources) {
-      if (source instanceof SystemPropertiesConfigSource) {
+      if (clazz.isAssignableFrom(source.getClass())) {
         continue;
       }
-      String value = source.get(key);
+
+      String value = source.get(key, aliases);
       if (value != null) {
         return value;
       }
