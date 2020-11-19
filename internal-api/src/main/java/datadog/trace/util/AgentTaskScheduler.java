@@ -4,6 +4,7 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.ref.WeakReference;
@@ -17,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 public final class AgentTaskScheduler {
   public static final AgentTaskScheduler INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
 
-  private static final long SHUTDOWN_WAIT_MILLIS = 5_000;
+  private static final long SHUTDOWN_TIMEOUT = 5; // seconds
 
   public interface Task<T> {
     void run(T target);
@@ -27,8 +28,25 @@ public final class AgentTaskScheduler {
     T get();
   }
 
+  public static final class Scheduled<T> implements Target<T> {
+    private volatile T referent;
+
+    private Scheduled(final T referent) {
+      this.referent = referent;
+    }
+
+    @Override
+    public T get() {
+      return referent;
+    }
+
+    public void cancel() {
+      referent = null;
+    }
+  }
+
   private static final class WeakTarget<T> extends WeakReference<T> implements Target<T> {
-    public WeakTarget(final T referent) {
+    private WeakTarget(final T referent) {
       super(referent);
     }
   }
@@ -42,16 +60,34 @@ public final class AgentTaskScheduler {
     this.agentThread = agentThread;
   }
 
+  public <T> Scheduled<T> schedule(
+      final Task<T> task, final T target, final long initialDelay, final TimeUnit unit) {
+    final Scheduled<T> scheduled = new Scheduled<>(target);
+    scheduleTarget(task, scheduled, initialDelay, 0, unit);
+    return scheduled;
+  }
+
+  public <T> Scheduled<T> scheduleAtFixedRate(
+      final Task<T> task,
+      final T target,
+      final long initialDelay,
+      final long period,
+      final TimeUnit unit) {
+    final Scheduled<T> scheduled = new Scheduled<>(target);
+    scheduleTarget(task, scheduled, initialDelay, period, unit);
+    return scheduled;
+  }
+
   public <T> void weakScheduleAtFixedRate(
       final Task<T> task,
       final T target,
       final long initialDelay,
       final long period,
       final TimeUnit unit) {
-    scheduleAtFixedRate(task, new WeakTarget<>(target), initialDelay, period, unit);
+    scheduleTarget(task, new WeakTarget<>(target), initialDelay, period, unit);
   }
 
-  public <T> void scheduleAtFixedRate(
+  private <T> void scheduleTarget(
       final Task<T> task,
       final Target<T> target,
       final long initialDelay,
@@ -95,8 +131,28 @@ public final class AgentTaskScheduler {
     }
   }
 
+  // visibleForTesting
+  int taskCount() {
+    return workQueue.size();
+  }
+
   public boolean isShutdown() {
     return shutdown;
+  }
+
+  public void shutdown(final long timeout, final TimeUnit unit) {
+    shutdown = true;
+    final Thread t = worker;
+    if (t != null) {
+      t.interrupt();
+      if (timeout > 0) {
+        try {
+          t.join(unit.toMillis(timeout));
+        } catch (final InterruptedException e) {
+          // continue shutdown...
+        }
+      }
+    }
   }
 
   private static <T> String describeTask(final Task<T> task, final Target<T> target) {
@@ -110,16 +166,7 @@ public final class AgentTaskScheduler {
 
     @Override
     public void run() {
-      shutdown = true;
-      final Thread t = worker;
-      if (t != null) {
-        t.interrupt();
-        try {
-          t.join(SHUTDOWN_WAIT_MILLIS);
-        } catch (final InterruptedException e) {
-          // continue shutdown...
-        }
-      }
+      shutdown(SHUTDOWN_TIMEOUT, SECONDS);
     }
   }
 
@@ -141,6 +188,7 @@ public final class AgentTaskScheduler {
           }
         }
       }
+      workQueue.clear();
       worker = null;
     }
   }
@@ -151,10 +199,10 @@ public final class AgentTaskScheduler {
 
     private final Task<T> task;
     private final Target<T> target;
-    private final int period;
+    private final long period;
     private final int taskSequence;
 
-    private long time;
+    private long nextFireTime;
 
     public PeriodicTask(
         final Task<T> task,
@@ -165,10 +213,10 @@ public final class AgentTaskScheduler {
 
       this.task = task;
       this.target = target;
-      this.period = (int) unit.toNanos(period);
+      this.period = unit.toNanos(period);
       this.taskSequence = TASK_SEQUENCE_GENERATOR.getAndIncrement();
 
-      time = System.nanoTime() + unit.toNanos(initialDelay);
+      nextFireTime = System.nanoTime() + unit.toNanos(initialDelay);
     }
 
     public void run() {
@@ -179,8 +227,8 @@ public final class AgentTaskScheduler {
     }
 
     public boolean reschedule() {
-      if (target.get() != null) {
-        time += period;
+      if (period > 0 && target.get() != null) {
+        nextFireTime += period;
         return true;
       }
       return false;
@@ -188,7 +236,7 @@ public final class AgentTaskScheduler {
 
     @Override
     public long getDelay(final TimeUnit unit) {
-      return unit.convert(time - System.nanoTime(), NANOSECONDS);
+      return unit.convert(nextFireTime - System.nanoTime(), NANOSECONDS);
     }
 
     @Override
@@ -199,7 +247,7 @@ public final class AgentTaskScheduler {
       long taskOrder;
       if (other instanceof PeriodicTask<?>) {
         final PeriodicTask<?> otherTask = (PeriodicTask<?>) other;
-        taskOrder = time - otherTask.time;
+        taskOrder = nextFireTime - otherTask.nextFireTime;
         if (taskOrder == 0) {
           taskOrder = taskSequence - otherTask.taskSequence;
         }
