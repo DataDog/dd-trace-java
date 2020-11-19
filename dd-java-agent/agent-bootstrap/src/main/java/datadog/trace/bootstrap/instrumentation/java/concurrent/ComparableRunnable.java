@@ -35,4 +35,8 @@ public final class ComparableRunnable<T extends Runnable & Comparable<T>>
   private TraceScope activate() {
     return null == continuation ? null : continuation.activate();
   }
+
+  public static <T extends Runnable & Comparable<T>> T cast(Runnable comparable) {
+    return (T) comparable;
+  }
 }

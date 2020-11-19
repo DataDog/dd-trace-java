@@ -1,15 +1,20 @@
 package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.instrumentation.java.concurrent.NewTaskFor.newTaskFor;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable.cast;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable;
 import java.util.Map;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Executor;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -33,12 +38,9 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Def
         "io.netty.channel.nio.NioEventLoopGroup",
         "io.netty.channel.SingleThreadEventLoop",
         "io.netty.util.concurrent.AbstractEventExecutor",
-        "io.netty.util.concurrent.AbstractEventExecutorGroup",
         "io.netty.util.concurrent.AbstractScheduledEventExecutor",
         "io.netty.util.concurrent.DefaultEventExecutor",
-        "io.netty.util.concurrent.DefaultEventExecutorGroup",
         "io.netty.util.concurrent.GlobalEventExecutor",
-        "io.netty.util.concurrent.MultithreadEventExecutorGroup",
         "io.netty.util.concurrent.SingleThreadEventExecutor",
         "java.util.concurrent.AbstractExecutorService",
         "java.util.concurrent.CompletableFuture$ThreadPerTaskExecutor",
@@ -47,6 +49,7 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Def
         "org.glassfish.grizzly.threadpool.GrizzlyExecutorService");
   }
 
+  // FIXME: DELETE
   @Override
   public String[] helperClassNames() {
     return new String[] {packageName + ".NewTaskFor"};
@@ -66,8 +69,30 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Def
     @Advice.OnMethodEnter
     public static void execute(
         @Advice.This Executor executor,
-        @Advice.Argument(value = 0, readOnly = false) Runnable task) {
-      task = newTaskFor(executor, task);
+        @Advice.Argument(value = 0, readOnly = false) Runnable runnable) {
+      // TODO write a slick instrumentation and instrument these types directly
+      if (runnable instanceof RunnableFuture
+          || null == runnable
+          || exclude(RUNNABLE, runnable)
+          || runnable.getClass().getName().startsWith("slick.")) {
+        runnable = runnable;
+      } else if (runnable instanceof Comparable) {
+        runnable = new ComparableRunnable<>(cast(runnable));
+      } else if (executor instanceof AbstractExecutorService) {
+        // FIXME: Tests fail using this instead of the next line:
+        //        runnable = superNewTaskFor(executor, runnable, null);
+        runnable = NewTaskFor.newTaskFor(executor, runnable);
+        // perhaps the return runnable isn't being updated properly?
+      } else {
+        runnable = new FutureTask<>(runnable, null);
+      }
+    }
+
+    // This call is swapped out at compile time by
+    // datadog.trace.agent.tooling.bytebuddy.advice.transformation.
+    public static <T> RunnableFuture<T> superNewTaskFor(
+        Executor executor, Runnable runnable, T value) {
+      return null;
     }
 
     @SuppressWarnings("rawtypes")

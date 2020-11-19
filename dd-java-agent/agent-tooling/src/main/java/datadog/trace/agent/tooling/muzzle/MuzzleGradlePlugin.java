@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.WeakMap;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.WeakHashMap;
 import net.bytebuddy.build.Plugin;
@@ -41,24 +40,5 @@ public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
   }
 
   @Override
-  public void close() throws IOException {}
-
-  /** Compile-time Optimization used by gradle buildscripts. */
-  public static class NoOp implements Plugin {
-    @Override
-    public boolean matches(final TypeDescription target) {
-      return false;
-    }
-
-    @Override
-    public DynamicType.Builder<?> apply(
-        final DynamicType.Builder<?> builder,
-        final TypeDescription typeDescription,
-        final ClassFileLocator classFileLocator) {
-      return builder;
-    }
-
-    @Override
-    public void close() throws IOException {}
-  }
+  public void close() {}
 }
