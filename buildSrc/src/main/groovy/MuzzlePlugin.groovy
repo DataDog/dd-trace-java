@@ -109,32 +109,58 @@ class MuzzlePlugin implements Plugin<Project> {
       return
     }
 
+    // We only get here if we are running muzzle, so let's start timing things
+    long startTime = System.currentTimeMillis()
+
     final RepositorySystem system = newRepositorySystem()
     final RepositorySystemSession session = newRepositorySystemSession(system)
 
     project.afterEvaluate {
       // use runAfter to set up task finalizers in version order
       Task runAfter = project.tasks.muzzle
+      // runLast is the last task to finish, so we can time the execution
+      Task runLast = runAfter
 
       for (MuzzleDirective muzzleDirective : project.muzzle.directives) {
         project.getLogger().info("configured $muzzleDirective")
 
         if (muzzleDirective.coreJdk) {
-          runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, bootstrapProject, toolingProject)
+          runLast = runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, bootstrapProject, toolingProject)
         } else {
-          muzzleDirectiveToArtifacts(muzzleDirective, system, session).collect() { Artifact singleVersion ->
+          runLast = muzzleDirectiveToArtifacts(muzzleDirective, system, session).inject(runLast) { last, Artifact singleVersion ->
             runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, bootstrapProject, toolingProject)
           }
           if (muzzleDirective.assertInverse) {
-            inverseOf(muzzleDirective, system, session).collect() { MuzzleDirective inverseDirective ->
-              muzzleDirectiveToArtifacts(inverseDirective, system, session).collect() { Artifact singleVersion ->
+            runLast = inverseOf(muzzleDirective, system, session).inject(runLast) { last1, MuzzleDirective inverseDirective ->
+              muzzleDirectiveToArtifacts(inverseDirective, system, session).inject(last1) { last2, Artifact singleVersion ->
                 runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, bootstrapProject, toolingProject)
               }
             }
           }
         }
       }
+      def timingTask = project.task("muzzle-end") {
+        doLast {
+          long endTime = System.currentTimeMillis()
+          generateResultsXML(project, endTime - startTime)
+        }
+      }
+      runLast.finalizedBy(timingTask)
     }
+  }
+
+  private static void generateResultsXML(Project project, long millis) {
+    def seconds = (millis * 1.0) / 1000
+    def name = "${project.path}:muzzle"
+    def dirname = name.replaceFirst('^:', '').replace(':', '_')
+    def dir = project.file("${project.rootProject.buildDir}/muzzle-test-results/$dirname")
+    dir.mkdirs()
+    def file = project.file("$dir/results.xml")
+    file.text = """|<?xml version="1.0" encoding="UTF-8"?>
+                   |<testsuite name="${name}" tests="1" id="0" time="${seconds}">
+                   |  <testcase name="${name}" time="${seconds}">
+                   |  </testcase>
+                   |</testsuite>\n""".stripMargin()
   }
 
   private static ClassLoader getOrCreateToolingLoader(Project toolingProject) {
@@ -238,7 +264,6 @@ class MuzzlePlugin implements Plugin<Project> {
   private static Set<MuzzleDirective> inverseOf(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
     final Artifact allVersionsArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", "[,)")
     final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", muzzleDirective.versions)
-
 
     final VersionRangeRequest allRangeRequest = new VersionRangeRequest()
     allRangeRequest.setRepositories(MUZZLE_REPOS)
