@@ -1,5 +1,6 @@
 package datadog.trace.core.taginterceptor;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
@@ -16,6 +17,7 @@ class ServletContextTagInterceptor extends AbstractTagInterceptor {
   public boolean shouldSetTag(final ExclusiveSpan span, final String tag, final Object value) {
     String contextName = String.valueOf(value).trim();
     if (contextName.equals("/")
+        || Config.get().isServiceNameSetByUser()
         || (!span.getServiceName().equals(ConfigDefaults.DEFAULT_SERVICE_NAME)
             && !span.getServiceName()
                 .equals(CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME))

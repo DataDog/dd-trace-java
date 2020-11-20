@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.config.provider;
 
 import datadog.trace.api.env.CapturedEnvironment;
 
-final class CapturedEnvironmentConfigSource extends ConfigProvider.Source {
+public final class CapturedEnvironmentConfigSource extends ConfigProvider.Source {
   private final CapturedEnvironment env;
 
   public CapturedEnvironmentConfigSource() {

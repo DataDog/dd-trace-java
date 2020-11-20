@@ -1561,6 +1561,24 @@ class ConfigTest extends DDSpecification {
                              'service.version': 'my-svc-vers']
   }
 
+  def "explicit service name is not overridden by captured environment"() {
+    setup:
+    System.setProperty(PREFIX + serviceProperty, serviceName)
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == serviceName
+    assert config.isServiceNameSetByUser()
+
+    where:
+    [serviceProperty, serviceName] << [
+      [SERVICE, SERVICE_NAME],
+      [DEFAULT_SERVICE_NAME, "my-service"]
+    ].combinations()
+  }
+
   def "detect if agent is configured using default values"() {
     setup:
     if (host != null) {
