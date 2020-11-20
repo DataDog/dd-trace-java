@@ -7,6 +7,7 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.taginterceptor.AbstractTagInterceptor;
 import java.util.Collections;
 import java.util.HashMap;
@@ -368,6 +369,9 @@ public class DDSpanContext implements AgentSpan.Context {
         if (null != analyticsSampleRate) {
           setMetric(ANALYTICS_SAMPLE_RATE, analyticsSampleRate);
         }
+        break;
+      case Tags.ERROR:
+        setErrorFlag(Boolean.TRUE.equals(value) || Boolean.parseBoolean(String.valueOf(value)));
         break;
       default:
         synchronized (unsafeTags) {
