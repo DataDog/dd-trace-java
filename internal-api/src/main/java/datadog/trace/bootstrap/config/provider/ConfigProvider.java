@@ -48,9 +48,12 @@ public final class ConfigProvider {
   }
 
   public final String getStringExcludingSource(
-      String key, String defaultValue, Class clazz, String... aliases) {
+      String key,
+      String defaultValue,
+      Class<? extends ConfigProvider.Source> excludedSource,
+      String... aliases) {
     for (ConfigProvider.Source source : sources) {
-      if (clazz.isAssignableFrom(source.getClass())) {
+      if (excludedSource.isAssignableFrom(source.getClass())) {
         continue;
       }
 
