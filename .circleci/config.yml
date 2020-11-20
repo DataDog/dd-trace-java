@@ -241,9 +241,12 @@ jobs:
           command: >-
             SKIP_BUILDSCAN="true"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4G -Xms64M' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew `circleci tests split workspace/build/muzzleTasks | xargs`
+            ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
             << pipeline.parameters.gradle_flags >>
             --max-workers=16
+
+      - store_test_results:
+          path: workspace/build/muzzle-test-results
 
 workflows:
   build_test_deploy:
