@@ -26,7 +26,7 @@ class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
     1 * span.setServiceName("test-db")
     1 * span.setOperationName(UTF8BytesString.create("test-db.query"))
     1 * span.setTag("db.type", "test-db") // is this really necessary or a waste of space and cycles?
-    1 * span.setTag(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)
+    1 * span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)
     0 * _
 
     where:

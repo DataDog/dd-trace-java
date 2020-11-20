@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
 
 import datadog.trace.api.DDId;
@@ -362,6 +363,12 @@ public class DDSpanContext implements AgentSpan.Context {
           this.spanType = (CharSequence) value;
         }
         break;
+      case ANALYTICS_SAMPLE_RATE:
+        Number analyticsSampleRate = getOrTryParse(value);
+        if (null != analyticsSampleRate) {
+          setMetric(ANALYTICS_SAMPLE_RATE, analyticsSampleRate);
+        }
+        break;
       default:
         synchronized (unsafeTags) {
           unsafeSetTag(tag, value);
@@ -422,12 +429,6 @@ public class DDSpanContext implements AgentSpan.Context {
     return unsafeTags.get(tag);
   }
 
-  Object getAndRemoveTag(final String tag) {
-    synchronized (unsafeTags) {
-      return unsafeGetAndRemoveTag(tag);
-    }
-  }
-
   Object unsafeGetAndRemoveTag(final String tag) {
     return unsafeTags.remove(tag);
   }
@@ -448,6 +449,19 @@ public class DDSpanContext implements AgentSpan.Context {
     synchronized (unsafeTags) {
       consumer.accept(exclusiveSpan);
     }
+  }
+
+  private Number getOrTryParse(Object value) {
+    if (value instanceof Number) {
+      return (Number) value;
+    } else if (value instanceof String) {
+      try {
+        return Double.parseDouble((String) value);
+      } catch (NumberFormatException ignore) {
+
+      }
+    }
+    return null;
   }
 
   @Override
