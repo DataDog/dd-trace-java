@@ -16,6 +16,8 @@
 package com.datadog.profiling.controller;
 
 import static com.datadog.profiling.controller.RecordingType.CONTINUOUS;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,11 +33,11 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,7 +61,7 @@ public class ProfilingSystemTest {
   // Should be noticeably bigger than one recording iteration
   private static final long REASONABLE_TIMEOUT = 5000;
 
-  private final ScheduledThreadPoolExecutor pool = new ScheduledThreadPoolExecutor(1);
+  private final AgentTaskScheduler scheduler = new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER);
 
   @Mock private ThreadLocalRandom threadLocalRandom;
   @Mock private Controller controller;
@@ -75,7 +77,7 @@ public class ProfilingSystemTest {
 
   @AfterEach
   public void tearDown() {
-    pool.shutdown();
+    scheduler.shutdown(5, SECONDS);
   }
 
   @Test
@@ -88,14 +90,14 @@ public class ProfilingSystemTest {
             Duration.ZERO,
             Duration.ofMillis(300),
             false,
-            pool,
+            scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
     verify(controller).createRecording(any());
     system.shutdown();
 
     verify(recording).close();
-    assertTrue(pool.isTerminated());
+    assertTrue(scheduler.isShutdown());
   }
 
   @Test
@@ -108,14 +110,14 @@ public class ProfilingSystemTest {
             Duration.ZERO,
             Duration.ofMillis(300),
             false,
-            pool,
+            scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
     verify(controller).createRecording(any());
     system.shutdown();
 
     verify(recording).close();
-    assertTrue(pool.isTerminated());
+    assertTrue(scheduler.isShutdown());
   }
 
   @Test
@@ -128,7 +130,7 @@ public class ProfilingSystemTest {
             Duration.ZERO,
             Duration.ofMillis(300),
             true,
-            pool,
+            scheduler,
             threadLocalRandom);
     system.start();
     assertTrue(system.isStarted());
@@ -140,7 +142,7 @@ public class ProfilingSystemTest {
     final Thread mainThread = Thread.currentThread();
     doAnswer(
             (InvocationOnMock invocation) -> {
-              while (!pool.isShutdown()) {
+              while (!scheduler.isShutdown()) {
                 try {
                   Thread.sleep(100);
                 } catch (final InterruptedException e) {
@@ -162,7 +164,7 @@ public class ProfilingSystemTest {
             Duration.ofMillis(5),
             Duration.ofMillis(100),
             false,
-            pool,
+            scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
     // Make sure we actually started the recording before terminating
@@ -181,10 +183,10 @@ public class ProfilingSystemTest {
             Duration.ofMillis(5),
             Duration.ofMillis(300),
             false,
-            pool,
+            scheduler,
             threadLocalRandom);
     system.shutdown();
-    assertTrue(pool.isTerminated());
+    assertTrue(scheduler.isShutdown());
   }
 
   @Test
@@ -283,7 +285,7 @@ public class ProfilingSystemTest {
             Duration.ofMillis(5),
             uploadPeriod,
             false,
-            pool,
+            scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
 
@@ -311,7 +313,7 @@ public class ProfilingSystemTest {
             Duration.ofMillis(5),
             uploadPeriod,
             false,
-            pool,
+            scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
 
@@ -340,7 +342,7 @@ public class ProfilingSystemTest {
             startupDelayRandomRange,
             Duration.ofMillis(100),
             false,
-            pool,
+            scheduler,
             threadLocalRandom);
 
     final Duration randomizedDelay = system.getStartupDelay();
@@ -360,7 +362,7 @@ public class ProfilingSystemTest {
             Duration.ZERO,
             Duration.ofMillis(100),
             false,
-            pool,
+            scheduler,
             threadLocalRandom);
 
     assertEquals(startupDelay, system.getStartupDelay());

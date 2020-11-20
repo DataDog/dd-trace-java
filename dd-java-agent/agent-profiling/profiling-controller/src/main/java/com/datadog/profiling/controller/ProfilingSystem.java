@@ -17,11 +17,9 @@ package com.datadog.profiling.controller;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
-import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +31,7 @@ public final class ProfilingSystem {
 
   private static final long TERMINATION_TIMEOUT = 10;
 
-  private final ScheduledExecutorService executorService;
+  private final AgentTaskScheduler scheduler;
   private final Controller controller;
   // For now only support one callback. Multiplex as needed.
   private final RecordingDataListener dataListener;
@@ -71,7 +69,7 @@ public final class ProfilingSystem {
         startupDelayRandomRange,
         uploadPeriod,
         isStartingFirst,
-        Executors.newScheduledThreadPool(1, new AgentThreadFactory(PROFILER_RECORDING_SCHEDULER)),
+        new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER),
         ThreadLocalRandom.current());
   }
 
@@ -82,14 +80,14 @@ public final class ProfilingSystem {
       final Duration startupDelayRandomRange,
       final Duration uploadPeriod,
       final boolean isStartingFirst,
-      final ScheduledExecutorService executorService,
+      final AgentTaskScheduler scheduler,
       final ThreadLocalRandom threadLocalRandom)
       throws ConfigurationException {
     this.controller = controller;
     this.dataListener = dataListener;
     this.uploadPeriod = uploadPeriod;
     this.isStartingFirst = isStartingFirst;
-    this.executorService = executorService;
+    this.scheduler = scheduler;
 
     if (baseStartupDelay.isNegative()) {
       throw new ConfigurationException("Startup delay must not be negative.");
@@ -122,8 +120,11 @@ public final class ProfilingSystem {
       // which makes it crash if JFR is run before 'main' starts.
       // See https://bugs.openjdk.java.net/browse/JDK-8227011 and
       // https://bugs.openjdk.java.net/browse/JDK-8233197.
-      executorService.schedule(
-          this::startProfilingRecording, startupDelay.toMillis(), TimeUnit.MILLISECONDS);
+      scheduler.schedule(
+          ProfilingSystem::startProfilingRecording,
+          this,
+          startupDelay.toMillis(),
+          TimeUnit.MILLISECONDS);
     }
   }
 
@@ -132,7 +133,8 @@ public final class ProfilingSystem {
       final Instant now = Instant.now();
 
       recording = controller.createRecording(RECORDING_NAME);
-      executorService.scheduleAtFixedRate(
+      scheduler.scheduleAtFixedRate(
+          SnapshotRecording::snapshot,
           new SnapshotRecording(now),
           uploadPeriod.toMillis(),
           uploadPeriod.toMillis(),
@@ -146,15 +148,7 @@ public final class ProfilingSystem {
 
   /** Shuts down the profiling system. */
   public final void shutdown() {
-    executorService.shutdownNow();
-
-    try {
-      executorService.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
-    } catch (final InterruptedException e) {
-      // Note: this should only happen in main thread right before exiting, so eating up interrupted
-      // state should be fine.
-      log.error("Wait for executor shutdown interrupted");
-    }
+    scheduler.shutdown(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
 
     // Here we assume that all other threads have been shutdown and we can close running
     // recording
@@ -179,7 +173,7 @@ public final class ProfilingSystem {
     return duration.plus(Duration.ofMillis(random.nextLong(range.toMillis())));
   }
 
-  private final class SnapshotRecording implements Runnable {
+  private final class SnapshotRecording {
 
     private Instant lastSnapshot;
 
@@ -187,8 +181,7 @@ public final class ProfilingSystem {
       lastSnapshot = startTime;
     }
 
-    @Override
-    public void run() {
+    public void snapshot() {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
       try {
         final RecordingData recordingData = recording.snapshot(lastSnapshot, Instant.now());
