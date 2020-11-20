@@ -124,6 +124,6 @@ class ScalaConcurrentTests {
 
   @Trace
   def tracedChild(opName: String): Unit = {
-    activeSpan().setSpanName(opName)
+    activeSpan().setOperationName(opName)
   }
 }

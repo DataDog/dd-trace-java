@@ -88,7 +88,7 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
     public GraphStageLogic createLogic(final Attributes inheritedAttributes) throws Exception {
       return new GraphStageLogic(shape) {
         {
-          final Queue<AgentSpan> spans = new LinkedBlockingQueue<>();
+          final Queue<AgentSpan<?>> spans = new LinkedBlockingQueue<>();
 
           // This is where the request comes in from the server and TCP layer
           setHandler(

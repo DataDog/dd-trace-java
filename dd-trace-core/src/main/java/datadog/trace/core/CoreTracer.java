@@ -385,8 +385,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {
-
+  public <C> void inject(final AgentSpan<?> span, final C carrier, final Setter<C> setter) {
     inject(span.context(), carrier, setter);
   }
 

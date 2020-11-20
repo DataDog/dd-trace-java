@@ -35,7 +35,7 @@ public class HandlerAdapterAdvice {
         handlerType = handler.getClass().getName();
       }
 
-      span.setSpanName(operationName);
+      span.setOperationName(operationName);
       span.setTag("handler.type", handlerType);
 
       scope = activateSpan(span);

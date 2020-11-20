@@ -1,9 +1,9 @@
 package datadog.trace.common.sampling;
 
-import datadog.trace.core.CoreSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.regex.Pattern;
 
-public abstract class SamplingRule<T extends CoreSpan<T>> {
+public abstract class SamplingRule<T extends AgentSpan<T>> {
   private final RateSampler<T> sampler;
 
   public SamplingRule(final RateSampler<T> sampler) {
@@ -20,7 +20,7 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
     return sampler;
   }
 
-  public static class AlwaysMatchesSamplingRule<T extends CoreSpan<T>> extends SamplingRule<T> {
+  public static class AlwaysMatchesSamplingRule<T extends AgentSpan<T>> extends SamplingRule<T> {
 
     public AlwaysMatchesSamplingRule(final RateSampler<T> sampler) {
       super(sampler);
@@ -32,7 +32,7 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
     }
   }
 
-  public abstract static class PatternMatchSamplingRule<T extends CoreSpan<T>>
+  public abstract static class PatternMatchSamplingRule<T extends AgentSpan<T>>
       extends SamplingRule<T> {
     private final Pattern pattern;
 
@@ -50,7 +50,7 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
     protected abstract CharSequence getRelevantString(T span);
   }
 
-  public static class ServiceSamplingRule<T extends CoreSpan<T>>
+  public static class ServiceSamplingRule<T extends AgentSpan<T>>
       extends PatternMatchSamplingRule<T> {
     public ServiceSamplingRule(final String regex, final RateSampler<T> sampler) {
       super(regex, sampler);
@@ -62,7 +62,7 @@ public abstract class SamplingRule<T extends CoreSpan<T>> {
     }
   }
 
-  public static class OperationSamplingRule<T extends CoreSpan<T>>
+  public static class OperationSamplingRule<T extends AgentSpan<T>>
       extends PatternMatchSamplingRule<T> {
     public OperationSamplingRule(final String regex, final RateSampler<T> sampler) {
       super(regex, sampler);

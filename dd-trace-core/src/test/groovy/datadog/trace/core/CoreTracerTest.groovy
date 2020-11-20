@@ -5,6 +5,7 @@ import com.timgroup.statsd.NonBlockingStatsDClient
 import datadog.trace.api.Config
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceSampler
@@ -359,7 +360,7 @@ class CoreTracerTest extends DDSpecification {
   }
 }
 
-class ControllableSampler<T extends CoreSpan<T>> implements Sampler<T>, PrioritySampler<T> {
+class ControllableSampler<T extends AgentSpan<T>> implements Sampler<T>, PrioritySampler<T> {
   protected int nextSamplingPriority = PrioritySampling.SAMPLER_KEEP
 
   @Override

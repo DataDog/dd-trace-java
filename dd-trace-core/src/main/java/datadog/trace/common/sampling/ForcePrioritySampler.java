@@ -1,11 +1,12 @@
 package datadog.trace.common.sampling;
 
-import datadog.trace.core.CoreSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import lombok.extern.slf4j.Slf4j;
 
 /** A sampler which forces the sampling priority */
 @Slf4j
-public class ForcePrioritySampler<T extends CoreSpan<T>> implements Sampler<T>, PrioritySampler<T> {
+public class ForcePrioritySampler<T extends AgentSpan<T>>
+    implements Sampler<T>, PrioritySampler<T> {
 
   private final int prioritySampling;
 

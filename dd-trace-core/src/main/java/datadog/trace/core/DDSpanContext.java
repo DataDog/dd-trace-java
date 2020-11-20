@@ -7,6 +7,7 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.TagsAndBaggageConsumer;
 import datadog.trace.core.taginterceptor.AbstractTagInterceptor;
 import java.util.Collections;
 import java.util.HashMap;

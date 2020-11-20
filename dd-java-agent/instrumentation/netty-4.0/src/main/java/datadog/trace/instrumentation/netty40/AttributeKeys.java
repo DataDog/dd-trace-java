@@ -25,13 +25,13 @@ public class AttributeKeys {
       PARENT_CONNECT_CONTINUATION_ATTRIBUTE_KEY =
           attributeKey("datadog.trace.instrumentation.netty40.parent.connect.continuation");
 
-  public static final AttributeKey<AgentSpan> SERVER_ATTRIBUTE_KEY =
+  public static final AttributeKey<AgentSpan<?>> SERVER_ATTRIBUTE_KEY =
       attributeKey(HttpServerTracingHandler.class.getName() + ".span");
 
-  public static final AttributeKey<AgentSpan> CLIENT_ATTRIBUTE_KEY =
+  public static final AttributeKey<AgentSpan<?>> CLIENT_ATTRIBUTE_KEY =
       attributeKey(HttpClientTracingHandler.class.getName() + ".span");
 
-  public static final AttributeKey<AgentSpan> CLIENT_PARENT_ATTRIBUTE_KEY =
+  public static final AttributeKey<AgentSpan<?>> CLIENT_PARENT_ATTRIBUTE_KEY =
       attributeKey(HttpClientTracingHandler.class.getName() + ".parent");
 
   /**

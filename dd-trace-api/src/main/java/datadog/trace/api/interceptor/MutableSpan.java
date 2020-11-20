@@ -2,7 +2,7 @@ package datadog.trace.api.interceptor;
 
 import java.util.Map;
 
-public interface MutableSpan {
+public interface MutableSpan<SPAN extends MutableSpan<SPAN>> {
 
   /** @return Start time with nanosecond scale, but millisecond resolution. */
   long getStartTime();
@@ -12,15 +12,15 @@ public interface MutableSpan {
 
   CharSequence getOperationName();
 
-  MutableSpan setOperationName(final CharSequence serviceName);
+  SPAN setOperationName(final CharSequence serviceName);
 
   String getServiceName();
 
-  MutableSpan setServiceName(final String serviceName);
+  SPAN setServiceName(final String serviceName);
 
   CharSequence getResourceName();
 
-  MutableSpan setResourceName(final CharSequence resourceName);
+  SPAN setResourceName(final CharSequence resourceName);
 
   Integer getSamplingPriority();
 
@@ -32,33 +32,33 @@ public interface MutableSpan {
    *     datadog.trace.api.DDTags#MANUAL_DROP}.
    */
   @Deprecated
-  MutableSpan setSamplingPriority(final int newPriority);
+  SPAN setSamplingPriority(final int newPriority);
 
   String getSpanType();
 
-  MutableSpan setSpanType(final CharSequence type);
+  SPAN setSpanType(final CharSequence type);
 
   Map<String, Object> getTags();
 
-  MutableSpan setTag(final String tag, final String value);
+  SPAN setTag(final String tag, final String value);
 
-  MutableSpan setTag(final String tag, final boolean value);
+  SPAN setTag(final String tag, final boolean value);
 
-  MutableSpan setTag(final String tag, final Number value);
+  SPAN setTag(final String tag, final Number value);
 
-  MutableSpan setMetric(final CharSequence metric, final int value);
+  SPAN setMetric(final CharSequence metric, final int value);
 
-  MutableSpan setMetric(final CharSequence metric, final long value);
+  SPAN setMetric(final CharSequence metric, final long value);
 
-  MutableSpan setMetric(final CharSequence metric, final double value);
+  SPAN setMetric(final CharSequence metric, final double value);
 
   Boolean isError();
 
-  MutableSpan setError(boolean value);
+  SPAN setError(boolean value);
 
   /** @deprecated Use {@link #getLocalRootSpan()} instead. */
   @Deprecated
-  MutableSpan getRootSpan();
+  SPAN getRootSpan();
 
   /**
    * Returns the root span for current the trace fragment. In the context of distributed tracing
@@ -67,5 +67,5 @@ public interface MutableSpan {
    *
    * @return The root span for the current trace fragment.
    */
-  MutableSpan getLocalRootSpan();
+  SPAN getLocalRootSpan();
 }

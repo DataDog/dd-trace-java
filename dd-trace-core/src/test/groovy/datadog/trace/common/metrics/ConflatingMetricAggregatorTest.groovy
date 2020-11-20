@@ -1,7 +1,7 @@
 package datadog.trace.common.metrics
 
 import datadog.trace.api.WellKnownTags
-import datadog.trace.core.CoreSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanData
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.CountDownLatch
@@ -43,7 +43,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       Mock(Sink), writer, 10, 10, reportingInterval, SECONDS)
     long duration = 100
-    List<CoreSpan> trace = [
+    List<AgentSpanData> trace = [
       new SimpleSpan("service", "operation", "resource", "type", true, false, 0, duration),
       new SimpleSpan("service1", "operation1", "resource1", "type", false, false, 0, 0),
       new SimpleSpan("service2", "operation2", "resource2", "type", true, false, 0, duration * 2)

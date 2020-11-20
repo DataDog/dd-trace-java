@@ -24,7 +24,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       OVERRIDE_CONFIGURATION_CONSUMER =
           builder -> builder.addExecutionInterceptor(new TracingExecutionInterceptor());
 
-  private static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
+  private static final ExecutionAttribute<AgentSpan<?>> SPAN_ATTRIBUTE =
       new ExecutionAttribute<>("DatadogSpan");
 
   @Override

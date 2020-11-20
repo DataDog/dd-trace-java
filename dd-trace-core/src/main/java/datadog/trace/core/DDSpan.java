@@ -4,6 +4,7 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.TagsAndBaggageConsumer;
 import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -20,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
  * according to the DD agent.
  */
 @Slf4j
-public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
+public class DDSpan implements AgentSpan<DDSpan> {
 
   static DDSpan create(final long timestampMicro, final DDSpanContext context) {
     final DDSpan span = new DDSpan(timestampMicro, context);
@@ -127,7 +128,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   @Deprecated
-  public AgentSpan getRootSpan() {
+  public DDSpan getRootSpan() {
     return getLocalRootSpan();
   }
 
@@ -137,7 +138,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
-  public boolean isSameTrace(final AgentSpan otherSpan) {
+  public boolean isSameTrace(final AgentSpan<?> otherSpan) {
     // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
     if (otherSpan instanceof DDSpan) {
       // minor optimization to avoid BigInteger.toString()
@@ -242,17 +243,6 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   public DDSpan setTag(final String tag, final Object value) {
     context.setTag(tag, value);
     return this;
-  }
-
-  // FIXME [API] this is not on AgentSpan or MutableSpan
-  public DDSpan removeTag(final String tag) {
-    context.setTag(tag, null);
-    return this;
-  }
-
-  @Override
-  public Object getTag(final String tag) {
-    return context.getTag(tag);
   }
 
   @Override
@@ -367,16 +357,6 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
-  public CharSequence getSpanName() {
-    return context.getOperationName();
-  }
-
-  @Override
-  public void setSpanName(final CharSequence spanName) {
-    context.setOperationName(spanName);
-  }
-
-  @Override
   public boolean hasResourceName() {
     return context.hasResourceName();
   }
@@ -399,7 +379,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public Map<String, Object> getTags() {
-    // This is an imutable copy of the tags
+    // This is an immutable copy of the tags
     return context.getTags();
   }
 
@@ -426,7 +406,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   @SuppressWarnings("unchecked")
   public <U> U getTag(CharSequence name, U defaultValue) {
-    Object tag = getTag(String.valueOf(name));
+    Object tag = context.getTag(String.valueOf(name));
     return null == tag ? defaultValue : (U) tag;
   }
 

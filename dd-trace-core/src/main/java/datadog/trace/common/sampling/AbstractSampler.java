@@ -1,13 +1,13 @@
 package datadog.trace.common.sampling;
 
-import datadog.trace.core.CoreSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 @Deprecated
-public abstract class AbstractSampler<T extends CoreSpan<T>> implements Sampler<T> {
+public abstract class AbstractSampler<T extends AgentSpan<T>> implements Sampler<T> {
 
   /** Sample tags */
   protected Map<String, Pattern> skipTagsPatterns = new HashMap<>();

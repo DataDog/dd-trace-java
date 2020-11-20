@@ -29,13 +29,13 @@ public class AttributeKeys {
    * This constant is copied over to datadog.trace.instrumentation.ratpack.server.TracingHandler, so
    * if this changes, that must also change.
    */
-  public static final AttributeKey<AgentSpan> SERVER_ATTRIBUTE_KEY =
+  public static final AttributeKey<AgentSpan<?>> SERVER_ATTRIBUTE_KEY =
       attributeKey(HttpServerTracingHandler.class.getName() + ".span");
 
-  public static final AttributeKey<AgentSpan> CLIENT_ATTRIBUTE_KEY =
+  public static final AttributeKey<AgentSpan<?>> CLIENT_ATTRIBUTE_KEY =
       attributeKey(HttpClientTracingHandler.class.getName() + ".span");
 
-  public static final AttributeKey<AgentSpan> CLIENT_PARENT_ATTRIBUTE_KEY =
+  public static final AttributeKey<AgentSpan<?>> CLIENT_PARENT_ATTRIBUTE_KEY =
       attributeKey(HttpClientTracingHandler.class.getName() + ".parent");
 
   /**

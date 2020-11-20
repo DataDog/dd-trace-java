@@ -4,13 +4,13 @@ import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.DROP;
 import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.KEEP;
 
 import datadog.trace.api.Config;
-import datadog.trace.core.CoreSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 
 /** Main interface to sample a collection of traces. */
-public interface Sampler<T extends CoreSpan<T>> {
+public interface Sampler<T extends AgentSpan<T>> {
 
   /**
    * Sample a collection of traces based on the parent span
@@ -22,7 +22,7 @@ public interface Sampler<T extends CoreSpan<T>> {
 
   @Slf4j
   final class Builder {
-    public static <T extends CoreSpan<T>> Sampler<T> forConfig(final Config config) {
+    public static <T extends AgentSpan<T>> Sampler<T> forConfig(final Config config) {
       Sampler<T> sampler;
       if (config != null) {
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
@@ -62,7 +62,7 @@ public interface Sampler<T extends CoreSpan<T>> {
       return sampler;
     }
 
-    public static <T extends CoreSpan<T>> Sampler<T> forConfig(final Properties config) {
+    public static <T extends AgentSpan<T>> Sampler<T> forConfig(final Properties config) {
       return forConfig(Config.get(config));
     }
 

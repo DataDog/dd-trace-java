@@ -6,7 +6,7 @@ public interface AgentPropagation {
 
   TraceScope.Continuation capture();
 
-  <C> void inject(AgentSpan span, C carrier, Setter<C> setter);
+  <C> void inject(AgentSpan<?> span, C carrier, Setter<C> setter);
 
   <C> void inject(AgentSpan.Context context, C carrier, Setter<C> setter);
 

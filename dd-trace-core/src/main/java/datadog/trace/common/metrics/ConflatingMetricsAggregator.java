@@ -6,8 +6,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanData;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.core.CoreSpan;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
@@ -86,9 +86,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   @Override
-  public void publish(List<? extends CoreSpan<?>> trace) {
+  public void publish(List<? extends AgentSpanData> trace) {
     if (enabled) {
-      for (CoreSpan<?> span : trace) {
+      for (AgentSpanData span : trace) {
         if (span.isMeasured()) {
           publish(span);
         }
@@ -96,7 +96,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     }
   }
 
-  private void publish(CoreSpan<?> span) {
+  private void publish(AgentSpanData span) {
     MetricKey key =
         new MetricKey(
             span.getResourceName(),

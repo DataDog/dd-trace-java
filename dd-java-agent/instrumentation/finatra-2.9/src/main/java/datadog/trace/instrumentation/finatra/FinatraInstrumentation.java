@@ -82,7 +82,7 @@ public class FinatraInstrumentation extends Instrumenter.Default {
       final AgentSpan parent = activeSpan();
       parent.setTag(DDTags.RESOURCE_NAME, request.method().name() + " " + path);
       parent.setTag(Tags.COMPONENT, "finatra");
-      parent.setSpanName(FINATRA_REQUEST);
+      parent.setOperationName(FINATRA_REQUEST);
 
       final AgentSpan span = startSpan(FINATRA_CONTROLLER);
       DECORATE.afterStart(span);

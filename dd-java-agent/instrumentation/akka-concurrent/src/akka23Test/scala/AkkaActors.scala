@@ -47,7 +47,7 @@ class AkkaActors extends AutoCloseable {
   def send(name: String, who: String): Unit = {
     val actor = actors(name)
     activeScope().setAsyncPropagation(true)
-    activeSpan().setSpanName(name)
+    activeSpan().setOperationName(name)
     actor ! WhoToGreet(who)
     if (name == "ask") {
       actor ? Greet
@@ -59,7 +59,7 @@ class AkkaActors extends AutoCloseable {
   @Trace
   def leak(who: String, leak: String): Unit = {
     activeScope().setAsyncPropagation(true)
-    activeSpan().setSpanName("leak all the things")
+    activeSpan().setOperationName("leak all the things")
     tellGreeter ! WhoToGreet(who)
     tellGreeter ! Leak(leak)
   }
@@ -70,12 +70,17 @@ object Greeter {
     Props(new Greeter(message, receiverActor))
 
   final case class Block(barrier: Semaphore)
+
   final case class WhoToGreet(who: String)
+
   case object Greet
+
   final case class Leak(leak: String)
+
 }
 
 class Greeter(message: String, receiverActor: ActorRef) extends Actor {
+
   import Greeter._
   import Receiver._
 
@@ -100,6 +105,7 @@ object Receiver {
   def props: Props = Props[Receiver]
 
   final case class Greeting(greeting: String)
+
 }
 
 class Receiver extends Actor with ActorLogging {
@@ -114,7 +120,7 @@ class Receiver extends Actor with ActorLogging {
 
   @Trace
   def tracedChild(opName: String): Unit = {
-    activeSpan().setSpanName(opName)
+    activeSpan().setOperationName(opName)
   }
 }
 

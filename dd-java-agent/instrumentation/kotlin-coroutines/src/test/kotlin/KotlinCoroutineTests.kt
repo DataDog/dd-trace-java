@@ -137,7 +137,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
   @Trace
   fun tracedChild(opName: String) {
-    activeSpan().setSpanName(opName)
+    activeSpan().setOperationName(opName)
   }
 
   private fun <T> runTest(asyncPropagation: Boolean = true, block: suspend CoroutineScope.() -> T): T {

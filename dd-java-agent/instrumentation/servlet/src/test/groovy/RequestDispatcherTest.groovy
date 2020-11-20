@@ -69,7 +69,7 @@ class RequestDispatcherTest extends AgentTestRunner {
     then:
     1 * request.getAttribute(DD_SPAN_ATTRIBUTE) >> mockSpan
     then:
-    1 * request.setAttribute(DD_SPAN_ATTRIBUTE, { it.spanName.toString() == "servlet.$operation" })
+    1 * request.setAttribute(DD_SPAN_ATTRIBUTE, { it.operationName.toString() == "servlet.$operation" })
     then:
     1 * request.setAttribute(DD_SPAN_ATTRIBUTE, mockSpan)
 
@@ -124,7 +124,7 @@ class RequestDispatcherTest extends AgentTestRunner {
     then:
     1 * request.getAttribute(DD_SPAN_ATTRIBUTE) >> mockSpan
     then:
-    1 * request.setAttribute(DD_SPAN_ATTRIBUTE, { it.spanName.toString() == "servlet.$operation" })
+    1 * request.setAttribute(DD_SPAN_ATTRIBUTE, { it.operationName.toString() == "servlet.$operation" })
     then:
     1 * request.setAttribute(DD_SPAN_ATTRIBUTE, mockSpan)
 

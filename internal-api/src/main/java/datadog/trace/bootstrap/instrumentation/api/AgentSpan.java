@@ -4,69 +4,46 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.interceptor.MutableSpan;
 import java.util.Map;
 
-public interface AgentSpan extends MutableSpan {
+/**
+ * This interface represents a union of AgentSpanData and MutableSpan, plus some additional methods
+ */
+public interface AgentSpan<SPAN extends AgentSpan<SPAN>> extends AgentSpanData, MutableSpan<SPAN> {
 
-  DDId getTraceId();
+  SPAN setTag(String key, int value);
 
-  @Override
-  AgentSpan setTag(String key, boolean value);
+  SPAN setTag(String key, long value);
 
-  AgentSpan setTag(String key, int value);
+  SPAN setTag(String key, double value);
 
-  AgentSpan setTag(String key, long value);
+  SPAN setTag(String key, CharSequence value);
 
-  AgentSpan setTag(String key, double value);
+  SPAN setTag(String key, Object value);
 
-  @Override
-  AgentSpan setTag(String key, String value);
+  SPAN setMetric(CharSequence key, float value);
 
-  AgentSpan setTag(String key, CharSequence value);
+  SPAN setFlag(CharSequence name, boolean value);
 
-  AgentSpan setTag(String key, Object value);
+  SPAN setSamplingPriority(int samplingPriority, CharSequence rate, double sampleRate);
 
-  @Override
-  AgentSpan setMetric(CharSequence key, int value);
+  SPAN setMeasured(boolean measured);
 
-  @Override
-  AgentSpan setMetric(CharSequence key, long value);
+  SPAN setErrorMessage(String errorMessage);
 
-  @Override
-  AgentSpan setMetric(CharSequence key, double value);
-
-  @Override
-  AgentSpan setSpanType(final CharSequence type);
-
-  Object getTag(String key);
-
-  @Override
-  AgentSpan setError(boolean error);
-
-  AgentSpan setMeasured(boolean measured);
-
-  AgentSpan setErrorMessage(String errorMessage);
-
-  AgentSpan addThrowable(Throwable throwable);
-
-  @Override
-  AgentSpan getLocalRootSpan();
-
-  boolean isSameTrace(AgentSpan otherSpan);
-
-  Context context();
+  SPAN addThrowable(Throwable throwable);
 
   String getBaggageItem(String key);
 
-  AgentSpan setBaggageItem(String key, String value);
+  SPAN setBaggageItem(String key, String value);
 
   void finish();
 
   void finish(long finishMicros);
 
-  CharSequence getSpanName();
-
-  void setSpanName(CharSequence spanName);
+  boolean isSameTrace(AgentSpan<?> otherSpan);
 
   boolean hasResourceName();
+
+  Context context();
 
   interface Context {
     DDId getTraceId();

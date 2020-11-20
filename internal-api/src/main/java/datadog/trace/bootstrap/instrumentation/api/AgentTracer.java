@@ -1,11 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 
 import datadog.trace.api.DDId;
-import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
@@ -16,35 +15,36 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AgentTracer {
 
   // Implicit parent
-  public static AgentSpan startSpan(final CharSequence spanName) {
+  public static AgentSpan<?> startSpan(final CharSequence spanName) {
     return get().startSpan(spanName);
   }
 
   // Implicit parent
-  public static AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
+  public static AgentSpan<?> startSpan(final CharSequence spanName, final long startTimeMicros) {
     return get().startSpan(spanName, startTimeMicros);
   }
 
   // Explicit parent
-  public static AgentSpan startSpan(final CharSequence spanName, final AgentSpan.Context parent) {
+  public static AgentSpan<?> startSpan(
+      final CharSequence spanName, final AgentSpan.Context parent) {
     return get().startSpan(spanName, parent);
   }
 
   // Explicit parent
-  public static AgentSpan startSpan(
+  public static AgentSpan<?> startSpan(
       final CharSequence spanName, final AgentSpan.Context parent, final long startTimeMicros) {
     return get().startSpan(spanName, parent, startTimeMicros);
   }
 
-  public static AgentScope activateSpan(final AgentSpan span) {
+  public static AgentScope activateSpan(final AgentSpan<?> span) {
     return get().activateSpan(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
   }
 
-  public static AgentScope activateSpan(final AgentSpan span, final boolean isAsyncPropagating) {
+  public static AgentScope activateSpan(final AgentSpan<?> span, final boolean isAsyncPropagating) {
     return get().activateSpan(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
   }
 
-  public static AgentSpan activeSpan() {
+  public static AgentSpan<?> activeSpan() {
     return get().activeSpan();
   }
 
@@ -56,7 +56,7 @@ public class AgentTracer {
     return get().propagate();
   }
 
-  public static AgentSpan noopSpan() {
+  public static AgentSpan<?> noopSpan() {
     return get().noopSpan();
   }
 
@@ -82,25 +82,25 @@ public class AgentTracer {
   private AgentTracer() {}
 
   public interface TracerAPI extends datadog.trace.api.Tracer, AgentPropagation {
-    AgentSpan startSpan(CharSequence spanName);
+    AgentSpan<?> startSpan(CharSequence spanName);
 
-    AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
+    AgentSpan<?> startSpan(CharSequence spanName, long startTimeMicros);
 
-    AgentSpan startSpan(CharSequence spanName, AgentSpan.Context parent);
+    AgentSpan<?> startSpan(CharSequence spanName, AgentSpan.Context parent);
 
-    AgentSpan startSpan(CharSequence spanName, AgentSpan.Context parent, long startTimeMicros);
+    AgentSpan<?> startSpan(CharSequence spanName, AgentSpan.Context parent, long startTimeMicros);
 
-    AgentScope activateSpan(AgentSpan span, ScopeSource source);
+    AgentScope activateSpan(AgentSpan<?> span, ScopeSource source);
 
-    AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
+    AgentScope activateSpan(AgentSpan<?> span, ScopeSource source, boolean isAsyncPropagating);
 
-    AgentSpan activeSpan();
+    AgentSpan<?> activeSpan();
 
     TraceScope activeScope();
 
     AgentPropagation propagate();
 
-    AgentSpan noopSpan();
+    AgentSpan<?> noopSpan();
 
     SpanBuilder buildSpan(CharSequence spanName);
 
@@ -110,7 +110,7 @@ public class AgentTracer {
   }
 
   public interface SpanBuilder {
-    AgentSpan start();
+    AgentSpan<?> start();
 
     SpanBuilder asChildOf(Context toContext);
 
@@ -140,39 +140,39 @@ public class AgentTracer {
     protected NoopTracerAPI() {}
 
     @Override
-    public AgentSpan startSpan(final CharSequence spanName) {
+    public AgentSpan<?> startSpan(final CharSequence spanName) {
       return NoopAgentSpan.INSTANCE;
     }
 
     @Override
-    public AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
+    public AgentSpan<?> startSpan(final CharSequence spanName, final long startTimeMicros) {
       return NoopAgentSpan.INSTANCE;
     }
 
     @Override
-    public AgentSpan startSpan(final CharSequence spanName, final Context parent) {
+    public AgentSpan<?> startSpan(final CharSequence spanName, final Context parent) {
       return NoopAgentSpan.INSTANCE;
     }
 
     @Override
-    public AgentSpan startSpan(
+    public AgentSpan<?> startSpan(
         final CharSequence spanName, final Context parent, final long startTimeMicros) {
       return NoopAgentSpan.INSTANCE;
     }
 
     @Override
-    public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
+    public AgentScope activateSpan(final AgentSpan<?> span, final ScopeSource source) {
       return NoopAgentScope.INSTANCE;
     }
 
     @Override
     public AgentScope activateSpan(
-        final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
+        final AgentSpan<?> span, final ScopeSource source, final boolean isAsyncPropagating) {
       return NoopAgentScope.INSTANCE;
     }
 
     @Override
-    public AgentSpan activeSpan() {
+    public AgentSpan<?> activeSpan() {
       return NoopAgentSpan.INSTANCE;
     }
 
@@ -187,7 +187,7 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpan noopSpan() {
+    public AgentSpan<?> noopSpan() {
       return NoopAgentSpan.INSTANCE;
     }
 
@@ -226,7 +226,7 @@ public class AgentTracer {
     }
 
     @Override
-    public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {}
+    public <C> void inject(final AgentSpan<?> span, final C carrier, final Setter<C> setter) {}
 
     @Override
     public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
@@ -237,7 +237,7 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopAgentSpan implements AgentSpan {
+  public static class NoopAgentSpan implements AgentSpan<NoopAgentSpan> {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
 
     @Override
@@ -246,12 +246,22 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpan setTag(final String key, final boolean value) {
+    public DDId getSpanId() {
+      return DDId.ZERO;
+    }
+
+    @Override
+    public DDId getParentId() {
+      return DDId.ZERO;
+    }
+
+    @Override
+    public NoopAgentSpan setTag(final String key, final boolean value) {
       return this;
     }
 
     @Override
-    public MutableSpan setTag(final String tag, final Number value) {
+    public NoopAgentSpan setTag(final String tag, final Number value) {
       return this;
     }
 
@@ -261,42 +271,63 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpan setTag(final String key, final int value) {
+    public NoopAgentSpan setTag(final String key, final int value) {
       return this;
     }
 
     @Override
-    public AgentSpan setTag(final String key, final long value) {
+    public NoopAgentSpan setTag(final String key, final long value) {
       return this;
     }
 
     @Override
-    public AgentSpan setTag(final String key, final double value) {
+    public NoopAgentSpan setTag(final String key, final double value) {
       return this;
     }
 
     @Override
-    public AgentSpan setTag(final String key, final Object value) {
+    public NoopAgentSpan setTag(final String key, final Object value) {
       return this;
     }
 
     @Override
-    public AgentSpan setMetric(final CharSequence key, final int value) {
+    public Map<CharSequence, Number> getMetrics() {
+      return null;
+    }
+
+    @Override
+    public NoopAgentSpan setMetric(final CharSequence key, final int value) {
       return this;
     }
 
     @Override
-    public AgentSpan setMetric(final CharSequence key, final long value) {
+    public NoopAgentSpan setMetric(final CharSequence key, final long value) {
       return this;
     }
 
     @Override
-    public AgentSpan setMetric(final CharSequence key, final double value) {
+    public NoopAgentSpan setMetric(CharSequence key, float value) {
       return this;
     }
 
     @Override
-    public Object getTag(final String key) {
+    public NoopAgentSpan setMetric(final CharSequence key, final double value) {
+      return this;
+    }
+
+    @Override
+    public NoopAgentSpan setFlag(CharSequence name, boolean value) {
+      return this;
+    }
+
+    @Override
+    public NoopAgentSpan setSamplingPriority(
+        int samplingPriority, CharSequence rate, double sampleRate) {
+      return this;
+    }
+
+    @Override
+    public CharSequence getType() {
       return null;
     }
 
@@ -316,7 +347,7 @@ public class AgentTracer {
     }
 
     @Override
-    public MutableSpan setOperationName(final CharSequence serviceName) {
+    public NoopAgentSpan setOperationName(final CharSequence serviceName) {
       return this;
     }
 
@@ -326,7 +357,7 @@ public class AgentTracer {
     }
 
     @Override
-    public MutableSpan setServiceName(final String serviceName) {
+    public NoopAgentSpan setServiceName(final String serviceName) {
       return this;
     }
 
@@ -336,17 +367,17 @@ public class AgentTracer {
     }
 
     @Override
-    public MutableSpan setResourceName(final CharSequence resourceName) {
+    public NoopAgentSpan setResourceName(final CharSequence resourceName) {
       return this;
     }
 
     @Override
     public Integer getSamplingPriority() {
-      return PrioritySampling.UNSET;
+      return UNSET;
     }
 
     @Override
-    public MutableSpan setSamplingPriority(final int newPriority) {
+    public NoopAgentSpan setSamplingPriority(final int newPriority) {
       return this;
     }
 
@@ -356,8 +387,23 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpan setSpanType(final CharSequence type) {
+    public NoopAgentSpan setSpanType(final CharSequence type) {
       return this;
+    }
+
+    @Override
+    public <U> U getTag(CharSequence name, U defaultValue) {
+      return null;
+    }
+
+    @Override
+    public <U> U getTag(CharSequence name) {
+      return null;
+    }
+
+    @Override
+    public int getError() {
+      return 0;
     }
 
     @Override
@@ -366,47 +412,52 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpan setTag(final String key, final String value) {
+    public NoopAgentSpan setTag(final String key, final String value) {
       return this;
     }
 
     @Override
-    public AgentSpan setTag(final String key, final CharSequence value) {
+    public NoopAgentSpan setTag(final String key, final CharSequence value) {
       return this;
     }
 
     @Override
-    public AgentSpan setError(final boolean error) {
+    public NoopAgentSpan setError(final boolean error) {
       return this;
     }
 
     @Override
-    public AgentSpan setMeasured(boolean measured) {
+    public boolean isMeasured() {
+      return false;
+    }
+
+    @Override
+    public NoopAgentSpan setMeasured(boolean measured) {
       return this;
     }
 
     @Override
-    public MutableSpan getRootSpan() {
+    public NoopAgentSpan getRootSpan() {
       return this;
     }
 
     @Override
-    public AgentSpan setErrorMessage(final String errorMessage) {
+    public NoopAgentSpan setErrorMessage(final String errorMessage) {
       return this;
     }
 
     @Override
-    public AgentSpan addThrowable(final Throwable throwable) {
+    public NoopAgentSpan addThrowable(final Throwable throwable) {
       return this;
     }
 
     @Override
-    public AgentSpan getLocalRootSpan() {
+    public NoopAgentSpan getLocalRootSpan() {
       return this;
     }
 
     @Override
-    public boolean isSameTrace(final AgentSpan otherSpan) {
+    public boolean isSameTrace(final AgentSpan<?> otherSpan) {
       // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
       // Not sure if this is the best idea...
       return otherSpan instanceof NoopAgentSpan;
@@ -423,23 +474,18 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpan setBaggageItem(final String key, final String value) {
+    public NoopAgentSpan setBaggageItem(final String key, final String value) {
       return this;
     }
+
+    @Override
+    public void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {}
 
     @Override
     public void finish() {}
 
     @Override
     public void finish(final long finishMicros) {}
-
-    @Override
-    public String getSpanName() {
-      return "";
-    }
-
-    @Override
-    public void setSpanName(final CharSequence spanName) {}
 
     @Override
     public boolean hasResourceName() {
@@ -451,7 +497,7 @@ public class AgentTracer {
     public static final NoopAgentScope INSTANCE = new NoopAgentScope();
 
     @Override
-    public AgentSpan span() {
+    public NoopAgentSpan span() {
       return NoopAgentSpan.INSTANCE;
     }
 
@@ -486,7 +532,7 @@ public class AgentTracer {
     }
 
     @Override
-    public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {}
+    public <C> void inject(final AgentSpan<?> span, final C carrier, final Setter<C> setter) {}
 
     @Override
     public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}

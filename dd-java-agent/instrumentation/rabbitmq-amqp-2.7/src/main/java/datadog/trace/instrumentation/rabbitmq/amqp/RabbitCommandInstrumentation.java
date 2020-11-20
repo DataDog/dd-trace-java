@@ -59,7 +59,7 @@ public class RabbitCommandInstrumentation extends Instrumenter.Default {
       final AgentSpan span = activeSpan();
 
       if (span != null && command.getMethod() != null) {
-        if (span.getSpanName().equals(AMQP_COMMAND)) {
+        if (span.getOperationName().equals(AMQP_COMMAND)) {
           DECORATE.onCommand(span, command);
         }
       }

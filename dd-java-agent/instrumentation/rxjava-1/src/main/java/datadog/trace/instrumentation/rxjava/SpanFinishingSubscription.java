@@ -7,10 +7,10 @@ import rx.Subscription;
 
 public class SpanFinishingSubscription implements Subscription {
   private final BaseDecorator decorator;
-  private final AtomicReference<AgentSpan> spanRef;
+  private final AtomicReference<AgentSpan<?>> spanRef;
 
   public SpanFinishingSubscription(
-      final BaseDecorator decorator, final AtomicReference<AgentSpan> spanRef) {
+      final BaseDecorator decorator, final AtomicReference<AgentSpan<?>> spanRef) {
     this.decorator = decorator;
     this.spanRef = spanRef;
   }

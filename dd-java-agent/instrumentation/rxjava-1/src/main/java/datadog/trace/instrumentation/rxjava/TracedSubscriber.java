@@ -10,7 +10,7 @@ import rx.Subscriber;
 
 public class TracedSubscriber<T> extends Subscriber<T> {
 
-  private final AtomicReference<AgentSpan> spanRef;
+  private final AtomicReference<AgentSpan<?>> spanRef;
   private final Subscriber<T> delegate;
   private final BaseDecorator decorator;
 

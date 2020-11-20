@@ -16,7 +16,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
 
   @Override
   public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
-    final Attribute<AgentSpan> parentAttr =
+    final Attribute<AgentSpan<?>> parentAttr =
         ctx.channel().attr(AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY);
     parentAttr.setIfAbsent(noopSpan());
     final AgentSpan parent = parentAttr.get();

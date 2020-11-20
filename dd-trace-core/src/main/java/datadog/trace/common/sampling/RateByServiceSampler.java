@@ -4,8 +4,8 @@ import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
-import datadog.trace.core.CoreSpan;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>The configuration of (serviceName,env)->rate is configured by the core agent.
  */
 @Slf4j
-public class RateByServiceSampler<T extends CoreSpan<T>>
+public class RateByServiceSampler<T extends AgentSpan<T>>
     implements Sampler<T>, PrioritySampler<T>, DDAgentResponseListener {
   public static final String SAMPLING_AGENT_RATE = "_dd.agent_psr";
 
@@ -74,7 +74,8 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
     }
   }
 
-  private static <T extends CoreSpan<T>> RateSampler<T> createRateSampler(final double sampleRate) {
+  private static <T extends AgentSpan<T>> RateSampler<T> createRateSampler(
+      final double sampleRate) {
     final double sanitizedRate;
     if (sampleRate < 0) {
       log.error("SampleRate is negative or null, disabling the sampler");
@@ -88,7 +89,7 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
     return new DeterministicSampler<>(sanitizedRate);
   }
 
-  private static final class RateSamplersByEnvAndService<T extends CoreSpan<T>> {
+  private static final class RateSamplersByEnvAndService<T extends AgentSpan<T>> {
     private static final RateSampler<?> DEFAULT = createRateSampler(DEFAULT_RATE);
 
     private final Map<EnvAndService, RateSampler<T>> serviceRates;
@@ -148,8 +149,12 @@ public class RateByServiceSampler<T extends CoreSpan<T>>
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       EnvAndService that = (EnvAndService) o;
       return env.equals(that.env) && service.equals(that.service);
     }

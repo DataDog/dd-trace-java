@@ -20,7 +20,7 @@ public final class TracingHandler implements Handler {
    * This constant is copied over from datadog.trace.instrumentation.netty41.AttributeKeys. The key
    * string must be kept consistent.
    */
-  public static final AttributeKey<AgentSpan> SERVER_ATTRIBUTE_KEY =
+  public static final AttributeKey<AgentSpan<?>> SERVER_ATTRIBUTE_KEY =
       AttributeKey.valueOf(
           "datadog.trace.instrumentation.netty41.server.HttpServerTracingHandler.span");
 
@@ -28,7 +28,7 @@ public final class TracingHandler implements Handler {
   public void handle(final Context ctx) {
     final Request request = ctx.getRequest();
 
-    final Attribute<AgentSpan> spanAttribute =
+    final Attribute<AgentSpan<?>> spanAttribute =
         ctx.getDirectChannelAccess().getChannel().attr(SERVER_ATTRIBUTE_KEY);
     final AgentSpan nettySpan = spanAttribute.get();
 

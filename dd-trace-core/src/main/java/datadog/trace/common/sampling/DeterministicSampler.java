@@ -1,6 +1,6 @@
 package datadog.trace.common.sampling;
 
-import datadog.trace.core.CoreSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.CoreTracer;
 import java.math.BigDecimal;
 import lombok.extern.slf4j.Slf4j;
@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
  * tracers for other languages
  */
 @Slf4j
-public class DeterministicSampler<T extends CoreSpan<T>> implements RateSampler<T> {
+public class DeterministicSampler<T extends AgentSpan<T>> implements RateSampler<T> {
   private static final long KNUTH_FACTOR = 1111111111111111111L;
 
   private final long cutoff; // pre-calculated for the unsigned 64 bit comparison
