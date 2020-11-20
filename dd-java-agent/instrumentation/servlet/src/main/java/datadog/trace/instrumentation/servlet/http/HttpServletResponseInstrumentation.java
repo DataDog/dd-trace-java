@@ -19,7 +19,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -61,8 +60,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap(
-        "javax.servlet.http.HttpServletResponse", "javax.servlet.http.HttpServletRequest");
+    return singletonMap("javax.servlet.http.HttpServletResponse", Boolean.class.getName());
   }
 
   public static class SendAdvice {
@@ -75,9 +73,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
         return null;
       }
 
-      final HttpServletRequest req =
-          InstrumentationContext.get(HttpServletResponse.class, HttpServletRequest.class).get(resp);
-      if (req == null) {
+      if (InstrumentationContext.get(HttpServletResponse.class, Boolean.class).get(resp) == null) {
         // Missing the response->request linking... probably in a wrapped instance.
         return null;
       }
@@ -90,7 +86,8 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
       final AgentSpan span = startSpan(SERVLET_RESPONSE);
       DECORATE.afterStart(span);
 
-      span.setTag(DDTags.RESOURCE_NAME, "HttpServletResponse." + method);
+      span.setTag(
+          DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(HttpServletResponse.class, method));
 
       final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);

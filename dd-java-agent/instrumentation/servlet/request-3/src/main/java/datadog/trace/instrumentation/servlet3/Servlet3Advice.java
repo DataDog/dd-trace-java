@@ -43,8 +43,8 @@ public class Servlet3Advice {
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
 
     // For use by HttpServletResponseInstrumentation:
-    InstrumentationContext.get(HttpServletResponse.class, HttpServletRequest.class)
-        .put((HttpServletResponse) response, httpServletRequest);
+    InstrumentationContext.get(HttpServletResponse.class, Boolean.class)
+        .put((HttpServletResponse) response, Boolean.TRUE);
 
     final AgentSpan.Context extractedContext;
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
