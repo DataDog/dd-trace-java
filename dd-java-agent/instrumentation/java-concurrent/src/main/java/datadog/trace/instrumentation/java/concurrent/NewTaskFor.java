@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.concurrent;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable;
 import java.lang.reflect.Method;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Executor;
@@ -42,6 +43,9 @@ public final class NewTaskFor {
         || runnable.getClass().getName().startsWith("slick.")) {
       return runnable;
     }
+    if (runnable instanceof Comparable) {
+      return new ComparableRunnable<>(cast(runnable));
+    }
     if (null != NEW_TASK_FOR_RUNNABLE && executor instanceof AbstractExecutorService) {
       try {
         return (RunnableFuture<Void>) NEW_TASK_FOR_RUNNABLE.invoke(executor, runnable, null);
@@ -50,5 +54,10 @@ public final class NewTaskFor {
       }
     }
     return new FutureTask<>(runnable, null);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T extends Runnable & Comparable<T>> T cast(Runnable comparable) {
+    return (T) comparable;
   }
 }
