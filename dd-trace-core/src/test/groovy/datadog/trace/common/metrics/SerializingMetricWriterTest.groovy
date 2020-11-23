@@ -1,16 +1,20 @@
 package datadog.trace.common.metrics
 
+import datadog.trace.api.Platform
 import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.Pair
 import datadog.trace.test.util.DDSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
+import spock.lang.Requires
 
 import java.nio.ByteBuffer
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
+@Requires({ isJavaVersionAtLeast(8) })
 class SerializingMetricWriterTest extends DDSpecification {
 
   def "should produce correct message" () {
@@ -35,8 +39,8 @@ class SerializingMetricWriterTest extends DDSpecification {
     where:
     content << [
       [
-        Pair.of(new MetricKey("resource1", "service1", "operation1", "type", "", 0), new AggregateMetric().addHits(10).addErrors(1)),
-        Pair.of(new MetricKey("resource2", "service2", "operation2", "type2", "dbtype", 200), new AggregateMetric().addHits(9).addErrors(1))
+              Pair.of(new MetricKey("resource1", "service1", "operation1", "type", "", 0), new AggregateMetric().addHits(10).addErrors(1)),
+              Pair.of(new MetricKey("resource2", "service2", "operation2", "type2", "dbtype", 200), new AggregateMetric().addHits(9).addErrors(1))
       ]
     ]
   }
@@ -89,7 +93,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         MetricKey key = pair.getLeft()
         AggregateMetric value = pair.getRight()
         int size = unpacker.unpackMapHeader()
-        assert size == 9
+        assert size == 11
         int elementCount = 0
         assert unpacker.unpackString() == "Name"
         assert unpacker.unpackString() == key.getOperationName() as String
@@ -118,9 +122,25 @@ class SerializingMetricWriterTest extends DDSpecification {
         assert unpacker.unpackString() == "Duration"
         assert unpacker.unpackLong() == value.getDuration()
         ++elementCount
+        assert unpacker.unpackString() == "HitsSummary"
+        validateSketch(unpacker)
+        ++elementCount
+        assert unpacker.unpackString() == "ErrorSummary"
+        validateSketch(unpacker)
+        ++elementCount
         assert elementCount == size
       }
       validated = true
+    }
+
+    private void validateSketch(MessageUnpacker unpacker) {
+      if (Platform.isJavaVersionAtLeast(8)) {
+        int length = unpacker.unpackBinaryHeader()
+        assert length > 0
+        unpacker.skipValue(length)
+      } else {
+        unpacker.skipValue()
+      }
     }
 
     boolean validatedInput() {

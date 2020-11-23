@@ -8,14 +8,17 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody
+import spock.lang.Requires
 
 import java.nio.ByteBuffer
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.common.metrics.EventListener.EventType.BAD_PAYLOAD
 import static datadog.trace.common.metrics.EventListener.EventType.DOWNGRADED
 import static datadog.trace.common.metrics.EventListener.EventType.ERROR
 import static datadog.trace.common.metrics.EventListener.EventType.OK
 
+@Requires({ isJavaVersionAtLeast(8) })
 class OkHttpSinkTest extends DDSpecification {
 
   def "http status code #responseCode yields #eventType"() {

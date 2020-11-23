@@ -84,7 +84,8 @@ jar {
 def bundledProjects = [
   ':dd-trace-core',
   ':internal-api',
-  ':utils:container-utils'
+  ':utils:container-utils',
+  ':utils:histograms'
 ]
 
 shadowJar {

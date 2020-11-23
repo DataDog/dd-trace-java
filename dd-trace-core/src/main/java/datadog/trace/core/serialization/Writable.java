@@ -21,6 +21,8 @@ public interface Writable {
 
   void writeUTF8(UTF8BytesString string);
 
+  void writeBinary(byte[] binary);
+
   void writeBinary(byte[] binary, int offset, int length);
 
   /**

@@ -232,6 +232,12 @@ public class MsgPackWriter extends WritableFormatter {
   }
 
   @Override
+  public void writeBinary(byte[] binary) {
+    writeBinaryHeader(binary.length);
+    buffer.put(binary);
+  }
+
+  @Override
   public void writeBinary(byte[] binary, int offset, int length) {
     writeBinaryHeader(length);
     buffer.put(binary, offset, length);

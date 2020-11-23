@@ -28,6 +28,8 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] HTTP_STATUS_CODE = "HTTPStatusCode".getBytes(US_ASCII);
   private static final byte[] START = "Start".getBytes(US_ASCII);
   private static final byte[] STATS = "Stats".getBytes(US_ASCII);
+  private static final byte[] HITS_SUMMARY = "HitsSummary".getBytes(US_ASCII);
+  private static final byte[] ERROR_SUMMARY = "ErrorSummary".getBytes(US_ASCII);
 
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
@@ -70,7 +72,7 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(MetricKey key, AggregateMetric aggregate) {
-    writer.startMap(9);
+    writer.startMap(11);
 
     writer.writeUTF8(NAME);
     writer.writeUTF8(key.getOperationName());
@@ -99,7 +101,11 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeUTF8(DURATION);
     writer.writeLong(aggregate.getDuration());
 
-    // TODO sketches go here when ready
+    writer.writeUTF8(HITS_SUMMARY);
+    writer.writeBinary(aggregate.getLatencies());
+
+    writer.writeUTF8(ERROR_SUMMARY);
+    writer.writeBinary(aggregate.getErrorLatencies());
   }
 
   @Override
