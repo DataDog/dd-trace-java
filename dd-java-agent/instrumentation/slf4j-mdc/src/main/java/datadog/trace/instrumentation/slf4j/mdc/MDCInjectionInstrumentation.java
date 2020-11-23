@@ -48,6 +48,12 @@ public class MDCInjectionInstrumentation extends Instrumenter.Default {
     return named(mdcClassName);
   }
 
+  // The reason why this `postMatch` hook and the `initialized` variable exists is that `slf4j` is
+  // used by our test harness, and the MDC class will be loaded and initialized before the agent is
+  // installed, and we will redefine the MDC class, but we will not run the constructor again, so we
+  // need to do that work here. It's also ok that there is only one initialized variable, since
+  // in real situations, the agent is installed so early that the transformer will be applied
+  // regardless of if the MDC is being loaded in multiple class loaders.
   @Override
   public void postMatch(
       final TypeDescription typeDescription,
@@ -57,19 +63,22 @@ public class MDCInjectionInstrumentation extends Instrumenter.Default {
       final ProtectionDomain protectionDomain) {
     if (classBeingRedefined != null && !initialized) {
       MDCAdvice.mdcClassInitialized(classBeingRedefined);
+      initialized = true;
     }
-    initialized = true;
   }
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        new BooleanMatcher<MethodDescription>(false) {
-          @Override
-          public boolean matches(final MethodDescription target) {
-            return initialized;
-          }
-        }.and(isTypeInitializer()),
+        isTypeInitializer()
+            .and(
+                new BooleanMatcher<MethodDescription>(true) {
+                  @Override
+                  public boolean matches(final MethodDescription target) {
+                    initialized = true;
+                    return true;
+                  }
+                }),
         MDCInjectionInstrumentation.class.getName() + "$MDCAdvice");
   }
 
@@ -87,7 +96,8 @@ public class MDCInjectionInstrumentation extends Instrumenter.Default {
       try {
         final Method putMethod = mdcClass.getMethod("put", String.class, String.class);
         final Method removeMethod = mdcClass.getMethod("remove", String.class);
-        GlobalTracer.get().addScopeListener(new LogContextScopeListener(putMethod, removeMethod));
+        GlobalTracer.get()
+            .addScopeListener(new LogContextScopeListener("slf4j", putMethod, removeMethod));
 
         if (Config.get().isLogsMDCTagsInjectionEnabled()) {
           final Field mdcAdapterField = mdcClass.getDeclaredField("mdcAdapter");

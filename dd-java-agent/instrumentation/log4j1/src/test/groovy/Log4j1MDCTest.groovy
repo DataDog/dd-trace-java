@@ -12,28 +12,28 @@ import spock.lang.Requires
 class Log4j1MDCTest extends LogContextInjectionTestBase {
 
   @Override
-  def put(String key, Object value) {
-    return MDC.put(key, value)
+  void put(String key, Object value) {
+    MDC.put(key, value)
   }
 
   @Override
-  def get(String key) {
+  Object get(String key) {
     return MDC.get(key)
   }
 
   @Override
-  def remove(String key) {
+  void remove(String key) {
     MDC.context
-    return MDC.remove(key)
+    MDC.remove(key)
   }
 
   @Override
-  def clear() {
-    return MDC.clear()
+  void clear() {
+    MDC.clear()
   }
 
   @Override
-  def getMap() {
+  Map<String, Object> getMap() {
     return MDC.getContext()
   }
 }

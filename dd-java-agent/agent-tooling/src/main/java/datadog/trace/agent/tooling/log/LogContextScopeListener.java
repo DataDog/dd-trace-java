@@ -24,9 +24,14 @@ public class LogContextScopeListener implements ScopeListener {
   /** A reference to the log context method that removes an attribute from the log context */
   private final Method removeMethod;
 
-  public LogContextScopeListener(final Method putMethod, final Method removeMethod) {
+  /** The name of the logging instrumentation that this listener belongs to */
+  private final String name;
+
+  public LogContextScopeListener(
+      final String name, final Method putMethod, final Method removeMethod) {
     this.putMethod = putMethod;
     this.removeMethod = removeMethod;
+    this.name = name;
   }
 
   @Override
@@ -79,5 +84,10 @@ public class LogContextScopeListener implements ScopeListener {
     for (final Map.Entry<String, String> e : LOG_CONTEXT_DD_TAGS.entrySet()) {
       putMethod.invoke(null, e.getKey(), e.getValue());
     }
+  }
+
+  @Override
+  public String toString() {
+    return "LogContextScopeListener(" + name + ")";
   }
 }

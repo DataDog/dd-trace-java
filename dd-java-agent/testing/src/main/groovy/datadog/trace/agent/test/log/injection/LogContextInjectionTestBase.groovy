@@ -23,21 +23,21 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
   /**
    * Set in the framework-specific context the given value at the given key
    */
-  abstract put(String key, Object value)
+  abstract void put(String key, Object value)
 
   /**
    * Get from the framework-specific context the value at the given key
    */
-  abstract get(String key)
+  abstract Object get(String key)
 
   /**
    * Remove from the framework-specific context the value at the given key
    */
-  abstract remove(String key)
+  abstract void remove(String key)
 
-  abstract clear()
+  abstract void clear()
 
-  abstract getMap()
+  abstract Map<String, Object> getMap()
 
   @Override
   void configurePreAgent() {
