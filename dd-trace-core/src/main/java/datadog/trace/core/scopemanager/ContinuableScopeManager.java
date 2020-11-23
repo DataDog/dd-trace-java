@@ -159,6 +159,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
   public void addScopeListener(final ScopeListener listener) {
     scopeListeners.add(listener);
     log.debug("Added scope listener {}", listener);
+    if (active() != null) {
+      // Notify the listener about the currently active scope
+      listener.afterScopeActivated();
+    }
   }
 
   protected ScopeStack scopeStack() {
