@@ -137,6 +137,11 @@ public class ProtobufWriter extends WritableFormatter {
     }
 
     @Override
+    public void writeBinary(byte[] binary) {
+      writeBinary(binary, 0, binary.length);
+    }
+
+    @Override
     public void writeBinary(byte[] binary, int offset, int length) {
       if (length != 0) {
         writeLengthPrefix(length);
@@ -410,6 +415,11 @@ public class ProtobufWriter extends WritableFormatter {
   @Override
   public void writeUTF8(UTF8BytesString string) {
     active.writeUTF8(string);
+  }
+
+  @Override
+  public void writeBinary(byte[] binary) {
+    active.writeBinary(binary);
   }
 
   @Override
