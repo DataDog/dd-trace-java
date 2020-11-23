@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import datadog.trace.api.Function;
 import datadog.trace.bootstrap.WeakCache;
+import datadog.trace.util.AgentTaskScheduler;
 import java.util.concurrent.TimeUnit;
 
 public class CaffeineWeakCache<K, V> implements WeakCache<K, V> {
@@ -22,6 +23,7 @@ public class CaffeineWeakCache<K, V> implements WeakCache<K, V> {
             .weakKeys()
             .maximumSize(maxSize)
             .expireAfterAccess(10, TimeUnit.MINUTES)
+            .executor(AgentTaskScheduler.INSTANCE)
             .build();
   }
 
