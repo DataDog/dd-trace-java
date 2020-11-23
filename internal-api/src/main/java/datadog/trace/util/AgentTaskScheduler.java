@@ -3,6 +3,7 @@ package datadog.trace.util;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -10,12 +11,13 @@ import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public final class AgentTaskScheduler {
+public final class AgentTaskScheduler implements Executor {
   public static final AgentTaskScheduler INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
 
   private static final long SHUTDOWN_TIMEOUT = 5; // seconds
@@ -26,6 +28,15 @@ public final class AgentTaskScheduler {
 
   public interface Target<T> {
     T get();
+  }
+
+  public static final class RunnableTask implements Task<Runnable> {
+    public static final RunnableTask INSTANCE = new RunnableTask();
+
+    @Override
+    public void run(final Runnable target) {
+      target.run();
+    }
   }
 
   public static final class Scheduled<T> implements Target<T> {
@@ -58,6 +69,11 @@ public final class AgentTaskScheduler {
 
   public AgentTaskScheduler(final AgentThread agentThread) {
     this.agentThread = agentThread;
+  }
+
+  @Override
+  public void execute(final Runnable target) {
+    schedule(RunnableTask.INSTANCE, target, 0, MILLISECONDS);
   }
 
   public <T> Scheduled<T> schedule(

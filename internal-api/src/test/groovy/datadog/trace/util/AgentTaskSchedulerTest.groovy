@@ -117,6 +117,28 @@ class AgentTaskSchedulerTest extends DDSpecification {
     scheduler.taskCount() == 0
   }
 
+  def "test execute"() {
+    setup:
+    def latch = new CountDownLatch(1)
+    def target = new Runnable() {
+      @Override
+      void run() {
+        latch.countDown()
+      }
+    }
+
+    expect:
+    !scheduler.isShutdown()
+
+    when:
+    scheduler.execute(target)
+    scheduler.taskCount() == 1
+
+    then:
+    latch.await(500, MILLISECONDS)
+    scheduler.taskCount() == 0
+  }
+
   def "test shutdown"() {
     setup:
     def latch = new CountDownLatch(Integer.MAX_VALUE)
