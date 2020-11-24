@@ -18,6 +18,7 @@ import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.ForkJoinTask
 import java.util.concurrent.Future
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.PriorityBlockingQueue
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.ThreadPoolExecutor
@@ -30,6 +31,8 @@ import static org.junit.Assume.assumeTrue
 class ExecutorInstrumentationTest extends AgentTestRunner {
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
+  @Shared
+  def executePriorityTask = { e, c -> e.execute(new ComparableAsyncChild(0, (Runnable) c)) }
   @Shared
   def executeForkJoinTask = { e, c -> e.execute((ForkJoinTask) c) }
   @Shared
@@ -104,6 +107,8 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAll with timeout" | invokeAllTimeout    | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
     "invokeAny"              | invokeAny           | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
     "invokeAny with timeout" | invokeAnyTimeout    | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
+
+    "execute Priority task"  | executePriorityTask | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new PriorityBlockingQueue<ComparableAsyncChild>(10))
 
     // Scheduled executor has additional methods and also may get disabled because it wraps tasks
     "execute Runnable"       | executeRunnable     | new ScheduledThreadPoolExecutor(1)
