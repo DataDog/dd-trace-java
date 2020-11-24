@@ -729,6 +729,47 @@ class ScopeManagerTest extends DDSpecification {
     writer == [[span]]
   }
 
+  def "scope listener should be notified about the currently active scope"() {
+    when:
+    AgentScope scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+
+    then:
+    eventCountingListener.events == [ACTIVATE]
+
+    when:
+    def listener = new EventCountingListener()
+
+    then:
+    listener.events == []
+
+    when:
+    scopeManager.addScopeListener(listener)
+
+    then:
+    listener.events == [ACTIVATE]
+
+    when:
+    scope.close()
+
+    then:
+    eventCountingListener.events == [ACTIVATE, CLOSE]
+    listener.events == [ACTIVATE, CLOSE]
+  }
+
+  def "scope listener should not be notified when there is no active scope"() {
+    when:
+    def listener = new EventCountingListener()
+
+    then:
+    listener.events == []
+
+    when:
+    scopeManager.addScopeListener(listener)
+
+    then:
+    listener.events == []
+  }
+
   boolean spanFinished(AgentSpan span) {
     return ((DDSpan) span)?.isFinished()
   }

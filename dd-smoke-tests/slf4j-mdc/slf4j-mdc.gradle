@@ -1,0 +1,29 @@
+plugins {
+  id "com.github.johnrengelman.shadow" version "5.2.0"
+}
+
+description = 'Check that slf4j mdc injection is applied'
+apply from: "$rootDir/gradle/java.gradle"
+
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.slf4jmdc.Slf4jMDCApp')
+  }
+}
+
+shadowJar {
+  configurations = [project.configurations.compile,]
+}
+
+dependencies {
+  compile group: 'org.slf4j', name: 'slf4j-simple', version: versions.slf4j
+  compile project(':dd-trace-api')
+
+  testCompile project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn shadowJar
+
+  jvmArgs "-Ddatadog.smoketest.slf4jmdc.shadowJar.path=${tasks.shadowJar.archivePath}"
+}

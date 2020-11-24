@@ -52,7 +52,8 @@ public class Log4j1MDCInstrumentation extends Instrumenter.Default {
       try {
         final Method putMethod = mdcClass.getMethod("put", String.class, Object.class);
         final Method removeMethod = mdcClass.getMethod("remove", String.class);
-        GlobalTracer.get().addScopeListener(new LogContextScopeListener(putMethod, removeMethod));
+        GlobalTracer.get()
+            .addScopeListener(new LogContextScopeListener("log4j1", putMethod, removeMethod));
 
         if (Config.get().isLogsMDCTagsInjectionEnabled()) {
           // log4j1 uses subclass of InheritableThreadLocal and we don't need to modify private
