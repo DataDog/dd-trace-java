@@ -1,8 +1,9 @@
 package datadog.trace.agent.integration.classloading
 
-import com.google.common.collect.MapMaker
 import com.google.common.reflect.ClassPath
 import datadog.trace.agent.test.IntegrationTestUtils
+import okio.BufferedSink
+import spock.lang.Ignore
 import spock.lang.Specification
 
 class ShadowPackageRenamingTest extends Specification {
@@ -11,12 +12,12 @@ class ShadowPackageRenamingTest extends Specification {
     final Class<?> ddClass =
       IntegrationTestUtils.getAgentClassLoader()
         .loadClass("datadog.trace.agent.tooling.AgentInstaller")
-    final URL userGuava =
-      MapMaker.getProtectionDomain().getCodeSource().getLocation()
-    final URL agentGuavaDep =
+    final URL userOkio =
+      BufferedSink.getProtectionDomain().getCodeSource().getLocation()
+    final URL agentOkioDep =
       ddClass
         .getClassLoader()
-        .loadClass("com.google.common.collect.MapMaker")
+        .loadClass("okio.BufferedSink")
         .getProtectionDomain()
         .getCodeSource()
         .getLocation()
@@ -26,8 +27,8 @@ class ShadowPackageRenamingTest extends Specification {
     expect:
     agentSource.getFile() == "/"
     agentSource.getProtocol() == "x-internal-jar"
-    agentSource == agentGuavaDep
-    agentSource.getFile() != userGuava.getFile()
+    agentSource == agentOkioDep
+    agentSource.getFile() != userOkio.getFile()
   }
 
 //  @Ignore("OT 0.32 removed this field.  Need to find another option.")
@@ -51,6 +52,7 @@ class ShadowPackageRenamingTest extends Specification {
     thrown ClassNotFoundException
   }
 
+  @Ignore("Agent jar check inaccurate")
   def "agent jar contains no bootstrap classes"() {
     setup:
     final ClassPath agentClasspath = ClassPath.from(IntegrationTestUtils.getAgentClassLoader())
@@ -61,6 +63,7 @@ class ShadowPackageRenamingTest extends Specification {
     final String[] bootstrapPrefixes = IntegrationTestUtils.getBootstrapPackagePrefixes()
     final String[] agentPrefixes = IntegrationTestUtils.getAgentPackagePrefixes()
     final List<String> badBootstrapPrefixes = []
+
     for (ClassPath.ClassInfo info : bootstrapClasspath.getAllClasses()) {
       bootstrapClasses.add(info.getName())
       // make sure all bootstrap classes can be loaded from system
@@ -79,6 +82,7 @@ class ShadowPackageRenamingTest extends Specification {
 
     final List<ClassPath.ClassInfo> agentDuplicateClassFile = new ArrayList<>()
     final List<String> badAgentPrefixes = []
+    assert agentClasspath.getAllClasses().size() > 50
     for (ClassPath.ClassInfo classInfo : agentClasspath.getAllClasses()) {
       if (bootstrapClasses.contains(classInfo.getName())) {
         agentDuplicateClassFile.add(classInfo)

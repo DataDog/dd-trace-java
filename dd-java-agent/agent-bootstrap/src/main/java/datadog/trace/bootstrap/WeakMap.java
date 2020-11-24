@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import datadog.trace.api.Function;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -18,7 +19,7 @@ public interface WeakMap<K, V> {
 
   void putIfAbsent(K key, V value);
 
-  V computeIfAbsent(K key, ValueSupplier<? super K, ? extends V> supplier);
+  V computeIfAbsent(K key, Function<? super K, ? extends V> supplier);
 
   @Slf4j
   class Provider {
@@ -56,14 +57,6 @@ public interface WeakMap<K, V> {
         return new MapAdapter<>(Collections.synchronizedMap(new WeakHashMap<K, V>()));
       }
     }
-  }
-
-  /**
-   * Supplies the value to be stored and it is called only when a value does not exists yet in the
-   * registry.
-   */
-  interface ValueSupplier<K, V> {
-    V get(K key);
   }
 
   class MapAdapter<K, V> implements WeakMap<K, V> {
@@ -111,14 +104,14 @@ public interface WeakMap<K, V> {
     }
 
     @Override
-    public V computeIfAbsent(final K key, final ValueSupplier<? super K, ? extends V> supplier) {
+    public V computeIfAbsent(final K key, final Function<? super K, ? extends V> supplier) {
       // We can't use computeIfAbsent since it was added in 1.8.
       V value = map.get(key);
       if (null == value) {
         synchronized (locks[key.hashCode() & (locks.length - 1)]) {
           value = map.get(key);
           if (null == value) {
-            value = supplier.get(key);
+            value = supplier.apply(key);
             map.put(key, value);
           }
         }

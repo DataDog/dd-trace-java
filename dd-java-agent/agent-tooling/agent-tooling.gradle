@@ -3,6 +3,18 @@ apply from: "$rootDir/gradle/java.gradle"
 minimumBranchCoverage = 0.6
 excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
 
+// patch inner class from Caffeine to avoid ForkJoinTask from being loaded too early
+sourceSets {
+  patch {
+    java {}
+  }
+}
+jar {
+  from(sourceSets.patch.output) {
+    include 'com/github/benmanes/caffeine/cache/BoundedLocalCache$PerformCleanupTask.class'
+  }
+}
+
 configurations {
   // classpath used by the instrumentation muzzle plugin
   instrumentationMuzzle
@@ -12,13 +24,11 @@ dependencies {
   compile(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
   }
-  compile group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.15'
+  compile group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
+  compile group: 'com.googlecode.concurrentlinkedhashmap', name: 'concurrentlinkedhashmap-lru', version: '1.4.2'
+  compile group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: '2.8.6'
   compile deps.bytebuddy
   compile deps.bytebuddyagent
-  compile deps.guava
-
-  annotationProcessor deps.autoserviceProcessor
-  compileOnly deps.autoserviceAnnotation
 
   compile project(':dd-trace-core')
   compile project(':dd-trace-core:jfr-openjdk')
