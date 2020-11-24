@@ -36,6 +36,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
@@ -181,6 +182,8 @@ public class Config {
   public static final String PARTIAL_FLUSH_MIN_SPANS = TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
+  public static final String SERIALVERSIONUID_FIELD_INJECTION =
+      TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
   public static final String PROPAGATION_STYLE_EXTRACT = TracerConfig.PROPAGATION_STYLE_EXTRACT;
   public static final String PROPAGATION_STYLE_INJECT = TracerConfig.PROPAGATION_STYLE_INJECT;
 
@@ -320,6 +323,7 @@ public class Config {
   @Getter private final boolean scopeInheritAsyncPropagation;
   @Getter private final int partialFlushMinSpans;
   @Getter private final boolean runtimeContextFieldInjection;
+  @Getter private final boolean serialVersionUIDFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
   @Getter private final Set<PropagationStyle> propagationStylesToInject;
 
@@ -578,6 +582,9 @@ public class Config {
     runtimeContextFieldInjection =
         configProvider.getBoolean(
             RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
+    serialVersionUIDFieldInjection =
+        configProvider.getBoolean(
+            SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
 
     propagationStylesToExtract =
         getPropagationStyleSetSettingFromEnvironmentOrDefault(

@@ -1,10 +1,13 @@
 package datadog.trace.agent.tooling.context;
 
 import datadog.trace.agent.tooling.Utils;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextStoreAppliedMarker;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -18,6 +21,7 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.pool.TypePool;
 
+@Slf4j
 final class FieldInjectionVisitor implements AsmVisitorWrapper {
 
   private static final String INJECTED_FIELDS_MARKER_CLASS_NAME =
@@ -67,6 +71,7 @@ final class FieldInjectionVisitor implements AsmVisitorWrapper {
       private boolean foundField = false;
       private boolean foundGetter = false;
       private boolean foundSetter = false;
+      private SerialVersionUIDInjector serialVersionUIDInjector;
 
       @Override
       public void visit(
@@ -82,6 +87,11 @@ final class FieldInjectionVisitor implements AsmVisitorWrapper {
         final Set<String> set = new LinkedHashSet<>(Arrays.asList(interfaces));
         set.add(INJECTED_FIELDS_MARKER_CLASS_NAME);
         set.add(interfaceType.getInternalName());
+        if (Config.get().isSerialVersionUIDFieldInjection()
+            && instrumentedType.isAssignableTo(Serializable.class)) {
+          serialVersionUIDInjector = new SerialVersionUIDInjector();
+          serialVersionUIDInjector.visit(version, access, name, signature, superName, interfaces);
+        }
         super.visit(version, access, name, signature, superName, set.toArray(new String[] {}));
       }
 
@@ -94,6 +104,8 @@ final class FieldInjectionVisitor implements AsmVisitorWrapper {
           final Object value) {
         if (name.equals(fieldName)) {
           foundField = true;
+        } else if (serialVersionUIDInjector != null) {
+          serialVersionUIDInjector.visitField(access, name, descriptor, signature, value);
         }
         return super.visitField(access, name, descriptor, signature, value);
       }
@@ -107,11 +119,20 @@ final class FieldInjectionVisitor implements AsmVisitorWrapper {
           final String[] exceptions) {
         if (name.equals(getterMethodName)) {
           foundGetter = true;
-        }
-        if (name.equals(setterMethodName)) {
+        } else if (name.equals(setterMethodName)) {
           foundSetter = true;
+        } else if (serialVersionUIDInjector != null) {
+          serialVersionUIDInjector.visitMethod(access, name, descriptor, signature, exceptions);
         }
         return super.visitMethod(access, name, descriptor, signature, exceptions);
+      }
+
+      @Override
+      public void visitInnerClass(String name, String outerName, String innerName, int access) {
+        if (serialVersionUIDInjector != null) {
+          serialVersionUIDInjector.visitInnerClass(name, outerName, innerName, access);
+        }
+        super.visitInnerClass(name, outerName, innerName, access);
       }
 
       @Override
@@ -120,6 +141,7 @@ final class FieldInjectionVisitor implements AsmVisitorWrapper {
         // public/protected methods and not fields (neither public nor private ones) when
         // they enhance a class.
         // For this reason we check separately for the field and for the two accessors.
+        boolean changedShape = false;
         if (!foundField) {
           cv.visitField(
               // Field should be transient to avoid being serialized with the object.
@@ -128,12 +150,19 @@ final class FieldInjectionVisitor implements AsmVisitorWrapper {
               contextType.getDescriptor(),
               null,
               null);
+          changedShape = true;
         }
         if (!foundGetter) {
           addGetter();
+          changedShape = true;
         }
         if (!foundSetter) {
           addSetter();
+          changedShape = true;
+        }
+        if (changedShape && serialVersionUIDInjector != null) {
+          serialVersionUIDInjector.injectSerialVersionUID(instrumentedType, cv);
+          serialVersionUIDInjector = null;
         }
         super.visitEnd();
       }
@@ -178,5 +207,28 @@ final class FieldInjectionVisitor implements AsmVisitorWrapper {
             null);
       }
     };
+  }
+
+  private static final class SerialVersionUIDInjector
+      extends datadog.trace.agent.tooling.context.asm.SerialVersionUIDAdder {
+    public SerialVersionUIDInjector() {
+      super(Opcodes.ASM7, null);
+    }
+
+    public void injectSerialVersionUID(
+        final TypeDescription instrumentedType, final ClassVisitor transformer) {
+      if (!hasSVUID()) {
+        try {
+          transformer.visitField(
+              Opcodes.ACC_FINAL | Opcodes.ACC_STATIC,
+              "serialVersionUID",
+              "J",
+              null,
+              computeSVUID());
+        } catch (Exception e) {
+          log.debug("Failed to add serialVersionUID to {}", instrumentedType.getActualName(), e);
+        }
+      }
+    }
   }
 }
