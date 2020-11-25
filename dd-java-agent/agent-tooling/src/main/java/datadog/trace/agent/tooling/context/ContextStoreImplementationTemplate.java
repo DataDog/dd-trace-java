@@ -11,6 +11,8 @@ final class ContextStoreImplementationTemplate implements ContextStore<Object, O
   private static final ContextStoreImplementationTemplate INSTANCE =
       new ContextStoreImplementationTemplate();
 
+  private static final int MAX_SIZE = 50_000;
+
   private volatile WeakMap map;
   private final Object synchronizationInstance = new Object();
 
@@ -89,7 +91,10 @@ final class ContextStoreImplementationTemplate implements ContextStore<Object, O
   }
 
   private void mapPut(final Object key, final Object value) {
-    getMap().put(key, value);
+    WeakMap map = getMap();
+    if (map.size() < MAX_SIZE) {
+      map.put(key, value);
+    }
   }
 
   private Object mapSynchronizeInstance(final Object key) {
