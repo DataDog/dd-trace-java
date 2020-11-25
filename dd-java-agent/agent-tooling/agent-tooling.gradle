@@ -26,7 +26,10 @@ dependencies {
   }
   compile group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
   compile group: 'com.googlecode.concurrentlinkedhashmap', name: 'concurrentlinkedhashmap-lru', version: '1.4.2'
-  compile group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: '2.8.6'
+  compile(group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: '2.8.6') {
+    exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
+    exclude group: 'org.checkerframework', module: 'checker-qual'
+  }
   compile deps.bytebuddy
   compile deps.bytebuddyagent
 
