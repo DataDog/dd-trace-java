@@ -51,6 +51,7 @@ include ':dd-java-agent:agent-profiling:profiling-testing'
 // misc
 include ':dd-java-agent:testing'
 include ':utils:container-utils'
+include ':utils:histograms'
 include ':utils:test-utils'
 
 // smoke tests
