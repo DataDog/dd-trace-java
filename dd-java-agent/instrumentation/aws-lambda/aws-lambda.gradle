@@ -1,0 +1,27 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+muzzle {
+  pass {
+    group = "com.amazonaws"
+    module = "aws-lambda-java-core"
+    versions = "[,]"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest
+}
+
+dependencies {
+  compileOnly group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.1'
+
+  testCompile group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.1'
+
+  latestDepTestCompile group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '+'
+}
