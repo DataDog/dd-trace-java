@@ -133,7 +133,7 @@ public final class AgentTaskScheduler implements Executor {
     if (!shutdown) {
       workQueue.offer(new PeriodicTask<>(task, target, initialDelay, period, unit));
     } else {
-      log.warn("Agent task scheduler is shutdown. Will not run {}", describeTask(task, target));
+      log.debug("Agent task scheduler is shutdown. Will not run {}", describeTask(task, target));
     }
   }
 
@@ -196,7 +196,7 @@ public final class AgentTaskScheduler implements Executor {
           work.run();
         } catch (final Throwable e) {
           if (work != null) {
-            log.warn("Uncaught exception from {}", work, e);
+            log.debug("Uncaught exception from {}", work, e);
           }
         } finally {
           if (work != null && work.reschedule()) {
