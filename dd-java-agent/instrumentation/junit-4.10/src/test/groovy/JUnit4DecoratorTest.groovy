@@ -1,11 +1,11 @@
+import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.instrumentation.junit4.JUnit4Decorator
-import datadog.trace.test.util.DDSpecification
 import org.example.TestDisableTestTrace
 import org.example.TestSucceed
 import org.junit.runner.Description
 import spock.lang.Shared
 
-class JUnit4DecoratorTest extends DDSpecification {
+class JUnit4DecoratorTest extends AgentTestRunner {
 
   @Shared
   def decorator = new JUnit4Decorator()
