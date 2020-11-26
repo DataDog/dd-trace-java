@@ -22,7 +22,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -670,30 +669,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public CoreSpanBuilder withTag(final String tag, final Object value) {
-      switch (tag) {
-        case DDTags.ANALYTICS_SAMPLE_RATE:
-          analyticsSampleRate = getOrTryParse(value);
-          break;
-        case Tags.ERROR:
-          if (Boolean.TRUE.equals(value) || Boolean.parseBoolean(String.valueOf(value))) {
-            return withErrorFlag();
-          }
-          break;
-        case DDTags.SPAN_TYPE:
-          if (value instanceof CharSequence) {
-            return withSpanType((CharSequence) value);
-          }
-          break;
-        default:
-          Map<String, Object> tagMap = tags;
-          if (tagMap == null) {
-            tags = tagMap = new LinkedHashMap<>(); // Insertion order is important
-          }
-          if (value == null || (value instanceof String && ((String) value).isEmpty())) {
-            tagMap.remove(tag);
-          } else {
-            tagMap.put(tag, value);
-          }
+      Map<String, Object> tagMap = tags;
+      if (tagMap == null) {
+        tags = tagMap = new LinkedHashMap<>(); // Insertion order is important
+      }
+      if (value == null || (value instanceof String && ((String) value).isEmpty())) {
+        tagMap.remove(tag);
+      } else {
+        tagMap.put(tag, value);
       }
       return this;
     }

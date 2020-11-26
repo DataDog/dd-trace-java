@@ -351,8 +351,14 @@ public class DDSpanContext implements AgentSpan.Context {
    * @param value the value of the tag. tags with null values are ignored.
    */
   public void setTag(final String tag, final Object value) {
-    synchronized (unsafeTags) {
-      unsafeSetTag(tag, value);
+    if (null == value || "".equals(value)) {
+      synchronized (unsafeTags) {
+        unsafeTags.remove(tag);
+      }
+    } else if (!tracer.getTagInterceptor().interceptTag(exclusiveSpan, tag, value)) {
+      synchronized (unsafeTags) {
+        unsafeSetTag(tag, value);
+      }
     }
   }
 
@@ -363,22 +369,15 @@ public class DDSpanContext implements AgentSpan.Context {
 
     synchronized (unsafeTags) {
       for (final Map.Entry<String, ? extends Object> tag : map.entrySet()) {
-        // not backporting tag fields now represented by fields
-        // because this is internal api
-        unsafeSetTag(tag.getKey(), tag.getValue());
+        if (!tracer.getTagInterceptor().interceptTag(exclusiveSpan, tag.getKey(), tag.getValue())) {
+          unsafeSetTag(tag.getKey(), tag.getValue());
+        }
       }
     }
   }
 
   void unsafeSetTag(final String tag, final Object value) {
-    if (value == null || (value instanceof String && ((String) value).isEmpty())) {
-      unsafeTags.remove(tag);
-      return;
-    }
-
-    if (!tracer.getTagInterceptor().interceptTag(exclusiveSpan, tag, value)) {
-      unsafeTags.put(tag, value);
-    }
+    unsafeTags.put(tag, value);
   }
 
   Object getTag(final String key) {
