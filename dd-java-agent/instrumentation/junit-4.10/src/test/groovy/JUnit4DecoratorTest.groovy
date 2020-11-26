@@ -1,10 +1,12 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.DisableTestTrace
 import datadog.trace.instrumentation.junit4.JUnit4Decorator
 import org.example.TestDisableTestTrace
 import org.example.TestSucceed
 import org.junit.runner.Description
 import spock.lang.Shared
 
+@DisableTestTrace(reason = "avoid self-tracing")
 class JUnit4DecoratorTest extends AgentTestRunner {
 
   @Shared
