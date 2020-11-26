@@ -5,6 +5,7 @@ import datadog.trace.api.Config;
 public class RuleFlags {
 
   public enum Feature {
+    RESOURCE_NAME("ResourceNameRule"),
     DB_STATEMENT("DBStatementRule"),
     FORCE_MANUAL_DROP("ForceManualDropTagInterceptor"),
     FORCE_MANUAL_KEEP("ForceManualKeepTagInterceptor"),

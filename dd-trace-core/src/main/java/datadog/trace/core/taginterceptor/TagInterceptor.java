@@ -7,6 +7,7 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_DROP;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_KEEP;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.PEER_SERVICE;
+import static datadog.trace.core.taginterceptor.RuleFlags.Feature.RESOURCE_NAME;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.SERVICE_NAME;
 
 import datadog.trace.api.Config;
@@ -47,6 +48,8 @@ public class TagInterceptor {
 
   public boolean interceptTag(ExclusiveSpan span, String tag, Object value) {
     switch (tag) {
+      case DDTags.RESOURCE_NAME:
+        return interceptResourceName(span, value);
       case Tags.DB_STATEMENT:
         return interceptDbStatement(span, value);
       case DDTags.SERVICE_NAME:
@@ -74,6 +77,18 @@ public class TagInterceptor {
   private boolean intercept(ExclusiveSpan span, String tag, Object value) {
     if (splitServiceTags.contains(tag)) {
       span.setServiceName(String.valueOf(value));
+      return true;
+    }
+    return false;
+  }
+
+  private boolean interceptResourceName(ExclusiveSpan span, Object value) {
+    if (ruleFlags.isEnabled(RESOURCE_NAME)) {
+      if (value instanceof CharSequence) {
+        span.setResourceName((CharSequence) value);
+      } else {
+        span.setResourceName(String.valueOf(value));
+      }
       return true;
     }
     return false;

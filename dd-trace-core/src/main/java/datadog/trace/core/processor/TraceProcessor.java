@@ -3,7 +3,6 @@ package datadog.trace.core.processor;
 import datadog.trace.api.Config;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.ExclusiveSpan;
-import datadog.trace.core.processor.rule.ResourceNameRule;
 import datadog.trace.core.processor.rule.URLAsResourceNameRule;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,11 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class TraceProcessor {
-  final Rule[] DEFAULT_RULES =
-      new Rule[] {
-        // Rules are applied in order.
-        new ResourceNameRule(), new URLAsResourceNameRule()
-      };
+  final Rule[] DEFAULT_RULES = new Rule[] {new URLAsResourceNameRule()};
 
   private final List<Rule> rules;
 
