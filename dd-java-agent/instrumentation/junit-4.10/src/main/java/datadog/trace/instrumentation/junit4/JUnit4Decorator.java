@@ -30,7 +30,8 @@ public class JUnit4Decorator extends TestDecorator {
 
   public boolean skipTrace(final Description description) {
     return description.getAnnotation(DisableTestTrace.class) != null
-        || description.getTestClass().getAnnotation(DisableTestTrace.class) != null;
+        || (description.getTestClass() != null
+            && description.getTestClass().getAnnotation(DisableTestTrace.class) != null);
   }
 
   public void onTestStart(final AgentSpan span, final Description description) {
