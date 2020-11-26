@@ -385,6 +385,7 @@ tasks.withType(Test).configureEach {
     exclude "**/TestParameterized*"
     exclude "**/TestRepeated*"
     exclude "**/TestTemplate*"
+    exclude "**/TestDisableTestTrace*"
   }
 
   // Split up tests that want to run forked in their own separate JVM for generated tasks
