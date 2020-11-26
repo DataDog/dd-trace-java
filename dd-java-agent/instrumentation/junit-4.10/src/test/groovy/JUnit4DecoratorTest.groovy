@@ -12,7 +12,7 @@ class JUnit4DecoratorTest extends DDSpecification {
 
   def "skip trace false in test class without annotation"() {
     setup:
-    def description = Description.createTestDescription(TestSucceed.class, "test_success")
+    def description = Description.createTestDescription(TestSucceed, "test_success")
 
     expect:
     !decorator.skipTrace(description)
@@ -28,7 +28,7 @@ class JUnit4DecoratorTest extends DDSpecification {
 
   def "skip trace true in test class with annotation"() {
     setup:
-    def description = Description.createTestDescription(TestDisableTestTrace.class, "test_success")
+    def description = Description.createTestDescription(TestDisableTestTrace, "test_success")
 
     expect:
     decorator.skipTrace(description)
