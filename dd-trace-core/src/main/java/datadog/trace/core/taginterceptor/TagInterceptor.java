@@ -47,6 +47,8 @@ public class TagInterceptor {
 
   public boolean interceptTag(ExclusiveSpan span, String tag, Object value) {
     switch (tag) {
+      case Tags.DB_STATEMENT:
+        return interceptDbStatement(span, value);
       case DDTags.SERVICE_NAME:
       case "service":
         return interceptServiceName(SERVICE_NAME, span, value);
@@ -75,6 +77,16 @@ public class TagInterceptor {
       return true;
     }
     return false;
+  }
+
+  private boolean interceptDbStatement(ExclusiveSpan span, Object value) {
+    if (value instanceof CharSequence) {
+      CharSequence resourceName = (CharSequence) value;
+      if (resourceName.length() > 0) {
+        span.setResourceName(resourceName);
+      }
+    }
+    return true;
   }
 
   private boolean interceptError(ExclusiveSpan span, Object value) {

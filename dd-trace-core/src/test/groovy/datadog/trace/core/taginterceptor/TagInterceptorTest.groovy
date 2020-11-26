@@ -316,23 +316,6 @@ class TagInterceptorTest extends DDSpecification {
     DDTags.MANUAL_DROP | "asdf"  | null
   }
 
-  def "DBStatementAsResource should not interact on Mongo queries"() {
-    when:
-    span.setResourceName("existing")
-    span.setTag(Tags.COMPONENT, component)
-    span.setTag(Tags.DB_STATEMENT, statement)
-    span.finish()
-    writer.waitForTraces(1)
-
-    then:
-    span.getResourceName() == resource
-
-    where:
-    component    | statement    | resource
-    "java-mongo" | "some-query" | "existing"
-    "other"      | "some-query" | "some-query"
-  }
-
   def "set error flag when error tag reported"() {
     when:
     span.setTag(Tags.ERROR, error)
