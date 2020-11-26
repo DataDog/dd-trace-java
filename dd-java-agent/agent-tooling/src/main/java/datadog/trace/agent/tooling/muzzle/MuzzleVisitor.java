@@ -2,8 +2,8 @@ package datadog.trace.agent.tooling.muzzle;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Utils;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.ClassFileVersion;
@@ -123,25 +123,19 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
     public Reference[] generateReferences() {
       // track sources we've generated references from to avoid recursion
       final Set<String> referenceSources = new HashSet<>();
-      final Map<String, Reference> references = new HashMap<>();
-      final Set<String> adviceClassNames = new HashSet<>();
+      final Map<String, Reference> references = new LinkedHashMap<>();
 
-      for (String adviceClassName : instrumenter.transformers().values()) {
-        adviceClassNames.add(adviceClassName);
-      }
-
-      for (String adviceClass : adviceClassNames) {
-        if (!referenceSources.contains(adviceClass)) {
-          referenceSources.add(adviceClass);
+      for (String adviceClass : instrumenter.transformers().values()) {
+        if (referenceSources.add(adviceClass)) {
           for (Map.Entry<String, Reference> entry :
               ReferenceCreator.createReferencesFrom(
                       adviceClass, ReferenceMatcher.class.getClassLoader())
                   .entrySet()) {
-            if (references.containsKey(entry.getKey())) {
-              references.put(
-                  entry.getKey(), references.get(entry.getKey()).merge(entry.getValue()));
-            } else {
+            Reference toMerge = references.get(entry.getKey());
+            if (null == toMerge) {
               references.put(entry.getKey(), entry.getValue());
+            } else {
+              references.put(entry.getKey(), toMerge.merge(entry.getValue()));
             }
           }
         }

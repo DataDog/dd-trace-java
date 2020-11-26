@@ -6,7 +6,7 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import net.bytebuddy.jar.asm.Opcodes;
@@ -90,7 +90,7 @@ public class Reference {
   }
 
   private static <T> Set<T> merge(final Set<T> set1, final Set<T> set2) {
-    final Set<T> set = new HashSet<>();
+    final Set<T> set = new LinkedHashSet<>((set1.size() + set2.size()) * 4 / 3);
     set.addAll(set1);
     set.addAll(set2);
     return set;
@@ -106,7 +106,7 @@ public class Reference {
         merged.set(i, merged.get(i).merge(method));
       }
     }
-    return new HashSet<>(merged);
+    return new LinkedHashSet<>(merged);
   }
 
   private static Set<Field> mergeFields(final Set<Field> fields1, final Set<Field> fields2) {
@@ -119,7 +119,7 @@ public class Reference {
         merged.set(i, merged.get(i).merge(field));
       }
     }
-    return new HashSet<>(merged);
+    return new LinkedHashSet<>(merged);
   }
 
   private static Set<Flag> mergeFlags(final Set<Flag> flags1, final Set<Flag> flags2) {
@@ -454,8 +454,8 @@ public class Reference {
         final Type returnType,
         final Type[] parameterTypes) {
       this(
-          new HashSet<>(Arrays.asList(sources)),
-          new HashSet<>(Arrays.asList(flags)),
+          new LinkedHashSet<>(Arrays.asList(sources)),
+          new LinkedHashSet<>(Arrays.asList(flags)),
           name,
           returnType,
           Arrays.asList(parameterTypes));
@@ -499,11 +499,11 @@ public class Reference {
         throw new IllegalStateException("illegal merge " + this + " != " + anotherMethod);
       }
 
-      final Set<Source> mergedSources = new HashSet<>();
+      final Set<Source> mergedSources = new LinkedHashSet<>();
       mergedSources.addAll(sources);
       mergedSources.addAll(anotherMethod.sources);
 
-      final Set<Flag> mergedFlags = new HashSet<>();
+      final Set<Flag> mergedFlags = new LinkedHashSet<>();
       mergedFlags.addAll(flags);
       mergedFlags.addAll(anotherMethod.flags);
 
@@ -542,8 +542,8 @@ public class Reference {
 
     public Field(
         final Source[] sources, final Flag[] flags, final String name, final Type fieldType) {
-      this.sources = new HashSet<>(Arrays.asList(sources));
-      this.flags = new HashSet<>(Arrays.asList(flags));
+      this.sources = new LinkedHashSet<>(Arrays.asList(sources));
+      this.flags = new LinkedHashSet<>(Arrays.asList(flags));
       this.name = name;
       type = fieldType;
     }
@@ -596,11 +596,11 @@ public class Reference {
   }
 
   public static class Builder {
-    private final Set<Source> sources = new HashSet<>();
+    private final Set<Source> sources = new LinkedHashSet<>();
     private final Set<Flag> flags = EnumSet.noneOf(Flag.class);
     private final String className;
     private String superName = null;
-    private final Set<String> interfaces = new HashSet<>();
+    private final Set<String> interfaces = new LinkedHashSet<>();
     private final List<Field> fields = new ArrayList<>();
     private final List<Method> methods = new ArrayList<>();
 
@@ -666,8 +666,8 @@ public class Reference {
           className,
           superName,
           interfaces,
-          new HashSet<>(fields),
-          new HashSet<>(methods));
+          new LinkedHashSet<>(fields),
+          new LinkedHashSet<>(methods));
     }
   }
 }
