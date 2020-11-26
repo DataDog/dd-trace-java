@@ -5,6 +5,7 @@ import datadog.trace.api.DisableTestTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import datadog.trace.util.MurmurHash2;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
@@ -42,10 +43,13 @@ public class JUnit4Decorator extends TestDecorator {
       final AgentSpan span, final Description description, final String testNameArg) {
     final String testSuite = description.getClassName();
     final String testName = (testNameArg != null) ? testNameArg : description.getMethodName();
+    final long testFingerprint = MurmurHash2.hash64(testSuite + "." + testName);
 
     span.setTag(DDTags.RESOURCE_NAME, testSuite + "." + testName);
     span.setTag(Tags.TEST_SUITE, testSuite);
     span.setTag(Tags.TEST_NAME, testName);
+    span.setTag(Tags.TEST_FINGERPRINT, testFingerprint);
+
     // We cannot set TEST_PASS status in onTestFinish(...) method because that method
     // is executed always after onTestFailure. For that reason, TEST_PASS status is preset
     // in onTestStart.

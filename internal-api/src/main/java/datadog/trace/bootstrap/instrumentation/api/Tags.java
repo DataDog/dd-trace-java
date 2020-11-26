@@ -34,6 +34,7 @@ public class Tags {
   public static final String TEST_SKIP_REASON = "test.skip_reason";
   public static final String TEST_TYPE = "test.type";
   public static final String TEST_ARGUMENTS = "test.arguments";
+  public static final String TEST_FINGERPRINT = "test.fingerprint";
 
   public static final String CI_PROVIDER_NAME = "ci.provider.name";
   public static final String CI_PIPELINE_ID = "ci.pipeline.id";

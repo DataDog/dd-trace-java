@@ -5,6 +5,7 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
+import datadog.trace.util.MurmurHash2
 import spock.lang.Shared
 import spock.lang.Unroll
 
@@ -35,6 +36,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         "$Tags.TEST_NAME" testName
         "$Tags.TEST_FRAMEWORK" testFramework
         "$Tags.TEST_STATUS" testStatus
+        "$Tags.TEST_FINGERPRINT" MurmurHash2.hash64("$testSuite.$testName")
         if (testTags) {
           testTags.each { key, val -> tag(key, val) }
         }

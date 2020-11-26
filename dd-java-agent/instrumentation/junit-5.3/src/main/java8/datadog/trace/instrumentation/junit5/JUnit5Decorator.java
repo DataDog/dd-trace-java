@@ -4,6 +4,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import datadog.trace.util.MurmurHash2;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.support.descriptor.MethodSource;
@@ -36,6 +37,7 @@ public class JUnit5Decorator extends TestDecorator {
     span.setTag(DDTags.RESOURCE_NAME, testSuite + "." + testName);
     span.setTag(Tags.TEST_SUITE, testSuite);
     span.setTag(Tags.TEST_NAME, testName);
+    span.setTag(Tags.TEST_FINGERPRINT, MurmurHash2.hash64(testSuite + "." + testName));
     span.setTag(Tags.TEST_STATUS, TEST_PASS);
   }
 
