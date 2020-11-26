@@ -150,48 +150,6 @@ public class MurmurHash2Test {
    * Expected results - from the original C implementation.
    */
 
-  /** Murmur 32bit hash results, default library seed. */
-  static final int[] results32_standard = {
-    0x96814fb3,
-    0x485dcaba,
-    0x331dc4ae,
-    0xc6a7bf2f,
-    0xcdf35de0,
-    0xd9dec7cc,
-    0x63a7318a,
-    0xd0d3c2de,
-    0x90923aef,
-    0xaf35c1e2,
-    0x735377b2,
-    0x366c98f3,
-    0x9c48ee29,
-    0x0b615790,
-    0xb4308ac1,
-    0xec98125a,
-    0x106e08d9
-  };
-
-  /** Murmur 32bit hash results, special test seed. */
-  static final int[] results32_seed = {
-    0xd92e493e,
-    0x8b50903b,
-    0xc3372a7b,
-    0x48f07e9e,
-    0x8a5e4a6e,
-    0x57916df4,
-    0xa346171f,
-    0x1e319c86,
-    0x9e1a03cd,
-    0x9f973e6c,
-    0x2d8c77f5,
-    0xabed8751,
-    0x296708b6,
-    0x24f8078b,
-    0x111b1553,
-    0xa7da1996,
-    0xfe776c70
-  };
-
   /** Murmur 64bit hash results, default library seed. */
   static final long[] results64_standard = {
     0x4987cb15118a83d9l,
