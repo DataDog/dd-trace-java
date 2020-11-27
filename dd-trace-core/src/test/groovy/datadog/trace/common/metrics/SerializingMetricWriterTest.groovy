@@ -137,7 +137,7 @@ class SerializingMetricWriterTest extends DDSpecification {
       if (Platform.isJavaVersionAtLeast(8)) {
         int length = unpacker.unpackBinaryHeader()
         assert length > 0
-        unpacker.skipValue(length)
+        unpacker.readPayload(length)
       } else {
         unpacker.skipValue()
       }

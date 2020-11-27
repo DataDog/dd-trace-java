@@ -7,6 +7,9 @@ public class StubHistogram implements Histogram, HistogramFactory {
   public void accept(long value) {}
 
   @Override
+  public void clear() {}
+
+  @Override
   public byte[] serialize() {
     return EMPTY;
   }
