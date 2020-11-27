@@ -5,6 +5,8 @@ import datadog.trace.api.Config;
 public class RuleFlags {
 
   public enum Feature {
+    // These names all derive from the simple class names which
+    // were exposed as config at some point in the past.
     RESOURCE_NAME("ResourceNameRule"),
     DB_STATEMENT("DBStatementRule"),
     FORCE_MANUAL_DROP("ForceManualDropTagInterceptor"),
