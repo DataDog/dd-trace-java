@@ -150,7 +150,11 @@ class SystemAccessTest extends DDSpecification {
     noExceptionThrown()
 
     if (commandExecutes) {
-      assert "Stack depth: 128" == result
+      if (vmVersion != "1.8" || isJFRSupported()) {
+        assert "Stack depth: 128" == result
+      } else {
+        assert null == result
+      }
     } else {
       assert "Not executed, JMX not initialized." == result
     }
@@ -165,5 +169,14 @@ class SystemAccessTest extends DDSpecification {
     true            | false            | true                 | true
     true            | true             | false                | true
     true            | true             | true                 | true
+  }
+
+  boolean isJFRSupported() {
+    try {
+      Class.forName("jdk.jfr.Recording")
+      return true
+    } catch (Throwable e) {
+      return false
+    }
   }
 }
