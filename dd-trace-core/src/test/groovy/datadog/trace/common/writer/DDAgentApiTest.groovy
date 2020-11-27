@@ -385,18 +385,15 @@ class DDAgentApiTest extends DDSpecification {
     packer.flush()
     return traceMapper.newPayload()
       .withBody(traceCapture.traceCount, traceCapture.buffer)
-      .withRepresentativeCount(traceCapture.representativeCount)
   }
 
   static class Traces implements ByteBufferConsumer {
     int traceCount
-    int representativeCount
     ByteBuffer buffer
 
     @Override
     void accept(int messageCount, ByteBuffer buffer) {
       this.buffer = buffer
-      this.representativeCount = messageCount
       this.traceCount = messageCount
     }
   }

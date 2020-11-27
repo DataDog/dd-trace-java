@@ -9,13 +9,11 @@ import datadog.trace.core.serialization.WritableFormatter;
 import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PayloadDispatcher implements ByteBufferConsumer {
 
-  private final AtomicInteger droppedCount = new AtomicInteger();
   private final DDAgentApi api;
   private final HealthMetrics healthMetrics;
   private final Monitoring monitoring;
@@ -36,10 +34,6 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     }
   }
 
-  public void onTraceDropped() {
-    droppedCount.incrementAndGet();
-  }
-
   void addTrace(List<? extends CoreSpan<?>> trace) {
     selectTraceMapper();
     // the call below is blocking and will trigger IO if a flush is necessary
@@ -48,9 +42,8 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     // however, we can't block the application threads from here.
     if (null != traceMapper) {
       packer.format(trace, traceMapper);
-    } else { // if the mapper is null, then there's no agent running, so we should drop
-      onTraceDropped();
-      log.debug("dropping {} traces because no agent was detected", 1);
+    } else {
+      healthMetrics.onFailedPublish(trace.get(0).samplingPriority());
     }
   }
 
@@ -73,12 +66,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     // or when the packer is flushed at a heartbeat
     if (messageCount > 0) {
       batchTimer.reset();
-      final int representativeCount = this.droppedCount.getAndSet(0) + messageCount;
-      Payload payload =
-          traceMapper
-              .newPayload()
-              .withRepresentativeCount(representativeCount)
-              .withBody(messageCount, buffer);
+      Payload payload = traceMapper.newPayload().withBody(messageCount, buffer);
       final int sizeInBytes = payload.sizeInBytes();
       healthMetrics.onSerialize(sizeInBytes);
       DDAgentApi.Response response = api.sendSerializedTraces(payload);
@@ -87,16 +75,13 @@ public class PayloadDispatcher implements ByteBufferConsumer {
         if (log.isDebugEnabled()) {
           log.debug("Successfully sent {} traces to the API", messageCount);
         }
-        healthMetrics.onSend(representativeCount, sizeInBytes, response);
+        healthMetrics.onSend(messageCount, sizeInBytes, response);
       } else {
         if (log.isDebugEnabled()) {
           log.debug(
-              "Failed to send {} traces (representing {}) of size {} bytes to the API",
-              messageCount,
-              representativeCount,
-              sizeInBytes);
+              "Failed to send {} traces of size {} bytes to the API", messageCount, sizeInBytes);
         }
-        healthMetrics.onFailedSend(representativeCount, sizeInBytes, response);
+        healthMetrics.onFailedSend(messageCount, sizeInBytes, response);
       }
     }
   }

@@ -59,7 +59,5 @@ public class PrintingWriter implements Writer {
   }
 
   @Override
-  public void incrementTraceCount() {
-    // do nothing
-  }
+  public void incrementTraceCount() {}
 }

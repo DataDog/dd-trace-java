@@ -308,6 +308,11 @@ class TraceGenerator {
     }
 
     @Override
+    int samplingPriority() {
+      return 0
+    }
+
+    @Override
     <U> U getTag(CharSequence name, U defaultValue) {
       return tags.get(String.valueOf(name), defaultValue) as U
     }

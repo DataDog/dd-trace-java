@@ -29,11 +29,6 @@ public class LoggingWriter implements Writer {
   }
 
   @Override
-  public void incrementTraceCount() {
-    log.info("incrementTraceCount()");
-  }
-
-  @Override
   public void start() {
     log.info("start()");
   }
@@ -48,6 +43,9 @@ public class LoggingWriter implements Writer {
   public void close() {
     log.info("close()");
   }
+
+  @Override
+  public void incrementTraceCount() {}
 
   @Override
   public String toString() {

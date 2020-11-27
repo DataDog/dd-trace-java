@@ -446,7 +446,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (sampler.sample(spanToSample)) {
         writer.write(writtenTrace);
       } else {
-        incrementTraceCount();
+        // with span streaming this won't work - it needs to be changed
+        // to track an effective sampling rate instead, however, tests
+        // checking that a hard reference on a continuation prevents
+        // reporting fail without this, so will need to be fixed first.
+        writer.incrementTraceCount();
       }
     }
   }
@@ -463,11 +467,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       ((PrioritySampler<DDSpan>) sampler).setSamplingPriority(rootSpan);
     }
-  }
-
-  /** Increment the reported trace count, but do not write a trace. */
-  void incrementTraceCount() {
-    writer.incrementTraceCount();
   }
 
   @Override

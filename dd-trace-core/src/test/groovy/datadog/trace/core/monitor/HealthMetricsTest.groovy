@@ -109,11 +109,11 @@ class HealthMetricsTest extends DDSpecification {
 
   def "test onSend"() {
     when:
-    healthMetrics.onSend(representativeCount, sendSize, response)
+    healthMetrics.onSend(traceCount, sendSize, response)
 
     then:
     1 * statsD.incrementCounter('api.requests.total')
-    1 * statsD.count('flush.traces.total', representativeCount)
+    1 * statsD.count('flush.traces.total', traceCount)
     1 * statsD.count('flush.bytes.total', sendSize)
     if (response.exception()) {
       1 * statsD.incrementCounter('api.errors.total')
@@ -131,17 +131,17 @@ class HealthMetricsTest extends DDSpecification {
       DDAgentApi.Response.failed(new Throwable()),
     ]
 
-    representativeCount = ThreadLocalRandom.current().nextInt(1, 100)
+    traceCount = ThreadLocalRandom.current().nextInt(1, 100)
     sendSize = ThreadLocalRandom.current().nextInt(1, 100)
   }
 
   def "test onFailedSend"() {
     when:
-    healthMetrics.onFailedSend(representativeCount, sendSize, response)
+    healthMetrics.onFailedSend(traceCount, sendSize, response)
 
     then:
     1 * statsD.incrementCounter('api.requests.total')
-    1 * statsD.count('flush.traces.total', representativeCount)
+    1 * statsD.count('flush.traces.total', traceCount)
     1 * statsD.count('flush.bytes.total', sendSize)
     if (response.exception()) {
       1 * statsD.incrementCounter('api.errors.total')
@@ -159,7 +159,7 @@ class HealthMetricsTest extends DDSpecification {
       DDAgentApi.Response.failed(new Throwable()),
     ]
 
-    representativeCount = ThreadLocalRandom.current().nextInt(1, 100)
+    traceCount = ThreadLocalRandom.current().nextInt(1, 100)
     sendSize = ThreadLocalRandom.current().nextInt(1, 100)
   }
 }

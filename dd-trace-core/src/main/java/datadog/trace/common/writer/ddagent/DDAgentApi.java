@@ -132,8 +132,7 @@ public class DDAgentApi {
       detectEndpointAndBuildClient();
       if (null == httpClient) {
         log.error("No datadog agent detected");
-        countAndLogFailedSend(
-            payload.traceCount(), payload.representativeCount(), sizeInBytes, null, null);
+        countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, null);
         return Response.failed(agentRunning ? 404 : 503);
       }
     }
@@ -142,20 +141,19 @@ public class DDAgentApi {
       final Request request =
           prepareRequest(tracesUrl)
               .addHeader(DATADOG_CLIENT_COMPUTED_STATS, metricsReportingEnabled ? "true" : "")
-              .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.representativeCount()))
+              .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
               .put(payload.toRequest())
               .build();
-      this.totalTraces += payload.representativeCount();
+      this.totalTraces += payload.traceCount();
       this.receivedTraces += payload.traceCount();
       try (final Recording recording = sendPayloadTimer.start();
           final okhttp3.Response response = httpClient.newCall(request).execute()) {
         if (response.code() != 200) {
           agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
-          countAndLogFailedSend(
-              payload.traceCount(), payload.representativeCount(), sizeInBytes, response, null);
+          countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
           return Response.failed(response.code());
         }
-        countAndLogSuccessfulSend(payload.traceCount(), payload.representativeCount(), sizeInBytes);
+        countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
         String responseString = null;
         try {
           responseString = getResponseBody(response);
@@ -174,30 +172,27 @@ public class DDAgentApi {
         }
       }
     } catch (final IOException e) {
-      countAndLogFailedSend(
-          payload.traceCount(), payload.representativeCount(), sizeInBytes, null, e);
+      countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);
     }
   }
 
-  private void countAndLogSuccessfulSend(
-      final int traceCount, final int representativeCount, final int sizeInBytes) {
+  private void countAndLogSuccessfulSend(final int traceCount, final int sizeInBytes) {
     // count the successful traces
     this.sentTraces += traceCount;
 
     if (log.isDebugEnabled()) {
-      log.debug(createSendLogMessage(traceCount, representativeCount, sizeInBytes, "Success"));
+      log.debug(createSendLogMessage(traceCount, sizeInBytes, "Success"));
     } else if (this.logNextSuccess) {
       this.logNextSuccess = false;
       if (log.isInfoEnabled()) {
-        log.info(createSendLogMessage(traceCount, representativeCount, sizeInBytes, "Success"));
+        log.info(createSendLogMessage(traceCount, sizeInBytes, "Success"));
       }
     }
   }
 
   private void countAndLogFailedSend(
       final int traceCount,
-      final int representativeCount,
       final int sizeInBytes,
       final okhttp3.Response response,
       final IOException outer) {
@@ -208,10 +203,7 @@ public class DDAgentApi {
     if (log.isDebugEnabled()) {
       String sendErrorString =
           createSendLogMessage(
-              traceCount,
-              representativeCount,
-              sizeInBytes,
-              agentError.isEmpty() ? "Error" : agentError);
+              traceCount, sizeInBytes, agentError.isEmpty() ? "Error" : agentError);
       if (response != null) {
         log.debug(
             "{} Status: {}, Response: {}, Body: {}",
@@ -227,11 +219,7 @@ public class DDAgentApi {
       return;
     }
     String sendErrorString =
-        createSendLogMessage(
-            traceCount,
-            representativeCount,
-            sizeInBytes,
-            agentError.isEmpty() ? "Error" : agentError);
+        createSendLogMessage(traceCount, sizeInBytes, agentError.isEmpty() ? "Error" : agentError);
     boolean hasLogged;
     if (response != null) {
       hasLogged =
@@ -260,16 +248,11 @@ public class DDAgentApi {
   }
 
   private String createSendLogMessage(
-      final int traceCount,
-      final int representativeCount,
-      final int sizeInBytes,
-      final String prefix) {
+      final int traceCount, final int sizeInBytes, final String prefix) {
     String sizeString = sizeInBytes > 1024 ? (sizeInBytes / 1024) + "KB" : sizeInBytes + "B";
     return prefix
         + " while sending "
         + traceCount
-        + " of "
-        + representativeCount
         + " (size="
         + sizeString
         + ")"

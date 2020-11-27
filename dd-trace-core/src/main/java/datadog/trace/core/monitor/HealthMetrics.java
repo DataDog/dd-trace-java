@@ -98,19 +98,19 @@ public class HealthMetrics {
   }
 
   public void onSend(
-      final int representativeCount, final int sizeInBytes, final DDAgentApi.Response response) {
-    onSendAttempt(representativeCount, sizeInBytes, response);
+      final int traceCount, final int sizeInBytes, final DDAgentApi.Response response) {
+    onSendAttempt(traceCount, sizeInBytes, response);
   }
 
   public void onFailedSend(
-      final int representativeCount, final int sizeInBytes, final DDAgentApi.Response response) {
-    onSendAttempt(representativeCount, sizeInBytes, response);
+      final int traceCount, final int sizeInBytes, final DDAgentApi.Response response) {
+    onSendAttempt(traceCount, sizeInBytes, response);
   }
 
   private void onSendAttempt(
-      final int representativeCount, final int sizeInBytes, final DDAgentApi.Response response) {
+      final int traceCount, final int sizeInBytes, final DDAgentApi.Response response) {
     statsd.incrementCounter("api.requests.total", NO_TAGS);
-    statsd.count("flush.traces.total", representativeCount, NO_TAGS);
+    statsd.count("flush.traces.total", traceCount, NO_TAGS);
     // TODO: missing queue.spans (# of spans being sent)
     statsd.count("flush.bytes.total", sizeInBytes, NO_TAGS);
 

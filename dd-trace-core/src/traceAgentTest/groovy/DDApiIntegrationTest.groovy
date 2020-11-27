@@ -185,13 +185,11 @@ class DDApiIntegrationTest extends DDSpecification {
 
   static class Traces implements ByteBufferConsumer {
     int traceCount
-    int representativeCount
     ByteBuffer buffer
 
     @Override
     void accept(int messageCount, ByteBuffer buffer) {
       this.buffer = buffer
-      this.representativeCount = messageCount
       this.traceCount = messageCount
     }
   }
@@ -206,6 +204,5 @@ class DDApiIntegrationTest extends DDSpecification {
     packer.flush()
     return traceMapper.newPayload()
       .withBody(traceCapture.traceCount, traceCapture.buffer)
-      .withRepresentativeCount(traceCapture.representativeCount)
   }
 }

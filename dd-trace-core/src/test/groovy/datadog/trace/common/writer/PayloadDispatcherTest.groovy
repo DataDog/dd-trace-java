@@ -25,32 +25,6 @@ class PayloadDispatcherTest extends DDSpecification {
   @Shared
   Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
 
-  def "dropped traces should be reported in the representativeCount"() {
-    setup:
-    HealthMetrics healthMetrics = Mock(HealthMetrics)
-    DDAgentApi api = Mock(DDAgentApi)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
-
-    when: "traces are reported, serialized, and flushed"
-    for (int i = 0; i < droppedTraces; ++i) {
-      dispatcher.onTraceDropped()
-    }
-    for (int i = 0; i < serializedTraces; ++i) {
-      dispatcher.addTrace([realSpan()])
-    }
-    dispatcher.flush()
-
-    then: "the correct representative and trace count are published"
-    1 * api.selectTraceMapper() >> new TraceMapperV0_5()
-    1 * api.sendSerializedTraces({ it.representativeCount() == droppedTraces + serializedTraces && it.traceCount() == serializedTraces }) >> DDAgentApi.Response.success(200)
-
-    where:
-    droppedTraces | serializedTraces
-    1             | 1
-    10            | 1
-    10            | 10
-  }
-
   @Timeout(5)
   def "flush automatically when data limit is breached"() {
     setup:
@@ -66,7 +40,6 @@ class PayloadDispatcherTest extends DDSpecification {
     List<DDSpan> trace = [realSpan()]
     when:
     while (!flushed.get()) {
-      dispatcher.onTraceDropped()
       dispatcher.addTrace(trace)
     }
 
@@ -110,9 +83,6 @@ class PayloadDispatcherTest extends DDSpecification {
     PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
     when:
-    for (int i = 0; i < droppedTraces; ++i) {
-      dispatcher.onTraceDropped()
-    }
     for (int i = 0; i < traceCount; ++i) {
       dispatcher.addTrace(trace)
     }
@@ -120,24 +90,16 @@ class PayloadDispatcherTest extends DDSpecification {
     then:
     1 * healthMetrics.onSerialize({ it > 0 })
     1 * api.selectTraceMapper() >> traceMapper
-    1 * api.sendSerializedTraces({ it.traceCount() == traceCount && it.representativeCount() == droppedTraces + traceCount }) >> DDAgentApi.Response.failed(400)
+    1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.failed(400)
 
     where:
-    traceMapper           | traceCount | droppedTraces
-    new TraceMapperV0_4() | 1          | 0
-    new TraceMapperV0_4() | 1          | 1
-    new TraceMapperV0_4() | 1          | 10
-    new TraceMapperV0_4() | 10         | 10
-    new TraceMapperV0_4() | 10         | 100
-    new TraceMapperV0_4() | 100        | 100
-    new TraceMapperV0_4() | 100        | 1000
-    new TraceMapperV0_5() | 1          | 0
-    new TraceMapperV0_5() | 1          | 1
-    new TraceMapperV0_5() | 1          | 10
-    new TraceMapperV0_5() | 10         | 10
-    new TraceMapperV0_5() | 10         | 100
-    new TraceMapperV0_5() | 100        | 100
-    new TraceMapperV0_5() | 100        | 1000
+    traceMapper           | traceCount
+    new TraceMapperV0_4() | 1
+    new TraceMapperV0_4() | 10
+    new TraceMapperV0_4() | 100
+    new TraceMapperV0_5() | 1
+    new TraceMapperV0_5() | 10
+    new TraceMapperV0_5() | 100
   }
 
   def "should drop trace when there is no agent connectivity"() {
@@ -150,7 +112,7 @@ class PayloadDispatcherTest extends DDSpecification {
     when:
     dispatcher.addTrace(trace)
     then:
-    dispatcher.droppedCount.get() == 1
+    1 * healthMetrics.onFailedPublish(PrioritySampling.UNSET)
   }
 
 

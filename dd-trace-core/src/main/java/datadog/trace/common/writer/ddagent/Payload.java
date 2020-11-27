@@ -7,14 +7,8 @@ import okhttp3.RequestBody;
 
 public abstract class Payload {
 
-  private int representativeCount = 0;
   private int traceCount = 0;
   protected ByteBuffer body;
-
-  public Payload withRepresentativeCount(int representativeCount) {
-    this.representativeCount = representativeCount;
-    return this;
-  }
 
   public Payload withBody(int traceCount, ByteBuffer body) {
     this.traceCount = traceCount;
@@ -24,10 +18,6 @@ public abstract class Payload {
 
   int traceCount() {
     return traceCount;
-  }
-
-  int representativeCount() {
-    return representativeCount;
   }
 
   abstract int sizeInBytes();
