@@ -5,6 +5,7 @@ apply plugin: 'groovy'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
+apply from: "$rootDir/gradle/repositories.gradle"
 
 // Task for tests that want to run forked in their own separate JVM
 task forkedTest(type: Test) {
@@ -133,21 +134,6 @@ tasks.register("packageSources", Jar) {
   from sourceSets.main.allSource
 }
 artifacts.archives packageSources
-
-repositories {
-  mavenLocal()
-  jcenter()
-  mavenCentral()
-  maven {
-    url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
-    mavenContent {
-      snapshotsOnly()
-    }
-  }
-  maven {
-    url "https://repo.typesafe.com/typesafe/releases"
-  }
-}
 
 dependencies {
   testCompile deps.spock

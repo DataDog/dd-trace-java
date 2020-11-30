@@ -1,0 +1,45 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  testCompile project(':dd-smoke-tests')
+}
+
+def appDir = "$projectDir/application"
+def appBuildDir = "$buildDir/application"
+// define the task that builds the quarkus project
+task quarkusBuild(type:Exec) {
+  workingDir "$appDir"
+  environment += ["GRADLE_OPTS": "-Xmx512M"]
+  commandLine "$rootDir/gradlew", "build", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile}"
+  outputs.dir(appBuildDir)
+  inputs.dir(appDir)
+}
+
+quarkusBuild {
+  dependsOn project(':dd-trace-api').tasks.jar
+}
+
+compileTestGroovy {
+  dependsOn 'quarkusBuild'
+  outputs.upToDateWhen {
+    !quarkusBuild.didWork
+  }
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs "-Ddatadog.smoketest.quarkus.uberJar.path=$appBuildDir/quarkus-smoketest-$version-runner.jar"
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
+}
