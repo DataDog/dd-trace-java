@@ -39,15 +39,14 @@ import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
-import datadog.trace.core.taginterceptor.AbstractTagInterceptor;
-import datadog.trace.core.taginterceptor.TagInterceptorsFactory;
+import datadog.trace.core.taginterceptor.RuleFlags;
+import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.util.AgentTaskScheduler;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -124,7 +123,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    * Span tag interceptors. This Map is only ever added to during initialization, so it doesn't need
    * to be concurrent.
    */
-  private final Map<String, List<AbstractTagInterceptor>> spanTagInterceptors = new HashMap<>();
+  private final TagInterceptor tagInterceptor;
 
   private final SortedSet<TraceInterceptor> interceptors =
       new ConcurrentSkipListSet<>(
@@ -190,7 +189,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders,
       final int partialFlushMinSpans,
-      final StatsDClient statsDClient) {
+      final StatsDClient statsDClient,
+      final TagInterceptor tagInterceptor) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -269,17 +269,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         delayMillis,
         TimeUnit.MILLISECONDS);
 
+    this.tagInterceptor =
+        null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
+
     shutdownCallback = new ShutdownHook(this);
     try {
       Runtime.getRuntime().addShutdownHook(shutdownCallback);
     } catch (final IllegalStateException ex) {
       // The JVM is already shutting down.
-    }
-
-    final List<AbstractTagInterceptor> tagInterceptors =
-        TagInterceptorsFactory.createTagInterceptors();
-    for (final AbstractTagInterceptor interceptor : tagInterceptors) {
-      addTagInterceptor(interceptor);
     }
 
     registerClassLoader(ClassLoader.getSystemClassLoader());
@@ -297,34 +294,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } catch (final Exception e) {
       log.error("Error while finalizing DDTracer.", e);
     }
-  }
-
-  /**
-   * Returns the list of span tag interceptors
-   *
-   * @return the list of span tag interceptors
-   */
-  public List<AbstractTagInterceptor> getSpanTagInterceptors(final String tag) {
-    return spanTagInterceptors.get(tag);
-  }
-
-  /**
-   * Add a new interceptor in the list ({@link AbstractTagInterceptor})
-   *
-   * @param interceptor The interceptor in the list
-   */
-  private void addTagInterceptor(final AbstractTagInterceptor interceptor) {
-    List<AbstractTagInterceptor> list = spanTagInterceptors.get(interceptor.getMatchingTag());
-    if (list == null) {
-      list = new ArrayList<>();
-    }
-    list.add(interceptor);
-
-    spanTagInterceptors.put(interceptor.getMatchingTag(), list);
-    log.debug(
-        "Decorator added: '{}' -> {}",
-        interceptor.getMatchingTag(),
-        interceptor.getClass().getName());
   }
 
   /**
@@ -386,6 +355,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
     return scopeManager.activate(span, source, isAsyncPropagating);
+  }
+
+  public TagInterceptor getTagInterceptor() {
+    return tagInterceptor;
   }
 
   @Override
