@@ -20,7 +20,7 @@ class AggregateMetricTest extends DDSpecification {
     given:
     AggregateMetric aggregate = new AggregateMetric()
     when:
-    aggregate.recordDurations(0L, 1, 2, 3)
+    aggregate.recordDurations(3, 0L, 1, 2, 3)
     then:
     aggregate.getDuration() == 6
   }
@@ -28,9 +28,7 @@ class AggregateMetricTest extends DDSpecification {
   def "clear"() {
     given:
     AggregateMetric aggregate = new AggregateMetric()
-    .recordDurations(0L, 5, 6, 7)
-    .addHits(10)
-    .addErrors(1)
+    .recordDurations(3, 1L, 5, 6, 7)
     when:
     aggregate.clear()
     then:
@@ -41,9 +39,7 @@ class AggregateMetricTest extends DDSpecification {
 
   def "contribute batch with key to aggregate"() {
     given:
-    AggregateMetric aggregate = new AggregateMetric()
-      .addHits(10)
-      .addErrors(1)
+    AggregateMetric aggregate = new AggregateMetric().recordDurations(3, 1L, 0L, 0L, 0L)
 
     Batch batch = new Batch().withKey(new MetricKey("foo", "bar", "qux", "type", "", 0))
     batch.add(false, 10)
@@ -56,15 +52,15 @@ class AggregateMetricTest extends DDSpecification {
     then: "key cleared and values contributed to existing aggregate"
     batch.getKey() == null
     aggregate.getDuration() == 30
-    aggregate.getHitCount() == 13
+    aggregate.getHitCount() == 6
     aggregate.getErrorCount() == 1
   }
 
   def "ignore batches without keys"() {
     given:
-    AggregateMetric aggregate = new AggregateMetric()
-      .addHits(10)
-      .addErrors(1)
+    AggregateMetric aggregate = new AggregateMetric().recordDurations(10, 1L,
+      1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L)
+
 
     Batch batch = new Batch()
     batch.add(false, 10)
@@ -73,9 +69,20 @@ class AggregateMetricTest extends DDSpecification {
     batch.contributeTo(aggregate)
 
     then: "batch ignored"
-    aggregate.getDuration() == 0
+    aggregate.getDuration() == 10
     aggregate.getHitCount() == 10
     aggregate.getErrorCount() == 1
+  }
+
+  def "ignore trailing zeros"() {
+    given:
+    AggregateMetric aggregate = new AggregateMetric()
+    when:
+    aggregate.recordDurations(3, 0L, 1, 2, 3, 0, 0, 0)
+    then:
+    aggregate.getDuration() == 6
+    aggregate.getHitCount() == 3
+    aggregate.getErrorCount() == 0
   }
 
   def "consistent under concurrent attempts to read and write"() {

@@ -39,8 +39,8 @@ class SerializingMetricWriterTest extends DDSpecification {
     where:
     content << [
       [
-              Pair.of(new MetricKey("resource1", "service1", "operation1", "type", "", 0), new AggregateMetric().addHits(10).addErrors(1)),
-              Pair.of(new MetricKey("resource2", "service2", "operation2", "type2", "dbtype", 200), new AggregateMetric().addHits(9).addErrors(1))
+              Pair.of(new MetricKey("resource1", "service1", "operation1", "type", "", 0), new AggregateMetric().recordDurations(10, 1L)),
+              Pair.of(new MetricKey("resource2", "service2", "operation2", "type2", "dbtype", 200), new AggregateMetric().recordDurations(9, 1L))
       ]
     ]
   }

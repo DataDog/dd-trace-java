@@ -20,26 +20,17 @@ public final class AggregateMetric {
     errorLatencies = HISTOGRAM_FACTORY.newHistogram();
   }
 
-  public AggregateMetric addHits(int count) {
-    hitCount += count;
-    return this;
-  }
-
-  public AggregateMetric addErrors(int count) {
-    errorCount += count;
-    return this;
-  }
-
-  public AggregateMetric recordDurations(long errorMask, long... durations) {
-    int i = 0;
-    for (long duration : durations) {
+  public AggregateMetric recordDurations(int count, long errorMask, long... durations) {
+    this.hitCount += count;
+    this.errorCount += Long.bitCount(errorMask);
+    for (int i = 0; i < count && i < durations.length; ++i) {
+      long duration = durations[i];
       this.duration += duration;
       if (((errorMask >>> i) & 1) == 1) {
         errorLatencies.accept(duration);
       } else {
         hitLatencies.accept(duration);
       }
-      ++i;
     }
     return this;
   }
