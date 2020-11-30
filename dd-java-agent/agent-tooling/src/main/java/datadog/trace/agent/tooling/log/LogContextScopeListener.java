@@ -2,6 +2,8 @@ package datadog.trace.agent.tooling.log;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.Tracer;
+import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.context.ScopeListener;
 import java.lang.reflect.InvocationTargetException;
@@ -16,7 +18,13 @@ import lombok.extern.slf4j.Slf4j;
  * and span reference anytime a new scope is activated or closed.
  */
 @Slf4j
-public class LogContextScopeListener implements ScopeListener {
+public class LogContextScopeListener implements ScopeListener, WithGlobalTracer.Callback {
+
+  public static void add(final String name, final Method putMethod, final Method removeMethod) {
+    final LogContextScopeListener listener =
+        new LogContextScopeListener(name, putMethod, removeMethod);
+    WithGlobalTracer.registerOrExecute(listener);
+  }
 
   /** A reference to the log context method that sets a new attribute in the log context */
   private final Method putMethod;
@@ -27,7 +35,7 @@ public class LogContextScopeListener implements ScopeListener {
   /** The name of the logging instrumentation that this listener belongs to */
   private final String name;
 
-  public LogContextScopeListener(
+  private LogContextScopeListener(
       final String name, final Method putMethod, final Method removeMethod) {
     this.putMethod = putMethod;
     this.removeMethod = removeMethod;
@@ -89,5 +97,10 @@ public class LogContextScopeListener implements ScopeListener {
   @Override
   public String toString() {
     return "LogContextScopeListener(" + name + ")";
+  }
+
+  @Override
+  public void withTracer(Tracer tracer) {
+    tracer.addScopeListener(this);
   }
 }

@@ -9,7 +9,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.log.LogContextScopeListener;
 import datadog.trace.agent.tooling.log.ThreadLocalWithDDTagsInitValue;
 import datadog.trace.api.Config;
-import datadog.trace.api.GlobalTracer;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -60,8 +59,7 @@ public class ThreadContextInstrumentation extends Instrumenter.Default {
       try {
         final Method putMethod = threadContextClass.getMethod("put", String.class, String.class);
         final Method removeMethod = threadContextClass.getMethod("remove", String.class);
-        GlobalTracer.get()
-            .addScopeListener(new LogContextScopeListener("log4j2", putMethod, removeMethod));
+        LogContextScopeListener.add("log4j2", putMethod, removeMethod);
 
         if (Config.get().isLogsMDCTagsInjectionEnabled()) {
           final Field contextMapField = threadContextClass.getDeclaredField("contextMap");

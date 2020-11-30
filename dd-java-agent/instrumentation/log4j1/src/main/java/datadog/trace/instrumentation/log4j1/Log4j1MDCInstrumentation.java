@@ -8,7 +8,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.log.LogContextScopeListener;
 import datadog.trace.api.Config;
-import datadog.trace.api.GlobalTracer;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -52,8 +51,7 @@ public class Log4j1MDCInstrumentation extends Instrumenter.Default {
       try {
         final Method putMethod = mdcClass.getMethod("put", String.class, Object.class);
         final Method removeMethod = mdcClass.getMethod("remove", String.class);
-        GlobalTracer.get()
-            .addScopeListener(new LogContextScopeListener("log4j1", putMethod, removeMethod));
+        LogContextScopeListener.add("log4j1", putMethod, removeMethod);
 
         if (Config.get().isLogsMDCTagsInjectionEnabled()) {
           // log4j1 uses subclass of InheritableThreadLocal and we don't need to modify private
