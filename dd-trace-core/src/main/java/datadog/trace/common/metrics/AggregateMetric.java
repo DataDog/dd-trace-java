@@ -9,14 +9,14 @@ public final class AggregateMetric {
 
   private static final HistogramFactory HISTOGRAM_FACTORY = Histograms.newHistogramFactory();
 
-  private Histogram latencies;
+  private Histogram hitLatencies;
   private Histogram errorLatencies;
   private int errorCount;
   private int hitCount;
   private long duration;
 
   public AggregateMetric() {
-    latencies = HISTOGRAM_FACTORY.newHistogram();
+    hitLatencies = HISTOGRAM_FACTORY.newHistogram();
     errorLatencies = HISTOGRAM_FACTORY.newHistogram();
   }
 
@@ -37,7 +37,7 @@ public final class AggregateMetric {
       if (((errorMask >>> i) & 1) == 1) {
         errorLatencies.accept(duration);
       } else {
-        latencies.accept(duration);
+        hitLatencies.accept(duration);
       }
       ++i;
     }
@@ -56,8 +56,8 @@ public final class AggregateMetric {
     return duration;
   }
 
-  public byte[] getLatencies() {
-    return latencies.serialize();
+  public byte[] getHitLatencies() {
+    return hitLatencies.serialize();
   }
 
   public byte[] getErrorLatencies() {
@@ -68,8 +68,7 @@ public final class AggregateMetric {
     this.errorCount = 0;
     this.hitCount = 0;
     this.duration = 0;
-    // TODO add ability to clear histogram in DDSketch
-    this.latencies = HISTOGRAM_FACTORY.newHistogram();
-    this.errorLatencies = HISTOGRAM_FACTORY.newHistogram();
+    this.hitLatencies.clear();
+    this.errorLatencies.clear();
   }
 }
