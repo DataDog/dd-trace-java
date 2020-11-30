@@ -16,7 +16,7 @@ dependencies {
 
   // currently required to serialize DDSketch
   compile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.14.0'
-  compile group: 'com.datadoghq', name: 'sketches-java', version: '0.4.1'
+  compile group: 'com.datadoghq', name: 'sketches-java', version: '0.5.0'
 
   testCompile project(':utils:test-utils')
 }

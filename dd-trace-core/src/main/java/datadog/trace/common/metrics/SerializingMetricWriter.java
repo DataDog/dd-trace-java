@@ -102,7 +102,7 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeLong(aggregate.getDuration());
 
     writer.writeUTF8(HITS_SUMMARY);
-    writer.writeBinary(aggregate.getLatencies());
+    writer.writeBinary(aggregate.getHitLatencies());
 
     writer.writeUTF8(ERROR_SUMMARY);
     writer.writeBinary(aggregate.getErrorLatencies());
