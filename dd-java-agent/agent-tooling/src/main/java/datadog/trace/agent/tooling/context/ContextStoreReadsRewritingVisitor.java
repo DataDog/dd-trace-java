@@ -110,17 +110,15 @@ final class ContextStoreReadsRewritingVisitor implements AsmVisitorWrapper {
               final String name,
               final String descriptor,
               final boolean isInterface) {
+            // Look for any calls to `InstrumentationContext.get(K.class, C.class)`
             if (Opcodes.INVOKESTATIC == opcode
                 && INSTRUMENTATION_CONTEXT_CLASS.equals(owner)
                 && GET_METHOD.equals(name)
                 && GET_METHOD_DESCRIPTOR.equals(descriptor)) {
               log.debug("Found context-store access in {}", instrumenterClassName);
-              /*
-              The idea here is that the rest if this method visitor collects last three instructions in `insnStack`
-              variable. Once we get here we check if those last three instructions constitute call that looks like
-              `InstrumentationContext.get(K.class, V.class)`. If it does the inside of this if rewrites it to call
-              dynamically injected context store implementation instead.
-               */
+              // We track the last two constants pushed onto the stack to make sure they match
+              // the expected key and context types. Matching calls are rewritten to call the
+              // dynamically injected context store implementation instead.
               if (constant1 instanceof Type && constant2 instanceof Type) {
                 final String keyClassName = ((Type) constant1).getClassName();
                 final String contextClassName = ((Type) constant2).getClassName();
