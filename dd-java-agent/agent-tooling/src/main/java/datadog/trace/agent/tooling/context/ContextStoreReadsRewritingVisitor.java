@@ -3,8 +3,8 @@ package datadog.trace.agent.tooling.context;
 import static datadog.trace.agent.tooling.context.ContextStoreUtils.getContextStoreImplementationClassName;
 
 import datadog.trace.agent.tooling.Utils;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.lang.reflect.Method;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -25,19 +25,17 @@ import net.bytebuddy.pool.TypePool;
 @Slf4j
 final class ContextStoreReadsRewritingVisitor implements AsmVisitorWrapper {
 
-  private static final Method CONTEXT_GET_METHOD;
-  private static final Method GET_CONTEXT_STORE_METHOD;
+  private static final String INSTRUMENTATION_CONTEXT_CLASS =
+      Utils.getInternalName(InstrumentationContext.class.getName());
 
-  static {
-    try {
-      CONTEXT_GET_METHOD = InstrumentationContext.class.getMethod("get", Class.class, Class.class);
-      GET_CONTEXT_STORE_METHOD =
-          ContextStoreImplementationTemplate.class.getMethod(
-              "getContextStore", Class.class, Class.class);
-    } catch (final Exception e) {
-      throw new IllegalStateException(e);
-    }
-  }
+  private static final String GET_METHOD = "get";
+  private static final String GET_METHOD_DESCRIPTOR =
+      Type.getMethodDescriptor(
+          Type.getType(ContextStore.class), Type.getType(Class.class), Type.getType(Class.class));
+
+  private static final String GET_CONTENT_STORE_METHOD = "getContextStore";
+  private static final String GET_CONTENT_STORE_METHOD_DESCRIPTOR =
+      GET_METHOD_DESCRIPTOR; // same signature as `InstrumentationContext.get` method
 
   /** context-store-type-name -> context-store-type-name-dynamic-type */
   private final Map<String, DynamicType.Unloaded<?>> contextStoreImplementations;
@@ -108,10 +106,9 @@ final class ContextStoreReadsRewritingVisitor implements AsmVisitorWrapper {
               final String descriptor,
               final boolean isInterface) {
             pushOpcode(opcode);
-            if (Utils.getInternalName(CONTEXT_GET_METHOD.getDeclaringClass().getName())
-                    .equals(owner)
-                && CONTEXT_GET_METHOD.getName().equals(name)
-                && Type.getMethodDescriptor(CONTEXT_GET_METHOD).equals(descriptor)) {
+            if (INSTRUMENTATION_CONTEXT_CLASS.equals(owner)
+                && GET_METHOD.equals(name)
+                && GET_METHOD_DESCRIPTOR.equals(descriptor)) {
               log.debug("Found context-store access in {}", instrumenterClassName);
               /*
               The idea here is that the rest if this method visitor collects last three instructions in `insnStack`
@@ -150,8 +147,8 @@ final class ContextStoreReadsRewritingVisitor implements AsmVisitorWrapper {
                 mv.visitMethodInsn(
                     Opcodes.INVOKESTATIC,
                     contextStoreImplementationClass.getInternalName(),
-                    GET_CONTEXT_STORE_METHOD.getName(),
-                    Type.getMethodDescriptor(GET_CONTEXT_STORE_METHOD),
+                    GET_CONTENT_STORE_METHOD,
+                    GET_CONTENT_STORE_METHOD_DESCRIPTOR,
                     false);
                 return;
               }
