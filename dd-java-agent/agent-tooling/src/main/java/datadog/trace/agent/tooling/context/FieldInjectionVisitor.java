@@ -27,6 +27,9 @@ final class FieldInjectionVisitor implements AsmVisitorWrapper {
   private static final String INJECTED_FIELDS_MARKER_CLASS_NAME =
       Utils.getInternalName(FieldBackedContextStoreAppliedMarker.class.getName());
 
+  private final boolean serialVersionUIDFieldInjection =
+      Config.get().isSerialVersionUIDFieldInjection();
+
   private final TypeDescription fieldAccessorInterface;
   private final String fieldName;
   private final String getterMethodName;
@@ -87,8 +90,7 @@ final class FieldInjectionVisitor implements AsmVisitorWrapper {
         final Set<String> set = new LinkedHashSet<>(Arrays.asList(interfaces));
         set.add(INJECTED_FIELDS_MARKER_CLASS_NAME);
         set.add(interfaceType.getInternalName());
-        if (Config.get().isSerialVersionUIDFieldInjection()
-            && instrumentedType.isAssignableTo(Serializable.class)) {
+        if (serialVersionUIDFieldInjection && instrumentedType.isAssignableTo(Serializable.class)) {
           serialVersionUIDInjector = new SerialVersionUIDInjector();
           serialVersionUIDInjector.visit(version, access, name, signature, superName, interfaces);
         }
