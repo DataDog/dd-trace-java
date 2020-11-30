@@ -23,7 +23,6 @@ class Log4j1MDCTest extends LogContextInjectionTestBase {
 
   @Override
   void remove(String key) {
-    MDC.context
     MDC.remove(key)
   }
 

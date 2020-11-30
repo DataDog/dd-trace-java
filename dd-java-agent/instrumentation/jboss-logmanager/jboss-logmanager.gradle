@@ -1,0 +1,50 @@
+muzzle {
+  pass {
+    group = 'org.jboss.logmanager'
+    module = 'jboss-logmanager'
+    versions = '[1.1.0.GA,]'
+  }
+
+  pass {
+    group = 'org.jboss.logmanager'
+    module = 'jboss-logmanager-embedded'
+    versions = '[1.0.0,]'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+
+  embeddedTest {
+    dirName = 'test'
+  }
+
+  latestDepEmbeddedTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  // This is the last version to support Java7, so run the tests against that one
+  testCompile group: 'org.jboss.logmanager', name: 'jboss-logmanager', version: '2.0.11.Final'
+
+  embeddedTestCompile group: 'org.jboss.logmanager', name: 'jboss-logmanager-embedded', version: '1.0.6'
+
+  latestDepTestCompile group: 'org.jboss.logmanager', name: 'jboss-logmanager', version: '+'
+
+  latestDepEmbeddedTestCompile group: 'org.jboss.logmanager', name: 'jboss-logmanager-embedded', version: '+'
+}
+
+latestDepTest {
+  dependsOn latestDepEmbeddedTest
+}
+
+test {
+  dependsOn embeddedTest
+}

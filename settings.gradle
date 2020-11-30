@@ -127,6 +127,7 @@ include ':dd-java-agent:instrumentation:jax-rs-client-2.0:connection-error-handl
 include ':dd-java-agent:instrumentation:java-concurrent'
 include ':dd-java-agent:instrumentation:java-concurrent:java-completablefuture'
 include ':dd-java-agent:instrumentation:java-concurrent:lambda-testing'
+include ':dd-java-agent:instrumentation:jboss-logmanager'
 include ':dd-java-agent:instrumentation:jdbc'
 include ':dd-java-agent:instrumentation:jdbc:scalikejdbc'
 include ':dd-java-agent:instrumentation:jedis-1.4'
