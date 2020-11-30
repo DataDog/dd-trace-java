@@ -1,12 +1,16 @@
 package datadog.trace.core
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.test.util.DDSpecification
+import org.slf4j.LoggerFactory
 import spock.lang.Subject
 import spock.lang.Timeout
 
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS
@@ -255,5 +259,68 @@ class PendingTraceTest extends DDSpecification {
     trace.finishedSpans.isEmpty()
     writer == [[child2, child1], [rootSpan]]
     writer.traceCount.get() == 2
+  }
+
+  def "partial flush concurrency test"() {
+    // reduce logging noise
+    def logger = (Logger) LoggerFactory.getLogger("datadog.trace")
+    def previousLevel = logger.level
+    logger.setLevel(Level.OFF)
+
+    setup:
+    def latch = new CountDownLatch(1)
+    def rootSpan = tracer.buildSpan("root").start()
+    // Finish root span so other spans are queued automatically
+    rootSpan.finish()
+    PendingTrace trace = rootSpan.context().trace
+    def exceptions = []
+
+    def threads = (1..threadCount).collect {
+      Thread.start {
+        try {
+          def spans = (1..spanCount).collect {
+            tracer.startSpan("child", rootSpan.context())
+          }
+          latch.await()
+          spans.each {
+            it.finish()
+          }
+        } catch (Throwable ex) {
+          exceptions << ex
+        }
+      }
+    }
+
+    expect:
+    writer.waitForTraces(1)
+
+    when:
+    latch.countDown()
+    threads.each {
+      it.join()
+    }
+    trace.pendingTraceBuffer.flush()
+    logger.setLevel(previousLevel)
+
+    then:
+    exceptions.isEmpty()
+    trace.pendingReferenceCount.get() == 0
+    writer.sum { it.size() } == threadCount * spanCount + 1
+
+    cleanup:
+    logger.setLevel(previousLevel)
+
+    where:
+    threadCount | spanCount
+    1           | 1
+    2           | 1
+    1           | 2
+    // Sufficiently large to fill the buffer:
+    5           | 2000
+    10          | 1000
+    10          | 1000
+    100         | 500
+    100         | 500
+    1000        | 100
   }
 }

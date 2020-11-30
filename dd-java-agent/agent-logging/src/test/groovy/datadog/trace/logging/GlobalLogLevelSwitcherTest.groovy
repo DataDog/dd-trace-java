@@ -8,7 +8,7 @@ import datadog.trace.logging.simplelogger.SLCompatSettings
 import org.slf4j.ILoggerFactory
 import org.slf4j.Logger
 
-class GlobalLogeLevelSwitcherTest extends LogValidatingSpecification {
+class GlobalLogLevelSwitcherTest extends LogValidatingSpecification {
 
   def "test successful creation"() {
     when:
@@ -69,7 +69,7 @@ class GlobalLogeLevelSwitcherTest extends LogValidatingSpecification {
       loggerValidator.nothing()
       logger.warn("check warn")
       loggerValidator.warn(true, "check warn")
-     }
+    }
   }
 
   def "call get to increase coverage"() {
@@ -82,8 +82,9 @@ class GlobalLogeLevelSwitcherTest extends LogValidatingSpecification {
     global1 != null
   }
 
-  static class LoggerFactory implements  ILoggerFactory {
+  static class LoggerFactory implements ILoggerFactory {
     private final LoggerHelperFactory helperFactory
+
     LoggerFactory(LoggerHelperFactory helperFactory) {
       this.helperFactory = helperFactory
     }
