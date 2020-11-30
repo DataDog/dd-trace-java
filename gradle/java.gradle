@@ -6,6 +6,17 @@ apply plugin: 'groovy'
 apply from: "$rootDir/gradle/codenarc.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
 
+// Task for tests that want to run forked in their own separate JVM
+task forkedTest(type: Test) {
+  setIncludes(["**/*ForkedTest*"])
+  forkEvery 1
+}
+
+test {
+  exclude("**/*ForkedTest*")
+  dependsOn forkedTest
+}
+
 def applyCodeCoverage = !(
   project.path.startsWith(":dd-smoke-tests") ||
   project.path == ":dd-java-agent" ||
@@ -341,17 +352,6 @@ for (def env : System.getenv().entrySet()) {
 
     parentTask.dependsOn newTask
   }
-}
-
-// Task for tests that want to run forked in their own separate JVM
-task forkedTest(type: Test) {
-  setIncludes(["**/*ForkedTest*"])
-  forkEvery 1
-}
-
-test {
-  exclude("**/*ForkedTest*")
-  dependsOn forkedTest
 }
 
 // Go through the Test tasks and configure them
