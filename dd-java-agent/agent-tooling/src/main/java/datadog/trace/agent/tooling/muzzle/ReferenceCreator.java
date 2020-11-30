@@ -81,13 +81,8 @@ public class ReferenceCreator extends ClassVisitor {
     return references;
   }
 
-  /**
-   * Get the package of an internal class name.
-   *
-   * <p>foo/bar/Baz -> foo/bar/
-   */
-  private static String internalPackageName(final String internalName) {
-    return internalName.replaceAll("/[^/]+$", "");
+  private static boolean samePackage(String from, String to) {
+    return from.regionMatches(0, to, 0, from.lastIndexOf('/') + 1);
   }
 
   /**
@@ -98,8 +93,7 @@ public class ReferenceCreator extends ClassVisitor {
   private static Reference.Flag computeMinimumClassAccess(final Type from, final Type to) {
     if (from.getInternalName().equalsIgnoreCase(to.getInternalName())) {
       return Reference.Flag.PRIVATE_OR_HIGHER;
-    } else if (internalPackageName(from.getInternalName())
-        .equals(internalPackageName(to.getInternalName()))) {
+    } else if (samePackage(from.getInternalName(), to.getInternalName())) {
       return Reference.Flag.PACKAGE_OR_HIGHER;
     } else {
       return Reference.Flag.PUBLIC;
@@ -114,8 +108,7 @@ public class ReferenceCreator extends ClassVisitor {
   private static Reference.Flag computeMinimumFieldAccess(final Type from, final Type to) {
     if (from.getInternalName().equalsIgnoreCase(to.getInternalName())) {
       return Reference.Flag.PRIVATE_OR_HIGHER;
-    } else if (internalPackageName(from.getInternalName())
-        .equals(internalPackageName(to.getInternalName()))) {
+    } else if (samePackage(from.getInternalName(), to.getInternalName())) {
       return Reference.Flag.PACKAGE_OR_HIGHER;
     } else {
       // Additional references: check the type hierarchy of FROM to distinguish public from
