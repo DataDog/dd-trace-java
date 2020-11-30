@@ -88,6 +88,7 @@ class AggregateMetricTest extends DDSpecification {
     ExecutorService writers = Executors.newFixedThreadPool(writerCount)
     CountDownLatch readerLatch = new CountDownLatch(1)
     CountDownLatch writerLatch = new CountDownLatch(writerCount)
+    CountDownLatch queueEmptyLatch = new CountDownLatch(1)
 
     AtomicInteger written = new AtomicInteger(0)
 
@@ -109,11 +110,16 @@ class AggregateMetricTest extends DDSpecification {
     def future = reader.submit({
       readerLatch.countDown()
       while (!Thread.currentThread().isInterrupted()) {
+        if (queue.peek() == null && writerLatch.count == 0) {
+          queueEmptyLatch.countDown()
+        }
         Batch batch = queue.take()
         batch.contributeTo(aggregate)
       }
     })
     writerLatch.await(10, TimeUnit.SECONDS)
+    // Wait here until we know that the queue is empty
+    queueEmptyLatch.await(10, TimeUnit.SECONDS)
     future.cancel(true)
 
     then:
