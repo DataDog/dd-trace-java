@@ -62,10 +62,7 @@ public final class Batch {
 
   public synchronized void contributeTo(AggregateMetric aggregate) {
     this.key = null;
-    aggregate
-        .addErrors(Long.bitCount(errorMask))
-        .addHits(count)
-        .recordDurations(errorMask, durations);
+    aggregate.recordDurations(count, errorMask, durations);
     clear();
   }
 
