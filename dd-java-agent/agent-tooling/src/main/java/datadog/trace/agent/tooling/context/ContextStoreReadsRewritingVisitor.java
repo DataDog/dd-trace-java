@@ -93,13 +93,13 @@ final class ContextStoreReadsRewritingVisitor implements AsmVisitorWrapper {
         final MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
         return new MethodVisitor(Opcodes.ASM7, mv) {
           /** The last two constants pushed onto the stack. */
-          private Object constant_1, constant_2;
+          private Object constant1, constant2;
 
           @Override
           public void visitLdcInsn(final Object value) {
             // 'first' constant gets moved over once 'second' one comes in
-            constant_1 = constant_2;
-            constant_2 = value;
+            constant1 = constant2;
+            constant2 = value;
             super.visitLdcInsn(value);
           }
 
@@ -121,9 +121,9 @@ final class ContextStoreReadsRewritingVisitor implements AsmVisitorWrapper {
               `InstrumentationContext.get(K.class, V.class)`. If it does the inside of this if rewrites it to call
               dynamically injected context store implementation instead.
                */
-              if (constant_1 instanceof Type && constant_2 instanceof Type) {
-                final String keyClassName = ((Type) constant_1).getClassName();
-                final String contextClassName = ((Type) constant_2).getClassName();
+              if (constant1 instanceof Type && constant2 instanceof Type) {
+                final String keyClassName = ((Type) constant1).getClassName();
+                final String contextClassName = ((Type) constant2).getClassName();
                 final TypeDescription contextStoreImplementationClass =
                     getContextStoreImplementation(keyClassName, contextClassName);
                 if (log.isDebugEnabled()) {
@@ -161,8 +161,8 @@ final class ContextStoreReadsRewritingVisitor implements AsmVisitorWrapper {
             }
 
             // reset constants for next method check
-            constant_1 = null;
-            constant_2 = null;
+            constant1 = null;
+            constant2 = null;
           }
         };
       }
