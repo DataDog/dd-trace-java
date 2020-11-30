@@ -392,6 +392,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
+  public int samplingPriority() {
+    return context.getSamplingPriority();
+  }
+
+  @Override
   public String getSpanType() {
     final CharSequence spanType = context.getSpanType();
     return null == spanType ? null : spanType.toString();

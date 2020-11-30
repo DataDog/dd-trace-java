@@ -94,7 +94,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
-    1 * api.sendSerializedTraces({ it.traceCount() == 2 && it.representativeCount() == 2 }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == 2 }) >> DDAgentApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -125,7 +125,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
-    1 * api.sendSerializedTraces({ it.traceCount() <= traceCount && it.representativeCount() <= traceCount }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() <= traceCount }) >> DDAgentApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -159,7 +159,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
     1 * healthMetrics.onSerialize(_)
-    1 * api.sendSerializedTraces({ it.traceCount() == 5 && it.representativeCount() == 5 }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == 5 }) >> DDAgentApi.Response.success(200)
     _ * healthMetrics.onPublish(_, _)
     1 * healthMetrics.onSend(_, _, _) >> {
       phaser.arrive()
@@ -204,8 +204,8 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
-    1 * api.sendSerializedTraces({ it.traceCount() == maxedPayloadTraceCount && it.representativeCount() == maxedPayloadTraceCount }) >> DDAgentApi.Response.success(200)
-    1 * api.sendSerializedTraces({ it.traceCount() == 1 && it.representativeCount() == 1 }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == maxedPayloadTraceCount }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == 1 }) >> DDAgentApi.Response.success(200)
     0 * _
 
     cleanup:

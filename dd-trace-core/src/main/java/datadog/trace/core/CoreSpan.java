@@ -74,4 +74,6 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   T setMetric(CharSequence name, double value);
 
   T setFlag(CharSequence name, boolean value);
+
+  int samplingPriority();
 }

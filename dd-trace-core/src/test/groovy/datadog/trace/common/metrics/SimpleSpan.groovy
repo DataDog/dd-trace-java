@@ -208,4 +208,9 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   SimpleSpan setFlag(CharSequence name, boolean value) {
     return this
   }
+
+  @Override
+  int samplingPriority() {
+    return 0
+  }
 }

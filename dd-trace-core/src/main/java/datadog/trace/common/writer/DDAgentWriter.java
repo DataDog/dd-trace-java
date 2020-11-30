@@ -143,14 +143,12 @@ public class DDAgentWriter implements Writer {
   }
 
   private void handleDroppedTrace(final String reason, final List<DDSpan> trace) {
-    incrementTraceCount();
     log.debug("{}. Counted but dropping trace: {}", reason, trace);
     healthMetrics.onFailedPublish(UNSET);
   }
 
   private void handleDroppedTrace(
       final String reason, final List<DDSpan> trace, final int samplingPriority) {
-    incrementTraceCount();
     log.debug("{}. Counted but dropping trace: {}", reason, trace);
     healthMetrics.onFailedPublish(samplingPriority);
   }
@@ -163,11 +161,6 @@ public class DDAgentWriter implements Writer {
       }
     }
     return false;
-  }
-
-  @Override
-  public void incrementTraceCount() {
-    dispatcher.onTraceDropped();
   }
 
   public DDAgentApi getApi() {
@@ -189,4 +182,7 @@ public class DDAgentWriter implements Writer {
     traceProcessingWorker.close();
     healthMetrics.onShutdown(flushed);
   }
+
+  @Override
+  public void incrementTraceCount() {}
 }

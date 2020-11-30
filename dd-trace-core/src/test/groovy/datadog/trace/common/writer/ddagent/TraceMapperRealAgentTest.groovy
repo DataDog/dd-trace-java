@@ -37,6 +37,7 @@ class TraceMapperRealAgentTest extends DDSpecification {
     0 * healthMetrics.onFailedSend(_, _, _)
     _ * healthMetrics.onSend(_, _, _)
     _ * healthMetrics.onSerialize(_)
+    _ * healthMetrics.onFailedPublish(_)
     0 * _
 
     where:
