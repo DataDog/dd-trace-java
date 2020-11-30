@@ -118,10 +118,10 @@ public final class FieldBackedProvider implements InstrumentationContextProvider
             }
           }
           synchronized (installedContextMatchers) {
-            if (installedContextMatchers.contains(entry)) {
+            if (!installedContextMatchers.add(entry)) {
               if (log.isDebugEnabled()) {
                 log.debug(
-                    "Skipping builder for {} with matcher {}: {} -> {}",
+                    "Skipping duplicate builder in {} for matcher {}: {} -> {}",
                     instrumenterName,
                     classLoaderMatcher,
                     entry.getKey(),
