@@ -9,6 +9,14 @@ class WeakMapTest extends Specification {
 
   def weakMap = new WeakMap.MapAdapter<String, Integer>(new WeakHashMap<>())
 
+  def "Default WeakMap accepts null values"() {
+    when:
+    weakMap.put('key', null)
+
+    then:
+    noExceptionThrown()
+  }
+
   def "getOrCreate a value"() {
     when:
     def count = weakMap.computeIfAbsent('key', supplier)

@@ -84,7 +84,11 @@ class WeakMapSuppliers {
 
       @Override
       public void put(final K key, final V value) {
-        map.put(key, value);
+        if (null != value) {
+          map.put(key, value);
+        } else {
+          map.remove(key); // WeakConcurrentMap doesn't accept null values
+        }
       }
 
       @Override
