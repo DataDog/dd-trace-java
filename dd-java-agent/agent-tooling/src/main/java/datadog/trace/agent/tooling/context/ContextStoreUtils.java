@@ -87,9 +87,9 @@ final class ContextStoreUtils {
     return DYNAMIC_CLASSES_PACKAGE
         + FieldBackedProvider.class.getSimpleName()
         + "$ContextStore$"
-        + Utils.converToInnerClassName(keyClassName)
+        + Utils.getInnerClassName(keyClassName)
         + "$"
-        + Utils.converToInnerClassName(contextClassName);
+        + Utils.getInnerClassName(contextClassName);
   }
 
   static String getContextAccessorInterfaceName(
@@ -97,13 +97,13 @@ final class ContextStoreUtils {
     return DYNAMIC_CLASSES_PACKAGE
         + FieldBackedProvider.class.getSimpleName()
         + "$ContextAccessor$"
-        + Utils.converToInnerClassName(keyClassName)
+        + Utils.getInnerClassName(keyClassName)
         + "$"
-        + Utils.converToInnerClassName(contextClassName);
+        + Utils.getInnerClassName(contextClassName);
   }
 
   static String getContextFieldName(final String keyClassName) {
-    return "__datadogContext$" + Utils.converToInnerClassName(keyClassName);
+    return "__datadogContext$" + Utils.getInnerClassName(keyClassName);
   }
 
   static String getContextGetterName(final String keyClassName) {

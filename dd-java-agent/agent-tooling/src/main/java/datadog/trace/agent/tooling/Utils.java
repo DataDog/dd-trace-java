@@ -50,12 +50,15 @@ public class Utils {
 
   /** com/foo/Bar.class -> com.foo.Bar */
   public static String getClassName(final String resourceName) {
-    return resourceName.replaceAll("\\.class\\$", "").replace('/', '.');
+    if (resourceName.endsWith(".class")) {
+      return resourceName.substring(0, resourceName.length() - 6).replace('/', '.');
+    }
+    return resourceName.replace('/', '.');
   }
 
   /** com.foo.Bar -> com/foo/Bar */
   public static String getInternalName(final String resourceName) {
-    return resourceName.replaceAll("\\.class\\$", "").replace('.', '/');
+    return resourceName.replace('.', '/');
   }
 
   /**
@@ -65,8 +68,8 @@ public class Utils {
    * @param className class named to be converted
    * @return convertd name
    */
-  public static String converToInnerClassName(final String className) {
-    return className.replaceAll("\\.", "\\$");
+  public static String getInnerClassName(final String className) {
+    return className.replace('.', '$');
   }
 
   /**
