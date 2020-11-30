@@ -26,6 +26,8 @@ public final class TraceInstrumentationConfig {
 
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
+  public static final String SERIALVERSIONUID_FIELD_INJECTION =
+      "trace.serialversionuid.field.injection";
 
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
   public static final String LOGS_MDC_TAGS_INJECTION_ENABLED = "logs.mdc.tags.injection";
