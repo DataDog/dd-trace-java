@@ -10,8 +10,6 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.SpanFactory
 import datadog.trace.test.util.DDSpecification
 
-import static datadog.trace.common.sampling.RateByServiceSampler.DEFAULT_KEY
-
 class RateByServiceSamplerTest extends DDSpecification {
   static serializer = DDAgentApi.RESPONSE_ADAPTER
 
@@ -21,7 +19,7 @@ class RateByServiceSamplerTest extends DDSpecification {
     String response = '{"rate_by_service": {"service:,env:":' + rate + '}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
     expect:
-    serviceSampler.serviceRates[DEFAULT_KEY].sampleRate == expectedRate
+    serviceSampler.serviceRates.getSampler(RateByServiceSampler.EnvAndService.DEFAULT).sampleRate == expectedRate
 
     where:
     rate | expectedRate

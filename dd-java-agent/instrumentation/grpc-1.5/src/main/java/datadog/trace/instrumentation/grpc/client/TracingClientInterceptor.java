@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.grpc.client.GrpcInjectAdapter.SETTER
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
@@ -35,7 +34,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
     final AgentSpan span =
         startSpan(GRPC_CLIENT)
             .setTag(DDTags.RESOURCE_NAME, method.getFullMethodName())
-            .setTag(InstrumentationTags.DD_MEASURED, true);
+            .setMeasured(true);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       scope.setAsyncPropagation(true);
@@ -70,6 +69,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
 
       try (final AgentScope scope = activateSpan(span)) {
         // Don't async propagate otherwise the span gets tied up with a timeout handler.
+        scope.setAsyncPropagation(false);
         super.start(new TracingClientCallListener<>(span, responseListener), headers);
       } catch (final Throwable e) {
         DECORATE.onError(span, e);

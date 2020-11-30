@@ -16,6 +16,15 @@ gradleEnterprise {
   }
 }
 
+// Don't pollute the dependency cache with the build cache
+if (isCI) {
+  buildCache {
+    local {
+      directory = "$rootDir/workspace/build-cache"
+    }
+  }
+}
+
 rootProject.name = 'dd-trace-java'
 
 // external apis
@@ -42,7 +51,7 @@ include ':dd-java-agent:agent-profiling:profiling-testing'
 // misc
 include ':dd-java-agent:testing'
 include ':utils:container-utils'
-include ':utils:mlt-support'
+include ':utils:histograms'
 include ':utils:test-utils'
 
 // smoke tests
@@ -55,12 +64,14 @@ include ':dd-smoke-tests:play-2.5'
 include ':dd-smoke-tests:play-2.6'
 include ':dd-smoke-tests:play-2.7'
 include ':dd-smoke-tests:play-2.8'
+include ':dd-smoke-tests:slf4j-mdc'
 include ':dd-smoke-tests:springboot'
 include ':dd-smoke-tests:springboot-grpc'
 include ':dd-smoke-tests:wildfly'
 include ':dd-smoke-tests:profiling-integration-tests'
 
 // instrumentation:
+include ':dd-java-agent:instrumentation:aerospike-4'
 include ':dd-java-agent:instrumentation:akka-concurrent'
 include ':dd-java-agent:instrumentation:akka-http-10.0'
 include ':dd-java-agent:instrumentation:akka-init'
@@ -76,16 +87,19 @@ include ':dd-java-agent:instrumentation:classloading:tomcat-testing'
 include ':dd-java-agent:instrumentation:commons-httpclient-2'
 include ':dd-java-agent:instrumentation:couchbase-2.0'
 include ':dd-java-agent:instrumentation:couchbase-2.6'
+include ':dd-java-agent:instrumentation:datanucleus-4'
 include ':dd-java-agent:instrumentation:datastax-cassandra-3'
 include ':dd-java-agent:instrumentation:dropwizard'
 include ':dd-java-agent:instrumentation:dropwizard:dropwizard-views'
 include ':dd-java-agent:instrumentation:elasticsearch'
 include ':dd-java-agent:instrumentation:elasticsearch:rest-5'
 include ':dd-java-agent:instrumentation:elasticsearch:rest-6.4'
+include ':dd-java-agent:instrumentation:elasticsearch:rest-7'
 include ':dd-java-agent:instrumentation:elasticsearch:transport-2'
 include ':dd-java-agent:instrumentation:elasticsearch:transport-5'
 include ':dd-java-agent:instrumentation:elasticsearch:transport-5.3'
 include ':dd-java-agent:instrumentation:elasticsearch:transport-6'
+include ':dd-java-agent:instrumentation:elasticsearch:transport-7.3'
 include ':dd-java-agent:instrumentation:exception-profiling'
 include ':dd-java-agent:instrumentation:finatra-2.9'
 include ':dd-java-agent:instrumentation:glassfish'
@@ -131,6 +145,7 @@ include ':dd-java-agent:instrumentation:log4j1'
 include ':dd-java-agent:instrumentation:log4j2'
 include ':dd-java-agent:instrumentation:mongo'
 include ':dd-java-agent:instrumentation:mongo:driver-3.1'
+include ':dd-java-agent:instrumentation:mongo:driver-4'
 include ':dd-java-agent:instrumentation:mongo:driver-async-3.3'
 include ':dd-java-agent:instrumentation:netty-3.8'
 include ':dd-java-agent:instrumentation:netty-4.0'
@@ -154,6 +169,7 @@ include ':dd-java-agent:instrumentation:rediscala-1.8.0'
 include ':dd-java-agent:instrumentation:reactor-core-3.1'
 include ':dd-java-agent:instrumentation:rmi'
 include ':dd-java-agent:instrumentation:rxjava-1'
+include ':dd-java-agent:instrumentation:rxjava-2'
 include ':dd-java-agent:instrumentation:scala-concurrent'
 include ':dd-java-agent:instrumentation:scala-promise-2.10'
 include ':dd-java-agent:instrumentation:scala-promise-2.13'
@@ -171,7 +187,8 @@ include ':dd-java-agent:instrumentation:spymemcached-2.12'
 include ':dd-java-agent:instrumentation:testng-6.4'
 include ':dd-java-agent:instrumentation:trace-annotation'
 include ':dd-java-agent:instrumentation:twilio'
-include ':dd-java-agent:instrumentation:vertx'
+include ':dd-java-agent:instrumentation:vertx-rx-3.5'
+include ':dd-java-agent:instrumentation:vertx-web-3.4'
 
 // benchmark
 include ':dd-java-agent:benchmark'

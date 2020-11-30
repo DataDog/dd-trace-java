@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.PLAY_
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
@@ -37,7 +36,7 @@ public class PlayAdvice {
       // Do not extract the context.
       span = startSpan(PLAY_REQUEST);
     }
-    span.setTag(InstrumentationTags.DD_MEASURED, true);
+    span.setMeasured(true);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, req);
 
@@ -80,8 +79,10 @@ public class PlayAdvice {
     // span finished in RequestCompleteCallback
 
     final AgentSpan rootSpan = activeSpan();
-    // set the resource name on the upstream akka/netty span
-    DECORATE.onRequest(rootSpan, req);
+    // set the resource name on the upstream akka/netty span if there is one
+    if (rootSpan != null) {
+      DECORATE.onRequest(rootSpan, req);
+    }
   }
 
   // Unused method for muzzle to allow only 2.4-2.5

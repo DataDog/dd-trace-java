@@ -383,8 +383,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     when:
     runUnderTrace("test-parent") {
       reactiveCommands.set("a", "1")
-        .then(reactiveCommands.get("a")) // The get here is ending up in another trace
+        .then(reactiveCommands.get("a")) // The get here is reported separately
         .subscribe()
+
+      blockUntilChildSpansFinished(2)
     }
 
     then:
@@ -401,7 +403,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
           }
         }
         span {
-          childOf(span(0))
+          childOf span(0)
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -416,7 +418,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
           }
         }
         span {
-          childOf(span(0))
+          childOf span(0)
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -438,9 +440,11 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     when:
     runUnderTrace("test-parent") {
       reactiveCommands.set("a", "1")
-        .then(reactiveCommands.get("a")) // The get here is ending up in another trace
-        .subscribeOn(Schedulers.elastic())
+        .then(reactiveCommands.get("a"))
+        .subscribeOn(Schedulers.newParallel("test"))
         .subscribe()
+
+      blockUntilChildSpansFinished(2)
     }
 
     then:
@@ -457,7 +461,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
           }
         }
         span {
-          childOf(span(0))
+          childOf span(0)
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -472,7 +476,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
           }
         }
         span {
-          childOf(span(0))
+          childOf span(0)
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -490,3 +494,4 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     }
   }
 }
+

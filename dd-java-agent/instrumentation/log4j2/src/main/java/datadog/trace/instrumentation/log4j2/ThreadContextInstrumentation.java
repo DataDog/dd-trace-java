@@ -60,7 +60,8 @@ public class ThreadContextInstrumentation extends Instrumenter.Default {
       try {
         final Method putMethod = threadContextClass.getMethod("put", String.class, String.class);
         final Method removeMethod = threadContextClass.getMethod("remove", String.class);
-        GlobalTracer.get().addScopeListener(new LogContextScopeListener(putMethod, removeMethod));
+        GlobalTracer.get()
+            .addScopeListener(new LogContextScopeListener("log4j2", putMethod, removeMethod));
 
         if (Config.get().isLogsMDCTagsInjectionEnabled()) {
           final Field contextMapField = threadContextClass.getDeclaredField("contextMap");

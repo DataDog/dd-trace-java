@@ -29,6 +29,7 @@ public final class ConfigDefaults {
   static final String DEFAULT_PRIORITIZATION_TYPE = "FastLane";
 
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
+  static final boolean DEFAULT_SERIALVERSIONUID_FIELD_INJECTION = false;
 
   static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
   static final String DEFAULT_PRIORITY_SAMPLING_FORCE = null;
@@ -72,6 +73,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
   static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
   static final int DEFAULT_TRACE_RATE_LIMIT = 100;
+
+  public static final boolean DEFAULT_ASYNC_PROPAGATING = true;
 
   private ConfigDefaults() {}
 }

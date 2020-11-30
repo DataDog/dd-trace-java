@@ -1,7 +1,6 @@
 plugins {
   id "com.github.johnrengelman.shadow" version "5.2.0"
   id "me.champeau.gradle.jmh" version "0.5.0"
-  id "com.palantir.revapi" version "1.4.0"
 }
 
 description = 'dd-trace-ot'
@@ -44,7 +43,6 @@ dependencies {
   compile deps.okio
 
   testCompile project(":dd-java-agent:testing")
-  testCompile group: 'com.github.stefanbirkner', name: 'system-rules', version: '1.19.0'
 
   ot31CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
   ot31CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
@@ -86,7 +84,8 @@ jar {
 def bundledProjects = [
   ':dd-trace-core',
   ':internal-api',
-  ':utils:container-utils'
+  ':utils:container-utils',
+  ':utils:histograms'
 ]
 
 shadowJar {
@@ -100,16 +99,17 @@ shadowJar {
 }
 
 modifyPom {
-  // We're bundling the internal dependencies.  So we need to add the transitive dependencies
+  // We're bundling the internal dependencies.  So we need to add external transitive dependencies
   // of those projects. Directly adding to the XML is the only way to prevent the shadowJar plugin
   // from removing them
   def bundledProjectNames = bundledProjects.collect { it.substring(it.lastIndexOf(":") + 1) }
+  def externalDependencies = { p -> p.configurations.getByName("compile").dependencies.withType(ExternalDependency) }
   withXml({ XmlProvider provider ->
     Node dependencies = provider.asNode().dependencies[0]
-    def addedDependencies = project.configurations.getByName("compile").dependencies.collect { it.name }
+    def addedDependencies = externalDependencies(project).collect { it.name }
     addedDependencies.addAll(bundledProjectNames)
     bundledProjects.forEach { bundledProject ->
-      project(bundledProject).configurations.getByName("compile").dependencies.forEach { transitiveDependency ->
+      externalDependencies(project(bundledProject)).forEach { transitiveDependency ->
         if (!addedDependencies.contains(transitiveDependency.name)) {
           def dependency = dependencies.appendNode("dependency")
           dependency.appendNode("groupId", transitiveDependency.group)

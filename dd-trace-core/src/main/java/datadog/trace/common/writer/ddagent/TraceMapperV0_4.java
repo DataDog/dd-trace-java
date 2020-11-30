@@ -12,20 +12,24 @@ import static datadog.trace.core.StringTables.SPAN_ID;
 import static datadog.trace.core.StringTables.START;
 import static datadog.trace.core.StringTables.TRACE_ID;
 import static datadog.trace.core.StringTables.TYPE;
-import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.CONSTANT_KEYS;
-import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.NO_CACHING;
-import static datadog.trace.core.serialization.msgpack.Util.integerToStringBuffer;
-import static datadog.trace.core.serialization.msgpack.Util.writeLongAsString;
+import static datadog.trace.core.serialization.EncodingCachingStrategies.CONSTANT_KEYS;
+import static datadog.trace.core.serialization.EncodingCachingStrategies.NO_CACHING;
+import static datadog.trace.core.serialization.Util.integerToStringBuffer;
+import static datadog.trace.core.serialization.Util.writeLongAsString;
+import static java.util.Collections.singletonList;
 
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.DDSpanData;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.TagsAndBaggageConsumer;
-import datadog.trace.core.serialization.msgpack.Writable;
+import datadog.trace.core.http.OkHttpUtils;
+import datadog.trace.core.serialization.Writable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
 import java.util.Map;
+import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
 
@@ -89,9 +93,9 @@ public final class TraceMapperV0_4 implements TraceMapper {
   private final MetaWriter metaWriter = new MetaWriter();
 
   @Override
-  public void map(List<? extends DDSpanData> trace, final Writable writable) {
+  public void map(List<? extends CoreSpan<?>> trace, final Writable writable) {
     writable.startArray(trace.size());
-    for (DDSpanData span : trace) {
+    for (CoreSpan<?> span : trace) {
       writable.startMap(12);
       /* 1  */
       writable.writeUTF8(SERVICE);
@@ -124,11 +128,25 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeUTF8(ERROR);
       writable.writeInt(span.getError());
       /* 11 */
-      writable.writeUTF8(METRICS);
-      writable.writeMap(span.getMetrics(), CONSTANT_KEYS);
+      writeMetrics(span, writable);
       /* 12 */
       writable.writeUTF8(META);
       span.processTagsAndBaggage(metaWriter.withWritable(writable));
+    }
+  }
+
+  private static void writeMetrics(CoreSpan span, Writable writable) {
+    writable.writeUTF8(METRICS);
+    Map<CharSequence, Number> metrics = span.getMetrics();
+    int elementCount = metrics.size() + (span.isMeasured() ? 1 : 0);
+    writable.startMap(elementCount);
+    if (span.isMeasured()) {
+      writable.writeUTF8(InstrumentationTags.DD_MEASURED);
+      writable.writeInt(1);
+    }
+    for (Map.Entry<CharSequence, Number> metric : metrics.entrySet()) {
+      writable.writeString(metric.getKey(), CONSTANT_KEYS);
+      writable.writeObject(metric.getValue(), NO_CACHING);
     }
   }
 
@@ -154,12 +172,19 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     @Override
     int sizeInBytes() {
-      return sizeInBytes(body);
+      return body.remaining();
     }
 
     @Override
-    public void writeTo(WritableByteChannel channel) throws IOException {
-      writeBufferToChannel(body, channel);
+    void writeTo(WritableByteChannel channel) throws IOException {
+      while (body.hasRemaining()) {
+        channel.write(body);
+      }
+    }
+
+    @Override
+    RequestBody toRequest() {
+      return OkHttpUtils.msgpackRequestBodyOf(singletonList(body));
     }
   }
 }

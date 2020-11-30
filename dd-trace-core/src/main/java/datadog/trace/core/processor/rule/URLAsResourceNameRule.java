@@ -6,15 +6,9 @@ import datadog.trace.core.processor.TraceProcessor;
 
 public class URLAsResourceNameRule implements TraceProcessor.Rule {
 
-  private static final BitSlicedBitapSearch PROTOCOL_SEARCH = new BitSlicedBitapSearch("://");
+  private static final Integer NOT_FOUND = 404;
 
-  private final ThreadLocal<StringBuilder> resourceNameBuilder =
-      new ThreadLocal<StringBuilder>() {
-        @Override
-        protected StringBuilder initialValue() {
-          return new StringBuilder(100);
-        }
-      };
+  private static final BitSlicedBitapSearch PROTOCOL_SEARCH = new BitSlicedBitapSearch("://");
 
   @Override
   public String[] aliases() {
@@ -27,7 +21,7 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
       return;
     }
     final Object httpStatus = span.getTag(Tags.HTTP_STATUS);
-    if (null != httpStatus && (httpStatus.equals(404) || "404".equals(httpStatus))) {
+    if (NOT_FOUND.equals(httpStatus) || "404".equals(httpStatus)) {
       span.setResourceName("404");
       return;
     }
@@ -39,33 +33,29 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
   }
 
   private String extractResourceNameFromURL(final Object method, final String url) {
-    StringBuilder resourceName = resourceNameBuilder.get();
-    try {
+    if (url.isEmpty()) {
+      return null == method ? "/" : method.toString().toUpperCase().trim() + " /";
+    } else {
+      StringBuilder resourceName = new StringBuilder(16);
       if (method != null) {
         final String verb = method.toString().toUpperCase().trim();
         resourceName.append(verb).append(' ');
       }
-      if (url.isEmpty()) {
-        resourceName.append('/');
-      } else {
-        // skip the protocol info if present
-        int start = protocolPosition(url);
-        boolean hasProtocol = start >= 0;
-        start += hasProtocol ? 3 : 1;
-        if (hasProtocol) { // then we need to terminate when an ? or # is found
-          start = url.indexOf('/', start);
-          if (start == -1) { // then this is just a hostname
-            resourceName.append('/');
-          } else { // ignore the hostname and remove any high cardinality info
-            cleanResourceName(url, resourceName, start);
-          }
-        } else { // just need to remove any high cardinality info
+      // skip the protocol info if present
+      int start = protocolPosition(url);
+      boolean hasProtocol = start >= 0;
+      start += hasProtocol ? 3 : 1;
+      if (hasProtocol) { // then we need to terminate when an ? or # is found
+        start = url.indexOf('/', start);
+        if (start == -1) { // then this is just a hostname
+          resourceName.append('/');
+        } else { // ignore the hostname and remove any high cardinality info
           cleanResourceName(url, resourceName, start);
         }
+      } else { // just need to remove any high cardinality info
+        cleanResourceName(url, resourceName, start);
       }
       return resourceName.toString();
-    } finally {
-      resourceName.setLength(0);
     }
   }
 

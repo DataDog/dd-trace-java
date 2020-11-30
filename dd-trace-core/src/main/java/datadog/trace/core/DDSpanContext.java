@@ -1,15 +1,11 @@
 package datadog.trace.core;
 
-import static datadog.trace.api.DDTags.SPAN_TYPE;
-
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.taginterceptor.AbstractTagInterceptor;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -68,6 +64,8 @@ public class DDSpanContext implements AgentSpan.Context {
   private volatile CharSequence spanType;
   /** True indicates that the span reports an error */
   private volatile boolean errorFlag;
+
+  private volatile boolean measuredFlag;
   /**
    * When true, the samplingPriority cannot be changed. This prevents the sampling flag from
    * changing after the context has propagated.
@@ -202,7 +200,19 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   public void setErrorFlag(final boolean errorFlag) {
-    this.errorFlag = errorFlag;
+    if (errorFlag != this.errorFlag) {
+      this.errorFlag = errorFlag;
+    }
+  }
+
+  public boolean isMeasured() {
+    return measuredFlag;
+  }
+
+  public void setMeasured(boolean measured) {
+    if (measured != measuredFlag) {
+      measuredFlag = measured;
+    }
   }
 
   public CharSequence getSpanType() {
@@ -341,17 +351,14 @@ public class DDSpanContext implements AgentSpan.Context {
    * @param value the value of the tag. tags with null values are ignored.
    */
   public void setTag(final String tag, final Object value) {
-    // intercept tags we represent as fields but used to store in a weakly typed map
-    switch (tag) {
-      case SPAN_TYPE:
-        if (value instanceof CharSequence) {
-          this.spanType = (CharSequence) value;
-        }
-        break;
-      default:
-        synchronized (unsafeTags) {
-          unsafeSetTag(tag, value);
-        }
+    if (null == value || "".equals(value)) {
+      synchronized (unsafeTags) {
+        unsafeTags.remove(tag);
+      }
+    } else if (!tracer.getTagInterceptor().interceptTag(exclusiveSpan, tag, value)) {
+      synchronized (unsafeTags) {
+        unsafeSetTag(tag, value);
+      }
     }
   }
 
@@ -362,40 +369,15 @@ public class DDSpanContext implements AgentSpan.Context {
 
     synchronized (unsafeTags) {
       for (final Map.Entry<String, ? extends Object> tag : map.entrySet()) {
-        // not backporting tag fields now represented by fields
-        // because this is internal api
-        unsafeSetTag(tag.getKey(), tag.getValue());
+        if (!tracer.getTagInterceptor().interceptTag(exclusiveSpan, tag.getKey(), tag.getValue())) {
+          unsafeSetTag(tag.getKey(), tag.getValue());
+        }
       }
     }
   }
 
   void unsafeSetTag(final String tag, final Object value) {
-    if (value == null || (value instanceof String && ((String) value).isEmpty())) {
-      unsafeTags.remove(tag);
-      return;
-    }
-
-    boolean addTag = true;
-
-    // Call interceptors
-    final List<AbstractTagInterceptor> interceptors = tracer.getSpanTagInterceptors(tag);
-    if (interceptors != null) {
-      final ExclusiveSpan span = exclusiveSpan;
-      for (final AbstractTagInterceptor interceptor : interceptors) {
-        try {
-          addTag &= interceptor.shouldSetTag(span, tag, value);
-        } catch (final Throwable ex) {
-          log.debug(
-              "Could not intercept the span interceptor={}: {}",
-              interceptor.getClass().getSimpleName(),
-              ex.getMessage());
-        }
-      }
-    }
-
-    if (addTag) {
-      unsafeTags.put(tag, value);
-    }
+    unsafeTags.put(tag, value);
   }
 
   Object getTag(final String key) {
@@ -406,12 +388,6 @@ public class DDSpanContext implements AgentSpan.Context {
 
   Object unsafeGetTag(final String tag) {
     return unsafeTags.get(tag);
-  }
-
-  Object getAndRemoveTag(final String tag) {
-    synchronized (unsafeTags) {
-      return unsafeGetAndRemoveTag(tag);
-    }
   }
 
   Object unsafeGetAndRemoveTag(final String tag) {

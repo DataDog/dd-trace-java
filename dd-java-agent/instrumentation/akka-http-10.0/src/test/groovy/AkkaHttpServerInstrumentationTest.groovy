@@ -1,15 +1,17 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
-import spock.lang.Retry
-
+import okhttp3.Request
+import spock.lang.Shared
+import java.util.concurrent.atomic.AtomicInteger
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object> {
+abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttpTestWebServer> {
 
   @Override
   String component() {
@@ -22,20 +24,14 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object> 
   }
 
   @Override
+  void stopServer(AkkaHttpTestWebServer server) {
+    server.stop()
+  }
+
+  @Override
   boolean testExceptionBody() {
     false
   }
-
-// FIXME: This doesn't work because we don't support bindAndHandle.
-//  @Override
-//  def startServer(int port) {
-//    AkkaHttpTestWebServer.start(port)
-//  }
-//
-//  @Override
-//  void stopServer(Object ignore) {
-//    AkkaHttpTestWebServer.stop()
-//  }
 
   void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
     trace.span {
@@ -68,30 +64,70 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object> 
       }
     }
   }
+
+  @Shared
+  def totalInvocations = 200
+
+  @Shared
+  AtomicInteger counter = new AtomicInteger(0)
+
+  void doAndValidateRequest(int id) {
+    def type = id & 1 ? "p" : "f"
+    String url = address.toString() + "injected-id/${type}ing/$id"
+    def traceId = totalInvocations + id
+    def request = new Request.Builder().url(url).get().header("x-datadog-trace-id", traceId.toString()).build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+    assert responseBodyStr == "${type}ong $id -> $traceId"
+    assert response.code() == 200
+  }
+
+  def "propagate trace id when we ping akka-http concurrently"() {
+    expect:
+    ThreadUtils.runConcurrently(10, totalInvocations, {
+      def id = counter.incrementAndGet()
+      doAndValidateRequest(id)
+    })
+
+    and:
+    TEST_WRITER.waitForTraces(totalInvocations)
+  }
 }
 
-@Retry
 class AkkaHttpServerInstrumentationTestSync extends AkkaHttpServerInstrumentationTest {
   @Override
-  def startServer(int port) {
-    AkkaHttpTestSyncWebServer.start(port)
-  }
-
-  @Override
-  void stopServer(Object ignore) {
-    AkkaHttpTestSyncWebServer.stop()
+  AkkaHttpTestWebServer startServer(int port) {
+    return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandleSync())
   }
 }
 
-@Retry
 class AkkaHttpServerInstrumentationTestAsync extends AkkaHttpServerInstrumentationTest {
   @Override
-  def startServer(int port) {
-    AkkaHttpTestAsyncWebServer.start(port)
+  AkkaHttpTestWebServer startServer(int port) {
+    return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandleAsync())
+  }
+}
+
+class AkkaHttpServerInstrumentationTestBindAndHandle extends AkkaHttpServerInstrumentationTest {
+  @Override
+  AkkaHttpTestWebServer startServer(int port) {
+    return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandle())
   }
 
   @Override
-  void stopServer(Object ignore) {
-    AkkaHttpTestAsyncWebServer.stop()
+  boolean redirectHasBody() {
+    return true
+  }
+}
+
+class AkkaHttpServerInstrumentationTestBindAndHandleAsyncWithRouteAsyncHandler extends AkkaHttpServerInstrumentationTest {
+  @Override
+  AkkaHttpTestWebServer startServer(int port) {
+    return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandleAsyncWithRouteAsyncHandler())
+  }
+
+  @Override
+  boolean redirectHasBody() {
+    return true
   }
 }

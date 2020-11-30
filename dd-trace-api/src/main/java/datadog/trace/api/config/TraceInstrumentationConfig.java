@@ -26,6 +26,8 @@ public final class TraceInstrumentationConfig {
 
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
+  public static final String SERIALVERSIONUID_FIELD_INJECTION =
+      "trace.serialversionuid.field.injection";
 
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
   public static final String LOGS_MDC_TAGS_INJECTION_ENABLED = "logs.mdc.tags.injection";
@@ -37,6 +39,8 @@ public final class TraceInstrumentationConfig {
   public static final String HYSTRIX_TAGS_ENABLED = "hystrix.tags.enabled";
   public static final String SERVLET_PRINCIPAL_ENABLED = "trace.servlet.principal.enabled";
   public static final String SERVLET_ASYNC_TIMEOUT_ERROR = "trace.servlet.async-timeout.error";
+
+  public static final String TEMP_JARS_CLEAN_ON_BOOT = "temp.jars.clean.on.boot";
 
   private TraceInstrumentationConfig() {}
 }

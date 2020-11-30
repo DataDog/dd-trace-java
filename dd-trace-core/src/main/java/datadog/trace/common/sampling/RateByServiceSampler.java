@@ -1,13 +1,14 @@
 package datadog.trace.common.sampling;
 
-import static java.util.Collections.singletonMap;
-import static java.util.Collections.unmodifiableMap;
-
+import datadog.trace.api.Function;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.CoreSpan;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -16,19 +17,17 @@ import lombok.extern.slf4j.Slf4j;
  * <p>The configuration of (serviceName,env)->rate is configured by the core agent.
  */
 @Slf4j
-public class RateByServiceSampler implements Sampler, PrioritySampler, DDAgentResponseListener {
+public class RateByServiceSampler<T extends CoreSpan<T>>
+    implements Sampler<T>, PrioritySampler<T>, DDAgentResponseListener {
   public static final String SAMPLING_AGENT_RATE = "_dd.agent_psr";
-
-  /** Key for setting the default/baseline rate */
-  private static final String DEFAULT_KEY = "service:,env:";
 
   private static final double DEFAULT_RATE = 1.0;
 
-  private volatile Map<String, RateSampler> serviceRates =
-      unmodifiableMap(singletonMap(DEFAULT_KEY, createRateSampler(DEFAULT_RATE)));
+  private volatile RateSamplersByEnvAndService<T> serviceRates =
+      new RateSamplersByEnvAndService<>();
 
   @Override
-  public boolean sample(final DDSpan span) {
+  public boolean sample(final T span) {
     // Priority sampling sends all traces to the core agent, including traces marked dropped.
     // This allows the core agent to collect stats on all traces.
     return true;
@@ -36,35 +35,24 @@ public class RateByServiceSampler implements Sampler, PrioritySampler, DDAgentRe
 
   /** If span is a root span, set the span context samplingPriority to keep or drop */
   @Override
-  public void setSamplingPriority(final DDSpan span) {
+  public void setSamplingPriority(final T span) {
     final String serviceName = span.getServiceName();
     final String env = getSpanEnv(span);
-    final String key = "service:" + serviceName + ",env:" + env;
 
-    final Map<String, RateSampler> rates = serviceRates;
-    RateSampler sampler = serviceRates.get(key);
-    if (sampler == null) {
-      sampler = rates.get(DEFAULT_KEY);
-    }
-
-    final boolean priorityWasSet;
+    final RateSamplersByEnvAndService<T> rates = serviceRates;
+    RateSampler<T> sampler = rates.getSampler(new EnvAndService(env, serviceName));
 
     if (sampler.sample(span)) {
-      priorityWasSet = span.context().setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
+      span.setSamplingPriority(
+          PrioritySampling.SAMPLER_KEEP, SAMPLING_AGENT_RATE, sampler.getSampleRate());
     } else {
-      priorityWasSet = span.context().setSamplingPriority(PrioritySampling.SAMPLER_DROP);
-    }
-
-    // Only set metrics if we actually set the sampling priority
-    // We don't know until the call is completed because the lock is internal to DDSpanContext
-    if (priorityWasSet) {
-      span.context().setMetric(SAMPLING_AGENT_RATE, sampler.getSampleRate());
+      span.setSamplingPriority(
+          PrioritySampling.SAMPLER_DROP, SAMPLING_AGENT_RATE, sampler.getSampleRate());
     }
   }
 
-  private static String getSpanEnv(final DDSpan span) {
-    Object env = span.getTag("env");
-    return null == env ? "" : String.valueOf(env);
+  private String getSpanEnv(final T span) {
+    return span.getTag("env", "");
   }
 
   @Override
@@ -73,21 +61,20 @@ public class RateByServiceSampler implements Sampler, PrioritySampler, DDAgentRe
     final Map<String, Number> newServiceRates = responseJson.get("rate_by_service");
     if (null != newServiceRates) {
       log.debug("Update service sampler rates: {} -> {}", endpoint, responseJson);
-      final Map<String, RateSampler> updatedServiceRates = new HashMap<>();
+      final Map<EnvAndService, RateSampler<T>> updatedServiceRates =
+          new HashMap<>(newServiceRates.size() * 2);
       for (final Map.Entry<String, Number> entry : newServiceRates.entrySet()) {
         if (entry.getValue() != null) {
           updatedServiceRates.put(
-              entry.getKey(), createRateSampler(entry.getValue().doubleValue()));
+              EnvAndService.fromString(entry.getKey()),
+              RateByServiceSampler.<T>createRateSampler(entry.getValue().doubleValue()));
         }
       }
-      if (!updatedServiceRates.containsKey(DEFAULT_KEY)) {
-        updatedServiceRates.put(DEFAULT_KEY, createRateSampler(DEFAULT_RATE));
-      }
-      serviceRates = unmodifiableMap(updatedServiceRates);
+      serviceRates = new RateSamplersByEnvAndService<>(updatedServiceRates);
     }
   }
 
-  private RateSampler createRateSampler(final double sampleRate) {
+  private static <T extends CoreSpan<T>> RateSampler<T> createRateSampler(final double sampleRate) {
     final double sanitizedRate;
     if (sampleRate < 0) {
       log.error("SampleRate is negative or null, disabling the sampler");
@@ -98,6 +85,78 @@ public class RateByServiceSampler implements Sampler, PrioritySampler, DDAgentRe
       sanitizedRate = sampleRate;
     }
 
-    return new DeterministicSampler(sanitizedRate);
+    return new DeterministicSampler<>(sanitizedRate);
+  }
+
+  private static final class RateSamplersByEnvAndService<T extends CoreSpan<T>> {
+    private static final RateSampler<?> DEFAULT = createRateSampler(DEFAULT_RATE);
+
+    private final Map<EnvAndService, RateSampler<T>> serviceRates;
+
+    RateSamplersByEnvAndService() {
+      this(new HashMap<EnvAndService, RateSampler<T>>(0));
+    }
+
+    RateSamplersByEnvAndService(Map<EnvAndService, RateSampler<T>> serviceRates) {
+      this.serviceRates = serviceRates;
+    }
+
+    @SuppressWarnings("unchecked")
+    public RateSampler<T> getSampler(EnvAndService key) {
+      RateSampler<T> sampler = serviceRates.get(key);
+      return null == sampler ? (RateSampler<T>) DEFAULT : sampler;
+    }
+  }
+
+  private static final class EnvAndService {
+
+    private static final DDCache<String, EnvAndService> CACHE = DDCaches.newFixedSizeCache(32);
+
+    private static final Function<String, EnvAndService> PARSE =
+        new Function<String, EnvAndService>() {
+
+          @Override
+          public EnvAndService apply(String key) {
+            // "service:,env:"
+            int serviceStart = key.indexOf(':') + 1;
+            int serviceEnd = key.indexOf(',', serviceStart);
+            int envStart = key.indexOf(':', serviceEnd) + 1;
+            // both empty or at least one invalid
+            if ((serviceStart == serviceEnd && envStart == key.length())
+                || (serviceStart | serviceEnd | envStart) < 0) {
+              return DEFAULT;
+            }
+            String service = key.substring(serviceStart, serviceEnd);
+            String env = key.substring(envStart);
+            return new EnvAndService(env, service);
+          }
+        };
+
+    static final EnvAndService DEFAULT = new EnvAndService("", "");
+
+    public static EnvAndService fromString(String key) {
+      return CACHE.computeIfAbsent(key, PARSE);
+    }
+
+    private final CharSequence env;
+    private final CharSequence service;
+
+    private EnvAndService(CharSequence env, CharSequence service) {
+      this.env = env;
+      this.service = service;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      EnvAndService that = (EnvAndService) o;
+      return env.equals(that.env) && service.equals(that.service);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(env, service);
+    }
   }
 }

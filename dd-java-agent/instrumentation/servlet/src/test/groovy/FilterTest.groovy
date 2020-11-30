@@ -11,8 +11,10 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class FilterTest extends AgentTestRunner {
-  static {
-    System.setProperty("dd.integration.servlet-filter.enabled", "true")
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.integration.servlet-filter.enabled", "true")
   }
 
   def "test doFilter no-parent"() {

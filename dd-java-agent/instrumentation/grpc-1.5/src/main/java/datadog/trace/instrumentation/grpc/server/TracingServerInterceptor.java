@@ -12,7 +12,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import io.grpc.ForwardingServerCall;
 import io.grpc.ForwardingServerCallListener;
 import io.grpc.Metadata;
@@ -37,7 +36,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     final AgentSpan span =
         startSpan(GRPC_SERVER, spanContext)
             .setTag(DDTags.RESOURCE_NAME, call.getMethodDescriptor().getFullMethodName())
-            .setTag(InstrumentationTags.DD_MEASURED, true);
+            .setMeasured(true);
     DECORATE.afterStart(span);
 
     final AgentScope scope = activateSpan(span);
@@ -81,6 +80,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
       try (final AgentScope scope = activateSpan(span)) {
         // Using async propagate here breaks the tests which use InProcessTransport.
         // It also seems logical to not need it at all, so removing it.
+        scope.setAsyncPropagation(false);
         delegate().close(status, trailers);
       } catch (final Throwable e) {
         DECORATE.onError(span, e);

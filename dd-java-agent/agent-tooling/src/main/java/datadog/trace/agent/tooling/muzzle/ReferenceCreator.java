@@ -5,8 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -35,25 +35,18 @@ public class ReferenceCreator extends ClassVisitor {
    */
   private static final String REFERENCE_CREATION_PACKAGE = "datadog.trace.instrumentation.";
 
-  public static Map<String, Reference> createReferencesFrom(
-      final String entryPointClassName, final ClassLoader loader) {
-    return ReferenceCreator.createReferencesFrom(entryPointClassName, loader, true);
-  }
-
   /**
    * Generate all references reachable from a given class.
    *
    * @param entryPointClassName Starting point for generating references.
    * @param loader Classloader used to read class bytes.
-   * @param startFromMethodBodies if true only create refs from method bodies.
    * @return Map of [referenceClassName -> Reference]
    * @throws IllegalStateException if class is not found or unable to be loaded.
    */
-  private static Map<String, Reference> createReferencesFrom(
-      final String entryPointClassName, final ClassLoader loader, boolean startFromMethodBodies)
-      throws IllegalStateException {
+  public static Map<String, Reference> createReferencesFrom(
+      final String entryPointClassName, final ClassLoader loader) throws IllegalStateException {
     final Set<String> visitedSources = new HashSet<>();
-    final Map<String, Reference> references = new HashMap<>();
+    final Map<String, Reference> references = new LinkedHashMap<>();
 
     final Queue<String> instrumentationQueue = new ArrayDeque<>();
     instrumentationQueue.add(entryPointClassName);
@@ -61,11 +54,8 @@ public class ReferenceCreator extends ClassVisitor {
     while (!instrumentationQueue.isEmpty()) {
       final String className = instrumentationQueue.remove();
       visitedSources.add(className);
-      final InputStream in = loader.getResourceAsStream(Utils.getResourceName(className));
-      try {
-        final ReferenceCreator cv = new ReferenceCreator(null, startFromMethodBodies);
-        // only start from method bodies on the first pass
-        startFromMethodBodies = false;
+      try (InputStream in = loader.getResourceAsStream(Utils.getResourceName(className))) {
+        final ReferenceCreator cv = new ReferenceCreator(null);
         final ClassReader reader = new ClassReader(in);
         reader.accept(cv, ClassReader.SKIP_FRAMES);
 
@@ -76,23 +66,16 @@ public class ReferenceCreator extends ClassVisitor {
               && entry.getKey().startsWith(REFERENCE_CREATION_PACKAGE)) {
             instrumentationQueue.add(entry.getKey());
           }
-          if (references.containsKey(entry.getKey())) {
-            references.put(entry.getKey(), references.get(entry.getKey()).merge(entry.getValue()));
-          } else {
+          Reference toMerge = references.get(entry.getKey());
+          if (null == toMerge) {
             references.put(entry.getKey(), entry.getValue());
+          } else {
+            references.put(entry.getKey(), toMerge.merge(entry.getValue()));
           }
         }
 
       } catch (final IOException e) {
         throw new IllegalStateException("Error reading class " + className, e);
-      } finally {
-        if (in != null) {
-          try {
-            in.close();
-          } catch (final IOException e) {
-            throw new IllegalStateException("Error closing class " + className, e);
-          }
-        }
       }
     }
     return references;
@@ -146,8 +129,7 @@ public class ReferenceCreator extends ClassVisitor {
    *
    * @return A reference flag with the required level of access.
    */
-  private static Reference.Flag computeMinimumMethodAccess(
-      final Type from, final Type to, final Type methodType) {
+  private static Reference.Flag computeMinimumMethodAccess(final Type from, final Type to) {
     if (from.getInternalName().equalsIgnoreCase(to.getInternalName())) {
       return Reference.Flag.PRIVATE_OR_HIGHER;
     } else {
@@ -168,15 +150,12 @@ public class ReferenceCreator extends ClassVisitor {
     return type;
   }
 
-  private final Map<String, Reference> references = new HashMap<>();
+  private final Map<String, Reference> references = new LinkedHashMap<>();
   private String refSourceClassName;
   private Type refSourceType;
-  private final boolean createFromMethodBodiesOnly;
 
-  private ReferenceCreator(
-      final ClassVisitor classVisitor, final boolean createFromMethodBodiesOnly) {
+  private ReferenceCreator(final ClassVisitor classVisitor) {
     super(Opcodes.ASM7, classVisitor);
-    this.createFromMethodBodiesOnly = createFromMethodBodiesOnly;
   }
 
   public Map<String, Reference> getReferences() {
@@ -349,7 +328,7 @@ public class ReferenceCreator extends ClassVisitor {
       final List<Reference.Flag> methodFlags = new ArrayList<>();
       methodFlags.add(
           opcode == Opcodes.INVOKESTATIC ? Reference.Flag.STATIC : Reference.Flag.NON_STATIC);
-      methodFlags.add(computeMinimumMethodAccess(refSourceType, ownerType, methodType));
+      methodFlags.add(computeMinimumMethodAccess(refSourceType, ownerType));
 
       addReference(
           new Reference.Builder(ownerType.getInternalName())

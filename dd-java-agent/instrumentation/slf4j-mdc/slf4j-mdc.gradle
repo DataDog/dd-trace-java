@@ -4,7 +4,7 @@ muzzle {
   pass {
     group = 'org.slf4j'
     module = 'slf4j-api'
-    versions = '(,)'
+    versions = '[,]'
   }
 }
 

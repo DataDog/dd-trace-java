@@ -33,12 +33,34 @@ class Utf8ByteStringTest extends DDSpecification {
     "foo"                                                         | false
     "bar"                                                         | false
     "alongerstring"                                               | false
-    new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | false
     null                                                          | true
     "foo"                                                         | true
     "bar"                                                         | true
     "alongerstring"                                               | true
-    new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | true
+  }
+
+  def "wrap bytes and produce the right String and bytes"() {
+    when:
+    final utf8String = UTF8BytesString.create(bytes)
+
+    then:
+    if (utf8String != null) {
+      utf8String.toString() == str
+      utf8String.hashCode() == str.hashCode()
+      def utf8Bytes = ByteBuffer.allocate(bytes.length)
+      utf8String.transferTo(utf8Bytes)
+      utf8Bytes.array() == bytes
+      !utf8String.equals(null)
+      utf8String != str
+      utf8String != UTF8BytesString.create("somethingcompletelydifferent")
+    }
+
+    where:
+    str             | bytes
+    null            | null
+    "foo"           | [0x66, 0x6f, 0x6f] as byte[]
+    "bar"           | [0x62, 0x61, 0x72] as byte[]
+    "alongerstring" | [0x61, 0x6c, 0x6f, 0x6e, 0x67, 0x65, 0x72, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67] as byte[]
   }
 
   def "behave like a proper CharSequence"() {
@@ -63,12 +85,10 @@ class Utf8ByteStringTest extends DDSpecification {
     new StringBuffer("bar")                                       | true
     new StringBuffer("someotherlongstring")                       | true
     UTF8BytesString.create("utf8string")                          | true
-    new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | true
     null                                                          | false
     "foo"                                                         | false
     new StringBuffer("bar")                                       | false
     new StringBuffer("someotherlongstring")                       | false
     UTF8BytesString.create("utf8string")                          | false
-    new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | false
   }
 }

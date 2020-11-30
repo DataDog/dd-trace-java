@@ -1,22 +1,26 @@
 package datadog.trace.util;
 
-import static datadog.trace.util.DaemonThreadFactory.TASK_SCHEDULER;
+import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public final class AgentTaskScheduler {
+public final class AgentTaskScheduler implements Executor {
   public static final AgentTaskScheduler INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
 
-  private static final long SHUTDOWN_WAIT_MILLIS = 5_000;
+  private static final long SHUTDOWN_TIMEOUT = 5; // seconds
 
   public interface Task<T> {
     void run(T target);
@@ -26,19 +30,68 @@ public final class AgentTaskScheduler {
     T get();
   }
 
+  public static final class RunnableTask implements Task<Runnable> {
+    public static final RunnableTask INSTANCE = new RunnableTask();
+
+    @Override
+    public void run(final Runnable target) {
+      target.run();
+    }
+  }
+
+  public static final class Scheduled<T> implements Target<T> {
+    private volatile T referent;
+
+    private Scheduled(final T referent) {
+      this.referent = referent;
+    }
+
+    @Override
+    public T get() {
+      return referent;
+    }
+
+    public void cancel() {
+      referent = null;
+    }
+  }
+
   private static final class WeakTarget<T> extends WeakReference<T> implements Target<T> {
-    public WeakTarget(final T referent) {
+    private WeakTarget(final T referent) {
       super(referent);
     }
   }
 
   private final DelayQueue<PeriodicTask<?>> workQueue = new DelayQueue<>();
-  private final ThreadFactory threadFactory;
+  private final AgentThread agentThread;
   private volatile Thread worker;
   private volatile boolean shutdown;
 
-  public AgentTaskScheduler(final ThreadFactory threadFactory) {
-    this.threadFactory = threadFactory;
+  public AgentTaskScheduler(final AgentThread agentThread) {
+    this.agentThread = agentThread;
+  }
+
+  @Override
+  public void execute(final Runnable target) {
+    schedule(RunnableTask.INSTANCE, target, 0, MILLISECONDS);
+  }
+
+  public <T> Scheduled<T> schedule(
+      final Task<T> task, final T target, final long initialDelay, final TimeUnit unit) {
+    final Scheduled<T> scheduled = new Scheduled<>(target);
+    scheduleTarget(task, scheduled, initialDelay, 0, unit);
+    return scheduled;
+  }
+
+  public <T> Scheduled<T> scheduleAtFixedRate(
+      final Task<T> task,
+      final T target,
+      final long initialDelay,
+      final long period,
+      final TimeUnit unit) {
+    final Scheduled<T> scheduled = new Scheduled<>(target);
+    scheduleTarget(task, scheduled, initialDelay, period, unit);
+    return scheduled;
   }
 
   public <T> void weakScheduleAtFixedRate(
@@ -47,10 +100,10 @@ public final class AgentTaskScheduler {
       final long initialDelay,
       final long period,
       final TimeUnit unit) {
-    scheduleAtFixedRate(task, new WeakTarget<>(target), initialDelay, period, unit);
+    scheduleTarget(task, new WeakTarget<>(target), initialDelay, period, unit);
   }
 
-  public <T> void scheduleAtFixedRate(
+  private <T> void scheduleTarget(
       final Task<T> task,
       final Target<T> target,
       final long initialDelay,
@@ -66,9 +119,9 @@ public final class AgentTaskScheduler {
         if (!shutdown && worker == null) {
           prepareWorkQueue();
           try {
-            worker = threadFactory.newThread(new Worker());
+            worker = newAgentThread(agentThread, new Worker());
             // register hook after worker is assigned, but before we start it
-            Runtime.getRuntime().addShutdownHook(new Shutdown());
+            Runtime.getRuntime().addShutdownHook(new ShutdownHook());
             worker.start();
           } catch (final IllegalStateException e) {
             shutdown = true; // couldn't add hook, JVM is shutting down
@@ -80,7 +133,7 @@ public final class AgentTaskScheduler {
     if (!shutdown) {
       workQueue.offer(new PeriodicTask<>(task, target, initialDelay, period, unit));
     } else {
-      log.warn("Agent task scheduler is shutdown. Will not run {}", describeTask(task, target));
+      log.debug("Agent task scheduler is shutdown. Will not run {}", describeTask(task, target));
     }
   }
 
@@ -94,24 +147,42 @@ public final class AgentTaskScheduler {
     }
   }
 
+  // visibleForTesting
+  int taskCount() {
+    return workQueue.size();
+  }
+
   public boolean isShutdown() {
     return shutdown;
+  }
+
+  public void shutdown(final long timeout, final TimeUnit unit) {
+    shutdown = true;
+    final Thread t = worker;
+    if (t != null) {
+      t.interrupt();
+      if (timeout > 0) {
+        try {
+          t.join(unit.toMillis(timeout));
+        } catch (final InterruptedException e) {
+          // continue shutdown...
+        }
+      }
+    }
   }
 
   private static <T> String describeTask(final Task<T> task, final Target<T> target) {
     return "periodic task " + task.getClass().getSimpleName() + " with target " + target.get();
   }
 
-  private final class Shutdown extends Thread {
+  private final class ShutdownHook extends Thread {
+    ShutdownHook() {
+      super(AGENT_THREAD_GROUP, agentThread.threadName + "-shutdown-hook");
+    }
+
     @Override
-    @SneakyThrows
     public void run() {
-      shutdown = true;
-      final Thread t = worker;
-      if (t != null) {
-        t.interrupt();
-        t.join(SHUTDOWN_WAIT_MILLIS);
-      }
+      shutdown(SHUTDOWN_TIMEOUT, SECONDS);
     }
   }
 
@@ -125,7 +196,7 @@ public final class AgentTaskScheduler {
           work.run();
         } catch (final Throwable e) {
           if (work != null) {
-            log.warn("Uncaught exception from {}", work, e);
+            log.debug("Uncaught exception from {}", work, e);
           }
         } finally {
           if (work != null && work.reschedule()) {
@@ -133,6 +204,7 @@ public final class AgentTaskScheduler {
           }
         }
       }
+      workQueue.clear();
       worker = null;
     }
   }
@@ -143,10 +215,10 @@ public final class AgentTaskScheduler {
 
     private final Task<T> task;
     private final Target<T> target;
-    private final int period;
+    private final long period;
     private final int taskSequence;
 
-    private long time;
+    private long nextFireTime;
 
     public PeriodicTask(
         final Task<T> task,
@@ -157,10 +229,10 @@ public final class AgentTaskScheduler {
 
       this.task = task;
       this.target = target;
-      this.period = (int) unit.toNanos(period);
+      this.period = unit.toNanos(period);
       this.taskSequence = TASK_SEQUENCE_GENERATOR.getAndIncrement();
 
-      time = System.nanoTime() + unit.toNanos(initialDelay);
+      nextFireTime = System.nanoTime() + unit.toNanos(initialDelay);
     }
 
     public void run() {
@@ -171,8 +243,8 @@ public final class AgentTaskScheduler {
     }
 
     public boolean reschedule() {
-      if (target.get() != null) {
-        time += period;
+      if (period > 0 && target.get() != null) {
+        nextFireTime += period;
         return true;
       }
       return false;
@@ -180,7 +252,7 @@ public final class AgentTaskScheduler {
 
     @Override
     public long getDelay(final TimeUnit unit) {
-      return unit.convert(time - System.nanoTime(), NANOSECONDS);
+      return unit.convert(nextFireTime - System.nanoTime(), NANOSECONDS);
     }
 
     @Override
@@ -191,7 +263,7 @@ public final class AgentTaskScheduler {
       long taskOrder;
       if (other instanceof PeriodicTask<?>) {
         final PeriodicTask<?> otherTask = (PeriodicTask<?>) other;
-        taskOrder = time - otherTask.time;
+        taskOrder = nextFireTime - otherTask.nextFireTime;
         if (taskOrder == 0) {
           taskOrder = taskSequence - otherTask.taskSequence;
         }

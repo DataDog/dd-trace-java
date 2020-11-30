@@ -1,9 +1,10 @@
 package datadog.opentracing.resolver
 
 import datadog.opentracing.DDTracer
-import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import io.opentracing.contrib.tracerresolver.TracerResolver
+
+import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED
 
 class DDTracerResolverTest extends DDSpecification {
 
@@ -19,16 +20,13 @@ class DDTracerResolverTest extends DDSpecification {
 
   def "test disable DDTracerResolver"() {
     setup:
-    System.setProperty("dd.trace.resolver.enabled", "false")
+    injectSysConfig(TRACE_RESOLVER_ENABLED, "false")
 
     when:
-    def tracer = resolver.resolve(new Config())
+    def tracer = resolver.resolve()
 
     then:
     tracer == null
-
-    cleanup:
-    System.clearProperty("dd.trace.resolver.enabled")
   }
 
 }

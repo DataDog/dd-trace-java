@@ -2,7 +2,6 @@ import com.google.common.reflect.ClassPath
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.SpockRunner
 import datadog.trace.agent.test.utils.ClasspathUtils
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.agent.tooling.Constants
 import datadog.trace.api.GlobalTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -23,11 +22,14 @@ class AgentTestRunnerTest extends AgentTestRunner {
   private Class sharedSpanClass
 
   static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd." + TRACE_CLASSES_EXCLUDE, "config.exclude.packagename.*, config.exclude.SomeClass,config.exclude.SomeClass\$NestedClass")
-    }
-
     AGENT_INSTALLED_IN_CLINIT = getAgentTransformer() != null
+  }
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    
+    injectSysConfig(TRACE_CLASSES_EXCLUDE, "config.exclude.packagename.*, config.exclude.SomeClass,config.exclude.SomeClass\$NestedClass")
   }
 
   def setupSpec() {

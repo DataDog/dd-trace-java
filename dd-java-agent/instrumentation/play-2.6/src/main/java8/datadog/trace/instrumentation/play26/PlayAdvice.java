@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.PLAY_
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
 import play.api.mvc.Request;
@@ -36,7 +35,7 @@ public class PlayAdvice {
       // Do not extract the context.
       span = startSpan(PLAY_REQUEST);
     }
-    span.setTag(InstrumentationTags.DD_MEASURED, true);
+    span.setMeasured(true);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, req);
 
@@ -78,7 +77,9 @@ public class PlayAdvice {
     // span finished in RequestCompleteCallback
 
     final AgentSpan rootSpan = activeSpan();
-    // set the resource name on the upstream akka/netty span
-    DECORATE.onRequest(rootSpan, req);
+    // set the resource name on the upstream akka/netty span if there is one
+    if (rootSpan != null) {
+      DECORATE.onRequest(rootSpan, req);
+    }
   }
 }

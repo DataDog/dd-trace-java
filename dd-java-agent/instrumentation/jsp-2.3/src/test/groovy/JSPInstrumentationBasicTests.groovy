@@ -18,15 +18,6 @@ import spock.lang.Unroll
 
 class JSPInstrumentationBasicTests extends AgentTestRunner {
 
-  static {
-    // skip jar scanning using environment variables:
-    // http://tomcat.apache.org/tomcat-7.0-doc/config/systemprops.html#JAR_Scanning
-    // having this set allows us to test with old versions of the tomcat api since
-    // JarScanFilter did not exist in the tomcat 7 api
-    System.setProperty("org.apache.catalina.startup.ContextConfig.jarsToSkip", "*")
-    System.setProperty("org.apache.catalina.startup.TldConfig.jarsToSkip", "*")
-  }
-
   @Shared
   int port
   @Shared
@@ -42,6 +33,18 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
   String baseUrl
 
   OkHttpClient client = OkHttpUtils.client()
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    
+    // skip jar scanning using environment variables:
+    // http://tomcat.apache.org/tomcat-7.0-doc/config/systemprops.html#JAR_Scanning
+    // having this set allows us to test with old versions of the tomcat api since
+    // JarScanFilter did not exist in the tomcat 7 api
+    System.setProperty("org.apache.catalina.startup.ContextConfig.jarsToSkip", "*")
+    System.setProperty("org.apache.catalina.startup.TldConfig.jarsToSkip", "*")
+  }
 
   def setupSpec() {
     baseDir = Files.createTempDir()

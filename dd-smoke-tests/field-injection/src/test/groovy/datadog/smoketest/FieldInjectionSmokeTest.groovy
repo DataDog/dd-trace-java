@@ -35,6 +35,8 @@ class FieldInjectionSmokeTest extends Specification {
       new HashSet<>([fieldName(ForkJoinTask)]))
     testedTypesAndExpectedFields.put(FutureTask.getName(),
       new HashSet<>([fieldName(RunnableFuture)]))
+    testedTypesAndExpectedFields.put("java.util.concurrent.CompletableFuture\$UniCompletion",
+      new HashSet<>([fieldName(ForkJoinTask), fieldName("java.util.concurrent.CompletableFuture\$UniCompletion")]))
     String jar = System.getProperty("datadog.smoketest.fieldinjection.shadowJar.path")
     List<String> command = new ArrayList<>()
     command.add(javaPath())
@@ -70,6 +72,10 @@ class FieldInjectionSmokeTest extends Specification {
 
 
   def fieldName(Class<?> klass) {
-    return "__datadogContext\$" + klass.getName().replace('.', '$')
+    return fieldName(klass.getName())
+  }
+
+  def fieldName(String klass) {
+    return "__datadogContext\$" + klass.replace('.', '$')
   }
 }

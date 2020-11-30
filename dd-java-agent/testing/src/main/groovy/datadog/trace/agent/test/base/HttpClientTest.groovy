@@ -2,7 +2,6 @@ package datadog.trace.agent.test.base
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -15,10 +14,11 @@ import spock.lang.Unroll
 import java.util.concurrent.ExecutionException
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING
 import static org.junit.Assume.assumeTrue
 
 @Unroll
@@ -88,9 +88,8 @@ abstract class HttpClientTest extends AgentTestRunner {
 
   def "basic #method request #url - tagQueryString=#tagQueryString"() {
     when:
-    def status = withConfigOverride(Config.HTTP_CLIENT_TAG_QUERY_STRING, "$tagQueryString") {
-      doRequest(method, url)
-    }
+    injectSysConfig(HTTP_CLIENT_TAG_QUERY_STRING, "$tagQueryString")
+    def status = doRequest(method, url)
 
     then:
     status == 200
@@ -138,9 +137,8 @@ abstract class HttpClientTest extends AgentTestRunner {
 
   def "basic #method request with split-by-domain"() {
     when:
-    def status = withConfigOverride(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true") {
-      doRequest(method, server.address.resolve("/success"))
-    }
+    injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
+    def status = doRequest(method, server.address.resolve("/success"))
 
     then:
     status == 200
@@ -157,10 +155,9 @@ abstract class HttpClientTest extends AgentTestRunner {
 
   def "trace request without propagation"() {
     when:
-    def status = withConfigOverride(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService") {
-      runUnderTrace("parent") {
-        doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"])
-      }
+    injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
+    def status = runUnderTrace("parent") {
+      doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"])
     }
 
     then:
@@ -195,10 +192,11 @@ abstract class HttpClientTest extends AgentTestRunner {
     status == 200
     // only one trace (client).
     assertTraces(1) {
+      sortSpansByStart()
       trace(size(3)) {
         basicSpan(it, "parent")
-        basicSpan(it, "child", span(0))
         clientSpan(it, span(0), method)
+        basicSpan(it, "child", span(0))
       }
     }
 

@@ -6,8 +6,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
-
 class HttpClientDecoratorTest extends ClientDecoratorTest {
 
   @Shared
@@ -17,12 +15,11 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
 
   def "test onRequest"() {
     setup:
+    injectSysConfig(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
     def decorator = newDecorator()
 
     when:
-    withConfigOverride(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService") {
-      decorator.onRequest(span, req)
-    }
+    decorator.onRequest(span, req)
 
     then:
     if (req) {
@@ -46,12 +43,11 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
 
   def "test url handling for #url"() {
     setup:
+    injectSysConfig(Config.HTTP_CLIENT_TAG_QUERY_STRING, "$tagQueryString")
     def decorator = newDecorator()
 
     when:
-    withConfigOverride(Config.HTTP_CLIENT_TAG_QUERY_STRING, "$tagQueryString") {
-      decorator.onRequest(span, req)
-    }
+    decorator.onRequest(span, req)
 
     then:
     if (expectedUrl) {
@@ -99,20 +95,23 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     if (status) {
       1 * span.setTag(Tags.HTTP_STATUS, status)
     }
+    if (error) {
+      1 * span.setError(true)
+    }
     0 * _
 
     where:
-    status | resp
-    200    | [status: 200]
-    399    | [status: 399]
-    400    | [status: 400]
-    499    | [status: 499]
-    500    | [status: 500]
-    500    | [status: 500]
-    500    | [status: 500]
-    600    | [status: 600]
-    null   | [status: null]
-    null   | null
+    status | resp           | error
+    200    | [status: 200]  | false
+    399    | [status: 399]  | false
+    400    | [status: 400]  | true
+    499    | [status: 499]  | true
+    500    | [status: 500]  | false
+    500    | [status: 500]  | false
+    500    | [status: 500]  | false
+    600    | [status: 600]  | false
+    null   | [status: null] | false
+    null   | null           | false
   }
 
   def "test assert null span"() {

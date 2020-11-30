@@ -26,6 +26,7 @@ testSets {
 dependencies {
   compile project(':dd-trace-api')
   compile project(':internal-api')
+  compile project(':utils:histograms')
   compile project(':utils:container-utils')
 
   compile group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"
@@ -36,7 +37,7 @@ dependencies {
   compile group: 'org.hdrhistogram', name: 'HdrHistogram', version: '2.1.12'
   compile group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'
   compile group: 'com.github.jnr', name: 'jnr-unixsocket', version: "${versions.jnr_unixsocket}"
-  compile group: 'org.jctools', name: 'jctools-core', version: '3.1.0'
+  compile group: 'org.jctools', name: 'jctools-core', version: '3.2.0'
 
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor deps.autoserviceProcessor
@@ -44,8 +45,8 @@ dependencies {
 
   testCompile project(":dd-java-agent:testing")
   testCompile group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
-  testCompile group: 'com.github.stefanbirkner', name: 'system-rules', version: '1.19.0'
   testCompile group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
+  testCompile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.13.0'
 
   traceAgentTestCompile deps.testcontainers
 }

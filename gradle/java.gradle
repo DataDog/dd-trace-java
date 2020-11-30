@@ -129,6 +129,9 @@ repositories {
   mavenCentral()
   maven {
     url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
+    mavenContent {
+      snapshotsOnly()
+    }
   }
   maven {
     url "https://repo.typesafe.com/typesafe/releases"
@@ -140,7 +143,6 @@ dependencies {
   testCompile deps.groovy
   testCompile deps.testLogging
   testCompile group: 'info.solidsoft.spock', name: 'spock-global-unroll', version: '0.5.1'
-  testCompile group: 'com.github.stefanbirkner', name: 'system-rules', version: '1.19.0'
 }
 
 jar {
@@ -281,14 +283,11 @@ def isTestingInstrumentation(Project project) {
   return ["junit-4.10", "testng-6.4", "junit-5.3"].contains(project.name)
 }
 
-// Disable default test tasks if current JVM doesn't match version requirements
-tasks.withType(Test).configureEach {
-  if (name.endsWith("Generated")) {
-    return
-  }
-
-  // Always run all tests that are runnable on JVM used for compilation
-  onlyIf { isJavaVersionAllowed(JavaVersion.current()) }
+// This is slightly complicated because we need to dereference symlinks to make sure
+// we are considering same JVM implementation
+def currentJavaHome = new File(System.getProperty("java.home")).toPath().toRealPath()
+if (currentJavaHome.endsWith("jre")) {
+  currentJavaHome = currentJavaHome.parent
 }
 
 // Generate tests tasks for all provided JVMs
@@ -302,12 +301,6 @@ for (def env : System.getenv().entrySet()) {
   def javaPath = "$javaHome/bin/java"
   def javaVersion = getJavaExecutableVersion(javaPath)
 
-  // This is slightly complicated because we need to dereference symlinks to make sure
-  // we are considering same JVM implementation
-  def currentJavaHome = new File(System.getProperty("java.home")).toPath().toRealPath()
-  if (currentJavaHome.endsWith("jre")) {
-    currentJavaHome = currentJavaHome.parent
-  }
   if (currentJavaHome == new File(javaHome).toPath().toRealPath()) {
     // Skip JVM implementation we are running gradle on
     continue
@@ -320,23 +313,8 @@ for (def env : System.getenv().entrySet()) {
   tasks.check.dependsOn parentTask
 
   tasks.withType(Test).all {
-    //Avoid executing classes used to test testing frameworks instrumentation.
-    if (isTestingInstrumentation(project)) {
-      exclude "**/TestSucceed*"
-      exclude "**/TestFailed*"
-      exclude "**/TestFailedWithSuccessPercentage*"
-      exclude "**/TestError*"
-      exclude "**/TestSkipped*"
-      exclude "**/TestSkippedClass*"
-      exclude "**/TestInheritance*", "**/BaseTestInheritance*"
-      exclude "**/TestFactory*"
-      exclude "**/TestParameterized*"
-      exclude "**/TestRepeated*"
-      exclude "**/TestTemplate*"
-    }
-
     //if (name.endsWith("Generated")) {
-    if (!name.equals("test")) {
+    if (!name.equals("test") && !name.equals("forkedTest")) {
       // The way we're copying the test doesn't currently work with "test-sets" generated tests.
       return
     }
@@ -365,6 +343,18 @@ for (def env : System.getenv().entrySet()) {
   }
 }
 
+// Task for tests that want to run forked in their own separate JVM
+task forkedTest(type: Test) {
+  setIncludes(["**/*ForkedTest*"])
+  forkEvery 1
+}
+
+test {
+  exclude("**/*ForkedTest*")
+  dependsOn forkedTest
+}
+
+// Go through the Test tasks and configure them
 tasks.withType(Test).configureEach {
   if (project.findProperty("enableJunitPlatform") == true) {
     useJUnitPlatform()
@@ -380,6 +370,37 @@ tasks.withType(Test).configureEach {
   // Enable force rerun of tests with -Prerun.tests.${project.name}
   outputs.upToDateWhen {
     !project.rootProject.hasProperty("rerun.tests.${project.name}")
+  }
+
+  //Avoid executing classes used to test testing frameworks instrumentation
+  if (isTestingInstrumentation(project)) {
+    exclude "**/TestSucceed*"
+    exclude "**/TestFailed*"
+    exclude "**/TestFailedWithSuccessPercentage*"
+    exclude "**/TestError*"
+    exclude "**/TestSkipped*"
+    exclude "**/TestSkippedClass*"
+    exclude "**/TestInheritance*", "**/BaseTestInheritance*"
+    exclude "**/TestFactory*"
+    exclude "**/TestParameterized*"
+    exclude "**/TestRepeated*"
+    exclude "**/TestTemplate*"
+    exclude "**/TestDisableTestTrace*"
+  }
+
+  // Split up tests that want to run forked in their own separate JVM for generated tasks
+  if (name.startsWith("forkedTest")) {
+    setIncludes(["**/*ForkedTest*"])
+    forkEvery 1
+  } else {
+    exclude("**/*ForkedTest*")
+  }
+
+  // Disable default test tasks if the current JVM doesn't match version requirements
+  if (!name.endsWith("Generated")) {
+    // Always run all tests that are runnable on JVM used for compilation
+    onlyIf { isJavaVersionAllowed(JavaVersion.current()) }
+    it.executable = "$currentJavaHome/bin/java"
   }
 }
 

@@ -13,10 +13,11 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
@@ -28,7 +29,8 @@ import net.bytebuddy.utility.JavaModule;
 
 @Slf4j
 public class AgentInstaller {
-  private static final Map<String, List<Runnable>> CLASS_LOAD_CALLBACKS = new HashMap<>();
+  private static final ConcurrentHashMap<String, List<Runnable>> CLASS_LOAD_CALLBACKS =
+      new ConcurrentHashMap<>();
   private static volatile Instrumentation INSTRUMENTATION;
 
   public static Instrumentation getInstrumentation() {
@@ -43,9 +45,9 @@ public class AgentInstaller {
   public static void installBytebuddyAgent(final Instrumentation inst) {
     if (Config.get().isTraceEnabled()) {
       installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
-      log.info("Class instrumentation installed");
+      log.debug("Class instrumentation installed");
     } else {
-      log.info("Tracing is disabled, not installing instrumentations.");
+      log.debug("Tracing is disabled, not installing instrumentations.");
     }
   }
 
@@ -267,14 +269,8 @@ public class AgentInstaller {
    * @param callback runnable to invoke when class name matches
    */
   public static void registerClassLoadCallback(final String className, final Runnable callback) {
-    synchronized (CLASS_LOAD_CALLBACKS) {
-      List<Runnable> callbacks = CLASS_LOAD_CALLBACKS.get(className);
-      if (callbacks == null) {
-        callbacks = new ArrayList<>();
-        CLASS_LOAD_CALLBACKS.put(className, callbacks);
-      }
-      callbacks.add(callback);
-    }
+    CLASS_LOAD_CALLBACKS.putIfAbsent(className, new CopyOnWriteArrayList<Runnable>());
+    CLASS_LOAD_CALLBACKS.get(className).add(callback);
   }
 
   private static class ClassLoadListener implements AgentBuilder.Listener {
@@ -314,12 +310,10 @@ public class AgentInstaller {
         final ClassLoader classLoader,
         final JavaModule javaModule,
         final boolean b) {
-      synchronized (CLASS_LOAD_CALLBACKS) {
-        final List<Runnable> callbacks = CLASS_LOAD_CALLBACKS.get(typeName);
-        if (callbacks != null) {
-          for (final Runnable callback : callbacks) {
-            callback.run();
-          }
+      final List<Runnable> callbacks = CLASS_LOAD_CALLBACKS.get(typeName);
+      if (callbacks != null) {
+        for (final Runnable callback : callbacks) {
+          callback.run();
         }
       }
     }

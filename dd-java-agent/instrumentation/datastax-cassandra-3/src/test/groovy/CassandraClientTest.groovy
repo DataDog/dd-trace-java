@@ -11,7 +11,6 @@ import spock.lang.Shared
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
@@ -51,12 +50,12 @@ class CassandraClientTest extends AgentTestRunner {
   def "test sync"() {
     setup:
     Session session = cluster.connect(keyspace)
+    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
 
-    withConfigOverride(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
-      session.execute(statement)
-    }
+    when:
+    session.execute(statement)
 
-    expect:
+    then:
     assertTraces(keyspace ? 2 : 1) {
       if (keyspace) {
         trace(1) {
@@ -83,20 +82,21 @@ class CassandraClientTest extends AgentTestRunner {
   def "test async"() {
     setup:
     def callbackExecuted = new AtomicBoolean()
+    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
+
+    when:
     Session session = cluster.connect(keyspace)
     runUnderTrace("parent") {
-      withConfigOverride(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
-        def future = session.executeAsync(statement)
-        future.addListener({ ->
-          runUnderTrace("callbackListener") {
-            callbackExecuted.set(true)
-          }
-        }, executor)
-      }
+      def future = session.executeAsync(statement)
+      future.addListener({ ->
+        runUnderTrace("callbackListener") {
+          callbackExecuted.set(true)
+        }
+      }, executor)
       blockUntilChildSpansFinished(2)
     }
 
-    expect:
+    then:
     callbackExecuted.get()
     assertTraces(keyspace ? 2 : 1) {
       if (keyspace) {

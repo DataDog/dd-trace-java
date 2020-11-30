@@ -1,7 +1,7 @@
 package datadog.trace.common.writer.ddagent
 
 import com.timgroup.statsd.NoOpStatsDClient
-import datadog.trace.core.DDSpanData
+import datadog.trace.core.CoreSpan
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.test.util.DDSpecification
@@ -18,17 +18,17 @@ class TraceMapperRealAgentTest extends DDSpecification {
   @Shared
   Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
   @Shared
-  DDAgentApi v05Api = new DDAgentApi("http://localhost:8126", null, 30_000, true, monitoring)
+  DDAgentApi v05Api = new DDAgentApi("http://localhost:8126", null, 30_000, true, false, monitoring)
   @Shared
-  DDAgentApi v04Api = new DDAgentApi("http://localhost:8126", null, 30_000, false, monitoring)
+  DDAgentApi v04Api = new DDAgentApi("http://localhost:8126", null, 30_000, false, false, monitoring)
 
   def "send random traces"() {
     setup:
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     PayloadDispatcher dispatcher = new PayloadDispatcher(v05 ? v05Api : v04Api, healthMetrics, monitoring)
-    List<List<DDSpanData>> traces = generateRandomTraces(traceCount, lowCardinality)
+    List<List<CoreSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     when:
-    for (List<DDSpanData> trace : traces) {
+    for (List<CoreSpan> trace : traces) {
       dispatcher.addTrace(trace)
     }
     dispatcher.flush()
@@ -37,6 +37,7 @@ class TraceMapperRealAgentTest extends DDSpecification {
     0 * healthMetrics.onFailedSend(_, _, _)
     _ * healthMetrics.onSend(_, _, _)
     _ * healthMetrics.onSerialize(_)
+    _ * healthMetrics.onFailedPublish(_)
     0 * _
 
     where:

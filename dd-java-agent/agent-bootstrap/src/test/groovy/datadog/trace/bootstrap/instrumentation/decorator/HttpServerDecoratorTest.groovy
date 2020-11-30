@@ -1,13 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.DefaultURIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
@@ -40,12 +38,11 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def "test url handling for #url"() {
     setup:
+    injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "$tagQueryString")
     def decorator = newDecorator()
 
     when:
-    withConfigOverride(HTTP_SERVER_TAG_QUERY_STRING, "$tagQueryString") {
-      decorator.onRequest(span, req)
-    }
+    decorator.onRequest(span, req)
 
     then:
     if (expectedUrl) {
@@ -114,20 +111,23 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (status) {
       1 * span.setTag(Tags.HTTP_STATUS, status)
     }
+    if (error) {
+      1 * span.setError(true)
+    }
     0 * _
 
     where:
-    status | resp
-    200    | [status: 200]
-    399    | [status: 399]
-    400    | [status: 400]
-    404    | [status: 404]
-    404    | [status: 404]
-    499    | [status: 499]
-    500    | [status: 500]
-    600    | [status: 600]
-    null   | [status: null]
-    null   | null
+    status | resp            | error
+    200    | [status: 200]   | false
+    399    | [status: 399]   | false
+    400    | [status: 400]   | false
+    404    | [status: 404]   | false
+    404    | [status: 404]   | false
+    499    | [status: 499]   | false
+    500    | [status: 500]   | true
+    600    | [status: 600]   | false
+    null   | [status: null]  | false
+    null   | null            | false
   }
 
   def "test assert null span"() {

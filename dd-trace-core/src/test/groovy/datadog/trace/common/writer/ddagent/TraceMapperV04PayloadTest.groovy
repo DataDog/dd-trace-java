@@ -1,9 +1,7 @@
 package datadog.trace.common.writer.ddagent
 
-
-import datadog.trace.core.DDSpanData
-import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
-import datadog.trace.core.serialization.msgpack.Packer
+import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
 import org.msgpack.core.MessageFormat
@@ -14,22 +12,34 @@ import java.nio.BufferOverflowException
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.ddagent.TraceGenerator.generateRandomTraces
 import static org.junit.Assert.assertEquals
-import static org.msgpack.core.MessageFormat.*
+import static org.msgpack.core.MessageFormat.FLOAT32
+import static org.msgpack.core.MessageFormat.FLOAT64
+import static org.msgpack.core.MessageFormat.INT16
+import static org.msgpack.core.MessageFormat.INT32
+import static org.msgpack.core.MessageFormat.INT64
+import static org.msgpack.core.MessageFormat.INT8
+import static org.msgpack.core.MessageFormat.NEGFIXINT
+import static org.msgpack.core.MessageFormat.POSFIXINT
+import static org.msgpack.core.MessageFormat.UINT16
+import static org.msgpack.core.MessageFormat.UINT32
+import static org.msgpack.core.MessageFormat.UINT64
+import static org.msgpack.core.MessageFormat.UINT8
 
 class TraceMapperV04PayloadTest extends DDSpecification {
 
   def "test traces written correctly"() {
     setup:
-    List<List<DDSpanData>> traces = generateRandomTraces(traceCount, lowCardinality)
+    List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4()
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
-    Packer packer = new Packer(verifier, ByteBuffer.allocate(bufferSize))
+    MsgPackWriter packer = new MsgPackWriter(verifier, ByteBuffer.allocate(bufferSize))
     when:
     boolean tracesFitInBuffer = true
     try {
-      for (List<DDSpanData> trace : traces) {
+      for (List<TraceGenerator.PojoSpan> trace : traces) {
         packer.format(trace, traceMapper)
       }
     } catch (BufferOverflowException e) {
@@ -66,13 +76,13 @@ class TraceMapperV04PayloadTest extends DDSpecification {
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
-    private final List<List<DDSpanData>> expectedTraces
+    private final List<List<TraceGenerator.PojoSpan>> expectedTraces
     private final TraceMapperV0_4 mapper
     private final ByteBuffer captured = ByteBuffer.allocate(200 << 10)
 
     private int position = 0
 
-    private PayloadVerifier(List<List<DDSpanData>> traces, TraceMapperV0_4 mapper) {
+    private PayloadVerifier(List<List<TraceGenerator.PojoSpan>> traces, TraceMapperV0_4 mapper) {
       this.expectedTraces = traces
       this.mapper = mapper
     }
@@ -86,11 +96,11 @@ class TraceMapperV04PayloadTest extends DDSpecification {
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured)
         int traceCount = unpacker.unpackArrayHeader()
         for (int i = 0; i < traceCount; ++i) {
-          List<DDSpanData> expectedTrace = expectedTraces.get(position++)
+          List<TraceGenerator.PojoSpan> expectedTrace = expectedTraces.get(position++)
           int spanCount = unpacker.unpackArrayHeader()
           assertEquals(expectedTrace.size(), spanCount)
           for (int k = 0; k < spanCount; ++k) {
-            DDSpanData expectedSpan = expectedTrace.get(k)
+            TraceGenerator.PojoSpan expectedSpan = expectedTrace.get(k)
             int elementCount = unpacker.unpackMapHeader()
             assertEquals(12, elementCount)
             assertEquals("service", unpacker.unpackString())
@@ -154,7 +164,11 @@ class TraceMapperV04PayloadTest extends DDSpecification {
                 default:
                   Assert.fail("Unexpected type in metrics values: " + format)
               }
-              metrics.put(key, n)
+              if (DD_MEASURED.toString() == key) {
+                assert ((n == 1) && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
+              } else {
+                metrics.put(key, n)
+              }
             }
             for (Map.Entry<String, Number> metric : metrics.entrySet()) {
               if (metric.getValue() instanceof Double) {

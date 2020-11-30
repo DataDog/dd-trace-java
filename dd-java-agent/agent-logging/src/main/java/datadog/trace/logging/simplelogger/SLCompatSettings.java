@@ -34,6 +34,7 @@ public class SLCompatSettings {
     public static final String DATE_TIME_FORMAT = PREFIX + "dateTimeFormat";
     public static final String SHOW_DATE_TIME = PREFIX + "showDateTime";
     public static final String DEFAULT_LOG_LEVEL = PREFIX + "defaultLogLevel";
+    public static final String EMBED_EXCEPTION = PREFIX + "embedException";
 
     // This is not available in SimpleLogger, but added here to simplify testing.
     static final String CONFIGURATION_FILE = PREFIX + "configurationFile";
@@ -50,6 +51,7 @@ public class SLCompatSettings {
     public static final String DATE_TIME_FORMAT = null;
     public static final boolean SHOW_DATE_TIME = false;
     public static final String DEFAULT_LOG_LEVEL = "INFO";
+    public static final boolean EMBED_EXCEPTION = false;
 
     public static final String CONFIGURATION_FILE = "simplelogger.properties";
   }
@@ -239,6 +241,7 @@ public class SLCompatSettings {
   final DTFormatter dateTimeFormatter;
   final boolean showDateTime;
   final LogLevel defaultLogLevel;
+  final boolean embedException;
 
   public SLCompatSettings(Properties properties) {
     this(
@@ -272,7 +275,8 @@ public class SLCompatSettings {
         getBoolean(properties, fileProperties, Keys.SHOW_DATE_TIME, Defaults.SHOW_DATE_TIME),
         LogLevel.fromString(
             getString(
-                properties, fileProperties, Keys.DEFAULT_LOG_LEVEL, Defaults.DEFAULT_LOG_LEVEL)));
+                properties, fileProperties, Keys.DEFAULT_LOG_LEVEL, Defaults.DEFAULT_LOG_LEVEL)),
+        getBoolean(properties, fileProperties, Keys.EMBED_EXCEPTION, Defaults.EMBED_EXCEPTION));
   }
 
   public SLCompatSettings(
@@ -286,7 +290,8 @@ public class SLCompatSettings {
       boolean showThreadName,
       DTFormatter dateTimeFormatter,
       boolean showDateTime,
-      LogLevel defaultLogLevel) {
+      LogLevel defaultLogLevel,
+      boolean embedException) {
     this.properties = properties;
     this.fileProperties = fileProperties;
     this.warnLevelString = warnLevelString;
@@ -298,6 +303,7 @@ public class SLCompatSettings {
     this.dateTimeFormatter = dateTimeFormatter;
     this.showDateTime = showDateTime;
     this.defaultLogLevel = defaultLogLevel;
+    this.embedException = embedException;
   }
 
   String getString(String name) {

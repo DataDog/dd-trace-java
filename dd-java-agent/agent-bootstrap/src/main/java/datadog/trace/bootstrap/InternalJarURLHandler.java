@@ -28,14 +28,6 @@ public class InternalJarURLHandler extends URLStreamHandler {
   private final Map<String, Lock> packages = new HashMap<>();
   private final JarFile bootstrapJarFile;
 
-  private static final ThreadLocal<StringBuilder> JAR_ENTRY_QUERY =
-      new ThreadLocal<StringBuilder>() {
-        @Override
-        protected StringBuilder initialValue() {
-          return new StringBuilder(128);
-        }
-      };
-
   private WeakReference<Pair<String, JarEntry>> cache = NULL;
 
   InternalJarURLHandler(final String internalJarFileName, final URL bootstrapJarLocation) {
@@ -94,13 +86,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
     // and the key will be a new object each time.
     Pair<String, JarEntry> pair = cache.get();
     if (null == pair || !filename.equals(pair.getLeft())) {
-      StringBuilder sb = JAR_ENTRY_QUERY.get();
-      sb.append(this.name).append(filename);
-      if (filename.endsWith(".class")) {
-        sb.append("data");
-      }
-      String classFileName = sb.toString();
-      sb.setLength(0);
+      String classFileName = this.name + filename + (filename.endsWith(".class") ? "data" : "");
       JarEntry entry = bootstrapJarFile.getJarEntry(classFileName);
       if (null != entry) {
         pair = Pair.of(filename, entry);

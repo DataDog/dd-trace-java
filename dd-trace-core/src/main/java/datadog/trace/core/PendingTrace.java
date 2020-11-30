@@ -177,6 +177,9 @@ public class PendingTrace implements AgentTrace {
     }
 
     finishedSpans.addFirst(span);
+    // There is a benign race here where the span added above can get written out by a writer in
+    // progress before the count has been incremented. It's being taken care of in the internal
+    // write method.
     completedSpanCount.incrementAndGet();
     decrementRefAndMaybeWrite(span == getRootSpan());
   }
@@ -245,7 +248,7 @@ public class PendingTrace implements AgentTrace {
   private void partialFlush() {
     int size = write(true);
     if (log.isDebugEnabled()) {
-      log.debug("t_id={} -> writing partial trace of size {}", traceId, size);
+      log.debug("t_id={} -> wrote partial trace of size {}", traceId, size);
     }
   }
 
@@ -254,27 +257,35 @@ public class PendingTrace implements AgentTrace {
     rootSpanWritten.set(true);
     int size = write(false);
     if (log.isDebugEnabled()) {
-      log.debug("t_id={} -> writing {} spans to {}.", traceId, size, tracer.writer);
+      log.debug("t_id={} -> wrote {} spans to {}.", traceId, size, tracer.writer);
     }
   }
 
   private int write(boolean isPartial) {
     if (!finishedSpans.isEmpty()) {
       try (Recording recording = tracer.writeTimer()) {
+        // Only one writer at a time
         synchronized (this) {
           int size = size();
-          if (!isPartial || size > tracer.getPartialFlushMinSpans()) {
+          // If we get here and size is below 0, then the writer before us wrote out at least one
+          // more trace than the size it had when it started. Those span(s) had been added to
+          // finishedSpans by some other thread(s) while the existing spans were being written, but
+          // the completedSpanCount has not yet been incremented. This means that eventually the
+          // count(s) will be incremented, and any new spans added during the period that the count
+          // was negative will be written by someone even if we don't write them right now.
+          if (size > 0 && (!isPartial || size > tracer.getPartialFlushMinSpans())) {
             List<DDSpan> trace = new ArrayList<>(size);
-
             final Iterator<DDSpan> it = finishedSpans.iterator();
+            int i = 0;
             while (it.hasNext()) {
               final DDSpan span = it.next();
               trace.add(span);
               completedSpanCount.decrementAndGet();
               it.remove();
+              i++;
             }
             tracer.write(trace);
-            return size;
+            return i;
           }
         }
       }

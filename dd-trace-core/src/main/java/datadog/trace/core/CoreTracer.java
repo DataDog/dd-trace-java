@@ -1,5 +1,9 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
+import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
+
 import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
@@ -18,6 +22,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
@@ -28,18 +33,19 @@ import datadog.trace.core.jfr.DDNoopScopeEventFactory;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
+import datadog.trace.core.processor.TraceProcessor;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
-import datadog.trace.core.taginterceptor.AbstractTagInterceptor;
-import datadog.trace.core.taginterceptor.TagInterceptorsFactory;
+import datadog.trace.core.taginterceptor.RuleFlags;
+import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.util.AgentTaskScheduler;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +54,7 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -81,9 +88,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Writer is an charge of reporting traces and spans to the desired endpoint */
   final Writer writer;
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
-  final Sampler sampler;
+  final Sampler<DDSpan> sampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final AgentScopeManager scopeManager;
+
+  final MetricsAggregator metricsAggregator;
 
   /** A set of tags that are added only to the application's root span */
   private final Map<String, String> localRootSpanTags;
@@ -101,6 +110,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
+  private final TraceProcessor traceProcessor = new TraceProcessor();
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -112,7 +122,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    * Span tag interceptors. This Map is only ever added to during initialization, so it doesn't need
    * to be concurrent.
    */
-  private final Map<String, List<AbstractTagInterceptor>> spanTagInterceptors = new HashMap<>();
+  private final TagInterceptor tagInterceptor;
 
   private final SortedSet<TraceInterceptor> interceptors =
       new ConcurrentSkipListSet<>(
@@ -148,7 +158,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.config = config;
       serviceName(config.getServiceName());
       // Explicitly skip setting writer to avoid allocating resources prematurely.
-      sampler(Sampler.Builder.forConfig(config));
+      sampler(Sampler.Builder.<DDSpan>forConfig(config));
       injector(HttpCodec.createInjector(config));
       extractor(HttpCodec.createExtractor(config, config.getHeaderTags()));
       // Explicitly skip setting scope manager because it depends on statsDClient
@@ -169,7 +179,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final String serviceName,
       final Writer writer,
       final IdGenerationStrategy idGenerationStrategy,
-      final Sampler sampler,
+      final Sampler<DDSpan> sampler,
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
       final AgentScopeManager scopeManager,
@@ -178,7 +188,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders,
       final int partialFlushMinSpans,
-      final StatsDClient statsDClient) {
+      final StatsDClient statsDClient,
+      final TagInterceptor tagInterceptor) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -233,17 +244,38 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     pendingTraceFactory = new PendingTrace.Factory(this, PENDING_TRACE_BUFFER);
     this.writer.start();
 
+    metricsAggregator = createMetricsAggregator(config);
+    // schedule to start after geometrically distributed number of seconds expressed in
+    // milliseconds, with p = 0.25, meaning the probability that the aggregator will not
+    // have started by the nth second is 0.25(0.75)^n-1 (or a 1% chance of not having
+    // started within 10 seconds, where a cap is applied) This avoids a fleet of traced
+    // applications starting at the same time and sending metrics in sync
+    long delayMillis =
+        Math.min(
+            (long)
+                (1000D
+                    * (Math.log(ThreadLocalRandom.current().nextDouble()) / Math.log(1 - 0.25)
+                        + 1)),
+            10_000);
+    AgentTaskScheduler.INSTANCE.schedule(
+        new AgentTaskScheduler.Task<MetricsAggregator>() {
+          @Override
+          public void run(MetricsAggregator target) {
+            target.start();
+          }
+        },
+        metricsAggregator,
+        delayMillis,
+        TimeUnit.MILLISECONDS);
+
+    this.tagInterceptor =
+        null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
+
     shutdownCallback = new ShutdownHook(this);
     try {
       Runtime.getRuntime().addShutdownHook(shutdownCallback);
     } catch (final IllegalStateException ex) {
       // The JVM is already shutting down.
-    }
-
-    final List<AbstractTagInterceptor> tagInterceptors =
-        TagInterceptorsFactory.createTagInterceptors();
-    for (final AbstractTagInterceptor interceptor : tagInterceptors) {
-      addTagInterceptor(interceptor);
     }
 
     registerClassLoader(ClassLoader.getSystemClassLoader());
@@ -261,34 +293,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } catch (final Exception e) {
       log.error("Error while finalizing DDTracer.", e);
     }
-  }
-
-  /**
-   * Returns the list of span tag interceptors
-   *
-   * @return the list of span tag interceptors
-   */
-  public List<AbstractTagInterceptor> getSpanTagInterceptors(final String tag) {
-    return spanTagInterceptors.get(tag);
-  }
-
-  /**
-   * Add a new interceptor in the list ({@link AbstractTagInterceptor})
-   *
-   * @param interceptor The interceptor in the list
-   */
-  private void addTagInterceptor(final AbstractTagInterceptor interceptor) {
-    List<AbstractTagInterceptor> list = spanTagInterceptors.get(interceptor.getMatchingTag());
-    if (list == null) {
-      list = new ArrayList<>();
-    }
-    list.add(interceptor);
-
-    spanTagInterceptors.put(interceptor.getMatchingTag(), list);
-    log.debug(
-        "Decorator added: '{}' -> {}",
-        interceptor.getMatchingTag(),
-        interceptor.getClass().getName());
   }
 
   /**
@@ -339,7 +343,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
-    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, false);
+    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
   }
 
   @Override
@@ -350,6 +354,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
     return scopeManager.activate(span, source, isAsyncPropagating);
+  }
+
+  public TagInterceptor getTagInterceptor() {
+    return tagInterceptor;
   }
 
   @Override
@@ -422,6 +430,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     if (!writtenTrace.isEmpty()) {
+      writtenTrace = traceProcessor.onTraceComplete(writtenTrace);
+
+      metricsAggregator.publish(writtenTrace);
+
       final DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
       setSamplingPriorityIfNecessary(rootSpan);
 
@@ -429,11 +441,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (sampler.sample(spanToSample)) {
         writer.write(writtenTrace);
       } else {
-        incrementTraceCount();
+        // with span streaming this won't work - it needs to be changed
+        // to track an effective sampling rate instead, however, tests
+        // checking that a hard reference on a continuation prevents
+        // reporting fail without this, so will need to be fixed first.
+        writer.incrementTraceCount();
       }
     }
   }
 
+  @SuppressWarnings("unchecked")
   void setSamplingPriorityIfNecessary(final DDSpan rootSpan) {
     // There's a race where multiple threads can see PrioritySampling.UNSET here
     // This check skips potential complex sampling priority logic when we know its redundant
@@ -443,20 +460,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         && rootSpan != null
         && rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
 
-      ((PrioritySampler) sampler).setSamplingPriority(rootSpan);
+      ((PrioritySampler<DDSpan>) sampler).setSamplingPriority(rootSpan);
     }
-  }
-
-  /** Increment the reported trace count, but do not write a trace. */
-  void incrementTraceCount() {
-    writer.incrementTraceCount();
   }
 
   @Override
   public String getTraceId() {
     final AgentSpan activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
-      return ((DDSpan) activeSpan).getTraceId().toString();
+      return activeSpan.getTraceId().toString();
     }
     return "0";
   }
@@ -577,6 +589,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean errorFlag;
     private CharSequence spanType;
     private boolean ignoreScope = false;
+    private Number analyticsSampleRate = null;
 
     public CoreSpanBuilder(final CharSequence operationName) {
       this.operationName = operationName;
@@ -594,8 +607,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public AgentSpan start() {
-      final AgentSpan span = buildSpan();
-      return span;
+      return buildSpan();
     }
 
     @Override
@@ -656,23 +668,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public CoreSpanBuilder withTag(final String tag, final Object value) {
-      switch (tag) {
-        case DDTags.SPAN_TYPE:
-          if (value instanceof CharSequence) {
-            return withSpanType((CharSequence) value);
-          }
-        default:
-          Map<String, Object> tagMap = tags;
-          if (tagMap == null) {
-            tags = tagMap = new LinkedHashMap<>(); // Insertion order is important
-          }
-          if (value == null || (value instanceof String && ((String) value).isEmpty())) {
-            tagMap.remove(tag);
-          } else {
-            tagMap.put(tag, value);
-          }
-          return this;
+      Map<String, Object> tagMap = tags;
+      if (tagMap == null) {
+        tags = tagMap = new LinkedHashMap<>(); // Insertion order is important
       }
+      if (value == null || (value instanceof String && ((String) value).isEmpty())) {
+        tagMap.remove(tag);
+      } else {
+        tagMap.put(tag, value);
+      }
+      return this;
     }
 
     /**
@@ -783,6 +788,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               CoreTracer.this,
               serviceNameMappings);
 
+      if (null != analyticsSampleRate) {
+        context.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, analyticsSampleRate);
+      }
+
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
       // set in the builder should come last, so that they override other tags.
@@ -792,13 +801,26 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(rootSpanTags);
       return context;
     }
+
+    private Number getOrTryParse(Object value) {
+      if (value instanceof Number) {
+        return (Number) value;
+      } else if (value instanceof String) {
+        try {
+          return Double.parseDouble((String) value);
+        } catch (NumberFormatException ignore) {
+
+        }
+      }
+      return null;
+    }
   }
 
   private static class ShutdownHook extends Thread {
     private final WeakReference<CoreTracer> reference;
 
     private ShutdownHook(final CoreTracer tracer) {
-      super("dd-tracer-shutdown-hook");
+      super(AGENT_THREAD_GROUP, "dd-tracer-shutdown-hook");
       reference = new WeakReference<>(tracer);
     }
 

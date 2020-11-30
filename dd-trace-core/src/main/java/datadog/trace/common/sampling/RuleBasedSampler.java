@@ -4,7 +4,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.sampling.SamplingRule.AlwaysMatchesSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.OperationSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.ServiceSamplingRule;
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.SimpleRateLimiter;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,9 +13,9 @@ import java.util.Map.Entry;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class RuleBasedSampler implements Sampler, PrioritySampler {
-  private final List<SamplingRule> samplingRules;
-  private final PrioritySampler fallbackSampler;
+public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, PrioritySampler<T> {
+  private final List<SamplingRule<T>> samplingRules;
+  private final PrioritySampler<T> fallbackSampler;
   private final SimpleRateLimiter rateLimiter;
   private final long rateLimit;
 
@@ -23,9 +23,9 @@ public class RuleBasedSampler implements Sampler, PrioritySampler {
   public static final String SAMPLING_LIMIT_RATE = "_dd.limit_psr";
 
   public RuleBasedSampler(
-      final List<SamplingRule> samplingRules,
+      final List<SamplingRule<T>> samplingRules,
       final long rateLimit,
-      final PrioritySampler fallbackSampler) {
+      final PrioritySampler<T> fallbackSampler) {
     this.samplingRules = samplingRules;
     this.fallbackSampler = fallbackSampler;
     rateLimiter = new SimpleRateLimiter(rateLimit);
@@ -33,20 +33,20 @@ public class RuleBasedSampler implements Sampler, PrioritySampler {
     this.rateLimit = rateLimit;
   }
 
-  public static RuleBasedSampler build(
+  public static <T extends CoreSpan<T>> RuleBasedSampler<T> build(
       final Map<String, String> serviceRules,
       final Map<String, String> operationRules,
       final Double defaultRate,
       final long rateLimit) {
 
-    final List<SamplingRule> samplingRules = new ArrayList<>();
+    final List<SamplingRule<T>> samplingRules = new ArrayList<>();
 
     if (serviceRules != null) {
       for (final Entry<String, String> entry : serviceRules.entrySet()) {
         try {
           final double rateForEntry = Double.parseDouble(entry.getValue());
-          final SamplingRule samplingRule =
-              new ServiceSamplingRule(entry.getKey(), new DeterministicSampler(rateForEntry));
+          final SamplingRule<T> samplingRule =
+              new ServiceSamplingRule<>(entry.getKey(), new DeterministicSampler<T>(rateForEntry));
           samplingRules.add(samplingRule);
         } catch (final NumberFormatException e) {
           log.error("Unable to parse rate for service: {}", entry, e);
@@ -58,8 +58,9 @@ public class RuleBasedSampler implements Sampler, PrioritySampler {
       for (final Entry<String, String> entry : operationRules.entrySet()) {
         try {
           final double rateForEntry = Double.parseDouble(entry.getValue());
-          final SamplingRule samplingRule =
-              new OperationSamplingRule(entry.getKey(), new DeterministicSampler(rateForEntry));
+          final SamplingRule<T> samplingRule =
+              new OperationSamplingRule<>(
+                  entry.getKey(), new DeterministicSampler<T>(rateForEntry));
           samplingRules.add(samplingRule);
         } catch (final NumberFormatException e) {
           log.error("Unable to parse rate for operation: {}", entry, e);
@@ -68,24 +69,24 @@ public class RuleBasedSampler implements Sampler, PrioritySampler {
     }
 
     if (defaultRate != null) {
-      final SamplingRule samplingRule =
-          new AlwaysMatchesSamplingRule(new DeterministicSampler(defaultRate));
+      final SamplingRule<T> samplingRule =
+          new AlwaysMatchesSamplingRule<>(new DeterministicSampler<T>(defaultRate));
       samplingRules.add(samplingRule);
     }
 
-    return new RuleBasedSampler(samplingRules, rateLimit, new RateByServiceSampler());
+    return new RuleBasedSampler<>(samplingRules, rateLimit, new RateByServiceSampler<T>());
   }
 
   @Override
-  public boolean sample(final DDSpan span) {
+  public boolean sample(final T span) {
     return true;
   }
 
   @Override
-  public void setSamplingPriority(final DDSpan span) {
-    SamplingRule matchedRule = null;
+  public void setSamplingPriority(final T span) {
+    SamplingRule<T> matchedRule = null;
 
-    for (final SamplingRule samplingRule : samplingRules) {
+    for (final SamplingRule<T> samplingRule : samplingRules) {
       if (samplingRule.matches(span)) {
         matchedRule = samplingRule;
         break;
@@ -95,28 +96,24 @@ public class RuleBasedSampler implements Sampler, PrioritySampler {
     if (matchedRule == null) {
       fallbackSampler.setSamplingPriority(span);
     } else {
-      final boolean priorityWasSet;
-      boolean usedRateLimiter = false;
-
       if (matchedRule.sample(span)) {
-        usedRateLimiter = true;
         if (rateLimiter.tryAcquire()) {
-          priorityWasSet = span.context().setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
+          span.setSamplingPriority(
+              PrioritySampling.SAMPLER_KEEP,
+              SAMPLING_RULE_RATE,
+              matchedRule.getSampler().getSampleRate());
         } else {
-          priorityWasSet = span.context().setSamplingPriority(PrioritySampling.SAMPLER_DROP);
+          span.setSamplingPriority(
+              PrioritySampling.SAMPLER_DROP,
+              SAMPLING_RULE_RATE,
+              matchedRule.getSampler().getSampleRate());
         }
+        span.setMetric(SAMPLING_LIMIT_RATE, rateLimit);
       } else {
-        priorityWasSet = span.context().setSamplingPriority(PrioritySampling.SAMPLER_DROP);
-      }
-
-      // Only set metrics if we actually set the sampling priority
-      // We don't know until the call is completed because the lock is internal to DDSpanContext
-      if (priorityWasSet) {
-        span.context().setMetric(SAMPLING_RULE_RATE, matchedRule.getSampler().getSampleRate());
-
-        if (usedRateLimiter) {
-          span.context().setMetric(SAMPLING_LIMIT_RATE, rateLimit);
-        }
+        span.setSamplingPriority(
+            PrioritySampling.SAMPLER_DROP,
+            SAMPLING_RULE_RATE,
+            matchedRule.getSampler().getSampleRate());
       }
     }
   }

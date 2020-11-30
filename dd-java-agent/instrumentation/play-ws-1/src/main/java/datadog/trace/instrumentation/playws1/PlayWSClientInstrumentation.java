@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.PLAY_WS
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.playws.BasePlayWSClientInstrumentation;
 import net.bytebuddy.asm.Advice;
 import play.shaded.ahc.org.asynchttpclient.AsyncHandler;
@@ -26,7 +25,7 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
         @Advice.Argument(value = 1, readOnly = false) AsyncHandler asyncHandler) {
 
       final AgentSpan span = startSpan(PLAY_WS_REQUEST);
-      span.setTag(InstrumentationTags.DD_MEASURED, true);
+      span.setMeasured(true);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);

@@ -5,7 +5,6 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -52,7 +51,7 @@ public class KafkaStreamsDecorator extends ClientDecorator {
       span.setTag(DDTags.RESOURCE_NAME, RESOURCE_NAME_CACHE.computeIfAbsent(topic, PREFIX));
       span.setTag("partition", record.partition());
       span.setTag("offset", record.offset());
-      span.setTag(InstrumentationTags.DD_MEASURED, true);
+      span.setMeasured(true);
     }
   }
 }

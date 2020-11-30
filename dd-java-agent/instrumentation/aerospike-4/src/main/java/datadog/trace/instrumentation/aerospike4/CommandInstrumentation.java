@@ -1,0 +1,65 @@
+package datadog.trace.instrumentation.aerospike4;
+
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.instrumentation.aerospike4.AerospikeClientDecorator.DECORATE;
+import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+
+import com.aerospike.client.cluster.Cluster;
+import com.aerospike.client.cluster.Node;
+import com.aerospike.client.cluster.Partition;
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.Map;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+
+@AutoService(Instrumenter.class)
+public final class CommandInstrumentation extends Instrumenter.Default {
+  public CommandInstrumentation() {
+    super("aerospike");
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> typeMatcher() {
+    return named("com.aerospike.client.command.Command");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".AerospikeClientDecorator",
+    };
+  }
+
+  @Override
+  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
+    return singletonMap(
+        isMethod()
+            .and(named("getNode"))
+            .and(takesArgument(0, named("com.aerospike.client.cluster.Cluster")))
+            .and(returns(named("com.aerospike.client.cluster.Node"))),
+        getClass().getName() + "$GetNodeAdvice");
+  }
+
+  public static final class GetNodeAdvice {
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void getNode(
+        @Advice.Return final Node node,
+        @Advice.Argument(0) final Cluster cluster,
+        @Advice.Argument(value = 1, optional = true) final Partition partition) {
+      final AgentSpan span = activeSpan();
+      // capture the connection details in the active Aerospike span
+      if (span != null && DDSpanTypes.AEROSPIKE.equals(span.getSpanType())) {
+        DECORATE.onConnection(span, node, cluster, partition);
+      }
+    }
+  }
+}

@@ -36,6 +36,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
@@ -56,9 +57,14 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
+import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
+import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
 
 import datadog.trace.api.config.GeneralConfig;
@@ -66,7 +72,9 @@ import datadog.trace.api.config.JmxFetchConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -283,6 +291,7 @@ public class Config {
   @Getter private final String site;
 
   @Getter private final String serviceName;
+  @Getter private final boolean serviceNameSetByUser;
   @Getter private final boolean traceEnabled;
   @Getter private final boolean integrationsEnabled;
   @Getter private final String writerType;
@@ -314,6 +323,7 @@ public class Config {
   @Getter private final boolean scopeInheritAsyncPropagation;
   @Getter private final int partialFlushMinSpans;
   @Getter private final boolean runtimeContextFieldInjection;
+  @Getter private final boolean serialVersionUIDFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
   @Getter private final Set<PropagationStyle> propagationStylesToInject;
 
@@ -331,6 +341,10 @@ public class Config {
   @Getter private final String healthMetricsStatsdHost;
   @Getter private final Integer healthMetricsStatsdPort;
   @Getter private final boolean perfMetricsEnabled;
+
+  @Getter private final boolean tracerMetricsEnabled;
+  @Getter private final int tracerMetricsMaxAggregates;
+  @Getter private final int tracerMetricsMaxPending;
 
   @Getter private final boolean logsInjectionEnabled;
   @Getter private final boolean logsMDCTagsInjectionEnabled;
@@ -375,12 +389,16 @@ public class Config {
   @Getter private final boolean servletPrincipalEnabled;
   @Getter private final boolean servletAsyncTimeoutError;
 
+  @Getter private final boolean tempJarsCleanOnBoot;
+
   @Getter private final boolean traceAgentV05Enabled;
 
   @Getter private final boolean debugEnabled;
   @Getter private final String configFile;
 
   @Getter private final IdGenerationStrategy idGenerationStrategy;
+
+  @Getter private final boolean internalExitOnFailure;
 
   private final ConfigProvider configProvider;
 
@@ -400,7 +418,8 @@ public class Config {
     // Note: we do not use defined default here
     // FIXME: We should use better authentication mechanism
     final String apiKeyFile = configProvider.getString(API_KEY_FILE);
-    String tmpApiKey = configProvider.getStringBypassSysProps(API_KEY, null);
+    String tmpApiKey =
+        configProvider.getStringExcludingSource(API_KEY, null, SystemPropertiesConfigSource.class);
     if (apiKeyFile != null) {
       try {
         tmpApiKey =
@@ -410,7 +429,17 @@ public class Config {
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
-    serviceName = configProvider.getString(SERVICE, DEFAULT_SERVICE_NAME, SERVICE_NAME);
+    String userProvidedServiceName =
+        configProvider.getStringExcludingSource(
+            SERVICE, null, CapturedEnvironmentConfigSource.class, SERVICE_NAME);
+
+    if (userProvidedServiceName == null) {
+      serviceNameSetByUser = false;
+      serviceName = configProvider.getString(SERVICE, DEFAULT_SERVICE_NAME, SERVICE_NAME);
+    } else {
+      serviceNameSetByUser = true;
+      serviceName = userProvidedServiceName;
+    }
 
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     integrationsEnabled =
@@ -553,6 +582,9 @@ public class Config {
     runtimeContextFieldInjection =
         configProvider.getBoolean(
             RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
+    serialVersionUIDFieldInjection =
+        configProvider.getBoolean(
+            SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
 
     propagationStylesToExtract =
         getPropagationStyleSetSettingFromEnvironmentOrDefault(
@@ -584,6 +616,11 @@ public class Config {
     perfMetricsEnabled =
         runtimeMetricsEnabled
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
+
+    tracerMetricsEnabled =
+        isJavaVersionAtLeast(8) && configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+    tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 1000);
+    tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
 
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
@@ -692,7 +729,14 @@ public class Config {
     servletAsyncTimeoutError =
         configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
+    tempJarsCleanOnBoot =
+        configProvider.getBoolean(TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT, false)
+            && isWindowsOS();
+
     debugEnabled = isDebugMode();
+
+    internalExitOnFailure =
+        configProvider.getBoolean(GeneralConfig.INTERNAL_EXIT_ON_FAILURE, false);
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
@@ -714,6 +758,13 @@ public class Config {
     }
 
     return Collections.unmodifiableMap(result);
+  }
+
+  public WellKnownTags getWellKnownTags() {
+    CharSequence env = tags.get(ENV);
+    CharSequence version = tags.get(VERSION);
+    return new WellKnownTags(
+        getHostName(), null == env ? "" : env, serviceName, null == version ? "" : version);
   }
 
   public Map<String, String> getMergedSpanTags() {
@@ -1024,7 +1075,7 @@ public class Config {
     String possibleHostname;
 
     // Try environment variable.  This works in almost all environments
-    if (System.getProperty("os.name").startsWith("Windows")) {
+    if (isWindowsOS()) {
       possibleHostname = System.getenv("COMPUTERNAME");
     } else {
       possibleHostname = System.getenv("HOSTNAME");
@@ -1057,6 +1108,10 @@ public class Config {
     }
 
     return null;
+  }
+
+  private static boolean isWindowsOS() {
+    return System.getProperty("os.name").startsWith("Windows");
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize

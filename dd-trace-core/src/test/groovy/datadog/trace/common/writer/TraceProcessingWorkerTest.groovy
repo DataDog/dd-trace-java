@@ -6,7 +6,6 @@ import datadog.trace.common.writer.ddagent.TraceProcessingWorker
 import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
-import datadog.trace.core.processor.TraceProcessor
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
@@ -107,44 +106,6 @@ class TraceProcessingWorkerTest extends DDSpecification {
     worker.close()
   }
 
-  def "should report failure if rules can't be applied to trace"() {
-    setup:
-    Throwable theError = new IllegalStateException("thrown by test")
-    TraceProcessor throwingTraceProcessor = Mock(TraceProcessor)
-    throwingTraceProcessor.onTraceComplete(_) >> {
-      throw theError
-    }
-    AtomicInteger errorReported = new AtomicInteger()
-    HealthMetrics healthMetrics = Mock(HealthMetrics)
-    healthMetrics.onFailedSerialize(_, theError) >> {
-      // do this manually with a counter, despite spock's
-      // lovely syntactical sugar so we don't have a race
-      // condition induced flaky test. All we care about
-      // is that an error was reported and that it was the
-      // right one
-      errorReported.incrementAndGet()
-    }
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
-      Mock(PayloadDispatcher), throwingTraceProcessor, FAST_LANE, 100, TimeUnit.SECONDS)
-    // prevent heartbeats from helping the flush happen
-    worker.start()
-
-    when: "a trace is processed but rules can't be applied"
-    worker.publish(priority, [Mock(DDSpan)])
-
-    then: "the error is reported to the healthMetrics"
-    conditions.eventually {
-      1 == errorReported.get()
-    }
-
-    cleanup:
-    worker.close()
-
-    where:
-    priority << [SAMPLER_DROP, USER_DROP, SAMPLER_KEEP, USER_KEEP, UNSET]
-  }
-
-
   def "should report failure if serialization fails"() {
     setup:
     Throwable theError = new IllegalStateException("thrown by test")
@@ -163,7 +124,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
       errorReported.incrementAndGet()
     }
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
-      monitoring, throwingDispatcher, Stub(TraceProcessor), FAST_LANE,
+      monitoring, throwingDispatcher, FAST_LANE,
       100, TimeUnit.SECONDS) // prevent heartbeats from helping the flush happen
     worker.start()
 
@@ -191,7 +152,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
-      countingDispatcher, Stub(TraceProcessor), FAST_LANE, 100, TimeUnit.SECONDS)
+      countingDispatcher, FAST_LANE, 100, TimeUnit.SECONDS)
     // prevent heartbeats from helping the flush happen
     worker.start()
 
@@ -261,7 +222,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
-      countingDispatcher, Stub(TraceProcessor), FAST_LANE, 100, TimeUnit.SECONDS)
+      countingDispatcher, FAST_LANE, 100, TimeUnit.SECONDS)
     worker.start()
     worker.close()
     int queueSize = 0

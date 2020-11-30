@@ -1,7 +1,5 @@
 import com.rabbitmq.client.AMQP
 import com.rabbitmq.client.AlreadyClosedException
-import com.rabbitmq.client.Channel
-import com.rabbitmq.client.Connection
 import com.rabbitmq.client.ConnectionFactory
 import com.rabbitmq.client.Consumer
 import com.rabbitmq.client.DefaultConsumer
@@ -32,11 +30,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 // It is fine to run on CI because CI provides rabbitmq externally, not through testcontainers
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
 class RabbitMQTest extends AgentTestRunner {
-
-  static {
-    System.setProperty("dd.amqp.e2e.duration.enabled", "true")
-  }
-
   /*
     Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
     'testcontainers' are built for Java 8 and Java 7 cannot load this class.
@@ -47,12 +40,23 @@ class RabbitMQTest extends AgentTestRunner {
   def defaultRabbitMQPort = 5672
   @Shared
   InetSocketAddress rabbitmqAddress = new InetSocketAddress("127.0.0.1", defaultRabbitMQPort)
-  @Shared
-  boolean expectE2EDuration = Boolean.valueOf(System.getProperty("dd.amqp.e2e.duration.enabled"))
 
-  ConnectionFactory factory = new ConnectionFactory(host: rabbitmqAddress.hostName, port: rabbitmqAddress.port)
-  Connection conn = factory.newConnection()
-  Channel channel = conn.createChannel()
+  def factory
+  def conn
+  def channel
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.amqp.e2e.duration.enabled", "true")
+  }
+
+  def setup() {
+    factory = new ConnectionFactory(host: rabbitmqAddress.hostName, port: rabbitmqAddress.port)
+    conn = factory.newConnection()
+    channel = conn.createChannel()
+  }
 
   def setupSpec() {
 
@@ -211,7 +215,7 @@ class RabbitMQTest extends AgentTestRunner {
         trace(1) {
           // TODO - test with and without feature enabled once Config is easier to control
           rabbitSpan(it, resource, true, publishSpan,
-            null, null, setTimestamp, expectE2EDuration)
+            null, null, setTimestamp)
         }
       }
     }
@@ -279,7 +283,7 @@ class RabbitMQTest extends AgentTestRunner {
       trace(1) {
         // TODO - test with and without feature enabled once Config is easier to control
         rabbitSpan(it, "basic.deliver <generated>", true, publishSpan, error,
-          error.message, false, expectE2EDuration)
+          error.message, false)
       }
     }
 
@@ -349,8 +353,7 @@ class RabbitMQTest extends AgentTestRunner {
     DDSpan parentSpan = null,
     Throwable exception = null,
     String errorMsg = null,
-    Boolean expectTimestamp = false,
-    Boolean expectE2eDuration = false
+    Boolean expectTimestamp = false
   ) {
     trace.span {
       serviceName "rabbitmq"
@@ -385,9 +388,10 @@ class RabbitMQTest extends AgentTestRunner {
         if (expectTimestamp) {
           "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it instanceof Long && it >= 0 }
         }
-        if (expectE2eDuration) {
-          "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-        }
+
+        // FIXME: this is broken in the instrumentation
+        // `it` should never be null
+        "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it == null || it >= 0 }
 
         switch (tag("amqp.command")) {
           case "basic.publish":

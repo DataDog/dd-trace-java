@@ -1,7 +1,6 @@
 package datadog.trace.agent.test.log.injection
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -10,7 +9,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.api.config.GeneralConfig.TAGS
-import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
@@ -25,28 +23,28 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
   /**
    * Set in the framework-specific context the given value at the given key
    */
-  abstract put(String key, Object value)
+  abstract void put(String key, Object value)
 
   /**
    * Get from the framework-specific context the value at the given key
    */
-  abstract get(String key)
+  abstract Object get(String key)
 
   /**
    * Remove from the framework-specific context the value at the given key
    */
-  abstract remove(String key)
+  abstract void remove(String key)
 
-  abstract clear()
+  abstract void clear()
 
-  abstract getMap()
+  abstract Map<String, Object> getMap()
 
-  static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.logs.injection", "true")
-      System.setProperty("dd.logs.mdc.tags.injection", "true")
-      System.setProperty(PREFIX + TAGS, "env:${TEST_ENV},version:${TEST_VERSION}")
-    }
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.logs.injection", "true")
+    injectSysConfig("dd.logs.mdc.tags.injection", "true")
+    injectSysConfig(TAGS, "env:${TEST_ENV},version:${TEST_VERSION}")
   }
 
   def "Log context shows trace and span ids for active scope"() {

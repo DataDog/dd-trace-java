@@ -109,32 +109,58 @@ class MuzzlePlugin implements Plugin<Project> {
       return
     }
 
+    // We only get here if we are running muzzle, so let's start timing things
+    long startTime = System.currentTimeMillis()
+
     final RepositorySystem system = newRepositorySystem()
     final RepositorySystemSession session = newRepositorySystemSession(system)
 
     project.afterEvaluate {
       // use runAfter to set up task finalizers in version order
       Task runAfter = project.tasks.muzzle
+      // runLast is the last task to finish, so we can time the execution
+      Task runLast = runAfter
 
       for (MuzzleDirective muzzleDirective : project.muzzle.directives) {
         project.getLogger().info("configured $muzzleDirective")
 
         if (muzzleDirective.coreJdk) {
-          runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, bootstrapProject, toolingProject)
+          runLast = runAfter = addMuzzleTask(muzzleDirective, null, project, runAfter, bootstrapProject, toolingProject)
         } else {
-          muzzleDirectiveToArtifacts(muzzleDirective, system, session).collect() { Artifact singleVersion ->
+          runLast = muzzleDirectiveToArtifacts(muzzleDirective, system, session).inject(runLast) { last, Artifact singleVersion ->
             runAfter = addMuzzleTask(muzzleDirective, singleVersion, project, runAfter, bootstrapProject, toolingProject)
           }
           if (muzzleDirective.assertInverse) {
-            inverseOf(muzzleDirective, system, session).collect() { MuzzleDirective inverseDirective ->
-              muzzleDirectiveToArtifacts(inverseDirective, system, session).collect() { Artifact singleVersion ->
+            runLast = inverseOf(muzzleDirective, system, session).inject(runLast) { last1, MuzzleDirective inverseDirective ->
+              muzzleDirectiveToArtifacts(inverseDirective, system, session).inject(last1) { last2, Artifact singleVersion ->
                 runAfter = addMuzzleTask(inverseDirective, singleVersion, project, runAfter, bootstrapProject, toolingProject)
               }
             }
           }
         }
       }
+      def timingTask = project.task("muzzle-end") {
+        doLast {
+          long endTime = System.currentTimeMillis()
+          generateResultsXML(project, endTime - startTime)
+        }
+      }
+      runLast.finalizedBy(timingTask)
     }
+  }
+
+  private static void generateResultsXML(Project project, long millis) {
+    def seconds = (millis * 1.0) / 1000
+    def name = "${project.path}:muzzle"
+    def dirname = name.replaceFirst('^:', '').replace(':', '_')
+    def dir = project.file("${project.rootProject.buildDir}/muzzle-test-results/$dirname")
+    dir.mkdirs()
+    def file = project.file("$dir/results.xml")
+    file.text = """|<?xml version="1.0" encoding="UTF-8"?>
+                   |<testsuite name="${name}" tests="1" id="0" time="${seconds}">
+                   |  <testcase name="${name}" time="${seconds}">
+                   |  </testcase>
+                   |</testsuite>\n""".stripMargin()
   }
 
   private static ClassLoader getOrCreateToolingLoader(Project toolingProject) {
@@ -216,14 +242,12 @@ class MuzzlePlugin implements Plugin<Project> {
     rangeRequest.setRepositories(MUZZLE_REPOS)
     rangeRequest.setArtifact(directiveArtifact)
     final VersionRangeResult rangeResult = system.resolveVersionRange(session, rangeRequest)
-    final Set<Version> versions = rangeResult.versions.toSet()
-
-    limitLargeRanges(rangeResult, versions, muzzleDirective.skipVersions)
+    final Set<Version> versions = filterAndLimitVersions(rangeResult, muzzleDirective.skipVersions)
 
 //    println "Range Request: " + rangeRequest
 //    println "Range Result: " + rangeResult
 
-    final Set<Artifact> allVersionArtifacts = filterVersion(versions, muzzleDirective.skipVersions).collect { version ->
+    final Set<Artifact> allVersionArtifacts = versions.collect { version ->
       new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", version.toString())
     }.toSet()
 
@@ -238,15 +262,12 @@ class MuzzlePlugin implements Plugin<Project> {
    * Create a list of muzzle directives which assert the opposite of the given MuzzleDirective.
    */
   private static Set<MuzzleDirective> inverseOf(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
-    Set<MuzzleDirective> inverseDirectives = new HashSet<>()
-
-    final Artifact allVerisonsArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", "[,)")
+    final Artifact allVersionsArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", "[,)")
     final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", muzzleDirective.versions)
-
 
     final VersionRangeRequest allRangeRequest = new VersionRangeRequest()
     allRangeRequest.setRepositories(MUZZLE_REPOS)
-    allRangeRequest.setArtifact(allVerisonsArtifact)
+    allRangeRequest.setArtifact(allVersionsArtifact)
     final VersionRangeResult allRangeResult = system.resolveVersionRange(session, allRangeRequest)
 
     final VersionRangeRequest rangeRequest = new VersionRangeRequest()
@@ -254,34 +275,38 @@ class MuzzlePlugin implements Plugin<Project> {
     rangeRequest.setArtifact(directiveArtifact)
     final VersionRangeResult rangeResult = system.resolveVersionRange(session, rangeRequest)
     final Set<Version> versions = rangeResult.versions.toSet()
+    allRangeResult.versions.removeAll(versions)
 
-    filterVersion(allRangeResult.versions.toSet(), muzzleDirective.skipVersions).collect { version ->
-      if (!versions.contains(version)) {
-        final MuzzleDirective inverseDirective = new MuzzleDirective()
-        inverseDirective.group = muzzleDirective.group
-        inverseDirective.module = muzzleDirective.module
-        inverseDirective.versions = "$version"
-        inverseDirective.assertPass = !muzzleDirective.assertPass
-        inverseDirectives.add(inverseDirective)
-      }
-    }
-
-    return inverseDirectives
+    return filterAndLimitVersions(allRangeResult, muzzleDirective.skipVersions).collect { version ->
+      final MuzzleDirective inverseDirective = new MuzzleDirective()
+      inverseDirective.group = muzzleDirective.group
+      inverseDirective.module = muzzleDirective.module
+      inverseDirective.versions = "$version"
+      inverseDirective.assertPass = !muzzleDirective.assertPass
+      inverseDirective
+    }.toSet()
   }
 
-  private static void limitLargeRanges(VersionRangeResult result, Set<Version> versions, Set<String> skipVersions) {
-    List<Version> copy = new ArrayList<>(versions)
-    Collections.shuffle(copy)
-    copy.removeAll(skipVersions)
-    while (RANGE_COUNT_LIMIT <= copy.size()) {
-      Version version = copy.pop()
+  private static Set<Version> filterAndLimitVersions(VersionRangeResult result, Set<String> skipVersions) {
+    return limitLargeRanges(result, filterVersion(result.versions.toSet(), skipVersions), skipVersions)
+  }
+
+  private static Set<Version> limitLargeRanges(VersionRangeResult result, Set<Version> versions, Set<String> skipVersions) {
+    List<Version> versionsCopy = new ArrayList<>(versions)
+    Set<String> skipCopy = new HashSet<>(skipVersions)
+    versionsCopy.removeAll(skipVersions)
+    Collections.shuffle(versionsCopy)
+    while (RANGE_COUNT_LIMIT <= versionsCopy.size()) {
+      Version version = versionsCopy.pop()
       if (!(version.equals(result.lowestVersion) || version.equals(result.highestVersion))) {
-        skipVersions.add(version.toString())
+        skipCopy.add(version.toString())
       }
     }
-    if (skipVersions.size() > 0) {
-      println "Muzzle skipping " + skipVersions.size() + " versions"
+    if (skipCopy.size() > 0) {
+      println "Muzzle skipping " + skipCopy.size() + " versions"
     }
+
+    return versionsCopy.toSet()
   }
 
   /**
@@ -380,6 +405,7 @@ class MuzzlePlugin implements Plugin<Project> {
   }
 
   private static final Pattern GIT_SHA_PATTERN = Pattern.compile('^.*-[0-9a-f]{7,}$')
+  private static final Pattern END_NMN_PATTERN = Pattern.compile('^.*\\.[0-9]+[mM][0-9]+$')
 
   /**
    * Filter out snapshot-type builds from versions list.
@@ -398,7 +424,9 @@ class MuzzlePlugin implements Plugin<Project> {
         version.contains("-ea") ||
         version.contains("-atlassian-") ||
         version.contains("public_draft") ||
+        version.contains("-cr") ||
         skipVersions.contains(version) ||
+        version.matches(END_NMN_PATTERN) ||
         version.matches(GIT_SHA_PATTERN)
     }
     return list

@@ -16,7 +16,6 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.security.Principal;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -44,8 +43,8 @@ public class Servlet3Advice {
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
 
     // For use by HttpServletResponseInstrumentation:
-    InstrumentationContext.get(HttpServletResponse.class, HttpServletRequest.class)
-        .put((HttpServletResponse) response, httpServletRequest);
+    InstrumentationContext.get(HttpServletResponse.class, Boolean.class)
+        .put((HttpServletResponse) response, Boolean.TRUE);
 
     final AgentSpan.Context extractedContext;
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
@@ -56,8 +55,7 @@ public class Servlet3Advice {
       extractedContext = propagate().extract(httpServletRequest, GETTER);
     }
 
-    final AgentSpan span =
-        startSpan(SERVLET_REQUEST, extractedContext).setTag(InstrumentationTags.DD_MEASURED, true);
+    final AgentSpan span = startSpan(SERVLET_REQUEST, extractedContext).setMeasured(true);
 
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, httpServletRequest);

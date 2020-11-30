@@ -2,17 +2,18 @@ package datadog.trace.agent.tooling;
 
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.bootstrap.WeakCache.Provider;
 import datadog.trace.bootstrap.WeakMap;
-import java.util.Iterator;
-import java.util.ServiceLoader;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * This class contains class references for objects shared by the agent installer as well as muzzle
  * (both compile and runtime). Extracted out from AgentInstaller to begin separating some of the
  * logic out.
  */
+@Slf4j
 public class AgentTooling {
 
   static {
@@ -27,27 +28,37 @@ public class AgentTooling {
     }
   }
 
-  private static <K, V> Provider loadWeakCacheProvider() {
-    final Iterator<Provider> providers =
-        ServiceLoader.load(Provider.class, AgentInstaller.class.getClassLoader()).iterator();
-    if (providers.hasNext()) {
-      final Provider provider = providers.next();
-      if (providers.hasNext()) {
-        throw new IllegalStateException(
-            "Only one implementation of WeakCache.Provider suppose to be in classpath");
+  private static Provider loadWeakCacheProvider() {
+    ClassLoader classLoader = AgentInstaller.class.getClassLoader();
+    Class<Provider> providerClass;
+
+    try {
+      if (Platform.isJavaVersionAtLeast(8)) {
+        providerClass =
+            (Class<Provider>)
+                classLoader.loadClass("datadog.trace.agent.tooling.CaffeineWeakCache$Provider");
+        log.debug("Using CaffeineWeakCache Provider");
+      } else {
+        providerClass =
+            (Class<Provider>)
+                classLoader.loadClass("datadog.trace.agent.tooling.CLHMWeakCache$Provider");
+        log.debug("Using CLHMWeakCache Provider");
       }
-      return provider;
+
+      return providerClass.getDeclaredConstructor().newInstance();
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Can't load implementation of WeakCache.Provider", e);
     }
-    throw new IllegalStateException("Can't load implementation of WeakCache.Provider");
   }
 
+  private static final long DEFAULT_CACHE_CAPACITY = 32;
   private static final Provider weakCacheProvider = loadWeakCacheProvider();
 
   private static final DDLocationStrategy LOCATION_STRATEGY = new DDLocationStrategy();
   private static final DDCachingPoolStrategy POOL_STRATEGY = new DDCachingPoolStrategy();
 
   public static <K, V> WeakCache<K, V> newWeakCache() {
-    return weakCacheProvider.newWeakCache();
+    return newWeakCache(DEFAULT_CACHE_CAPACITY);
   }
 
   public static <K, V> WeakCache<K, V> newWeakCache(final long maxSize) {

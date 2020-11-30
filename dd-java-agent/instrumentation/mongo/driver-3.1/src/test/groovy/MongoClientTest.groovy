@@ -13,7 +13,6 @@ import org.bson.BsonString
 import org.bson.Document
 import spock.lang.Shared
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
@@ -38,11 +37,10 @@ class MongoClientTest extends MongoBaseTest {
   def "test create collection"() {
     setup:
     MongoDatabase db = client.getDatabase(dbName)
+    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
 
     when:
-    withConfigOverride(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
-      db.createCollection(collectionName)
-    }
+    db.createCollection(collectionName)
 
     then:
     assertTraces(1) {
@@ -253,9 +251,6 @@ class MongoClientTest extends MongoBaseTest {
         "$Tags.PEER_HOSTNAME" "localhost"
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" port
-        "$Tags.DB_STATEMENT" {
-          it.replace(" ", "") == statement
-        }
         "$Tags.DB_TYPE" "mongo"
         "$Tags.DB_INSTANCE" instance
         defaultTags()

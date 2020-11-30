@@ -1,15 +1,16 @@
 package datadog.trace.core.taginterceptor
 
-import datadog.trace.agent.test.utils.ConfigUtils
+
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreTracer
-import datadog.trace.core.ExclusiveSpan
 import datadog.trace.core.SpanFactory
 import datadog.trace.test.util.DDSpecification
 
@@ -18,37 +19,15 @@ import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 
 class TagInterceptorTest extends DDSpecification {
-  static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.$SPLIT_BY_TAGS", "sn.tag1,sn.tag2")
-    }
-  }
+  def writer
+  def tracer
+  def span
 
-  def cleanupSpec() {
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.$SPLIT_BY_TAGS")
-    }
-  }
-
-  def writer = new ListWriter()
-  def tracer = CoreTracer.builder().writer(writer).build()
-  def span = SpanFactory.newSpanOf(tracer)
-
-  def "adding span personalisation using Decorators"() {
-    setup:
-    def decorator = new AbstractTagInterceptor("foo") {
-      boolean shouldSetTag(ExclusiveSpan span, String tag, Object value) {
-        span.setTag("newFoo", value)
-        return false
-      }
-    }
-    tracer.addTagInterceptor(decorator)
-
-    span.setTag("foo", "bar")
-
-    expect:
-    span.getTags().containsKey("newFoo")
-    span.getTags().get("newFoo") == "bar"
+  def setup() {
+    injectSysConfig(SPLIT_BY_TAGS, "sn.tag1,sn.tag2")
+    writer = new ListWriter()
+    tracer = CoreTracer.builder().writer(writer).build()
+    span = SpanFactory.newSpanOf(tracer)
   }
 
   def "set service name"() {
@@ -126,6 +105,31 @@ class TagInterceptorTest extends DDSpecification {
     "other-context" | "my-service"         | "my-service"
   }
 
+  def "setting service name as a property disables servlet.context with context '#context'"() {
+    when:
+    injectSysConfig("service", serviceName)
+    def span = CoreTracer.builder().writer(writer).build().buildSpan("test").start()
+    span.setTag("servlet.context", context)
+
+    then:
+    span.serviceName == serviceName
+
+    where:
+    context         | serviceName
+    "/"             | DEFAULT_SERVICE_NAME
+    ""              | DEFAULT_SERVICE_NAME
+    "/some-context" | DEFAULT_SERVICE_NAME
+    "other-context" | DEFAULT_SERVICE_NAME
+    "/"             | CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
+    ""              | CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
+    "/some-context" | CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
+    "other-context" | CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
+    "/"             | "my-service"
+    ""              | "my-service"
+    "/some-context" | "my-service"
+    "other-context" | "my-service"
+  }
+
   def "mapping causes servlet.context to not change service name"() {
     setup:
     tracer = CoreTracer.builder()
@@ -152,16 +156,14 @@ class TagInterceptorTest extends DDSpecification {
   }
 
   static createSplittingTracer(tag) {
-    def tracer = CoreTracer.builder()
+    return CoreTracer.builder()
       .serviceName("my-service")
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
-      .build()
-
     // equivalent to split-by-tags: tag
-    tracer.addTagInterceptor(new ServiceNameTagInterceptor(tag, true))
-
-    return tracer
+      .tagInterceptor(new TagInterceptor(true, "my-service",
+        Collections.singleton(tag), new RuleFlags()))
+      .build()
   }
 
   def "peer.service then split-by-tags via builder"() {
@@ -314,23 +316,6 @@ class TagInterceptorTest extends DDSpecification {
     DDTags.MANUAL_DROP | "asdf"  | null
   }
 
-  def "DBStatementAsResource should not interact on Mongo queries"() {
-    when:
-    span.setResourceName("existing")
-    span.setTag(Tags.COMPONENT, component)
-    span.setTag(Tags.DB_STATEMENT, statement)
-    span.finish()
-    writer.waitForTraces(1)
-
-    then:
-    span.getResourceName() == resource
-
-    where:
-    component    | statement    | resource
-    "java-mongo" | "some-query" | "existing"
-    "other"      | "some-query" | "some-query"
-  }
-
   def "set error flag when error tag reported"() {
     when:
     span.setTag(Tags.ERROR, error)
@@ -396,9 +381,7 @@ class TagInterceptorTest extends DDSpecification {
 
   def "disable decorator via config"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace.${decorator}.enabled", "$enabled")
-    }
+    injectSysConfig("dd.trace.${decorator}.enabled", "$enabled")
 
     tracer = CoreTracer.builder()
       .serviceName("some-service")
@@ -413,24 +396,17 @@ class TagInterceptorTest extends DDSpecification {
     then:
     span.getServiceName() == enabled ? "other-service" : "some-service"
 
-    cleanup:
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace.${decorator}.enabled")
-    }
-
     where:
-    decorator                                               | enabled
-    ServiceNameTagInterceptor.getSimpleName().toLowerCase() | true
-    ServiceNameTagInterceptor.getSimpleName()               | true
-    ServiceNameTagInterceptor.getSimpleName().toLowerCase() | false
-    ServiceNameTagInterceptor.getSimpleName()               | false
+    decorator                   | enabled
+    "servicenametaginterceptor" | true
+    "ServiceNameTagInterceptor" | true
+    "serviceNametaginterceptor" | false
+    "ServiceNameTagInterceptor" | false
   }
 
   def "disabling service decorator does not disable split by tags"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace." + ServiceNameTagInterceptor.getSimpleName().toLowerCase() + ".enabled", "false")
-    }
+    injectSysConfig("dd.trace.ServiceNameTagInterceptor.enabled", "false")
 
     tracer = CoreTracer.builder()
       .serviceName("some-service")
@@ -444,11 +420,6 @@ class TagInterceptorTest extends DDSpecification {
 
     then:
     span.getServiceName() == expected
-
-    cleanup:
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace." + ServiceNameTagInterceptor.getSimpleName().toLowerCase() + ".enabled")
-    }
 
     where:
     tag                 | name          | expected

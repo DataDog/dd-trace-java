@@ -6,4 +6,6 @@ dependencies {
 
   compile deps.bytebuddy
   compile deps.bytebuddyagent
+
+  compile group: 'com.github.stefanbirkner', name: 'system-rules', version: '1.19.0'
 }

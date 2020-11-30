@@ -1,0 +1,39 @@
+// Set properties before any plugins get loaded
+ext {
+  // Mongo4 driver requires Java 8 minimum
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+muzzle {
+  pass {
+    group = "org.mongodb"
+    module = "mongodb-driver-core"
+    // this instrumentation is backwards compatible with early versions of the new API that shipped in 3.7
+    // the legacy API instrumented in driver-3.1 continues to be shipped in 4.x, but doesn't conflict here
+    // because they are triggered by different types: MongoClientSettings(new) vs MongoClientOptions(legacy)
+    versions = "[3.7,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.mongodb', name: 'mongodb-driver-core', version: '4.0.0'
+
+  testCompile project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
+  testCompile group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '1.50.5'
+
+  testCompile group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.0.0'
+  testCompile group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.0.0'
+  latestDepTestCompile group: 'org.mongodb', name: 'mongodb-driver-sync', version: '+'
+  latestDepTestCompile group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '+'
+}

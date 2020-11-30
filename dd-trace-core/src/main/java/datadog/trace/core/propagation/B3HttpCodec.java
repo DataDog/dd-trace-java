@@ -144,7 +144,7 @@ class B3HttpCodec {
           }
         } catch (RuntimeException e) {
           invalidateContext();
-          log.error("Exception when extracting context", e);
+          log.debug("Exception when extracting context", e);
           return false;
         }
       }

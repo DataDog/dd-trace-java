@@ -17,6 +17,23 @@ class WeakConcurrentSupplierTest extends DDSpecification {
   @Shared
   def weakInlineSupplier = new WeakMapSuppliers.WeakConcurrent.Inline()
 
+  def "#name accepts null values"() {
+    setup:
+    WeakMap.Provider.provider.set(supplier)
+    def map = WeakMap.Provider.newWeakMap()
+
+    when:
+    map.put('key', null)
+
+    then:
+    noExceptionThrown()
+
+    where:
+    name             | supplier
+    "WeakConcurrent" | weakConcurrentSupplier
+    "WeakInline"     | weakInlineSupplier
+  }
+
   def "Calling newWeakMap on #name creates independent maps"() {
     setup:
     WeakMap.Provider.provider.set(supplier)

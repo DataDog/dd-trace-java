@@ -4,27 +4,27 @@ import org.slf4j.MDC
 class Slf4jMDCTest extends LogContextInjectionTestBase {
 
   @Override
-  def put(String key, Object value) {
-    return MDC.put(key, value as String)
+  void put(String key, Object value) {
+    MDC.put(key, value as String)
   }
 
   @Override
-  def get(String key) {
+  Object get(String key) {
     return MDC.get(key)
   }
 
   @Override
-  def remove(String key) {
-    return MDC.remove(key)
+  void remove(String key) {
+    MDC.remove(key)
   }
 
   @Override
-  def clear() {
-    return MDC.clear()
+  void clear() {
+    MDC.clear()
   }
 
   @Override
-  def getMap() {
+  Map<String, Object> getMap() {
     return MDC.getCopyOfContextMap()
   }
 }

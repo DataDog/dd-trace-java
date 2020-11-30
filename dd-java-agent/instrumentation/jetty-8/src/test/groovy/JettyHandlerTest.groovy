@@ -23,8 +23,11 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 
 class JettyHandlerTest extends HttpServerTest<Server> {
 
-  static {
-    System.setProperty("dd.integration.jetty.enabled", "true")
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    
+    injectSysConfig("dd.integration.jetty.enabled", "true")
   }
 
   static errorHandler = new ErrorHandler() {

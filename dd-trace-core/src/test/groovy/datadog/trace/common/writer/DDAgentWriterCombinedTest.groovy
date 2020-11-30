@@ -14,9 +14,9 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
-import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
-import datadog.trace.core.serialization.msgpack.Mapper
-import datadog.trace.core.serialization.msgpack.Packer
+import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.Mapper
+import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Retry
 import spock.lang.Timeout
@@ -94,7 +94,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
-    1 * api.sendSerializedTraces({ it.traceCount() == 2 && it.representativeCount() == 2 }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == 2 }) >> DDAgentApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -125,7 +125,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
-    1 * api.sendSerializedTraces({ it.traceCount() <= traceCount && it.representativeCount() <= traceCount }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() <= traceCount }) >> DDAgentApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -159,7 +159,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
     1 * healthMetrics.onSerialize(_)
-    1 * api.sendSerializedTraces({ it.traceCount() == 5 && it.representativeCount() == 5 }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == 5 }) >> DDAgentApi.Response.success(200)
     _ * healthMetrics.onPublish(_, _)
     1 * healthMetrics.onSend(_, _, _) >> {
       phaser.arrive()
@@ -204,8 +204,8 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
-    1 * api.sendSerializedTraces({ it.traceCount() == maxedPayloadTraceCount && it.representativeCount() == maxedPayloadTraceCount }) >> DDAgentApi.Response.success(200)
-    1 * api.sendSerializedTraces({ it.traceCount() == 1 && it.representativeCount() == 1 }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == maxedPayloadTraceCount }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == 1 }) >> DDAgentApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -719,7 +719,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
   static int calculateSize(List<DDSpan> trace, Mapper<List<DDSpan>> mapper) {
     ByteBuffer buffer = ByteBuffer.allocate(1024)
     AtomicInteger size = new AtomicInteger()
-    def packer = new Packer(new ByteBufferConsumer() {
+    def packer = new MsgPackWriter(new ByteBufferConsumer() {
       @Override
       void accept(int messageCount, ByteBuffer buffy) {
         size.set(buffy.limit() - buffy.position() - 1)

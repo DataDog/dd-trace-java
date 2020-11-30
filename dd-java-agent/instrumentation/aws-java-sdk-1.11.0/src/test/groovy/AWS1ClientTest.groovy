@@ -50,14 +50,9 @@ class AWS1ClientTest extends AgentTestRunner {
     new ProfileCredentialsProvider(),
     new InstanceProfileCredentialsProvider())
 
-  def setupSpec() {
+  def setup() {
     System.setProperty(SDKGlobalConfiguration.ACCESS_KEY_SYSTEM_PROPERTY, "my-access-key")
     System.setProperty(SDKGlobalConfiguration.SECRET_KEY_SYSTEM_PROPERTY, "my-secret-key")
-  }
-
-  def cleanupSpec() {
-    System.clearProperty(SDKGlobalConfiguration.ACCESS_KEY_SYSTEM_PROPERTY)
-    System.clearProperty(SDKGlobalConfiguration.SECRET_KEY_SYSTEM_PROPERTY)
   }
 
   @Shared

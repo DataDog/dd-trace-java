@@ -15,6 +15,8 @@ public class DDSpanTypes {
   public static final String MEMCACHED = "memcached";
   public static final String ELASTICSEARCH = "elasticsearch";
   public static final String HIBERNATE = "hibernate";
+  public static final String AEROSPIKE = "aerospike";
+  public static final String DATANUCLEUS = "datanucleus";
 
   public static final String MESSAGE_CLIENT = "queue";
   public static final String MESSAGE_CONSUMER = "queue";

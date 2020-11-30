@@ -6,7 +6,6 @@ import com.mongodb.connection.ConnectionId;
 import com.mongodb.connection.ServerId;
 import com.mongodb.event.CommandStartedEvent;
 import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
@@ -94,8 +93,8 @@ public class MongoClientDecorator
     final BsonDocument scrubbed = scrub(statement);
     final String mongoCmd = scrubbed.toString();
 
-    span.setTag(DDTags.RESOURCE_NAME, mongoCmd);
-    return onStatement(span, mongoCmd);
+    span.setResourceName(mongoCmd);
+    return span;
   }
 
   /**

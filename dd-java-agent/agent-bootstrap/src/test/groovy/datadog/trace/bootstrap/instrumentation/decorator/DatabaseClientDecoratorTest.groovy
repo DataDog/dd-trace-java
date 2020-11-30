@@ -4,7 +4,6 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class DatabaseClientDecoratorTest extends ClientDecoratorTest {
@@ -25,7 +24,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, "client")
     1 * span.setSpanType("test-type")
-    1 * span.setTag(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)
+    1 * span.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)
     0 * _
 
     where:
@@ -34,12 +33,11 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
 
   def "test onConnection"() {
     setup:
+    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
     def decorator = newDecorator()
 
     when:
-    withConfigOverride(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
-      decorator.onConnection(span, session)
-    }
+    decorator.onConnection(span, session)
 
     then:
     if (session) {
@@ -70,7 +68,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     decorator.onStatement(span, statement)
 
     then:
-    1 * span.setTag(Tags.DB_STATEMENT, statement)
+    1 * span.setResourceName(statement)
     0 * _
 
     where:

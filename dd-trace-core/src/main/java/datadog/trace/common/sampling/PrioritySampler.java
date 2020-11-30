@@ -1,7 +1,7 @@
 package datadog.trace.common.sampling;
 
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.CoreSpan;
 
-public interface PrioritySampler {
-  void setSamplingPriority(DDSpan span);
+public interface PrioritySampler<T extends CoreSpan<T>> {
+  void setSamplingPriority(T span);
 }

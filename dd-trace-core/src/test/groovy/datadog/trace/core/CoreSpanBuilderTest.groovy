@@ -20,7 +20,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS
 class CoreSpanBuilderTest extends DDSpecification {
 
   def writer = new ListWriter()
-  def config = Config.get()
   def tracer = CoreTracer.builder().writer(writer).build()
 
   def "build simple span"() {
@@ -62,7 +61,7 @@ class CoreSpanBuilderTest extends DDSpecification {
     span.getTags() == [
       (THREAD_NAME)     : Thread.currentThread().getName(),
       (THREAD_ID)       : Thread.currentThread().getId(),
-      (RUNTIME_ID_TAG)  : config.getRuntimeId(),
+      (RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
       (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
     ]
 
@@ -301,7 +300,7 @@ class CoreSpanBuilderTest extends DDSpecification {
     span.samplingPriority == extractedContext.samplingPriority
     span.context().origin == extractedContext.origin
     span.context().baggageItems == extractedContext.baggage
-    span.context().tags == extractedContext.tags + [(RUNTIME_ID_TAG)  : config.getRuntimeId(),
+    span.context().tags == extractedContext.tags + [(RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
                                                     (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
                                                     (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
 
@@ -322,7 +321,7 @@ class CoreSpanBuilderTest extends DDSpecification {
     span.samplingPriority == null
     span.context().origin == tagContext.origin
     span.context().baggageItems == [:]
-    span.context().tags == tagContext.tags + [(RUNTIME_ID_TAG)  : config.getRuntimeId(),
+    span.context().tags == tagContext.tags + [(RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
                                               (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
                                               (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
 
@@ -334,21 +333,17 @@ class CoreSpanBuilderTest extends DDSpecification {
 
   def "global span tags populated on each span"() {
     setup:
-    System.setProperty("dd.trace.span.tags", tagString)
-    def config = new Config()
-    tracer = CoreTracer.builder().config(config).writer(writer).build()
+    injectSysConfig("dd.trace.span.tags", tagString)
+    tracer = CoreTracer.builder().writer(writer).build()
     def span = tracer.buildSpan("op name").withServiceName("foo").start()
 
     expect:
     span.tags == tags + [
       (THREAD_NAME)     : Thread.currentThread().getName(),
       (THREAD_ID)       : Thread.currentThread().getId(),
-      (RUNTIME_ID_TAG)  : config.getRuntimeId(),
+      (RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
       (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
     ]
-
-    cleanup:
-    System.clearProperty("dd.trace.span.tags")
 
     where:
     tagString     | tags

@@ -26,19 +26,10 @@ public final class ReactorHooksInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TracingPublishers",
-      packageName + ".TracingPublishers$MonoTracingPublisher",
-      packageName + ".TracingPublishers$ParallelFluxTracingPublisher",
-      packageName + ".TracingPublishers$ConnectableFluxTracingPublisher",
-      packageName + ".TracingPublishers$GroupedFluxTracingPublisher",
-      packageName + ".TracingPublishers$FluxTracingPublisher",
-      packageName + ".TracingPublishers$FuseableMonoTracingPublisher",
-      packageName + ".TracingPublishers$FuseableParallelFluxTracingPublisher",
-      packageName + ".TracingPublishers$FuseableConnectableFluxTracingPublisher",
-      packageName + ".TracingPublishers$FuseableGroupedFluxTracingPublisher",
-      packageName + ".TracingPublishers$FuseableFluxTracingPublisher",
+      packageName + ".TracingOperator",
+      packageName + ".TracingOperator$Lifter",
+      packageName + ".TracingOperator$LifterFilter",
       packageName + ".TracingSubscriber",
-      packageName + ".TracingSubscriber$UnifiedScope",
     };
   }
 

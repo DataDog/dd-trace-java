@@ -1,24 +1,28 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.NO_CACHING;
-import static datadog.trace.core.serialization.msgpack.Util.integerToStringBuffer;
-import static datadog.trace.core.serialization.msgpack.Util.writeLongAsString;
+import static datadog.trace.core.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.trace.core.serialization.EncodingCachingStrategies.NO_CACHING;
+import static datadog.trace.core.serialization.Util.integerToStringBuffer;
+import static datadog.trace.core.serialization.Util.writeLongAsString;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.DDSpanData;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.StringTables;
 import datadog.trace.core.TagsAndBaggageConsumer;
-import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
-import datadog.trace.core.serialization.msgpack.Mapper;
-import datadog.trace.core.serialization.msgpack.Packer;
-import datadog.trace.core.serialization.msgpack.Writable;
+import datadog.trace.core.serialization.ByteBufferConsumer;
+import datadog.trace.core.serialization.Mapper;
+import datadog.trace.core.serialization.Writable;
+import datadog.trace.core.serialization.WritableFormatter;
+import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import okhttp3.RequestBody;
 
 public final class TraceMapperV0_5 implements TraceMapper {
 
@@ -28,7 +32,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
   private static final DictionaryFull DICTIONARY_FULL = new DictionaryFull();
 
   private final ByteBuffer[] dictionary = new ByteBuffer[1];
-  private final Packer dictionaryWriter;
+  private final WritableFormatter dictionaryWriter;
   private final DictionaryMapper dictionaryMapper = new DictionaryMapper();
   private final Map<Object, Integer> encoding = new HashMap<>();
 
@@ -40,7 +44,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   public TraceMapperV0_5(final int bufferSize) {
     this.dictionaryWriter =
-        new Packer(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(final int messageCount, final ByteBuffer buffer) {
@@ -53,9 +57,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   @Override
-  public void map(final List<? extends DDSpanData> trace, final Writable writable) {
+  public void map(final List<? extends CoreSpan<?>> trace, final Writable writable) {
     writable.startArray(trace.size());
-    for (final DDSpanData span : trace) {
+    for (final CoreSpan<?> span : trace) {
       writable.startArray(12);
       /* 1  */
       writeDictionaryEncoded(writable, span.getServiceName());
@@ -164,8 +168,6 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   private static class PayloadV0_5 extends Payload {
 
-    // msgpack array header with 2 elements (FIXARRAY | 2)
-    private final ByteBuffer header = ByteBuffer.allocate(1).put(0, (byte) 0x92);
     private final ByteBuffer dictionary;
 
     private PayloadV0_5(final ByteBuffer dictionary) {
@@ -174,14 +176,27 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
     @Override
     int sizeInBytes() {
-      return sizeInBytes(header) + sizeInBytes(dictionary) + sizeInBytes(body);
+      return 1 + dictionary.remaining() + body.remaining();
     }
 
     @Override
-    public void writeTo(final WritableByteChannel channel) throws IOException {
-      writeBufferToChannel(header, channel);
-      writeBufferToChannel(dictionary, channel);
-      writeBufferToChannel(body, channel);
+    void writeTo(WritableByteChannel channel) throws IOException {
+      for (ByteBuffer buffer : toList()) {
+        while (buffer.hasRemaining()) {
+          channel.write(buffer);
+        }
+      }
+    }
+
+    @Override
+    RequestBody toRequest() {
+      return msgpackRequestBodyOf(toList());
+    }
+
+    private List<ByteBuffer> toList() {
+      return Arrays.asList(
+          // msgpack array header with 2 elements (FIXARRAY | 2)
+          ByteBuffer.allocate(1).put(0, (byte) 0x92), dictionary, body);
     }
   }
 

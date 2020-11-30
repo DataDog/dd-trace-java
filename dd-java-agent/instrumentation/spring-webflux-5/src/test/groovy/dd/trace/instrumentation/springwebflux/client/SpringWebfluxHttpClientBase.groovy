@@ -103,7 +103,6 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
     false
   }
 
-
   boolean testRemoteConnection() {
     // FIXME: figure out how to configure timeouts.
     false

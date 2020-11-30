@@ -1,5 +1,12 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+
+import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
@@ -104,7 +111,7 @@ public class Agent {
      * events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different
      * logging facility.
      */
-    if (isJavaBefore9() && appUsingCustomLogManager) {
+    if (!isJavaVersionAtLeast(9) && appUsingCustomLogManager) {
       log.debug("Custom logger detected. Delaying Profiling Agent startup.");
       registerLogManagerCallback(new StartProfilingAgentCallback(inst, bootstrapURL));
     } else {
@@ -120,7 +127,7 @@ public class Agent {
           agentInstallerClass.getMethod("registerClassLoadCallback", String.class, Runnable.class);
       registerCallbackMethod.invoke(null, "java.util.logging.LogManager", callback);
     } catch (final Exception ex) {
-      log.error("Error registering callback for " + callback.getName(), ex);
+      log.error("Error registering callback for {}", callback.agentThread(), ex);
     }
   }
 
@@ -132,7 +139,7 @@ public class Agent {
           agentInstallerClass.getMethod("registerClassLoadCallback", String.class, Runnable.class);
       registerCallbackMethod.invoke(null, "javax.management.MBeanServerBuilder", callback);
     } catch (final Exception ex) {
-      log.error("Error registering callback for " + callback.getName(), ex);
+      log.error("Error registering callback for {}", callback.agentThread(), ex);
     }
   }
 
@@ -152,23 +159,22 @@ public class Agent {
        * This seems to resolve this problem.
        */
       final Thread thread =
-          new Thread(
+          newAgentThread(
+              agentThread(),
               new Runnable() {
                 @Override
                 public void run() {
                   try {
                     execute();
                   } catch (final Exception e) {
-                    log.error("Failed to run class loader callback {}", getName(), e);
+                    log.error("Failed to run {}", agentThread(), e);
                   }
                 }
               });
-      thread.setName("dd-agent-startup-" + getName());
-      thread.setDaemon(true);
       thread.start();
     }
 
-    public abstract String getName();
+    public abstract AgentThread agentThread();
 
     public abstract void execute();
   }
@@ -179,8 +185,8 @@ public class Agent {
     }
 
     @Override
-    public String getName() {
-      return "jmxfetch";
+    public AgentThread agentThread() {
+      return JMX_STARTUP;
     }
 
     @Override
@@ -195,8 +201,8 @@ public class Agent {
     }
 
     @Override
-    public String getName() {
-      return "datadog-tracer";
+    public AgentThread agentThread() {
+      return TRACE_STARTUP;
     }
 
     @Override
@@ -211,8 +217,8 @@ public class Agent {
     }
 
     @Override
-    public String getName() {
-      return "datadog-profiler";
+    public AgentThread agentThread() {
+      return PROFILER_STARTUP;
     }
 
     @Override
@@ -231,7 +237,7 @@ public class Agent {
         BOOTSTRAP_PROXY = (ClassLoader) constructor.newInstance(bootstrapURL);
 
         final ClassLoader grandParent;
-        if (isJavaBefore9()) {
+        if (!isJavaVersionAtLeast(9)) {
           grandParent = null; // bootstrap
         } else {
           // platform classloader is parent of system in java 9+
@@ -291,11 +297,6 @@ public class Agent {
       throw new IllegalStateException("Datadog agent should have been started already");
     }
     initializeJmxSystemAccessProvider(AGENT_CLASSLOADER);
-
-    if (PROFILING_CLASSLOADER == null) {
-      throw new IllegalStateException("Datadog profiling agent should have been started already");
-    }
-    initializeJmxSystemAccessProvider(PROFILING_CLASSLOADER);
 
     registerDeadlockDetectionEvent(bootstrapURL);
   }
@@ -568,12 +569,8 @@ public class Agent {
     return false;
   }
 
-  private static boolean isJavaBefore9() {
-    return System.getProperty("java.version").startsWith("1.");
-  }
-
   private static boolean isJavaBefore9WithJFR() {
-    if (!isJavaBefore9()) {
+    if (isJavaVersionAtLeast(9)) {
       return false;
     }
     // FIXME: this is quite a hack because there maybe jfr classes on classpath somehow that have

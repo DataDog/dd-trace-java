@@ -1,13 +1,12 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.http_url_connection.UrlInstrumentation
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState.OPERATION_NAME
 
@@ -15,14 +14,13 @@ class UrlConnectionTest extends AgentTestRunner {
 
   def "trace request with connection failure #scheme"() {
     when:
-    withConfigOverride(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService") {
-      runUnderTrace("someTrace") {
-        URLConnection connection = url.openConnection()
-        connection.setConnectTimeout(10000)
-        connection.setReadTimeout(10000)
-        assert activeScope() != null
-        connection.inputStream
-      }
+    injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
+    runUnderTrace("someTrace") {
+      URLConnection connection = url.openConnection()
+      connection.setConnectTimeout(10000)
+      connection.setReadTimeout(10000)
+      assert activeScope() != null
+      connection.inputStream
     }
 
     then:
@@ -76,10 +74,9 @@ class UrlConnectionTest extends AgentTestRunner {
     def url = new URI("file:/some-random-file%abc").toURL()
 
     when:
-    withConfigOverride(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService") {
-      runUnderTrace("someTrace") {
-        url.openConnection()
-      }
+    injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
+    runUnderTrace("someTrace") {
+      url.openConnection()
     }
 
     then:

@@ -15,7 +15,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -63,7 +62,7 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Default {
         if (scope != null) {
           request.addHandlerContext(SCOPE_CONTEXT_KEY, null);
           final AgentSpan span = scope.span();
-          span.setTag(InstrumentationTags.DD_MEASURED, true);
+          span.setMeasured(true);
           DECORATE.onError(span, throwable);
           DECORATE.beforeFinish(span);
           scope.close();
@@ -102,7 +101,7 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Default {
           if (scope != null) {
             request.addHandlerContext(SCOPE_CONTEXT_KEY, null);
             final AgentSpan span = scope.span();
-            span.setTag(InstrumentationTags.DD_MEASURED, true);
+            span.setMeasured(true);
             DECORATE.onError(span, throwable);
             DECORATE.beforeFinish(span);
             scope.close();

@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.config.provider;
 
 import lombok.NonNull;
 
-final class SystemPropertiesConfigSource extends ConfigProvider.Source {
+public final class SystemPropertiesConfigSource extends ConfigProvider.Source {
   private static final String PREFIX = "dd.";
 
   @Override

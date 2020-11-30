@@ -3,6 +3,12 @@ package datadog.trace.core.serialization.msgpack;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import datadog.trace.core.serialization.ByteBufferConsumer;
+import datadog.trace.core.serialization.Codec;
+import datadog.trace.core.serialization.EncodingCache;
+import datadog.trace.core.serialization.EncodingCachingStrategies;
+import datadog.trace.core.serialization.Mapper;
+import datadog.trace.core.serialization.Writable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -53,8 +59,8 @@ public class SmokeTest {
   public void testWriteMessage() {
     final Foo message = Foo.create();
     ByteBuffer buffer = ByteBuffer.allocate(1024);
-    Packer packer =
-        new Packer(
+    MsgPackWriter packer =
+        new MsgPackWriter(
             Codec.INSTANCE,
             new ByteBufferConsumer() {
               @Override

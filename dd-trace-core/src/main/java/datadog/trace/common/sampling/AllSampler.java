@@ -1,12 +1,12 @@
 package datadog.trace.common.sampling;
 
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.CoreSpan;
 
 /** Sampler that always says yes... */
-public class AllSampler extends AbstractSampler {
+public class AllSampler<T extends CoreSpan<T>> extends AbstractSampler<T> {
 
   @Override
-  public boolean doSample(final DDSpan span) {
+  public boolean doSample(final T span) {
     return true;
   }
 

@@ -6,6 +6,7 @@ import datadog.trace.agent.tooling.AgentTooling;
 import datadog.trace.agent.tooling.Utils;
 import datadog.trace.agent.tooling.muzzle.Reference.Mismatch;
 import datadog.trace.agent.tooling.muzzle.Reference.Source;
+import datadog.trace.api.Function;
 import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.bootstrap.instrumentation.api.Pair;
 import java.util.ArrayList;
@@ -15,7 +16,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
@@ -53,12 +53,13 @@ public final class ReferenceMatcher {
       loader = Utils.getBootstrapProxy();
     }
     final ClassLoader cl = loader;
-    return mismatchCache.getIfPresentOrCompute(
+    return mismatchCache.computeIfAbsent(
         loader,
-        new Callable<Boolean>() {
+        // Can't use a function reference because of Java7 support
+        new Function<ClassLoader, Boolean>() {
           @Override
-          public Boolean call() {
-            return doesMatch(cl);
+          public Boolean apply(ClassLoader key) {
+            return doesMatch(key);
           }
         });
   }

@@ -1,6 +1,5 @@
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
 import datadog.trace.core.DDSpan
@@ -19,6 +18,7 @@ import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.ForkJoinTask
 import java.util.concurrent.Future
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.PriorityBlockingQueue
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.ThreadPoolExecutor
@@ -29,14 +29,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 import static org.junit.Assume.assumeTrue
 
 class ExecutorInstrumentationTest extends AgentTestRunner {
-  static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace.executors", "ExecutorInstrumentationTest\$CustomThreadPoolExecutor")
-    }
-  }
-
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
+  @Shared
+  def executePriorityTask = { e, c -> e.execute(new ComparableAsyncChild(0, (Runnable) c)) }
   @Shared
   def executeForkJoinTask = { e, c -> e.execute((ForkJoinTask) c) }
   @Shared
@@ -59,6 +55,13 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
   def scheduleRunnable = { e, c -> e.schedule((Runnable) c, 10, TimeUnit.MILLISECONDS) }
   @Shared
   def scheduleCallable = { e, c -> e.schedule((Callable) c, 10, TimeUnit.MILLISECONDS) }
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.trace.executors", "ExecutorInstrumentationTest\$CustomThreadPoolExecutor")
+  }
 
   def "#poolImpl '#name' propagates"() {
     setup:
@@ -104,6 +107,8 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAll with timeout" | invokeAllTimeout    | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
     "invokeAny"              | invokeAny           | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
     "invokeAny with timeout" | invokeAnyTimeout    | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
+
+    "execute Priority task"  | executePriorityTask | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new PriorityBlockingQueue<ComparableAsyncChild>(10))
 
     // Scheduled executor has additional methods and also may get disabled because it wraps tasks
     "execute Runnable"       | executeRunnable     | new ScheduledThreadPoolExecutor(1)

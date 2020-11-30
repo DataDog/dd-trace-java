@@ -12,8 +12,8 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.monitor.Monitoring
-import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
-import datadog.trace.core.serialization.msgpack.Packer
+import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.startupcheck.MinimumDurationRunningStartupCheckStrategy
@@ -128,11 +128,11 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def beforeTest(boolean enableV05) {
     Monitoring monitoring = new Monitoring(statsDClient, 1, TimeUnit.SECONDS)
-    api = new DDAgentApi(String.format("http://%s:%d", agentContainerHost, agentContainerPort), null, 5000, enableV05, monitoring)
+    api = new DDAgentApi(String.format("http://%s:%d", agentContainerHost, agentContainerPort), null, 5000, enableV05, false, monitoring)
     api.addResponseListener(responseListener)
     mapper = api.selectTraceMapper()
     version = mapper instanceof TraceMapperV0_5 ? "v0.5" : "v0.4"
-    unixDomainSocketApi = new DDAgentApi(String.format("http://%s:%d", SOMEHOST, SOMEPORT), socketPath.toString(), 5000, enableV05, monitoring)
+    unixDomainSocketApi = new DDAgentApi(String.format("http://%s:%d", SOMEHOST, SOMEPORT), socketPath.toString(), 5000, enableV05, false, monitoring)
     unixDomainSocketApi.addResponseListener(responseListener)
   }
 
@@ -185,13 +185,11 @@ class DDApiIntegrationTest extends DDSpecification {
 
   static class Traces implements ByteBufferConsumer {
     int traceCount
-    int representativeCount
     ByteBuffer buffer
 
     @Override
     void accept(int messageCount, ByteBuffer buffer) {
       this.buffer = buffer
-      this.representativeCount = messageCount
       this.traceCount = messageCount
     }
   }
@@ -199,13 +197,12 @@ class DDApiIntegrationTest extends DDSpecification {
   Payload prepareRequest(List<List<DDSpan>> traces, TraceMapper traceMapper) {
     ByteBuffer buffer = ByteBuffer.allocate(1 << 20)
     Traces traceCapture = new Traces()
-    def packer = new Packer(traceCapture, buffer)
+    def packer = new MsgPackWriter(traceCapture, buffer)
     for (trace in traces) {
       packer.format(trace, traceMapper)
     }
     packer.flush()
     return traceMapper.newPayload()
       .withBody(traceCapture.traceCount, traceCapture.buffer)
-      .withRepresentativeCount(traceCapture.representativeCount)
   }
 }

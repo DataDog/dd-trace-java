@@ -19,7 +19,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.lang.reflect.Method;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -88,7 +87,7 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Default 
       final AgentSpan parent = activeSpan();
 
       final AgentSpan span = startSpan(JAX_ENDPOINT_OPERATION_NAME);
-      span.setTag(InstrumentationTags.DD_MEASURED, true);
+      span.setMeasured(true);
       DECORATE.onJaxRsSpan(span, parent, target.getClass(), method);
       DECORATE.afterStart(span);
 

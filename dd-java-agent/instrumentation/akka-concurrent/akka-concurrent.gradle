@@ -31,6 +31,30 @@ compileAkka23TestGroovy {
   classpath += files(sourceSets.akka23Test.scala.classesDirectory)
 }
 
+// Run the akk23Test against the normal and latestDep akka version as well
+sourceSets {
+  test {
+    scala {
+      source sourceSets.akka23Test.allSource
+    }
+    groovy {
+      source sourceSets.akka23Test.allSource
+    }
+  }
+  latestDepTest {
+    scala {
+      source sourceSets.akka23Test.allSource
+    }
+    groovy {
+      source sourceSets.akka23Test.allSource
+    }
+  }
+}
+compileLatestDepTestGroovy {
+  classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
+}
+
+
 dependencies {
   compileOnly group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
 
