@@ -41,8 +41,6 @@ class CoreTracerTest extends DDSpecification {
     tracer.writer instanceof DDAgentWriter
     tracer.statsDClient instanceof NonBlockingStatsDClient
 
-    !tracer.spanTagInterceptors.isEmpty()
-
     tracer.injector instanceof HttpCodec.CompoundInjector
     tracer.extractor instanceof HttpCodec.CompoundExtractor
   }

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.mongo4;
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.event.CommandStartedEvent;
 import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
@@ -73,7 +72,7 @@ public class Mongo4ClientDecorator
     final BsonDocument scrubbed = scrub(statement);
     final String mongoCmd = scrubbed.toString();
 
-    span.setTag(DDTags.RESOURCE_NAME, mongoCmd);
+    span.setResourceName(mongoCmd);
     return onStatement(span, mongoCmd);
   }
 

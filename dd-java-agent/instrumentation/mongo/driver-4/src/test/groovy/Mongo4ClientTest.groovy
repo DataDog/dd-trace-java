@@ -246,9 +246,6 @@ class Mongo4ClientTest extends MongoBaseTest {
         "$Tags.PEER_HOSTNAME" "localhost"
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" port
-        "$Tags.DB_STATEMENT" {
-          it.replace(" ", "") == statement
-        }
         "$Tags.DB_TYPE" "mongo"
         "$Tags.DB_INSTANCE" instance
         defaultTags()

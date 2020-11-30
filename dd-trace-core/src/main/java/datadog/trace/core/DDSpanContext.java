@@ -1,17 +1,11 @@
 package datadog.trace.core;
 
-import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
-import static datadog.trace.api.DDTags.SPAN_TYPE;
-
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.core.taginterceptor.AbstractTagInterceptor;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -357,26 +351,14 @@ public class DDSpanContext implements AgentSpan.Context {
    * @param value the value of the tag. tags with null values are ignored.
    */
   public void setTag(final String tag, final Object value) {
-    // intercept tags we represent as fields but used to store in a weakly typed map
-    switch (tag) {
-      case SPAN_TYPE:
-        if (value instanceof CharSequence) {
-          this.spanType = (CharSequence) value;
-        }
-        break;
-      case ANALYTICS_SAMPLE_RATE:
-        Number analyticsSampleRate = getOrTryParse(value);
-        if (null != analyticsSampleRate) {
-          setMetric(ANALYTICS_SAMPLE_RATE, analyticsSampleRate);
-        }
-        break;
-      case Tags.ERROR:
-        setErrorFlag(Boolean.TRUE.equals(value) || Boolean.parseBoolean(String.valueOf(value)));
-        break;
-      default:
-        synchronized (unsafeTags) {
-          unsafeSetTag(tag, value);
-        }
+    if (null == value || "".equals(value)) {
+      synchronized (unsafeTags) {
+        unsafeTags.remove(tag);
+      }
+    } else if (!tracer.getTagInterceptor().interceptTag(exclusiveSpan, tag, value)) {
+      synchronized (unsafeTags) {
+        unsafeSetTag(tag, value);
+      }
     }
   }
 
@@ -387,40 +369,15 @@ public class DDSpanContext implements AgentSpan.Context {
 
     synchronized (unsafeTags) {
       for (final Map.Entry<String, ? extends Object> tag : map.entrySet()) {
-        // not backporting tag fields now represented by fields
-        // because this is internal api
-        unsafeSetTag(tag.getKey(), tag.getValue());
+        if (!tracer.getTagInterceptor().interceptTag(exclusiveSpan, tag.getKey(), tag.getValue())) {
+          unsafeSetTag(tag.getKey(), tag.getValue());
+        }
       }
     }
   }
 
   void unsafeSetTag(final String tag, final Object value) {
-    if (value == null || (value instanceof String && ((String) value).isEmpty())) {
-      unsafeTags.remove(tag);
-      return;
-    }
-
-    boolean addTag = true;
-
-    // Call interceptors
-    final List<AbstractTagInterceptor> interceptors = tracer.getSpanTagInterceptors(tag);
-    if (interceptors != null) {
-      final ExclusiveSpan span = exclusiveSpan;
-      for (final AbstractTagInterceptor interceptor : interceptors) {
-        try {
-          addTag &= interceptor.shouldSetTag(span, tag, value);
-        } catch (final Throwable ex) {
-          log.debug(
-              "Could not intercept the span interceptor={}: {}",
-              interceptor.getClass().getSimpleName(),
-              ex.getMessage());
-        }
-      }
-    }
-
-    if (addTag) {
-      unsafeTags.put(tag, value);
-    }
+    unsafeTags.put(tag, value);
   }
 
   Object getTag(final String key) {
@@ -453,19 +410,6 @@ public class DDSpanContext implements AgentSpan.Context {
     synchronized (unsafeTags) {
       consumer.accept(exclusiveSpan);
     }
-  }
-
-  private Number getOrTryParse(Object value) {
-    if (value instanceof Number) {
-      return (Number) value;
-    } else if (value instanceof String) {
-      try {
-        return Double.parseDouble((String) value);
-      } catch (NumberFormatException ignore) {
-
-      }
-    }
-    return null;
   }
 
   @Override
