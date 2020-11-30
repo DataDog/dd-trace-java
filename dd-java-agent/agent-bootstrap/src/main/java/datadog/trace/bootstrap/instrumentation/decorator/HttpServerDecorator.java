@@ -71,7 +71,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
             }
           }
           final String path = url.path();
-          if (path.isEmpty()) {
+          if (null == path || path.isEmpty()) {
             urlNoParams.append("/");
           } else {
             if (!path.startsWith("/")) {
