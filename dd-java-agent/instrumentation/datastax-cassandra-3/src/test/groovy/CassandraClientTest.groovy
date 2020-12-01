@@ -8,19 +8,22 @@ import datadog.trace.core.DDSpan
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
 import spock.lang.Shared
 
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class CassandraClientTest extends AgentTestRunner {
+  private static final int ASYNC_TIMEOUT_MS = 5000
 
   @Shared
   Cluster cluster
+
   @Shared
-  int port = 9142
+  int port
 
   @Shared
   def executor = Executors.newCachedThreadPool()
@@ -32,10 +35,10 @@ class CassandraClientTest extends AgentTestRunner {
      started in container like we do for memcached. Note: this will complicate things because
      tests would have to assume they run under shared Cassandra and act accordingly.
       */
-    EmbeddedCassandraServerHelper.startEmbeddedCassandra(120000L)
+    EmbeddedCassandraServerHelper.startEmbeddedCassandra(EmbeddedCassandraServerHelper.CASSANDRA_RNDPORT_YML_FILE, 120000L)
 
     cluster = EmbeddedCassandraServerHelper.getCluster()
-
+    port = EmbeddedCassandraServerHelper.getNativeTransportPort()
     /*
     Looks like sometimes our requests fail because Cassandra takes to long to respond,
     Increase this timeout as well to try to cope with this.
@@ -81,7 +84,7 @@ class CassandraClientTest extends AgentTestRunner {
 
   def "test async"() {
     setup:
-    def callbackExecuted = new AtomicBoolean()
+    def callbackExecuted = new CountDownLatch(1)
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
 
     when:
@@ -90,14 +93,14 @@ class CassandraClientTest extends AgentTestRunner {
       def future = session.executeAsync(statement)
       future.addListener({ ->
         runUnderTrace("callbackListener") {
-          callbackExecuted.set(true)
+          callbackExecuted.countDown()
         }
       }, executor)
       blockUntilChildSpansFinished(2)
     }
 
     then:
-    callbackExecuted.get()
+    assert callbackExecuted.await(ASYNC_TIMEOUT_MS, TimeUnit.MILLISECONDS)
     assertTraces(keyspace ? 2 : 1) {
       if (keyspace) {
         trace(1) {
