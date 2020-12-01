@@ -6,7 +6,6 @@ import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.cluster.ClusterManager
 import com.couchbase.client.java.env.CouchbaseEnvironment
 import org.springframework.data.couchbase.core.CouchbaseTemplate
-import spock.lang.Retry
 import spock.lang.Shared
 import spock.lang.Unroll
 import util.AbstractCouchbaseTest
@@ -15,7 +14,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@Retry(count = 10, delay = 500)
 @Unroll
 class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
 

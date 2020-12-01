@@ -9,12 +9,10 @@ import org.elasticsearch.index.IndexNotFoundException
 import org.elasticsearch.node.Node
 import org.elasticsearch.node.NodeBuilder
 import org.elasticsearch.transport.TransportService
-import spock.lang.Retry
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch2NodeClientTest extends AgentTestRunner {
   public static final long TIMEOUT = 10000; // 10 seconds
 

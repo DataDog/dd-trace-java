@@ -4,7 +4,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
-import spock.lang.Retry
 import spock.lang.Shared
 
 import java.lang.reflect.InvocationHandler
@@ -14,7 +13,6 @@ import java.lang.reflect.Proxy
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
   // Setting up appContext & repo with @Shared doesn't allow
   // spring-data instrumentation to applied.

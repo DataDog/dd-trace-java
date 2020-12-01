@@ -1,7 +1,5 @@
 import datadog.trace.agent.test.asserts.TraceAssert
-import spock.lang.Retry
 
-@Retry
 class CouchbaseAsyncClient26Test extends CouchbaseAsyncClientTest {
 
   @Override

@@ -21,14 +21,12 @@ import org.apache.activemq.junit.EmbeddedActiveMQBroker
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.jms.core.JmsTemplate
 import org.springframework.jms.listener.adapter.MessagingMessageListenerAdapter
-import spock.lang.Retry
 
 import javax.jms.ConnectionFactory
 
 import static JMS1Test.consumerTrace
 import static JMS1Test.producerTrace
 
-@Retry
 class SpringListenerJMS1Test extends AgentTestRunner {
 
   def "receiving message in spring listener generates spans"() {

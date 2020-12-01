@@ -18,7 +18,6 @@ import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.Mapper
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Retry
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
 
@@ -427,8 +426,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
-  @Retry(delay = 500)
-  // if execution is too slow, the http client timeout may trigger.
   def "slow response test"() {
     def numWritten = 0
     def numFlushes = new AtomicInteger(0)

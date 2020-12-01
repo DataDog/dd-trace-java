@@ -3,14 +3,11 @@ package datadog.trace.agent.tooling
 import datadog.trace.bootstrap.WeakMap
 import datadog.trace.test.util.GCUtils
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Retry
 import spock.lang.Shared
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.TimeUnit
 
-@Retry
-// These tests fail sometimes in CI.
 class WeakConcurrentSupplierTest extends DDSpecification {
   @Shared
   def weakConcurrentSupplier = new WeakMapSuppliers.WeakConcurrent()

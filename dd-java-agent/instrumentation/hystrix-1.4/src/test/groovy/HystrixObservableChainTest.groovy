@@ -5,13 +5,11 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.hystrix.HystrixDecorator
 import rx.Observable
 import rx.schedulers.Schedulers
-import spock.lang.Retry
 import spock.lang.Timeout
 
 import static com.netflix.hystrix.HystrixCommandGroupKey.Factory.asKey
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@Retry
 @Timeout(5)
 class HystrixObservableChainTest extends AgentTestRunner {
   @Override
