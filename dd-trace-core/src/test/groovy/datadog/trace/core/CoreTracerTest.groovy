@@ -142,7 +142,7 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     tracer.writer instanceof DDAgentWriter
-    tracer.writer.api.unixDomainSocketPath == null
+    !tracer.writer.api.usingUnixDomainSockets
 
     where:
     uds = "asdf"
@@ -176,7 +176,7 @@ class CoreTracerTest extends DDSpecification {
 
     def tracer = CoreTracer.builder().build()
     // this test has no business reaching into the internals of another subsystem like this
-    ((DDAgentWriter) tracer.writer).api.detectEndpointAndBuildClient()
+    ((DDAgentWriter) tracer.writer).api.detectEndpoint()
 
     then:
     ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == value
@@ -191,7 +191,7 @@ class CoreTracerTest extends DDSpecification {
     when:
     injectSysConfig(key, value)
     def tracer = CoreTracer.builder().build()
-    ((DDAgentWriter) tracer.writer).api.detectEndpointAndBuildClient()
+    ((DDAgentWriter) tracer.writer).api.detectEndpoint()
 
     then:
     ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == "localhost"

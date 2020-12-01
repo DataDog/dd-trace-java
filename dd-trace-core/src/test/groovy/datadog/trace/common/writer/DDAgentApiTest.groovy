@@ -325,7 +325,7 @@ class DDAgentApiTest extends DDSpecification {
     setup:
     def agent = newAgent("v0.5/traces")
     def client = createAgentApi(agent.address.port)
-    client.detectEndpointAndBuildClient()
+    client.detectEndpoint()
     def httpExecutorService = client.httpClient.dispatcher().executorService()
     when:
     httpExecutorService.execute({})

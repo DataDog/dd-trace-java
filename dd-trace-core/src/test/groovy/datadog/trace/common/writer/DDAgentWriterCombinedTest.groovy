@@ -42,7 +42,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
   def apiWithVersion(String version) {
     def api = Mock(DDAgentApi)
-    api.detectEndpointAndBuildClient() >> version
+    api.detectEndpoint() >> version
     api.selectTraceMapper() >> { callRealMethod() }
     return api
   }
@@ -92,7 +92,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.flush()
 
     then:
-    1 * api.detectEndpointAndBuildClient() >> agentVersion
+    1 * api.detectEndpoint() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
     1 * api.sendSerializedTraces({ it.traceCount() == 2 }) >> DDAgentApi.Response.success(200)
     0 * _
@@ -123,7 +123,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.flush()
 
     then:
-    1 * api.detectEndpointAndBuildClient() >> agentVersion
+    1 * api.detectEndpoint() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
     1 * api.sendSerializedTraces({ it.traceCount() <= traceCount }) >> DDAgentApi.Response.success(200)
     0 * _
@@ -156,7 +156,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     phaser.awaitAdvanceInterruptibly(phaser.arriveAndDeregister())
 
     then:
-    1 * api.detectEndpointAndBuildClient() >> agentVersion
+    1 * api.detectEndpoint() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
     1 * healthMetrics.onSerialize(_)
     1 * api.sendSerializedTraces({ it.traceCount() == 5 }) >> DDAgentApi.Response.success(200)
@@ -202,7 +202,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.flush()
 
     then:
-    1 * api.detectEndpointAndBuildClient() >> agentVersion
+    1 * api.detectEndpoint() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
     1 * api.sendSerializedTraces({ it.traceCount() == maxedPayloadTraceCount }) >> DDAgentApi.Response.success(200)
     1 * api.sendSerializedTraces({ it.traceCount() == 1 }) >> DDAgentApi.Response.success(200)
@@ -390,7 +390,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
     def api = new DDAgentApi("http://localhost:8192", null, 1000, monitoring) {
 
-      String detectEndpointAndBuildClient() {
+      String detectEndpoint() {
         return version
       }
 
