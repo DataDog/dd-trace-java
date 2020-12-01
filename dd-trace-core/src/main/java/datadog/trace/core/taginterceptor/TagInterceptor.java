@@ -152,21 +152,25 @@ public class TagInterceptor {
     // in the trace agent) we also want to store it in the tags no matter what,
     // so will always return false here.
     if (isServiceNameSetByUser
-        || !ruleFlags.isEnabled(RuleFlags.Feature.SERVLET_CONTEXT)
-        || (!span.getServiceName().isEmpty()
-            && !span.getServiceName().equals(inferredServiceName)
-            && !span.getServiceName().equals(ConfigDefaults.DEFAULT_SERVICE_NAME))) {
+        || !ruleFlags.isEnabled(RuleFlags.Feature.SERVLET_CONTEXT)) {
       return false;
     }
+    
+    String serviceName = span.getServiceName();
+    if(!serviceName.isEmpty()
+    && !serviceName.equals(inferredServiceName)
+    && !serviceName.equals(ConfigDefaults.DEFAULT_SERVICE_NAME)){
+      return false;
+    }
+
     String contextName = String.valueOf(value).trim();
-    if (!contextName.isEmpty()) {
-      if (contextName.charAt(0) == '/') {
-        if (contextName.length() > 1) {
-          span.setServiceName(contextName.substring(1));
-        }
-      } else {
+    if (contextName.isEmpty()) return false;
+    if (contextName.charAt(0) != '/') {
         span.setServiceName(contextName);
-      }
+        return false;
+    }
+    if (contextName.length() > 1) {
+      span.setServiceName(contextName.substring(1));
     }
     return false;
   }
