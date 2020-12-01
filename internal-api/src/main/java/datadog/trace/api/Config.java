@@ -144,6 +144,7 @@ import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY;
+import static datadog.trace.api.config.TracerConfig.JMS_LEGACY_DASH_REPLACEMENT;
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
@@ -371,6 +372,8 @@ public class Config {
   @Getter private final IdGenerationStrategy idGenerationStrategy;
 
   @Getter private final boolean internalExitOnFailure;
+
+  @Getter private final boolean jmsLegacyDashReplacement;
 
   @Getter private final boolean resolverUseLoadClassEnabled;
 
@@ -629,6 +632,8 @@ public class Config {
 
     traceAnalyticsEnabled =
         configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
+
+    jmsLegacyDashReplacement = configProvider.getBoolean(JMS_LEGACY_DASH_REPLACEMENT, false);
 
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
