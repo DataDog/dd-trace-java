@@ -40,7 +40,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.common.io.ByteStreams;
 import datadog.trace.api.Config;
-import datadog.trace.api.RatelimitedLogger;
+import datadog.trace.api.IOLogger;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -115,7 +115,7 @@ public class ProfileUploaderTest {
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
 
   @Mock private Config config;
-  @Mock private RatelimitedLogger ratelimitedLogger;
+  @Mock private IOLogger ioLogger;
 
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
@@ -132,7 +132,7 @@ public class ProfileUploaderTest {
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
 
-    uploader = new ProfileUploader(config, ratelimitedLogger, "containerId");
+    uploader = new ProfileUploader(config, ioLogger, "containerId");
   }
 
   @AfterEach
@@ -201,7 +201,7 @@ public class ProfileUploaderTest {
 
   @Test
   public void testRequestWithContainerId() throws IOException, InterruptedException {
-    uploader = new ProfileUploader(config, ratelimitedLogger, "container-id");
+    uploader = new ProfileUploader(config, ioLogger, "container-id");
 
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
@@ -360,7 +360,7 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testConnectionRefused() throws IOException, InterruptedException {
+  public void testConnectionRefused() throws IOException {
     server.shutdown();
 
     final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
@@ -371,8 +371,7 @@ public class ProfileUploaderTest {
 
     // Shutting down uploader ensures all callbacks are called on http client
     uploader.shutdown();
-    verify(ratelimitedLogger)
-        .warn(eq("Failed to upload profile to {}"), eq(url), any(ConnectException.class));
+    verify(ioLogger).error(eq("Failed to upload profile to " + url), any(ConnectException.class));
   }
 
   @Test
