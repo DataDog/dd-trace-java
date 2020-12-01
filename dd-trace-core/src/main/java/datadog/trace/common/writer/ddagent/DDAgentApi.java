@@ -71,13 +71,14 @@ public class DDAgentApi {
   }
 
   private final String agentUrl;
-  private final String unixDomainSocketPath;
   private final long timeoutMillis;
   private final boolean metricsReportingEnabled;
-  private OkHttpClient httpClient;
+  private final OkHttpClient httpClient;
   private HttpUrl tracesUrl;
   private String detectedVersion = null;
   private boolean agentRunning = false;
+  private boolean agentDiscovered = false;
+  private boolean usingUnixDomainSockets;
   private RatelimitedLogger ratelimitedLogger =
       new RatelimitedLogger(log, NANOSECONDS_BETWEEN_ERROR_LOG);
 
@@ -89,9 +90,10 @@ public class DDAgentApi {
       final boolean metricsReportingEnabled,
       final Monitoring monitoring) {
     this.agentUrl = agentUrl;
-    this.unixDomainSocketPath = unixDomainSocketPath;
+    this.usingUnixDomainSockets = unixDomainSocketPath != null;
     this.timeoutMillis = timeoutMillis;
     this.metricsReportingEnabled = metricsReportingEnabled;
+    this.httpClient = buildHttpClient(HttpUrl.get(agentUrl), unixDomainSocketPath, timeoutMillis);
     this.endpoints =
         enableV05Endpoint
             ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
@@ -116,7 +118,7 @@ public class DDAgentApi {
   }
 
   TraceMapper selectTraceMapper() {
-    String endpoint = detectEndpointAndBuildClient();
+    String endpoint = detectEndpoint();
     if (null == endpoint) {
       return null;
     }
@@ -128,9 +130,9 @@ public class DDAgentApi {
 
   Response sendSerializedTraces(final Payload payload) {
     final int sizeInBytes = payload.sizeInBytes();
-    if (null == httpClient) {
-      detectEndpointAndBuildClient();
-      if (null == httpClient) {
+    if (!agentDiscovered) {
+      detectEndpoint();
+      if (!agentDiscovered) {
         log.error("No datadog agent detected");
         countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, null);
         return Response.failed(agentRunning ? 404 : 503);
@@ -268,43 +270,26 @@ public class DDAgentApi {
         + ".";
   }
 
-  private static OkHttpClient buildClientIfAvailable(
-      final String endpoint,
-      final HttpUrl url,
-      final String unixDomainSocketPath,
-      final long timeoutMillis) {
-    final OkHttpClient client = buildHttpClient(url.scheme(), unixDomainSocketPath, timeoutMillis);
-    try {
-      return validateClient(endpoint, client, url);
-    } catch (final IOException e) {
-      try {
-        return validateClient(endpoint, client, url);
-      } catch (IOException ignored) {
-        log.debug("No connectivity to {}: {}", url, ignored.getMessage());
-      }
-    }
-    return null;
-  }
-
-  private static OkHttpClient validateClient(String endpoint, OkHttpClient client, HttpUrl url)
-      throws IOException {
+  private static boolean validateClient(String endpoint, OkHttpClient client, HttpUrl url) {
     final RequestBody body = ENDPOINT_SNIFF_REQUESTS.get(endpoint);
     final Request request =
         prepareRequest(url).header(X_DATADOG_TRACE_COUNT, "0").put(body).build();
     try (final okhttp3.Response response = client.newCall(request).execute()) {
       if (response.code() == 200) {
         log.debug("connectivity to {} validated", url);
-        return client;
+        return true;
       } else {
         log.debug("connectivity to {} not validated, response code={}", url, response.code());
       }
+    } catch (IOException e) {
+      log.debug("failed to connect to datadog agent endpoint {}", endpoint, e);
     }
-    return null;
+    return false;
   }
 
-  String detectEndpointAndBuildClient() {
+  String detectEndpoint() {
     // TODO clean this up
-    if (httpClient == null) {
+    if (!agentDiscovered) {
       try (Recording recording = discoveryTimer.start()) {
         HttpUrl baseUrl = HttpUrl.get(agentUrl);
         this.agentRunning = isAgentRunning(baseUrl.host(), baseUrl.port(), timeoutMillis);
@@ -312,9 +297,8 @@ public class DDAgentApi {
         //  able to detect an endpoint without an open socket...
         for (String candidate : endpoints) {
           tracesUrl = baseUrl.newBuilder().addEncodedPathSegments(candidate).build();
-          this.httpClient =
-              buildClientIfAvailable(candidate, tracesUrl, unixDomainSocketPath, timeoutMillis);
-          if (null != httpClient) {
+          if (validateClient(candidate, httpClient, HttpUrl.get(agentUrl).resolve(candidate))) {
+            this.agentDiscovered = true;
             detectedVersion = candidate;
             log.debug("connected to agent {}", candidate);
             return candidate;
