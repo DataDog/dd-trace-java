@@ -35,11 +35,50 @@ public class GlobalTracer {
 
   public static void registerIfAbsent(Tracer p) {
     if (p != null && p != NO_OP) {
-      provider.compareAndSet(NO_OP, p);
+      boolean installed = provider.compareAndSet(NO_OP, p);
+      if (installed) {
+        Callback callback = installationCallback.getAndSet(null);
+        if (callback != null) {
+          callback.installed(p);
+        }
+      }
     }
   }
 
   public static Tracer get() {
     return provider.get();
+  }
+
+  // --------------------------------------------------------------------------------
+  // All code below is to support the callback registration in WithGlobalTracer
+  // --------------------------------------------------------------------------------
+
+  // Needs to use a read that can't be reordered for the code in WithGlobalTracer to be correct
+  static boolean isTracerInstalled() {
+    return provider.get() != NO_OP;
+  }
+
+  private static final AtomicReference<Callback> installationCallback = new AtomicReference<>(null);
+
+  // Needs to use a read that can't be reordered for the code in WithGlobalTracer to be correct
+  static boolean isCallbackInstalled() {
+    return installationCallback.get() != null;
+  }
+
+  static boolean registerInstallationCallback(Callback callback) {
+    if (!isTracerInstalled()) {
+      boolean installed = installationCallback.compareAndSet(null, callback);
+      // Check if the tracer was installed while we were doing this, and try to back out
+      if (installed && isTracerInstalled()) {
+        installed = !installationCallback.compareAndSet(callback, null);
+      }
+      return installed;
+    } else {
+      return false;
+    }
+  }
+
+  interface Callback {
+    void installed(Tracer tracer);
   }
 }

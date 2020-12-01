@@ -4,8 +4,21 @@ jacoco {
   toolVersion = "0.8.5"
 }
 
+forkedTest {
+  doLast {
+    if (file("$buildDir/jacoco/forkedTest.exec").exists()) {
+      jacocoTestReport {
+        executionData(forkedTest)
+      }
+      jacocoTestCoverageVerification {
+        executionData(forkedTest)
+      }
+    }
+  }
+}
+
 jacocoTestReport {
-  dependsOn test
+  dependsOn test, forkedTest
   reports {
     xml.enabled true
     csv.enabled false
@@ -31,6 +44,13 @@ project.ext.minimumInstructionCoverage = 0.9
 
 afterEvaluate {
   test {
+    jacoco {
+      // Make sure that excluded classes do not get jacoco instrumentation applied since it may confuse apm agent in some cases
+      excludes = project.excludedClassesCoverage
+    }
+  }
+
+  forkedTest {
     jacoco {
       // Make sure that excluded classes do not get jacoco instrumentation applied since it may confuse apm agent in some cases
       excludes = project.excludedClassesCoverage
