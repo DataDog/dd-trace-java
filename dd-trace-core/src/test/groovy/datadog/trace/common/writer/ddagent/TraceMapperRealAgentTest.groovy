@@ -29,7 +29,7 @@ class TraceMapperRealAgentTest extends DDSpecification {
     List<List<CoreSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     when:
     for (List<CoreSpan> trace : traces) {
-      dispatcher.addTrace(trace)
+      dispatcher.accept(trace)
     }
     dispatcher.flush()
     then:

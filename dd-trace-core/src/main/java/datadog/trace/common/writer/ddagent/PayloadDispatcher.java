@@ -12,7 +12,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class PayloadDispatcher implements ByteBufferConsumer {
+public class PayloadDispatcher implements ByteBufferConsumer, TraceConsumer {
 
   private final DDAgentApi api;
   private final HealthMetrics healthMetrics;
@@ -28,13 +28,15 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     this.monitoring = monitoring;
   }
 
-  void flush() {
+  @Override
+  public void flush() {
     if (null != packer) {
       packer.flush();
     }
   }
 
-  void addTrace(List<? extends CoreSpan<?>> trace) {
+  @Override
+  public void accept(List<? extends CoreSpan<?>> trace) {
     selectTraceMapper();
     // the call below is blocking and will trigger IO if a flush is necessary
     // there are alternative approaches to avoid blocking here, such as

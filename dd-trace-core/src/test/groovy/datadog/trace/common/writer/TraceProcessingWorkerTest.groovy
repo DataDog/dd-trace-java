@@ -110,7 +110,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     setup:
     Throwable theError = new IllegalStateException("thrown by test")
     PayloadDispatcher throwingDispatcher = Mock(PayloadDispatcher)
-    throwingDispatcher.addTrace(_) >> {
+    throwingDispatcher.accept(_) >> {
       throw theError
     }
     AtomicInteger errorReported = new AtomicInteger()
@@ -147,7 +147,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     setup:
     AtomicInteger acceptedCount = new AtomicInteger()
     PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
-    countingDispatcher.addTrace(_) >> {
+    countingDispatcher.accept(_) >> {
       acceptedCount.getAndIncrement()
     }
     HealthMetrics healthMetrics = Mock(HealthMetrics)

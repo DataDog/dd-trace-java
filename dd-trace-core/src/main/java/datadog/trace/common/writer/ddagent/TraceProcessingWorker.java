@@ -36,7 +36,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       final int capacity,
       final HealthMetrics healthMetrics,
       final Monitoring monitoring,
-      final PayloadDispatcher dispatcher,
+      final TraceConsumer traceConsumer,
       final Prioritization prioritization,
       final long flushInterval,
       final TimeUnit timeUnit) {
@@ -50,7 +50,7 @@ public class TraceProcessingWorker implements AutoCloseable {
             secondaryQueue,
             healthMetrics,
             monitoring,
-            dispatcher,
+            traceConsumer,
             flushInterval,
             timeUnit);
     this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
@@ -105,7 +105,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final HealthMetrics healthMetrics;
     private final long ticksRequiredToFlush;
     private final boolean doTimeFlush;
-    private final PayloadDispatcher payloadDispatcher;
+    private final TraceConsumer traceConsumer;
     private long lastTicks;
     private final Recording dutyCycleTimer;
 
@@ -114,7 +114,7 @@ public class TraceProcessingWorker implements AutoCloseable {
         final MpscBlockingConsumerArrayQueue<Object> secondaryQueue,
         final HealthMetrics healthMetrics,
         final Monitoring monitoring,
-        final PayloadDispatcher payloadDispatcher,
+        final TraceConsumer traceConsumer,
         final long flushInterval,
         final TimeUnit timeUnit) {
       this.primaryQueue = primaryQueue;
@@ -122,7 +122,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       this.healthMetrics = healthMetrics;
       this.dutyCycleTimer = monitoring.newCPUTimer("tracer.duty.cycle");
       this.doTimeFlush = flushInterval > 0;
-      this.payloadDispatcher = payloadDispatcher;
+      this.traceConsumer = traceConsumer;
       if (doTimeFlush) {
         this.lastTicks = System.nanoTime();
         this.ticksRequiredToFlush = timeUnit.toNanos(flushInterval);
@@ -138,11 +138,9 @@ public class TraceProcessingWorker implements AutoCloseable {
       // 2. a synchronous flush command is received (at shutdown)
       try {
         if (event instanceof List) {
-          List<DDSpan> trace = (List<DDSpan>) event;
-          // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
-          payloadDispatcher.addTrace(trace);
+          traceConsumer.accept((List<DDSpan>) event);
         } else if (event instanceof FlushEvent) {
-          payloadDispatcher.flush();
+          traceConsumer.flush();
           ((FlushEvent) event).sync();
         }
       } catch (final Throwable e) {
@@ -198,7 +196,7 @@ public class TraceProcessingWorker implements AutoCloseable {
 
     private void flushIfNecessary() {
       if (shouldFlush()) {
-        payloadDispatcher.flush();
+        traceConsumer.flush();
       }
     }
 

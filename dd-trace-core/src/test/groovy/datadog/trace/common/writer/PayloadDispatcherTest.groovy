@@ -40,7 +40,7 @@ class PayloadDispatcherTest extends DDSpecification {
     List<DDSpan> trace = [realSpan()]
     when:
     while (!flushed.get()) {
-      dispatcher.addTrace(trace)
+      dispatcher.accept(trace)
     }
 
     then: "the dispatcher has flushed"
@@ -58,7 +58,7 @@ class PayloadDispatcherTest extends DDSpecification {
     List<DDSpan> trace = [realSpan()]
     when:
     for (int i = 0; i < traceCount; ++i) {
-      dispatcher.addTrace(trace)
+      dispatcher.accept(trace)
     }
     dispatcher.flush()
     then:
@@ -84,7 +84,7 @@ class PayloadDispatcherTest extends DDSpecification {
     List<DDSpan> trace = [realSpan()]
     when:
     for (int i = 0; i < traceCount; ++i) {
-      dispatcher.addTrace(trace)
+      dispatcher.accept(trace)
     }
     dispatcher.flush()
     then:
@@ -110,7 +110,7 @@ class PayloadDispatcherTest extends DDSpecification {
     List<DDSpan> trace = [realSpan()]
     api.selectTraceMapper() >> null
     when:
-    dispatcher.addTrace(trace)
+    dispatcher.accept(trace)
     then:
     1 * healthMetrics.onFailedPublish(PrioritySampling.UNSET)
   }
