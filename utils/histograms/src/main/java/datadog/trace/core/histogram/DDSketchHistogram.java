@@ -9,7 +9,7 @@ public class DDSketchHistogram implements Histogram, HistogramFactory {
   private final DDSketch sketch;
 
   public DDSketchHistogram() {
-    this.sketch = new DDSketch(new CubicallyInterpolatedMapping(0.1), PaginatedStore::new);
+    this.sketch = new DDSketch(new CubicallyInterpolatedMapping(0.01), PaginatedStore::new);
   }
 
   @Override
