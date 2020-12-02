@@ -1,4 +1,6 @@
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader
 import com.datastax.oss.driver.api.core.servererrors.SyntaxError
 import com.datastax.oss.driver.api.core.session.Session
 import datadog.trace.agent.test.AgentTestRunner
@@ -10,6 +12,7 @@ import org.cassandraunit.utils.EmbeddedCassandraServerHelper
 import spock.lang.Shared
 import spock.util.concurrent.BlockingVariable
 
+import java.time.Duration
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -19,7 +22,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class CassandraClientTest extends AgentTestRunner {
-  private static final int TIMEOUT = 5
+  private static final int TIMEOUT = 30
 
   @Shared
   int port
@@ -190,9 +193,14 @@ class CassandraClientTest extends AgentTestRunner {
   }
 
   def sessionBuilder() {
+    DriverConfigLoader configLoader = DriverConfigLoader.programmaticBuilder()
+      .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofSeconds(TIMEOUT))
+      .build()
+
     return CqlSession.builder()
       .addContactPoint(new InetSocketAddress(EmbeddedCassandraServerHelper.getHost(), EmbeddedCassandraServerHelper.getNativeTransportPort()))
       .withLocalDatacenter("datacenter1")
+      .withConfigLoader(configLoader)
   }
 
   def cassandraSpan(TraceAssert trace, String statement, String keyspace, boolean renameService, Object parentSpan = null, Throwable throwable = null) {

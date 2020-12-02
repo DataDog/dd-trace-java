@@ -25,7 +25,8 @@ dependencies {
   compileOnly group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.0'
   main_java8CompileOnly group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.0'
 
-  testCompile group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.0'
+  // ProgrammaticConfig, required to set the timeout, wasn't added until 4.0.1
+  testCompile group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.1'
   testCompile group: 'org.cassandraunit', name: 'cassandra-unit', version: '4.3.1.0'
 
   testCompile project(':dd-java-agent:instrumentation:guava-10')
