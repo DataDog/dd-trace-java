@@ -16,7 +16,6 @@ import static datadog.trace.core.serialization.EncodingCachingStrategies.CONSTAN
 import static datadog.trace.core.serialization.EncodingCachingStrategies.NO_CACHING;
 import static datadog.trace.core.serialization.Util.integerToStringBuffer;
 import static datadog.trace.core.serialization.Util.writeLongAsString;
-import static java.util.Collections.singletonList;
 
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -184,7 +183,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     @Override
     RequestBody toRequest() {
-      return OkHttpUtils.msgpackRequestBodyOf(singletonList(body));
+      return OkHttpUtils.msgpackRequestBodyOf(body);
     }
   }
 }

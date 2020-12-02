@@ -9,7 +9,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.List;
 import okhttp3.ConnectionSpec;
 import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
@@ -78,7 +77,7 @@ public final class OkHttpUtils {
     }
   }
 
-  public static RequestBody msgpackRequestBodyOf(List<ByteBuffer> buffers) {
+  public static RequestBody msgpackRequestBodyOf(ByteBuffer... buffers) {
     return new ByteBufferRequestBody(buffers);
   }
 
@@ -86,9 +85,9 @@ public final class OkHttpUtils {
 
     private static final MediaType MSGPACK = MediaType.get("application/msgpack");
 
-    private final List<ByteBuffer> buffers;
+    private final ByteBuffer[] buffers;
 
-    private ByteBufferRequestBody(List<ByteBuffer> buffers) {
+    private ByteBufferRequestBody(ByteBuffer[] buffers) {
       this.buffers = buffers;
     }
 

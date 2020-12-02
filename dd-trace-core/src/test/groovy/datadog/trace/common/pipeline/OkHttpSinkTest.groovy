@@ -1,4 +1,4 @@
-package datadog.trace.common.metrics
+package datadog.trace.common.pipeline
 
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Call
@@ -8,17 +8,14 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody
-import spock.lang.Requires
 
 import java.nio.ByteBuffer
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
-import static datadog.trace.common.metrics.EventListener.EventType.BAD_PAYLOAD
-import static datadog.trace.common.metrics.EventListener.EventType.DOWNGRADED
-import static datadog.trace.common.metrics.EventListener.EventType.ERROR
-import static datadog.trace.common.metrics.EventListener.EventType.OK
+import static datadog.trace.common.pipeline.EventListener.EventType.BAD_PAYLOAD
+import static datadog.trace.common.pipeline.EventListener.EventType.DOWNGRADED
+import static datadog.trace.common.pipeline.EventListener.EventType.ERROR
+import static datadog.trace.common.pipeline.EventListener.EventType.OK
 
-@Requires({ isJavaVersionAtLeast(8) })
 class OkHttpSinkTest extends DDSpecification {
 
   def "http status code #responseCode yields #eventType"() {
@@ -31,11 +28,25 @@ class OkHttpSinkTest extends DDSpecification {
     OkHttpSink sink = new OkHttpSink(client, agentUrl, path)
     sink.register(listener)
 
-    when:
+    when: "first interaction discovers endpoint"
     sink.accept(0, ByteBuffer.allocate(0))
 
     then:
-    1 * client.newCall(_) >> { Request request -> respond(request, responseCode) }
+    // one discovery
+    1 * client.newCall({it.method() == "GET"}) >> { Request request -> respond(request, 400) }
+    // one send
+    1 * client.newCall({it.method() == "PUT"}) >> { Request request -> respond(request, 200) }
+    1 * listener.onEvent(OK, _)
+
+    when: "request after initial discovery"
+    sink.accept(0, ByteBuffer.allocate(0))
+
+    then:
+    if (responseCode == 404) {
+      // will try to discover again
+      1 * client.newCall({it.method() == "GET"}) >> { Request request -> respond(request, responseCode) }
+    }
+    1 * client.newCall({it.method() == "PUT"}) >> { Request request -> respond(request, responseCode) }
     1 * listener.onEvent(eventType, _)
 
     where:

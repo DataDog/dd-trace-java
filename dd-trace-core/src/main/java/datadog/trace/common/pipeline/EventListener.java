@@ -1,4 +1,4 @@
-package datadog.trace.common.metrics;
+package datadog.trace.common.pipeline;
 
 public interface EventListener {
   enum EventType {

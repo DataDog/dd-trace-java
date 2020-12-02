@@ -1,6 +1,8 @@
 package datadog.trace.common.metrics
 
 import datadog.trace.api.WellKnownTags
+import datadog.trace.common.pipeline.EventListener
+import datadog.trace.common.pipeline.OkHttpSink
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Ignore
 import spock.lang.Requires

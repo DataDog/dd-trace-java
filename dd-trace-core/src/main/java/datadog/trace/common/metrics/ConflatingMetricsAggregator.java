@@ -7,6 +7,9 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.common.pipeline.EventListener;
+import datadog.trace.common.pipeline.OkHttpSink;
+import datadog.trace.common.pipeline.Sink;
 import datadog.trace.core.CoreSpan;
 import java.util.List;
 import java.util.Queue;
@@ -36,7 +39,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   public ConflatingMetricsAggregator(Config config) {
     this(
         config.getWellKnownTags(),
-        new OkHttpSink(config.getAgentUrl(), config.getAgentTimeout()),
+        new OkHttpSink(config.getAgentUrl(), config.getAgentTimeout(), "v0.5/stats"),
         config.getTracerMetricsMaxAggregates(),
         config.getTracerMetricsMaxPending());
   }

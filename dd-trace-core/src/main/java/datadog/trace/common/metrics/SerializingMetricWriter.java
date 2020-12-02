@@ -5,6 +5,8 @@ import static datadog.trace.core.serialization.WritableFormatter.Feature.SINGLE_
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.common.pipeline.Funnel;
+import datadog.trace.common.pipeline.Sink;
 import datadog.trace.core.serialization.WritableFormatter;
 import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 import java.nio.ByteBuffer;
@@ -38,8 +40,9 @@ public final class SerializingMetricWriter implements MetricWriter {
     this.wellKnownTags = wellKnownTags;
     this.writer =
         new MsgPackWriter(
-            // 64KB
-            sink, ByteBuffer.allocate(64 << 10), EnumSet.of(RESIZEABLE, SINGLE_MESSAGE));
+            new Funnel(sink),
+            ByteBuffer.allocate(64 << 10),
+            EnumSet.of(RESIZEABLE, SINGLE_MESSAGE));
   }
 
   @Override

@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -181,22 +180,21 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
     @Override
     void writeTo(WritableByteChannel channel) throws IOException {
-      for (ByteBuffer buffer : toList()) {
-        while (buffer.hasRemaining()) {
-          channel.write(buffer);
-        }
-      }
+      transfer(ByteBuffer.allocate(1).put(0, (byte) 0x92), channel);
+      transfer(dictionary, channel);
+      transfer(body, channel);
     }
 
     @Override
     RequestBody toRequest() {
-      return msgpackRequestBodyOf(toList());
+      return msgpackRequestBodyOf( // msgpack array header with 2 elements (FIXARRAY | 2)
+          ByteBuffer.allocate(1).put(0, (byte) 0x92), dictionary, body);
     }
 
-    private List<ByteBuffer> toList() {
-      return Arrays.asList(
-          // msgpack array header with 2 elements (FIXARRAY | 2)
-          ByteBuffer.allocate(1).put(0, (byte) 0x92), dictionary, body);
+    private void transfer(ByteBuffer buffer, WritableByteChannel channel) throws IOException {
+      while (buffer.hasRemaining()) {
+        channel.write(buffer);
+      }
     }
   }
 

@@ -1,8 +1,9 @@
 package datadog.trace.common.metrics
 
-import datadog.trace.api.Platform
 import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.Pair
+import datadog.trace.common.pipeline.EventListener
+import datadog.trace.common.pipeline.Sink
 import datadog.trace.test.util.DDSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
@@ -68,8 +69,8 @@ class SerializingMetricWriterTest extends DDSpecification {
     }
 
     @Override
-    void accept(int messageCount, ByteBuffer buffer) {
-      MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)
+    void accept(int messageCount, ByteBuffer... buffers) {
+      MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(toBuffer(buffers))
       int mapSize = unpacker.unpackMapHeader()
       assert mapSize == 4
       assert unpacker.unpackString() == "Hostname"
@@ -134,7 +135,7 @@ class SerializingMetricWriterTest extends DDSpecification {
     }
 
     private void validateSketch(MessageUnpacker unpacker) {
-      if (Platform.isJavaVersionAtLeast(8)) {
+      if (isJavaVersionAtLeast(8)) {
         int length = unpacker.unpackBinaryHeader()
         assert length > 0
         unpacker.readPayload(length)
@@ -145,6 +146,21 @@ class SerializingMetricWriterTest extends DDSpecification {
 
     boolean validatedInput() {
       return validated
+    }
+
+    private ByteBuffer toBuffer(ByteBuffer... buffers) {
+      if (buffers.length == 1) {
+        return buffers[0]
+      }
+      int size = 0
+      for (ByteBuffer buffer : buffers) {
+        size += buffer.remaining()
+      }
+      ByteBuffer buffer = ByteBuffer.allocate(size)
+      for (ByteBuffer b : buffers) {
+        buffer.put(b)
+      }
+      return buffer
     }
   }
 }
