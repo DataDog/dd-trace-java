@@ -80,5 +80,6 @@ public class Timer extends Recording {
     statsd.gauge(name, histogram.getValueAtPercentile(50), p50Tags);
     statsd.gauge(name, histogram.getValueAtPercentile(99), p99Tags);
     statsd.gauge(name, histogram.getMaxValue(), maxTags);
+    histogram.reset();
   }
 }
