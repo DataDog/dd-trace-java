@@ -30,9 +30,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.common.writer.DDAgentWriter.BUFFER_SIZE
+import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
 import static datadog.trace.core.SpanFactory.newSpanOf
 
-@Retry
 @Timeout(10)
 class DDAgentWriterCombinedTest extends DDSpecification {
 
@@ -182,6 +182,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .traceBufferSize(BUFFER_SIZE)
+      .prioritization(ENSURE_TRACE)
       .monitoring(monitoring)
       .flushFrequencySeconds(-1)
       .build()
@@ -193,11 +194,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     int maxedPayloadTraceCount = ((int) ((mapper.messageBufferSize() - 5) / traceSize))
     (0..maxedPayloadTraceCount).each {
       writer.write(minimalTrace)
-      def start = System.nanoTime()
-      // (consumer processes a trace in about 20 microseconds
-      while (System.nanoTime() - start < TimeUnit.MICROSECONDS.toNanos(100) && !Thread.currentThread().isInterrupted()) {
-        // Busywait because we don't want to fill up the ring buffer
-      }
     }
     writer.flush()
 
