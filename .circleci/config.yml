@@ -263,7 +263,7 @@ workflows:
           name: test_<< matrix.testTask >>
           matrix:
             parameters:
-              testTask: [ "7", "IBM8", "ZULU8", "11", "ZULU11", "13", "ZULU13", "14", "15" ]
+              testTask: [ "7", "IBM8", "ZULU8", "11", "ZULU11", "ZULU13", "15" ]
           filters:
             tags:
               only: /.*/
