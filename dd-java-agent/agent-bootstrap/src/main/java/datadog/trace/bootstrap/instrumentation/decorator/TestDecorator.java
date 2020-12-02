@@ -80,7 +80,9 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(Tags.CI_PIPELINE_NAME, ciPipelineName);
     span.setTag(Tags.CI_PIPELINE_NUMBER, ciPipelineNumber);
     span.setTag(Tags.CI_PIPELINE_URL, ciPipelineUrl);
-    span.setTag(Tags.CI_JOB_URL, ciJobUrl);
+    if (ciJobUrl != null) {
+      span.setTag(Tags.CI_JOB_URL, ciJobUrl);
+    }
     span.setTag(Tags.CI_WORKSPACE_PATH, ciWorkspacePath);
     span.setTag(Tags.BUILD_SOURCE_ROOT, ciWorkspacePath);
 

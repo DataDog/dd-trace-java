@@ -35,7 +35,7 @@ class JenkinsInfo extends CIProviderInfo {
     ciPipelineId = System.getenv(JENKINS_PIPELINE_ID);
     ciPipelineNumber = System.getenv(JENKINS_PIPELINE_NUMBER);
     ciPipelineUrl = System.getenv(JENKINS_PIPELINE_URL);
-    ciJobUrl = System.getenv(JENKINS_JOB_URL);
+    ciJobUrl = null;
     ciWorkspacePath = expandTilde(System.getenv(JENKINS_WORKSPACE_PATH));
     gitRepositoryUrl = filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL));
     gitCommit = System.getenv(JENKINS_GIT_COMMIT);

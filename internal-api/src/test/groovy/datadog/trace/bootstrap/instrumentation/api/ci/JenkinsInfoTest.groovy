@@ -37,7 +37,7 @@ class JenkinsInfoTest extends CIProviderInfoTest {
     ciInfo.ciPipelineName == ciInfoName
     ciInfo.ciPipelineNumber == "jenkins-pipeline-number"
     ciInfo.ciPipelineUrl == "jenkins-pipeline-url"
-    ciInfo.ciJobUrl == "jenkins-job-url"
+    ciInfo.ciJobUrl == null
     ciInfo.ciWorkspacePath == ciInfoWorkspace
     ciInfo.gitRepositoryUrl == ciInfoRepository
     ciInfo.gitCommit == "jenkins-git-commit"
