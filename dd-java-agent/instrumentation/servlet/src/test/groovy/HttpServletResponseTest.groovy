@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import groovy.servlet.AbstractHttpServlet
-import spock.lang.Subject
 
+import javax.servlet.ServletException
 import javax.servlet.ServletOutputStream
 import javax.servlet.ServletRequest
 import javax.servlet.ServletResponse
@@ -9,14 +9,10 @@ import javax.servlet.http.Cookie
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static java.util.Collections.emptyEnumeration
 
 class HttpServletResponseTest extends AgentTestRunner {
 
-  @Subject
-  def response = new TestResponse()
   def request = Mock(HttpServletRequest) {
     getMethod() >> "GET"
     getProtocol() >> "TEST"
@@ -24,59 +20,38 @@ class HttpServletResponseTest extends AgentTestRunner {
     getAttributeNames() >> emptyEnumeration()
   }
 
-  def setup() {
-    def servlet = new AbstractHttpServlet() {}
-    // We need to call service so HttpServletAdvice can link the request to the response.
+  def doService(HttpServletRequest request, TestResponse response, Closure<HttpServletResponse> testHandler) {
+    def servlet = new AbstractHttpServlet() {
+      @Override
+      protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        testHandler(resp)
+      }
+    }
     servlet.service((ServletRequest) request, (ServletResponse) response)
-    assert response.__datadogContext$javax$servlet$http$HttpServletResponse != null
-    TEST_WRITER.waitForTraces(1)
-    TEST_WRITER.clear()
   }
 
   def "test send no-parent"() {
     when:
-    response.sendError(0)
-    response.sendError(0, "")
-    response.sendRedirect("")
-
-    then:
-    assertTraces(0) {}
-  }
-
-  def "test send with parent"() {
-    when:
-    runUnderTrace("parent") {
-      response.sendError(0)
-      response.sendError(0, "")
-      response.sendRedirect("")
-    }
+    doService(request, new TestResponse(), handler)
 
     then:
     assertTraces(1) {
-      trace(4) {
-        basicSpan(it, "parent")
+      trace(2) {
         span {
-          operationName "servlet.response"
-          resourceName "HttpServletResponse.sendRedirect"
-          childOf span(0)
+          operationName "servlet.request"
+          spanType "web"
           tags {
-            "component" "java-web-servlet-response"
+            "component" "java-web-servlet"
+            "http.method" "GET"
+            "http.url" "/"
+            "span.kind" "server"
+            "http.status_code" { it == null || it == 302 }
             defaultTags()
           }
         }
         span {
           operationName "servlet.response"
-          resourceName "HttpServletResponse.sendError"
-          childOf span(0)
-          tags {
-            "component" "java-web-servlet-response"
-            defaultTags()
-          }
-        }
-        span {
-          operationName "servlet.response"
-          resourceName "HttpServletResponse.sendError"
-          childOf span(0)
+          resourceName "HttpServletResponse." + resourceSuffix
           tags {
             "component" "java-web-servlet-response"
             defaultTags()
@@ -84,28 +59,25 @@ class HttpServletResponseTest extends AgentTestRunner {
         }
       }
     }
+
+    where:
+    resourceSuffix    | handler
+    "sendError"       | {HttpServletResponse r -> r.sendError(0)}
+    "sendError"       | {HttpServletResponse r -> r.sendError(0, "")}
+    "sendRedirect"    | {HttpServletResponse r -> r.sendRedirect("")}
   }
 
   def "test send with exception"() {
     setup:
     def ex = new Exception("some error")
-    def response = new TestResponse() {
+
+    when:
+    doService(request, new TestResponse() {
       @Override
       void sendRedirect(String s) {
         throw ex
       }
-    }
-    def servlet = new AbstractHttpServlet() {}
-    // We need to call service so HttpServletAdvice can link the request to the response.
-    servlet.service((ServletRequest) request, (ServletResponse) response)
-    assert response.__datadogContext$javax$servlet$http$HttpServletResponse != null
-    TEST_WRITER.waitForTraces(1)
-    TEST_WRITER.clear()
-
-    when:
-    runUnderTrace("parent") {
-      response.sendRedirect("")
-    }
+    }, handler)
 
     then:
     def th = thrown(Exception)
@@ -113,11 +85,23 @@ class HttpServletResponseTest extends AgentTestRunner {
 
     assertTraces(1) {
       trace(2) {
-        basicSpan(it, "parent", null, ex)
+        span {
+          operationName "servlet.request"
+          spanType "web"
+          errored true
+          tags {
+            "component" "java-web-servlet"
+            "http.method" "GET"
+            "http.url" "/"
+            "span.kind" "server"
+            "http.status_code" Integer
+            defaultTags()
+            errorTags(ex.class, ex.message)
+          }
+        }
         span {
           operationName "servlet.response"
-          resourceName "HttpServletResponse.sendRedirect"
-          childOf span(0)
+          resourceName "HttpServletResponse." + resourceSuffix
           errored true
           tags {
             "component" "java-web-servlet-response"
@@ -127,6 +111,9 @@ class HttpServletResponseTest extends AgentTestRunner {
         }
       }
     }
+    where:
+    resourceSuffix    | handler
+    "sendRedirect"    | {HttpServletResponse r -> r.sendRedirect("")}
   }
 
   static class TestResponse implements HttpServletResponse {

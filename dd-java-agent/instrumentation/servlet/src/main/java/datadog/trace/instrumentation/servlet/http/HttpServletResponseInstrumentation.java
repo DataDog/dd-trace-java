@@ -15,6 +15,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -72,11 +73,14 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
         // Don't want to generate a new top-level span
         return null;
       }
-
-      if (InstrumentationContext.get(HttpServletResponse.class, Boolean.class).get(resp) == null) {
+      ContextStore<HttpServletResponse, Boolean> contextStore =
+          InstrumentationContext.get(HttpServletResponse.class, Boolean.class);
+      if (contextStore.get(resp) == null) {
         // Missing the response->request linking... probably in a wrapped instance.
         return null;
       }
+      // remove it now it's served its purpose in case it's hanging around in a weak map
+      contextStore.put(resp, null);
 
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpServletResponse.class);
       if (callDepth > 0) {
