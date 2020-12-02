@@ -1,9 +1,9 @@
-package datadog.trace.instrumentation.datastax.cassandra;
+package datadog.trace.instrumentation.datastax.cassandra4;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDecorator.CASSANDRA_EXECUTE;
-import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.datastax.cassandra4.CassandraClientDecorator.CASSANDRA_EXECUTE;
+import static datadog.trace.instrumentation.datastax.cassandra4.CassandraClientDecorator.DECORATE;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_CASSANDRA_ASYNC_SESSION;
 
 import com.datastax.oss.driver.api.core.CqlSession;

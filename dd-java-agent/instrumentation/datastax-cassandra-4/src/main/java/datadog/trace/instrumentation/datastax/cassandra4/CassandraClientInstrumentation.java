@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.datastax.cassandra;
+package datadog.trace.instrumentation.datastax.cassandra4;
 
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;

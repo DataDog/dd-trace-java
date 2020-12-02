@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.datastax.cassandra;
+package datadog.trace.instrumentation.datastax.cassandra4;
 
 import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
 import com.datastax.oss.driver.api.core.cql.ResultSet;

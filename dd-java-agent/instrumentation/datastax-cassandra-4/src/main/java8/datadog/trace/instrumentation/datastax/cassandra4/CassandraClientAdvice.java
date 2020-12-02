@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.datastax.cassandra;
+package datadog.trace.instrumentation.datastax.cassandra4;
 
 import com.datastax.oss.driver.api.core.session.Session;
 import java.util.concurrent.CompletionStage;
