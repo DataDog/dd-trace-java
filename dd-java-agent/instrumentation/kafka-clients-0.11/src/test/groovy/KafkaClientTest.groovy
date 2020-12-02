@@ -14,6 +14,7 @@ import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
+import org.springframework.kafka.listener.BatchMessageListener
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
@@ -432,6 +433,132 @@ class KafkaClientTest extends AgentTestRunner {
     consumer.close()
     producer.close()
 
+  }
+
+  def "test spring kafka template produce and batch consume"() {
+    setup:
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
+    def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
+
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
+    def containerProperties = containerProperties()
+
+    // create a Kafka MessageListenerContainer
+
+    containerProperties
+    def container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties)
+
+    // create a thread safe queue to store the received message
+    def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
+
+    // setup a Kafka message listener
+    container.setupMessageListener(new BatchMessageListener<String, String>() {
+      @Override
+      void onMessage(List<ConsumerRecord<String, String>> consumerRecords) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        consumerRecords.each {
+          records.add(it)
+        }
+      }
+    })
+
+    // start the container and underlying message listener
+    container.start()
+
+    // wait until the container has the required number of assigned partitions
+    ContainerTestUtils.waitForAssignment(container, embeddedKafka.getPartitionsPerTopic())
+
+    when:
+    List<String> greetings = ["msg 1", "msg 2", "msg 3"]
+    //String greeting = "Hello Spring Kafka Sender!"
+    runUnderTrace("parent") {
+      for (g in greetings) {
+        kafkaTemplate.send(SHARED_TOPIC, g).addCallback({
+          runUnderTrace("producer callback") {}
+        }, { ex ->
+          runUnderTrace("producer exception: " + ex) {}
+        })
+      }
+      blockUntilChildSpansFinished(2 * greetings.size())
+    }
+
+
+    then:
+    greetings.eachWithIndex { g, i ->
+      def received = records.poll(5, TimeUnit.SECONDS)
+      //assert received.value() == g //maybe received out of order
+      assert received.key() == null
+
+      def headers = received.headers()
+      assert headers.iterator().hasNext()
+    }
+
+    assertTraces(3) {
+      trace(1) {
+        span {
+          serviceName "kafka"
+          operationName "kafka.consume"
+          resourceName "Consume Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+
+            defaultTags(true)
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "kafka"
+          operationName "kafka.consume"
+          resourceName "Consume Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" { it >= 0 && it < 2 }
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+
+            defaultTags(true)
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "kafka"
+          operationName "kafka.consume"
+          resourceName "Consume Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          //childOf trace(0)[2]
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" { it >= 0 && it < 2 }
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+
+            defaultTags(true)
+          }
+        }
+      }
+    }
+
+    cleanup:
+    producerFactory.stop()
+    container?.stop()
   }
 
   @Unroll

@@ -134,7 +134,6 @@ public class TracingList implements List<ConsumerRecord<?, ?>> {
   public ListIterator<ConsumerRecord<?, ?>> listIterator(final int index) {
     final ListIterator<ConsumerRecord<?, ?>> maybeTracingListIterator;
     if (firstIteration) {
-      System.out.println("list iterator wrapped");
       maybeTracingListIterator =
           new TracingListIterator(delegate.listIterator(index), operationName, decorator);
       firstIteration = false;
