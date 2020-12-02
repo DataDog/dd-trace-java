@@ -292,18 +292,27 @@ class MuzzlePlugin implements Plugin<Project> {
   }
 
   private static Set<Version> limitLargeRanges(VersionRangeResult result, Set<Version> versions, Set<String> skipVersions) {
+    if (versions.size() <= 1) {
+      return versions
+    }
+
     List<Version> versionsCopy = new ArrayList<>(versions)
-    Set<String> skipCopy = new HashSet<>(skipVersions)
+    def beforeSize = versionsCopy.size()
     versionsCopy.removeAll(skipVersions)
+    VersionSet versionSet = new VersionSet(versionsCopy)
+    versionsCopy = versionSet.lowAndHighForMajorMinor.toList()
     Collections.shuffle(versionsCopy)
-    while (RANGE_COUNT_LIMIT <= versionsCopy.size()) {
+    def afterSize = versionsCopy.size()
+    while (RANGE_COUNT_LIMIT <= afterSize) {
       Version version = versionsCopy.pop()
-      if (!(version.equals(result.lowestVersion) || version.equals(result.highestVersion))) {
-        skipCopy.add(version.toString())
+      if (version == result.lowestVersion || version == result.highestVersion) {
+        versionsCopy.add(version)
+      } else {
+        afterSize -= 1
       }
     }
-    if (skipCopy.size() > 0) {
-      println "Muzzle skipping " + skipCopy.size() + " versions"
+    if (beforeSize - afterSize > 0) {
+      println "Muzzle skipping ${beforeSize - afterSize} versions"
     }
 
     return versionsCopy.toSet()
@@ -425,6 +434,7 @@ class MuzzlePlugin implements Plugin<Project> {
         version.contains("-atlassian-") ||
         version.contains("public_draft") ||
         version.contains("-cr") ||
+        version.contains("-preview") ||
         skipVersions.contains(version) ||
         version.matches(END_NMN_PATTERN) ||
         version.matches(GIT_SHA_PATTERN)
