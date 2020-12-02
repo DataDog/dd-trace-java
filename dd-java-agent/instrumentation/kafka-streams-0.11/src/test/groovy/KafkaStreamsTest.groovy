@@ -24,11 +24,10 @@ import java.util.concurrent.TimeUnit
 class KafkaStreamsTest extends AgentTestRunner {
   static final STREAM_PENDING = "test.pending"
   static final STREAM_PROCESSED = "test.processed"
-  static final DIRECT = "test.direct"
 
   @Shared
   @ClassRule
-  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, STREAM_PENDING, STREAM_PROCESSED, DIRECT)
+  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, STREAM_PENDING, STREAM_PROCESSED)
 
   def "test kafka produce and consume with streams in-between"() {
     setup:

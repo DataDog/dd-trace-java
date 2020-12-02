@@ -24,7 +24,8 @@ public class TextMapExtractAdapter implements AgentPropagation.ContextVisitor<He
       String key = header.key();
       byte[] value = header.value();
       if (null != value) {
-        String string = base64 != null
+        String string =
+            base64 != null
                 ? new String(base64.decode(header.value()), UTF_8)
                 : new String(header.value(), UTF_8);
         if (!classifier.accept(key, string)) {
