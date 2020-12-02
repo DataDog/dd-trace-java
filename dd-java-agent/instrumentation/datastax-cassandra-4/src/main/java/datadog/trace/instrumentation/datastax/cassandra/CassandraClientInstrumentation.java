@@ -4,6 +4,7 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -35,7 +36,11 @@ public class CassandraClientInstrumentation extends Instrumenter.Default {
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        isMethod().and(named("init")).and(isStatic()).and(takesArguments(3)),
+        isMethod()
+            .and(named("init"))
+            .and(isStatic())
+            .and(takesArguments(3))
+            .and(returns(named("java.util.concurrent.CompletionStage"))),
         packageName + ".CassandraClientAdvice");
   }
 }
