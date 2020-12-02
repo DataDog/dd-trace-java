@@ -113,3 +113,37 @@ class VertxHttpServerTest extends HttpServerTest<Vertx> {
     }
   }
 }
+
+class VertxChainingHttpServerTest extends VertxHttpServerTest {
+  @Override
+  protected Class<AbstractVerticle> verticle() {
+    VertxChainingTestServer
+  }
+
+  @Override
+  int spanCount(ServerEndpoint endpoint) {
+    return 2 + (hasHandlerSpan() ? 1 : 0) + (hasResponseSpan(endpoint) ? 1 : 0)
+  }
+
+  @Override
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
+      serviceName expectedServiceName()
+      operationName "vertx.route-handler"
+      spanType DDSpanTypes.HTTP_SERVER
+      errored endpoint == ERROR || endpoint == EXCEPTION
+      childOfPrevious()
+      tags {
+        "$Tags.COMPONENT" VertxRouterDecorator.DECORATE.component()
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
+        "$Tags.HTTP_STATUS" Integer
+        "chain" true
+        if (endpoint == EXCEPTION && this.testExceptionTag()) {
+          errorTags(Exception, EXCEPTION.body)
+        }
+        defaultTags()
+      }
+    }
+  }
+}

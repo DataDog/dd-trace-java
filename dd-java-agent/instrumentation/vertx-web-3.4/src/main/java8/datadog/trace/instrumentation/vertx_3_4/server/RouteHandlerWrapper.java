@@ -20,13 +20,18 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
 
   @Override
   public void handle(final RoutingContext routingContext) {
-    final AgentSpan parentSpan = activeSpan();
-    DECORATE.onRequest(parentSpan, routingContext);
+    AgentSpan span = routingContext.get(AgentSpan.class.getName());
+    if (span == null) {
+      final AgentSpan parentSpan = activeSpan();
+      DECORATE.onRequest(parentSpan, routingContext);
 
-    final AgentSpan span = startSpan(INSTRUMENTATION_NAME);
-    routingContext.response().endHandler(new EndHandlerWrapper(span, routingContext.response()));
-    DECORATE.afterStart(span);
-    span.setResourceName(actual.getClass().getName());
+      span = startSpan(INSTRUMENTATION_NAME);
+      routingContext.put(AgentSpan.class.getName(), span);
+
+      routingContext.response().endHandler(new EndHandlerWrapper(span, routingContext.response()));
+      DECORATE.afterStart(span);
+      span.setResourceName(DECORATE.className(actual.getClass()));
+    }
 
     try (final AgentScope scope = activateSpan(span)) {
       scope.setAsyncPropagation(true);
