@@ -240,7 +240,8 @@ public class PendingTrace implements AgentTrace {
       }
     }
     if (log.isDebugEnabled()) {
-      log.debug("t_id={} -> expired reference. pending count={}", traceId, count);
+      log.debug(
+          "t_id={} -> expired reference. root={} pending count={}", traceId, isRootSpan, count);
     }
   }
 
