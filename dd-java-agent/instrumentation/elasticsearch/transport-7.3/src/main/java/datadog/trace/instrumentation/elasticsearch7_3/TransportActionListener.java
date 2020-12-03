@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.elasticsearch7_3;
 import static datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.Strings;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -53,9 +52,7 @@ public class TransportActionListener<T extends ActionResponse> implements Action
   @Override
   public void onResponse(final T response) {
     if (response.remoteAddress() != null) {
-      span.setTag(Tags.PEER_HOSTNAME, response.remoteAddress().address().getHostName());
-      span.setTag(Tags.PEER_HOST_IPV4, response.remoteAddress().getAddress());
-      span.setTag(Tags.PEER_PORT, response.remoteAddress().getPort());
+      DECORATE.onPeerConnection(span, response.remoteAddress().address());
     }
 
     if (response instanceof GetResponse) {

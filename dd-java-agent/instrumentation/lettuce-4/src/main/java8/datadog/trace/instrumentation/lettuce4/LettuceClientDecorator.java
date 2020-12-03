@@ -62,7 +62,7 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   public AgentSpan onConnection(final AgentSpan span, final RedisURI connection) {
     if (connection != null) {
       span.setTag(Tags.PEER_HOSTNAME, connection.getHost());
-      span.setTag(Tags.PEER_PORT, connection.getPort());
+      setPeerPort(span, connection.getPort());
       span.setTag("db.redis.dbIndex", connection.getDatabase());
       span.setTag(DDTags.RESOURCE_NAME, resourceName(connection));
     }

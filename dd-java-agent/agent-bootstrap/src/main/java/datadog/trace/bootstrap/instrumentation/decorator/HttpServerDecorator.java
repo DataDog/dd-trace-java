@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
-import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -106,11 +105,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
           span.setTag(Tags.PEER_HOST_IPV6, ip);
         }
       }
-      final int port = peerPort(connection);
-      // Negative or Zero ports might represent an unset/null value for an int type.  Skip setting.
-      if (port > 0) {
-        span.setTag(Tags.PEER_PORT, PORTS.get(port));
-      }
+
+      setPeerPort(span, peerPort(connection));
     }
     return span;
   }

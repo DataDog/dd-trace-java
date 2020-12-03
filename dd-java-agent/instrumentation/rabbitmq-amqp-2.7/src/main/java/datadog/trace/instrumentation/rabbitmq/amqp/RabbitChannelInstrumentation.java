@@ -38,7 +38,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -121,10 +120,8 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       final Connection connection = channel.getConnection();
 
       final AgentSpan span =
-          startSpan(AMQP_COMMAND)
-              .setTag(DDTags.RESOURCE_NAME, method)
-              .setTag(Tags.PEER_PORT, connection.getPort())
-              .setMeasured(true);
+          startSpan(AMQP_COMMAND).setTag(DDTags.RESOURCE_NAME, method).setMeasured(true);
+      DECORATE.setPeerPort(span, connection.getPort());
       DECORATE.afterStart(span);
       DECORATE.onPeerConnection(span, connection.getAddress());
       return activateSpan(span);
@@ -252,7 +249,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       if (response != null) {
         span.setTag("message.size", response.getBody().length);
       }
-      span.setTag(Tags.PEER_PORT, connection.getPort());
+      CONSUMER_DECORATE.setPeerPort(span, connection.getPort());
       try (final AgentScope scope = activateSpan(span)) {
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onGet(span, queue);

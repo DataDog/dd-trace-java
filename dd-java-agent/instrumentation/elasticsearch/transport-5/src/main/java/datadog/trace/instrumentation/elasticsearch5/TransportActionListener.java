@@ -53,7 +53,7 @@ public class TransportActionListener<T extends ActionResponse> implements Action
     if (response.remoteAddress() != null) {
       span.setTag(Tags.PEER_HOSTNAME, response.remoteAddress().getHost());
       span.setTag(Tags.PEER_HOST_IPV4, response.remoteAddress().getAddress());
-      span.setTag(Tags.PEER_PORT, response.remoteAddress().getPort());
+      DECORATE.setPeerPort(span, response.remoteAddress().getPort());
     }
 
     if (response instanceof GetResponse) {

@@ -75,7 +75,7 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
   public AgentSpan onResponse(final AgentSpan span, final Response response) {
     if (response != null && response.getHost() != null) {
       span.setTag(Tags.PEER_HOSTNAME, response.getHost().getHostName());
-      span.setTag(Tags.PEER_PORT, response.getHost().getPort());
+      setPeerPort(span, response.getHost().getPort());
     }
     return span;
   }
