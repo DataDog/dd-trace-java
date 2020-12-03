@@ -202,7 +202,6 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "local"
             "$Tags.PEER_HOST_IPV4" "0.0.0.0"
-            "$Tags.PEER_PORT" 0
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "GetAction"
             "elasticsearch.request" "GetRequest"
@@ -225,7 +224,6 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "local"
             "$Tags.PEER_HOST_IPV4" "0.0.0.0"
-            "$Tags.PEER_PORT" 0
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "IndexAction"
             "elasticsearch.request" "IndexRequest"
@@ -263,7 +261,6 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "local"
             "$Tags.PEER_HOST_IPV4" "0.0.0.0"
-            "$Tags.PEER_PORT" 0
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "GetAction"
             "elasticsearch.request" "GetRequest"
