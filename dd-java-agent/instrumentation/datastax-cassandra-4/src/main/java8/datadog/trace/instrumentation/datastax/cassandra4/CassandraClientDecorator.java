@@ -7,7 +7,6 @@ import com.datastax.oss.driver.api.core.servererrors.CoordinatorException;
 import com.datastax.oss.driver.api.core.session.Session;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import java.net.InetSocketAddress;
@@ -16,10 +15,8 @@ import java.util.Objects;
 
 public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
 
-  public static final CharSequence CASSANDRA_EXECUTE =
-      UTF8BytesString.createConstant("cassandra.execute");
-  public static final CharSequence JAVA_CASSANDRA =
-      UTF8BytesString.createConstant("java-cassandra");
+  public static final CharSequence CASSANDRA_EXECUTE = UTF8BytesString.create("cassandra.execute");
+  public static final CharSequence JAVA_CASSANDRA = UTF8BytesString.create("java-cassandra");
 
   public static final CassandraClientDecorator DECORATE = new CassandraClientDecorator();
 
@@ -94,8 +91,7 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
     if (coordinator != null) {
       SocketAddress address = coordinator.getEndPoint().resolve();
       if (address instanceof InetSocketAddress) {
-        span.setTag(Tags.PEER_PORT, ((InetSocketAddress) address).getPort());
-        onPeerConnection(span, ((InetSocketAddress) address).getAddress());
+        onPeerConnection(span, (InetSocketAddress) address);
       }
     }
 
