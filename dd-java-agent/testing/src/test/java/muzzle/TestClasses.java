@@ -95,10 +95,9 @@ public class TestClasses {
 
   // Can't test this until java 7 is dropped.
   public static class InDyAdvice {
-    //    public static MethodBodyAdvice.SomeInterface indyMethod(
-    //        final MethodBodyAdvice.SomeImplementation a) {
+    //    public static MethodBodyAdvice.HasMethod indyMethod(final MethodBodyAdvice.HasMethod a) {
     //      Runnable aStaticMethod = MethodBodyAdvice.B::aStaticMethod;
-    //      return a::someMethod;
+    //      return a::requiredMethod;
     //    }
   }
 }

@@ -67,6 +67,24 @@ class ReferenceCreatorTest extends AgentTestRunner {
     references.get('muzzle.TestClasses$MethodBodyAdvice$A') != null
   }
 
+  def "interface impl creates references"() {
+    setup:
+    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.SomeImplementation.getName(), this.getClass().getClassLoader())
+
+    expect:
+    references.get('muzzle.TestClasses$MethodBodyAdvice$SomeInterface') != null
+    references.size() == 1
+  }
+
+  def "child class creates references"() {
+    setup:
+    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.A2.getName(), this.getClass().getClassLoader())
+
+    expect:
+    references.get('muzzle.TestClasses$MethodBodyAdvice$A') != null
+    references.size() == 1
+  }
+
   def "instanceof creates references"() {
     setup:
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(InstanceofAdvice.getName(), this.getClass().getClassLoader())
@@ -82,7 +100,7 @@ class ReferenceCreatorTest extends AgentTestRunner {
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(TestClasses.InDyAdvice.getName(), this.getClass().getClassLoader())
 
     expect:
-    references.get('muzzle.TestClasses$MethodBodyAdvice$SomeImplementation') != null
+    references.get('muzzle.TestClasses$MethodBodyAdvice$HasMethod') != null
     references.get('muzzle.TestClasses$MethodBodyAdvice$B') != null
   }
 

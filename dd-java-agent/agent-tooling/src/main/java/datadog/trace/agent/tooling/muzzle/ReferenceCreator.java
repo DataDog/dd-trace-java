@@ -35,6 +35,8 @@ public class ReferenceCreator extends ClassVisitor {
    */
   private static final String REFERENCE_CREATION_PACKAGE = "datadog.trace.instrumentation.";
 
+  private static final int UNDEFINED_LINE = -1;
+
   /**
    * Generate all references reachable from a given class.
    *
@@ -180,9 +182,18 @@ public class ReferenceCreator extends ClassVisitor {
     refSourceClassName = Utils.getClassName(name);
     refSourceType = Type.getType("L" + name + ";");
     refSourceTypeInternalName = refSourceType.getInternalName();
-    // Additional references we could check
-    // - supertype of class and visible from this package
-    // - interfaces of class and visible from this package
+
+    // Add references to each of the interfaces.
+    for (String iface : interfaces) {
+      addReference(
+          new Reference.Builder(iface)
+              .withSource(
+                  refSourceClassName,
+                  UNDEFINED_LINE) // We don't have a specific line number to use.
+              .withFlag(Reference.Flag.PUBLIC)
+              .build());
+    }
+    // the super type is handled by the method visitor to the constructor.
     super.visit(version, access, name, signature, superName, interfaces);
   }
 
@@ -215,7 +226,7 @@ public class ReferenceCreator extends ClassVisitor {
   }
 
   private class AdviceReferenceMethodVisitor extends MethodVisitor {
-    private int currentLineNumber = -1;
+    private int currentLineNumber = UNDEFINED_LINE;
 
     public AdviceReferenceMethodVisitor(final MethodVisitor methodVisitor) {
       super(Opcodes.ASM7, methodVisitor);
