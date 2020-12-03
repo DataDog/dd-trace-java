@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.http_url_connection;
 
+import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.util.Collections.singletonMap;
@@ -72,7 +73,7 @@ public class UrlInstrumentation extends Instrumenter.Default {
 
         try (final AgentScope scope = activateSpan(span)) {
           span.setTag(Tags.HTTP_URL, url.toString());
-          span.setTag(Tags.PEER_PORT, url.getPort() == -1 ? 80 : url.getPort());
+          span.setTag(Tags.PEER_PORT, url.getPort() > 0 ? PORTS.get(url.getPort()) : PORTS.get(80));
           span.setTag(Tags.PEER_HOSTNAME, url.getHost());
           if (Config.get().isHttpClientSplitByDomain()) {
             span.setTag(DDTags.SERVICE_NAME, url.getHost());

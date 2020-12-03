@@ -5,7 +5,6 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
@@ -62,8 +61,7 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
   public AgentSpan onResponse(final AgentSpan span, final ResultSet result) {
     if (result != null) {
       final Host host = result.getExecutionInfo().getQueriedHost();
-      span.setTag(Tags.PEER_PORT, host.getSocketAddress().getPort());
-      onPeerConnection(span, host.getSocketAddress().getAddress());
+      onPeerConnection(span, host.getSocketAddress());
     }
     return span;
   }

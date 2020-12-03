@@ -54,7 +54,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
               span.setTag(DDTags.SERVICE_NAME, url.getHost());
             }
             if (url.getPort() > 0) {
-              span.setTag(Tags.PEER_PORT, url.getPort());
+              setPeerPort(span, url.getPort());
               if (url.getPort() != 80 && url.getPort() != 443) {
                 urlNoParams.append(":");
                 urlNoParams.append(url.getPort());

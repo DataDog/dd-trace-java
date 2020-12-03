@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
@@ -118,7 +119,7 @@ public abstract class BaseDecorator {
       onPeerConnection(span, remoteConnection.getAddress());
 
       span.setTag(Tags.PEER_HOSTNAME, remoteConnection.getHostName());
-      span.setTag(Tags.PEER_PORT, remoteConnection.getPort());
+      setPeerPort(span, remoteConnection.getPort());
     }
     return span;
   }
@@ -133,6 +134,15 @@ public abstract class BaseDecorator {
         span.setTag(Tags.PEER_HOST_IPV6, remoteAddress.getHostAddress());
       }
     }
+    return span;
+  }
+
+  public AgentSpan setPeerPort(AgentSpan span, int port) {
+    // Negative or Zero ports might represent an unset/null value for an int type.  Skip setting.
+    if (port > 0) {
+      span.setTag(Tags.PEER_PORT, PORTS.get(port));
+    }
+
     return span;
   }
 
