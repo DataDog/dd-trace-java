@@ -4,7 +4,7 @@ muzzle {
   pass {
     group = "org.glassfish.jersey.core"
     module = "jersey-server"
-    versions = "[2.0,]"
+    versions = "[2.0, 3.0.0)" // javax.ws -> jakarta.ws at 3.0.0
   }
 }
 apply from: "$rootDir/gradle/java.gradle"
