@@ -29,6 +29,9 @@ dependencies {
   testCompile group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.1'
   testCompile group: 'org.cassandraunit', name: 'cassandra-unit', version: '4.3.1.0'
 
+  // Force 0.3.3 because 0.3.0 has a version parsing bug that fails on jdk 15
+  testCompile group: 'com.github.jbellis', name: "jamm", version: '0.3.3'
+
   testCompile project(':dd-java-agent:instrumentation:guava-10')
 
   latestDepTestCompile group: 'com.datastax.oss', name: 'java-driver-core', version: '+'
