@@ -484,18 +484,65 @@ class KafkaClientTest extends AgentTestRunner {
       blockUntilChildSpansFinished(2 * greetings.size())
     }
 
-
     then:
+    def receivedSet = greetings.toSet()
     greetings.eachWithIndex { g, i ->
       def received = records.poll(5, TimeUnit.SECONDS)
-      //assert received.value() == g //maybe received out of order
+      receivedSet.remove(received.value()) //maybe received out of order in case several partitions
       assert received.key() == null
 
       def headers = received.headers()
       assert headers.iterator().hasNext()
-    }
 
-    assertTraces(3) {
+    }
+    assert receivedSet.isEmpty()
+
+    assertTraces(4) {
+      trace(7) {
+        basicSpan(it, "parent")
+        basicSpan(it, "producer callback", span(0))
+        span {
+          serviceName "kafka"
+          operationName "kafka.produce"
+          resourceName "Produce Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          childOf span(0)
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            defaultTags()
+          }
+        }
+        basicSpan(it, "producer callback", span(0))
+        span {
+          serviceName "kafka"
+          operationName "kafka.produce"
+          resourceName "Produce Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          childOf span(0)
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            defaultTags()
+          }
+        }
+        basicSpan(it, "producer callback", span(0))
+        span {
+          serviceName "kafka"
+          operationName "kafka.produce"
+          resourceName "Produce Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          childOf span(0)
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            defaultTags()
+          }
+        }
+      }
       trace(1) {
         span {
           serviceName "kafka"
