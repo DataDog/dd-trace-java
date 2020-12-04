@@ -11,8 +11,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
-import datadog.trace.core.jfr.DDScopeEvent;
-import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -36,7 +34,6 @@ public class ContinuableScopeManager implements AgentScopeManager {
         }
       };
 
-  private final DDScopeEventFactory scopeEventFactory;
   private final List<ScopeListener> scopeListeners;
   private final int depthLimit;
   private final StatsDClient statsDClient;
@@ -45,33 +42,15 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
   public ContinuableScopeManager(
       final int depthLimit,
-      final DDScopeEventFactory scopeEventFactory,
       final StatsDClient statsDClient,
       final boolean strictMode,
       final boolean inheritAsyncPropagation) {
-    this(
-        depthLimit,
-        scopeEventFactory,
-        statsDClient,
-        strictMode,
-        inheritAsyncPropagation,
-        new CopyOnWriteArrayList<ScopeListener>());
-  }
 
-  // Separate constructor to allow passing scopeListeners to super arg and assign locally.
-  private ContinuableScopeManager(
-      final int depthLimit,
-      final DDScopeEventFactory scopeEventFactory,
-      final StatsDClient statsDClient,
-      final boolean strictMode,
-      final boolean inheritAsyncPropagation,
-      final List<ScopeListener> scopeListeners) {
-    this.scopeEventFactory = scopeEventFactory;
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
     this.statsDClient = statsDClient;
     this.strictMode = strictMode;
     this.inheritAsyncPropagation = inheritAsyncPropagation;
-    this.scopeListeners = scopeListeners;
+    this.scopeListeners = new CopyOnWriteArrayList<>();
   }
 
   @Override
@@ -183,8 +162,6 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     private int referenceCount = 1;
 
-    private final DDScopeEvent event;
-
     private final AgentSpan span;
 
     ContinuableScope(
@@ -195,7 +172,6 @@ public class ContinuableScopeManager implements AgentScopeManager {
         final boolean isAsyncPropagating) {
       this.isAsyncPropagating = isAsyncPropagating;
       this.span = span;
-      this.event = scopeManager.scopeEventFactory.create(span.context());
       this.scopeManager = scopeManager;
       this.continuation = continuation;
       this.source = source;
@@ -243,7 +219,6 @@ public class ContinuableScopeManager implements AgentScopeManager {
      * I would hope this becomes unnecessary.
      */
     final void onProperClose() {
-      event.finish();
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         listener.afterScopeClosed();
       }
@@ -311,7 +286,6 @@ public class ContinuableScopeManager implements AgentScopeManager {
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         listener.afterScopeActivated();
       }
-      event.start();
     }
   }
 

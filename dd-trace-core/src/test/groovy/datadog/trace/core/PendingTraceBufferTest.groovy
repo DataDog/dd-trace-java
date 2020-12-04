@@ -5,7 +5,6 @@ import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
-import datadog.trace.core.jfr.DDNoopScopeEventFactory
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.scopemanager.ContinuableScopeManager
 import datadog.trace.test.util.DDSpecification
@@ -23,7 +22,7 @@ class PendingTraceBufferTest extends DDSpecification {
   def bufferSpy = Spy(buffer)
 
   def tracer = Mock(CoreTracer)
-  def scopeManager = new ContinuableScopeManager(10, new DDNoopScopeEventFactory(), new NoOpStatsDClient(), true, true)
+  def scopeManager = new ContinuableScopeManager(10, new NoOpStatsDClient(), true, true)
   def factory = new PendingTrace.Factory(tracer, bufferSpy, false)
   List<TraceScope.Continuation> continuations = []
 
