@@ -10,7 +10,6 @@ import com.timgroup.statsd.StatsDClient;
 import com.timgroup.statsd.StatsDClientException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -589,7 +588,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean errorFlag;
     private CharSequence spanType;
     private boolean ignoreScope = false;
-    private Number analyticsSampleRate = null;
 
     public CoreSpanBuilder(final CharSequence operationName) {
       this.operationName = operationName;
@@ -787,10 +785,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               parentTrace,
               CoreTracer.this,
               serviceNameMappings);
-
-      if (null != analyticsSampleRate) {
-        context.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, analyticsSampleRate);
-      }
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
