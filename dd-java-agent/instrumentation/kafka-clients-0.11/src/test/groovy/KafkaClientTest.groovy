@@ -445,15 +445,9 @@ class KafkaClientTest extends AgentTestRunner {
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
     def containerProperties = containerProperties()
 
-    // create a Kafka MessageListenerContainer
 
-    containerProperties
     def container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties)
-
-    // create a thread safe queue to store the received message
     def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
-
-    // setup a Kafka message listener
     container.setupMessageListener(new BatchMessageListener<String, String>() {
       @Override
       void onMessage(List<ConsumerRecord<String, String>> consumerRecords) {
@@ -463,16 +457,11 @@ class KafkaClientTest extends AgentTestRunner {
         }
       }
     })
-
-    // start the container and underlying message listener
     container.start()
-
-    // wait until the container has the required number of assigned partitions
     ContainerTestUtils.waitForAssignment(container, embeddedKafka.getPartitionsPerTopic())
 
     when:
     List<String> greetings = ["msg 1", "msg 2", "msg 3"]
-    //String greeting = "Hello Spring Kafka Sender!"
     runUnderTrace("parent") {
       for (g in greetings) {
         kafkaTemplate.send(SHARED_TOPIC, g).addCallback({
@@ -588,7 +577,6 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
-          //childOf trace(0)[2]
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
