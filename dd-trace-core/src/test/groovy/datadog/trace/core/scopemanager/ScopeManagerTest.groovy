@@ -815,6 +815,56 @@ class ScopeManagerTest extends DDSpecification {
     listener.events == []
   }
 
+  def "misbehaving ScopeListener should not affect others"() {
+    setup:
+    def exceptionThrowingScopeLister = new ExceptionThrowingScopeListener()
+    exceptionThrowingScopeLister.throwOnScopeActivated = activationException
+    exceptionThrowingScopeLister.throwOnScopeClosed = closeException
+
+    def secondEventCountingListener = new EventCountingListener()
+    scopeManager.addScopeListener(exceptionThrowingScopeLister)
+    scopeManager.addScopeListener(secondEventCountingListener)
+
+    when:
+    AgentSpan span = tracer.buildSpan("foo").start()
+    AgentScope continuableScope = tracer.activateSpan(span)
+
+    then:
+    eventCountingListener.events == [ACTIVATE]
+    secondEventCountingListener.events == [ACTIVATE]
+
+    when:
+    AgentSpan childSpan = tracer.buildSpan("foo").start()
+    AgentScope childDDScope = tracer.activateSpan(childSpan)
+
+    then:
+    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    secondEventCountingListener.events == [ACTIVATE, ACTIVATE]
+
+    when:
+    childDDScope.close()
+    childSpan.finish()
+
+    then:
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE]
+    secondEventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE]
+
+    when:
+    continuableScope.close()
+    span.finish()
+
+    then:
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE]
+    secondEventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE]
+
+    where:
+    activationException | closeException
+    false               | false
+    false               | true
+    true                | false
+    true                | true
+  }
+
   boolean spanFinished(AgentSpan span) {
     return ((DDSpan) span)?.isFinished()
   }
@@ -837,6 +887,24 @@ class EventCountingListener implements ScopeListener {
   void afterScopeClosed() {
     synchronized (events) {
       events.add(CLOSE)
+    }
+  }
+}
+
+class ExceptionThrowingScopeListener implements ScopeListener {
+  boolean throwOnScopeActivated = false
+  boolean throwOnScopeClosed = false
+
+  void afterScopeActivated() {
+    if (throwOnScopeActivated) {
+      throw new RuntimeException("Exception on activated")
+    }
+  }
+
+  @Override
+  void afterScopeClosed() {
+    if (throwOnScopeClosed) {
+      throw new RuntimeException("Exception on closed")
     }
   }
 }

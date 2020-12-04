@@ -220,7 +220,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
      */
     final void onProperClose() {
       for (final ScopeListener listener : scopeManager.scopeListeners) {
-        listener.afterScopeClosed();
+        try {
+          listener.afterScopeClosed();
+        } catch (Exception e) {
+          log.debug("ScopeListener threw exception in close()", e);
+        }
       }
     }
 
@@ -284,7 +288,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     public void afterActivated() {
       for (final ScopeListener listener : scopeManager.scopeListeners) {
-        listener.afterScopeActivated();
+        try {
+          listener.afterScopeActivated();
+        } catch (Exception e) {
+          log.debug("ScopeListener threw exception in afterActivated()", e);
+        }
       }
     }
   }
