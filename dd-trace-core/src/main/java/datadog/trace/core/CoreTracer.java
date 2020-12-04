@@ -28,8 +28,6 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
-import datadog.trace.core.jfr.DDNoopScopeEventFactory;
-import datadog.trace.core.jfr.DDScopeEventFactory;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.processor.TraceProcessor;
@@ -340,13 +338,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             : Monitoring.DISABLED;
     this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
-      this.scopeManager =
+      ContinuableScopeManager csm =
           new ContinuableScopeManager(
               config.getScopeDepthLimit(),
-              createScopeEventFactory(),
               this.statsDClient,
               config.isScopeStrictMode(),
               config.isScopeInheritAsyncPropagation());
+      this.scopeManager = csm;
+
+      if (config.isProfilingEnabled()) {
+        createScopeEventFactory(csm);
+      }
     } else {
       this.scopeManager = scopeManager;
     }
@@ -650,16 +652,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @SuppressForbidden
-  private static DDScopeEventFactory createScopeEventFactory() {
-    if (Config.get().isProfilingEnabled()) {
-      try {
-        return (DDScopeEventFactory)
-            Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory").newInstance();
-      } catch (final Throwable e) {
-        log.debug("Profiling of ScopeEvents is not available. {}", e.getMessage());
-      }
+  private static void createScopeEventFactory(ContinuableScopeManager continuableScopeManager) {
+    try {
+      ScopeListener scopeListener =
+          (ScopeListener)
+              Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
+                  .getDeclaredConstructor(AgentScopeManager.class)
+                  .newInstance(continuableScopeManager);
+
+      continuableScopeManager.addScopeListener(scopeListener);
+    } catch (final Throwable e) {
+      log.debug("Profiling of ScopeEvents is not available");
     }
-    return DDNoopScopeEventFactory.INSTANCE;
   }
 
   private static StatsDClient createStatsDClient(final Config config) {

@@ -1,28 +1,51 @@
 package datadog.trace.core.jfr.openjdk;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.jfr.DDNoopScopeEvent;
-import datadog.trace.core.jfr.DDScopeEvent;
-import datadog.trace.core.jfr.DDScopeEventFactory;
+import datadog.trace.context.ScopeListener;
 import jdk.jfr.EventType;
 
 /** Event factory for {@link ScopeEvent} */
-public class ScopeEventFactory implements DDScopeEventFactory {
-
+public class ScopeEventFactory implements ScopeListener {
+  private final ThreadLocal<ScopeEvent> scopeEventThreadLocal = new ThreadLocal<>();
   private final EventType eventType;
+  private final AgentScopeManager scopeManager;
 
-  public ScopeEventFactory() throws ClassNotFoundException {
+  public ScopeEventFactory(AgentScopeManager scopeManager) throws ClassNotFoundException {
     ExcludedVersions.checkVersionExclusion();
     // Note: Loading ScopeEvent when ScopeEventFactory is loaded is important because it also loads
     // JFR classes - which may not be present on some JVMs
     eventType = EventType.getEventType(ScopeEvent.class);
+    this.scopeManager = scopeManager;
   }
 
   @Override
-  public DDScopeEvent create(final AgentSpan.Context context) {
-    return eventType.isEnabled() && context instanceof DDSpanContext
-        ? new ScopeEvent((DDSpanContext) context)
-        : DDNoopScopeEvent.INSTANCE;
+  public void afterScopeActivated() {
+    ScopeEvent scopeEvent = scopeEventThreadLocal.get();
+
+    if (scopeEvent != null) {
+      scopeEvent.finish();
+    }
+
+    if (eventType.isEnabled()) {
+      AgentSpan span = scopeManager.activeSpan();
+
+      ScopeEvent nextScopeEvent =
+          new ScopeEvent(span.context().getTraceId(), span.context().getSpanId());
+      nextScopeEvent.start();
+      scopeEventThreadLocal.set(nextScopeEvent);
+    } else {
+      scopeEventThreadLocal.remove();
+    }
+  }
+
+  @Override
+  public void afterScopeClosed() {
+    ScopeEvent scopeEvent = scopeEventThreadLocal.get();
+
+    if (scopeEvent != null) {
+      scopeEvent.finish();
+      scopeEventThreadLocal.remove();
+    }
   }
 }
