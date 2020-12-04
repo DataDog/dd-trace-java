@@ -6,7 +6,7 @@ import static datadog.trace.core.http.OkHttpUtils.prepareRequest;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.trace.api.RatelimitedLogger;
+import datadog.trace.api.IOLogger;
 import datadog.trace.core.monitor.Counter;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
@@ -19,7 +19,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -35,12 +34,10 @@ public class DDAgentApi {
   private static final String V3_ENDPOINT = "v0.3/traces";
   private static final String V4_ENDPOINT = "v0.4/traces";
   private static final String V5_ENDPOINT = "v0.5/traces";
-  private static final long NANOSECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toNanos(5);
 
   private final List<DDAgentResponseListener> responseListeners = new ArrayList<>();
   private final String[] endpoints;
 
-  private boolean logNextSuccess = false;
   private long totalTraces = 0;
   private long receivedTraces = 0;
   private long sentTraces = 0;
@@ -79,8 +76,7 @@ public class DDAgentApi {
   private boolean agentRunning = false;
   private boolean agentDiscovered = false;
   private boolean usingUnixDomainSockets;
-  private RatelimitedLogger ratelimitedLogger =
-      new RatelimitedLogger(log, NANOSECONDS_BETWEEN_ERROR_LOG);
+  private final IOLogger ioLogger = new IOLogger(log);
 
   public DDAgentApi(
       final String agentUrl,
@@ -183,14 +179,7 @@ public class DDAgentApi {
     // count the successful traces
     this.sentTraces += traceCount;
 
-    if (log.isDebugEnabled()) {
-      log.debug(createSendLogMessage(traceCount, sizeInBytes, "Success"));
-    } else if (this.logNextSuccess) {
-      this.logNextSuccess = false;
-      if (log.isInfoEnabled()) {
-        log.info(createSendLogMessage(traceCount, sizeInBytes, "Success"));
-      }
-    }
+    ioLogger.success(createSendLogMessage(traceCount, sizeInBytes, "Success"));
   }
 
   private void countAndLogFailedSend(
@@ -202,41 +191,17 @@ public class DDAgentApi {
     this.failedTraces += traceCount;
     // these are used to catch and log if there is a failure in debug logging the response body
     String agentError = getResponseBody(response);
-    if (log.isDebugEnabled()) {
-      String sendErrorString =
-          createSendLogMessage(
-              traceCount, sizeInBytes, agentError.isEmpty() ? "Error" : agentError);
-      if (response != null) {
-        log.debug(
-            "{} Status: {}, Response: {}, Body: {}",
-            sendErrorString,
-            response.code(),
-            response.message(),
-            agentError);
-      } else if (outer != null) {
-        log.debug(sendErrorString, outer);
-      } else {
-        log.debug(sendErrorString);
-      }
-      return;
-    }
     String sendErrorString =
         createSendLogMessage(traceCount, sizeInBytes, agentError.isEmpty() ? "Error" : agentError);
-    boolean hasLogged;
-    if (response != null) {
-      hasLogged =
-          ratelimitedLogger.warn(
-              "{} Status: {} {}", sendErrorString, response.code(), response.message());
-    } else if (outer != null) {
-      hasLogged =
-          ratelimitedLogger.warn(
-              "{} {}: {}", sendErrorString, outer.getClass().getName(), outer.getMessage());
-    } else {
-      hasLogged = ratelimitedLogger.warn(sendErrorString);
+
+    ioLogger.error(sendErrorString, toLoggerResponse(response, agentError), outer);
+  }
+
+  private static IOLogger.Response toLoggerResponse(okhttp3.Response response, String body) {
+    if (response == null) {
+      return null;
     }
-    if (hasLogged) {
-      this.logNextSuccess = true;
-    }
+    return new IOLogger.Response(response.code(), response.message(), body);
   }
 
   private static String getResponseBody(okhttp3.Response response) {

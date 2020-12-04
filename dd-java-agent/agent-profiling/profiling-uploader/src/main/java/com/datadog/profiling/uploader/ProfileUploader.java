@@ -23,7 +23,7 @@ import com.datadog.profiling.uploader.util.PidHelper;
 import com.datadog.profiling.uploader.util.StreamUtils;
 import datadog.common.container.ContainerInfo;
 import datadog.trace.api.Config;
-import datadog.trace.api.RatelimitedLogger;
+import datadog.trace.api.IOLogger;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.io.InputStream;
@@ -93,39 +93,45 @@ public final class ProfileUploader {
       Headers.of(
           "Content-Disposition", "form-data; name=\"" + DATA_PARAM + "\"; filename=\"profile\"");
 
-  private static final long NANOSECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toNanos(5);
-
   private static final class ResponseCallback implements Callback {
 
-    private final RatelimitedLogger ratelimitedLogger;
+    private final IOLogger ioLogger;
 
-    public ResponseCallback(final RatelimitedLogger ratelimitedLogger) {
-      this.ratelimitedLogger = ratelimitedLogger;
+    public ResponseCallback(final IOLogger ioLogger) {
+      this.ioLogger = ioLogger;
     }
 
     @Override
     public void onFailure(final Call call, final IOException e) {
-      ratelimitedLogger.warn("Failed to upload profile to {}", call.request().url(), e);
+      ioLogger.error("Failed to upload profile to " + call.request().url(), e);
     }
 
     @Override
     public void onResponse(final Call call, final Response response) {
       if (response.isSuccessful()) {
-        log.debug("Upload done");
+        ioLogger.success("Upload done");
       } else {
         final String apiKey = call.request().header(HEADER_DD_API_KEY);
         if (response.code() == 404 && apiKey == null) {
           // if no API key and not found error we assume we're sending to the agent
-          log.warn(
+          ioLogger.error(
               "Datadog Agent is not accepting profiles. Agent-based profiling deployments require Datadog Agent >= 7.20");
         }
 
-        log.warn(
-            "Failed to upload profile: unexpected response code {} {}",
-            response.message(),
-            response.code());
+        ioLogger.error("Failed to upload profile", getLoggerResponse(response));
       }
       response.close();
+    }
+
+    private static IOLogger.Response getLoggerResponse(okhttp3.Response response) {
+      if (response != null) {
+        try {
+          return new IOLogger.Response(
+              response.code(), response.message(), response.body().string().trim());
+        } catch (NullPointerException | IOException ignored) {
+        }
+      }
+      return null;
     }
   }
 
@@ -144,21 +150,17 @@ public final class ProfileUploader {
   private final Deque<Integer> requestSizeHistory;
 
   public ProfileUploader(final Config config) {
-    this(
-        config,
-        new RatelimitedLogger(log, NANOSECONDS_BETWEEN_ERROR_LOG),
-        ContainerInfo.get().getContainerId());
+    this(config, new IOLogger(log), ContainerInfo.get().getContainerId());
   }
 
   /**
    * Note that this method is only visible for testing and should not be used from outside this
    * class.
    */
-  ProfileUploader(
-      final Config config, final RatelimitedLogger ratelimitedLogger, final String containerId) {
+  ProfileUploader(final Config config, final IOLogger ioLogger, final String containerId) {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
-    responseCallback = new ResponseCallback(ratelimitedLogger);
+    responseCallback = new ResponseCallback(ioLogger);
     this.containerId = containerId;
 
     log.debug("Started ProfileUploader with target url {}", url);
