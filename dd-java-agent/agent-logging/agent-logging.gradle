@@ -2,6 +2,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 excludedClassesCoverage += [
   // Contains no code
+  'datadog.trace.logging.simplelogger.SLCompatSettings.Names',
   'datadog.trace.logging.simplelogger.SLCompatSettings.Keys',
   'datadog.trace.logging.simplelogger.SLCompatSettings.Defaults',
   // Can't test fallback path
@@ -16,6 +17,7 @@ excludedClassesCoverage += [
 ]
 
 dependencies {
-  compile group: 'org.slf4j', name: 'slf4j-api', version: versions.slf4j
   // This is fine since this project is shadowed into the agent-jar by dd-java-agent:agent-bootstrap
+  compile group: 'org.slf4j', name: 'slf4j-api', version: versions.slf4j
+  compile project(':internal-api')
 }

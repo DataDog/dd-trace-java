@@ -4,6 +4,7 @@ import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LogLevelSwitcher;
 import datadog.trace.logging.LoggerHelper;
 import datadog.trace.logging.LoggerHelperFactory;
+import java.util.Map;
 import org.slf4j.Marker;
 
 public final class SwitchableLogLevelFactory extends LoggerHelperFactory
@@ -52,5 +53,10 @@ public final class SwitchableLogLevelFactory extends LoggerHelperFactory
     public void log(LogLevel level, String message, Throwable t) {
       delegate.log(level, message, t);
     }
+  }
+
+  @Override
+  public Map<String, Object> getSettingsDescription() {
+    return delegate.getSettingsDescription();
   }
 }

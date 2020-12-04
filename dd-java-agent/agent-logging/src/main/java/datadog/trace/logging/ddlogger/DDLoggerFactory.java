@@ -2,6 +2,7 @@ package datadog.trace.logging.ddlogger;
 
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LogLevelSwitcher;
+import datadog.trace.logging.LoggingSettingsDescription;
 import datadog.trace.logging.simplelogger.SLCompatFactory;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
@@ -24,6 +25,7 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
         factory = helperFactory;
         if (factory == null) {
           factory = helperFactory = new SwitchableLogLevelFactory(new SLCompatFactory());
+          LoggingSettingsDescription.setDescription(factory.getSettingsDescription());
         }
       }
     }

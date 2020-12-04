@@ -7,6 +7,7 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceApiInfo;
+import datadog.trace.logging.LoggingSettingsDescription;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -123,6 +124,8 @@ public class StatusLogger {
       writer.value(config.getConfigFile());
       writer.name("runtime_id");
       writer.value(config.getRuntimeId());
+      writer.name("logging_settings");
+      writeObjectMap(writer, LoggingSettingsDescription.getDescription());
       writer.endObject();
     }
   }
@@ -132,6 +135,23 @@ public class StatusLogger {
     for (Map.Entry<String, String> entry : map.entrySet()) {
       writer.name(entry.getKey());
       writer.value(entry.getValue());
+    }
+    writer.endObject();
+  }
+
+  private static void writeObjectMap(JsonWriter writer, Map<String, Object> map)
+      throws IOException {
+    writer.beginObject();
+    for (Map.Entry<String, Object> entry : map.entrySet()) {
+      writer.name(entry.getKey());
+      Object value = entry.getValue();
+      if (value instanceof Number) {
+        writer.value((Number) value);
+      } else if (value instanceof Boolean) {
+        writer.value((Boolean) value);
+      } else {
+        writer.value(String.valueOf(value));
+      }
     }
     writer.endObject();
   }

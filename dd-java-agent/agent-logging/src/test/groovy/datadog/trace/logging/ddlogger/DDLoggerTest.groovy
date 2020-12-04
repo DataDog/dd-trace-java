@@ -7,6 +7,10 @@ import datadog.trace.logging.simplelogger.SLCompatFactory
 import datadog.trace.logging.simplelogger.SLCompatSettings
 import org.slf4j.Logger
 
+import static datadog.trace.logging.simplelogger.SLCompatSettings.Names
+import static datadog.trace.logging.simplelogger.SLCompatSettings.Keys
+import static datadog.trace.logging.simplelogger.SLCompatSettings.Defaults
+
 class DDLoggerTest extends LogValidatingSpecification {
 
   def marker = StaticMarkerBinder.getSingleton().markerFactory.getMarker("marker")
@@ -31,7 +35,7 @@ class DDLoggerTest extends LogValidatingSpecification {
   def "test enabled and log level switching"() {
     when:
     Properties props = new Properties()
-    props.setProperty(SLCompatSettings.Keys.DEFAULT_LOG_LEVEL, level)
+    props.setProperty(Keys.DEFAULT_LOG_LEVEL, level)
     def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props))
     def logger = new DDLogger(factory, "foo.bar")
 
@@ -77,8 +81,8 @@ class DDLoggerTest extends LogValidatingSpecification {
   def "test logging"() {
     when:
     Properties props = new Properties()
-    props.setProperty(SLCompatSettings.Keys.DEFAULT_LOG_LEVEL, level)
-    props.setProperty(SLCompatSettings.Keys.SHOW_THREAD_NAME, "false")
+    props.setProperty(Keys.DEFAULT_LOG_LEVEL, level)
+    props.setProperty(Keys.SHOW_THREAD_NAME, "false")
     def validator = createValidator("foo.bar")
     def printStream = new PrintStream(validator.outputStream, true)
     def settings = new SLCompatSettings(props, null, printStream)
@@ -208,14 +212,106 @@ class DDLoggerTest extends LogValidatingSpecification {
     "off"   | false | false | false | false | false | true
   }
 
+  def "test logging with an embedded exception in the message"() {
+    setup:
+    Properties props = new Properties()
+    props.setProperty(Keys.DEFAULT_LOG_LEVEL, "$level")
+    props.setProperty(Keys.EMBED_EXCEPTION, "true")
+    def outputStream = new ByteArrayOutputStream()
+    def printStream = new PrintStream(outputStream, true)
+    def settings = new SLCompatSettings(props, null, printStream)
+    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
+    def logger = new DDLogger(factory, "foo")
+
+    when:
+    try {
+      throw new IOException("wrong")
+    } catch(Exception exception) {
+      switch (level) {
+        case LogLevel.TRACE:
+          logger.trace("log", exception)
+          break
+        case LogLevel.DEBUG:
+          logger.debug("log", exception)
+          break
+        case LogLevel.INFO:
+          logger.info("log", exception)
+          break
+        case LogLevel.WARN:
+          logger.warn("log", exception)
+          break
+        case LogLevel.ERROR:
+          logger.error("log", exception)
+          break
+        default:
+          logger.error("Weird Level $level")
+      }
+    }
+
+    then:
+    outputStream.toString() ==~ /^.* $level foo - log \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
+
+    where:
+    level << LogLevel.values().toList().take(5) // remove LogLevel.OFF
+  }
+
+  def "test logging with an embedded exception in the message and varargs"() {
+    setup:
+    Properties props = new Properties()
+    props.setProperty(Keys.DEFAULT_LOG_LEVEL, "$level")
+    props.setProperty(Keys.EMBED_EXCEPTION, "true")
+    def outputStream = new ByteArrayOutputStream()
+    def printStream = new PrintStream(outputStream, true)
+    def settings = new SLCompatSettings(props, null, printStream)
+    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
+    def logger = new DDLogger(factory, "foo")
+
+    when:
+    try {
+      throw new IOException("wrong")
+    } catch(Exception exception) {
+      logVarargs(logger, level, "log {}", "some", exception)
+    }
+
+    then:
+    outputStream.toString() ==~ /^.* $level foo - log some more \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
+
+    where:
+    level << LogLevel.values().toList().take(5) // remove LogLevel.OFF
+  }
+
+  void logVarargs(DDLogger logger, LogLevel level, String format, Object... arguments) {
+    String fmt = format + " more"
+    switch (level) {
+      case LogLevel.TRACE:
+        logger.trace(fmt, arguments)
+        break
+      case LogLevel.DEBUG:
+        logger.debug(fmt, arguments)
+        break
+      case LogLevel.INFO:
+        logger.info(fmt, arguments)
+        break
+      case LogLevel.WARN:
+        logger.warn(fmt, arguments)
+        break
+      case LogLevel.ERROR:
+        logger.error(fmt, arguments)
+        break
+      default:
+        logger.error("Weird Level $level")
+    }
+
+  }
+
   def "test log output to a file"() {
     setup:
     def dir = File.createTempDir()
     def file = new File(dir, "log")
     def props = new Properties()
-    props.setProperty(SLCompatSettings.Keys.DEFAULT_LOG_LEVEL, "DEBUG")
-    props.setProperty(SLCompatSettings.Keys.SHOW_THREAD_NAME, "false")
-    props.setProperty(SLCompatSettings.Keys.LOG_FILE, file.getAbsolutePath())
+    props.setProperty(Keys.DEFAULT_LOG_LEVEL, "DEBUG")
+    props.setProperty(Keys.SHOW_THREAD_NAME, "false")
+    props.setProperty(Keys.LOG_FILE, file.getAbsolutePath())
     def settings = new SLCompatSettings(props)
     def factory = new SLCompatFactory(props)
     def logger = new DDLogger(factory, "bar.baz")
@@ -242,5 +338,38 @@ class DDLoggerTest extends LogValidatingSpecification {
       it.delete()
     }
     dir.delete()
+  }
+
+  def "test logger settings description"() {
+    setup:
+    def props = new Properties()
+    props.setProperty(Keys.DEFAULT_LOG_LEVEL, level.toString())
+    props.setProperty(Keys.SHOW_THREAD_NAME, "false")
+    props.setProperty(Keys.SHOW_DATE_TIME, "true")
+    if (warn) {
+      props.setProperty(Keys.WARN_LEVEL_STRING, warn)
+    }
+    def settings = new SLCompatSettings(props)
+    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
+
+    expect:
+    factory.settingsDescription == [
+      (Names.WARN_LEVEL_STRING): expectedWarn,
+      (Names.LEVEL_IN_BRACKETS): Defaults.LEVEL_IN_BRACKETS,
+      (Names.LOG_FILE): Defaults.LOG_FILE,
+      (Names.SHOW_LOG_NAME): Defaults.SHOW_LOG_NAME,
+      (Names.SHOW_SHORT_LOG_NAME): Defaults.SHOW_SHORT_LOG_NAME,
+      (Names.SHOW_THREAD_NAME): false,
+      (Names.SHOW_DATE_TIME): true,
+      (Names.DATE_TIME_FORMAT): "relative",
+      (Names.DEFAULT_LOG_LEVEL): expectedLevel,
+      (Names.EMBED_EXCEPTION): Defaults.EMBED_EXCEPTION,
+      (Names.CONFIGURATION_FILE): Defaults.CONFIGURATION_FILE,
+    ]
+
+    where:
+    level          | warn  | expectedLevel | expectedWarn
+    LogLevel.TRACE | null  | "TRACE"       | "WARN"
+    LogLevel.ERROR | "WRN" | "ERROR"       | "WRN"
   }
 }
