@@ -6,7 +6,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
-import com.google.common.util.concurrent.AbstractFuture;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -78,10 +77,6 @@ public class ListenableFutureInstrumentation extends Instrumenter.Default {
         @Advice.Enter final State state,
         @Advice.Thrown final Throwable throwable) {
       ExecutorInstrumentationUtils.cleanUpOnMethodExit(executor, state, throwable);
-    }
-
-    private static void muzzleCheck(final AbstractFuture<?> future) {
-      future.addListener(null, null);
     }
   }
 }
