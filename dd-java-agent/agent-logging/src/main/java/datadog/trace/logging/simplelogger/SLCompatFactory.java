@@ -2,6 +2,7 @@ package datadog.trace.logging.simplelogger;
 
 import datadog.trace.logging.LoggerHelper;
 import datadog.trace.logging.LoggerHelperFactory;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -56,5 +57,10 @@ public final class SLCompatFactory extends LoggerHelperFactory {
   public LoggerHelper loggerHelperForName(String name) {
     SLCompatSettings settings = getSettings();
     return new SLCompatHelper(name, settings);
+  }
+
+  @Override
+  public Map<String, Object> getSettingsDescription() {
+    return getSettings().getSettingsDescription();
   }
 }

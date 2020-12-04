@@ -13,10 +13,26 @@ import java.security.PrivilegedAction;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 /** Settings that provide the same configurable options as {@code SimpleLogger} from SLF4J. */
 public class SLCompatSettings {
+
+  public static final class Names {
+    public static final String WARN_LEVEL_STRING = "warnLevelString";
+    public static final String LEVEL_IN_BRACKETS = "levelInBrackets";
+    public static final String LOG_FILE = "logFile";
+    public static final String SHOW_SHORT_LOG_NAME = "showShortLogName";
+    public static final String SHOW_LOG_NAME = "showLogName";
+    public static final String SHOW_THREAD_NAME = "showThreadName";
+    public static final String DATE_TIME_FORMAT = "dateTimeFormat";
+    public static final String SHOW_DATE_TIME = "showDateTime";
+    public static final String DEFAULT_LOG_LEVEL = "defaultLogLevel";
+    public static final String EMBED_EXCEPTION = "embedException";
+    public static final String CONFIGURATION_FILE = "configurationFile";
+  }
 
   public static final class Keys {
     // This is the package name that the shaded SimpleLogger had before. Use that for compatibility.
@@ -25,19 +41,19 @@ public class SLCompatSettings {
     public static final String LOG_KEY_PREFIX = PREFIX + "log.";
     // This setting does not change anything in the behavior as of slf4j 1.7.30 so we ignore it
     // public static final String CACHE_OUTPUT_STREAM = PREFIX + "cacheOutputStream";
-    public static final String WARN_LEVEL_STRING = PREFIX + "warnLevelString";
-    public static final String LEVEL_IN_BRACKETS = PREFIX + "levelInBrackets";
-    public static final String LOG_FILE = PREFIX + "logFile";
-    public static final String SHOW_SHORT_LOG_NAME = PREFIX + "showShortLogName";
-    public static final String SHOW_LOG_NAME = PREFIX + "showLogName";
-    public static final String SHOW_THREAD_NAME = PREFIX + "showThreadName";
-    public static final String DATE_TIME_FORMAT = PREFIX + "dateTimeFormat";
-    public static final String SHOW_DATE_TIME = PREFIX + "showDateTime";
-    public static final String DEFAULT_LOG_LEVEL = PREFIX + "defaultLogLevel";
-    public static final String EMBED_EXCEPTION = PREFIX + "embedException";
+    public static final String WARN_LEVEL_STRING = PREFIX + Names.WARN_LEVEL_STRING;
+    public static final String LEVEL_IN_BRACKETS = PREFIX + Names.LEVEL_IN_BRACKETS;
+    public static final String LOG_FILE = PREFIX + Names.LOG_FILE;
+    public static final String SHOW_SHORT_LOG_NAME = PREFIX + Names.SHOW_SHORT_LOG_NAME;
+    public static final String SHOW_LOG_NAME = PREFIX + Names.SHOW_LOG_NAME;
+    public static final String SHOW_THREAD_NAME = PREFIX + Names.SHOW_THREAD_NAME;
+    public static final String DATE_TIME_FORMAT = PREFIX + Names.DATE_TIME_FORMAT;
+    public static final String SHOW_DATE_TIME = PREFIX + Names.SHOW_DATE_TIME;
+    public static final String DEFAULT_LOG_LEVEL = PREFIX + Names.DEFAULT_LOG_LEVEL;
+    public static final String EMBED_EXCEPTION = PREFIX + Names.EMBED_EXCEPTION;
 
     // This is not available in SimpleLogger, but added here to simplify testing.
-    static final String CONFIGURATION_FILE = PREFIX + "configurationFile";
+    static final String CONFIGURATION_FILE = PREFIX + Names.CONFIGURATION_FILE;
   }
 
   public static final class Defaults {
@@ -330,5 +346,30 @@ public class SLCompatSettings {
     } else {
       return "";
     }
+  }
+
+  public Map<String, Object> getSettingsDescription() {
+    Map<String, Object> settingsDescription = new HashMap<>();
+    settingsDescription.put(
+        Names.WARN_LEVEL_STRING,
+        warnLevelString != null ? warnLevelString : LogLevel.WARN.toString());
+    settingsDescription.put(Names.LEVEL_IN_BRACKETS, levelInBrackets);
+    settingsDescription.put(
+        Names.LOG_FILE, getString(properties, fileProperties, Keys.LOG_FILE, Defaults.LOG_FILE));
+    settingsDescription.put(Names.SHOW_LOG_NAME, showLogName);
+    settingsDescription.put(Names.SHOW_SHORT_LOG_NAME, showShortLogName);
+    settingsDescription.put(Names.SHOW_THREAD_NAME, showThreadName);
+    settingsDescription.put(Names.SHOW_DATE_TIME, showDateTime);
+    String dateTimeFormat =
+        getString(properties, fileProperties, Keys.DATE_TIME_FORMAT, Defaults.DATE_TIME_FORMAT);
+    settingsDescription.put(
+        Names.DATE_TIME_FORMAT, dateTimeFormat != null ? dateTimeFormat : "relative");
+    settingsDescription.put(Names.DEFAULT_LOG_LEVEL, defaultLogLevel.toString());
+    settingsDescription.put(Names.EMBED_EXCEPTION, embedException);
+    settingsDescription.put(
+        Names.CONFIGURATION_FILE,
+        properties.getProperty(Keys.CONFIGURATION_FILE, Defaults.CONFIGURATION_FILE));
+
+    return settingsDescription;
   }
 }
