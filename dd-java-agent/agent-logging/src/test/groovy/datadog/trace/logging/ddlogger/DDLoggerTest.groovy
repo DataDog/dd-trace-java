@@ -208,6 +208,98 @@ class DDLoggerTest extends LogValidatingSpecification {
     "off"   | false | false | false | false | false | true
   }
 
+  def "test logging with an embedded exception in the message"() {
+    setup:
+    Properties props = new Properties()
+    props.setProperty(SLCompatSettings.Keys.DEFAULT_LOG_LEVEL, "$level")
+    props.setProperty(SLCompatSettings.Keys.EMBED_EXCEPTION, "true")
+    def outputStream = new ByteArrayOutputStream()
+    def printStream = new PrintStream(outputStream, true)
+    def settings = new SLCompatSettings(props, null, printStream)
+    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
+    def logger = new DDLogger(factory, "foo")
+
+    when:
+    try {
+      throw new IOException("wrong")
+    } catch(Exception exception) {
+      switch (level) {
+        case LogLevel.TRACE:
+          logger.trace("log", exception)
+          break
+        case LogLevel.DEBUG:
+          logger.debug("log", exception)
+          break
+        case LogLevel.INFO:
+          logger.info("log", exception)
+          break
+        case LogLevel.WARN:
+          logger.warn("log", exception)
+          break
+        case LogLevel.ERROR:
+          logger.error("log", exception)
+          break
+        default:
+          logger.error("Weird Level $level")
+      }
+    }
+
+    then:
+    outputStream.toString() ==~ /^.* $level foo - log \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
+
+    where:
+    level << LogLevel.values().toList().take(5) // remove LogLevel.OFF
+  }
+
+  def "test logging with an embedded exception in the message and varargs"() {
+    setup:
+    Properties props = new Properties()
+    props.setProperty(SLCompatSettings.Keys.DEFAULT_LOG_LEVEL, "$level")
+    props.setProperty(SLCompatSettings.Keys.EMBED_EXCEPTION, "true")
+    def outputStream = new ByteArrayOutputStream()
+    def printStream = new PrintStream(outputStream, true)
+    def settings = new SLCompatSettings(props, null, printStream)
+    def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
+    def logger = new DDLogger(factory, "foo")
+
+    when:
+    try {
+      throw new IOException("wrong")
+    } catch(Exception exception) {
+      logVarargs(logger, level, "log {}", "some", exception)
+    }
+
+    then:
+    outputStream.toString() ==~ /^.* $level foo - log some more \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
+
+    where:
+    level << LogLevel.values().toList().take(5) // remove LogLevel.OFF
+  }
+
+  void logVarargs(DDLogger logger, LogLevel level, String format, Object... arguments) {
+    String fmt = format + " more"
+    switch (level) {
+      case LogLevel.TRACE:
+        logger.trace(fmt, arguments)
+        break
+      case LogLevel.DEBUG:
+        logger.debug(fmt, arguments)
+        break
+      case LogLevel.INFO:
+        logger.info(fmt, arguments)
+        break
+      case LogLevel.WARN:
+        logger.warn(fmt, arguments)
+        break
+      case LogLevel.ERROR:
+        logger.error(fmt, arguments)
+        break
+      default:
+        logger.error("Weird Level $level")
+    }
+
+  }
+
   def "test log output to a file"() {
     setup:
     def dir = File.createTempDir()

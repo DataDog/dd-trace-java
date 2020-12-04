@@ -108,11 +108,14 @@ class SLCompatHelperTest extends Specification {
     try {
       throw new IOException("wrong")
     } catch(Exception exception) {
-      helper.log(LogLevel.ERROR, "log", exception)
+      helper.log(level, "log", exception)
     }
 
     expect:
-    outputStream.toString() ==~ /^.* ERROR foo - log \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
+    outputStream.toString() ==~ /^.* $level foo - log \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
+
+    where:
+    level << LogLevel.values().toList().take(5) // remove LogLevel.OFF
   }
 
   def "test logging without thread name and with time"() {
