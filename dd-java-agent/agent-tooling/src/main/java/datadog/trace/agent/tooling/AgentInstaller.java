@@ -7,8 +7,10 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
+import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.agent.tooling.context.FieldBackedProvider;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -72,11 +74,16 @@ public class AgentInstaller {
 
     addByteBuddyRawSetting();
 
-    FieldBackedProvider.resetContextMatchers();
+    if (Config.get().isLegacyContextFieldInjection()) {
+      FieldBackedProvider.resetContextMatchers();
+    } else {
+      FieldBackedContextProvider.resetContextMatchers();
+    }
 
     AgentBuilder.Ignored ignoredAgentBuilder =
         new AgentBuilder.Default()
             .disableClassFormatChanges()
+            .assureReadEdgeTo(INSTRUMENTATION, FieldBackedContextAccessor.class)
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentBuilder.RedefinitionStrategy.DiscoveryStrategy.Reiterating.INSTANCE)
             .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)

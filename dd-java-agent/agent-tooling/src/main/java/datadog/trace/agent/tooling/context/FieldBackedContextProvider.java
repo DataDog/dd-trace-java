@@ -1,75 +1,58 @@
 package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.context.ContextStoreUtils.unpackContextStore;
+import static datadog.trace.agent.tooling.context.ContextStoreUtils.wrapVisitor;
+import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Instrumenter.Default;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * InstrumentationContextProvider which stores context in a field that is injected into a class and
- * falls back to global map if field was not injected.
+ * falls back to tracking the context association in a global weak-map if the field wasn't injected.
  *
  * <p>This is accomplished by
  *
  * <ol>
- *   <li>Injecting a Dynamic Interface that provides getter and setter for context field
- *   <li>Applying Dynamic Interface to a type needing context, implementing interface methods and
- *       adding context storage field
- *   <li>Injecting a Dynamic Class created from {@link ContextStoreImplementationTemplate} to use
- *       injected field or fall back to a static map
- *   <li>Rewritting calls to the context-store to access the specific dynamic {@link
- *       ContextStoreImplementationTemplate}
+ *   <li>Rewriting calls to {@link InstrumentationContext} to access stores based on numeric ids
+ *   <li>Injecting fields in the earliest holder class that matches the context key
+ *   <li>Injecting a getter and setter that retrieves context stored in the injected fields
+ *   <li>Delegating to the superclass getter and setter if a superclass is also a context holder
+ *   <li>Delegating to weak-map if neither this class or superclass have a field for the context
  * </ol>
- *
- * <p>Example:<br>
- * <em>InstrumentationContext.get(Runnable.class, RunnableState.class)")</em><br>
- * is rewritten to:<br>
- * <em>FieldBackedProvider$ContextStore$Runnable$RunnableState12345.getContextStore(runnableRunnable.class,
- * RunnableState.class)</em>
- *
- * @deprecated not used in the new field-injection strategy
  */
-@Deprecated
 @Slf4j
-public final class FieldBackedProvider implements InstrumentationContextProvider {
+public final class FieldBackedContextProvider implements InstrumentationContextProvider {
 
   /*
-   * HashMap from the instrumentations contextClassLoaderMatcher to a set of pairs (context holder, context class)
+   * Mapping from the instrumentations contextClassLoaderMatcher to a set of pairs (context holder, context class)
    * for which we have matchers installed. We use this to make sure we do not install matchers repeatedly for cases
    * when same context class is used by multiple instrumentations.
    */
   private static final HashMap<ElementMatcher<ClassLoader>, Set<Map.Entry<String, String>>>
       INSTALLED_CONTEXT_MATCHERS = new HashMap<>();
 
-  private static final Set<Map.Entry<String, String>> INSTALLED_HELPERS = new HashSet<>();
-
   private final String instrumenterName;
   private final Map<ElementMatcher<ClassLoader>, Map<String, String>> matchedContextStores;
-  private final ContextStoreInjector contextStoreInjector;
-  private final FieldInjector fieldInjector;
+  private final Map<String, String> contextStore;
   private final boolean fieldInjectionEnabled;
 
-  public FieldBackedProvider(
+  public FieldBackedContextProvider(
       final Instrumenter.Default instrumenter,
-      Map<ElementMatcher<ClassLoader>, Map<String, String>> matchedContextStores) {
-    Map<String, String> contextStore = unpackContextStore(matchedContextStores);
-    ByteBuddy byteBuddy = new ByteBuddy();
+      final Map<ElementMatcher<ClassLoader>, Map<String, String>> matchedContextStores) {
     this.instrumenterName = instrumenter.getClass().getName();
     this.matchedContextStores = matchedContextStores;
-    this.fieldInjector = new FieldInjector(contextStore, byteBuddy);
-    this.contextStoreInjector =
-        new ContextStoreInjector(contextStore, byteBuddy, fieldInjector, instrumenterName);
+    this.contextStore = unpackContextStore(matchedContextStores);
     this.fieldInjectionEnabled = Config.get().isRuntimeContextFieldInjection();
   }
 
@@ -81,9 +64,9 @@ public final class FieldBackedProvider implements InstrumentationContextProvider
        * Install transformer that rewrites accesses to context store with specialized bytecode that
        * invokes appropriate storage implementation.
        */
-      builder = builder.transform(contextStoreInjector.readTransformer());
-      builder = contextStoreInjector.injectIntoBootstrapClassloader(builder);
-      builder = fieldInjector.injectIntoBootstrapClassloader(builder);
+      builder =
+          builder.transform(
+              wrapVisitor(new FieldBackedContextRequestRewriter(contextStore, instrumenterName)));
     }
     return builder;
   }
@@ -92,7 +75,6 @@ public final class FieldBackedProvider implements InstrumentationContextProvider
   public static void resetContextMatchers() {
     synchronized (INSTALLED_CONTEXT_MATCHERS) {
       INSTALLED_CONTEXT_MATCHERS.clear();
-      INSTALLED_HELPERS.clear();
     }
   }
 
@@ -121,14 +103,17 @@ public final class FieldBackedProvider implements InstrumentationContextProvider
             }
           }
           synchronized (installedContextMatchers) {
+            final String keyClassName = entry.getKey();
+            final String contextClassName = entry.getValue();
+
             if (!installedContextMatchers.add(entry)) {
               if (log.isDebugEnabled()) {
                 log.debug(
                     "Skipping duplicate builder in {} for matcher {}: {} -> {}",
                     instrumenterName,
                     classLoaderMatcher,
-                    entry.getKey(),
-                    entry.getValue());
+                    keyClassName,
+                    contextClassName);
               }
               continue;
             }
@@ -139,24 +124,12 @@ public final class FieldBackedProvider implements InstrumentationContextProvider
              */
             builder =
                 builder
-                    .type(safeHasSuperType(named(entry.getKey())), classLoaderMatcher)
-                    .and(ShouldInjectFieldsMatcher.of(entry.getKey(), entry.getValue()))
+                    .type(safeHasSuperType(named(keyClassName)), classLoaderMatcher)
+                    .and(ShouldInjectFieldsMatcher.of(keyClassName, contextClassName))
                     .and(Default.NOT_DECORATOR_MATCHER)
                     .transform(
-                        fieldInjector.fieldAccessTransformer(entry.getKey(), entry.getValue()));
-          }
-
-          synchronized (INSTALLED_HELPERS) {
-            if (!INSTALLED_HELPERS.contains(entry)) {
-              /*
-               * We inject helpers here as well as when instrumentation is applied to ensure that
-               * helpers are present even if instrumented classes are not loaded, but classes with state
-               * fields added are loaded (e.g. sun.net.www.protocol.https.HttpsURLConnectionImpl).
-               */
-              builder = fieldInjector.injectIntoBootstrapClassloader(builder);
-              builder = contextStoreInjector.injectIntoBootstrapClassloader(builder);
-              INSTALLED_HELPERS.add(entry);
-            }
+                        wrapVisitor(
+                            new FieldBackedContextInjector(keyClassName, contextClassName)));
           }
         }
       }
