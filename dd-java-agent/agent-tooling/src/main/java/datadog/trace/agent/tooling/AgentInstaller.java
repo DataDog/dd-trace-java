@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
+import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.agent.tooling.context.FieldBackedProvider;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
@@ -76,7 +77,7 @@ public class AgentInstaller {
     if (Config.get().isLegacyContextFieldInjection()) {
       FieldBackedProvider.resetContextMatchers();
     } else {
-      // reset new field-injection strategy
+      FieldBackedContextProvider.resetContextMatchers();
     }
 
     AgentBuilder.Ignored ignoredAgentBuilder =
