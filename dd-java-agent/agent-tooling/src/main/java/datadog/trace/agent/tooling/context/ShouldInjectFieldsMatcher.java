@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.context;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.FieldBackedContextStoreAppliedMarker;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.security.ProtectionDomain;
@@ -25,7 +26,7 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
   private static final Class<?> FIELD_INJECTED_MARKER =
       Config.get().isLegacyContextFieldInjection()
           ? FieldBackedContextStoreAppliedMarker.class
-          : null /* new field-injection marker */;
+          : FieldBackedContextAccessor.class;
 
   public static AgentBuilder.RawMatcher of(String keyType, String valueType) {
     return new ShouldInjectFieldsMatcher(keyType, valueType);
