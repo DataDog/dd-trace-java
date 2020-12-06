@@ -16,6 +16,8 @@ import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 
+/** @deprecated not used in the new field-injection strategy */
+@Deprecated
 final class FieldInjector {
 
   /** fields-accessor-interface-name -> fields-accessor-interface-dynamic-type */

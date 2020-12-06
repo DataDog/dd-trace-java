@@ -46,7 +46,10 @@ final class ContextStoreUtils {
     }
   }
 
+  // ---------------- DEPRECATED METHODS ONLY USED BY THE OLD FIELD-INJECTOR ----------------
+
   /** Get transformer that forces helper injection onto bootstrap classloader. */
+  @Deprecated
   static AgentBuilder.Transformer bootstrapHelperInjector(
       final Collection<DynamicType.Unloaded<?>> types) {
     // TODO: Better to pass through the context of the Instrumenter
@@ -79,9 +82,11 @@ final class ContextStoreUtils {
    * (or 'module') classloaders like jboss and osgi see injected classes. This works because we
    * instrument those classloaders to load everything inside bootstrap packages.
    */
+  @Deprecated
   private static final String DYNAMIC_CLASSES_PACKAGE =
       "datadog.trace.bootstrap.instrumentation.context.";
 
+  @Deprecated
   static String getContextStoreImplementationClassName(
       final String keyClassName, final String contextClassName) {
     return DYNAMIC_CLASSES_PACKAGE
@@ -92,6 +97,7 @@ final class ContextStoreUtils {
         + Utils.getInnerClassName(contextClassName);
   }
 
+  @Deprecated
   static String getContextAccessorInterfaceName(
       final String keyClassName, final String contextClassName) {
     return DYNAMIC_CLASSES_PACKAGE
@@ -102,14 +108,17 @@ final class ContextStoreUtils {
         + Utils.getInnerClassName(contextClassName);
   }
 
+  @Deprecated
   static String getContextFieldName(final String keyClassName) {
     return "__datadogContext$" + Utils.getInnerClassName(keyClassName);
   }
 
+  @Deprecated
   static String getContextGetterName(final String keyClassName) {
     return "get" + getContextFieldName(keyClassName);
   }
 
+  @Deprecated
   static String getContextSetterName(final String key) {
     return "set" + getContextFieldName(key);
   }

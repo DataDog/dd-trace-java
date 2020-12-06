@@ -6,7 +6,10 @@ import datadog.trace.bootstrap.WeakMap;
 /**
  * Template class used to generate the class that accesses stored context using either key
  * instance's own injected field or global hash map if field is not available.
+ *
+ * @deprecated not used in the new field-injection strategy
  */
+@Deprecated
 final class ContextStoreImplementationTemplate implements ContextStore<Object, Object> {
   private static final ContextStoreImplementationTemplate INSTANCE =
       new ContextStoreImplementationTemplate();

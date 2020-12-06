@@ -15,6 +15,8 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.pool.TypePool;
 
+/** @deprecated not used in the new field-injection strategy */
+@Deprecated
 final class ContextStoreImplementationVisitor implements AsmVisitorWrapper {
 
   private final String setterName;

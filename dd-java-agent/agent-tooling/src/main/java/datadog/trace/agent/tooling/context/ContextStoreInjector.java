@@ -16,6 +16,8 @@ import net.bytebuddy.description.modifier.TypeManifestation;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.dynamic.DynamicType;
 
+/** @deprecated not used in the new field-injection strategy */
+@Deprecated
 final class ContextStoreInjector {
 
   private final ByteBuddy byteBuddy;
