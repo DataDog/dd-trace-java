@@ -72,7 +72,11 @@ public class AgentInstaller {
 
     addByteBuddyRawSetting();
 
-    FieldBackedProvider.resetContextMatchers();
+    if (Config.get().isLegacyContextFieldInjection()) {
+      FieldBackedProvider.resetContextMatchers();
+    } else {
+      // reset new field-injection strategy
+    }
 
     AgentBuilder.Ignored ignoredAgentBuilder =
         new AgentBuilder.Default()

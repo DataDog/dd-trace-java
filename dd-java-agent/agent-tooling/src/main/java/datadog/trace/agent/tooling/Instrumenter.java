@@ -124,7 +124,11 @@ public interface Instrumenter {
             }
           }
           if (!contextStores.isEmpty()) {
-            contextProvider = new FieldBackedProvider(this, contextStores);
+            if (Config.get().isLegacyContextFieldInjection()) {
+              contextProvider = new FieldBackedProvider(this, contextStores);
+            } else {
+              // call new field-injection strategy
+            }
           } else {
             contextProvider = NoopContextProvider.INSTANCE;
           }

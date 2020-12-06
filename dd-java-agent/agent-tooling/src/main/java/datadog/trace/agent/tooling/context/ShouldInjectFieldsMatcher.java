@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.context;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextStoreAppliedMarker;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.security.ProtectionDomain;
@@ -20,6 +21,11 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
   // context store keys, so can't get very big
   private static final ConcurrentHashMap<String, Boolean> KEY_TYPE_IS_CLASS =
       new ConcurrentHashMap<>();
+
+  private static final Class<?> FIELD_INJECTED_MARKER =
+      Config.get().isLegacyContextFieldInjection()
+          ? FieldBackedContextStoreAppliedMarker.class
+          : null /* new field-injection marker */;
 
   public static AgentBuilder.RawMatcher of(String keyType, String valueType) {
     return new ShouldInjectFieldsMatcher(keyType, valueType);
@@ -61,8 +67,7 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
      */
     boolean shouldInject =
         classBeingRedefined == null
-            || Arrays.asList(classBeingRedefined.getInterfaces())
-                .contains(FieldBackedContextStoreAppliedMarker.class);
+            || Arrays.asList(classBeingRedefined.getInterfaces()).contains(FIELD_INJECTED_MARKER);
     String injectionTarget = null;
     if (shouldInject) {
       // will always inject the key type if it's a class,
@@ -119,7 +124,7 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
     }
     // then we don't know it's a class so need to
     // follow the type's ancestry to find out
-    TypeDescription.Generic superClass = typeDescription.getSuperClass();
+    TypeDefinition superClass = typeDescription.getSuperClass();
     String implementingClass = typeDescription.getName();
     Map<String, Boolean> visitedInterfaces = new HashMap<>();
     while (null != superClass) {
