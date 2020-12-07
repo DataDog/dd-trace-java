@@ -32,8 +32,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(Instrumenter.class)
 public class TraceConfigInstrumentation implements Instrumenter {
 
-  static final String PACKAGE_CLASS_NAME_REGEX = "[\\w.\\$]+";
-  private static final String METHOD_LIST_REGEX = "\\s*(?:\\w+\\s*,)*\\s*(?:\\w+\\s*,?)\\s*";
+  static final String PACKAGE_CLASS_NAME_REGEX = "[\\w .\\$]+";
+  private static final String METHOD_LIST_REGEX = "\\s*(?:\\*|(?:\\w+\\s*,)*\\s*(?:\\w+\\s*,?))\\s*";
   private static final String CONFIG_FORMAT =
       "(?:\\s*"
           + PACKAGE_CLASS_NAME_REGEX
