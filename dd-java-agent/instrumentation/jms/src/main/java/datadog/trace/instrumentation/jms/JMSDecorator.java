@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 import javax.jms.Destination;
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.Queue;
 import javax.jms.TemporaryQueue;
@@ -65,9 +66,12 @@ public final class JMSDecorator extends ClientDecorator {
   public void onConsume(final AgentSpan span, final Message message) {
     span.setTag(DDTags.RESOURCE_NAME, "Consumed from " + toResourceName(message, null));
 
-    final long produceTime = message.getJMSTimestamp();
-    final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
-    span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
+    try{
+      final long produceTime = message.getJMSTimestamp();
+      final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
+      span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
+    } catch (final JMSException e){
+    }
     span.setMeasured(true);
   }
 
