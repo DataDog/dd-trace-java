@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.trace_annotation;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
+import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
@@ -151,7 +152,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
       for (final String methodName : methodNames) {
         if (methodMatchers == null) {
           if (methodName == '*') {
-            methodMatchers = isPublic().not(isAbstract());
+            methodMatchers = isPublic().not(isAbstract()).or(isPrivate().not(isAbstract()));
           } else {
             methodMatchers = named(methodName);
           }
