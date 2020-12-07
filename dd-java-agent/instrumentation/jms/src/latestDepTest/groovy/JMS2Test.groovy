@@ -3,6 +3,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.core.DDSpan
 import org.hornetq.api.core.TransportConfiguration
 import org.hornetq.api.core.client.HornetQClient
@@ -253,6 +254,7 @@ class JMS2Test extends AgentTestRunner {
         tags {
           "${Tags.COMPONENT}" "jms"
           "${Tags.SPAN_KIND}" "consumer"
+          "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
           defaultTags(true)
         }
       }
