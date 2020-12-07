@@ -68,9 +68,11 @@ public final class JMSDecorator extends ClientDecorator {
 
     try {
       final long produceTime = message.getJMSTimestamp();
-      final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
-      span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
-    } catch (final JMSException e) {
+      if (produceTime > 0){
+        final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
+        span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));  
+      }
+      } catch (final JMSException e) {
     }
     span.setMeasured(true);
   }
