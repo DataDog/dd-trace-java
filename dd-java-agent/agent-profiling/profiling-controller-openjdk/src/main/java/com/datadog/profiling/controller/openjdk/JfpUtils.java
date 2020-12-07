@@ -31,19 +31,50 @@ import java.util.Properties;
  * parse XML.
  */
 final class JfpUtils {
+  enum Level {
+    MINIMAL(0),
+    DEFAULT(1),
+    COMPREHENSIVE(2);
+    private int idx;
+
+    Level(int idx) {
+      this.idx = idx;
+    }
+
+    public int getIndex() {
+      return idx;
+    }
+  }
+
   private JfpUtils() {
     throw new UnsupportedOperationException("Toolkit!");
   }
 
-  private static Map<String, String> readJfpFile(final InputStream stream) throws IOException {
+  private static Map<String, String[]> readJfpFile(final InputStream stream) throws IOException {
     if (stream == null) {
       throw new IllegalArgumentException("Cannot read jfp file from empty stream!");
     }
     final Properties props = new Properties();
     props.load(stream);
-    final Map<String, String> map = new HashMap<>();
+    final Map<String, String[]> map = new HashMap<>();
     for (final Entry<Object, Object> o : props.entrySet()) {
-      map.put(String.valueOf(o.getKey()), String.valueOf(o.getValue()));
+      String value = String.valueOf(o.getValue());
+      String[] valueList;
+      if (value.startsWith("[") && value.endsWith("]")) {
+        valueList = new String[3];
+        String[] split = value.substring(1, value.length() - 1).split(",");
+        for (int i = 0; i < valueList.length; i++) {
+          if (i < split.length) {
+            valueList[i] = split[i].trim();
+          } else {
+            valueList[i] = valueList[i - 1];
+          }
+        }
+      } else {
+        String trimmed = value.trim();
+        valueList = new String[] {trimmed, trimmed, trimmed};
+      }
+      map.put(String.valueOf(o.getKey()), valueList);
     }
     return map;
   }
@@ -53,17 +84,24 @@ final class JfpUtils {
   }
 
   public static Map<String, String> readNamedJfpResource(
-      final String name, final String overridesFile) throws IOException {
-    final Map<String, String> result;
+      final String name, Level level, final String overridesFile) throws IOException {
+    final Map<String, String> result = new HashMap<>();
+
     try (final InputStream stream = getNamedResource(name)) {
-      result = readJfpFile(stream);
+      merge(readJfpFile(stream), level, result);
     }
 
     if (overridesFile != null) {
       try (final InputStream stream = new FileInputStream(overridesFile)) {
-        result.putAll(readJfpFile(stream));
+        merge(readJfpFile(stream), level, result);
       }
     }
     return Collections.unmodifiableMap(result);
+  }
+
+  private static void merge(Map<String, String[]> source, Level level, Map<String, String> target) {
+    for (Map.Entry<String, String[]> entry : source.entrySet()) {
+      target.put(entry.getKey(), entry.getValue()[level.getIndex()]);
+    }
   }
 }

@@ -17,7 +17,8 @@ public class JfpUtilsTest {
 
   @Test
   public void testLoadingContinuousConfig() throws IOException {
-    final Map<String, String> config = JfpUtils.readNamedJfpResource(OpenJdkController.JFP, null);
+    final Map<String, String> config =
+        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, JfpUtils.Level.DEFAULT, null);
     assertEquals("true", config.get(CONFIG_ENTRY));
     assertNull(config.get(CONFIG_OVERRIDE_ENTRY));
   }
@@ -25,8 +26,26 @@ public class JfpUtilsTest {
   @Test
   public void testLoadingContinuousConfigWithOverride() throws IOException {
     final Map<String, String> config =
-        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, OVERRIDES);
+        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, JfpUtils.Level.DEFAULT, OVERRIDES);
     assertEquals("true", config.get(CONFIG_ENTRY));
     assertEquals("200", config.get(CONFIG_OVERRIDE_ENTRY));
+  }
+
+  @Test
+  public void testLoadingConfigMinimal() throws IOException {
+    Map<String, String> config =
+        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, JfpUtils.Level.MINIMAL, null);
+    assertEquals("500 ms", config.get("jdk.ThreadSleep#threshold"));
+    assertEquals("false", config.get("jdk.OldObjectSample#enabled"));
+    assertEquals("false", config.get("jdk.ObjectAllocationInNewTLAB#enabled"));
+  }
+
+  @Test
+  public void testLoadingConfigComprehensive() throws IOException {
+    Map<String, String> config =
+        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, JfpUtils.Level.COMPREHENSIVE, null);
+    assertEquals("10 ms", config.get("jdk.ThreadSleep#threshold"));
+    assertEquals("true", config.get("jdk.OldObjectSample#enabled"));
+    assertEquals("true", config.get("jdk.ObjectAllocationInNewTLAB#enabled"));
   }
 }
