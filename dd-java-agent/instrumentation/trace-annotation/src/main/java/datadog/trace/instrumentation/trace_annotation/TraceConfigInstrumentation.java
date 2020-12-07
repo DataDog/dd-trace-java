@@ -35,7 +35,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class TraceConfigInstrumentation implements Instrumenter {
 
   static final String PACKAGE_CLASS_NAME_REGEX = "[\\w .\\$]+";
-  private static final String METHOD_LIST_REGEX = "\\s*(?:\\*|(?:\\w+\\s*,)*\\s*(?:\\w+\\s*,?))\\s*";
+  private static final String METHOD_LIST_REGEX =
+      "\\s*(?:\\*|(?:\\w+\\s*,)*\\s*(?:\\w+\\s*,?))\\s*";
   private static final String CONFIG_FORMAT =
       "(?:\\s*"
           + PACKAGE_CLASS_NAME_REGEX
@@ -149,8 +150,8 @@ public class TraceConfigInstrumentation implements Instrumenter {
       ElementMatcher.Junction<MethodDescription> methodMatchers = null;
       for (final String methodName : methodNames) {
         if (methodMatchers == null) {
-          if (methodName == '*'){
-            methodMatchers = isPublic().not(isAbstract())
+          if (methodName == '*') {
+            methodMatchers = isPublic().not(isAbstract());
           } else {
             methodMatchers = named(methodName);
           }
