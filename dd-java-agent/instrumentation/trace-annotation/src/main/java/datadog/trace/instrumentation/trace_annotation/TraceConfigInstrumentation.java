@@ -63,7 +63,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
 
     } else if (!validateConfigString(configString)) {
       log.warn(
-          "Invalid trace method config '{}'. Must match 'package.Class$Name[method1,method2];*'.",
+          "Invalid trace method config '{}'. Must match 'package.Class$Name[method1,method2];*' or 'package.Class$Name[*];*'.",
           configString);
       classMethodsToTrace = Collections.emptyMap();
 
