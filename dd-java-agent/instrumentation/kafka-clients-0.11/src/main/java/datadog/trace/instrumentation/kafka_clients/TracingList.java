@@ -4,16 +4,14 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 public class TracingList implements List<ConsumerRecord<?, ?>> {
   private final List<ConsumerRecord<?, ?>> delegate;
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
-
-  // TODO: not thread safe wrapping
-  //  in case of batch consumer and requesting iterator of consumed list from different threads
-  private boolean firstIteration = true;
+  private final AtomicBoolean firstIteration = new AtomicBoolean(true);
 
   public TracingList(
       final List<ConsumerRecord<?, ?>> delegate,
@@ -133,10 +131,9 @@ public class TracingList implements List<ConsumerRecord<?, ?>> {
   @Override
   public ListIterator<ConsumerRecord<?, ?>> listIterator(final int index) {
     final ListIterator<ConsumerRecord<?, ?>> maybeTracingListIterator;
-    if (firstIteration) {
+    if (firstIteration.compareAndSet(true, false)) {
       maybeTracingListIterator =
           new TracingListIterator(delegate.listIterator(index), operationName, decorator);
-      firstIteration = false;
     } else {
       maybeTracingListIterator = delegate.listIterator(index);
     }

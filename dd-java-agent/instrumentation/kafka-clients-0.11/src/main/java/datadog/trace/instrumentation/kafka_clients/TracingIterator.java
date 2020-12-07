@@ -36,22 +36,16 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
   @Override
   public boolean hasNext() {
-    maybeClosePreviousIterationScope();
+    maybeCloseCurrentScope();
     return delegateIterator.hasNext();
   }
 
   @Override
   public ConsumerRecord<?, ?> next() {
-    maybeClosePreviousIterationScope(); // in case they didn't call hasNext()...
+    maybeCloseCurrentScope(); // in case they didn't call hasNext()...
     final ConsumerRecord<?, ?> next = delegateIterator.next();
     decorate(next);
     return next;
-  }
-
-  protected void maybeClosePreviousIterationScope() {
-    if (currentScope != null) {
-      finish();
-    }
   }
 
   protected void decorate(ConsumerRecord<?, ?> val) {
@@ -72,10 +66,12 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
     }
   }
 
-  protected void finish() {
-    currentScope.close();
-    decorator.finishConsumerSpan(currentScope.span());
-    currentScope = null;
+  protected void maybeCloseCurrentScope() {
+    if (currentScope != null) {
+      currentScope.close();
+      decorator.finishConsumerSpan(currentScope.span());
+      currentScope = null;
+    }
   }
 
   @Override

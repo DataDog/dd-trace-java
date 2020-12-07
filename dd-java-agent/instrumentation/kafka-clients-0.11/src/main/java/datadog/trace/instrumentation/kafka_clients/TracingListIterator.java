@@ -18,13 +18,13 @@ public class TracingListIterator extends TracingIterator
 
   @Override
   public boolean hasPrevious() {
-    maybeClosePreviousIterationScope();
+    maybeCloseCurrentScope();
     return delegateIterator.hasPrevious();
   }
 
   @Override
   public ConsumerRecord<?, ?> previous() {
-    maybeClosePreviousIterationScope();
+    maybeCloseCurrentScope();
     final ConsumerRecord<?, ?> prev = delegateIterator.previous();
     decorate(prev);
     return prev;
