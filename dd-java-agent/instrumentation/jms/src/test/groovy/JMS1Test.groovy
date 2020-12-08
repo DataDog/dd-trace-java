@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.apache.activemq.ActiveMQConnectionFactory
@@ -127,6 +128,7 @@ class JMS1Test extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
             defaultTags()
           }
         }
@@ -164,6 +166,7 @@ class JMS1Test extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
             defaultTags()
           }
         }
@@ -214,6 +217,7 @@ class JMS1Test extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
             defaultTags()
           }
         }
