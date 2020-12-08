@@ -11,7 +11,7 @@ muzzle {
   pass {
     group = 'io.vertx'
     module = "vertx-web"
-    versions = "[3.4.0,)"
+    versions = "[3.4.0,4)"
     assertInverse = true
   }
 }

@@ -2,7 +2,8 @@ muzzle {
   pass {
     group = "org.eclipse.jetty"
     module = 'jetty-server'
-    versions = "[8.0.0.v20110901,)"
+    versions = "[8.0.0.v20110901,11)"
+    extraDependency "javax.servlet:javax.servlet-api:3.0.1"
     assertInverse = true
   }
 }
