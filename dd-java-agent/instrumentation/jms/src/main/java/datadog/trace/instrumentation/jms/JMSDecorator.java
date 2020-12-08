@@ -72,7 +72,7 @@ public final class JMSDecorator extends ClientDecorator {
         final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
         span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
       }
-    } catch (final JMSException e) {
+    } catch (final JMSException ignored) {
     }
     span.setMeasured(true);
   }
