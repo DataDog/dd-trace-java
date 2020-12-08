@@ -128,7 +128,6 @@ class JMS1Test extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
             defaultTags()
           }
         }
@@ -166,7 +165,6 @@ class JMS1Test extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
             defaultTags()
           }
         }
@@ -273,6 +271,9 @@ class JMS1Test extends AgentTestRunner {
         tags {
           "$Tags.COMPONENT" "jms"
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+          if (!messageListener) {
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
+          }
           defaultTags(true)
         }
       }
