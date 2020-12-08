@@ -2,10 +2,7 @@ package datadog.trace.instrumentation.trace_annotation;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
-import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -151,8 +148,8 @@ public class TraceConfigInstrumentation implements Instrumenter {
       ElementMatcher.Junction<MethodDescription> methodMatchers = null;
       for (final String methodName : methodNames) {
         if (methodMatchers == null) {
-          if (methodName == '*') {
-            methodMatchers = isPublic().not(isAbstract()).or(isPrivate().not(isAbstract()));
+          if (methodName.equals("*")) {
+            methodMatchers = not(isAbstract()).and(noneOf("hashCode", "equals"));
           } else {
             methodMatchers = named(methodName);
           }
