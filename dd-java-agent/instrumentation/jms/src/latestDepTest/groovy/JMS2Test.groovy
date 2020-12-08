@@ -5,7 +5,6 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.core.DDSpan
-import org.apache.activemq.ActiveMQMessageConsumer
 import org.hornetq.api.core.TransportConfiguration
 import org.hornetq.api.core.client.HornetQClient
 import org.hornetq.api.jms.HornetQJMSClient
