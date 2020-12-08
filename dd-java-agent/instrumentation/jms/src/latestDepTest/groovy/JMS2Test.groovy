@@ -5,6 +5,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.core.DDSpan
+import org.apache.activemq.ActiveMQMessageConsumer
 import org.hornetq.api.core.TransportConfiguration
 import org.hornetq.api.core.client.HornetQClient
 import org.hornetq.api.jms.HornetQJMSClient
@@ -215,6 +216,27 @@ class JMS2Test extends AgentTestRunner {
     destination                      | jmsResourceName
     session.createQueue("someQueue") | "Queue someQueue"
     session.createTopic("someTopic") | "Topic someTopic"
+  }
+
+  def "sending a message with disabled timestamp generates spans without specific tag"() {
+    setup:
+    def producer = session.createProducer(session.createQueue("someQueue"))
+    def consumer = session.createConsumer(session.createQueue("someQueue"))
+
+    producer.send(message)
+    producer.setDisableMessageTimestamp(true)
+    consumer.receive()
+
+    expect:
+    assertTraces(2) {
+      producerTrace(it, "Queue someQueue")
+      consumerTrace(it, "Queue someQueue", false, ActiveMQMessageConsumer, trace(0)[0])
+    }
+
+    cleanup:
+    producer.close()
+    consumer.close()
+
   }
 
   static producerTrace(ListWriterAssert writer, String jmsResourceName) {
