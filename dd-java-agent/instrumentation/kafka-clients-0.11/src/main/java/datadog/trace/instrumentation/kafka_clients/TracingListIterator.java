@@ -18,8 +18,14 @@ public class TracingListIterator extends TracingIterator
 
   @Override
   public boolean hasPrevious() {
-    maybeCloseCurrentScope();
-    return delegateIterator.hasPrevious();
+    final boolean delegateHasPrevious = delegateIterator.hasPrevious();
+    if (!delegateHasPrevious) {
+      // close scope only for last iteration, because previous() most probably not going to be
+      // called.
+      // If it's not last iteration we expect scope will be closed inside previous()
+      maybeCloseCurrentScope();
+    }
+    return delegateHasPrevious;
   }
 
   @Override

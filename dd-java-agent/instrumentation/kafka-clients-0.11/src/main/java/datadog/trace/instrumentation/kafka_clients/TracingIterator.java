@@ -36,13 +36,18 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
   @Override
   public boolean hasNext() {
-    maybeCloseCurrentScope();
-    return delegateIterator.hasNext();
+    final boolean delegateHasNext = delegateIterator.hasNext();
+    if (!delegateHasNext) {
+      // close scope only for last iteration, because next() most probably not going to be called.
+      // If it's not last iteration we expect scope will be closed inside next()
+      maybeCloseCurrentScope();
+    }
+    return delegateHasNext;
   }
 
   @Override
   public ConsumerRecord<?, ?> next() {
-    maybeCloseCurrentScope(); // in case they didn't call hasNext()...
+    maybeCloseCurrentScope();
     final ConsumerRecord<?, ?> next = delegateIterator.next();
     decorate(next);
     return next;
