@@ -21,15 +21,7 @@ public class TracingIterable implements Iterable<ConsumerRecord<?, ?>> {
 
   @Override
   public Iterator<ConsumerRecord<?, ?>> iterator() {
-    final Iterator<ConsumerRecord<?, ?>> it;
-    // We should only return one iterator with tracing.
-    // However, this is not thread-safe, but usually the first (hopefully only) traversal of
-    // ConsumerRecords is performed in the same thread that called poll()
-    if (firstIterator.compareAndSet(true, false)) {
-      it = new TracingIterator(delegate.iterator(), operationName, decorator);
-    } else {
-      it = delegate.iterator();
-    }
-    return it;
+    // every iteration will add spans. Not only the very first one
+    return new TracingIterator(delegate.iterator(), operationName, decorator);
   }
 }
