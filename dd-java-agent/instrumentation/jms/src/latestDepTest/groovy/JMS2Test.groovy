@@ -230,7 +230,7 @@ class JMS2Test extends AgentTestRunner {
     expect:
     assertTraces(2) {
       producerTrace(it, "Queue someQueue")
-      consumerTrace(it, "Queue someQueue", false, ActiveMQMessageConsumer, trace(0)[0])
+      consumerTrace(it, "Queue someQueue", false, HornetQMessageConsumer, trace(0)[0])
     }
 
     cleanup:
