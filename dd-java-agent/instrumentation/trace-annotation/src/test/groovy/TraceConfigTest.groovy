@@ -9,7 +9,7 @@ class TraceConfigTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call];${ConfigTracedCallable2.name}[*]")
+    injectSysConfig("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call];${ConfigTracedCallable2.name}[*];${Human.name}[*];${Pig.name}[*]")
   }
 
   class ConfigTracedCallable implements Callable<String> {
@@ -27,6 +27,37 @@ class TraceConfigTest extends AgentTestRunner {
 
     String call_helper() throws Exception {
       return "Hello2!";
+    }
+  }
+
+  interface Mammal {
+    void setName(String newName);
+    void setHeight(int newHeight);
+  }
+
+  class Human implements Mammal {
+    String name;
+    String height;
+
+    void setName(String newName){
+      name = newName;
+    }
+    void setHeight(int newHeight){
+      height = newHeight;
+    }
+  }
+
+
+  abstract class Animal {
+    public abstract void animalSound();
+    public void sleep() {
+      System.out.println("Zzz");
+    }
+  }
+
+  class Pig extends Animal {
+    public void animalSound() {
+      System.out.println("The pig says: wee wee");
     }
   }
 
@@ -48,9 +79,7 @@ class TraceConfigTest extends AgentTestRunner {
     }
   }
 
-  def "test configuration based trace with wildcards"() {
-//    setup:
-//    injectSysConfig("dd.trace.methods", "${ConfigTracedCallable2.name}[*]")
+  def "test wildcard configuration"() {
 
     when:
     new ConfigTracedCallable2().call() == "Hello2!"
@@ -68,6 +97,57 @@ class TraceConfigTest extends AgentTestRunner {
         }
         span {
           resourceName "ConfigTracedCallable2.call_helper"
+          operationName "trace.annotation"
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "test wildcard configuration with class implementing interface"() {
+
+    when:
+    Human charlie = new Human();
+    charlie.setName("Charlie");
+    charlie.setHeight(4);
+
+    then:
+    assertTraces(2) {
+      trace(1) {
+        span {
+          resourceName "Human.setName"
+          operationName "trace.annotation"
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          resourceName "Human.setHeight"
+          operationName "trace.annotation"
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+  def "test wildcard configuration based on class extending abstract class"() {
+
+    when:
+    new Pig().animalSound();
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          resourceName "Pig.animalSound"
           operationName "trace.annotation"
           tags {
             "$Tags.COMPONENT" "trace"
