@@ -49,8 +49,8 @@ class TraceConfigTest extends AgentTestRunner {
   }
 
   def "test configuration based trace with wildcards"() {
-    setup:
-    injectSysConfig("dd.trace.methods", "${ConfigTracedCallable2.name}[*]")
+//    setup:
+//    injectSysConfig("dd.trace.methods", "${ConfigTracedCallable2.name}[*]")
 
     when:
     new ConfigTracedCallable2().call() == "Hello2!"

@@ -149,8 +149,13 @@ public class TraceConfigInstrumentation implements Instrumenter {
       for (final String methodName : methodNames) {
         if (methodMatchers == null) {
           if (methodName.equals("*")) {
-//            methodMatchers = not(isAbstract()).and(noneOf("hashCode", "equals"));
-              methodMatchers = any();
+            methodMatchers =
+                not(
+                    isHashCode()
+                        .or(isEquals())
+                        .or(isToString())
+                        .or(isConstructor())
+                        .or(isSynthetic()));
           } else {
             methodMatchers = named(methodName);
           }
