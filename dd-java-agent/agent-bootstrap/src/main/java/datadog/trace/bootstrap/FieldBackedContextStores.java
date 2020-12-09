@@ -87,4 +87,14 @@ public final class FieldBackedContextStores {
     }
     return store;
   }
+
+  /** Injection helper that immediately delegates to the weak-map for the given context store. */
+  public static Object weakGet(final Object key, final int storeId) {
+    return getContextStore(storeId).weakStore().get(key);
+  }
+
+  /** Injection helper that immediately delegates to the weak-map for the given context store. */
+  public static void weakPut(final Object key, final int storeId, final Object context) {
+    getContextStore(storeId).weakStore().put(key, context);
+  }
 }
