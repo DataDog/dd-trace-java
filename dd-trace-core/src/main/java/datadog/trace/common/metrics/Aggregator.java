@@ -16,6 +16,9 @@ final class Aggregator implements Runnable {
   private final LRUCache<MetricKey, AggregateMetric> aggregates;
   private final ConcurrentHashMap<MetricKey, Batch> pending;
   private final MetricWriter writer;
+  // the reporting interval controls how much history will be buffered
+  // when the agent is unresponsive (only 10 pending requests will be
+  // buffered by OkHttpSink)
   private final long reportingIntervalNanos;
 
   private long wallClockTime = -1;
