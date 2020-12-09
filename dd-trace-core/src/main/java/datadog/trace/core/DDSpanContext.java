@@ -226,10 +226,10 @@ public class DDSpanContext implements AgentSpan.Context {
     return topLevel;
   }
 
-  private static boolean isTopLevel(CharSequence parentServiceName, String serviceName) {
+  private static boolean isTopLevel(String parentServiceName, String serviceName) {
     return parentServiceName == null
         || parentServiceName.length() == 0
-        || !serviceName.equals(parentServiceName);
+        || !parentServiceName.equals(serviceName);
   }
 
   public CharSequence getSpanType() {
