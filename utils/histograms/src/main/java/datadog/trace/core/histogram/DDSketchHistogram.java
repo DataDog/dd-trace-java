@@ -3,6 +3,7 @@ package datadog.trace.core.histogram;
 import com.datadoghq.sketch.ddsketch.DDSketch;
 import com.datadoghq.sketch.ddsketch.mapping.CubicallyInterpolatedMapping;
 import com.datadoghq.sketch.ddsketch.store.PaginatedStore;
+import java.nio.ByteBuffer;
 
 public class DDSketchHistogram implements Histogram, HistogramFactory {
 
@@ -23,8 +24,8 @@ public class DDSketchHistogram implements Histogram, HistogramFactory {
   }
 
   @Override
-  public byte[] serialize() {
-    return sketch.toProto().toByteArray();
+  public ByteBuffer serialize() {
+    return sketch.serialize();
   }
 
   @Override
