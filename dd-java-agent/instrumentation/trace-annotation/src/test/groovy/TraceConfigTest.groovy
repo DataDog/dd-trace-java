@@ -9,7 +9,7 @@ class TraceConfigTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call]")
+    injectSysConfig("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call];${ConfigTracedCallable2.name}[*]")
   }
 
   class ConfigTracedCallable implements Callable<String> {
@@ -31,12 +31,8 @@ class TraceConfigTest extends AgentTestRunner {
   }
 
   def "test configuration based trace"() {
-    expect:
-    new ConfigTracedCallable().call() == "Hello!"
-
     when:
-    TEST_WRITER.waitForTraces(1)
-
+    new ConfigTracedCallable().call() == "Hello!"
     then:
     assertTraces(1) {
       trace(1) {
@@ -54,13 +50,10 @@ class TraceConfigTest extends AgentTestRunner {
 
   def "test configuration based trace with wildcards"() {
     setup:
-    injectSysConfig("dd.trace.methods", "ConfigTracedCallable2[*]")
-
-    expect:
-    new ConfigTracedCallable2().call() == "Hello2!"
+    injectSysConfig("dd.trace.methods", "${ConfigTracedCallable2.name}[*]")
 
     when:
-    TEST_WRITER.waitForTraces(1)
+    new ConfigTracedCallable2().call() == "Hello2!"
 
     then:
     assertTraces(1) {
@@ -111,5 +104,6 @@ class TraceConfigTest extends AgentTestRunner {
     "ClassName[*]"                                                  | ["ClassName": ["*"].toSet()]
     "ClassName[*,asdfg]"                                            | [:]
     "ClassName[asdfg,*]"                                            | [:]
+    "Class[*] ; Class\$2[ method2];"                                | ["Class": ["*"].toSet(), "Class\$2": ["method2"].toSet()]
   }
 }
