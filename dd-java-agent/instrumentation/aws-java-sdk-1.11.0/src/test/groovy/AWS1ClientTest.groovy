@@ -21,6 +21,7 @@ import com.amazonaws.services.dynamodbv2.model.CreateTableRequest
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder
 import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder
 import com.amazonaws.services.kinesis.model.DeleteStreamRequest
+import com.amazonaws.services.rds.AmazonRDSClient
 import com.amazonaws.services.rds.AmazonRDSClientBuilder
 import com.amazonaws.services.rds.model.DeleteOptionGroupRequest
 import com.amazonaws.services.s3.AmazonS3Client
@@ -123,7 +124,8 @@ class AWS1ClientTest extends AgentTestRunner {
     response != null
 
     client.requestHandler2s != null
-    client.requestHandler2s.size() == handlerCount
+    client.requestHandler2s.size() == handlerCount ||
+      (client instanceof AmazonRDSClient && client.requestHandler2s.size() == (handlerCount + 1))
     client.requestHandler2s.get(0).getClass().getSimpleName() == "TracingRequestHandler"
 
     assertTraces(1) {
