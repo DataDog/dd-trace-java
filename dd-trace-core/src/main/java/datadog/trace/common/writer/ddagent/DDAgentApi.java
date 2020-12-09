@@ -30,6 +30,10 @@ import okhttp3.RequestBody;
 @Slf4j
 public class DDAgentApi {
   private static final String DATADOG_CLIENT_COMPUTED_STATS = "Datadog-Client-Computed-Stats";
+  // this is not intended to be a toggled feature,
+  // rather it identifies this tracer as one which has computed top level status
+  private static final String DATADOG_CLIENT_COMPUTED_TOP_LEVEL =
+      "Datadog-Client-Computed-Top-Level";
   private static final String X_DATADOG_TRACE_COUNT = "X-Datadog-Trace-Count";
   private static final String V3_ENDPOINT = "v0.3/traces";
   private static final String V4_ENDPOINT = "v0.4/traces";
@@ -138,6 +142,7 @@ public class DDAgentApi {
     try {
       final Request request =
           prepareRequest(tracesUrl)
+              .addHeader(DATADOG_CLIENT_COMPUTED_TOP_LEVEL, "true")
               .addHeader(DATADOG_CLIENT_COMPUTED_STATS, metricsReportingEnabled ? "true" : "")
               .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
               .put(payload.toRequest())
