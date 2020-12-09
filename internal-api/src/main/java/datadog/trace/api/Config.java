@@ -400,6 +400,8 @@ public class Config {
 
   @Getter private final boolean internalExitOnFailure;
 
+  @Getter private final boolean resolverUseLoadClassEnabled;
+
   private final ConfigProvider configProvider;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
@@ -737,6 +739,9 @@ public class Config {
 
     internalExitOnFailure =
         configProvider.getBoolean(GeneralConfig.INTERNAL_EXIT_ON_FAILURE, false);
+
+    resolverUseLoadClassEnabled =
+        configProvider.getBoolean(TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS, true);
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;

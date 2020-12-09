@@ -96,7 +96,7 @@ public abstract class AgentTestRunner extends DDSpecification {
   private static final AtomicInteger INSTRUMENTATION_ERROR_COUNT = new AtomicInteger(0);
   private static final TestRunnerListener TEST_LISTENER = new TestRunnerListener();
 
-  private static final Instrumentation INSTRUMENTATION;
+  protected static final Instrumentation INSTRUMENTATION;
   private static volatile ClassFileTransformer activeTransformer = null;
 
   static {
@@ -229,12 +229,18 @@ public abstract class AgentTestRunner extends DDSpecification {
     TEST_LISTENER.deactivateTest(this);
   }
 
+  /** Override to clean up things after the agent is removed */
+  protected void cleanupAfterAgent() {}
+
   @AfterClass
-  public static synchronized void agentCleanup() {
+  public synchronized void agentCleanup() {
     if (null != activeTransformer) {
       INSTRUMENTATION.removeTransformer(activeTransformer);
       activeTransformer = null;
     }
+
+    cleanupAfterAgent();
+
     // Cleanup before assertion.
     assert INSTRUMENTATION_ERROR_COUNT.get() == 0
         : INSTRUMENTATION_ERROR_COUNT.get() + " Instrumentation errors during test";

@@ -72,8 +72,20 @@ public class DDCachingPoolStrategy implements PoolStrategy {
           .build();
 
   /** Fast path for bootstrap */
-  final SharedResolutionCacheAdapter bootstrapCacheProvider =
-      new SharedResolutionCacheAdapter(BOOTSTRAP_HASH, null, sharedResolutionCache);
+  final SharedResolutionCacheAdapter bootstrapCacheProvider;
+
+  private final boolean fallBackToLoadClass;
+
+  public DDCachingPoolStrategy() {
+    this(true);
+  }
+
+  public DDCachingPoolStrategy(boolean fallBackToLoadClass) {
+    this.fallBackToLoadClass = fallBackToLoadClass;
+    bootstrapCacheProvider =
+        new SharedResolutionCacheAdapter(
+            BOOTSTRAP_HASH, null, sharedResolutionCache, fallBackToLoadClass);
+  }
 
   @Override
   public final TypePool typePool(
@@ -98,7 +110,8 @@ public class DDCachingPoolStrategy implements PoolStrategy {
 
   private TypePool.CacheProvider createCacheProvider(
       final int loaderHash, final WeakReference<ClassLoader> loaderRef) {
-    return new SharedResolutionCacheAdapter(loaderHash, loaderRef, sharedResolutionCache);
+    return new SharedResolutionCacheAdapter(
+        loaderHash, loaderRef, sharedResolutionCache, fallBackToLoadClass);
   }
 
   private TypePool createCachingTypePool(
@@ -205,14 +218,17 @@ public class DDCachingPoolStrategy implements PoolStrategy {
     private final int loaderHash;
     private final WeakReference<ClassLoader> loaderRef;
     private final ConcurrentMap<TypeCacheKey, TypePool.Resolution> sharedResolutionCache;
+    private final boolean fallBackToLoadClass;
 
     SharedResolutionCacheAdapter(
         final int loaderHash,
         final WeakReference<ClassLoader> loaderRef,
-        final ConcurrentMap<TypeCacheKey, TypePool.Resolution> sharedResolutionCache) {
+        final ConcurrentMap<TypeCacheKey, TypePool.Resolution> sharedResolutionCache,
+        final boolean fallBackToLoadClass) {
       this.loaderHash = loaderHash;
       this.loaderRef = loaderRef;
       this.sharedResolutionCache = sharedResolutionCache;
+      this.fallBackToLoadClass = fallBackToLoadClass;
     }
 
     @Override
@@ -236,7 +252,15 @@ public class DDCachingPoolStrategy implements PoolStrategy {
         return resolution;
       }
 
-      resolution = new CachingResolution(resolution);
+      if (fallBackToLoadClass && resolution instanceof TypePool.Resolution.Illegal) {
+        // If the normal pool only resolution have failed then fall back to creating the type
+        // description from a loaded type by trying to load the class. This case is very rare and is
+        // here to handle classes that are injected directly via calls to defineClass without
+        // providing a way to get the class bytes.
+        resolution = new CachingResolutionForMaybeLoadableType(loaderRef, className);
+      } else {
+        resolution = new CachingResolution(resolution);
+      }
 
       sharedResolutionCache.put(new TypeCacheKey(loaderHash, loaderRef, className), resolution);
       return resolution;
@@ -248,12 +272,60 @@ public class DDCachingPoolStrategy implements PoolStrategy {
     }
   }
 
+  private static class CachingResolutionForMaybeLoadableType implements TypePool.Resolution {
+    private final WeakReference<ClassLoader> loaderRef;
+    private final String className;
+    private volatile TypeDescription typeDescription = null;
+    private volatile boolean isResolved = false;
+
+    public CachingResolutionForMaybeLoadableType(
+        WeakReference<ClassLoader> loaderRef, String className) {
+      this.loaderRef = loaderRef;
+      this.className = className;
+    }
+
+    @Override
+    public boolean isResolved() {
+      return isResolved;
+    }
+
+    @Override
+    public TypeDescription resolve() {
+      // Intentionally not "thread safe". Duplicate work deemed an acceptable trade-off.
+      if (!isResolved) {
+        Class<?> klass = null;
+        ClassLoader classLoader = loaderRef.get();
+        if (classLoader != null) {
+          try {
+            // Please note that by doing a loadClass, the type we are resolving will bypass
+            // transformation since we are in the middle of a transformation. This should
+            // be a very rare occurrence and not affect any classes we want to instrument.
+            klass = classLoader.loadClass(className);
+          } catch (ClassNotFoundException ignored) {
+          }
+        }
+        if (klass != null) {
+          // We managed to load the class
+          typeDescription = TypeDescription.ForLoadedType.of(klass);
+          log.debug(
+              "Direct loadClass type resolution of {} from class loader {} bypass transformation",
+              className,
+              classLoader);
+        }
+        isResolved = true;
+      }
+      if (typeDescription == null) {
+        throw new IllegalStateException("Cannot resolve type description for " + className);
+      }
+      return typeDescription;
+    }
+  }
+
   private static class CachingResolution implements TypePool.Resolution {
     private final TypePool.Resolution delegate;
     private TypeDescription cachedResolution;
 
     public CachingResolution(final TypePool.Resolution delegate) {
-
       this.delegate = delegate;
     }
 

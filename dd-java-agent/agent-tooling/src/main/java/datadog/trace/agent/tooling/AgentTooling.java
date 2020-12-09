@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling;
 
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
+import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.bootstrap.WeakCache.Provider;
@@ -55,7 +56,8 @@ public class AgentTooling {
   private static final Provider weakCacheProvider = loadWeakCacheProvider();
 
   private static final DDLocationStrategy LOCATION_STRATEGY = new DDLocationStrategy();
-  private static final DDCachingPoolStrategy POOL_STRATEGY = new DDCachingPoolStrategy();
+  private static final DDCachingPoolStrategy POOL_STRATEGY =
+      new DDCachingPoolStrategy(Config.get().isResolverUseLoadClassEnabled());
 
   public static <K, V> WeakCache<K, V> newWeakCache() {
     return newWeakCache(DEFAULT_CACHE_CAPACITY);
