@@ -14,7 +14,6 @@ import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Ignore
 import spock.lang.Shared
 
 import java.lang.ref.WeakReference
@@ -631,7 +630,6 @@ class ScopeManagerTest extends DDSpecification {
     span.finish()
 
     then: "exception is thrown in same thread"
-    thrown(RuntimeException)
     interceptor.lastTrace == [span]
 
     and: "scopeManager in good state"
@@ -660,8 +658,6 @@ class ScopeManagerTest extends DDSpecification {
     writer == [[span2]]
   }
 
-  // FIXME this exposes a current bug
-  @Ignore
   def "exception thrown in TraceInterceptor does not leave scope manager in bad state when reporting through PendingTraceBuffer"() {
     setup:
     def interceptor = new ExceptionThrowingInterceptor()
