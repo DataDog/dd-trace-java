@@ -1,6 +1,5 @@
 package datadog.trace.common.metrics
 
-import datadog.trace.api.Platform
 import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.Pair
 import datadog.trace.test.util.DDSpecification
@@ -39,8 +38,8 @@ class SerializingMetricWriterTest extends DDSpecification {
     where:
     content << [
       [
-              Pair.of(new MetricKey("resource1", "service1", "operation1", "type", "", 0), new AggregateMetric().recordDurations(10, 1L)),
-              Pair.of(new MetricKey("resource2", "service2", "operation2", "type2", "dbtype", 200), new AggregateMetric().recordDurations(9, 1L))
+              Pair.of(new MetricKey("resource1", "service1", "operation1", "type", 0), new AggregateMetric().recordDurations(10, 1L)),
+              Pair.of(new MetricKey("resource2", "service2", "operation2", "type2", 200), new AggregateMetric().recordDurations(9, 1L))
       ]
     ]
   }
@@ -93,7 +92,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         MetricKey key = pair.getLeft()
         AggregateMetric value = pair.getRight()
         int size = unpacker.unpackMapHeader()
-        assert size == 11
+        assert size == 10
         int elementCount = 0
         assert unpacker.unpackString() == "Name"
         assert unpacker.unpackString() == key.getOperationName() as String
@@ -106,9 +105,6 @@ class SerializingMetricWriterTest extends DDSpecification {
         ++elementCount
         assert unpacker.unpackString() == "Type"
         assert unpacker.unpackString() == key.getType() as String
-        ++elementCount
-        assert unpacker.unpackString() == "DBType"
-        assert unpacker.unpackString() == key.getDbType() as String
         ++elementCount
         assert unpacker.unpackString() == "HTTPStatusCode"
         assert unpacker.unpackInt() == key.getHttpStatusCode()
@@ -134,7 +130,7 @@ class SerializingMetricWriterTest extends DDSpecification {
     }
 
     private void validateSketch(MessageUnpacker unpacker) {
-      if (Platform.isJavaVersionAtLeast(8)) {
+      if (isJavaVersionAtLeast(8)) {
         int length = unpacker.unpackBinaryHeader()
         assert length > 0
         unpacker.readPayload(length)

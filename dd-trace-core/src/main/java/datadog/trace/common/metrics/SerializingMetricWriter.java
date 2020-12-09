@@ -24,7 +24,6 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] ERRORS = "Errors".getBytes(US_ASCII);
   private static final byte[] DURATION = "Duration".getBytes(US_ASCII);
   private static final byte[] TYPE = "Type".getBytes(US_ASCII);
-  private static final byte[] DBTYPE = "DBType".getBytes(US_ASCII);
   private static final byte[] HTTP_STATUS_CODE = "HTTPStatusCode".getBytes(US_ASCII);
   private static final byte[] START = "Start".getBytes(US_ASCII);
   private static final byte[] STATS = "Stats".getBytes(US_ASCII);
@@ -72,7 +71,7 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(MetricKey key, AggregateMetric aggregate) {
-    writer.startMap(11);
+    writer.startMap(10);
 
     writer.writeUTF8(NAME);
     writer.writeUTF8(key.getOperationName());
@@ -85,9 +84,6 @@ public final class SerializingMetricWriter implements MetricWriter {
 
     writer.writeUTF8(TYPE);
     writer.writeUTF8(key.getType());
-
-    writer.writeUTF8(DBTYPE);
-    writer.writeUTF8(key.getDbType());
 
     writer.writeUTF8(HTTP_STATUS_CODE);
     writer.writeInt(key.getHttpStatusCode());

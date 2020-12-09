@@ -64,10 +64,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "metrics should be conflated"
     1 * writer.finishBucket() >> { latch.countDown() }
     1 * writer.startBucket(2, _, SECONDS.toNanos(reportingInterval))
-    1 * writer.add(new MetricKey("resource", "service", "operation", "type", "", 0), _) >> {
+    1 * writer.add(new MetricKey("resource", "service", "operation", "type", 0), _) >> {
       MetricKey key, AggregateMetric value -> value.getHitCount() == count && value.getDuration() == count * duration
     }
-    1 * writer.add(new MetricKey("resource2", "service2", "operation2", "type", "", 0), _) >> {
+    1 * writer.add(new MetricKey("resource2", "service2", "operation2", "type", 0), _) >> {
       MetricKey key, AggregateMetric value -> value.getHitCount() == count && value.getDuration() == count * duration * 2
     }
 
