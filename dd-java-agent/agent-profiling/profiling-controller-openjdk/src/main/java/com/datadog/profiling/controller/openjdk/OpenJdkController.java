@@ -52,12 +52,22 @@ public final class OpenJdkController implements Controller {
     try {
       recordingSettings =
           JfpUtils.readNamedJfpResource(
-              JFP,
-              JfpUtils.Level.valueOf(config.getProfilingTemplate().toUpperCase()),
-              config.getProfilingTemplateOverrideFile());
+              JFP, getLevel(config), config.getProfilingTemplateOverrideFile());
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
+  }
+
+  private static JfpUtils.Level getLevel(Config config) {
+    String levelString = config.getProfilingTemplate();
+    if (levelString != null) {
+      try {
+        return JfpUtils.Level.valueOf(levelString.toUpperCase());
+      } catch (IllegalArgumentException ignored) {
+        //
+      }
+    }
+    return JfpUtils.Level.DEFAULT;
   }
 
   @Override
