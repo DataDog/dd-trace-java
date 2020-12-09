@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.jms;
 
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
+
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -7,7 +9,9 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.lang.reflect.Method;
+import java.util.concurrent.TimeUnit;
 import javax.jms.Destination;
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.Queue;
 import javax.jms.TemporaryQueue;
@@ -24,10 +28,10 @@ public final class JMSDecorator extends ClientDecorator {
   private final String spanKind;
   private final String spanType;
   public static final JMSDecorator PRODUCER_DECORATE =
-      new JMSDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
+    new JMSDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
 
   public static final JMSDecorator CONSUMER_DECORATE =
-      new JMSDecorator(Tags.SPAN_KIND_CONSUMER, DDSpanTypes.MESSAGE_CONSUMER);
+    new JMSDecorator(Tags.SPAN_KIND_CONSUMER, DDSpanTypes.MESSAGE_CONSUMER);
 
   public JMSDecorator(String spanKind, String spanType) {
     this.spanKind = spanKind;
@@ -61,6 +65,15 @@ public final class JMSDecorator extends ClientDecorator {
 
   public void onConsume(final AgentSpan span, final Message message) {
     span.setTag(DDTags.RESOURCE_NAME, "Consumed from " + toResourceName(message, null));
+
+    try {
+      final long produceTime = message.getJMSTimestamp();
+      if (produceTime > 0) {
+        final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
+        span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
+      }
+    } catch (final JMSException ignored) {
+    }
     span.setMeasured(true);
   }
 
@@ -73,7 +86,7 @@ public final class JMSDecorator extends ClientDecorator {
   }
 
   public void onProduce(
-      final AgentSpan span, final Message message, final Destination destination) {
+    final AgentSpan span, final Message message, final Destination destination) {
     span.setTag(DDTags.RESOURCE_NAME, "Produced for " + toResourceName(message, destination));
     span.setMeasured(true);
   }

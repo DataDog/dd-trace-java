@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.apache.activemq.ActiveMQConnectionFactory
@@ -214,6 +215,7 @@ class JMS1Test extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
             defaultTags()
           }
         }
@@ -230,6 +232,27 @@ class JMS1Test extends AgentTestRunner {
     session.createTopic("someTopic") | "Topic someTopic"
     session.createTemporaryQueue()   | "Temporary Queue"
     session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
+  def "sending a message with disabled timestamp generates spans without specific tag"() {
+    setup:
+    def producer = session.createProducer(session.createQueue("someQueue"))
+    def consumer = session.createConsumer(session.createQueue("someQueue"))
+
+    producer.send(message)
+    producer.setDisableMessageTimestamp(true)
+    consumer.receive()
+
+    expect:
+    assertTraces(2) {
+      producerTrace(it, "Queue someQueue")
+      consumerTrace(it, "Queue someQueue", false, ActiveMQMessageConsumer, trace(0)[0])
+    }
+
+    cleanup:
+    producer.close()
+    consumer.close()
+
   }
 
   static producerTrace(ListWriterAssert writer, String jmsResourceName) {
@@ -269,6 +292,9 @@ class JMS1Test extends AgentTestRunner {
         tags {
           "$Tags.COMPONENT" "jms"
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+          if (!messageListener && "$InstrumentationTags.RECORD_QUEUE_TIME_MS") {
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
+          }
           defaultTags(true)
         }
       }
