@@ -22,42 +22,42 @@ class TraceConfigTest extends AgentTestRunner {
   class ConfigTracedCallable2 implements Callable<String> {
     @Override
     String call() throws Exception {
-      return call_helper();
+      return call_helper()
     }
 
     String call_helper() throws Exception {
-      return "Hello2!";
+      return "Hello2!"
     }
   }
 
   interface Mammal {
-    void setName(String newName);
-    void setHeight(int newHeight);
+    void setName(String newName)
+    void setHeight(int newHeight)
   }
 
   class Human implements Mammal {
-    String name;
-    String height;
+    String name
+    String height
 
     void setName(String newName){
-      name = newName;
+      name = newName
     }
     void setHeight(int newHeight){
-      height = newHeight;
+      height = newHeight
     }
   }
 
 
   abstract class Animal {
-    public abstract void animalSound();
-    public void sleep() {
-      System.out.println("Zzz");
+    abstract void animalSound()
+    void sleep() {
+      System.out.println("Zzz")
     }
   }
 
   class Pig extends Animal {
     public void animalSound() {
-      System.out.println("The pig says: wee wee");
+      System.out.println("The pig says: wee wee")
     }
   }
 
