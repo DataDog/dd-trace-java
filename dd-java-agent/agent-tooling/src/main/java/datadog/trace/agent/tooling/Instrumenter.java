@@ -294,7 +294,9 @@ public interface Instrumenter {
     }
 
     protected boolean defaultEnabled() {
-      return Config.get().isIntegrationsEnabled();
+      // by default an instrumentation is guarded by both tracing and the particular integration
+      // being active
+      return Config.get().isTraceEnabled() && Config.get().isIntegrationsEnabled();
     }
   }
 }

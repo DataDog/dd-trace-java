@@ -43,7 +43,12 @@ public class AgentInstaller {
   }
 
   public static void installBytebuddyAgent(final Instrumentation inst) {
-    if (Config.get().isTraceEnabled()) {
+    /*
+     * ByteBuddy agent is used by both tracing and profiling and since they can
+     * be enabled independently we need to install the agent when either of them
+     * is active.
+     */
+    if (Config.get().isTraceEnabled() || Config.get().isProfilingEnabled()) {
       installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
       log.debug("Class instrumentation installed");
     } else {
