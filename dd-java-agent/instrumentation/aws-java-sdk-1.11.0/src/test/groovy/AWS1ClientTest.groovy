@@ -123,7 +123,8 @@ class AWS1ClientTest extends AgentTestRunner {
     response != null
 
     client.requestHandler2s != null
-    client.requestHandler2s.get(0).getClass().getSimpleName() == "TracingRequestHandler"
+    // check we instrumented with exactly one TracingRequestHandler:
+    client.requestHandler2s.findAll{ it.getClass().getSimpleName() == "TracingRequestHandler" }.size() == 1
 
     assertTraces(1) {
       trace(2) {
