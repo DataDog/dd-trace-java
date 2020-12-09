@@ -89,7 +89,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   public void publish(List<? extends CoreSpan<?>> trace) {
     if (enabled) {
       for (CoreSpan<?> span : trace) {
-        if (span.isMeasured()) {
+        if (span.isTopLevel() || span.isMeasured()) {
           publish(span);
         }
       }

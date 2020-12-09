@@ -43,6 +43,8 @@ public class DDSpanContext implements AgentSpan.Context {
   private final DDId spanId;
   private final DDId parentId;
 
+  private final String parentServiceName;
+
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
    *
@@ -66,6 +68,8 @@ public class DDSpanContext implements AgentSpan.Context {
   private volatile boolean errorFlag;
 
   private volatile boolean measuredFlag;
+
+  private volatile boolean topLevel;
   /**
    * When true, the samplingPriority cannot be changed. This prevents the sampling flag from
    * changing after the context has propagated.
@@ -86,6 +90,7 @@ public class DDSpanContext implements AgentSpan.Context {
       final DDId traceId,
       final DDId spanId,
       final DDId parentId,
+      final CharSequence parentServiceName,
       final String serviceName,
       final CharSequence operationName,
       final CharSequence resourceName,
@@ -110,6 +115,7 @@ public class DDSpanContext implements AgentSpan.Context {
     this.traceId = traceId;
     this.spanId = spanId;
     this.parentId = parentId;
+    this.parentServiceName = String.valueOf(parentServiceName);
 
     if (baggageItems == null) {
       this.baggageItems = new ConcurrentHashMap<>(0);
@@ -169,6 +175,7 @@ public class DDSpanContext implements AgentSpan.Context {
   public void setServiceName(final String serviceName) {
     final String mappedServiceName = serviceNameMappings.get(serviceName);
     this.serviceName = mappedServiceName == null ? serviceName : mappedServiceName;
+    this.topLevel = isTopLevel(parentServiceName, serviceName);
   }
 
   public CharSequence getResourceName() {
@@ -213,6 +220,16 @@ public class DDSpanContext implements AgentSpan.Context {
     if (measured != measuredFlag) {
       measuredFlag = measured;
     }
+  }
+
+  public boolean isTopLevel() {
+    return topLevel;
+  }
+
+  private static boolean isTopLevel(String parentServiceName, String serviceName) {
+    return parentServiceName == null
+        || parentServiceName.length() == 0
+        || !parentServiceName.equals(serviceName);
   }
 
   public CharSequence getSpanType() {

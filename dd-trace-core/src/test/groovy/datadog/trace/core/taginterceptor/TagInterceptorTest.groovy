@@ -6,10 +6,12 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
+import datadog.trace.core.CoreSpan
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.SpanFactory
 import datadog.trace.test.util.DDSpecification
@@ -428,5 +430,38 @@ class TagInterceptorTest extends DDSpecification {
     "sn.tag1"           | "new-service" | "new-service"
 
 
+  }
+
+  def "change top level status when changing service name"() {
+    setup:
+    tracer = CoreTracer.builder()
+      .serviceName("some-service")
+      .writer(new LoggingWriter())
+      .sampler(new AllSampler())
+      .build()
+
+    AgentSpan parent = tracer.buildSpan("parent")
+      .withServiceName("parent").start()
+
+    when: "the service name doesn't match the parent"
+    AgentSpan child = tracer.buildSpan("child")
+      .withServiceName("child")
+      .asChildOf(parent)
+      .start()
+
+    then:
+    (child as CoreSpan).isTopLevel()
+
+    when: "the service name is changed to match the parent"
+    child.setTag(DDTags.SERVICE_NAME, "parent")
+
+    then:
+    !(child as CoreSpan).isTopLevel()
+
+    when: "the service name is changed to no longer match the parent"
+    child.setTag(DDTags.SERVICE_NAME, "foo")
+
+    then:
+    (child as CoreSpan).isTopLevel()
   }
 }

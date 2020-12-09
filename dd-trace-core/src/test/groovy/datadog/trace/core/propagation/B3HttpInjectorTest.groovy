@@ -25,6 +25,7 @@ class B3HttpInjectorTest extends DDSpecification {
         DDId.from("$traceId"),
         DDId.from("$spanId"),
         DDId.ZERO,
+        null,
         "fakeService",
         "fakeOperation",
         "fakeResource",

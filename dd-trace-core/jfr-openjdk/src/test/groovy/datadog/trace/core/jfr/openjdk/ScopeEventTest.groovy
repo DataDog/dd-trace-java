@@ -30,6 +30,7 @@ class ScopeEventTest extends DDSpecification {
       DDId.from(123),
       DDId.from(432),
       DDId.from(222),
+      null,
       "fakeService",
       "fakeOperation",
       "fakeResource",
