@@ -6,6 +6,8 @@ import datadog.trace.core.histogram.Histograms
 import datadog.trace.core.histogram.StubHistogram
 import datadog.trace.test.util.DDSpecification
 
+import java.nio.ByteBuffer
+
 class HistogramsTest extends DDSpecification {
 
   def "histogram factory creates DDSketch"() {
@@ -18,7 +20,7 @@ class HistogramsTest extends DDSpecification {
     Histogram histogram = Histograms.newHistogramFactory().newHistogram()
     when:
     histogram.accept(42)
-    byte[] serialized = histogram.serialize()
+    ByteBuffer serialized = histogram.serialize()
     DDSketch proto = DDSketch.parseFrom(serialized)
     then:
     null != proto
@@ -31,7 +33,7 @@ class HistogramsTest extends DDSpecification {
     Histogram histogram = histogramFactory.newHistogram()
     histogram.accept(42)
     then:
-    histogram.serialize().length == 0
+    histogram.serialize().capacity() == 0
   }
 
   def "load stub"() {

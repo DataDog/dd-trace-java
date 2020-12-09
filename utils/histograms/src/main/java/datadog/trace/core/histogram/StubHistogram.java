@@ -1,7 +1,9 @@
 package datadog.trace.core.histogram;
 
+import java.nio.ByteBuffer;
+
 public class StubHistogram implements Histogram, HistogramFactory {
-  private static final byte[] EMPTY = new byte[0];
+  private static final ByteBuffer EMPTY = ByteBuffer.allocate(0);
 
   @Override
   public void accept(long value) {}
@@ -10,7 +12,7 @@ public class StubHistogram implements Histogram, HistogramFactory {
   public void clear() {}
 
   @Override
-  public byte[] serialize() {
+  public ByteBuffer serialize() {
     return EMPTY;
   }
 

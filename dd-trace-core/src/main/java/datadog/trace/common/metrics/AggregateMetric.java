@@ -3,6 +3,7 @@ package datadog.trace.common.metrics;
 import datadog.trace.core.histogram.Histogram;
 import datadog.trace.core.histogram.HistogramFactory;
 import datadog.trace.core.histogram.Histograms;
+import java.nio.ByteBuffer;
 
 /** Not thread-safe. Accumulates counts and durations. */
 public final class AggregateMetric {
@@ -47,11 +48,11 @@ public final class AggregateMetric {
     return duration;
   }
 
-  public byte[] getHitLatencies() {
+  public ByteBuffer getHitLatencies() {
     return hitLatencies.serialize();
   }
 
-  public byte[] getErrorLatencies() {
+  public ByteBuffer getErrorLatencies() {
     return errorLatencies.serialize();
   }
 
