@@ -121,6 +121,7 @@ class PayloadDispatcherTest extends DDSpecification {
       DDId.from(1),
       DDId.from(1),
       DDId.ZERO,
+      null,
       "",
       "",
       "",

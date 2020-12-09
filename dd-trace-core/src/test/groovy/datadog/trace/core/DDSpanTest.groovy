@@ -3,6 +3,7 @@ package datadog.trace.core
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
@@ -24,6 +25,7 @@ class DDSpanTest extends DDSpecification {
         DDId.from(1),
         DDId.from(1),
         DDId.ZERO,
+        null,
         "fakeService",
         "fakeOperation",
         "fakeResource",
@@ -245,5 +247,38 @@ class DDSpanTest extends DDSpecification {
     extractedContext                                                         | isTraceRootSpan
     null                                                                     | true
     new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", [:], [:]) | false
+  }
+
+  def "infer top level from parent service name"() {
+    when:
+    DDSpanContext context =
+      new DDSpanContext(
+        DDId.from(1),
+        DDId.from(1),
+        DDId.ZERO,
+        parentServiceName,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        PrioritySampling.UNSET,
+        null,
+        Collections.<String, String> emptyMap(),
+        false,
+        "fakeType",
+        0,
+        tracer.pendingTraceFactory.create(DDId.ONE),
+        tracer,
+        [:])
+    then:
+    context.isTopLevel() == expectTopLevel
+
+    where:
+    parentServiceName                     | expectTopLevel
+    "foo"                                 |  true
+    UTF8BytesString.create("foo")         |  true
+    "fakeService"                         |  false
+    UTF8BytesString.create("fakeService") |  false
+    ""                                    |  true
+    null                                  |  true
   }
 }

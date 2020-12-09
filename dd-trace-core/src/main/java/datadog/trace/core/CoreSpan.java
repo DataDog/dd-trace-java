@@ -55,6 +55,8 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   boolean isMeasured();
 
+  boolean isTopLevel();
+
   Map<CharSequence, Number> getMetrics();
 
   CharSequence getType();

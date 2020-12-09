@@ -11,6 +11,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   private final String resourceName
   private final String type
   private final boolean measured
+  private final boolean topLevel
   private final boolean error
 
   private final long duration
@@ -21,6 +22,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
              String resourceName,
              String type,
              boolean measured,
+             boolean topLevel,
              boolean error,
              long startTime,
              long duration) {
@@ -29,6 +31,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
     this.resourceName = resourceName
     this.type = type
     this.measured = measured
+    this.topLevel = topLevel
     this.error = error
     this.startTime = startTime
     this.duration = duration
@@ -157,6 +160,11 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   @Override
   boolean isMeasured() {
     return measured
+  }
+
+  @Override
+  boolean isTopLevel() {
+    return topLevel
   }
 
   @Override

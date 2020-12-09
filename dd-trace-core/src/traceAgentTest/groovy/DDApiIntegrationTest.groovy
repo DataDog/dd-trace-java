@@ -35,6 +35,7 @@ class DDApiIntegrationTest extends DDSpecification {
     DDId.from(1),
     DDId.from(1),
     DDId.ZERO,
+    null,
     "fakeService",
     "fakeOperation",
     "fakeResource",

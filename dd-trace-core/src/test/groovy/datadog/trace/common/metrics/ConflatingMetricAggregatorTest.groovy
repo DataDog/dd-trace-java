@@ -29,7 +29,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.start()
 
     when:
-    aggregator.publish([new SimpleSpan("", "", "", "", false, false, 0, 0)])
+    aggregator.publish([new SimpleSpan("", "", "", "", false, false, false, 0, 0)])
 
     then:
     0 * sink._
@@ -47,9 +47,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       Mock(Sink), writer, 10, 10, reportingInterval, SECONDS)
     long duration = 100
     List<CoreSpan> trace = [
-      new SimpleSpan("service", "operation", "resource", "type", true, false, 0, duration),
-      new SimpleSpan("service1", "operation1", "resource1", "type", false, false, 0, 0),
-      new SimpleSpan("service2", "operation2", "resource2", "type", true, false, 0, duration * 2)
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, duration),
+      new SimpleSpan("service1", "operation1", "resource1", "type", false, false, false, 0, 0),
+      new SimpleSpan("service2", "operation2", "resource2", "type", true, false, false, 0, duration * 2)
     ]
     aggregator.start()
 
