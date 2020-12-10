@@ -279,8 +279,6 @@ class JMS2Test extends AgentTestRunner {
           "${Tags.SPAN_KIND}" "consumer"
           if (!messageListener && !isTimestampDisabled) {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
-          } else if (isTimestampDisabled){
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it == null }
           }
           defaultTags(true)
         }

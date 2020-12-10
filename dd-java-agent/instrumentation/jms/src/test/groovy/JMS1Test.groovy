@@ -35,8 +35,6 @@ class JMS1Test extends AgentTestRunner {
     final Connection connection = connectionFactory.createConnection()
     connection.start()
     session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
-
-//    final Connection connectionDisabledTimestamp = connectionFactory.createConnection()
   }
 
   def cleanupSpec() {
@@ -298,8 +296,6 @@ class JMS1Test extends AgentTestRunner {
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
           if (!messageListener && !isTimestampDisabled) {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
-          } else if (isTimestampDisabled) {
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it == null}
           }
           defaultTags(true)
         }
