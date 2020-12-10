@@ -84,6 +84,7 @@ abstract class AbstractSmokeTest extends Specification {
 
     defaultJavaProperties = [
       "-javaagent:${shadowJarPath}",
+      "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
       "-Ddd.trace.agent.port=${server.address.port}",
       "-Ddd.service.name=smoke-test-java-app",
       "-Ddd.profiling.enabled=true",

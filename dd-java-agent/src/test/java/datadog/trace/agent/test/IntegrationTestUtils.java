@@ -189,6 +189,7 @@ public class IntegrationTestUtils {
 
     final List<String> vmArgsList = new ArrayList<>(Arrays.asList(jvmArgs));
     vmArgsList.add(getAgentArgument());
+    vmArgsList.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log");
 
     final List<String> commands = new ArrayList<>();
     commands.add(path);
