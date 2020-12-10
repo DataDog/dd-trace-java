@@ -28,10 +28,10 @@ public final class JMSDecorator extends ClientDecorator {
   private final String spanKind;
   private final String spanType;
   public static final JMSDecorator PRODUCER_DECORATE =
-    new JMSDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
+      new JMSDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
 
   public static final JMSDecorator CONSUMER_DECORATE =
-    new JMSDecorator(Tags.SPAN_KIND_CONSUMER, DDSpanTypes.MESSAGE_CONSUMER);
+      new JMSDecorator(Tags.SPAN_KIND_CONSUMER, DDSpanTypes.MESSAGE_CONSUMER);
 
   public JMSDecorator(String spanKind, String spanType) {
     this.spanKind = spanKind;
@@ -86,7 +86,7 @@ public final class JMSDecorator extends ClientDecorator {
   }
 
   public void onProduce(
-    final AgentSpan span, final Message message, final Destination destination) {
+      final AgentSpan span, final Message message, final Destination destination) {
     span.setTag(DDTags.RESOURCE_NAME, "Produced for " + toResourceName(message, destination));
     span.setMeasured(true);
   }
