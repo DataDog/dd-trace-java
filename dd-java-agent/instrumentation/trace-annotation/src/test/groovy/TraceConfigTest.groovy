@@ -9,7 +9,7 @@ class TraceConfigTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call];${ConfigTracedCallable2.name}[*];${Human.name}[*];${Animal.name}[animalSound];${DictionaryElement.name}[*]")
+    injectSysConfig("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call];${ConfigTracedCallable2.name}[*];${Animal.name}[animalSound];${DictionaryElement.name}[*];${Floor.name}[setNumber];${Mammal.name}[*]")
   }
 
   class ConfigTracedCallable implements Callable<String> {
@@ -31,18 +31,30 @@ class TraceConfigTest extends AgentTestRunner {
   }
 
   interface Mammal {
-    void setName(String newName)
-    void setHeight(int newHeight)
+    void name(String newName)
+    void height(int newHeight)
+  }
+
+  interface Floor {
+    void setNumber()
+  }
+
+  class Fifth implements Floor {
+    int floorNumber
+
+    void setNumber() {
+      floorNumber = 5
+    }
   }
 
   class Human implements Mammal {
     String name
     String height
 
-    void setName(String newName){
+    void name(String newName){
       name = newName
     }
-    void setHeight(int newHeight){
+    void height(int newHeight){
       height = newHeight
     }
   }
@@ -141,14 +153,14 @@ class TraceConfigTest extends AgentTestRunner {
 
     when:
     Human charlie = new Human()
-    charlie.setName("Charlie")
-    charlie.setHeight(4)
+    charlie.name("Charlie")
+    charlie.height(4)
 
     then:
     assertTraces(2) {
       trace(1) {
         span {
-          resourceName "Human.setName"
+          resourceName "Human.name"
           operationName "trace.annotation"
           tags {
             "$Tags.COMPONENT" "trace"
@@ -158,7 +170,7 @@ class TraceConfigTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          resourceName "Human.setHeight"
+          resourceName "Human.height"
           operationName "trace.annotation"
           tags {
             "$Tags.COMPONENT" "trace"
@@ -172,12 +184,22 @@ class TraceConfigTest extends AgentTestRunner {
 
     when:
     new Pig().animalSound()
-
+    new Fifth().setNumber()
     then:
-    assertTraces(1) {
+    assertTraces(2) {
       trace(1) {
         span {
           resourceName "Pig.animalSound"
+          operationName "trace.annotation"
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          resourceName "Fifth.setNumber"
           operationName "trace.annotation"
           tags {
             "$Tags.COMPONENT" "trace"
