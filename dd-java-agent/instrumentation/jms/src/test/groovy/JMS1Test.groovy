@@ -35,6 +35,8 @@ class JMS1Test extends AgentTestRunner {
     final Connection connection = connectionFactory.createConnection()
     connection.start()
     session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
+
+//    final Connection connectionDisabledTimestamp = connectionFactory.createConnection()
   }
 
   def cleanupSpec() {
@@ -239,14 +241,16 @@ class JMS1Test extends AgentTestRunner {
     def producer = session.createProducer(session.createQueue("someQueue"))
     def consumer = session.createConsumer(session.createQueue("someQueue"))
 
-    producer.send(message)
     producer.setDisableMessageTimestamp(true)
+    producer.send(message)
+
+    boolean isTimeStampDisabled = producer.getDisableMessageTimestamp()
     consumer.receive()
 
     expect:
     assertTraces(2) {
       producerTrace(it, "Queue someQueue")
-      consumerTrace(it, "Queue someQueue", false, ActiveMQMessageConsumer, trace(0)[0])
+      consumerTrace(it, "Queue someQueue", false, ActiveMQMessageConsumer, trace(0)[0], isTimeStampDisabled)
     }
 
     cleanup:
@@ -274,7 +278,7 @@ class JMS1Test extends AgentTestRunner {
     }
   }
 
-  static consumerTrace(ListWriterAssert writer, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan) {
+  static consumerTrace(ListWriterAssert writer, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan, boolean isTimestampDisabled = false) {
     writer.trace(1) {
       span {
         serviceName "jms"
@@ -292,8 +296,10 @@ class JMS1Test extends AgentTestRunner {
         tags {
           "$Tags.COMPONENT" "jms"
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-          if (!messageListener && "$InstrumentationTags.RECORD_QUEUE_TIME_MS") {
+          if (!messageListener && !isTimestampDisabled) {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
+          } else if (isTimestampDisabled) {
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it == null}
           }
           defaultTags(true)
         }
