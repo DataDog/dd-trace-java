@@ -56,7 +56,7 @@ class TraceConfigTest extends AgentTestRunner {
   }
 
   class Pig extends Animal {
-    public void animalSound() {
+    void animalSound() {
       System.out.println("The pig says: wee wee")
     }
   }
@@ -110,9 +110,9 @@ class TraceConfigTest extends AgentTestRunner {
   def "test wildcard configuration with class implementing interface"() {
 
     when:
-    Human charlie = new Human();
-    charlie.setName("Charlie");
-    charlie.setHeight(4);
+    Human charlie = new Human()
+    charlie.setName("Charlie")
+    charlie.setHeight(4)
 
     then:
     assertTraces(2) {
@@ -141,7 +141,7 @@ class TraceConfigTest extends AgentTestRunner {
   def "test wildcard configuration based on class extending abstract class"() {
 
     when:
-    new Pig().animalSound();
+    new Pig().animalSound()
 
     then:
     assertTraces(1) {
