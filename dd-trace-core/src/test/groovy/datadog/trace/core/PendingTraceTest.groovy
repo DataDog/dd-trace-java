@@ -2,12 +2,9 @@ package datadog.trace.core
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
-import datadog.trace.api.Config
-import datadog.trace.api.DDId
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.test.util.DDSpecification
 import org.slf4j.LoggerFactory
-import spock.lang.Subject
 import spock.lang.Timeout
 
 import java.util.concurrent.CountDownLatch
@@ -20,12 +17,8 @@ class PendingTraceTest extends DDSpecification {
   def writer = new ListWriter()
   def tracer = CoreTracer.builder().writer(writer).build()
 
-  DDId traceId = DDId.from(System.identityHashCode(this))
-
-  @Subject
-  PendingTrace trace = tracer.pendingTraceFactory.create(traceId)
-
-  DDSpan rootSpan = SpanFactory.newSpanOf(trace)
+  DDSpan rootSpan = tracer.buildSpan("fakeOperation").start()
+  PendingTrace trace = rootSpan.context().trace
 
   def setup() {
     assert trace.size() == 0
@@ -33,12 +26,16 @@ class PendingTraceTest extends DDSpecification {
     assert trace.rootSpanWritten == false
   }
 
+  def cleanup() {
+    tracer?.close()
+  }
+
   def "single span gets added to trace and written when finished"() {
-    setup:
+    when:
     rootSpan.finish()
     writer.waitForTraces(1)
 
-    expect:
+    then:
     trace.finishedSpans.isEmpty()
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
@@ -144,14 +141,12 @@ class PendingTraceTest extends DDSpecification {
 
   def "partial flush"() {
     when:
-    def properties = new Properties()
-    properties.setProperty(PARTIAL_FLUSH_MIN_SPANS, "1")
-    def config = Config.get(properties)
-    def tracer = CoreTracer.builder().config(config).writer(writer).build()
-    def rootSpan = tracer.buildSpan("root").start()
+    injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "1")
+    def quickTracer = CoreTracer.builder().writer(writer).build()
+    def rootSpan = quickTracer.buildSpan("root").start()
     def trace = rootSpan.context().trace
-    def child1 = tracer.buildSpan("child1").asChildOf(rootSpan).start()
-    def child2 = tracer.buildSpan("child2").asChildOf(rootSpan).start()
+    def child1 = quickTracer.buildSpan("child1").asChildOf(rootSpan).start()
+    def child2 = quickTracer.buildSpan("child2").asChildOf(rootSpan).start()
 
     then:
     trace.pendingReferenceCount.get() == 3
@@ -184,18 +179,19 @@ class PendingTraceTest extends DDSpecification {
     trace.finishedSpans.isEmpty()
     writer == [[child1, child2], [rootSpan]]
     writer.traceCount.get() == 2
+
+    cleanup:
+    quickTracer.close()
   }
 
   def "partial flush with root span closed last"() {
     when:
-    def properties = new Properties()
-    properties.setProperty(PARTIAL_FLUSH_MIN_SPANS, "1")
-    def config = Config.get(properties)
-    def tracer = CoreTracer.builder().config(config).writer(writer).build()
-    def trace = tracer.pendingTraceFactory.create(traceId)
-    def rootSpan = SpanFactory.newSpanOf(trace)
-    def child1 = tracer.buildSpan("child1").asChildOf(rootSpan).start()
-    def child2 = tracer.buildSpan("child2").asChildOf(rootSpan).start()
+    injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "1")
+    def quickTracer = CoreTracer.builder().writer(writer).build()
+    def rootSpan = quickTracer.buildSpan("root").start()
+    def trace = rootSpan.context().trace
+    def child1 = quickTracer.buildSpan("child1").asChildOf(rootSpan).start()
+    def child2 = quickTracer.buildSpan("child2").asChildOf(rootSpan).start()
 
     then:
     trace.pendingReferenceCount.get() == 3
@@ -228,6 +224,9 @@ class PendingTraceTest extends DDSpecification {
     trace.finishedSpans.isEmpty()
     writer == [[child2, child1], [rootSpan]]
     writer.traceCount.get() == 2
+
+    cleanup:
+    quickTracer.close()
   }
 
   def "partial flush concurrency test"() {

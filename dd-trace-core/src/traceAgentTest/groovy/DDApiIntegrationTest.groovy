@@ -1,7 +1,5 @@
 import com.timgroup.statsd.NonBlockingStatsDClient
 import com.timgroup.statsd.StatsDClient
-import datadog.trace.api.DDId
-import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
@@ -10,7 +8,6 @@ import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
-import datadog.trace.core.DDSpanContext
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
@@ -29,23 +26,8 @@ import java.util.concurrent.atomic.AtomicReference
 // It is fine to run on CI because CI provides agent externally, not through testcontainers
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
 class DDApiIntegrationTest extends DDSpecification {
-  static final WRITER = new ListWriter()
-  static final TRACER = CoreTracer.builder().writer(WRITER).build()
-  static final CONTEXT = new DDSpanContext(
-    DDId.from(1),
-    DDId.from(1),
-    DDId.ZERO,
-    null,
-    "fakeService",
-    "fakeOperation",
-    "fakeResource",
-    PrioritySampling.UNSET,
-    null,
-    [:],
-    false,
-    "fakeType",
-    0,
-    TRACER.pendingTraceFactory.create(DDId.ONE))
+  def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+  DDSpan span
 
   // Looks like okHttp needs to resolve this, even for connection over socket
   static final SOMEHOST = "datadoghq.com"
@@ -115,6 +97,16 @@ class DDApiIntegrationTest extends DDSpecification {
     process = Runtime.getRuntime().exec("socat UNIX-LISTEN:${socketPath},reuseaddr,fork TCP-CONNECT:${agentContainerHost}:${agentContainerPort}")
   }
 
+  def setup() {
+    span = tracer.buildSpan("fakeOperation").start()
+    Thread.sleep(1)
+    span.finish()
+  }
+
+  def cleanup() {
+    tracer?.close()
+  }
+
   def cleanupSpec() {
     if (agentContainer) {
       agentContainer.stop()
@@ -135,7 +127,7 @@ class DDApiIntegrationTest extends DDSpecification {
     unixDomainSocketApi.addResponseListener(responseListener)
   }
 
-  def "Sending traces succeeds (test #test)"() {
+  def "Sending empty traces succeeds (test #test)"() {
     setup:
     beforeTest(enableV05)
     expect:
@@ -146,21 +138,34 @@ class DDApiIntegrationTest extends DDSpecification {
     assert response.success()
     assert api.detectedVersion == "${version}/traces"
     assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/${version}/traces"
-    assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
+    assert agentResponse.get()["rate_by_service"] instanceof Map
 
     where:
-    traces                                                                              | test | enableV05
-    []                                                                                  | 1    | true
-    [[new DDSpan(1, CONTEXT)]]                                                          | 2    | true
-    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 3    | true
-    (1..16).collect { [] }                                                              | 4    | true
-    []                                                                                  | 5    | false
-    [[new DDSpan(1, CONTEXT)]]                                                          | 6    | false
-    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 7    | false
-    (1..16).collect { [] }                                                              | 8    | false
+    traces                 | test | enableV05
+    []                     | 1    | true
+    (1..16).collect { [] } | 4    | true
+    []                     | 5    | false
+    (1..16).collect { [] } | 8    | false
   }
 
-  def "Sending traces to unix domain socket succeeds (test #test)"() {
+  def "Sending traces succeeds"() {
+    setup:
+    beforeTest(enableV05)
+    expect:
+    DDAgentApi.Response response = api.sendSerializedTraces(prepareRequest([[span]], mapper))
+    assert !response.response().isEmpty()
+    assert null == response.exception()
+    assert 200 == response.status()
+    assert response.success()
+    assert api.detectedVersion == "${version}/traces"
+    assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/${version}/traces"
+    assert agentResponse.get()["rate_by_service"] instanceof Map
+
+    where:
+    enableV05 << [true, false]
+  }
+
+  def "Sending empty traces to unix domain socket succeeds (test #test)"() {
     setup:
     beforeTest(enableV05)
     expect:
@@ -171,14 +176,29 @@ class DDApiIntegrationTest extends DDSpecification {
     assert response.success()
     assert api.detectedVersion == "${version}/traces"
     assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/${version}/traces"
-    assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
+    assert agentResponse.get()["rate_by_service"] instanceof Map
 
     where:
-    traces                     | test | enableV05
-    []                         | 1    | true
-    [[new DDSpan(1, CONTEXT)]] | 2    | true
-    []                         | 3    | false
-    [[new DDSpan(1, CONTEXT)]] | 4    | false
+    traces | test | enableV05
+    []     | 1    | true
+    []     | 3    | false
+  }
+
+  def "Sending traces to unix domain socket succeeds (test #test)"() {
+    setup:
+    beforeTest(enableV05)
+    expect:
+    DDAgentApi.Response response = unixDomainSocketApi.sendSerializedTraces(prepareRequest([[span]], mapper))
+    assert !response.response().isEmpty()
+    assert null == response.exception()
+    assert 200 == response.status()
+    assert response.success()
+    assert api.detectedVersion == "${version}/traces"
+    assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/${version}/traces"
+    assert agentResponse.get()["rate_by_service"] instanceof Map
+
+    where:
+    enableV05 << [true, false]
   }
 
 

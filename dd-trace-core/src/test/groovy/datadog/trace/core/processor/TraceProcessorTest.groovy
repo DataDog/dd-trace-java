@@ -1,9 +1,9 @@
 package datadog.trace.core.processor
 
-
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.SpanFactory
+import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.CoreTracer
 import datadog.trace.core.processor.rule.URLAsResourceNameRule
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Subject
@@ -12,12 +12,12 @@ class TraceProcessorTest extends DDSpecification {
 
   @Subject
   def processor = new TraceProcessor()
-
-  def span = SpanFactory.newSpanOf(0)
+  def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+  def span = tracer.buildSpan("fakeOperation").start()
   def trace = [span]
 
-  def setup() {
-    span.context.resourceName = null
+  def cleanup() {
+    tracer?.close()
   }
 
   def "test disable"() {

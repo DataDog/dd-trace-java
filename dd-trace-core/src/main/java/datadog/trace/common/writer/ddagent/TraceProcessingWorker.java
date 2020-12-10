@@ -78,6 +78,10 @@ public class TraceProcessingWorker implements AutoCloseable {
   @Override
   public void close() {
     serializerThread.interrupt();
+    try {
+      serializerThread.join(500);
+    } catch (InterruptedException ignored) {
+    }
   }
 
   public boolean publish(int samplingPriority, final List<DDSpan> trace) {

@@ -5,7 +5,6 @@ import com.squareup.moshi.Types
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.PrintingWriter
 import datadog.trace.core.CoreTracer
-import datadog.trace.core.SpanFactory
 import datadog.trace.test.util.DDSpecification
 import okio.Buffer
 
@@ -14,10 +13,24 @@ import java.nio.charset.StandardCharsets
 class PrintingWriterTest extends DDSpecification {
 
   def tracer = CoreTracer.builder().writer(new ListWriter()).build()
-  def sampleTrace = [SpanFactory.newSpanOf(tracer), SpanFactory.newSpanOf(tracer)]
-  def secondTrace = [SpanFactory.newSpanOf(tracer)]
+  def sampleTrace
+  def secondTrace
 
   def adapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(Map, String, Types.newParameterizedType(List, Map)))
+
+  def setup() {
+    def builder = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanType("fakeType")
+
+    sampleTrace = [builder.start(), builder.start()]
+    secondTrace = [builder.start()]
+  }
+
+  def cleanup() {
+    tracer?.close()
+  }
 
   def "test printing regular ids"() {
     given:

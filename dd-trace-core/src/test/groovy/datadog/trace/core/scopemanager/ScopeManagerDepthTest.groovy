@@ -45,6 +45,7 @@ class ScopeManagerDepthTest extends DDSpecification {
 
     cleanup:
     scopeManager.scopeStack().clear()
+    tracer.close()
 
     where:
     depth = 100  // Using ConfigDefaults here causes classloading issues
@@ -86,6 +87,7 @@ class ScopeManagerDepthTest extends DDSpecification {
 
     cleanup:
     scopeManager.scopeStack().clear()
+    tracer.close()
 
     where:
     defaultLimit = 100 // Using ConfigDefaults here causes classloading issues
@@ -122,5 +124,8 @@ class ScopeManagerDepthTest extends DDSpecification {
 
     then:
     scopeManager.scopeStack().depth() == 0
+
+    cleanup:
+    tracer.close()
   }
 }

@@ -57,6 +57,9 @@ class DDSpanSerializationTest extends DDSpecification {
       }
     }
 
+    cleanup:
+    tracer.close()
+
     where:
     value                                                           | spanType
     DDId.ZERO                                                       | null
@@ -110,6 +113,9 @@ class DDSpanSerializationTest extends DDSpecification {
           unpacker.unpackValue()
       }
     }
+
+    cleanup:
+    tracer.close()
 
     where:
     value                                                           | spanType
@@ -180,6 +186,9 @@ class DDSpanSerializationTest extends DDSpecification {
       }
     }
 
+    cleanup:
+    tracer.close()
+
     where:
     baggage       | tags          | expected
     [:]           | [:]           | [:]
@@ -248,6 +257,9 @@ class DDSpanSerializationTest extends DDSpecification {
     }
     assert unpackedMeta == expected
 
+    cleanup:
+    tracer.close()
+    
     where:
     baggage       | tags          | expected
     [:]           | [:]           | [:]

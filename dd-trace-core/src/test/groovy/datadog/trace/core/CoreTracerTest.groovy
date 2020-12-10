@@ -43,6 +43,9 @@ class CoreTracerTest extends DDSpecification {
 
     tracer.injector instanceof HttpCodec.CompoundInjector
     tracer.extractor instanceof HttpCodec.CompoundExtractor
+
+    cleanup:
+    tracer.close()
   }
 
   def "verify disabling health monitor"() {
@@ -54,6 +57,9 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     tracer.statsDClient instanceof NoOpStatsDClient
+
+    cleanup:
+    tracer.close()
   }
 
   def "verify service, env, and version are added as stats tags"() {
@@ -119,6 +125,9 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     tracer.sampler instanceof AllSampler
+
+    cleanup:
+    tracer.close()
   }
 
   def "verify overriding writer"() {
@@ -130,6 +139,9 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     tracer.writer instanceof LoggingWriter
+
+    cleanup:
+    tracer.close()
   }
 
   def "verify uds+windows"() {
@@ -161,6 +173,9 @@ class CoreTracerTest extends DDSpecification {
     tracer.defaultSpanTags == map
     tracer.serviceNameMappings == map
     taggedHeaders == map
+
+    cleanup:
+    tracer.close()
 
     where:
     mapString       | map
@@ -200,6 +215,9 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     tracer.writer instanceof LoggingWriter
+
+    cleanup:
+    tracer.close()
   }
 
   def "Shares TraceCount with DDApi with #key = #value"() {
@@ -209,6 +227,9 @@ class CoreTracerTest extends DDSpecification {
 
     expect:
     tracer.writer instanceof DDAgentWriter
+
+    cleanup:
+    tracer.close()
 
     where:
     key               | value
@@ -229,6 +250,7 @@ class CoreTracerTest extends DDSpecification {
     cleanup:
     child.finish()
     root.finish()
+    tracer.close()
   }
 
   def "priority sampling when span finishes"() {
@@ -243,6 +265,9 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
+
+    cleanup:
+    tracer.close()
   }
 
   def "priority sampling set when child span complete"() {
@@ -265,6 +290,9 @@ class CoreTracerTest extends DDSpecification {
     then:
     root.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
     child.getSamplingPriority() == root.getSamplingPriority()
+
+    cleanup:
+    tracer.close()
   }
 
   def "span priority set when injecting"() {
@@ -287,6 +315,7 @@ class CoreTracerTest extends DDSpecification {
     cleanup:
     child.finish()
     root.finish()
+    tracer.close()
   }
 
   def "span priority only set after first injection"() {
@@ -321,6 +350,7 @@ class CoreTracerTest extends DDSpecification {
     child.finish()
     child2.finish()
     root.finish()
+    tracer.close()
   }
 
   def "injection doesn't override set priority"() {
@@ -344,6 +374,7 @@ class CoreTracerTest extends DDSpecification {
     cleanup:
     child.finish()
     root.finish()
+    tracer.close()
   }
 }
 

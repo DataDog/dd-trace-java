@@ -11,6 +11,9 @@ class DDTracerTest extends DDSpecification {
 
     then:
     tracer != null
+
+    cleanup:
+    tracer.close()
   }
 
   def "test tracer builder with default writer"() {
@@ -19,5 +22,8 @@ class DDTracerTest extends DDSpecification {
 
     then:
     tracer != null
+
+    cleanup:
+    tracer.close()
   }
 }

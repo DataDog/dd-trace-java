@@ -74,6 +74,9 @@ class HttpInjectorTest extends DDSpecification {
     }
     0 * _
 
+    cleanup:
+    tracer.close()
+    
     where:
     styles        | samplingPriority              | origin
     [DATADOG, B3] | PrioritySampling.UNSET        | null

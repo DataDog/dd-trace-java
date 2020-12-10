@@ -2,8 +2,7 @@ package datadog.trace.common.writer
 
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
-import datadog.trace.core.DDSpan
-import datadog.trace.core.SpanFactory
+import datadog.trace.core.CoreTracer
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
@@ -15,9 +14,15 @@ import java.nio.ByteBuffer
 class TraceMapperTest extends DDSpecification {
 
   def "test trace mapper v0.5"() {
+    setup:
+    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def span = tracer.buildSpan(null).withTag("service.name", "my-service")
+      .withTag("elasticsearch.version", "7.0").start()
+    span.setBaggageItem("baggage", "item")
+    def trace = [span]
+
     when:
     TraceMapper traceMapper = new TraceMapperV0_5()
-    List<DDSpan> spans = trace
     CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer()
     MsgPackWriter packer = new MsgPackWriter(sink, ByteBuffer.allocate(1024))
     packer.format(trace, traceMapper)
@@ -36,7 +41,7 @@ class TraceMapperTest extends DDSpecification {
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(sink.captured)
     1 == unpacker.unpackArrayHeader()
     int traceCount = unpacker.unpackArrayHeader()
-    spans.size() == traceCount
+    traceCount == 1
     for (int i = 0; i < traceCount; ++i) {
       int arrayLength = unpacker.unpackArrayHeader()
       arrayLength == 12
@@ -75,14 +80,8 @@ class TraceMapperTest extends DDSpecification {
       type != null
     }
 
-    where:
-    trace << [
-      [SpanFactory.newSpanOf(1L)
-         .setOperationName(null)
-         .setTag("service.name", "my-service")
-         .setTag("elasticsearch.version", "7.0")
-         .setBaggageItem("baggage", "item")]
-    ]
+    cleanup:
+    tracer.close()
   }
 
   static class CapturingByteBufferConsumer implements ByteBufferConsumer {

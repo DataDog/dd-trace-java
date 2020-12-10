@@ -55,6 +55,9 @@ class B3HttpInjectorTest extends DDSpecification {
     }
     0 * _
 
+    cleanup:
+    tracer.close()
+    
     where:
     traceId          | spanId           | samplingPriority              | expectedSamplingPriority
     1G               | 2G               | PrioritySampling.UNSET        | null

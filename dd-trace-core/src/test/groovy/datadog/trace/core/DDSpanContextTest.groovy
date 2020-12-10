@@ -1,57 +1,67 @@
 package datadog.trace.core
 
-
 import datadog.trace.api.DDTags
-import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.test.util.DDSpecification
 
 class DDSpanContextTest extends DDSpecification {
 
-  def setup() {
-    SpanFactory.WRITER.start()
+  def writer = new ListWriter()
+  def tracer = CoreTracer.builder().writer(writer).build()
+
+  def cleanup() {
+    tracer.close()
   }
 
   def "null values for tags delete existing tags"() {
     setup:
-    def span = SpanFactory.newSpanOf(0)
-    def context = span.context
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanType("fakeType")
+      .start()
+    def context = span.context()
+
+    when:
     context.setTag("some.tag", "asdf")
     context.setTag(name, null)
     context.setErrorFlag(true)
     span.finish()
-    SpanFactory.WRITER.waitForTraces(1)
 
-    expect:
-    context.getTags() == tags
+    writer.waitForTraces(1)
+
+    then:
+    assertTagmap(context.getTags(), tags)
     context.serviceName == "fakeService"
     context.resourceName.toString() == "fakeResource"
     context.spanType == "fakeType"
-    context.toString() == "DDSpan [ t_id=1, s_id=1, p_id=0 ] trace=fakeService/fakeOperation/fakeResource metrics=${defaultMetrics()} *errored* tags={${extra}${tags.containsKey(DDTags.SPAN_TYPE) ? "span.type=${context.getSpanType()}, " : ""}thread.id=${Thread.currentThread().id}, thread.name=${Thread.currentThread().name}}"
 
     where:
-    name                 | extra             | tags
-    DDTags.SERVICE_NAME  | "some.tag=asdf, " | ["some.tag": "asdf", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
-    DDTags.RESOURCE_NAME | "some.tag=asdf, " | ["some.tag": "asdf", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
-    DDTags.SPAN_TYPE     | "some.tag=asdf, " | ["some.tag": "asdf", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
-    "some.tag"           | ""                | [(DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
+    name                 | tags
+    DDTags.SERVICE_NAME  | ["some.tag": "asdf", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
+    DDTags.RESOURCE_NAME | ["some.tag": "asdf", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
+    DDTags.SPAN_TYPE     | ["some.tag": "asdf", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
+    "some.tag"           | [(DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
   }
 
   def "special tags set certain values"() {
     setup:
-    def span = SpanFactory.newSpanOf(0)
-    def context = span.context
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanType("fakeType")
+      .start()
+    def context = span.context()
+
+    when:
     context.setTag(name, value)
     span.finish()
-    SpanFactory.WRITER.waitForTraces(1)
+    writer.waitForTraces(1)
+
+    then:
     def thread = Thread.currentThread()
-
-    def expectedTags = [(DDTags.THREAD_NAME): thread.name, (DDTags.THREAD_ID): thread.id]
-    def expectedTrace = "DDSpan [ t_id=1, s_id=1, p_id=0 ] trace=$details metrics=${defaultMetrics()} tags={thread.id=$thread.id, thread.name=$thread.name}"
-
-    expect:
-    context.getTags() == expectedTags
+    assertTagmap(context.getTags(), [(DDTags.THREAD_NAME): thread.name, (DDTags.THREAD_ID): thread.id])
     context."$method" == value
-    context.toString() == expectedTrace
 
     where:
     name                 | value                | method         | details
@@ -62,20 +72,25 @@ class DDSpanContextTest extends DDSpecification {
 
   def "tags can be added to the context"() {
     setup:
-    def span = SpanFactory.newSpanOf(0)
-    def context = span.context
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanType("fakeType")
+      .start()
+    def context = span.context()
+
+    when:
     context.setTag(name, value)
     span.finish()
-    SpanFactory.WRITER.waitForTraces(1)
+    writer.waitForTraces(1)
     def thread = Thread.currentThread()
 
-    expect:
-    context.getTags() == [
+    then:
+    assertTagmap(context.getTags(), [
       (name)              : value,
       (DDTags.THREAD_NAME): thread.name,
       (DDTags.THREAD_ID)  : thread.id
-    ]
-    context.toString() == "DDSpan [ t_id=1, s_id=1, p_id=0 ] trace=fakeService/fakeOperation/fakeResource metrics=${defaultMetrics()} tags={$name=$value, thread.id=$thread.id, thread.name=$thread.name}"
+    ])
 
     where:
     name             | value
@@ -88,11 +103,17 @@ class DDSpanContextTest extends DDSpecification {
   def "metrics use the expected types"() {
     // floats should be converted to doubles.
     setup:
-    def context = SpanFactory.newSpanOf(0).context
-    context.setMetric("test", value)
-    def metrics = context.getUnsafeMetrics()
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+    def context = span.context()
 
-    expect:
+    when:
+    context.setMetric("test", value)
+
+    then:
+    def metrics = context.getUnsafeMetrics()
     type.isInstance(metrics["test"])
 
     where:
@@ -113,10 +134,11 @@ class DDSpanContextTest extends DDSpecification {
     Integer | 0x55
   }
 
-  static String defaultMetrics() {
-    return [
-      (RateByServiceSampler.SAMPLING_AGENT_RATE): 1.0,
-      (DDSpanContext.PRIORITY_SAMPLING_KEY)     : 1,
-    ]
+  static void assertTagmap(Map source, Map comparison) {
+    def sourceWithoutCommonTags = new HashMap(source)
+    sourceWithoutCommonTags.remove("runtime-id")
+    sourceWithoutCommonTags.remove("language")
+
+    assert sourceWithoutCommonTags == comparison
   }
 }

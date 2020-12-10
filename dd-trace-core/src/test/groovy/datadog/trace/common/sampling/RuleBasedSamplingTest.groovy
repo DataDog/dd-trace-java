@@ -1,7 +1,8 @@
 package datadog.trace.common.sampling
 
+import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
-import datadog.trace.core.SpanFactory
 import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
@@ -48,6 +49,7 @@ class RuleBasedSamplingTest extends DDSpecification {
     if (rateLimit != null) {
       properties.setProperty(TRACE_RATE_LIMIT, rateLimit)
     }
+    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
 
     when:
     Sampler sampler = Sampler.Builder.forConfig(properties)
@@ -56,8 +58,10 @@ class RuleBasedSamplingTest extends DDSpecification {
     sampler instanceof PrioritySampler
 
     when:
-    DDSpan span = SpanFactory.newSpanOf("service", "bar")
-    span.setOperationName("operation")
+    DDSpan span = tracer.buildSpan("operation")
+      .withServiceName("service")
+      .withTag("env", "bar")
+      .ignoreActiveSpan().start()
     ((PrioritySampler) sampler).setSamplingPriority(span)
 
     then:
@@ -65,6 +69,9 @@ class RuleBasedSamplingTest extends DDSpecification {
     span.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
     span.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
     span.getSamplingPriority() == expectedPriority
+
+    cleanup:
+    tracer.close()
 
     where:
     serviceRules      | operationRules      | defaultRate | rateLimit | expectedRuleRate | expectedRateLimit | expectedAgentRate | expectedPriority
@@ -132,14 +139,24 @@ class RuleBasedSamplingTest extends DDSpecification {
   }
 
   def "Rate limit is set for rate limited spans"() {
+    setup:
+    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+
     when:
     Properties properties = new Properties()
     properties.setProperty(TRACE_SAMPLING_SERVICE_RULES, "service:1")
     properties.setProperty(TRACE_RATE_LIMIT, "1")
     Sampler sampler = Sampler.Builder.forConfig(properties)
 
-    DDSpan span1 = SpanFactory.newSpanOf("service", "bar")
-    DDSpan span2 = SpanFactory.newSpanOf("service", "bar")
+    DDSpan span1 = tracer.buildSpan("operation")
+      .withServiceName("service")
+      .withTag("env", "bar")
+      .ignoreActiveSpan().start()
+
+    DDSpan span2 = tracer.buildSpan("operation")
+      .withServiceName("service")
+      .withTag("env", "bar")
+      .ignoreActiveSpan().start()
 
     ((PrioritySampler) sampler).setSamplingPriority(span1)
     // Span 2 should be rate limited if there isn't a >1 sec delay between these 2 lines
@@ -155,17 +172,29 @@ class RuleBasedSamplingTest extends DDSpecification {
     span2.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
     span2.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
     span2.getSamplingPriority() == SAMPLER_DROP
+
+    cleanup:
+    tracer.close()
   }
 
   def "Rate limit is set for rate limited spans (matched on different rules)"() {
+    setup:
+    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+
     when:
     Properties properties = new Properties()
     properties.setProperty(TRACE_SAMPLING_SERVICE_RULES, "service:1,foo:1")
     properties.setProperty(TRACE_RATE_LIMIT, "1")
     Sampler sampler = Sampler.Builder.forConfig(properties)
 
-    DDSpan span1 = SpanFactory.newSpanOf("service", "bar")
-    DDSpan span2 = SpanFactory.newSpanOf("foo", "bar")
+    DDSpan span1 = tracer.buildSpan("operation")
+      .withServiceName("service")
+      .withTag("env", "bar")
+      .ignoreActiveSpan().start()
+    DDSpan span2 = tracer.buildSpan("operation")
+      .withServiceName("foo")
+      .withTag("env", "bar")
+      .ignoreActiveSpan().start()
 
     ((PrioritySampler) sampler).setSamplingPriority(span1)
     // Span 2 should be rate limited if there isn't a >1 sec delay between these 2 lines
@@ -181,5 +210,8 @@ class RuleBasedSamplingTest extends DDSpecification {
     span2.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
     span2.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
     span2.getSamplingPriority() == SAMPLER_DROP
+
+    cleanup:
+    tracer.close()
   }
 }

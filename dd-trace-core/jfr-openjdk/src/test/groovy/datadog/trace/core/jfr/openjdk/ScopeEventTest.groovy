@@ -46,6 +46,10 @@ class ScopeEventTest extends DDSpecification {
     .withServiceName("test service")
     .withResourceName("test resource")
 
+  def cleanup() {
+    tracer?.close()
+  }
+
   def "Scope event is written with thread CPU time"() {
     setup:
     injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")

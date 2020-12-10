@@ -62,6 +62,9 @@ class DatadogHttpInjectorTest extends DDSpecification {
     }
     0 * _
 
+    cleanup:
+    tracer.close()
+
     where:
     traceId               | spanId                | samplingPriority              | origin
     "1"                   | "2"                   | PrioritySampling.UNSET        | null

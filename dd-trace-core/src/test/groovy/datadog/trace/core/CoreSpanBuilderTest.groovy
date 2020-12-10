@@ -22,6 +22,10 @@ class CoreSpanBuilderTest extends DDSpecification {
   def writer = new ListWriter()
   def tracer = CoreTracer.builder().writer(writer).build()
 
+  def cleanup() {
+    tracer.close()
+  }
+
   def "build simple span"() {
     setup:
     final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
@@ -202,11 +206,11 @@ class CoreSpanBuilderTest extends DDSpecification {
     parent.close()
 
     where:
-    noopParent  | serviceName         | expectTopLevel
-    false       |  "service"          | false
-    true        |  "service"          | true
-    false       |  "another service"  | true
-    true        |  "another service"  | true
+    noopParent | serviceName       | expectTopLevel
+    false      | "service"         | false
+    true       | "service"         | true
+    false      | "another service" | true
+    true       | "another service" | true
   }
 
   def "should inherit the DD parent attributes"() {
@@ -341,8 +345,8 @@ class CoreSpanBuilderTest extends DDSpecification {
   def "global span tags populated on each span"() {
     setup:
     injectSysConfig("dd.trace.span.tags", tagString)
-    tracer = CoreTracer.builder().writer(writer).build()
-    def span = tracer.buildSpan("op name").withServiceName("foo").start()
+    def customTracer = CoreTracer.builder().writer(writer).build()
+    def span = customTracer.buildSpan("op name").withServiceName("foo").start()
 
     expect:
     span.tags == tags + [
@@ -351,6 +355,9 @@ class CoreSpanBuilderTest extends DDSpecification {
       (RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
       (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
     ]
+
+    cleanup:
+    customTracer.close()
 
     where:
     tagString     | tags

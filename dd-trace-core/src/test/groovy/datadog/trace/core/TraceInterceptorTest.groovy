@@ -18,6 +18,10 @@ class TraceInterceptorTest extends DDSpecification {
   def writer = new ListWriter()
   def tracer = CoreTracer.builder().writer(writer).build()
 
+  def cleanup() {
+    tracer?.close()
+  }
+  
   def "interceptor is registered as a service"() {
     expect:
     tracer.interceptors.iterator().hasNext()

@@ -2,6 +2,7 @@ package datadog.trace.core
 
 import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.api.DDId
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.context.TraceScope
 import datadog.trace.core.jfr.DDNoopScopeEventFactory
@@ -14,7 +15,6 @@ import spock.lang.Timeout
 import java.util.concurrent.CountDownLatch
 
 import static datadog.trace.core.PendingTraceBuffer.BUFFER_SIZE
-import static datadog.trace.core.SpanFactory.newSpanOf
 
 @Timeout(5)
 class PendingTraceBufferTest extends DDSpecification {
@@ -285,5 +285,44 @@ class PendingTraceBufferTest extends DDSpecification {
     continuations << scope.capture()
     scope.close()
     return span
+  }
+
+  static DDSpan newSpanOf(PendingTrace trace) {
+    def context = new DDSpanContext(
+      trace.traceId,
+      DDId.from(1),
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      Collections.emptyMap(),
+      false,
+      "fakeType",
+      0,
+      trace)
+    return DDSpan.create(0, context)
+  }
+
+  static DDSpan newSpanOf(DDSpan parent) {
+    def trace = parent.context().trace
+    def context = new DDSpanContext(
+      trace.traceId,
+      DDId.from(2),
+      parent.context().spanId,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      Collections.emptyMap(),
+      false,
+      "fakeType",
+      0,
+      trace)
+    return DDSpan.create(0, context)
   }
 }
