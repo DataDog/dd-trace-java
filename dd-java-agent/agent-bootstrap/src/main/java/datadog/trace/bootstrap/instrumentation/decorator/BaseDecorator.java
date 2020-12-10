@@ -114,20 +114,22 @@ public abstract class BaseDecorator {
 
   public AgentSpan onPeerConnection(
       final AgentSpan span, final InetSocketAddress remoteConnection) {
-    assert span != null;
     if (remoteConnection != null) {
-      onPeerConnection(span, remoteConnection.getAddress());
-
-      span.setTag(Tags.PEER_HOSTNAME, remoteConnection.getHostName());
+      onPeerConnection(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
       setPeerPort(span, remoteConnection.getPort());
     }
     return span;
   }
 
   public AgentSpan onPeerConnection(final AgentSpan span, final InetAddress remoteAddress) {
-    assert span != null;
+    return onPeerConnection(span, remoteAddress, true);
+  }
+
+  public AgentSpan onPeerConnection(AgentSpan span, InetAddress remoteAddress, boolean resolved) {
     if (remoteAddress != null) {
-      span.setTag(Tags.PEER_HOSTNAME, remoteAddress.getHostName());
+      if (resolved) {
+        span.setTag(Tags.PEER_HOSTNAME, remoteAddress.getHostName());
+      }
       if (remoteAddress instanceof Inet4Address) {
         span.setTag(Tags.PEER_HOST_IPV4, remoteAddress.getHostAddress());
       } else if (remoteAddress instanceof Inet6Address) {

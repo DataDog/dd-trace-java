@@ -6,10 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
-import spock.lang.Timeout
 
-@Timeout(20)
-// onPeerConnection might be slow...
 class BaseDecoratorTest extends DDSpecification {
 
   @Shared
@@ -37,9 +34,7 @@ class BaseDecoratorTest extends DDSpecification {
     decorator.onPeerConnection(span, connection)
 
     then:
-    if (connection.getAddress()) {
-      2 * span.setTag(Tags.PEER_HOSTNAME, connection.hostName)
-    } else {
+    if (!connection.isUnresolved()) {
       1 * span.setTag(Tags.PEER_HOSTNAME, connection.hostName)
     }
     1 * span.setTag(Tags.PEER_PORT, connection.port)
