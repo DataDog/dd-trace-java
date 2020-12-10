@@ -1,13 +1,18 @@
 package datadog.trace.agent.tooling.context;
 
+import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.FieldBackedContextStoreAppliedMarker;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -27,6 +32,15 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
       Config.get().isLegacyContextFieldInjection()
           ? FieldBackedContextStoreAppliedMarker.class
           : FieldBackedContextAccessor.class;
+
+  private static final boolean TRACK_EXCLUDED_CONTEXT_STORES =
+      !Config.get().isLegacyContextFieldInjection();
+
+  // this map will contain entries for any root type that we wanted to field-inject
+  // but were not able to - either because it was explicitly excluded, or because we
+  // failed to field-inject as the type was already loaded
+  private static final ConcurrentHashMap<String, BitSet> EXCLUDED_STORE_IDS_BY_TYPE =
+      TRACK_EXCLUDED_CONTEXT_STORES ? new ConcurrentHashMap<String, BitSet>() : null;
 
   public static AgentBuilder.RawMatcher of(String keyType, String valueType) {
     return new ShouldInjectFieldsMatcher(keyType, valueType);
@@ -53,6 +67,9 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
 
     // First check if we should skip injecting the field based on the key type
     if (skipType != null && ExcludeFilter.exclude(skipType, matchedType)) {
+      if (TRACK_EXCLUDED_CONTEXT_STORES) {
+        excludeStoreForType(matchedType, getContextStoreId(keyType, valueType));
+      }
       if (log.isDebugEnabled()) {
         log.debug("Skipping context-store field for {}: {} -> {}", matchedType, keyType, valueType);
       }
@@ -97,8 +114,15 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
             valueType,
             injectionTarget);
       } else {
+        // must be a redefine of a class that we weren't able to field-inject on startup
+        // - make sure we'd have field-injected (if we'd had the chance) before tracking
         if (keyType.equals(matchedType)
             || matchedType.equals(getInjectionTarget(typeDescription))) {
+
+          if (TRACK_EXCLUDED_CONTEXT_STORES) {
+            excludeStoreForType(matchedType, getContextStoreId(keyType, valueType));
+          }
+
           // Only log failed redefines where we would have injected this class
           log.debug(
               "Failed to add context-store field to {}: {} -> {}", matchedType, keyType, valueType);
@@ -166,6 +190,65 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
           visitedInterfaces.put(interfaceName, true); // update assumption
           return true;
         }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Keep track of which stores (per-type) were explicitly excluded or we failed to field-inject.
+   * This is used to decide when we can't apply certain store optimizations ahead of loading.
+   */
+  private static void excludeStoreForType(final String matchedType, final int storeId) {
+    BitSet excludedStoreIdsForType = EXCLUDED_STORE_IDS_BY_TYPE.get(matchedType);
+    if (null == excludedStoreIdsForType) {
+      BitSet tempStoreIds = new BitSet();
+      tempStoreIds.set(storeId);
+      excludedStoreIdsForType = EXCLUDED_STORE_IDS_BY_TYPE.putIfAbsent(matchedType, tempStoreIds);
+    }
+    // if we didn't get there first then add this store to the existing set
+    if (null != excludedStoreIdsForType) {
+      excludedStoreIdsForType.set(storeId);
+    }
+  }
+
+  /**
+   * Scans the class hierarchy to see if it matches any known context-key types which implies it has
+   * an injected field somewhere. This avoids having to record successful field-injections which can
+   * add up to a lot of entries. Unfortunately we can't check for the marker interface because the
+   * type won't have that at this point.
+   *
+   * <p>At the same time we collect which context stores failed to be field-injected in the class
+   * hierarchy. This tells us when to redirect store requests to the weak-map vs delegating to the
+   * superclass.
+   *
+   * <p>Assumes the type has already been processed by ShouldInjectFieldsMatcher.
+   */
+  public static boolean hasInjectedField(TypeDefinition typeDefinition, BitSet excludedStoreIds) {
+    Set<String> visitedInterfaces = new HashSet<>();
+    while (null != typeDefinition) {
+      String className = typeDefinition.asErasure().getTypeName();
+      BitSet excludedStoreIdsForType = EXCLUDED_STORE_IDS_BY_TYPE.get(className);
+      if (null != excludedStoreIdsForType) {
+        excludedStoreIds.or(excludedStoreIdsForType);
+      } else if (KEY_TYPE_IS_CLASS.containsKey(className)
+          || impliesInjectedField(typeDefinition, visitedInterfaces)) {
+        return true;
+      }
+      typeDefinition = typeDefinition.getSuperClass();
+    }
+    return false;
+  }
+
+  /** Scans transitive interfaces to see if any match known context-key types. */
+  private static boolean impliesInjectedField(
+      final TypeDefinition typeDefinition, final Set<String> visitedInterfaces) {
+    for (TypeDefinition iface : typeDefinition.getInterfaces()) {
+      String interfaceName = iface.asErasure().getTypeName();
+      if (KEY_TYPE_IS_CLASS.containsKey(interfaceName)
+          || (visitedInterfaces.add(interfaceName)
+              && impliesInjectedField(iface, visitedInterfaces))) {
+        return true;
       }
     }
     return false;
