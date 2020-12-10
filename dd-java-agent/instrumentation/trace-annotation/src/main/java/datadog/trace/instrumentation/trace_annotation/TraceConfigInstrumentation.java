@@ -2,7 +2,14 @@ package datadog.trace.instrumentation.trace_annotation;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
-import static net.bytebuddy.matcher.ElementMatchers.*;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.isEquals;
+import static net.bytebuddy.matcher.ElementMatchers.isFinalizer;
+import static net.bytebuddy.matcher.ElementMatchers.isHashCode;
+import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
+import static net.bytebuddy.matcher.ElementMatchers.isToString;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -32,7 +39,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(Instrumenter.class)
 public class TraceConfigInstrumentation implements Instrumenter {
 
-  static final String PACKAGE_CLASS_NAME_REGEX = "[\\w .\\$]+";
+  static final String PACKAGE_CLASS_NAME_REGEX = "[\\w.\\$]+";
   private static final String METHOD_LIST_REGEX =
       "\\s*(?:\\*|(?:\\w+\\s*,)*\\s*(?:\\w+\\s*,?))\\s*";
   private static final String CONFIG_FORMAT =
@@ -154,6 +161,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
                     isHashCode()
                         .or(isEquals())
                         .or(isToString())
+                        .or(isFinalizer())
                         .or(isConstructor())
                         .or(isSynthetic()));
           } else {
