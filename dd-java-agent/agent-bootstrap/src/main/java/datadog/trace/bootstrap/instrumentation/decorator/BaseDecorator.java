@@ -69,7 +69,6 @@ public abstract class BaseDecorator {
   }
 
   public AgentSpan afterStart(final AgentSpan span) {
-    assert span != null;
     if (spanType() != null) {
       span.setSpanType(spanType());
     }
@@ -87,24 +86,20 @@ public abstract class BaseDecorator {
   }
 
   public AgentScope beforeFinish(final AgentScope scope) {
-    assert scope != null;
     beforeFinish(scope.span());
     return scope;
   }
 
   public AgentSpan beforeFinish(final AgentSpan span) {
-    assert span != null;
     return span;
   }
 
   public AgentScope onError(final AgentScope scope, final Throwable throwable) {
-    assert scope != null;
     onError(scope.span(), throwable);
     return scope;
   }
 
   public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
-    assert span != null;
     if (throwable != null) {
       span.setError(true);
       span.addThrowable(throwable instanceof ExecutionException ? throwable.getCause() : throwable);

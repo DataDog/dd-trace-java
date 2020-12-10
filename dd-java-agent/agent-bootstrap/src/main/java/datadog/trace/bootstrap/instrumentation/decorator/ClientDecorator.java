@@ -14,7 +14,6 @@ public abstract class ClientDecorator extends BaseDecorator {
 
   @Override
   public AgentSpan afterStart(final AgentSpan span) {
-    assert span != null;
     if (service() != null) {
       span.setTag(DDTags.SERVICE_NAME, service());
     }
