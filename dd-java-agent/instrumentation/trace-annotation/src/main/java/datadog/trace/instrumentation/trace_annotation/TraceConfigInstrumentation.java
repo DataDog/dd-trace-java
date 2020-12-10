@@ -5,7 +5,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.sa
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isEquals;
 import static net.bytebuddy.matcher.ElementMatchers.isFinalizer;
+import static net.bytebuddy.matcher.ElementMatchers.isGetter;
 import static net.bytebuddy.matcher.ElementMatchers.isHashCode;
+import static net.bytebuddy.matcher.ElementMatchers.isSetter;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.isToString;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -162,7 +164,9 @@ public class TraceConfigInstrumentation implements Instrumenter {
                         .or(isEquals())
                         .or(isToString())
                         .or(isFinalizer())
+                        .or(isGetter())
                         .or(isConstructor())
+                        .or(isSetter())
                         .or(isSynthetic()));
           } else {
             methodMatchers = named(methodName);

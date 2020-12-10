@@ -9,7 +9,7 @@ class TraceConfigTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call];${ConfigTracedCallable2.name}[*];${Human.name}[*];${Pig.name}[*]")
+    injectSysConfig("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call];${ConfigTracedCallable2.name}[*];${Human.name}[*];${Animal.name}[animalSound];${DictionaryElement.name}[*]")
   }
 
   class ConfigTracedCallable implements Callable<String> {
@@ -55,6 +55,15 @@ class TraceConfigTest extends AgentTestRunner {
     }
   }
 
+  abstract class DictionaryElement{
+    abstract void produceDefinition()
+  }
+
+  class Sophisticated extends DictionaryElement{
+    void produceDefinition() {
+      System.out.println("of such excellence, grandeur, or beauty as to inspire great admiration or awe.")
+    }
+  }
   class Pig extends Animal {
     void animalSound() {
       System.out.println("The pig says: wee wee")
@@ -64,11 +73,22 @@ class TraceConfigTest extends AgentTestRunner {
   def "test configuration based trace"() {
     when:
     new ConfigTracedCallable().call() == "Hello!"
+    new Pig().animalSound()
     then:
-    assertTraces(1) {
+    assertTraces(2) {
       trace(1) {
         span {
           resourceName "ConfigTracedCallable.call"
+          operationName "trace.annotation"
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          resourceName "Pig.animalSound"
           operationName "trace.annotation"
           tags {
             "$Tags.COMPONENT" "trace"
@@ -83,9 +103,9 @@ class TraceConfigTest extends AgentTestRunner {
 
     when:
     new ConfigTracedCallable2().call() == "Hello2!"
-
+    new Sophisticated().produceDefinition()
     then:
-    assertTraces(1) {
+    assertTraces(2) {
       trace(2) {
         span {
           resourceName "ConfigTracedCallable2.call"
@@ -97,6 +117,16 @@ class TraceConfigTest extends AgentTestRunner {
         }
         span {
           resourceName "ConfigTracedCallable2.call_helper"
+          operationName "trace.annotation"
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          resourceName "Sophisticated.produceDefinition"
           operationName "trace.annotation"
           tags {
             "$Tags.COMPONENT" "trace"
