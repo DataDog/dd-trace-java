@@ -70,19 +70,19 @@ public class RequestDispatcherDecorator extends BaseDecorator {
     if (response instanceof HttpServletResponse && STATUS_CODE_METHOD != null) {
       try {
         int status = (int) STATUS_CODE_METHOD.invokeExact((HttpServletResponse) response);
-
-        if (throwable != null && status == HttpServletResponse.SC_OK) {
-          span.setTag(Tags.HTTP_STATUS, SERVER_ERROR);
-          span.setError(true);
-        } else {
-          span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.get(status));
-          if (SERVER_ERROR_STATUSES.get(status)) {
+        if (status > 0) {
+          if (throwable != null && status == HttpServletResponse.SC_OK) {
+            span.setTag(Tags.HTTP_STATUS, SERVER_ERROR);
             span.setError(true);
+          } else {
+            span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.get(status));
+            if (SERVER_ERROR_STATUSES.get(status)) {
+              span.setError(true);
+            }
           }
-        }
-
-        if (status == 404) {
-          span.setResourceName("404");
+          if (status == 404) {
+            span.setResourceName("404");
+          }
         }
       } catch (Throwable ignored) {
       }
