@@ -417,8 +417,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     List<DDSpan> writtenTrace = trace;
     if (!interceptors.isEmpty()) {
       Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
-      for (final TraceInterceptor interceptor : interceptors) {
-        interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
+
+      try {
+        for (final TraceInterceptor interceptor : interceptors) {
+          interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
+        }
+      } catch (Exception e) {
+        log.debug("Exception in TraceInterceptor", e);
+        return;
       }
       writtenTrace = new ArrayList<>(interceptedTrace.size());
       for (final MutableSpan span : interceptedTrace) {
