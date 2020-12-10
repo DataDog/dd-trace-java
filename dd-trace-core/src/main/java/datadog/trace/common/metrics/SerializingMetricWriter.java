@@ -27,7 +27,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] HTTP_STATUS_CODE = "HTTPStatusCode".getBytes(US_ASCII);
   private static final byte[] START = "Start".getBytes(US_ASCII);
   private static final byte[] STATS = "Stats".getBytes(US_ASCII);
-  private static final byte[] HITS_SUMMARY = "HitsSummary".getBytes(US_ASCII);
+  private static final byte[] OK_SUMMARY = "OkSummary".getBytes(US_ASCII);
   private static final byte[] ERROR_SUMMARY = "ErrorSummary".getBytes(US_ASCII);
 
   private final WellKnownTags wellKnownTags;
@@ -97,8 +97,8 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeUTF8(DURATION);
     writer.writeLong(aggregate.getDuration());
 
-    writer.writeUTF8(HITS_SUMMARY);
-    writer.writeBinary(aggregate.getHitLatencies());
+    writer.writeUTF8(OK_SUMMARY);
+    writer.writeBinary(aggregate.getOkLatencies());
 
     writer.writeUTF8(ERROR_SUMMARY);
     writer.writeBinary(aggregate.getErrorLatencies());
