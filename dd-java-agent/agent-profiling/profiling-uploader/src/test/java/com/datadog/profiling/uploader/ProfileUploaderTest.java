@@ -61,6 +61,7 @@ import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
+import okhttp3.mockwebserver.SocketPolicy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -372,6 +373,18 @@ public class ProfileUploaderTest {
     // Shutting down uploader ensures all callbacks are called on http client
     uploader.shutdown();
     verify(ioLogger).error(eq("Failed to upload profile to " + url), any(ConnectException.class));
+  }
+
+  @Test
+  public void testNoReplyFromServer() throws IOException, InterruptedException {
+    server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));
+    final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
+    uploader.upload(RECORDING_TYPE, recording);
+    uploader.shutdown();
+
+    verify(recording.getStream()).close();
+    verify(recording).release();
+    verify(ioLogger).error(eq("Received empty reply from " + url + " after uploading profile"));
   }
 
   @Test
