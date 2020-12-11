@@ -3,8 +3,9 @@ package datadog.trace.core.histogram;
 import com.datadoghq.sketch.ddsketch.DDSketch;
 import com.datadoghq.sketch.ddsketch.mapping.CubicallyInterpolatedMapping;
 import com.datadoghq.sketch.ddsketch.store.PaginatedStore;
+import java.nio.ByteBuffer;
 
-public class DDSketchHistogram implements Histogram, HistogramFactory {
+public final class DDSketchHistogram implements Histogram, HistogramFactory {
 
   private final DDSketch sketch;
 
@@ -18,13 +19,29 @@ public class DDSketchHistogram implements Histogram, HistogramFactory {
   }
 
   @Override
+  public double valueAtQuantile(double quantile) {
+    if (sketch.isEmpty()) {
+      return 0D;
+    }
+    return sketch.getValueAtQuantile(quantile);
+  }
+
+  @Override
+  public double max() {
+    if (sketch.isEmpty()) {
+      return 0D;
+    }
+    return sketch.getMaxValue();
+  }
+
+  @Override
   public void clear() {
     this.sketch.clear();
   }
 
   @Override
-  public byte[] serialize() {
-    return sketch.toProto().toByteArray();
+  public ByteBuffer serialize() {
+    return sketch.serialize();
   }
 
   @Override

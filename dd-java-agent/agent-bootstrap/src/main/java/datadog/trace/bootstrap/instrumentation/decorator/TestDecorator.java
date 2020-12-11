@@ -69,7 +69,6 @@ public abstract class TestDecorator extends BaseDecorator {
 
   @Override
   public AgentSpan afterStart(final AgentSpan span) {
-    assert span != null;
     span.setTag(Tags.SPAN_KIND, spanKind());
     span.setTag(Tags.TEST_FRAMEWORK, testFramework());
     span.setTag(Tags.TEST_TYPE, testType());

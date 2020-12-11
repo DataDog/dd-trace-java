@@ -65,6 +65,8 @@ class ShouldInjectFieldsMatcherTest extends DDSpecification {
     "java.util.concurrent.RunnableFuture" | "java.util.concurrent.ExecutorCompletionService\$QueueingFuture"        | "java.util.concurrent.FutureTask"
     // tests the case where a class in the hierarchy does not implement the target interface but subclasses something which does
     "java.util.concurrent.RunnableFuture" | "datadog.trace.agent.test.LeafFutureTask"                               | "java.util.concurrent.FutureTask"
+    // tests the case where a direct interface in the hierarchy does not extend the target interface but an indirect interface does
+    "java.util.concurrent.Future"         | "datadog.trace.agent.test.LeafFutureTask"                               | "java.util.concurrent.FutureTask"
   }
 
 }

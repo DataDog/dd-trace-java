@@ -181,7 +181,7 @@ class CoreSpanBuilderTest extends DDSpecification {
   def "should link to parent span implicitly"() {
     setup:
     final AgentScope parent = tracer.activateSpan(noopParent ?
-      AgentTracer.NoopAgentSpan.INSTANCE : tracer.buildSpan("parent").start())
+      AgentTracer.NoopAgentSpan.INSTANCE : tracer.buildSpan("parent").withServiceName("service").start())
 
     final DDId expectedParentId = noopParent ? DDId.ZERO : parent.span().context().getSpanId()
 
@@ -189,18 +189,24 @@ class CoreSpanBuilderTest extends DDSpecification {
 
     final DDSpan span = tracer
       .buildSpan(expectedName)
+      .withServiceName(serviceName)
       .start()
 
     final DDSpanContext actualContext = span.context()
 
     expect:
     actualContext.getParentId() == expectedParentId
+    span.isTopLevel() == expectTopLevel
 
     cleanup:
     parent.close()
 
     where:
-    noopParent << [false, true]
+    noopParent  | serviceName         | expectTopLevel
+    false       |  "service"          | false
+    true        |  "service"          | true
+    false       |  "another service"  | true
+    true        |  "another service"  | true
   }
 
   def "should inherit the DD parent attributes"() {
@@ -239,6 +245,7 @@ class CoreSpanBuilderTest extends DDSpecification {
     span.context().getServiceName() == expectedParentServiceName
     span.context().getResourceName() == expectedName
     span.context().getSpanType() == null
+    span.isTopLevel() // service names differ between parent and child
 
     when:
     // ServiceName and SpanType are always overwritten by the child  if they are present

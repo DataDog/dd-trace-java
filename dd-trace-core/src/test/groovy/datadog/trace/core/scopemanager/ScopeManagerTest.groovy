@@ -14,12 +14,9 @@ import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Ignore
 import spock.lang.Shared
-import spock.lang.Timeout
 
 import java.lang.ref.WeakReference
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -27,11 +24,10 @@ import java.util.concurrent.atomic.AtomicReference
 import static datadog.trace.core.scopemanager.EventCountingListener.EVENT.ACTIVATE
 import static datadog.trace.core.scopemanager.EventCountingListener.EVENT.CLOSE
 import static datadog.trace.test.util.GCUtils.awaitGC
-import static java.util.concurrent.TimeUnit.SECONDS
 
 class ScopeManagerTest extends DDSpecification {
+  private static final long TIMEOUT_MS = 10_000
 
-  CountDownLatch latch
   ListWriter writer
   CoreTracer tracer
   ContinuableScopeManager scopeManager
@@ -39,13 +35,7 @@ class ScopeManagerTest extends DDSpecification {
   EventCountingListener eventCountingListener
 
   def setup() {
-    latch = new CountDownLatch(1)
-    final currentLatch = latch
-    writer = new ListWriter() {
-      void incrementTraceCount() {
-        currentLatch.countDown()
-      }
-    }
+    writer = new ListWriter()
     statsDClient = Mock()
     tracer = CoreTracer.builder().writer(writer).statsDClient(statsDClient).build()
     scopeManager = tracer.scopeManager
@@ -54,7 +44,7 @@ class ScopeManagerTest extends DDSpecification {
   }
 
   def cleanup() {
-    scopeManager.tlsScopeStack.get().clear()
+    tracer.close()
   }
 
   def "non-ddspan activation results in a continuable scope"() {
@@ -72,7 +62,7 @@ class ScopeManagerTest extends DDSpecification {
     scopeManager.active() == null
   }
 
-  def "threadlocal is empty"() {
+  def "no scope is active before activation"() {
     setup:
     def builder = tracer.buildSpan("test")
     builder.start()
@@ -82,12 +72,13 @@ class ScopeManagerTest extends DDSpecification {
     writer.empty
   }
 
-  def "threadlocal is active"() {
+  def "simple scope and span lifecycle"() {
     when:
     def span = tracer.buildSpan("test").start()
     def scope = tracer.activateSpan(span)
 
     then:
+    scope.span() == span
     !spanFinished(scope.span())
     scopeManager.active() == scope
     scope instanceof ContinuableScopeManager.ContinuableScope
@@ -112,45 +103,59 @@ class ScopeManagerTest extends DDSpecification {
   }
 
   def "sets parent as current upon close"() {
-    setup:
+    when:
     def parentSpan = tracer.buildSpan("parent").start()
     def parentScope = tracer.activateSpan(parentSpan)
-    def childSpan = noopChild ? NoopAgentSpan.INSTANCE : tracer.buildSpan("child").start()
+    def childSpan = tracer.buildSpan("child").start()
     def childScope = tracer.activateSpan(childSpan)
 
-    expect:
+    then:
     scopeManager.active() == childScope
-    noopChild || childScope.span().context().parentId == parentScope.span().context().spanId
-    noopChild || childScope.span().context().trace == parentScope.span().context().trace
+    childScope.span().context().parentId == parentScope.span().context().spanId
+    childScope.span().context().trace == parentScope.span().context().trace
 
     when:
     childScope.close()
 
     then:
     scopeManager.active() == parentScope
-    noopChild || !spanFinished(childScope.span())
+    !spanFinished(childScope.span())
     !spanFinished(parentScope.span())
     writer == []
+  }
 
-    where:
-    noopChild | _
-    false     | _
-    true      | _
+  def "sets parent as current upon close with noop child"() {
+    when:
+    def parentSpan = tracer.buildSpan("parent").start()
+    def parentScope = tracer.activateSpan(parentSpan)
+    def childSpan = NoopAgentSpan.INSTANCE
+    def childScope = tracer.activateSpan(childSpan)
+
+    then:
+    scopeManager.active() == childScope
+
+    when:
+    childScope.close()
+
+    then:
+    scopeManager.active() == parentScope
+    !spanFinished(parentScope.span())
+    writer == []
   }
 
   def "DDScope only creates continuations when propagation is set"() {
-    setup:
+    when:
     def span = tracer.buildSpan("test").start()
-    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
+    def scope = tracer.activateSpan(span)
     scope.setAsyncPropagation(false)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
 
-    expect:
+    then:
     continuation == null
 
     when:
     scope.setAsyncPropagation(true)
-    continuation = scope.capture()
+    continuation = concurrent ? scope.captureConcurrent() : scope.capture()
 
     then:
     continuation != null
@@ -163,12 +168,14 @@ class ScopeManagerTest extends DDSpecification {
   }
 
   def "Continuation.cancel doesn't close parent scope"() {
-    setup:
+    when:
     def span = tracer.buildSpan("test").start()
-    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
+    def scope = tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
-    assert continuation != null
+
+    then:
+    continuation != null
 
     when:
     continuation.cancel()
@@ -180,17 +187,20 @@ class ScopeManagerTest extends DDSpecification {
     concurrent << [false, true]
   }
 
-  @Timeout(value = 10, unit = SECONDS)
   def "test continuation doesn't have hard reference on scope"() {
-    setup:
+    when:
     def span = tracer.buildSpan("test").start()
     def scopeRef = new AtomicReference<AgentScope>(tracer.activateSpan(span))
     scopeRef.get().setAsyncPropagation(true)
     def continuation = concurrent ? scopeRef.get().captureConcurrent() : scopeRef.get().capture()
-    assert continuation != null
+
+    then:
+    continuation != null
+
+    when:
     scopeRef.get().close()
 
-    expect:
+    then:
     scopeManager.active() == null
 
     when:
@@ -208,62 +218,54 @@ class ScopeManagerTest extends DDSpecification {
     concurrent << [false, true]
   }
 
-  @Timeout(value = 60, unit = SECONDS)
-  def "hard reference on continuation prevents trace from reporting"() {
-    setup:
+  def "hard reference on continuation does not prevent trace from reporting"() {
+    when:
     def span = tracer.buildSpan("test").start()
-    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
+    def scope = tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
-    assert continuation != null
-    scope.close()
-    span.finish()
 
-    expect:
-    scopeManager.active() == null
-    spanFinished(span)
-    writer == []
+    then:
+    continuation != null
 
     when:
-    if (forceGC) {
-      def continuationRef = new WeakReference<>(continuation)
-      continuation = null // Continuation references also hold up traces.
-      awaitGC(continuationRef)
-      latch.await(60, SECONDS)
-    }
+    scope.close()
+    span.finish()
     if (autoClose) {
-      if (continuation != null) {
-        continuation.cancel()
-        writer.waitForTraces(1)
-      }
+      continuation.cancel()
     }
 
     then:
-    forceGC ? true : writer == [[span]]
+    scopeManager.active() == null
+    spanFinished(span)
+
+    when:
+    writer.waitForTraces(1)
+
+    then:
+    writer == [[span]]
 
     where:
-    autoClose | forceGC | concurrent
-    true      | true    | false
-    true      | false   | false
-    false     | true    | false
-    true      | true    | true
-    true      | false   | true
-    false     | true    | true
+    autoClose | concurrent
+    true      | true
+    true      | false
+    false     | true
+    false     | false
   }
 
   def "continuation restores trace"() {
-    setup:
+    when:
     def parentSpan = tracer.buildSpan("parent").start()
     def parentScope = tracer.activateSpan(parentSpan)
     def childSpan = tracer.buildSpan("child").start()
-    ContinuableScopeManager.ContinuableScope childScope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(childSpan)
+    def childScope = tracer.activateSpan(childSpan)
     childScope.setAsyncPropagation(true)
 
     def continuation = concurrentChild ? childScope.captureConcurrent() : childScope.capture()
     childScope.close()
 
-    expect:
-    parentSpan.context().trace == childSpan.context().trace
+    then:
+    continuation != null
     scopeManager.active() == parentScope
     !spanFinished(childSpan)
     !spanFinished(parentSpan)
@@ -271,44 +273,42 @@ class ScopeManagerTest extends DDSpecification {
     when:
     parentScope.close()
     parentSpan.finish()
-    // parent span is finished, but trace is not reported
 
-    then:
+    then: "parent span is finished, but trace is not reported"
     scopeManager.active() == null
     !spanFinished(childSpan)
     spanFinished(parentSpan)
     writer == []
 
-    when:
+    when: "activating the continuation"
     def newScope = continuation.activate()
     if (concurrentChild) {
       continuation.cancel()
     }
-    if (!concurrentChild) {
-      newScope.setAsyncPropagation(true)
-    }
-    def newContinuation = concurrentNew ? newScope.captureConcurrent() : newScope.capture()
 
-    then:
+    then: "the continued scope becomes active and span state doesnt change"
     newScope instanceof ContinuableScopeManager.ContinuableScope
     newScope.isAsyncPropagating()
     scopeManager.active() == newScope
-    newScope != childScope && newScope != parentScope
+    newScope != childScope
+    newScope != parentScope
     newScope.span() == childSpan
     !spanFinished(childSpan)
     spanFinished(parentSpan)
     writer == []
 
-    when:
+    when: "creating and activating a second continuation"
+    def newContinuation = concurrentNew ? newScope.captureConcurrent() : newScope.capture()
     newScope.close()
-    newContinuation.activate().close()
+    def secondContinuedScope = newContinuation.activate()
+    secondContinuedScope.close()
     if (concurrentNew) {
       newContinuation.cancel()
     }
     childSpan.finish()
     writer.waitForTraces(1)
 
-    then:
+    then: "spans are all finished and trace is reported"
     scopeManager.active() == null
     spanFinished(childSpan)
     spanFinished(parentSpan)
@@ -323,9 +323,9 @@ class ScopeManagerTest extends DDSpecification {
   }
 
   def "continuation allows adding spans even after other spans were completed"() {
-    setup:
+    when: "creating and activating a continuation"
     def span = tracer.buildSpan("test").start()
-    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
+    def scope = tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
     scope.close()
@@ -336,56 +336,31 @@ class ScopeManagerTest extends DDSpecification {
       continuation.cancel()
     }
 
-    expect:
+    then: "the continuation sets the active scope"
     newScope instanceof ContinuableScopeManager.ContinuableScope
     newScope != scope
     scopeManager.active() == newScope
     spanFinished(span)
     writer == []
 
-    when:
+    when: "creating a new child span under a continued scope"
     def childSpan = tracer.buildSpan("child").start()
     def childScope = tracer.activateSpan(childSpan)
     childScope.close()
     childSpan.finish()
+
+    then:
+    scopeManager.active() == newScope
+
+    when:
     scopeManager.active().close()
     writer.waitForTraces(1)
 
-    then:
+    then: "the child has the correct parent"
     scopeManager.active() == null
     spanFinished(childSpan)
     childSpan.context().parentId == span.context().spanId
     writer == [[childSpan, span]]
-
-    where:
-    concurrent << [false, true]
-  }
-
-  def "DDScope put in threadLocal after continuation activation"() {
-    setup:
-    def span = tracer.buildSpan("parent").start()
-    ContinuableScopeManager.ContinuableScope scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
-    scope.setAsyncPropagation(true)
-
-    expect:
-    scopeManager.active() == scope
-
-    when:
-    def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
-    scope.close()
-
-    then:
-    scopeManager.active() == null
-
-    when:
-    def newScope = continuation.activate()
-    if (concurrent) {
-      continuation.cancel()
-    }
-
-    then:
-    newScope != scope
-    scopeManager.active() == newScope
 
     where:
     concurrent << [false, true]
@@ -599,11 +574,10 @@ class ScopeManagerTest extends DDSpecification {
     eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE]
   }
 
-  @Timeout(value = 60, unit = SECONDS)
   def "Closing a continued scope out of order cancels the continuation"() {
     when:
     def span = tracer.buildSpan("test").start()
-    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
+    def scope = tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
     scope.close()
@@ -616,11 +590,11 @@ class ScopeManagerTest extends DDSpecification {
 
     when:
     def continuedScope = continuation.activate()
-    AgentSpan secondSpan = tracer.buildSpan("test2").start()
-    AgentScope secondScope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(secondSpan)
     if (concurrent) {
       continuation.cancel()
     }
+    AgentSpan secondSpan = tracer.buildSpan("test2").start()
+    AgentScope secondScope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(secondSpan)
 
     then:
     scopeManager.active() == secondScope
@@ -644,35 +618,106 @@ class ScopeManagerTest extends DDSpecification {
     concurrent << [false, true]
   }
 
-  @Ignore
-  // TraceInterceptors are called off-thread now
-  def "exception thrown in TraceInterceptor does not leave scope manager in bad state"() {
-    when:
-    tracer.addTraceInterceptor(new ExceptionThrowingInterceptor())
+  def "exception thrown in TraceInterceptor does not leave scope manager in bad state "() {
+    setup:
+    def interceptor = new ExceptionThrowingInterceptor()
+    tracer.addTraceInterceptor(interceptor)
 
+    when:
     def span = tracer.buildSpan("test").start()
-    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
+    def scope = tracer.activateSpan(span)
+    scope.close()
+    span.finish()
+
+    then: "exception is thrown in same thread"
+    interceptor.lastTrace == [span]
+
+    and: "scopeManager in good state"
+    scopeManager.active() == null
+    spanFinished(span)
+    scopeManager.scopeStack().depth() == 0
+    writer == []
+
+    when: "completing another scope lifecycle"
+    def span2 = tracer.buildSpan("test").start()
+    def scope2 = tracer.activateSpan(span2)
+
+    then:
+    scopeManager.active() == scope2
+
+    when:
+    interceptor.shouldThrowException = false
+    scope2.close()
+    span2.finish()
+    writer.waitForTraces(1)
+
+    then: "second lifecycle gets reported"
+    scopeManager.active() == null
+    spanFinished(span2)
+    scopeManager.scopeStack().depth() == 0
+    writer == [[span2]]
+  }
+
+  def "exception thrown in TraceInterceptor does not leave scope manager in bad state when reporting through PendingTraceBuffer"() {
+    setup:
+    def interceptor = new ExceptionThrowingInterceptor()
+    tracer.addTraceInterceptor(interceptor)
+
+    when:
+    def span = tracer.buildSpan("test").start()
+    def scope = tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
     scope.close()
     span.finish()
 
     then:
+    continuation != null
     scopeManager.active() == null
     spanFinished(span)
-
-    when:
-    def continuedScope = continuation.activate()
-    if (concurrent) {
-      continuation.cancel()
-    }
-    continuedScope.close()
-
-    then:
-    thrown(RuntimeException)
-    scopeManager.active() == null
     scopeManager.scopeStack().depth() == 0
     writer == []
+
+    when: "wait for root span to be reported from PendingTraceBuffer"
+    // can't use "waitForTraces" because the trace never gets reported
+    def deadline = System.currentTimeMillis() + TIMEOUT_MS
+    while (System.currentTimeMillis() < deadline && interceptor.lastTrace == null) {
+      Thread.sleep(200)
+    }
+
+    then:
+    interceptor.lastTrace == [span]
+
+    and: "scopeManager in good state"
+    scopeManager.active() == null
+    spanFinished(span)
+    scopeManager.scopeStack().depth() == 0
+    writer == []
+
+    when: "completing another async scope lifecycle"
+    def span2 = tracer.buildSpan("test").start()
+    def scope2 = tracer.activateSpan(span2)
+    scope2.setAsyncPropagation(true)
+    def continuation2 = concurrent ? scope2.captureConcurrent() : scope2.capture()
+
+    then:
+    continuation2 != null
+    scopeManager.active() == scope2
+
+    when:
+    interceptor.shouldThrowException = false
+    scope2.close()
+    span2.finish()
+
+    // The second trace also goes through PendingTraceBuffer, but since we're not throwing an exception
+    // we can use the normal "waitForTraces"
+    writer.waitForTraces(1)
+
+    then: "second lifecycle gets reported as well"
+    scopeManager.active() == null
+    spanFinished(span2)
+    scopeManager.scopeStack().depth() == 0
+    writer == [[span2]]
 
     where:
     concurrent << [false, true]
@@ -797,10 +842,18 @@ class EventCountingListener implements ScopeListener {
 }
 
 class ExceptionThrowingInterceptor implements TraceInterceptor {
+  def shouldThrowException = true
+
+  Collection<? extends MutableSpan> lastTrace
 
   @Override
   Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
-    throw new RuntimeException("Always throws exception")
+    lastTrace = trace
+    if (shouldThrowException) {
+      throw new RuntimeException("Always throws exception")
+    } else {
+      return trace
+    }
   }
 
   @Override

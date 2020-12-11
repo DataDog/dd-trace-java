@@ -445,6 +445,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     return context.isMeasured();
   }
 
+  @Override
+  public boolean isTopLevel() {
+    return context.isTopLevel();
+  }
+
   public Map<String, String> getBaggage() {
     return Collections.unmodifiableMap(context.getBaggageItems());
   }

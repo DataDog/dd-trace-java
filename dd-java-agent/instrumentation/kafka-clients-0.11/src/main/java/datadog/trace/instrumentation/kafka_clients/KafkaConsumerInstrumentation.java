@@ -41,6 +41,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing {
       packageName + ".TracingIterable",
       packageName + ".TracingIterator",
       packageName + ".TracingList",
+      packageName + ".TracingListIterator",
       packageName + ".Base64Decoder"
     };
   }
@@ -75,7 +76,8 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing {
   public static class IterableAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void wrap(@Advice.Return(readOnly = false) Iterable<ConsumerRecord> iterable) {
+    public static void wrap(
+        @Advice.Return(readOnly = false) Iterable<ConsumerRecord<?, ?>> iterable) {
       if (iterable != null) {
         iterable = new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE);
       }
@@ -85,7 +87,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing {
   public static class ListAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void wrap(@Advice.Return(readOnly = false) List<ConsumerRecord> iterable) {
+    public static void wrap(@Advice.Return(readOnly = false) List<ConsumerRecord<?, ?>> iterable) {
       if (iterable != null) {
         iterable = new TracingList(iterable, KAFKA_CONSUME, CONSUMER_DECORATE);
       }
@@ -95,7 +97,8 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing {
   public static class IteratorAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void wrap(@Advice.Return(readOnly = false) Iterator<ConsumerRecord> iterator) {
+    public static void wrap(
+        @Advice.Return(readOnly = false) Iterator<ConsumerRecord<?, ?>> iterator) {
       if (iterator != null) {
         iterator = new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE);
       }

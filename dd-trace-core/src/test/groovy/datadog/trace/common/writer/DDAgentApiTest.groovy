@@ -3,6 +3,7 @@ package datadog.trace.common.writer
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.timgroup.statsd.NoOpStatsDClient
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
@@ -130,6 +131,7 @@ class DDAgentApiTest extends DDSpecification {
     expect:
     client.sendSerializedTraces(payload).success()
     agent.lastRequest.contentType == "application/msgpack"
+    agent.lastRequest.headers.get("Datadog-Client-Computed-Top-Level") == "true"
     agent.lastRequest.headers.get("Datadog-Meta-Lang") == "java"
     agent.lastRequest.headers.get("Datadog-Meta-Lang-Version") == System.getProperty("java.version", "unknown")
     agent.lastRequest.headers.get("Datadog-Meta-Tracer-Version") == "Stubbed-Test-Version"
@@ -148,8 +150,9 @@ class DDAgentApiTest extends DDSpecification {
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "thread.id": "${Thread.currentThread().id}"],
       "metrics"  : [
-        (RateByServiceSampler.SAMPLING_AGENT_RATE): 1.0,
-        (DDSpanContext.PRIORITY_SAMPLING_KEY)     : 1,
+        (InstrumentationTags.DD_TOP_LEVEL as String) : 1,
+        (RateByServiceSampler.SAMPLING_AGENT_RATE)   : 1.0,
+        (DDSpanContext.PRIORITY_SAMPLING_KEY)        : 1
       ],
       "name"     : "fakeOperation",
       "parent_id": 0,
@@ -165,8 +168,9 @@ class DDAgentApiTest extends DDSpecification {
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "thread.id": "${Thread.currentThread().id}"],
       "metrics"  : [
-        (RateByServiceSampler.SAMPLING_AGENT_RATE): 1.0,
-        (DDSpanContext.PRIORITY_SAMPLING_KEY)     : 1,
+        (InstrumentationTags.DD_TOP_LEVEL as String) : 1,
+        (RateByServiceSampler.SAMPLING_AGENT_RATE)   : 1.0,
+        (DDSpanContext.PRIORITY_SAMPLING_KEY)        : 1
       ],
       "name"     : "fakeOperation",
       "parent_id": 0,

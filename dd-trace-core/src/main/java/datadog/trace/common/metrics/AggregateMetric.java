@@ -9,14 +9,14 @@ public final class AggregateMetric {
 
   private static final HistogramFactory HISTOGRAM_FACTORY = Histograms.newHistogramFactory();
 
-  private Histogram hitLatencies;
-  private Histogram errorLatencies;
+  private final Histogram okLatencies;
+  private final Histogram errorLatencies;
   private int errorCount;
   private int hitCount;
   private long duration;
 
   public AggregateMetric() {
-    hitLatencies = HISTOGRAM_FACTORY.newHistogram();
+    okLatencies = HISTOGRAM_FACTORY.newHistogram();
     errorLatencies = HISTOGRAM_FACTORY.newHistogram();
   }
 
@@ -29,7 +29,7 @@ public final class AggregateMetric {
       if (((errorMask >>> i) & 1) == 1) {
         errorLatencies.accept(duration);
       } else {
-        hitLatencies.accept(duration);
+        okLatencies.accept(duration);
       }
     }
     return this;
@@ -47,19 +47,19 @@ public final class AggregateMetric {
     return duration;
   }
 
-  public byte[] getHitLatencies() {
-    return hitLatencies.serialize();
+  public Histogram getOkLatencies() {
+    return okLatencies;
   }
 
-  public byte[] getErrorLatencies() {
-    return errorLatencies.serialize();
+  public Histogram getErrorLatencies() {
+    return errorLatencies;
   }
 
   public void clear() {
     this.errorCount = 0;
     this.hitCount = 0;
     this.duration = 0;
-    this.hitLatencies.clear();
+    this.okLatencies.clear();
     this.errorLatencies.clear();
   }
 }

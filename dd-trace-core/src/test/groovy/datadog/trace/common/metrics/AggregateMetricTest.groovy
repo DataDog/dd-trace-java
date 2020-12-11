@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics
 
+import datadog.trace.core.histogram.Histogram
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Requires
 
@@ -25,6 +26,15 @@ class AggregateMetricTest extends DDSpecification {
     aggregate.getDuration() == 6
   }
 
+  def "total durations include errors"() {
+    given:
+    AggregateMetric aggregate = new AggregateMetric()
+    when:
+    aggregate.recordDurations(3, 1L, 1, 2, 3)
+    then:
+    aggregate.getDuration() == 6
+  }
+
   def "clear"() {
     given:
     AggregateMetric aggregate = new AggregateMetric()
@@ -41,7 +51,7 @@ class AggregateMetricTest extends DDSpecification {
     given:
     AggregateMetric aggregate = new AggregateMetric().recordDurations(3, 1L, 0L, 0L, 0L)
 
-    Batch batch = new Batch().withKey(new MetricKey("foo", "bar", "qux", "type", "", 0))
+    Batch batch = new Batch().withKey(new MetricKey("foo", "bar", "qux", "type", 0))
     batch.add(false, 10)
     batch.add(false, 10)
     batch.add(false, 10)
@@ -85,10 +95,32 @@ class AggregateMetricTest extends DDSpecification {
     aggregate.getErrorCount() == 0
   }
 
+  def "hit count includes errors"() {
+    given:
+    AggregateMetric aggregate = new AggregateMetric()
+    when:
+    aggregate.recordDurations(3, 2L, 1, 2, 3)
+    then:
+    aggregate.getHitCount() == 3
+    aggregate.getErrorCount() == 1
+  }
+
+  def "ok and error durations tracked separately"() {
+    given:
+    AggregateMetric aggregate = new AggregateMetric()
+    when:
+    aggregate.recordDurations(10, 0xAAL, 1, 100, 2, 99, 3, 98, 4, 97)
+    then:
+    Histogram errorLatencies = aggregate.getErrorLatencies()
+    Histogram okLatencies = aggregate.getOkLatencies()
+    errorLatencies.max() >= 99
+    okLatencies.max() <= 5
+  }
+
   def "consistent under concurrent attempts to read and write"() {
     given:
     AggregateMetric aggregate = new AggregateMetric()
-    MetricKey key = new MetricKey("foo", "bar", "qux", "type", "", 0)
+    MetricKey key = new MetricKey("foo", "bar", "qux", "type", 0)
     BlockingDeque<Batch> queue = new LinkedBlockingDeque<>(1000)
     ExecutorService reader = Executors.newSingleThreadExecutor()
     int writerCount = 10

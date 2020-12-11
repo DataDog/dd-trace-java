@@ -250,6 +250,11 @@ class TraceGenerator {
     }
 
     @Override
+    boolean isTopLevel() {
+      return false
+    }
+
+    @Override
     Map<String, Number> getMetrics() {
       return metrics
     }

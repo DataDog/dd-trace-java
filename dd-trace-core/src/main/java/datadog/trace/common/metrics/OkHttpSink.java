@@ -7,40 +7,103 @@ import static datadog.trace.common.metrics.EventListener.EventType.OK;
 import static datadog.trace.core.http.OkHttpUtils.buildHttpClient;
 import static datadog.trace.core.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.trace.core.http.OkHttpUtils.prepareRequest;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import org.jctools.queues.SpscArrayQueue;
 
+@Slf4j
 public final class OkHttpSink implements Sink, EventListener {
 
   private final OkHttpClient client;
   private final HttpUrl metricsUrl;
   private final List<EventListener> listeners;
+  private final SpscArrayQueue<Request> enqueuedRequests = new SpscArrayQueue<>(10);
+  private final AtomicLong lastRequestTime = new AtomicLong();
+  private final AtomicLong asyncRequestCounter = new AtomicLong();
+  private final long asyncThresholdLatency;
+
+  private final AtomicBoolean asyncTaskStarted = new AtomicBoolean(false);
+  private volatile AgentTaskScheduler.Scheduled<OkHttpSink> future;
 
   public OkHttpSink(String agentUrl, long timeoutMillis) {
     this(buildHttpClient(HttpUrl.get(agentUrl), timeoutMillis), agentUrl, "v0.5/stats");
   }
 
   public OkHttpSink(OkHttpClient client, String agentUrl, String path) {
+    this(client, agentUrl, path, SECONDS.toNanos(1));
+  }
+
+  public OkHttpSink(OkHttpClient client, String agentUrl, String path, long asyncThresholdLatency) {
     this.client = client;
     this.metricsUrl = HttpUrl.get(agentUrl).resolve(path);
     this.listeners = new CopyOnWriteArrayList<>();
+    this.asyncThresholdLatency = asyncThresholdLatency;
   }
 
   @Override
   public void accept(int messageCount, ByteBuffer buffer) {
-    try (final okhttp3.Response response =
-        client
-            .newCall(
-                prepareRequest(metricsUrl)
-                    .put(msgpackRequestBodyOf(Collections.singletonList(buffer)))
-                    .build())
-            .execute()) {
+    // if the agent is healthy, then we can send on this thread,
+    // without copying the buffer, otherwise this needs to be async,
+    // so need to copy and buffer the request, and let it be executed
+    // on the main task scheduler as a last resort
+    if (lastRequestTime.get() < asyncThresholdLatency) {
+      send(
+          prepareRequest(metricsUrl)
+              .put(msgpackRequestBodyOf(Collections.singletonList(buffer)))
+              .build());
+      AgentTaskScheduler.Scheduled<OkHttpSink> future = this.future;
+      if (future != null && enqueuedRequests.isEmpty()) {
+        // async mode has been started but request latency is normal,
+        // there is no pending work, so switch off async mode
+        future.cancel();
+        asyncTaskStarted.set(false);
+      }
+    } else {
+      if (asyncTaskStarted.compareAndSet(false, true)) {
+        this.future =
+            AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+                new Sender(enqueuedRequests), this, 1, 1, SECONDS);
+      }
+      sendAsync(messageCount, buffer);
+    }
+  }
+
+  private void sendAsync(int messageCount, ByteBuffer buffer) {
+    asyncRequestCounter.getAndIncrement();
+    if (!enqueuedRequests.offer(
+        prepareRequest(metricsUrl)
+            .put(msgpackRequestBodyOf(Collections.singletonList(buffer.duplicate())))
+            .build())) {
+      log.debug(
+          "dropping payload of {} and {}B because sending queue was full",
+          messageCount,
+          buffer.limit());
+    }
+  }
+
+  public boolean isInDegradedMode() {
+    return asyncTaskStarted.get();
+  }
+
+  public long asyncRequestCount() {
+    return asyncRequestCounter.get();
+  }
+
+  private void send(Request request) {
+    long start = System.nanoTime();
+    try (final okhttp3.Response response = client.newCall(request).execute()) {
       if (!response.isSuccessful()) {
         handleFailure(response);
       } else {
@@ -48,6 +111,8 @@ public final class OkHttpSink implements Sink, EventListener {
       }
     } catch (IOException e) {
       onEvent(ERROR, e.getMessage());
+    } finally {
+      lastRequestTime.set(System.nanoTime() - start);
     }
   }
 
@@ -71,6 +136,23 @@ public final class OkHttpSink implements Sink, EventListener {
       onEvent(BAD_PAYLOAD, response.body().string());
     } else if (code >= 500) {
       onEvent(ERROR, response.body().string());
+    }
+  }
+
+  private static final class Sender implements AgentTaskScheduler.Task<OkHttpSink> {
+
+    private final SpscArrayQueue<Request> inbox;
+
+    private Sender(SpscArrayQueue<Request> inbox) {
+      this.inbox = inbox;
+    }
+
+    @Override
+    public void run(OkHttpSink target) {
+      Request request;
+      while ((request = inbox.poll()) != null) {
+        target.send(request);
+      }
     }
   }
 }

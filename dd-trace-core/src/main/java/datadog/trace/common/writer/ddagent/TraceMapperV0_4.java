@@ -135,13 +135,19 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
   }
 
-  private static void writeMetrics(CoreSpan span, Writable writable) {
+  private static void writeMetrics(CoreSpan<?> span, Writable writable) {
     writable.writeUTF8(METRICS);
     Map<CharSequence, Number> metrics = span.getMetrics();
-    int elementCount = metrics.size() + (span.isMeasured() ? 1 : 0);
+    int elementCount = metrics.size();
+    elementCount += (span.isMeasured() ? 1 : 0);
+    elementCount += (span.isTopLevel() ? 1 : 0);
     writable.startMap(elementCount);
     if (span.isMeasured()) {
       writable.writeUTF8(InstrumentationTags.DD_MEASURED);
+      writable.writeInt(1);
+    }
+    if (span.isTopLevel()) {
+      writable.writeUTF8(InstrumentationTags.DD_TOP_LEVEL);
       writable.writeInt(1);
     }
     for (Map.Entry<CharSequence, Number> metric : metrics.entrySet()) {

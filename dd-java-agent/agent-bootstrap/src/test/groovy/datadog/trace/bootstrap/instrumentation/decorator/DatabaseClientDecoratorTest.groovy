@@ -78,29 +78,6 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     "db-statement" | _
   }
 
-  def "test assert null span"() {
-    setup:
-    def decorator = newDecorator()
-
-    when:
-    decorator.afterStart((AgentSpan) null)
-
-    then:
-    thrown(AssertionError)
-
-    when:
-    decorator.onConnection(null, null)
-
-    then:
-    thrown(AssertionError)
-
-    when:
-    decorator.onStatement(null, null)
-
-    then:
-    thrown(AssertionError)
-  }
-
   @Override
   def newDecorator(String serviceName = "test-service") {
     return new DatabaseClientDecorator<Map>() {

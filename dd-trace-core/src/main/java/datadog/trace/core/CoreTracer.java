@@ -10,7 +10,6 @@ import com.timgroup.statsd.StatsDClient;
 import com.timgroup.statsd.StatsDClientException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -418,8 +417,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     List<DDSpan> writtenTrace = trace;
     if (!interceptors.isEmpty()) {
       Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
-      for (final TraceInterceptor interceptor : interceptors) {
-        interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
+
+      try {
+        for (final TraceInterceptor interceptor : interceptors) {
+          interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
+        }
+      } catch (Exception e) {
+        log.debug("Exception in TraceInterceptor", e);
+        return;
       }
       writtenTrace = new ArrayList<>(interceptedTrace.size());
       for (final MutableSpan span : interceptedTrace) {
@@ -589,7 +594,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private boolean errorFlag;
     private CharSequence spanType;
     private boolean ignoreScope = false;
-    private Number analyticsSampleRate = null;
 
     public CoreSpanBuilder(final CharSequence operationName) {
       this.operationName = operationName;
@@ -657,6 +661,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public CoreSpanBuilder asChildOf(final AgentSpan.Context spanContext) {
+      // TODO we will start propagating stack trace hash and it will need to
+      //  be extracted here if available
       parent = spanContext;
       return this;
     }
@@ -710,6 +716,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
       }
 
+      String parentServiceName = null;
+
       // Propagate internal trace.
       // Note: if we are not in the context of distributed tracing and we are starting the first
       // root span, parentContext will be null at this point.
@@ -723,8 +731,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         origin = null;
         coreTags = null;
         rootSpanTags = null;
+        parentServiceName = ddsc.getServiceName();
         if (serviceName == null) {
-          serviceName = ddsc.getServiceName();
+          serviceName = parentServiceName;
         }
 
       } else {
@@ -775,6 +784,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               traceId,
               spanId,
               parentSpanId,
+              parentServiceName,
               serviceName,
               operationName,
               resourceName,
@@ -787,10 +797,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               parentTrace,
               CoreTracer.this,
               serviceNameMappings);
-
-      if (null != analyticsSampleRate) {
-        context.setMetric(DDTags.ANALYTICS_SAMPLE_RATE, analyticsSampleRate);
-      }
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

@@ -5,6 +5,7 @@ import static datadog.trace.core.serialization.EncodingCachingStrategies.NO_CACH
 import static datadog.trace.core.serialization.Util.integerToStringBuffer;
 import static datadog.trace.core.serialization.Util.writeLongAsString;
 
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.StringTables;
@@ -82,13 +83,29 @@ public final class TraceMapperV0_5 implements TraceMapper {
       /* 10  */
       span.processTagsAndBaggage(metaWriter.withWritable(writable));
       /* 11  */
-      writable.startMap(span.getMetrics().size());
-      for (final Map.Entry<CharSequence, Number> entry : span.getMetrics().entrySet()) {
-        writeDictionaryEncoded(writable, entry.getKey());
-        writable.writeObject(entry.getValue(), NO_CACHING);
-      }
+      writeMetrics(span, writable);
       /* 12 */
       writeDictionaryEncoded(writable, span.getType());
+    }
+  }
+
+  private void writeMetrics(CoreSpan<?> span, Writable writable) {
+    Map<CharSequence, Number> metrics = span.getMetrics();
+    int elementCount = metrics.size();
+    elementCount += (span.isMeasured() ? 1 : 0);
+    elementCount += (span.isTopLevel() ? 1 : 0);
+    writable.startMap(elementCount);
+    if (span.isMeasured()) {
+      writeDictionaryEncoded(writable, InstrumentationTags.DD_MEASURED);
+      writable.writeInt(1);
+    }
+    if (span.isTopLevel()) {
+      writeDictionaryEncoded(writable, InstrumentationTags.DD_TOP_LEVEL);
+      writable.writeInt(1);
+    }
+    for (Map.Entry<CharSequence, Number> metric : metrics.entrySet()) {
+      writeDictionaryEncoded(writable, metric.getKey());
+      writable.writeObject(metric.getValue(), NO_CACHING);
     }
   }
 

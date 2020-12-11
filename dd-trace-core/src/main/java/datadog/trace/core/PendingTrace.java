@@ -89,9 +89,6 @@ public class PendingTrace implements AgentTrace {
 
   private final AtomicBoolean rootSpanWritten = new AtomicBoolean(false);
 
-  // FIXME: This can be removed when we change behavior for gc'd spans.
-  private final AtomicBoolean traceValid = new AtomicBoolean(true);
-
   /**
    * Updated with the latest nanoTicks each time getCurrentTimeNano is called (at the start and
    * finish of each span).
@@ -217,28 +214,23 @@ public class PendingTrace implements AgentTrace {
   }
 
   private void decrementRefAndMaybeWrite(boolean isRootSpan) {
-    if (!traceValid.get()) {
-      return;
-    }
     final int count = pendingReferenceCount.decrementAndGet();
+    int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
+
     if (count == 0 && !rootSpanWritten.get()) {
       // Finished with no pending work ... write immediately
       write();
-    } else {
-      if (isRootSpan) {
-        // Finished root with pending work ... delay write
-        pendingTraceBuffer.enqueue(this);
-      } else {
-        int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
-        if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
-          // Trace is getting too big, write anything completed.
-          partialFlush();
-        } else if (rootSpanWritten.get()) {
-          // Late arrival span ... delay write
-          pendingTraceBuffer.enqueue(this);
-        }
-      }
+    } else if (isRootSpan) {
+      // Finished root with pending work ... delay write
+      pendingTraceBuffer.enqueue(this);
+    } else if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
+      // Trace is getting too big, write anything completed.
+      partialFlush();
+    } else if (rootSpanWritten.get()) {
+      // Late arrival span ... delay write
+      pendingTraceBuffer.enqueue(this);
     }
+
     if (log.isDebugEnabled()) {
       log.debug(
           "t_id={} -> expired reference. root={} pending count={}", traceId, isRootSpan, count);

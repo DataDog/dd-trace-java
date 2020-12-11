@@ -26,12 +26,12 @@ class AgentIntegrationTest extends DDSpecification {
     )
     writer.startBucket(2, System.nanoTime(), SECONDS.toNanos(10))
     writer.add(
-      new MetricKey("resource1", "service1", "operation1", "sql", "oracle", 0),
-      new AggregateMetric().addHits(10).addErrors(1)
+      new MetricKey("resource1", "service1", "operation1", "sql", 0),
+      new AggregateMetric().recordDurations(5, 2, 1, 2, 250, 4, 5)
     )
     writer.add(
-      new MetricKey("resource2", "service2", "operation2", "web", "", 200),
-      new AggregateMetric().addHits(9).addErrors(1)
+      new MetricKey("resource2", "service2", "operation2", "web", 200),
+      new AggregateMetric().recordDurations(10, 1, 1, 200, 2, 3, 4, 5, 6, 7, 8, 9)
     )
     writer.finishBucket()
 

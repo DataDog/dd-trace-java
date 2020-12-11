@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.mongo4;
 
+import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.mongo4.Mongo4ClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.mongo4.Mongo4ClientDecorator.MONGO_QUERY;
 
+import com.mongodb.ServerAddress;
 import com.mongodb.event.CommandFailedEvent;
 import com.mongodb.event.CommandListener;
 import com.mongodb.event.CommandStartedEvent;
@@ -45,8 +47,11 @@ public class Tracing4CommandListener implements CommandListener {
       if (event.getConnectionDescription() != null
           && event.getConnectionDescription() != null
           && event.getConnectionDescription().getServerAddress() != null) {
-        DECORATE.onPeerConnection(
-            span, event.getConnectionDescription().getServerAddress().getSocketAddress());
+        // cannot use onPeerConnection because ServerAddress.getSocketAddress()
+        // may do a DNS lookup
+        ServerAddress serverAddress = event.getConnectionDescription().getServerAddress();
+        span.setTag(Tags.PEER_HOSTNAME, serverAddress.getHost())
+            .setTag(Tags.PEER_PORT, PORTS.get(serverAddress.getPort()));
       }
       DECORATE.onStatement(span, event.getCommand());
       spanMap.put(event.getRequestId(), span);

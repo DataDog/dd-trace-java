@@ -89,7 +89,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   public void publish(List<? extends CoreSpan<?>> trace) {
     if (enabled) {
       for (CoreSpan<?> span : trace) {
-        if (span.isMeasured()) {
+        if (span.isTopLevel() || span.isMeasured()) {
           publish(span);
         }
       }
@@ -103,7 +103,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getServiceName(),
             span.getOperationName(),
             span.getType(),
-            span.getTag(Tags.DB_TYPE, (CharSequence) ""),
             span.getTag(Tags.HTTP_STATUS, ZERO));
     boolean error = span.getError() > 0;
     long durationNanos = span.getDurationNano();

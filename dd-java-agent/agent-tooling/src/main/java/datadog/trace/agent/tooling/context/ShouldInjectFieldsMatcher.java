@@ -4,9 +4,12 @@ import datadog.trace.bootstrap.FieldBackedContextStoreAppliedMarker;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.utility.JavaModule;
 
@@ -39,15 +42,12 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
       final JavaModule module,
       final Class<?> classBeingRedefined,
       final ProtectionDomain protectionDomain) {
+    String matchedType = typeDescription.getName();
 
     // First check if we should skip injecting the field based on the key type
-    if (skipType != null && ExcludeFilter.exclude(skipType, typeDescription.getName())) {
+    if (skipType != null && ExcludeFilter.exclude(skipType, matchedType)) {
       if (log.isDebugEnabled()) {
-        log.debug(
-            "Skipping context-store field for {}: {} -> {}",
-            typeDescription.getName(),
-            keyType,
-            valueType);
+        log.debug("Skipping context-store field for {}: {} -> {}", matchedType, keyType, valueType);
       }
       return false;
     }
@@ -72,35 +72,31 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
       // slightly if we knew whether the key type were an
       // interface or a class, but can be figured out as
       // we go along
-      if (!keyType.equals(typeDescription.getName())) {
+      if (!keyType.equals(matchedType)) {
         injectionTarget = getInjectionTarget(typeDescription);
-        shouldInject &= typeDescription.getName().equals(injectionTarget);
+        shouldInject &= matchedType.equals(injectionTarget);
       }
     }
     if (log.isDebugEnabled()) {
       if (shouldInject) {
         // Only log success the first time we add it to the class
         if (classBeingRedefined == null) {
-          log.debug(
-              "Added context-store field to {}: {} -> {}",
-              typeDescription.getName(),
-              keyType,
-              valueType);
+          log.debug("Added context-store field to {}: {} -> {}", matchedType, keyType, valueType);
         }
       } else if (null != injectionTarget) {
         log.debug(
             "Will not add context-store field to {}: {} -> {}, because it will be added to {}",
-            typeDescription.getName(),
+            matchedType,
             keyType,
             valueType,
             injectionTarget);
       } else {
-        // This will log for every failed redefine
-        log.debug(
-            "Failed to add context-store field to {}: {} -> {}",
-            typeDescription.getName(),
-            keyType,
-            valueType);
+        if (keyType.equals(matchedType)
+            || matchedType.equals(getInjectionTarget(typeDescription))) {
+          // Only log failed redefines where we would have injected this class
+          log.debug(
+              "Failed to add context-store field to {}: {} -> {}", matchedType, keyType, valueType);
+        }
       }
     }
     return shouldInject;
@@ -113,7 +109,7 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
     // The flag takes 3 values:
     // true: the key type is a class, so should be the injection target
     // false: the key type is an interface, so we need to find the class
-    // closes to java.lang.Object which implements the key type
+    // closest to java.lang.Object which implements the key type
     // null: we don't know yet because we haven't seen the key type before
     Boolean keyTypeIsClass = KEY_TYPE_IS_CLASS.get(keyType);
     if (null != keyTypeIsClass && keyTypeIsClass) {
@@ -125,27 +121,47 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
     // follow the type's ancestry to find out
     TypeDescription.Generic superClass = typeDescription.getSuperClass();
     String implementingClass = typeDescription.getName();
+    Map<String, Boolean> visitedInterfaces = new HashMap<>();
     while (null != superClass) {
-      String superClassName = superClass.asRawType().getTypeName();
+      String superClassName = superClass.asErasure().getTypeName();
       if (null == keyTypeIsClass && keyType.equals(superClassName)) {
         // short circuit the search with this key type next time
         KEY_TYPE_IS_CLASS.put(keyType, true);
         return keyType;
       }
-      for (TypeDescription.Generic iface : superClass.getInterfaces()) {
-        String interfaceName = iface.asRawType().getTypeName();
-        if (keyType.equals(interfaceName)) {
-          // then the key type must be an interface
-          if (null == keyTypeIsClass) {
-            KEY_TYPE_IS_CLASS.put(keyType, false);
-            keyTypeIsClass = false;
-          }
-          implementingClass = superClassName;
-          break;
+      if (hasKeyInterface(superClass, visitedInterfaces)) {
+        // then the key type must be an interface
+        if (null == keyTypeIsClass) {
+          KEY_TYPE_IS_CLASS.put(keyType, false);
+          keyTypeIsClass = false;
         }
+        implementingClass = superClassName;
       }
       superClass = superClass.getSuperClass();
     }
     return implementingClass;
+  }
+
+  private boolean hasKeyInterface(
+      final TypeDefinition typeDefinition, final Map<String, Boolean> visitedInterfaces) {
+    for (TypeDefinition iface : typeDefinition.getInterfaces()) {
+      String interfaceName = iface.asErasure().getTypeName();
+      if (keyType.equals(interfaceName)) {
+        return true;
+      }
+      Boolean foundKeyInterface = visitedInterfaces.get(interfaceName);
+      if (Boolean.TRUE.equals(foundKeyInterface)) {
+        return true; // already know this will lead to the key
+      }
+      if (null == foundKeyInterface) {
+        // avoid cycle issues by assuming we won't find the key
+        visitedInterfaces.put(interfaceName, false);
+        if (hasKeyInterface(iface, visitedInterfaces)) {
+          visitedInterfaces.put(interfaceName, true); // update assumption
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }
