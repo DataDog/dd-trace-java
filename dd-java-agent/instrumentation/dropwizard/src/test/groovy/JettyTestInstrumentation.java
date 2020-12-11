@@ -5,6 +5,8 @@ import datadog.trace.agent.test.base.HttpServerTestAdvice;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.agent.builder.AgentBuilder;
 
+import java.util.Set;
+
 @AutoService(Instrumenter.class)
 public class JettyTestInstrumentation implements Instrumenter {
 
@@ -23,5 +25,11 @@ public class JettyTestInstrumentation implements Instrumenter {
         .transform(
             new AgentBuilder.Transformer.ForAdvice()
                 .advice(named("handle"), HttpServerTestAdvice.ServerEntryAdvice.class.getName()));
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    // don't care
+    return true;
   }
 }

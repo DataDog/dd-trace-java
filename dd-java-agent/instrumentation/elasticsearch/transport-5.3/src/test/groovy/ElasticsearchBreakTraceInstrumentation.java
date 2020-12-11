@@ -5,6 +5,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.context.ShadowExistingScopeAdvice;
 import net.bytebuddy.agent.builder.AgentBuilder;
 
+import java.util.Set;
+
 /**
  * This instrumentation is needed to break automatic async trace propagation to the embedded
  * Elasticsearch instance. Otherwise, our client instrumentation picks up on non-deterministic
@@ -21,5 +23,11 @@ public class ElasticsearchBreakTraceInstrumentation implements Instrumenter {
         .transform(
             new AgentBuilder.Transformer.ForAdvice()
                 .advice(named("executeLocally"), ShadowExistingScopeAdvice.class.getName()));
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    // don't care
+    return true;
   }
 }

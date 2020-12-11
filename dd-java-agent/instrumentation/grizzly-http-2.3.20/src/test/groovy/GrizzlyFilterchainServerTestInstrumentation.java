@@ -6,6 +6,8 @@ import datadog.trace.agent.test.base.HttpServerTestAdvice;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.agent.builder.AgentBuilder;
 
+import java.util.Set;
+
 @AutoService(Instrumenter.class)
 public class GrizzlyFilterchainServerTestInstrumentation implements Instrumenter {
 
@@ -21,5 +23,11 @@ public class GrizzlyFilterchainServerTestInstrumentation implements Instrumenter
                             takesArgument(
                                 0, named("org.glassfish.grizzly.filterchain.FilterChainContext"))),
                     HttpServerTestAdvice.ServerEntryAdvice.class.getName()));
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    // don't care
+    return true;
   }
 }

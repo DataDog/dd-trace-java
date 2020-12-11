@@ -5,6 +5,8 @@ import datadog.trace.agent.test.base.HttpServerTestAdvice;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.agent.builder.AgentBuilder;
 
+import java.util.Set;
+
 @AutoService(Instrumenter.class)
 public class GrizzlyTestInstrumentation implements Instrumenter {
 
@@ -15,5 +17,11 @@ public class GrizzlyTestInstrumentation implements Instrumenter {
         .transform(
             new AgentBuilder.Transformer.ForAdvice()
                 .advice(named("doHandle"), HttpServerTestAdvice.ServerEntryAdvice.class.getName()));
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    // don't care
+    return true;
   }
 }
