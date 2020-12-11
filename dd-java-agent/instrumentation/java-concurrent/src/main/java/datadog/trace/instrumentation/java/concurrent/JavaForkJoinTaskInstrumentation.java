@@ -78,7 +78,8 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Default
         Arrays.asList(
             "java.util.concurrent.ForkJoinTask$AdaptedCallable",
             "java.util.concurrent.ForkJoinTask$AdaptedRunnable",
-            "java.util.concurrent.ForkJoinTask$AdaptedRunnableAction"));
+            "java.util.concurrent.ForkJoinTask$AdaptedRunnableAction",
+            "java.util.concurrent.ForkJoinTask$AdaptedInterruptibleCallable"));
   }
 
   public static final class Exec {
