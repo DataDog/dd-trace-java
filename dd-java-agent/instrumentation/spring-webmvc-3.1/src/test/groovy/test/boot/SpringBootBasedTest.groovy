@@ -1,6 +1,5 @@
 package test.boot
 
-
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
@@ -17,6 +16,7 @@ import org.springframework.web.servlet.view.RedirectView
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HERE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static java.util.Collections.singletonMap
@@ -92,6 +92,28 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     where:
     testPassword << ["password", "dfsdföääöüüä", "🤓"]
+  }
+
+  def "test not-here"() {
+    setup:
+    def request = request(NOT_HERE, method, body).build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == NOT_HERE.status
+
+    and:
+    cleanAndAssertTraces(1) {
+      trace(2) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, NOT_HERE)
+        handlerSpan(it, NOT_HERE)
+      }
+    }
+
+    where:
+    method = "GET"
+    body = null
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {
