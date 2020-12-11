@@ -10,8 +10,8 @@ public final class AggregateMetric {
 
   private static final HistogramFactory HISTOGRAM_FACTORY = Histograms.newHistogramFactory();
 
-  private Histogram okLatencies;
-  private Histogram errorLatencies;
+  private final Histogram okLatencies;
+  private final Histogram errorLatencies;
   private int errorCount;
   private int hitCount;
   private long duration;
