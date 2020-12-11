@@ -370,7 +370,6 @@ public class Config {
   @Getter private final int profilingStartDelay;
   @Getter private final boolean profilingStartForceFirst;
   @Getter private final int profilingUploadPeriod;
-  @Getter private final String profilingTemplate;
   @Getter private final String profilingTemplateOverrideFile;
   @Getter private final int profilingUploadTimeout;
   @Getter private final String profilingUploadCompression;
@@ -689,9 +688,6 @@ public class Config {
         configProvider.getBoolean(PROFILING_START_FORCE_FIRST, DEFAULT_PROFILING_START_FORCE_FIRST);
     profilingUploadPeriod =
         configProvider.getInteger(PROFILING_UPLOAD_PERIOD, DEFAULT_PROFILING_UPLOAD_PERIOD);
-    profilingTemplate =
-        configProvider.getString(
-            ProfilingConfig.PROFILING_TEMPLATE, ProfilingConfig.PROFILING_TEMPLATE_DEFAULT);
     profilingTemplateOverrideFile = configProvider.getString(PROFILING_TEMPLATE_OVERRIDE_FILE);
     profilingUploadTimeout =
         configProvider.getInteger(PROFILING_UPLOAD_TIMEOUT, DEFAULT_PROFILING_UPLOAD_TIMEOUT);

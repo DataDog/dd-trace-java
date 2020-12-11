@@ -1,0 +1,14 @@
+jdk.ThreadSleep#enabled=true
+jdk.ThreadSleep#stackTrace=true
+jdk.ThreadSleep#threshold=500 ms
+jdk.ThreadPark#enabled=true
+jdk.ThreadPark#stackTrace=true
+jdk.ThreadPark#threshold=500 ms
+jdk.JavaMonitorWait#enabled=true
+jdk.JavaMonitorWait#stackTrace=true
+jdk.JavaMonitorWait#threshold=500 ms
+jdk.OldObjectSample#enabled=false
+jdk.ObjectAllocationInNewTLAB#enabled=false
+jdk.ObjectAllocationOutsideTLAB#enabled=false
+datadog.ExceptionSample#enabled=false
+datadog.ExceptionCount#enabled=false

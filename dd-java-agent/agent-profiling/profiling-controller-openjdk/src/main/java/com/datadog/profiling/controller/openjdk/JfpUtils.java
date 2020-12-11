@@ -15,6 +15,7 @@
  */
 package com.datadog.profiling.controller.openjdk;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Toolkit for working with .jfp files. A .jfp file is a .jfc file which has been transformed (using
@@ -30,51 +32,23 @@ import java.util.Properties;
  * template, but in a format that is easier to handle in the profiling agent, not requiring us to
  * parse XML.
  */
+@Slf4j
 final class JfpUtils {
-  enum Level {
-    MINIMAL(0),
-    DEFAULT(1),
-    COMPREHENSIVE(2);
-    private int idx;
-
-    Level(int idx) {
-      this.idx = idx;
-    }
-
-    public int getIndex() {
-      return idx;
-    }
-  }
+  private static final String OVERRIDES_PATH = "jfr/overrides/";
 
   private JfpUtils() {
     throw new UnsupportedOperationException("Toolkit!");
   }
 
-  private static Map<String, String[]> readJfpFile(final InputStream stream) throws IOException {
+  private static Map<String, String> readJfpFile(final InputStream stream) throws IOException {
     if (stream == null) {
       throw new IllegalArgumentException("Cannot read jfp file from empty stream!");
     }
     final Properties props = new Properties();
     props.load(stream);
-    final Map<String, String[]> map = new HashMap<>();
+    final Map<String, String> map = new HashMap<>();
     for (final Entry<Object, Object> o : props.entrySet()) {
-      String value = String.valueOf(o.getValue());
-      String[] valueList;
-      if (value.startsWith("[") && value.endsWith("]")) {
-        valueList = new String[3];
-        String[] split = value.substring(1, value.length() - 1).split(",");
-        for (int i = 0; i < valueList.length; i++) {
-          if (i < split.length) {
-            valueList[i] = split[i].trim();
-          } else {
-            valueList[i] = valueList[i - 1];
-          }
-        }
-      } else {
-        String trimmed = value.trim();
-        valueList = new String[] {trimmed, trimmed, trimmed};
-      }
-      map.put(String.valueOf(o.getKey()), valueList);
+      map.put(String.valueOf(o.getKey()), String.valueOf(o.getValue()));
     }
     return map;
   }
@@ -84,24 +58,36 @@ final class JfpUtils {
   }
 
   public static Map<String, String> readNamedJfpResource(
-      final String name, Level level, final String overridesFile) throws IOException {
+      final String name, final String overridesFileName) throws IOException {
     final Map<String, String> result = new HashMap<>();
 
     try (final InputStream stream = getNamedResource(name)) {
-      merge(readJfpFile(stream), level, result);
+      result.putAll(readJfpFile(stream));
     }
 
-    if (overridesFile != null) {
-      try (final InputStream stream = new FileInputStream(overridesFile)) {
-        merge(readJfpFile(stream), level, result);
+    if (overridesFileName != null) {
+      InputStream overrideStream = null;
+      try {
+        File override = new File(overridesFileName);
+        if (override.exists()) {
+          overrideStream = new FileInputStream(override);
+        } else {
+          overrideStream = getNamedResource(OVERRIDES_PATH + overridesFileName);
+        }
+        if (overrideStream != null) {
+          result.putAll(readJfpFile(overrideStream));
+        } else {
+          log.warn("Invalid override file {}", overridesFileName);
+        }
+      } finally {
+        if (overrideStream != null) {
+          try {
+            overrideStream.close();
+          } catch (IOException ignored) {
+          }
+        }
       }
     }
     return Collections.unmodifiableMap(result);
-  }
-
-  private static void merge(Map<String, String[]> source, Level level, Map<String, String> target) {
-    for (Map.Entry<String, String[]> entry : source.entrySet()) {
-      target.put(entry.getKey(), entry.getValue()[level.getIndex()]);
-    }
   }
 }

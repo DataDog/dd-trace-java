@@ -51,23 +51,10 @@ public final class OpenJdkController implements Controller {
     Class.forName("jdk.jfr.FlightRecorder");
     try {
       recordingSettings =
-          JfpUtils.readNamedJfpResource(
-              JFP, getLevel(config), config.getProfilingTemplateOverrideFile());
+          JfpUtils.readNamedJfpResource(JFP, config.getProfilingTemplateOverrideFile());
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
-  }
-
-  private static JfpUtils.Level getLevel(Config config) {
-    String levelString = config.getProfilingTemplate();
-    if (levelString != null) {
-      try {
-        return JfpUtils.Level.valueOf(levelString.toUpperCase());
-      } catch (IllegalArgumentException ignored) {
-        //
-      }
-    }
-    return JfpUtils.Level.DEFAULT;
   }
 
   @Override

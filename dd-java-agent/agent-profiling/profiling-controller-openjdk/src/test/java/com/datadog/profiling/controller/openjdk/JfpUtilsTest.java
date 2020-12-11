@@ -2,23 +2,68 @@ package com.datadog.profiling.controller.openjdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.Appender;
 import java.io.IOException;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JfpUtilsTest {
-
   private static final String CONFIG_ENTRY = "jdk.ThreadAllocationStatistics#enabled";
   private static final String CONFIG_OVERRIDE_ENTRY = "test.continuous.override#value";
 
   static final String OVERRIDES =
       OpenJdkControllerTest.class.getClassLoader().getResource("overrides.jfp").getFile();
 
+  private Appender<ILoggingEvent> mockedAppender;
+
+  @SuppressWarnings("unchecked")
+  @BeforeEach
+  void setup() throws Exception {
+    mockedAppender = (Appender<ILoggingEvent>) Mockito.mock(Appender.class);
+    ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME))
+        .addAppender(mockedAppender);
+  }
+
+  @AfterEach
+  void teardown() throws Exception {
+    ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME))
+        .detachAppender(mockedAppender);
+  }
+
+  private void assertLog(Level level, String message) {
+    ArgumentCaptor<ILoggingEvent> argumentCaptor = ArgumentCaptor.forClass(ILoggingEvent.class);
+    Mockito.verify(mockedAppender).doAppend(argumentCaptor.capture());
+
+    for (ILoggingEvent event : argumentCaptor.getAllValues()) {
+      if (message.equals(event.getFormattedMessage()) && level.equals(event.getLevel())) {
+        return;
+      }
+    }
+    fail("Log does not contain the expected message '" + message + "' at level '" + level + "'");
+  }
+
+  @Test
+  public void testLoadingInvalidOverride() throws IOException {
+    final String INVALID_OVERRIDE = "really_non_existent_file.jfp";
+
+    JfpUtils.readNamedJfpResource(OpenJdkController.JFP, INVALID_OVERRIDE);
+
+    assertLog(Level.WARN, "Invalid override file " + INVALID_OVERRIDE);
+  }
+
   @Test
   public void testLoadingContinuousConfig() throws IOException {
-    final Map<String, String> config =
-        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, JfpUtils.Level.DEFAULT, null);
+    final Map<String, String> config = JfpUtils.readNamedJfpResource(OpenJdkController.JFP, null);
     assertEquals("true", config.get(CONFIG_ENTRY));
     assertNull(config.get(CONFIG_OVERRIDE_ENTRY));
   }
@@ -26,7 +71,7 @@ public class JfpUtilsTest {
   @Test
   public void testLoadingContinuousConfigWithOverride() throws IOException {
     final Map<String, String> config =
-        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, JfpUtils.Level.DEFAULT, OVERRIDES);
+        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, OVERRIDES);
     assertEquals("true", config.get(CONFIG_ENTRY));
     assertEquals("200", config.get(CONFIG_OVERRIDE_ENTRY));
   }
@@ -34,7 +79,7 @@ public class JfpUtilsTest {
   @Test
   public void testLoadingConfigMinimal() throws IOException {
     Map<String, String> config =
-        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, JfpUtils.Level.MINIMAL, null);
+        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, "minimal.jfp");
     assertEquals("500 ms", config.get("jdk.ThreadSleep#threshold"));
     assertEquals("false", config.get("jdk.OldObjectSample#enabled"));
     assertEquals("false", config.get("jdk.ObjectAllocationInNewTLAB#enabled"));
@@ -43,7 +88,7 @@ public class JfpUtilsTest {
   @Test
   public void testLoadingConfigComprehensive() throws IOException {
     Map<String, String> config =
-        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, JfpUtils.Level.COMPREHENSIVE, null);
+        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, "comprehensive.jfp");
     assertEquals("10 ms", config.get("jdk.ThreadSleep#threshold"));
     assertEquals("true", config.get("jdk.OldObjectSample#enabled"));
     assertEquals("true", config.get("jdk.ObjectAllocationInNewTLAB#enabled"));
