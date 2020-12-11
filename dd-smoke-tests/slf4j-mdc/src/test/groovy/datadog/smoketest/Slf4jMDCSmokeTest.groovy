@@ -31,6 +31,7 @@ class Slf4jMDCSmokeTest extends Specification {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.add("-javaagent:${shadowJarPath}" as String)
+    command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log")
     command.add("-Ddd.writer.type=TraceStructureWriter")
     command.add("-Ddd.trace.debug=true")
     command.add("-Ddd.logs.injection=true")
