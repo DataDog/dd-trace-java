@@ -56,7 +56,12 @@ public class ReferenceCreator extends ClassVisitor {
     while (!instrumentationQueue.isEmpty()) {
       final String className = instrumentationQueue.remove();
       visitedSources.add(className);
-      try (InputStream in = loader.getResourceAsStream(Utils.getResourceName(className))) {
+      String resourceName = Utils.getResourceName(className);
+      try (InputStream in = loader.getResourceAsStream(resourceName)) {
+        if (null == in) {
+          System.err.println(resourceName + " not found, skipping");
+          continue;
+        }
         final ReferenceCreator cv = new ReferenceCreator(null);
         final ClassReader reader = new ClassReader(in);
         reader.accept(cv, ClassReader.SKIP_FRAMES);
