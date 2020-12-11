@@ -22,7 +22,7 @@ class TraceConfigTest extends AgentTestRunner {
   class ConfigTracedCallable2 implements Callable<String> {
     int g
 
-    public ConfigTracedCallable2(){
+    ConfigTracedCallable2(){
       g = 4
     }
     @Override
