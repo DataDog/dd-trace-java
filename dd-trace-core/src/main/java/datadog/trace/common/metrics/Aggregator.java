@@ -36,7 +36,7 @@ final class Aggregator implements Runnable {
     this.writer = writer;
     this.batchPool = batchPool;
     this.inbox = inbox;
-    this.aggregates = new LRUCache<>(maxAggregates, 0.75f, maxAggregates * 4 / 3);
+    this.aggregates = new LRUCache<>(maxAggregates * 4 / 3, 0.75f, maxAggregates);
     this.pending = pending;
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
   }
