@@ -24,7 +24,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class ObservableInstrumentation extends Instrumenter.Default {
+public final class ObservableInstrumentation extends Instrumenter.Tracing {
   public ObservableInstrumentation() {
     super("rxjava");
   }

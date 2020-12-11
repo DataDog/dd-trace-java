@@ -27,7 +27,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public class HttpUrlConnectionInstrumentation extends Instrumenter.Default {
+public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing {
 
   public HttpUrlConnectionInstrumentation() {
     super("httpurlconnection");

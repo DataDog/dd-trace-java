@@ -30,7 +30,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
+public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing {
   public GoogleHttpClientInstrumentation() {
     super("google-http-client");
   }

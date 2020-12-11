@@ -29,7 +29,7 @@ import org.springframework.data.repository.core.support.RepositoryFactorySupport
 import org.springframework.data.repository.core.support.RepositoryProxyPostProcessor;
 
 @AutoService(Instrumenter.class)
-public final class SpringRepositoryInstrumentation extends Instrumenter.Default {
+public final class SpringRepositoryInstrumentation extends Instrumenter.Tracing {
 
   public SpringRepositoryInstrumentation() {
     super("spring-data");

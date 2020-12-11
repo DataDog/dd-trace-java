@@ -24,7 +24,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import redis.clients.jedis.Protocol.Command;
 
 @AutoService(Instrumenter.class)
-public final class JedisInstrumentation extends Instrumenter.Default {
+public final class JedisInstrumentation extends Instrumenter.Tracing {
 
   private static final String SERVICE_NAME = "redis";
   private static final String COMPONENT_NAME = SERVICE_NAME + "-command";

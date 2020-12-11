@@ -28,7 +28,7 @@ import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
 
 @AutoService(Instrumenter.class)
-public class CommonsHttpClientInstrumentation extends Instrumenter.Default {
+public class CommonsHttpClientInstrumentation extends Instrumenter.Tracing {
 
   public CommonsHttpClientInstrumentation() {
     super("commons-http-client");

@@ -13,9 +13,11 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.extern.slf4j.Slf4j;
@@ -119,7 +121,13 @@ public class AgentInstaller {
             "Adding filtered classes from instrumentation {}", instrumenter.getClass().getName());
       }
     }
+
+    Set<Instrumenter.TargetSystem> enabledSystems = getEnabledSystems();
     for (final Instrumenter instrumenter : loader) {
+      if (!instrumenter.isApplicable(enabledSystems)) {
+        log.debug("Instrumentation {} is not applicable", instrumenter.getClass().getName());
+        continue;
+      }
       log.debug("Loading instrumentation {}", instrumenter.getClass().getName());
 
       try {
@@ -132,6 +140,19 @@ public class AgentInstaller {
     log.debug("Installed {} instrumenter(s)", numInstrumenters);
 
     return agentBuilder.installOn(inst);
+  }
+
+  private static Set<Instrumenter.TargetSystem> getEnabledSystems() {
+    EnumSet<Instrumenter.TargetSystem> enabledSystems =
+        EnumSet.noneOf(Instrumenter.TargetSystem.class);
+    Config cfg = Config.get();
+    if (cfg.isTraceEnabled()) {
+      enabledSystems.add(Instrumenter.TargetSystem.TRACING);
+    }
+    if (cfg.isProfilingEnabled()) {
+      enabledSystems.add(Instrumenter.TargetSystem.PROFILING);
+    }
+    return enabledSystems;
   }
 
   private static void addByteBuddyRawSetting() {

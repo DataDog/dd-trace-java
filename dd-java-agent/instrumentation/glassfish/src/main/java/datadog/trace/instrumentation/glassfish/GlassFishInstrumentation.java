@@ -25,7 +25,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class GlassFishInstrumentation extends Instrumenter.Default {
+public final class GlassFishInstrumentation extends Instrumenter.Tracing {
 
   public GlassFishInstrumentation() {
     super("glassfish");

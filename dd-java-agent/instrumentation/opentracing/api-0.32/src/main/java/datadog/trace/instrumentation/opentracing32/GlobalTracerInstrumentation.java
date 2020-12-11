@@ -21,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * prefix.
  */
 @AutoService(Instrumenter.class)
-public class GlobalTracerInstrumentation extends Instrumenter.Default {
+public class GlobalTracerInstrumentation extends Instrumenter.Tracing {
   public GlobalTracerInstrumentation() {
     super("opentracing", "opentracing-globaltracer");
   }

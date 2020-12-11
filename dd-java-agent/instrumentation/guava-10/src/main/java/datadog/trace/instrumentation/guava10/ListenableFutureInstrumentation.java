@@ -23,7 +23,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public class ListenableFutureInstrumentation extends Instrumenter.Default {
+public class ListenableFutureInstrumentation extends Instrumenter.Tracing {
 
   public ListenableFutureInstrumentation() {
     super("guava");

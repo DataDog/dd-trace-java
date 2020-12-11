@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
 import java.util.Map;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
@@ -36,8 +37,14 @@ public final class AsyncPropagatingDisableInstrumentation implements Instrumente
         .instrument(agentBuilder);
   }
 
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    // don't care
+    return true;
+  }
+
   // Not Using AutoService to hook up this instrumentation
-  public static class DisableAsyncInstrumentation extends Default {
+  public static class DisableAsyncInstrumentation extends Tracing {
 
     private final ElementMatcher<? super TypeDescription> typeMatcher;
     private final ElementMatcher<? super MethodDescription> methodMatcher;

@@ -19,7 +19,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class MongoClientInstrumentation extends Instrumenter.Default {
+public final class MongoClientInstrumentation extends Instrumenter.Tracing {
 
   public MongoClientInstrumentation() {
     super("mongo");

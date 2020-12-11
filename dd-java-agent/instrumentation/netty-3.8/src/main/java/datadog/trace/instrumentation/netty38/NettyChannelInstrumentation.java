@@ -24,7 +24,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.netty.channel.Channel;
 
 @AutoService(Instrumenter.class)
-public class NettyChannelInstrumentation extends Instrumenter.Default {
+public class NettyChannelInstrumentation extends Instrumenter.Tracing {
   public NettyChannelInstrumentation() {
     super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
   }

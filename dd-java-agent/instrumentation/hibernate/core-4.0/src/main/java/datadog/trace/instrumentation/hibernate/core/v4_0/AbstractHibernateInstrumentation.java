@@ -5,7 +5,7 @@ import datadog.trace.instrumentation.hibernate.HibernateMatchers;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.SharedSessionContract;
 
-public abstract class AbstractHibernateInstrumentation extends Instrumenter.Default {
+public abstract class AbstractHibernateInstrumentation extends Instrumenter.Tracing {
 
   public AbstractHibernateInstrumentation() {
     super("hibernate", "hibernate-core");

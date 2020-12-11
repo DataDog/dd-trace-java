@@ -15,7 +15,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class ClientResponseInstrumentation extends Instrumenter.Default {
+public final class ClientResponseInstrumentation extends Instrumenter.Tracing {
 
   public ClientResponseInstrumentation() {
     super("grizzly-client", "ning");

@@ -10,7 +10,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class IBMResourceLevelInstrumentation extends Instrumenter.Default {
+public class IBMResourceLevelInstrumentation extends Instrumenter.Tracing {
   public IBMResourceLevelInstrumentation() {
     super(IBMResourceLevelInstrumentation.class.getName());
   }

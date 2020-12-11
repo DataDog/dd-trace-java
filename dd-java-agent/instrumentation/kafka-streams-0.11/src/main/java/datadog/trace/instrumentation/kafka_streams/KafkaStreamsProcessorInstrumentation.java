@@ -37,7 +37,7 @@ public class KafkaStreamsProcessorInstrumentation {
   // in awkward tests and traces. We may want to revisit this in the future.
 
   @AutoService(Instrumenter.class)
-  public static class StartInstrumentation extends Instrumenter.Default {
+  public static class StartInstrumentation extends Instrumenter.Tracing {
 
     public StartInstrumentation() {
       super("kafka", "kafka-streams");
@@ -85,7 +85,7 @@ public class KafkaStreamsProcessorInstrumentation {
   }
 
   @AutoService(Instrumenter.class)
-  public static class StopInstrumentation extends Instrumenter.Default {
+  public static class StopInstrumentation extends Instrumenter.Tracing {
 
     public StopInstrumentation() {
       super("kafka", "kafka-streams");

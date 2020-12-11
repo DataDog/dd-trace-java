@@ -29,7 +29,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JMSMessageProducerInstrumentation extends Instrumenter.Default {
+public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracing {
 
   public JMSMessageProducerInstrumentation() {
     super("jms", "jms-1", "jms-2");

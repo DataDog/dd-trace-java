@@ -25,7 +25,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class DropwizardViewInstrumentation extends Instrumenter.Default {
+public final class DropwizardViewInstrumentation extends Instrumenter.Tracing {
 
   public DropwizardViewInstrumentation() {
     super("dropwizard", "dropwizard-view");

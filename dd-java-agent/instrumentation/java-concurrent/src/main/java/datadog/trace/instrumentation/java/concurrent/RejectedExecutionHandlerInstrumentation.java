@@ -23,7 +23,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Default {
+public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Tracing {
 
   public RejectedExecutionHandlerInstrumentation() {
     super("java_concurrent", "rejected-execution-handler");

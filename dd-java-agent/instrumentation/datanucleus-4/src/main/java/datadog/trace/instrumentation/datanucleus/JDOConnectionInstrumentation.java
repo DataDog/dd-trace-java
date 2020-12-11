@@ -15,7 +15,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public class JDOConnectionInstrumentation extends Instrumenter.Default {
+public class JDOConnectionInstrumentation extends Instrumenter.Tracing {
   public JDOConnectionInstrumentation() {
     super("datanucleus");
   }

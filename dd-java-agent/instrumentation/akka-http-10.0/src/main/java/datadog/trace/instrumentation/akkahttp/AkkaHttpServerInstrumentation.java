@@ -75,7 +75,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
+public final class AkkaHttpServerInstrumentation extends Instrumenter.Tracing {
   public AkkaHttpServerInstrumentation() {
     super("akka-http", "akka-http-server");
   }

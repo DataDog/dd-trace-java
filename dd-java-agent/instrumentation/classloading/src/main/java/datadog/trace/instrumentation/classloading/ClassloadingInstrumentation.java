@@ -33,7 +33,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * for the classes that we have put in the bootstrap class loader.
  */
 @AutoService(Instrumenter.class)
-public final class ClassloadingInstrumentation extends Instrumenter.Default {
+public final class ClassloadingInstrumentation extends Instrumenter.Tracing {
   public ClassloadingInstrumentation() {
     super("classloading");
   }

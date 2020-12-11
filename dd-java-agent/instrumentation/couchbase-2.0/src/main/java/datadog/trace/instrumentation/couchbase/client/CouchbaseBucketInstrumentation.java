@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import rx.Observable;
 
 @AutoService(Instrumenter.class)
-public class CouchbaseBucketInstrumentation extends Instrumenter.Default {
+public class CouchbaseBucketInstrumentation extends Instrumenter.Tracing {
 
   public CouchbaseBucketInstrumentation() {
     super("couchbase");

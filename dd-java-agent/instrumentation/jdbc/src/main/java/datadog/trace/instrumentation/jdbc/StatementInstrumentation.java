@@ -27,7 +27,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class StatementInstrumentation extends Instrumenter.Default {
+public final class StatementInstrumentation extends Instrumenter.Tracing {
 
   public StatementInstrumentation() {
     super("jdbc");

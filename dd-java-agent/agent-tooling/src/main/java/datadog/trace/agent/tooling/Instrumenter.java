@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import lombok.extern.slf4j.Slf4j;
@@ -41,12 +42,36 @@ import net.bytebuddy.utility.JavaModule;
  */
 public interface Instrumenter {
   /**
+   * Since several subsystems are sharing the same instrumentation infractructure in order to enable
+   * only the applicable {@link Instrumenter instrumenters} on startup each {@linkplain
+   * Instrumenter} type must declare its target system. Currently only two systems are supported
+   *
+   * <ul>
+   *   <li>{@link TargetSystem#TRACING tracing}
+   *   <li>{@link TargetSystem#PROFILING profiling}
+   * </ul>
+   */
+  enum TargetSystem {
+    TRACING,
+    PROFILING
+  }
+
+  /**
    * Add this instrumentation to an AgentBuilder.
    *
    * @param agentBuilder AgentBuilder to base instrumentation config off of.
    * @return the original agentBuilder and this instrumentation
    */
   AgentBuilder instrument(AgentBuilder agentBuilder);
+
+  /**
+   * Indicates the applicability of an {@linkplain Instrumenter} to the given system.<br>
+   *
+   * @param enabledSystems a set of all the enabled target systems
+   * @return {@literal true} if the set of enabled systems contains all the ones required by this
+   *     particular {@linkplain Instrumenter}
+   */
+  boolean isApplicable(Set<TargetSystem> enabledSystems);
 
   @Slf4j
   abstract class Default implements Instrumenter {
@@ -66,7 +91,10 @@ public interface Instrumenter {
     protected final String packageName =
         getClass().getPackage() == null ? "" : getClass().getPackage().getName();
 
-    public Default(final String instrumentationName, final String... additionalNames) {
+    public Default(
+        final TargetSystem targetSystem,
+        final String instrumentationName,
+        final String... additionalNames) {
       instrumentationNames = new TreeSet<>(Arrays.asList(additionalNames));
       instrumentationNames.add(instrumentationName);
       instrumentationPrimaryName = instrumentationName;
@@ -294,9 +322,36 @@ public interface Instrumenter {
     }
 
     protected boolean defaultEnabled() {
-      // by default an instrumentation is guarded by both tracing and the particular integration
-      // being active
-      return Config.get().isTraceEnabled() && Config.get().isIntegrationsEnabled();
+      return Config.get().isIntegrationsEnabled();
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return false;
+    }
+  }
+
+  /** Parent class for all tracing related instrumentations */
+  abstract class Tracing extends Default {
+    public Tracing(String instrumentationName, String... additionalNames) {
+      super(TargetSystem.TRACING, instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.TRACING);
+    }
+  }
+
+  /** Parent class for */
+  abstract class Profiling extends Default {
+    public Profiling(String instrumentationName, String... additionalNames) {
+      super(TargetSystem.PROFILING, instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.PROFILING);
     }
   }
 }

@@ -17,7 +17,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @Slf4j
-public abstract class AbstractExecutorInstrumentation extends Instrumenter.Default {
+public abstract class AbstractExecutorInstrumentation extends Instrumenter.Tracing {
 
   public static final String EXEC_NAME = "java_concurrent";
 

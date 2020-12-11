@@ -16,7 +16,7 @@ import org.testng.TestNG;
 import org.testng.annotations.DataProvider;
 
 @AutoService(Instrumenter.class)
-public class TestNGInstrumentation extends Instrumenter.Default {
+public class TestNGInstrumentation extends Instrumenter.Tracing {
 
   public TestNGInstrumentation() {
     super("testng");

@@ -18,7 +18,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class ServletContextInstrumentation extends Instrumenter.Default {
+public final class ServletContextInstrumentation extends Instrumenter.Tracing {
   public ServletContextInstrumentation() {
     super("servlet", "servlet-dispatcher");
   }

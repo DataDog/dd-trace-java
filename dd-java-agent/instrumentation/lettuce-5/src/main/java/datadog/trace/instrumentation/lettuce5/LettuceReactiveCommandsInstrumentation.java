@@ -17,7 +17,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class LettuceReactiveCommandsInstrumentation extends Instrumenter.Default {
+public class LettuceReactiveCommandsInstrumentation extends Instrumenter.Tracing {
 
   public LettuceReactiveCommandsInstrumentation() {
     super("lettuce", "lettuce-5", "lettuce-5-rx");

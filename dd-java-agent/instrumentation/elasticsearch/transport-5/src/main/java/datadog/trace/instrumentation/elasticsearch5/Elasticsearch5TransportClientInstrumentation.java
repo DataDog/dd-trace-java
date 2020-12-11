@@ -24,7 +24,7 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 
 @AutoService(Instrumenter.class)
-public class Elasticsearch5TransportClientInstrumentation extends Instrumenter.Default {
+public class Elasticsearch5TransportClientInstrumentation extends Instrumenter.Tracing {
 
   public Elasticsearch5TransportClientInstrumentation() {
     super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-5");

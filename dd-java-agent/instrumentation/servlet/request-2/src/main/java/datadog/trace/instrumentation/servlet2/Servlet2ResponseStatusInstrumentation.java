@@ -14,7 +14,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Default {
+public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tracing {
   public Servlet2ResponseStatusInstrumentation() {
     super("servlet", "servlet-2");
   }

@@ -22,7 +22,7 @@ import net.spy.memcached.internal.GetFuture;
 import net.spy.memcached.internal.OperationFuture;
 
 @AutoService(Instrumenter.class)
-public final class MemcachedClientInstrumentation extends Instrumenter.Default {
+public final class MemcachedClientInstrumentation extends Instrumenter.Tracing {
 
   private static final String MEMCACHED_PACKAGE = "net.spy.memcached";
 

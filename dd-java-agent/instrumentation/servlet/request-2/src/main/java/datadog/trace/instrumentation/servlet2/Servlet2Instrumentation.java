@@ -19,7 +19,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class Servlet2Instrumentation extends Instrumenter.Default {
+public final class Servlet2Instrumentation extends Instrumenter.Tracing {
 
   public Servlet2Instrumentation() {
     super("servlet", "servlet-2");

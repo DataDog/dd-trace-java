@@ -28,7 +28,7 @@ import org.elasticsearch.action.ActionResponse;
  * an abstract class, so the bytecode isn't directly compatible.
  */
 @AutoService(Instrumenter.class)
-public class Elasticsearch6TransportClientInstrumentation extends Instrumenter.Default {
+public class Elasticsearch6TransportClientInstrumentation extends Instrumenter.Tracing {
 
   public Elasticsearch6TransportClientInstrumentation() {
     super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-6");

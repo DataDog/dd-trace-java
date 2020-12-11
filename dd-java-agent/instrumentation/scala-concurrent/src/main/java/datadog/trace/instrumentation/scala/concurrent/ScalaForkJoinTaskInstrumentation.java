@@ -26,7 +26,7 @@ import scala.concurrent.forkjoin.ForkJoinTask;
  * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles Scala version.
  */
 @AutoService(Instrumenter.class)
-public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Default {
+public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing {
 
   public ScalaForkJoinTaskInstrumentation() {
     super("java_concurrent", "scala_concurrent");

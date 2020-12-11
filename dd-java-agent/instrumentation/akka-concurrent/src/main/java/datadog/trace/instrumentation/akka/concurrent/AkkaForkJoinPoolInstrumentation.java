@@ -23,7 +23,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class AkkaForkJoinPoolInstrumentation extends Instrumenter.Default {
+public final class AkkaForkJoinPoolInstrumentation extends Instrumenter.Tracing {
 
   public AkkaForkJoinPoolInstrumentation() {
     super("java_concurrent", "akka_concurrent");

@@ -21,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.jasper.JspCompilationContext;
 
 @AutoService(Instrumenter.class)
-public final class JasperJSPCompilationContextInstrumentation extends Instrumenter.Default {
+public final class JasperJSPCompilationContextInstrumentation extends Instrumenter.Tracing {
 
   public JasperJSPCompilationContextInstrumentation() {
     super("jsp", "jsp-compile");

@@ -27,7 +27,7 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
  * which sometimes only copies the classname
  */
 @AutoService(Instrumenter.class)
-public class BeanFactoryInstrumentation extends Instrumenter.Default {
+public class BeanFactoryInstrumentation extends Instrumenter.Tracing {
   public BeanFactoryInstrumentation() {
     super("spring-web");
   }

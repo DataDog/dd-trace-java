@@ -17,7 +17,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Described in {@link CompletableFutureUniCompletionInstrumentation} */
 @AutoService(Instrumenter.class)
-public class CompletableFutureUniCompletionSubclassInstrumentation extends Instrumenter.Default {
+public class CompletableFutureUniCompletionSubclassInstrumentation extends Instrumenter.Tracing {
 
   public CompletableFutureUniCompletionSubclassInstrumentation() {
     super("java_completablefuture", "java_concurrent");

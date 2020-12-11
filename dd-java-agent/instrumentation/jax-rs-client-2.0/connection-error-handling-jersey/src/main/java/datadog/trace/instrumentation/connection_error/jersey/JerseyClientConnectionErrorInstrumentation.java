@@ -26,7 +26,7 @@ import org.glassfish.jersey.client.ClientRequest;
  * handle these errors at the implementation level.
  */
 @AutoService(Instrumenter.class)
-public final class JerseyClientConnectionErrorInstrumentation extends Instrumenter.Default {
+public final class JerseyClientConnectionErrorInstrumentation extends Instrumenter.Tracing {
 
   public JerseyClientConnectionErrorInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-client");

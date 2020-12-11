@@ -17,7 +17,7 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 import org.junit.platform.launcher.Launcher;
 
 @AutoService(Instrumenter.class)
-public class JUnit5Instrumentation extends Instrumenter.Default {
+public class JUnit5Instrumentation extends Instrumenter.Tracing {
 
   public JUnit5Instrumentation() {
     super("junit", "junit-5");

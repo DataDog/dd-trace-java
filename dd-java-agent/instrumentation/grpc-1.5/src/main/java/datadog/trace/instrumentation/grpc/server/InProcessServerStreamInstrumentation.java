@@ -19,7 +19,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * propagation to allow spans to complete and be reported properly.
  */
 @AutoService(Instrumenter.class)
-public class InProcessServerStreamInstrumentation extends Instrumenter.Default {
+public class InProcessServerStreamInstrumentation extends Instrumenter.Tracing {
 
   public InProcessServerStreamInstrumentation() {
     super("grpc", "grpc-server");

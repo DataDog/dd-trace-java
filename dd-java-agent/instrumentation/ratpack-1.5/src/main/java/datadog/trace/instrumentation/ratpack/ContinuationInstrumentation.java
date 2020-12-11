@@ -20,7 +20,7 @@ import ratpack.func.Block;
 import ratpack.path.PathBinding;
 
 @AutoService(Instrumenter.class)
-public final class ContinuationInstrumentation extends Instrumenter.Default {
+public final class ContinuationInstrumentation extends Instrumenter.Tracing {
 
   public ContinuationInstrumentation() {
     super("ratpack");

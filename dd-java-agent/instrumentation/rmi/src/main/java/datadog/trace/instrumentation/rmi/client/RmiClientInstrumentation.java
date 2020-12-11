@@ -24,7 +24,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class RmiClientInstrumentation extends Instrumenter.Default {
+public final class RmiClientInstrumentation extends Instrumenter.Tracing {
 
   public RmiClientInstrumentation() {
     super("rmi", "rmi-client");

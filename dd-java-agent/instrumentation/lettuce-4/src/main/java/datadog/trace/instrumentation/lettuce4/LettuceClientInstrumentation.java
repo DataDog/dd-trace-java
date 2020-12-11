@@ -12,7 +12,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class LettuceClientInstrumentation extends Instrumenter.Default {
+public final class LettuceClientInstrumentation extends Instrumenter.Tracing {
 
   public LettuceClientInstrumentation() {
     super("lettuce", "lettuce-4");

@@ -108,8 +108,14 @@ public class TraceConfigInstrumentation implements Instrumenter {
     return agentBuilder;
   }
 
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    // don't care
+    return true;
+  }
+
   // Not Using AutoService to hook up this instrumentation
-  public static class TracerClassInstrumentation extends Default {
+  public static class TracerClassInstrumentation extends Tracing {
     private final String className;
     private final Set<String> methodNames;
 

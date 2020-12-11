@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * is tested. It could possibly be extended earlier.
  */
 @AutoService(Instrumenter.class)
-public final class AWSClientInstrumentation extends Instrumenter.Default {
+public final class AWSClientInstrumentation extends Instrumenter.Tracing {
 
   public AWSClientInstrumentation() {
     super("aws-sdk");

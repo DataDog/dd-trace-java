@@ -25,7 +25,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.datanucleus.ExecutionContext;
 
 @AutoService(Instrumenter.class)
-public class ExecutionContextInstrumentation extends Instrumenter.Default {
+public class ExecutionContextInstrumentation extends Instrumenter.Tracing {
   public ExecutionContextInstrumentation() {
     super("datanucleus");
   }

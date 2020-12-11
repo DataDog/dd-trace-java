@@ -25,7 +25,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CouchbaseNetworkInstrumentation extends Instrumenter.Default {
+public class CouchbaseNetworkInstrumentation extends Instrumenter.Tracing {
   public CouchbaseNetworkInstrumentation() {
     super("couchbase");
   }

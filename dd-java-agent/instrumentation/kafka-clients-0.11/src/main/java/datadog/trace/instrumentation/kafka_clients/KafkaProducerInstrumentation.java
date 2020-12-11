@@ -31,7 +31,7 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(Instrumenter.class)
-public final class KafkaProducerInstrumentation extends Instrumenter.Default {
+public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
 
   public KafkaProducerInstrumentation() {
     super("kafka");

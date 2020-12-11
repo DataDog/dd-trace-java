@@ -19,7 +19,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ExcludeFilterProviderTestInstrumentation extends Instrumenter.Default
+public class ExcludeFilterProviderTestInstrumentation extends Instrumenter.Tracing
     implements ExcludeFilterProvider {
 
   public ExcludeFilterProviderTestInstrumentation() {
