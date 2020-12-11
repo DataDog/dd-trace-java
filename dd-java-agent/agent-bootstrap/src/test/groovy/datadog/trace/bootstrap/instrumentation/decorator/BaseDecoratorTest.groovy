@@ -1,15 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
-import spock.lang.Timeout
 
-@Timeout(20)
-// onPeerConnection might be slow...
 class BaseDecoratorTest extends DDSpecification {
 
   @Shared
@@ -37,9 +33,7 @@ class BaseDecoratorTest extends DDSpecification {
     decorator.onPeerConnection(span, connection)
 
     then:
-    if (connection.getAddress()) {
-      2 * span.setTag(Tags.PEER_HOSTNAME, connection.hostName)
-    } else {
+    if (!connection.isUnresolved()) {
       1 * span.setTag(Tags.PEER_HOSTNAME, connection.hostName)
     }
     1 * span.setTag(Tags.PEER_PORT, connection.port)
@@ -79,70 +73,6 @@ class BaseDecoratorTest extends DDSpecification {
 
     then:
     0 * _
-  }
-
-  def "test assert null span"() {
-    when:
-    decorator.afterStart((AgentSpan) null)
-
-    then:
-    thrown(AssertionError)
-
-    when:
-    decorator.onError((AgentSpan) null, null)
-
-    then:
-    thrown(AssertionError)
-
-    when:
-    decorator.onError((AgentSpan) null, null)
-
-    then:
-    thrown(AssertionError)
-
-    when:
-    decorator.onPeerConnection((AgentSpan) null, null)
-
-    then:
-    thrown(AssertionError)
-  }
-
-  def "test assert null scope"() {
-    when:
-    decorator.onError((AgentScope) null, null)
-
-    then:
-    thrown(AssertionError)
-
-    when:
-    decorator.onError((AgentScope) null, null)
-
-    then:
-    thrown(AssertionError)
-
-    when:
-    decorator.beforeFinish((AgentScope) null)
-
-    then:
-    thrown(AssertionError)
-  }
-
-  def "test assert non-null scope"() {
-    setup:
-    def span = Mock(AgentSpan)
-    def scope = Mock(AgentScope)
-
-    when:
-    decorator.onError(scope, null)
-
-    then:
-    1 * scope.span() >> span
-
-    when:
-    decorator.beforeFinish(scope)
-
-    then:
-    1 * scope.span() >> span
   }
 
   def "test analytics rate default disabled"() {

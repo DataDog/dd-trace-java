@@ -114,23 +114,6 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     null   | null           | false
   }
 
-  def "test assert null span"() {
-    setup:
-    def decorator = newDecorator()
-
-    when:
-    decorator.onRequest(null, null)
-
-    then:
-    thrown(AssertionError)
-
-    when:
-    decorator.onResponse(null, null)
-
-    then:
-    thrown(AssertionError)
-  }
-
   @Override
   def newDecorator(String serviceName = "test-service") {
     return new HttpClientDecorator<Map, Map>() {

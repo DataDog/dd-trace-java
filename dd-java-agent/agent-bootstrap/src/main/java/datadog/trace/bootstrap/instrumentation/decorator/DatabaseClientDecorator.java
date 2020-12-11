@@ -36,7 +36,6 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
    * @return
    */
   public AgentSpan onConnection(final AgentSpan span, final CONNECTION connection) {
-    assert span != null;
     if (connection != null) {
       span.setTag(Tags.DB_USER, dbUser(connection));
       final String instanceName = dbInstance(connection);
@@ -55,7 +54,6 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   }
 
   public AgentSpan onStatement(final AgentSpan span, final CharSequence statement) {
-    assert span != null;
     span.setResourceName(statement);
     return span;
   }

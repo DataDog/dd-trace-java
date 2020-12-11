@@ -46,7 +46,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   }
 
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
-    assert span != null;
     if (request != null) {
       span.setTag(Tags.HTTP_METHOD, method(request));
 
@@ -95,7 +94,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   }
 
   public AgentSpan onConnection(final AgentSpan span, final CONNECTION connection) {
-    assert span != null;
     if (connection != null) {
       final String ip = peerHostIP(connection);
       if (ip != null) {
@@ -112,7 +110,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   }
 
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
-    assert span != null;
     if (response != null) {
       final int status = status(response);
       if (status != 0) {
