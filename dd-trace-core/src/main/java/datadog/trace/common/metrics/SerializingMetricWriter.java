@@ -98,10 +98,10 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeLong(aggregate.getDuration());
 
     writer.writeUTF8(OK_SUMMARY);
-    writer.writeBinary(aggregate.getOkLatencies());
+    writer.writeBinary(aggregate.getOkLatencies().serialize());
 
     writer.writeUTF8(ERROR_SUMMARY);
-    writer.writeBinary(aggregate.getErrorLatencies());
+    writer.writeBinary(aggregate.getErrorLatencies().serialize());
   }
 
   @Override
