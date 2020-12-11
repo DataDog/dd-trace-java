@@ -46,6 +46,8 @@ dependencies {
   testCompile project(":dd-java-agent:testing")
   testCompile group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   testCompile group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
+  testCompile group: 'org.openjdk.jol', name: 'jol-core', version: '0.14'
+
 
   traceAgentTestCompile deps.testcontainers
 }

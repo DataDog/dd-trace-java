@@ -3,15 +3,14 @@ package datadog.trace.common.metrics;
 import datadog.trace.core.histogram.Histogram;
 import datadog.trace.core.histogram.HistogramFactory;
 import datadog.trace.core.histogram.Histograms;
-import java.nio.ByteBuffer;
 
 /** Not thread-safe. Accumulates counts and durations. */
 public final class AggregateMetric {
 
   private static final HistogramFactory HISTOGRAM_FACTORY = Histograms.newHistogramFactory();
 
-  private Histogram okLatencies;
-  private Histogram errorLatencies;
+  private final Histogram okLatencies;
+  private final Histogram errorLatencies;
   private int errorCount;
   private int hitCount;
   private long duration;
@@ -48,12 +47,12 @@ public final class AggregateMetric {
     return duration;
   }
 
-  public ByteBuffer getOkLatencies() {
-    return okLatencies.serialize();
+  public Histogram getOkLatencies() {
+    return okLatencies;
   }
 
-  public ByteBuffer getErrorLatencies() {
-    return errorLatencies.serialize();
+  public Histogram getErrorLatencies() {
+    return errorLatencies;
   }
 
   public void clear() {

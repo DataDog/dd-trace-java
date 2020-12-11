@@ -47,4 +47,51 @@ class HistogramsTest extends DDSpecification {
     expect:
     Histograms.load("oops, not a class") instanceof StubHistogram
   }
+
+  def "test max ddsketch"() {
+    // this test only exists because we need to wrap DDSketch
+    // - it is already well tested in the library
+    expect:
+    def histogram = Histograms.newHistogramFactory().newHistogram()
+    histogram.accept(10)
+    histogram.max() < 10.1
+    histogram.max() >= 10.0
+  }
+
+  def "test max empty ddsketch"() {
+    expect:
+    def histogram = Histograms.newHistogramFactory().newHistogram()
+    histogram.max() == 0
+  }
+
+  def "test p99 ddsketch"() {
+    // this test only exists because we need to wrap DDSketch
+    // - it is already well tested in the library
+    expect:
+    def histogram = Histograms.newHistogramFactory().newHistogram()
+    for (int i = 0; i < 100; ++i) {
+      histogram.accept(i)
+    }
+    assert Math.abs(histogram.valueAtQuantile(0.99) - 99) < 2
+  }
+
+  def "test p99 empty ddsketch"() {
+    expect:
+    def histogram = Histograms.newHistogramFactory().newHistogram()
+    assert histogram.valueAtQuantile(0.99) == 0
+  }
+
+  def "test max stub"() {
+    expect:
+    def histogram = new StubHistogram()
+    histogram.accept(10)
+    histogram.max() == 0
+  }
+
+  def "test p99 stub"() {
+    expect:
+    def histogram = new StubHistogram()
+    histogram.accept(10)
+    histogram.valueAtQuantile(0.99) == 0
+  }
 }
