@@ -20,6 +20,11 @@ class TraceConfigTest extends AgentTestRunner {
   }
 
   class ConfigTracedCallable2 implements Callable<String> {
+    int g
+
+    public ConfigTracedCallable2(){
+      g = 4
+    }
     @Override
     String call() throws Exception {
       return call_helper()
@@ -27,6 +32,13 @@ class TraceConfigTest extends AgentTestRunner {
 
     String call_helper() throws Exception {
       return "Hello2!"
+    }
+
+    String getValue() {
+      return "hello"
+    }
+    void setValue(int value) {
+      g = value
     }
   }
 
@@ -112,10 +124,18 @@ class TraceConfigTest extends AgentTestRunner {
   }
 
   def "test wildcard configuration"() {
-
     when:
-    new ConfigTracedCallable2().call() == "Hello2!"
+    ConfigTracedCallable2 object = new ConfigTracedCallable2()
+    object.call()
+    object.hashCode()
+    object == new ConfigTracedCallable2()
+    object.toString()
+    object.finalize()
+    object.getValue()
+    object.setValue(5)
     new Sophisticated().produceDefinition()
+
+
     then:
     assertTraces(2) {
       trace(2) {
