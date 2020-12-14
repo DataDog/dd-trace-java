@@ -5,6 +5,7 @@ import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
+import datadog.trace.common.writer.ddagent.Response
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
@@ -34,7 +35,7 @@ class PayloadDispatcherTest extends DDSpecification {
     api.selectTraceMapper() >> traceMapper
     api.sendSerializedTraces(_) >> {
       flushed.set(true)
-      return DDAgentApi.Response.success(200)
+      return Response.success(200)
     }
     PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
@@ -64,7 +65,7 @@ class PayloadDispatcherTest extends DDSpecification {
     then:
     1 * healthMetrics.onSerialize({ it > 0 })
     1 * api.selectTraceMapper() >> traceMapper
-    1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> Response.success(200)
 
     where:
     traceMapper           | traceCount
@@ -90,7 +91,7 @@ class PayloadDispatcherTest extends DDSpecification {
     then:
     1 * healthMetrics.onSerialize({ it > 0 })
     1 * api.selectTraceMapper() >> traceMapper
-    1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.failed(400)
+    1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> Response.failed(400)
 
     where:
     traceMapper           | traceCount

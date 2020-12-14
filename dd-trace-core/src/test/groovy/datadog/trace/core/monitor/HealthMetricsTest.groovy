@@ -3,7 +3,7 @@ package datadog.trace.core.monitor
 import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.DDAgentWriter
-import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.Response
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Ignore
 import spock.lang.Subject
@@ -125,10 +125,10 @@ class HealthMetricsTest extends DDSpecification {
 
     where:
     response << [
-      DDAgentApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100)),
-      DDAgentApi.Response.failed(ThreadLocalRandom.current().nextInt(1, 100)),
-      DDAgentApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100), new Throwable()),
-      DDAgentApi.Response.failed(new Throwable()),
+            Response.success(ThreadLocalRandom.current().nextInt(1, 100)),
+            Response.failed(ThreadLocalRandom.current().nextInt(1, 100)),
+            Response.success(ThreadLocalRandom.current().nextInt(1, 100), new Throwable()),
+            Response.failed(new Throwable()),
     ]
 
     traceCount = ThreadLocalRandom.current().nextInt(1, 100)
@@ -153,10 +153,10 @@ class HealthMetricsTest extends DDSpecification {
 
     where:
     response << [
-      DDAgentApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100)),
-      DDAgentApi.Response.failed(ThreadLocalRandom.current().nextInt(1, 100)),
-      DDAgentApi.Response.success(ThreadLocalRandom.current().nextInt(1, 100), new Throwable()),
-      DDAgentApi.Response.failed(new Throwable()),
+            Response.success(ThreadLocalRandom.current().nextInt(1, 100)),
+            Response.failed(ThreadLocalRandom.current().nextInt(1, 100)),
+            Response.success(ThreadLocalRandom.current().nextInt(1, 100), new Throwable()),
+            Response.failed(new Throwable()),
     ]
 
     traceCount = ThreadLocalRandom.current().nextInt(1, 100)

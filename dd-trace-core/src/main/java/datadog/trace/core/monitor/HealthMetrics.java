@@ -8,7 +8,7 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.IntFunction;
 import datadog.trace.api.cache.RadixTreeCache;
-import datadog.trace.common.writer.ddagent.DDAgentApi;
+import datadog.trace.common.writer.ddagent.Response;
 import datadog.trace.core.DDSpan;
 import java.util.List;
 
@@ -97,18 +97,15 @@ public class HealthMetrics {
     // api.errors???
   }
 
-  public void onSend(
-      final int traceCount, final int sizeInBytes, final DDAgentApi.Response response) {
+  public void onSend(final int traceCount, final int sizeInBytes, final Response response) {
     onSendAttempt(traceCount, sizeInBytes, response);
   }
 
-  public void onFailedSend(
-      final int traceCount, final int sizeInBytes, final DDAgentApi.Response response) {
+  public void onFailedSend(final int traceCount, final int sizeInBytes, final Response response) {
     onSendAttempt(traceCount, sizeInBytes, response);
   }
 
-  private void onSendAttempt(
-      final int traceCount, final int sizeInBytes, final DDAgentApi.Response response) {
+  private void onSendAttempt(final int traceCount, final int sizeInBytes, final Response response) {
     statsd.incrementCounter("api.requests.total", NO_TAGS);
     statsd.count("flush.traces.total", traceCount, NO_TAGS);
     // TODO: missing queue.spans (# of spans being sent)

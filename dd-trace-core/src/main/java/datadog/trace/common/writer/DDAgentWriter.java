@@ -13,6 +13,8 @@ import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.PayloadDispatcher;
 import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.common.writer.ddagent.StubTraceAPI;
+import datadog.trace.common.writer.ddagent.TraceAPI;
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -40,7 +42,7 @@ public class DDAgentWriter implements Writer {
 
   private static final int BUFFER_SIZE = 1024;
 
-  private final DDAgentApi api;
+  private final TraceAPI api;
   private final TraceProcessingWorker traceProcessingWorker;
   private final PayloadDispatcher dispatcher;
 
@@ -65,7 +67,7 @@ public class DDAgentWriter implements Writer {
   @lombok.Builder
   // These field names must be stable to ensure the builder api is stable.
   private DDAgentWriter(
-      final DDAgentApi agentApi,
+      final TraceAPI agentApi,
       final String agentHost,
       final int traceAgentPort,
       final String unixDomainSocket,
@@ -77,18 +79,7 @@ public class DDAgentWriter implements Writer {
       final Monitoring monitoring,
       final boolean traceAgentV05Enabled,
       final boolean metricsReportingEnabled) {
-    if (agentApi != null) {
-      api = agentApi;
-    } else {
-      api =
-          new DDAgentApi(
-              String.format("http://%s:%d", agentHost, traceAgentPort),
-              unixDomainSocket,
-              timeoutMillis,
-              traceAgentV05Enabled,
-              metricsReportingEnabled,
-              monitoring);
-    }
+    api = new StubTraceAPI();
     this.healthMetrics = healthMetrics;
     this.dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring);
     this.traceProcessingWorker =
@@ -163,7 +154,7 @@ public class DDAgentWriter implements Writer {
     return false;
   }
 
-  public DDAgentApi getApi() {
+  public TraceAPI getApi() {
     return api;
   }
 

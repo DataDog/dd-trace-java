@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PayloadDispatcher implements ByteBufferConsumer {
 
-  private final DDAgentApi api;
+  private final TraceAPI api;
   private final HealthMetrics healthMetrics;
   private final Monitoring monitoring;
 
@@ -22,7 +22,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
   private TraceMapper traceMapper;
   private WritableFormatter packer;
 
-  public PayloadDispatcher(DDAgentApi api, HealthMetrics healthMetrics, Monitoring monitoring) {
+  public PayloadDispatcher(TraceAPI api, HealthMetrics healthMetrics, Monitoring monitoring) {
     this.api = api;
     this.healthMetrics = healthMetrics;
     this.monitoring = monitoring;
@@ -69,7 +69,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
       Payload payload = traceMapper.newPayload().withBody(messageCount, buffer);
       final int sizeInBytes = payload.sizeInBytes();
       healthMetrics.onSerialize(sizeInBytes);
-      DDAgentApi.Response response = api.sendSerializedTraces(payload);
+      Response response = api.sendSerializedTraces(payload);
       traceMapper.reset();
       if (response.success()) {
         if (log.isDebugEnabled()) {
