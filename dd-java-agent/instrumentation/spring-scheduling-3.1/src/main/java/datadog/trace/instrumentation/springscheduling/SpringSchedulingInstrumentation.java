@@ -14,7 +14,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class SpringSchedulingInstrumentation extends Instrumenter.Default {
+public final class SpringSchedulingInstrumentation extends Instrumenter.Tracing {
 
   public SpringSchedulingInstrumentation() {
     super("spring-scheduling");

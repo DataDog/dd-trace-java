@@ -7,6 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Utils;
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
+import java.util.Set;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 
@@ -21,6 +22,12 @@ public class ClassInjectingTestInstrumentation implements Instrumenter {
                 .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
                 .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
                 .advice(isConstructor(), getClass().getName() + "$ConstructorAdvice"));
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    // don't care
+    return true;
   }
 
   public static class ConstructorAdvice {

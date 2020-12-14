@@ -35,7 +35,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import scala.Some;
 
 @AutoService(Instrumenter.class)
-public class FinatraInstrumentation extends Instrumenter.Default {
+public class FinatraInstrumentation extends Instrumenter.Tracing {
   public FinatraInstrumentation() {
     super("finatra");
   }

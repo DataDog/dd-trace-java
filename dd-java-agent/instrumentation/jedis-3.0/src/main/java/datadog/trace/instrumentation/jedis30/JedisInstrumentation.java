@@ -23,7 +23,7 @@ import redis.clients.jedis.Protocol;
 import redis.clients.jedis.commands.ProtocolCommand;
 
 @AutoService(Instrumenter.class)
-public final class JedisInstrumentation extends Instrumenter.Default {
+public final class JedisInstrumentation extends Instrumenter.Tracing {
 
   public JedisInstrumentation() {
     super("jedis", "redis");

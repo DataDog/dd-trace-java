@@ -14,7 +14,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class DefaultFilterChainInstrumentation extends Instrumenter.Default {
+public class DefaultFilterChainInstrumentation extends Instrumenter.Tracing {
 
   public DefaultFilterChainInstrumentation() {
     super("grizzly-filterchain");

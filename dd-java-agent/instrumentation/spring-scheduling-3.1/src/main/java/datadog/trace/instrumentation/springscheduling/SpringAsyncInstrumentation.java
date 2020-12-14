@@ -13,7 +13,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public class SpringAsyncInstrumentation extends Instrumenter.Default {
+public class SpringAsyncInstrumentation extends Instrumenter.Tracing {
 
   public SpringAsyncInstrumentation() {
     super("spring-async");

@@ -24,7 +24,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class CompletableInstrumentation extends Instrumenter.Default {
+public final class CompletableInstrumentation extends Instrumenter.Tracing {
   public CompletableInstrumentation() {
     super("rxjava");
   }

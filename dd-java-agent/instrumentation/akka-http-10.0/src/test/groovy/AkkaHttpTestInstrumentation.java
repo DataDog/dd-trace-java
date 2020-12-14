@@ -25,6 +25,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
@@ -49,6 +50,12 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
                         .and(named("fuseServerFlow"))
                         .and(takesArgument(1, named("akka.stream.scaladsl.Flow"))),
                     getClass().getName() + "$AkkaServerTestAdvice"));
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    // don't care
+    return true;
   }
 
   public static class AkkaServerTestAdvice {

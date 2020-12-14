@@ -15,7 +15,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public class ParamLoggingStatementInstrumentation extends Instrumenter.Default {
+public class ParamLoggingStatementInstrumentation extends Instrumenter.Tracing {
   public ParamLoggingStatementInstrumentation() {
     super("datanucleus");
   }

@@ -24,7 +24,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.reactivestreams.Subscriber;
 
 @AutoService(Instrumenter.class)
-public final class FlowableInstrumentation extends Instrumenter.Default {
+public final class FlowableInstrumentation extends Instrumenter.Tracing {
   public FlowableInstrumentation() {
     super("rxjava");
   }

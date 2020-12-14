@@ -31,7 +31,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instrument the Twilio SDK to identify calls as a seperate service. */
 @AutoService(Instrumenter.class)
-public class TwilioAsyncInstrumentation extends Instrumenter.Default {
+public class TwilioAsyncInstrumentation extends Instrumenter.Tracing {
 
   public TwilioAsyncInstrumentation() {
     super("twilio-sdk");

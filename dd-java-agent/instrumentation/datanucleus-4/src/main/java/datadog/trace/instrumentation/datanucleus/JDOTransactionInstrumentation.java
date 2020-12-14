@@ -20,7 +20,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class JDOTransactionInstrumentation extends Instrumenter.Default {
+public class JDOTransactionInstrumentation extends Instrumenter.Tracing {
 
   public JDOTransactionInstrumentation() {
     super("datanucleus");

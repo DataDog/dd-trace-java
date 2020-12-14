@@ -13,7 +13,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class LettuceAsyncCommandsInstrumentation extends Instrumenter.Default {
+public class LettuceAsyncCommandsInstrumentation extends Instrumenter.Tracing {
 
   public LettuceAsyncCommandsInstrumentation() {
     super("lettuce", "lettuce-5", "lettuce-5-async");

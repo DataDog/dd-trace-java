@@ -17,7 +17,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class JBossLogManagerMDCInstrumentation extends Instrumenter.Default {
+public class JBossLogManagerMDCInstrumentation extends Instrumenter.Tracing {
   public static final String MDC_INSTRUMENTATION_NAME = "jboss-logmanager";
 
   public JBossLogManagerMDCInstrumentation() {

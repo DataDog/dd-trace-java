@@ -27,7 +27,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JMSMessageListenerInstrumentation extends Instrumenter.Default {
+public final class JMSMessageListenerInstrumentation extends Instrumenter.Tracing {
 
   public JMSMessageListenerInstrumentation() {
     super("jms", "jms-1", "jms-2");

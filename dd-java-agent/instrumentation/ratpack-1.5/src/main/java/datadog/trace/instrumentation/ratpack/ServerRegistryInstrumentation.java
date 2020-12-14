@@ -13,7 +13,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ServerRegistryInstrumentation extends Instrumenter.Default {
+public class ServerRegistryInstrumentation extends Instrumenter.Tracing {
 
   public ServerRegistryInstrumentation() {
     super("ratpack");

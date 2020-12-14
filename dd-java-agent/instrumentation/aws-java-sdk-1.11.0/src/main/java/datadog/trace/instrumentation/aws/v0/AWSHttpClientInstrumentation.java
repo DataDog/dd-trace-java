@@ -27,7 +27,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * {@link RequestHandler2#afterError} is not called.
  */
 @AutoService(Instrumenter.class)
-public class AWSHttpClientInstrumentation extends Instrumenter.Default {
+public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
 
   public AWSHttpClientInstrumentation() {
     super("aws-sdk");

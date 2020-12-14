@@ -18,7 +18,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Default {
+public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tracing {
   public WrapRunnableAsNewTaskInstrumentation() {
     super("java_concurrent", "new-task-for");
   }

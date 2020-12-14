@@ -23,7 +23,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JSPInstrumentation extends Instrumenter.Default {
+public final class JSPInstrumentation extends Instrumenter.Tracing {
 
   public JSPInstrumentation() {
     super("jsp", "jsp-render");

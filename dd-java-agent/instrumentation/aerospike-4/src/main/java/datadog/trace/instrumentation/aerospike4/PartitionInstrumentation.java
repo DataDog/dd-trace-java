@@ -23,7 +23,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class PartitionInstrumentation extends Instrumenter.Default {
+public final class PartitionInstrumentation extends Instrumenter.Tracing {
   public PartitionInstrumentation() {
     super("aerospike");
   }

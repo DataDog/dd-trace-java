@@ -32,7 +32,7 @@ import scala.runtime.AbstractFunction1;
 import scala.util.Try;
 
 @AutoService(Instrumenter.class)
-public final class RediscalaInstrumentation extends Instrumenter.Default {
+public final class RediscalaInstrumentation extends Instrumenter.Tracing {
 
   public RediscalaInstrumentation() {
     super("rediscala", "redis");

@@ -23,7 +23,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * DefaultRequestContextInstrumentation</code>
  */
 @AutoService(Instrumenter.class)
-public class ContainerRequestFilterInstrumentation extends Instrumenter.Default {
+public class ContainerRequestFilterInstrumentation extends Instrumenter.Tracing {
 
   public ContainerRequestFilterInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-filter");

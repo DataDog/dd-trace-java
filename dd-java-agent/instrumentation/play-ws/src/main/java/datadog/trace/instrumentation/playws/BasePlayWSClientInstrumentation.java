@@ -16,7 +16,7 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public abstract class BasePlayWSClientInstrumentation extends Instrumenter.Default {
+public abstract class BasePlayWSClientInstrumentation extends Instrumenter.Tracing {
   public BasePlayWSClientInstrumentation() {
     super("play-ws");
   }

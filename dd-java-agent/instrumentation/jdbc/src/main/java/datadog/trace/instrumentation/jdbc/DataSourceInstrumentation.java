@@ -22,7 +22,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class DataSourceInstrumentation extends Instrumenter.Default {
+public final class DataSourceInstrumentation extends Instrumenter.Tracing {
   public DataSourceInstrumentation() {
     super("jdbc-datasource");
   }

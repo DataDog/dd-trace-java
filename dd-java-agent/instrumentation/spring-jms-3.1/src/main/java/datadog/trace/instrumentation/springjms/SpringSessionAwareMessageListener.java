@@ -28,7 +28,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class SpringSessionAwareMessageListener extends Instrumenter.Default {
+public final class SpringSessionAwareMessageListener extends Instrumenter.Tracing {
 
   public SpringSessionAwareMessageListener() {
     super("jms-spring", "jms", "jms-1", "jms-2");

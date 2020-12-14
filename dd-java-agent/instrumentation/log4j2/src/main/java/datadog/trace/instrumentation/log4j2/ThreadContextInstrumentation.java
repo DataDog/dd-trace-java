@@ -21,7 +21,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ThreadContextInstrumentation extends Instrumenter.Default {
+public class ThreadContextInstrumentation extends Instrumenter.Tracing {
   private static final String TYPE_NAME = "org.apache.logging.log4j.ThreadContext";
   private static final String MDC_INSTRUMENTATION_NAME = "log4j";
 

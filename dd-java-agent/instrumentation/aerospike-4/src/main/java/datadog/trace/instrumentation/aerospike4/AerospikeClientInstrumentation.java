@@ -21,7 +21,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class AerospikeClientInstrumentation extends Instrumenter.Default {
+public final class AerospikeClientInstrumentation extends Instrumenter.Tracing {
   public AerospikeClientInstrumentation() {
     super("aerospike");
   }

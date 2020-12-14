@@ -25,7 +25,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class AkkaMailboxInstrumentation extends Instrumenter.Default
+public class AkkaMailboxInstrumentation extends Instrumenter.Tracing
     implements ExcludeFilterProvider {
 
   public AkkaMailboxInstrumentation() {

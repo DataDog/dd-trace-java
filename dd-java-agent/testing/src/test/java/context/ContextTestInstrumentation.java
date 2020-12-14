@@ -16,7 +16,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ContextTestInstrumentation extends Instrumenter.Default {
+public class ContextTestInstrumentation extends Instrumenter.Tracing {
   public ContextTestInstrumentation() {
     super("context-test-isntrumenter1");
   }

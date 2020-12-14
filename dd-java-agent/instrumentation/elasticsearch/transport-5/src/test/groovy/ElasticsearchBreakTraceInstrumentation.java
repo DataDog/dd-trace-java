@@ -3,6 +3,7 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.context.ShadowExistingScopeAdvice;
+import java.util.Set;
 import net.bytebuddy.agent.builder.AgentBuilder;
 
 /**
@@ -21,5 +22,11 @@ public class ElasticsearchBreakTraceInstrumentation implements Instrumenter {
         .transform(
             new AgentBuilder.Transformer.ForAdvice()
                 .advice(named("executeLocally"), ShadowExistingScopeAdvice.class.getName()));
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    // don't care
+    return true;
   }
 }

@@ -15,7 +15,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class GrpcClientBuilderInstrumentation extends Instrumenter.Default {
+public class GrpcClientBuilderInstrumentation extends Instrumenter.Tracing {
 
   public GrpcClientBuilderInstrumentation() {
     super("grpc", "grpc-client");

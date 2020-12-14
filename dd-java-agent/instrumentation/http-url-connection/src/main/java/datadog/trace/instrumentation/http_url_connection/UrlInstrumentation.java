@@ -27,7 +27,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class UrlInstrumentation extends Instrumenter.Default {
+public class UrlInstrumentation extends Instrumenter.Tracing {
 
   public static final String COMPONENT = "UrlConnection";
 

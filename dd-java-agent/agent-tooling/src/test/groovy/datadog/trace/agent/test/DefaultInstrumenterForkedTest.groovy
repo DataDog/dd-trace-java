@@ -143,7 +143,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     "PERIOD_TEST"     | true    | "period.test" | "asdf"
   }
 
-  class TestDefaultInstrumenter extends Instrumenter.Default {
+  class TestDefaultInstrumenter extends Instrumenter.Tracing {
     boolean applyCalled = false
 
     TestDefaultInstrumenter(
@@ -154,10 +154,6 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     TestDefaultInstrumenter(
       String instrumentationName, String additionalName) {
       super(instrumentationName, [additionalName])
-    }
-
-    def getEnabled() {
-      return super.enabled
     }
 
     @Override

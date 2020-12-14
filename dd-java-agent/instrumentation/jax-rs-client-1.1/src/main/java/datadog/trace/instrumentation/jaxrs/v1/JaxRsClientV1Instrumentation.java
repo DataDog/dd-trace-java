@@ -29,7 +29,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JaxRsClientV1Instrumentation extends Instrumenter.Default {
+public final class JaxRsClientV1Instrumentation extends Instrumenter.Tracing {
 
   public JaxRsClientV1Instrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-client");

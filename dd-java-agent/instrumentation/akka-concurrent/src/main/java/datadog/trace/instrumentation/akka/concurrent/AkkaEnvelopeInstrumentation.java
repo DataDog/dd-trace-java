@@ -18,7 +18,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class AkkaEnvelopeInstrumentation extends Instrumenter.Default {
+public class AkkaEnvelopeInstrumentation extends Instrumenter.Tracing {
 
   public AkkaEnvelopeInstrumentation() {
     super("java_concurrent", "akka_concurrent", "akka_actor");

@@ -20,7 +20,7 @@ import ratpack.func.Action;
 import ratpack.path.PathBinding;
 
 @AutoService(Instrumenter.class)
-public final class DefaultExecutionInstrumentation extends Instrumenter.Default {
+public final class DefaultExecutionInstrumentation extends Instrumenter.Tracing {
 
   public DefaultExecutionInstrumentation() {
     super("ratpack");

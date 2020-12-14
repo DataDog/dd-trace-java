@@ -12,7 +12,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class ReactorHooksInstrumentation extends Instrumenter.Default {
+public final class ReactorHooksInstrumentation extends Instrumenter.Tracing {
 
   public ReactorHooksInstrumentation() {
     super("reactor-core");

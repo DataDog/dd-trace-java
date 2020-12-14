@@ -34,7 +34,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class RequestDispatcherInstrumentation extends Instrumenter.Default {
+public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing {
   public RequestDispatcherInstrumentation() {
     super("servlet", "servlet-dispatcher");
   }
