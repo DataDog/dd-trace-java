@@ -104,10 +104,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     and:
     cleanAndAssertTraces(1) {
-      trace(2) {
+      trace(3) {
         sortSpansByStart()
         serverSpan(it, null, null, method, NOT_HERE)
         handlerSpan(it, NOT_HERE)
+        controllerSpan(it)
       }
     }
 
