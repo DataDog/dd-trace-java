@@ -14,12 +14,14 @@ public final class RadixTreeCache<T> {
         }
       };
 
+  public static final int UNSET_STATUS = 0;
   // should cover range [0, 512) to cover all standard HTTP statuses
   // 16 pages of 32 should keep the tree sparse with typical pages
   // covering ranges [192, 224), [288, 320), [384, 416), [480, 512)
   public static final RadixTreeCache<Integer> HTTP_STATUSES =
       new RadixTreeCache<>(16, 32, AUTOBOX, 200, 201, 301, 307, 400, 401, 403, 404, 500, 502, 503);
 
+  public static final int UNSET_PORT = 0;
   // should cover range [0, 2^16)
   public static final RadixTreeCache<Integer> PORTS =
       new RadixTreeCache<>(256, 256, AUTOBOX, 80, 443, 8080);

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.servlet.dispatcher;
 
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -70,7 +71,7 @@ public class RequestDispatcherDecorator extends BaseDecorator {
     if (response instanceof HttpServletResponse && STATUS_CODE_METHOD != null) {
       try {
         int status = (int) STATUS_CODE_METHOD.invokeExact((HttpServletResponse) response);
-        if (status > 0) {
+        if (status > UNSET_STATUS) {
           if (throwable != null && status == HttpServletResponse.SC_OK) {
             span.setTag(Tags.HTTP_STATUS, SERVER_ERROR);
             span.setError(true);
