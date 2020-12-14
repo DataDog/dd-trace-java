@@ -15,7 +15,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class OkHttp2Instrumentation extends Instrumenter.Default {
+public class OkHttp2Instrumentation extends Instrumenter.Tracing {
   public OkHttp2Instrumentation() {
     super("okhttp", "okhttp-2");
   }

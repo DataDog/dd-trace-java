@@ -18,7 +18,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class DisableTracingActorInitInstrumentation extends Instrumenter.Default {
+public final class DisableTracingActorInitInstrumentation extends Instrumenter.Tracing {
 
   public DisableTracingActorInitInstrumentation() {
     super("akka_concurrent");

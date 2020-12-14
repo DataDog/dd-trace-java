@@ -23,7 +23,7 @@ import scala.concurrent.forkjoin.ForkJoinTask;
 
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Default {
+public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Tracing {
 
   public ScalaForkJoinPoolInstrumentation() {
     super("java_concurrent", "scala_concurrent");

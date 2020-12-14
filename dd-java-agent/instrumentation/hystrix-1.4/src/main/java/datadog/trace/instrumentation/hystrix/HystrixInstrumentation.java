@@ -21,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import rx.Observable;
 
 @AutoService(Instrumenter.class)
-public class HystrixInstrumentation extends Instrumenter.Default {
+public class HystrixInstrumentation extends Instrumenter.Tracing {
 
   private static final String OPERATION_NAME = "hystrix.cmd";
 

@@ -25,7 +25,7 @@ import org.datanucleus.api.jdo.JDOQuery;
 import org.datanucleus.store.query.Query;
 
 @AutoService(Instrumenter.class)
-public class JDOQueryInstrumentation extends Instrumenter.Default {
+public class JDOQueryInstrumentation extends Instrumenter.Tracing {
 
   public JDOQueryInstrumentation() {
     super("datanucleus");

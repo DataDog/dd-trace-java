@@ -26,7 +26,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Instrument {@link Runnable} and {@Callable} */
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class RunnableInstrumentation extends Instrumenter.Default {
+public final class RunnableInstrumentation extends Instrumenter.Tracing {
 
   public RunnableInstrumentation() {
     super(AbstractExecutorInstrumentation.EXEC_NAME);

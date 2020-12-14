@@ -26,7 +26,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class TraceAnnotationsInstrumentation extends Instrumenter.Default {
+public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing {
 
   static final String CONFIG_FORMAT =
       "(?:\\s*"

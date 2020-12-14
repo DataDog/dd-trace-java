@@ -18,7 +18,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * This is experimental instrumentation and should only be enabled for evaluation/testing purposes.
  */
 @AutoService(Instrumenter.class)
-public class OpenTelemetryInstrumentation extends Instrumenter.Default {
+public class OpenTelemetryInstrumentation extends Instrumenter.Tracing {
   public OpenTelemetryInstrumentation() {
     super("opentelemetry-beta");
   }

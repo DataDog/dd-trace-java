@@ -16,7 +16,7 @@ import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 
 @AutoService(Instrumenter.class)
-public class OkHttp3Instrumentation extends Instrumenter.Default {
+public class OkHttp3Instrumentation extends Instrumenter.Tracing {
 
   public OkHttp3Instrumentation() {
     super("okhttp", "okhttp-3");

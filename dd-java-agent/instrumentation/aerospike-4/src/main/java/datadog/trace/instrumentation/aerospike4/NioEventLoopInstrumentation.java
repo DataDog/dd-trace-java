@@ -19,7 +19,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class NioEventLoopInstrumentation extends Instrumenter.Default {
+public final class NioEventLoopInstrumentation extends Instrumenter.Tracing {
   public NioEventLoopInstrumentation() {
     super("aerospike", "java_concurrent");
   }

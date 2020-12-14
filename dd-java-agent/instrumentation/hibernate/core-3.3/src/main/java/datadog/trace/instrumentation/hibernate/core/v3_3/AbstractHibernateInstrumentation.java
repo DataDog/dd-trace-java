@@ -6,7 +6,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
 
-public abstract class AbstractHibernateInstrumentation extends Instrumenter.Default {
+public abstract class AbstractHibernateInstrumentation extends Instrumenter.Tracing {
 
   public AbstractHibernateInstrumentation() {
     super("hibernate", "hibernate-core");

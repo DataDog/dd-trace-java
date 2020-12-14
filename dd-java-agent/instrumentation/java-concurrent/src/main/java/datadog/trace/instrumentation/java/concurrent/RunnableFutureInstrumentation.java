@@ -32,7 +32,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class RunnableFutureInstrumentation extends Instrumenter.Default
+public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
     implements ExcludeFilterProvider {
   public RunnableFutureInstrumentation() {
     super("java_concurrent", "runnable-future");

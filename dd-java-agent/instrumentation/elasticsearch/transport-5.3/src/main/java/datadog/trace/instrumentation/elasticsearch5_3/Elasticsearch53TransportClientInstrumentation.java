@@ -25,7 +25,7 @@ import org.elasticsearch.action.ActionResponse;
 
 /** Beginning in version 5.3.0, DocumentRequest was renamed to DocWriteRequest. */
 @AutoService(Instrumenter.class)
-public class Elasticsearch53TransportClientInstrumentation extends Instrumenter.Default {
+public class Elasticsearch53TransportClientInstrumentation extends Instrumenter.Tracing {
 
   public Elasticsearch53TransportClientInstrumentation() {
     super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-5");

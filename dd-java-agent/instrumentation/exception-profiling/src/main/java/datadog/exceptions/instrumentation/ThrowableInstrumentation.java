@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
@@ -15,7 +14,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Provides instrumentation of {@linkplain Throwable} constructor. <br> */
 @AutoService(Instrumenter.class)
-public final class ThrowableInstrumentation extends Instrumenter.Default {
+public final class ThrowableInstrumentation extends Instrumenter.Profiling {
   private final boolean hasJfr;
 
   public ThrowableInstrumentation() {
@@ -66,10 +65,5 @@ public final class ThrowableInstrumentation extends Instrumenter.Default {
       return Collections.singletonMap(isConstructor(), packageName + ".ThrowableInstanceAdvice");
     }
     return Collections.emptyMap();
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return Config.get().isProfilingEnabled();
   }
 }

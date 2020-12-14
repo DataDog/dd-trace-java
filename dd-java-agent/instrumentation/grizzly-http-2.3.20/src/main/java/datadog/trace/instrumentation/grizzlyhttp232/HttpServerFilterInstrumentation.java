@@ -13,7 +13,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HttpServerFilterInstrumentation extends Instrumenter.Default {
+public class HttpServerFilterInstrumentation extends Instrumenter.Tracing {
 
   public HttpServerFilterInstrumentation() {
     super("grizzly-filterchain");

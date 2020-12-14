@@ -15,7 +15,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class WebClientFilterInstrumentation extends Instrumenter.Default {
+public class WebClientFilterInstrumentation extends Instrumenter.Tracing {
 
   public WebClientFilterInstrumentation() {
     super("spring-webflux", "spring-webflux-client");

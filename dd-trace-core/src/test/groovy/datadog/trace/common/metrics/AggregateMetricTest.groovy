@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics
 
+import datadog.trace.core.histogram.Histogram
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Requires
 
@@ -21,6 +22,15 @@ class AggregateMetricTest extends DDSpecification {
     AggregateMetric aggregate = new AggregateMetric()
     when:
     aggregate.recordDurations(3, 0L, 1, 2, 3)
+    then:
+    aggregate.getDuration() == 6
+  }
+
+  def "total durations include errors"() {
+    given:
+    AggregateMetric aggregate = new AggregateMetric()
+    when:
+    aggregate.recordDurations(3, 1L, 1, 2, 3)
     then:
     aggregate.getDuration() == 6
   }
@@ -83,6 +93,28 @@ class AggregateMetricTest extends DDSpecification {
     aggregate.getDuration() == 6
     aggregate.getHitCount() == 3
     aggregate.getErrorCount() == 0
+  }
+
+  def "hit count includes errors"() {
+    given:
+    AggregateMetric aggregate = new AggregateMetric()
+    when:
+    aggregate.recordDurations(3, 2L, 1, 2, 3)
+    then:
+    aggregate.getHitCount() == 3
+    aggregate.getErrorCount() == 1
+  }
+
+  def "ok and error durations tracked separately"() {
+    given:
+    AggregateMetric aggregate = new AggregateMetric()
+    when:
+    aggregate.recordDurations(10, 0xAAL, 1, 100, 2, 99, 3, 98, 4, 97)
+    then:
+    Histogram errorLatencies = aggregate.getErrorLatencies()
+    Histogram okLatencies = aggregate.getOkLatencies()
+    errorLatencies.max() >= 99
+    okLatencies.max() <= 5
   }
 
   def "consistent under concurrent attempts to read and write"() {

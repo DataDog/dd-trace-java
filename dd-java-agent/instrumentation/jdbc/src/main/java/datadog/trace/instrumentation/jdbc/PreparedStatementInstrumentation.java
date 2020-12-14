@@ -31,7 +31,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class PreparedStatementInstrumentation extends Instrumenter.Default {
+public final class PreparedStatementInstrumentation extends Instrumenter.Tracing {
 
   public PreparedStatementInstrumentation() {
     super("jdbc");

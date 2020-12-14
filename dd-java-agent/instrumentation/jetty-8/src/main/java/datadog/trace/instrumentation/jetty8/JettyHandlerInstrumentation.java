@@ -16,7 +16,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JettyHandlerInstrumentation extends Instrumenter.Default {
+public final class JettyHandlerInstrumentation extends Instrumenter.Tracing {
 
   public JettyHandlerInstrumentation() {
     super("jetty", "jetty-8");

@@ -29,7 +29,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * error handling.
  */
 @AutoService(Instrumenter.class)
-public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.Default {
+public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.Tracing {
   public AkkaForkJoinExecutorTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
   }

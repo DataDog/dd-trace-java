@@ -21,7 +21,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ZuulSendForwardFilterInstrumentation extends Instrumenter.Default {
+public class ZuulSendForwardFilterInstrumentation extends Instrumenter.Tracing {
   public ZuulSendForwardFilterInstrumentation() {
     super("spring-cloud-zuul");
   }

@@ -25,7 +25,7 @@ import org.hibernate.SharedSessionContract;
 import org.hibernate.procedure.ProcedureCall;
 
 @AutoService(Instrumenter.class)
-public class SessionInstrumentation extends Instrumenter.Default {
+public class SessionInstrumentation extends Instrumenter.Tracing {
 
   public SessionInstrumentation() {
     super("hibernate", "hibernate-core");

@@ -28,7 +28,7 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 
 @AutoService(Instrumenter.class)
-public class ChannelFutureListenerInstrumentation extends Instrumenter.Default {
+public class ChannelFutureListenerInstrumentation extends Instrumenter.Tracing {
 
   public ChannelFutureListenerInstrumentation() {
     super(

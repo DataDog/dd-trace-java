@@ -27,7 +27,7 @@ import scala.concurrent.Future;
 
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class AkkaHttpSingleRequestInstrumentation extends Instrumenter.Default {
+public final class AkkaHttpSingleRequestInstrumentation extends Instrumenter.Tracing {
   public AkkaHttpSingleRequestInstrumentation() {
     super("akka-http", "akka-http-client");
   }

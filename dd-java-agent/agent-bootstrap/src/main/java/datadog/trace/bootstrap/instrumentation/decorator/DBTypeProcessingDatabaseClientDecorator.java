@@ -7,7 +7,6 @@ public abstract class DBTypeProcessingDatabaseClientDecorator<CONNECTION>
 
   @Override
   public AgentSpan afterStart(AgentSpan span) {
-    assert null != span;
     processDatabaseType(span, dbType());
     return super.afterStart(span);
   }

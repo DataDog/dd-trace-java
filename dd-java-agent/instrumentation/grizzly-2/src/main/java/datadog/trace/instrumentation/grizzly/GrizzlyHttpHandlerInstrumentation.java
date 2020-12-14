@@ -28,7 +28,7 @@ import org.glassfish.grizzly.http.server.AfterServiceListener;
 import org.glassfish.grizzly.http.server.Request;
 
 @AutoService(Instrumenter.class)
-public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Default {
+public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing {
 
   public GrizzlyHttpHandlerInstrumentation() {
     super("grizzly");

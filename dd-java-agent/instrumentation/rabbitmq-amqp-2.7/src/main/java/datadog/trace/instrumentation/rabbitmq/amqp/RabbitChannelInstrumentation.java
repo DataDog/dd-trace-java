@@ -49,7 +49,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RabbitChannelInstrumentation extends Instrumenter.Default {
+public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
 
   public RabbitChannelInstrumentation() {
     super("amqp", "rabbitmq");

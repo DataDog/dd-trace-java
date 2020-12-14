@@ -26,7 +26,7 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseListener;
 
 @AutoService(Instrumenter.class)
-public class Elasticsearch7RestClientInstrumentation extends Instrumenter.Default {
+public class Elasticsearch7RestClientInstrumentation extends Instrumenter.Tracing {
 
   public Elasticsearch7RestClientInstrumentation() {
     super("elasticsearch", "elasticsearch-rest", "elasticsearch-rest-7");

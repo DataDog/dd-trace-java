@@ -20,7 +20,7 @@ import spark.route.HttpMethod;
 import spark.routematch.RouteMatch;
 
 @AutoService(Instrumenter.class)
-public class RoutesInstrumentation extends Instrumenter.Default {
+public class RoutesInstrumentation extends Instrumenter.Tracing {
 
   public RoutesInstrumentation() {
     super("sparkjava", "sparkjava-2.4");

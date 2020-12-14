@@ -16,7 +16,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HystrixThreadPoolInstrumentation extends Instrumenter.Default {
+public class HystrixThreadPoolInstrumentation extends Instrumenter.Tracing {
 
   public HystrixThreadPoolInstrumentation() {
     super("hystrix");

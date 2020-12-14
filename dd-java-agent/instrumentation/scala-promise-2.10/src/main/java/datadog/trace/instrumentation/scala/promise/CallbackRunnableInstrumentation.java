@@ -27,7 +27,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.impl.CallbackRunnable;
 
 @AutoService(Instrumenter.class)
-public class CallbackRunnableInstrumentation extends Instrumenter.Default
+public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
     implements ExcludeFilterProvider {
 
   public CallbackRunnableInstrumentation() {

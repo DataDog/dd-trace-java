@@ -118,7 +118,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         assert unpacker.unpackString() == "Duration"
         assert unpacker.unpackLong() == value.getDuration()
         ++elementCount
-        assert unpacker.unpackString() == "HitsSummary"
+        assert unpacker.unpackString() == "OkSummary"
         validateSketch(unpacker)
         ++elementCount
         assert unpacker.unpackString() == "ErrorSummary"

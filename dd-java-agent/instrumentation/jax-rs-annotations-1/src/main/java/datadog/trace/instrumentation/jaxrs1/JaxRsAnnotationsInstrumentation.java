@@ -27,7 +27,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Default {
+public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing {
 
   private static final String JAX_ENDPOINT_OPERATION_NAME = "jax-rs.request";
 

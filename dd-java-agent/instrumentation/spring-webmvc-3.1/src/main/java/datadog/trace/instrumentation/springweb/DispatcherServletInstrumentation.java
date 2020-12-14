@@ -29,7 +29,7 @@ import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.ModelAndView;
 
 @AutoService(Instrumenter.class)
-public final class DispatcherServletInstrumentation extends Instrumenter.Default {
+public final class DispatcherServletInstrumentation extends Instrumenter.Tracing {
 
   public DispatcherServletInstrumentation() {
     super("spring-web");

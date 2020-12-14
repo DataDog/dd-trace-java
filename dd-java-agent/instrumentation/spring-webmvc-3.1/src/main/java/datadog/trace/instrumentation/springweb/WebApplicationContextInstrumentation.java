@@ -23,7 +23,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
  * When the context is created, the filter will be added to the beginning of the filter chain
  */
 @AutoService(Instrumenter.class)
-public class WebApplicationContextInstrumentation extends Instrumenter.Default {
+public class WebApplicationContextInstrumentation extends Instrumenter.Tracing {
   public WebApplicationContextInstrumentation() {
     super("spring-web");
   }

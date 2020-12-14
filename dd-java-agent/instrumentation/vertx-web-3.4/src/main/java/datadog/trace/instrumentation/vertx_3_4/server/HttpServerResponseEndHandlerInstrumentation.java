@@ -14,7 +14,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class HttpServerResponseEndHandlerInstrumentation extends Instrumenter.Default {
+public class HttpServerResponseEndHandlerInstrumentation extends Instrumenter.Tracing {
   public HttpServerResponseEndHandlerInstrumentation() {
     super("vertx", "vertx-3.4");
   }

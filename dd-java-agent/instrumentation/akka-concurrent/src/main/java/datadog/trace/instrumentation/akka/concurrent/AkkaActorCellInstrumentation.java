@@ -22,7 +22,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class AkkaActorCellInstrumentation extends Instrumenter.Default {
+public class AkkaActorCellInstrumentation extends Instrumenter.Tracing {
 
   public AkkaActorCellInstrumentation() {
     super("java_concurrent", "akka_concurrent", "akka_actor");

@@ -22,7 +22,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CouchbaseCoreInstrumentation extends Instrumenter.Default {
+public class CouchbaseCoreInstrumentation extends Instrumenter.Tracing {
 
   public CouchbaseCoreInstrumentation() {
     super("couchbase");

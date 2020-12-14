@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.procedure.ProcedureCall;
 
 @AutoService(Instrumenter.class)
-public class ProcedureCallInstrumentation extends Instrumenter.Default {
+public class ProcedureCallInstrumentation extends Instrumenter.Tracing {
 
   public ProcedureCallInstrumentation() {
     super("hibernate", "hibernate-core");

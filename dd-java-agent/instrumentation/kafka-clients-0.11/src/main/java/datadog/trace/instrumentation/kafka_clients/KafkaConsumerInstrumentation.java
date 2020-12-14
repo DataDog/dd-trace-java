@@ -22,7 +22,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 @AutoService(Instrumenter.class)
-public final class KafkaConsumerInstrumentation extends Instrumenter.Default {
+public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing {
 
   public KafkaConsumerInstrumentation() {
     super("kafka");

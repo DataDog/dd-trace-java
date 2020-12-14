@@ -27,7 +27,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.impl.Promise.Transformation;
 
 @AutoService(Instrumenter.class)
-public final class PromiseTransformationInstrumentation extends Instrumenter.Default
+public final class PromiseTransformationInstrumentation extends Instrumenter.Tracing
     implements ExcludeFilterProvider {
 
   public PromiseTransformationInstrumentation() {

@@ -24,7 +24,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 
 @AutoService(Instrumenter.class)
-public class MDCInjectionInstrumentation extends Instrumenter.Default {
+public class MDCInjectionInstrumentation extends Instrumenter.Tracing {
   public static final String MDC_INSTRUMENTATION_NAME = "mdc";
 
   // Intentionally doing the string replace to bypass gradle shadow rename

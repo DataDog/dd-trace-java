@@ -8,8 +8,6 @@ public abstract class OrmClientDecorator extends DatabaseClientDecorator {
   public abstract CharSequence entityName(final Object entity);
 
   public AgentSpan onOperation(final AgentSpan span, final Object entity) {
-
-    assert span != null;
     if (entity != null) {
       final CharSequence name = entityName(entity);
       if (name != null) {

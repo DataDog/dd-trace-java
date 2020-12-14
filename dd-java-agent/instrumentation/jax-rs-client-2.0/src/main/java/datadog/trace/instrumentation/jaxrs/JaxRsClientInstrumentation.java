@@ -18,7 +18,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class JaxRsClientInstrumentation extends Instrumenter.Default {
+public final class JaxRsClientInstrumentation extends Instrumenter.Tracing {
 
   public JaxRsClientInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-client");

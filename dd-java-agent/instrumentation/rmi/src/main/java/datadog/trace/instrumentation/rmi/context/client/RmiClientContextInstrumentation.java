@@ -43,7 +43,7 @@ import sun.rmi.transport.Connection;
  * exception and shutdown the connection which we do not want
  */
 @AutoService(Instrumenter.class)
-public class RmiClientContextInstrumentation extends Instrumenter.Default {
+public class RmiClientContextInstrumentation extends Instrumenter.Tracing {
 
   public RmiClientContextInstrumentation() {
     super("rmi", "rmi-context-propagator", "rmi-client-context-propagator");

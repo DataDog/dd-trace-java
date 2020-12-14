@@ -20,7 +20,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class RabbitCommandInstrumentation extends Instrumenter.Default {
+public class RabbitCommandInstrumentation extends Instrumenter.Tracing {
 
   public RabbitCommandInstrumentation() {
     super("amqp", "rabbitmq");

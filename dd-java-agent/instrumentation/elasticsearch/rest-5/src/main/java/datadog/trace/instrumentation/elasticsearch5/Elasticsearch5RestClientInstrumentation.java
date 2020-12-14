@@ -23,7 +23,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.elasticsearch.client.ResponseListener;
 
 @AutoService(Instrumenter.class)
-public class Elasticsearch5RestClientInstrumentation extends Instrumenter.Default {
+public class Elasticsearch5RestClientInstrumentation extends Instrumenter.Tracing {
 
   public Elasticsearch5RestClientInstrumentation() {
     super("elasticsearch", "elasticsearch-rest", "elasticsearch-rest-5");

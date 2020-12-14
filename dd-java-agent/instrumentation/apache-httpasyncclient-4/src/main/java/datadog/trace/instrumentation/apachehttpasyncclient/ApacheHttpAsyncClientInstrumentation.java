@@ -34,7 +34,7 @@ import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.apache.http.protocol.HttpContext;
 
 @AutoService(Instrumenter.class)
-public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
+public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing {
 
   public ApacheHttpAsyncClientInstrumentation() {
     super("httpasyncclient", "apache-httpasyncclient");
