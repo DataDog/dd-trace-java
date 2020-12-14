@@ -2,20 +2,11 @@ package com.datadog.profiling.controller.openjdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.Appender;
 import java.io.IOException;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class JfpUtilsTest {
   private static final String CONFIG_ENTRY = "jdk.ThreadAllocationStatistics#enabled";
@@ -24,41 +15,13 @@ public class JfpUtilsTest {
   static final String OVERRIDES =
       OpenJdkControllerTest.class.getClassLoader().getResource("overrides.jfp").getFile();
 
-  private Appender<ILoggingEvent> mockedAppender;
-
-  @SuppressWarnings("unchecked")
-  @BeforeEach
-  void setup() throws Exception {
-    mockedAppender = (Appender<ILoggingEvent>) Mockito.mock(Appender.class);
-    ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME))
-        .addAppender(mockedAppender);
-  }
-
-  @AfterEach
-  void teardown() throws Exception {
-    ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME))
-        .detachAppender(mockedAppender);
-  }
-
-  private void assertLog(Level level, String message) {
-    ArgumentCaptor<ILoggingEvent> argumentCaptor = ArgumentCaptor.forClass(ILoggingEvent.class);
-    Mockito.verify(mockedAppender).doAppend(argumentCaptor.capture());
-
-    for (ILoggingEvent event : argumentCaptor.getAllValues()) {
-      if (message.equals(event.getFormattedMessage()) && level.equals(event.getLevel())) {
-        return;
-      }
-    }
-    fail("Log does not contain the expected message '" + message + "' at level '" + level + "'");
-  }
-
   @Test
   public void testLoadingInvalidOverride() throws IOException {
     final String INVALID_OVERRIDE = "really_non_existent_file.jfp";
 
-    JfpUtils.readNamedJfpResource(OpenJdkController.JFP, INVALID_OVERRIDE);
-
-    assertLog(Level.WARN, "Invalid override file " + INVALID_OVERRIDE);
+    assertThrows(
+        IOException.class,
+        () -> JfpUtils.readNamedJfpResource(OpenJdkController.JFP, INVALID_OVERRIDE));
   }
 
   @Test

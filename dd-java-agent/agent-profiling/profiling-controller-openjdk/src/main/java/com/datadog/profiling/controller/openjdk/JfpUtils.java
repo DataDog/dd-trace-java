@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Toolkit for working with .jfp files. A .jfp file is a .jfc file which has been transformed (using
@@ -32,7 +31,6 @@ import lombok.extern.slf4j.Slf4j;
  * template, but in a format that is easier to handle in the profiling agent, not requiring us to
  * parse XML.
  */
-@Slf4j
 final class JfpUtils {
   private static final String OVERRIDES_PATH = "jfr/overrides/";
 
@@ -77,7 +75,7 @@ final class JfpUtils {
         if (overrideStream != null) {
           result.putAll(readJfpFile(overrideStream));
         } else {
-          log.warn("Invalid override file {}", overridesFileName);
+          throw new IOException("Invalid override file " + overridesFileName);
         }
       } finally {
         if (overrideStream != null) {
