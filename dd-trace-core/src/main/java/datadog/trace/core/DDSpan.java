@@ -68,7 +68,6 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
       startTimeMicro = timestampMicro;
       // Timestamp has come from an external clock, so use startTimeNano as a flag
       startTimeNano = 0;
-      context.getTrace().touch(); // Update lastReferenced
     }
   }
 
@@ -98,7 +97,6 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public final void finish(final long stoptimeMicros) {
-    context.getTrace().touch(); // Update timestamp
     finishAndAddToTrace(TimeUnit.MICROSECONDS.toNanos(stoptimeMicros - startTimeMicro));
   }
 

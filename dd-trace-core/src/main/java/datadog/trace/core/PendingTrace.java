@@ -3,13 +3,8 @@ package datadog.trace.core;
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
-import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.util.Clock;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Collections;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -35,21 +30,18 @@ public class PendingTrace implements AgentTrace {
 
   static class Factory {
     private final CoreTracer tracer;
-    private final PendingTraceBuffer pendingTraceBuffer;
 
-    Factory(CoreTracer tracer, PendingTraceBuffer pendingTraceBuffer) {
+    Factory(CoreTracer tracer) {
       this.tracer = tracer;
-      this.pendingTraceBuffer = pendingTraceBuffer;
     }
 
     PendingTrace create(final DDId traceId) {
-      return new PendingTrace(tracer, traceId, pendingTraceBuffer);
+      return new PendingTrace(tracer, traceId);
     }
   }
 
   private final CoreTracer tracer;
   private final DDId traceId;
-  private final PendingTraceBuffer pendingTraceBuffer;
 
   // TODO: consider moving these time fields into DDTracer to ensure that traces have precise
   // relative time
@@ -58,32 +50,15 @@ public class PendingTrace implements AgentTrace {
   /** Nano second ticks value at trace start */
   private final long startNanoTicks;
 
-  private final ConcurrentLinkedDeque<DDSpan> finishedSpans = new ConcurrentLinkedDeque<>();
-
-  // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
-  private final AtomicInteger completedSpanCount = new AtomicInteger(0);
-
-  private final AtomicInteger pendingReferenceCount = new AtomicInteger(0);
-
-  /**
-   * During a trace there are cases where the root span must be accessed (e.g. priority sampling and
-   * trace-search tags). These use cases are an obstacle to span-streaming.
-   */
-  private volatile DDSpan rootSpan = null;
-
-  private volatile boolean rootSpanWritten = false;
-
   /**
    * Updated with the latest nanoTicks each time getCurrentTimeNano is called (at the start and
    * finish of each span).
    */
   private volatile long lastReferenced = 0;
 
-  private PendingTrace(
-      final CoreTracer tracer, final DDId traceId, PendingTraceBuffer pendingTraceBuffer) {
+  private PendingTrace(final CoreTracer tracer, final DDId traceId) {
     this.tracer = tracer;
     this.traceId = traceId;
-    this.pendingTraceBuffer = pendingTraceBuffer;
 
     startTimeNano = Clock.currentNanoTime();
     startNanoTicks = Clock.currentNanoTicks();
@@ -109,81 +84,20 @@ public class PendingTrace implements AgentTrace {
     return startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
   }
 
-  public void touch() {
-    lastReferenced = Clock.currentNanoTicks();
-  }
-
   public boolean lastReferencedNanosAgo(long nanos) {
     long currentNanoTicks = Clock.currentNanoTicks();
     long age = currentNanoTicks - lastReferenced;
     return nanos < age;
   }
 
-  public void registerSpan(final DDSpan span) {
-    if (traceId == null || span.context() == null) {
-      log.error(
-          "Failed to register span ({}) due to null PendingTrace traceId or null span context",
-          span);
-      return;
-    }
-    if (!traceId.equals(span.context().getTraceId())) {
-      log.debug("t_id={} -> registered for wrong trace {}", traceId, span);
-      return;
-    }
-
-    if (null == rootSpan) {
-      synchronized (this) {
-        if (!rootSpanWritten && null == rootSpan) {
-          rootSpan = span;
-        }
-      }
-    }
-
-    final int count = pendingReferenceCount.incrementAndGet();
-    if (log.isDebugEnabled()) {
-      log.debug("t_id={} -> registered span {}. count = {}", traceId, span, count);
-    }
-  }
+  public void registerSpan(final DDSpan span) {}
 
   public void addFinishedSpan(final DDSpan span) {
-    if (span.getDurationNano() == 0) {
-      log.debug("t_id={} -> added to trace, but not complete: {}", traceId, span);
-      return;
-    }
-    if (traceId == null || span.context() == null) {
-      log.error(
-          "Failed to add span ({}) due to null PendingTrace traceId or null span context", span);
-      return;
-    }
-    if (!traceId.equals(span.getTraceId())) {
-      log.debug("t_id={} -> span expired for wrong trace {}", traceId, span);
-      return;
-    }
-    if (traceId == null || span.context() == null) {
-      log.error(
-          "Failed to expire span ({}) due to null PendingTrace traceId or null span context", span);
-      return;
-    }
-
-    finishedSpans.addFirst(span);
-    // There is a benign race here where the span added above can get written out by a writer in
-    // progress before the count has been incremented. It's being taken care of in the internal
-    // write method.
-    completedSpanCount.incrementAndGet();
-    decrementRefAndMaybeWrite(span == getRootSpan());
+    write(span);
   }
 
   public DDSpan getRootSpan() {
-    return rootSpan;
-  }
-
-  /** @return Long.MAX_VALUE if no spans finished. */
-  long oldestFinishedTime() {
-    long oldest = Long.MAX_VALUE;
-    for (DDSpan span : finishedSpans) {
-      oldest = Math.min(oldest, span.getStartTime() + span.getDurationNano());
-    }
-    return oldest;
+    return null;
   }
 
   /**
@@ -191,95 +105,12 @@ public class PendingTrace implements AgentTrace {
    * completed, so we need to wait till continuations are de-referenced before reporting.
    */
   @Override
-  public void registerContinuation(final AgentScope.Continuation continuation) {
-    final int count = pendingReferenceCount.incrementAndGet();
-    if (log.isDebugEnabled()) {
-      log.debug(
-          "t_id={} -> registered continuation {} -- count = {}", traceId, continuation, count);
-    }
-  }
+  public void registerContinuation(final AgentScope.Continuation continuation) {}
 
   @Override
-  public void cancelContinuation(final AgentScope.Continuation continuation) {
-    decrementRefAndMaybeWrite(false);
-  }
+  public void cancelContinuation(final AgentScope.Continuation continuation) {}
 
-  private void decrementRefAndMaybeWrite(boolean isRootSpan) {
-    final int count = pendingReferenceCount.decrementAndGet();
-    int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
-
-    if (count == 0 && !rootSpanWritten) {
-      // Finished with no pending work ... write immediately
-      write();
-    } else if (isRootSpan) {
-      // Finished root with pending work ... delay write
-      pendingTraceBuffer.enqueue(this);
-    } else if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
-      // Trace is getting too big, write anything completed.
-      partialFlush();
-    } else if (rootSpanWritten) {
-      // Late arrival span ... delay write
-      pendingTraceBuffer.enqueue(this);
-    }
-
-    if (log.isDebugEnabled()) {
-      log.debug(
-          "t_id={} -> expired reference. root={} pending count={}", traceId, isRootSpan, count);
-    }
-  }
-
-  /** Important to note: may be called multiple times. */
-  private void partialFlush() {
-    int size = write(true);
-    if (log.isDebugEnabled()) {
-      log.debug("t_id={} -> wrote partial trace of size {}", traceId, size);
-    }
-  }
-
-  /** Important to note: may be called multiple times. */
-  void write() {
-    int size = write(false);
-    if (log.isDebugEnabled()) {
-      log.debug("t_id={} -> wrote {} spans to {}.", traceId, size, tracer.writer);
-    }
-  }
-
-  private int write(boolean isPartial) {
-    if (!finishedSpans.isEmpty()) {
-      try (Recording recording = tracer.writeTimer()) {
-        // Only one writer at a time
-        synchronized (this) {
-          if (!isPartial) {
-            rootSpanWritten = true;
-          }
-          int size = size();
-          // If we get here and size is below 0, then the writer before us wrote out at least one
-          // more trace than the size it had when it started. Those span(s) had been added to
-          // finishedSpans by some other thread(s) while the existing spans were being written, but
-          // the completedSpanCount has not yet been incremented. This means that eventually the
-          // count(s) will be incremented, and any new spans added during the period that the count
-          // was negative will be written by someone even if we don't write them right now.
-          if (size > 0 && (!isPartial || size > tracer.getPartialFlushMinSpans())) {
-            List<DDSpan> trace = new ArrayList<>(size);
-            final Iterator<DDSpan> it = finishedSpans.iterator();
-            int i = 0;
-            while (it.hasNext()) {
-              final DDSpan span = it.next();
-              trace.add(span);
-              completedSpanCount.decrementAndGet();
-              it.remove();
-              i++;
-            }
-            tracer.write(trace);
-            return i;
-          }
-        }
-      }
-    }
-    return 0;
-  }
-
-  public int size() {
-    return completedSpanCount.get();
+  private void write(DDSpan span) {
+    tracer.write(Collections.singletonList(span));
   }
 }

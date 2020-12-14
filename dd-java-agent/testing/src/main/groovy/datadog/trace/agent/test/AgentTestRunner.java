@@ -13,13 +13,10 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.agent.tooling.bytebuddy.matcher.AdditionalLibraryIgnoresMatcher;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.core.CoreTracer;
-import datadog.trace.core.DDSpan;
-import datadog.trace.core.PendingTrace;
 import datadog.trace.test.util.DDSpecification;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
@@ -33,7 +30,6 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -277,21 +273,7 @@ public abstract class AgentTestRunner extends DDSpecification {
   }
 
   @SneakyThrows
-  public static void blockUntilChildSpansFinished(final int numberOfSpans) {
-    final AgentSpan span = getTestTracer().activeSpan();
-    final long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
-    if (span instanceof DDSpan) {
-      final PendingTrace pendingTrace = ((DDSpan) span).context().getTrace();
-
-      while (pendingTrace.size() < numberOfSpans) {
-        if (System.currentTimeMillis() > deadline) {
-          throw new TimeoutException(
-              "Timed out waiting for child spans.  Received: " + pendingTrace.size());
-        }
-        Thread.sleep(10);
-      }
-    }
-  }
+  public static void blockUntilChildSpansFinished(final int numberOfSpans) {}
 
   public static class TestRunnerListener extends AgentBuilder.Listener.Adapter {
     private static final List<AgentTestRunner> activeTests = new CopyOnWriteArrayList<>();
