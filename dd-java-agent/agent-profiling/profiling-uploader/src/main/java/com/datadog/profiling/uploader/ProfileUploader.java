@@ -27,6 +27,7 @@ import datadog.trace.api.IOLogger;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
@@ -103,7 +104,12 @@ public final class ProfileUploader {
 
     @Override
     public void onFailure(final Call call, final IOException e) {
-      ioLogger.error("Failed to upload profile to " + call.request().url(), e);
+      if (isEmptyReplyFromServer(e)) {
+        ioLogger.error(
+            "Received empty reply from " + call.request().url() + " after uploading profile");
+      } else {
+        ioLogger.error("Failed to upload profile to " + call.request().url(), e);
+      }
     }
 
     @Override
@@ -132,6 +138,15 @@ public final class ProfileUploader {
         }
       }
       return null;
+    }
+
+    private static boolean isEmptyReplyFromServer(IOException e) {
+      // The server in datadog-agent triggers 'unexpected end of stream' caused by EOFException.
+      // The MockWebServer in tests triggers an InterruptedIOException with SocketPolicy
+      // NO_RESPONSE. This is because in tests we can't cleanly terminate the connection on the
+      // server side without resetting.
+      return (e instanceof InterruptedIOException)
+          || (e.getCause() != null && e.getCause() instanceof java.io.EOFException);
     }
   }
 
