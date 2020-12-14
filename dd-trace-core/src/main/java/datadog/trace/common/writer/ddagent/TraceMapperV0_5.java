@@ -8,8 +8,9 @@ import static datadog.trace.core.serialization.Util.writeLongAsString;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.core.Metadata;
+import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.StringTables;
-import datadog.trace.core.TagsAndBaggageConsumer;
 import datadog.trace.core.serialization.ByteBufferConsumer;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.Writable;
@@ -224,7 +225,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
   }
 
-  private final class MetaWriter extends TagsAndBaggageConsumer {
+  private final class MetaWriter extends MetadataConsumer {
 
     private Writable writable;
 
@@ -234,17 +235,17 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
 
     @Override
-    public void accept(final Map<String, Object> tags, final Map<String, String> baggage) {
+    public void accept(Metadata metadata) {
       // since tags can "override" baggage, we need to count the non overlapping ones
-      int size = tags.size();
+      int size = metadata.getTags().size() + 2;
       // assume we can't have more than 64 baggage items,
       // and that iteration order is stable to avoid looking
       // up in the tags more than necessary
       long overlaps = 0L;
-      if (!baggage.isEmpty()) {
+      if (!metadata.getBaggage().isEmpty()) {
         int i = 0;
-        for (final Map.Entry<String, String> key : baggage.entrySet()) {
-          if (!tags.containsKey(key.getKey())) {
+        for (final Map.Entry<String, String> key : metadata.getBaggage().entrySet()) {
+          if (!metadata.getTags().containsKey(key.getKey())) {
             size++;
           } else {
             overlaps |= (1L << i);
@@ -254,7 +255,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
       }
       writable.startMap(size);
       int i = 0;
-      for (final Map.Entry<String, String> entry : baggage.entrySet()) {
+      for (final Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
         // tags and baggage may intersect, but tags take priority
         if ((overlaps & (1L << i)) == 0) {
           writeDictionaryEncoded(writable, entry.getKey());
@@ -262,7 +263,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
         }
         ++i;
       }
-      for (final Map.Entry<String, Object> entry : tags.entrySet()) {
+      writeDictionaryEncoded(writable, THREAD_NAME);
+      writeDictionaryEncoded(writable, metadata.getThreadName());
+      writeDictionaryEncoded(writable, THREAD_ID);
+      writeDictionaryEncoded(writable, String.valueOf(metadata.getThreadId()));
+      for (final Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
         writeDictionaryEncoded(writable, entry.getKey());
         writeDictionaryEncoded(writable, entry.getValue());
       }

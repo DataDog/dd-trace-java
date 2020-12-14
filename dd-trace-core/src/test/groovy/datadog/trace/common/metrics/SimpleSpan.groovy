@@ -2,7 +2,7 @@ package datadog.trace.common.metrics
 
 import datadog.trace.api.DDId
 import datadog.trace.core.CoreSpan
-import datadog.trace.core.TagsAndBaggageConsumer
+import datadog.trace.core.MetadataConsumer
 
 class SimpleSpan implements CoreSpan<SimpleSpan> {
 
@@ -178,7 +178,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
-  void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
+  void processTagsAndBaggage(MetadataConsumer consumer) {
 
   }
 

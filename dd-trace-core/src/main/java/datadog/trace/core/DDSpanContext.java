@@ -2,8 +2,12 @@ package datadog.trace.core;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Functions;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,6 +30,9 @@ public class DDSpanContext implements AgentSpan.Context {
   public static final String SAMPLE_RATE_KEY = "_sample_rate";
   public static final String ORIGIN_KEY = "_dd.origin";
 
+  private static final DDCache<String, UTF8BytesString> THREAD_NAMES =
+      DDCaches.newFixedSizeCache(256);
+
   private static final Map<CharSequence, Number> EMPTY_METRICS = Collections.emptyMap();
 
   /** The collection of all span related to this one */
@@ -40,6 +47,9 @@ public class DDSpanContext implements AgentSpan.Context {
   private final DDId parentId;
 
   private final String parentServiceName;
+
+  private final long threadId;
+  private final UTF8BytesString threadName;
 
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
@@ -116,9 +126,9 @@ public class DDSpanContext implements AgentSpan.Context {
       this.baggageItems = new ConcurrentHashMap<>(baggageItems);
     }
 
-    // The +3 is the magic number from the tags below that we set at the end,
+    // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
-    final int capacity = ((tagsSize <= 0 ? 3 : tagsSize + 3) * 4) / 3;
+    final int capacity = ((tagsSize <= 0 ? 1 : tagsSize + 1) * 4) / 3;
     this.unsafeTags = new HashMap<>(capacity);
 
     this.serviceNameMappings = serviceNameMappings;
@@ -138,8 +148,8 @@ public class DDSpanContext implements AgentSpan.Context {
     }
     // Additional Metadata
     final Thread current = Thread.currentThread();
-    this.unsafeTags.put(DDTags.THREAD_NAME, current.getName());
-    this.unsafeTags.put(DDTags.THREAD_ID, current.getId());
+    this.threadId = current.getId();
+    this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
 
     // It is safe that we let `this` escape into the ExclusiveSpan constructor,
     // since ExclusiveSpan is only a wrapper and the instance can only be accessed from
@@ -394,8 +404,16 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   Object getTag(final String key) {
-    synchronized (unsafeTags) {
-      return unsafeGetTag(key);
+    switch (key) {
+      case DDTags.THREAD_ID:
+        return threadId;
+      case DDTags.THREAD_NAME:
+        // maintain previously observable type of the thread name :|
+        return threadName.toString();
+      default:
+        synchronized (unsafeTags) {
+          return unsafeGetTag(key);
+        }
     }
   }
 
@@ -409,13 +427,16 @@ public class DDSpanContext implements AgentSpan.Context {
 
   public Map<String, Object> getTags() {
     synchronized (unsafeTags) {
-      return Collections.unmodifiableMap(new HashMap<>(unsafeTags));
+      Map<String, Object> tags = new HashMap<>(unsafeTags);
+      tags.put(DDTags.THREAD_ID, threadId);
+      tags.put(DDTags.THREAD_NAME, threadName.toString());
+      return Collections.unmodifiableMap(tags);
     }
   }
 
-  public void processTagsAndBaggage(final TagsAndBaggageConsumer consumer) {
+  public void processTagsAndBaggage(final MetadataConsumer consumer) {
     synchronized (unsafeTags) {
-      consumer.accept(unsafeTags, baggageItems);
+      consumer.accept(new Metadata(threadId, threadName, unsafeTags, baggageItems));
     }
   }
 
@@ -448,7 +469,7 @@ public class DDSpanContext implements AgentSpan.Context {
     }
 
     synchronized (unsafeTags) {
-      s.append(" tags=").append(new TreeMap<>(unsafeTags));
+      s.append(" tags=").append(new TreeMap<>(getTags()));
     }
     return s.toString();
   }

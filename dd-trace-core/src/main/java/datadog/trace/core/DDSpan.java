@@ -414,7 +414,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
-  public void processTagsAndBaggage(final TagsAndBaggageConsumer consumer) {
+  public void processTagsAndBaggage(final MetadataConsumer consumer) {
     context.processTagsAndBaggage(consumer);
   }
 

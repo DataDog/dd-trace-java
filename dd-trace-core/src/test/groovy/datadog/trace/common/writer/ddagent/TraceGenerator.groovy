@@ -1,10 +1,12 @@
 package datadog.trace.common.writer.ddagent
 
 import datadog.trace.api.DDId
+import datadog.trace.api.DDTags
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
-import datadog.trace.core.TagsAndBaggageConsumer
+import datadog.trace.core.Metadata
+import datadog.trace.core.MetadataConsumer
 
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
@@ -98,10 +100,9 @@ class TraceGenerator {
     private final long duration
     private final int error
     private final Map<String, Number> metrics
-    private final Map<String, String> baggage
-    private final Map<String, Object> tags
     private final String type
     private final boolean measured
+    private final Metadata metadata
 
     PojoSpan(
       String serviceName,
@@ -128,10 +129,10 @@ class TraceGenerator {
       this.duration = duration
       this.error = error
       this.metrics = metrics
-      this.baggage = baggage
-      this.tags = tags
       this.type = type
       this.measured = measured
+      this.metadata = new Metadata(Thread.currentThread().getId(),
+      UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage)
     }
 
     @Override
@@ -260,11 +261,11 @@ class TraceGenerator {
     }
 
     Map<String, String> getBaggage() {
-      return baggage
+      return metadata.getBaggage()
     }
 
     Map<String, Object> getTags() {
-      return tags
+      return metadata.getTags()
     }
 
     @Override
@@ -273,8 +274,8 @@ class TraceGenerator {
     }
 
     @Override
-    void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
-      consumer.accept(tags, baggage)
+    void processTagsAndBaggage(MetadataConsumer consumer) {
+      consumer.accept(metadata)
     }
 
     @Override
@@ -319,12 +320,27 @@ class TraceGenerator {
 
     @Override
     <U> U getTag(CharSequence name, U defaultValue) {
-      return tags.get(String.valueOf(name), defaultValue) as U
+      U value = getTag(name)
+      return null == value ? defaultValue : value
     }
 
     @Override
     <U> U getTag(CharSequence name) {
-      return tags.get(String.valueOf(name)) as U
+      // replicate logic here because DDSpanContext has to pretend some of its
+      // fields are elements of a map for backward compatibility reasons
+      String tag = String.valueOf(name)
+      Object value = null
+      switch (tag) {
+        case DDTags.THREAD_ID:
+          value = metadata.getThreadId()
+          break
+        case DDTags.THREAD_NAME:
+          value = metadata.getThreadName()
+          break
+        default:
+          value = tags.get(tag)
+      }
+      return value as U
     }
   }
 }

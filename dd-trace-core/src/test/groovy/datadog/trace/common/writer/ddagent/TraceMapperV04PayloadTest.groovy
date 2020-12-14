@@ -184,7 +184,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
               meta.put(unpacker.unpackString(), unpacker.unpackString())
             }
             for (Map.Entry<String, String> entry : meta.entrySet()) {
-              Object tag = expectedSpan.getTags().get(entry.getKey())
+              Object tag = expectedSpan.getTag(entry.getKey())
               if (null != tag) {
                 assertEquals(String.valueOf(tag), entry.getValue())
               } else {

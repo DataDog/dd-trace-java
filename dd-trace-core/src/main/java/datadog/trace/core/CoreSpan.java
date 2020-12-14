@@ -62,7 +62,7 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   CharSequence getType();
 
-  void processTagsAndBaggage(TagsAndBaggageConsumer consumer);
+  void processTagsAndBaggage(MetadataConsumer consumer);
 
   T setSamplingPriority(int samplingPriority);
 
