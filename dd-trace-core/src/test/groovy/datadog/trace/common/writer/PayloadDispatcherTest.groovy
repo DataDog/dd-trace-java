@@ -7,6 +7,7 @@ import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
+import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
@@ -116,6 +117,10 @@ class PayloadDispatcherTest extends DDSpecification {
 
 
   def realSpan() {
+    CoreTracer tracer = Mock(CoreTracer)
+    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
+    PendingTrace trace = Mock(PendingTrace)
+    trace.getTracer() >> tracer
     return new DDSpan(0, new DDSpanContext(
       DDId.from(1),
       DDId.from(1),
@@ -130,8 +135,7 @@ class PayloadDispatcherTest extends DDSpecification {
       false,
       "",
       0,
-      Mock(PendingTrace),
-      [:]))
+      trace))
   }
 
 }

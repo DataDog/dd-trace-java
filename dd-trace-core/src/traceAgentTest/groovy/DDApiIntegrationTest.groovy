@@ -45,8 +45,7 @@ class DDApiIntegrationTest extends DDSpecification {
     false,
     "fakeType",
     0,
-    TRACER.pendingTraceFactory.create(DDId.ONE),
-    [:])
+    TRACER.pendingTraceFactory.create(DDId.ONE))
 
   // Looks like okHttp needs to resolve this, even for connection over socket
   static final SOMEHOST = "datadoghq.com"

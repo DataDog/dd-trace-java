@@ -87,8 +87,6 @@ public class DDSpanContext implements AgentSpan.Context {
   /** Metrics on the span */
   private volatile Map<CharSequence, Number> metrics = EMPTY_METRICS;
 
-  private final Map<String, String> serviceNameMappings;
-
   public DDSpanContext(
       final DDId traceId,
       final DDId spanId,
@@ -103,8 +101,7 @@ public class DDSpanContext implements AgentSpan.Context {
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace,
-      final Map<String, String> serviceNameMappings) {
+      final PendingTrace trace) {
 
     assert trace != null;
     this.trace = trace;
@@ -128,7 +125,6 @@ public class DDSpanContext implements AgentSpan.Context {
     final int capacity = ((tagsSize <= 0 ? 1 : tagsSize + 1) * 4) / 3;
     this.unsafeTags = new HashMap<>(capacity);
 
-    this.serviceNameMappings = serviceNameMappings;
     setServiceName(serviceName);
     this.operationName = operationName;
     this.resourceName = resourceName;
@@ -168,9 +164,8 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   public void setServiceName(final String serviceName) {
-    final String mappedServiceName = serviceNameMappings.get(serviceName);
-    this.serviceName = mappedServiceName == null ? serviceName : mappedServiceName;
-    this.topLevel = isTopLevel(parentServiceName, serviceName);
+    this.serviceName = trace.getTracer().mapServiceName(serviceName);
+    this.topLevel = isTopLevel(parentServiceName, this.serviceName);
   }
 
   public CharSequence getResourceName() {

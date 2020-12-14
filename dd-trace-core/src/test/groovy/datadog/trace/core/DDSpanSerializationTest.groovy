@@ -139,8 +139,7 @@ class DDSpanSerializationTest extends DDSpecification {
       false,
       null,
       tags.size(),
-      tracer.pendingTraceFactory.create(DDId.ONE),
-      [:])
+      tracer.pendingTraceFactory.create(DDId.ONE))
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     def buffer = ByteBuffer.allocate(1024)
@@ -208,8 +207,7 @@ class DDSpanSerializationTest extends DDSpecification {
       false,
       null,
       tags.size(),
-      tracer.pendingTraceFactory.create(DDId.ONE),
-      [:])
+      tracer.pendingTraceFactory.create(DDId.ONE))
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     def buffer = ByteBuffer.allocate(1024)
@@ -284,8 +282,7 @@ class DDSpanSerializationTest extends DDSpecification {
       false,
       spanType,
       1,
-      tracer.pendingTraceFactory.create(DDId.ONE),
-      [:])
+      tracer.pendingTraceFactory.create(DDId.ONE))
     ctx.setAllTags(["k1": "v1"])
     return ctx
   }

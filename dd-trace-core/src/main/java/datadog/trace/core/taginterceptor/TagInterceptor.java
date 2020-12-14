@@ -18,7 +18,6 @@ import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.ExclusiveSpan;
 import java.util.Set;
 
 public class TagInterceptor {

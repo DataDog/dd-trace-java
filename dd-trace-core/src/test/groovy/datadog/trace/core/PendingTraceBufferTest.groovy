@@ -133,6 +133,7 @@ class PendingTraceBufferTest extends DDSpecification {
     buffer.queue.size() == BUFFER_SIZE
     buffer.queue.capacity() * bufferSpy.enqueue(_)
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.mapServiceName(_)
     0 * _
 
     when:
@@ -143,6 +144,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 })
     _ * tracer.getPartialFlushMinSpans() >> 10
+    _ * tracer.mapServiceName(_)
     0 * _
   }
 
@@ -233,6 +235,7 @@ class PendingTraceBufferTest extends DDSpecification {
     1 * tracer.write({ it.size() == 1 }) >> {
       childLatch.countDown()
     }
+    _ * tracer.mapServiceName(_)
     0 * _
   }
 
