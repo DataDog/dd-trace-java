@@ -13,7 +13,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -86,7 +85,7 @@ public class DDSpanContext implements AgentSpan.Context {
   /** The origin of the trace. (eg. Synthetics) */
   private final String origin;
   /** Metrics on the span */
-  private final AtomicReference<Map<CharSequence, Number>> metrics = new AtomicReference<>();
+  private volatile Map<CharSequence, Number> metrics = EMPTY_METRICS;
 
   private final Map<String, String> serviceNameMappings;
 
@@ -349,18 +348,22 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   public Map<CharSequence, Number> getMetrics() {
-    final Map<CharSequence, Number> metrics = this.metrics.get();
-    return metrics == null ? EMPTY_METRICS : metrics;
+    return metrics;
   }
 
   public void setMetric(final CharSequence key, final Number value) {
-    if (metrics.get() == null) {
-      metrics.compareAndSet(null, new ConcurrentHashMap<CharSequence, Number>());
+    if (metrics == EMPTY_METRICS) {
+      // synchronize on spanId to not contend with sample rates being set
+      synchronized (spanId) {
+        if (metrics == EMPTY_METRICS) {
+          metrics = new HashMap<>(4);
+          metrics.put(key, value instanceof Float ? value.doubleValue() : value);
+          return;
+        }
+      }
     }
-    if (value instanceof Float) {
-      metrics.get().put(key, value.doubleValue());
-    } else {
-      metrics.get().put(key, value);
+    synchronized (spanId) {
+      metrics.put(key, value instanceof Float ? value.doubleValue() : value);
     }
   }
 
