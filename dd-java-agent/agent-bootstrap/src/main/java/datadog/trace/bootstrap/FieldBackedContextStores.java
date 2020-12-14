@@ -2,7 +2,9 @@ package datadog.trace.bootstrap;
 
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public final class FieldBackedContextStores {
 
   // provide fast lookup for a small number of stores
@@ -56,6 +58,8 @@ public final class FieldBackedContextStores {
         final int newStoreId = STORES_BY_NAME.size();
         existingStore = STORES_BY_NAME.putIfAbsent(storeName, createStore(newStoreId));
         if (null == existingStore) {
+          log.debug(
+              "Allocated ContextStore #{} to {} -> {}", newStoreId, keyClassName, contextClassName);
           return newStoreId;
         }
       }
