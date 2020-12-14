@@ -96,7 +96,8 @@ public class SpringWebHttpServerDecorator
       final String method = request.getMethod();
       final Object bestMatchingPattern =
           request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-      if (method != null && bestMatchingPattern != null) {
+      if (method != null && bestMatchingPattern != null && !bestMatchingPattern.equals("/**")) {
+        // universal matching is not helpful (and prevents 404 renaming in URLAsResourceNameRule).
         final CharSequence resourceName =
             RESOURCE_NAME_CACHE.computeIfAbsent(
                 Pair.of(method, bestMatchingPattern), RESOURCE_NAME_JOINER);

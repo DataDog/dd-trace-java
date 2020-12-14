@@ -18,6 +18,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
+
 import java.util.concurrent.atomic.AtomicBoolean
 
 import static datadog.trace.agent.test.asserts.TraceAssert.assertTrace
@@ -115,7 +116,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     REDIRECT("redirect", 302, "/redirected"),
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
     EXCEPTION("exception", 500, "controller exception"),
-    NOT_FOUND("notFound", 404, "not found"),
+    NOT_FOUND("not-found", 404, "not found"),
+    NOT_HERE("not-here", 404, "not here"), // Explicitly returned 404 from a valid controller
 
     TIMEOUT("timeout", -1, null),
     TIMEOUT_ERROR("timeout_error", -1, null),
@@ -162,7 +164,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     String resource(String method, URI address, String pathParam) {
-      return status == 404 ? "404" : "$method ${hasPathParam ? pathParam : resolve(address).path}"
+      return path == "not-found" ? "404" : "$method ${hasPathParam ? pathParam : resolve(address).path}"
     }
 
     private static final Map<String, ServerEndpoint> PATH_MAP = values().collectEntries { [it.path, it] }
