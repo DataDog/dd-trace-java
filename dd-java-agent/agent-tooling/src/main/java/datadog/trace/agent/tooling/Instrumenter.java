@@ -86,15 +86,14 @@ public interface Instrumenter {
     private final String instrumentationPrimaryName;
     private InstrumentationContextProvider contextProvider;
     private boolean initialized;
-    protected final boolean enabled;
+    private final boolean enabled;
 
     protected final String packageName =
         getClass().getPackage() == null ? "" : getClass().getPackage().getName();
 
     public Default(
-        final TargetSystem targetSystem,
-        final String instrumentationName,
-        final String... additionalNames) {
+      final String instrumentationName,
+      final String... additionalNames) {
       instrumentationNames = new TreeSet<>(Arrays.asList(additionalNames));
       instrumentationNames.add(instrumentationName);
       instrumentationPrimaryName = instrumentationName;
@@ -325,6 +324,10 @@ public interface Instrumenter {
       return Config.get().isIntegrationsEnabled();
     }
 
+    public boolean isEnabled() {
+      return enabled;
+    }
+
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return false;
@@ -334,7 +337,7 @@ public interface Instrumenter {
   /** Parent class for all tracing related instrumentations */
   abstract class Tracing extends Default {
     public Tracing(String instrumentationName, String... additionalNames) {
-      super(TargetSystem.TRACING, instrumentationName, additionalNames);
+      super(instrumentationName, additionalNames);
     }
 
     @Override
@@ -346,7 +349,7 @@ public interface Instrumenter {
   /** Parent class for */
   abstract class Profiling extends Default {
     public Profiling(String instrumentationName, String... additionalNames) {
-      super(TargetSystem.PROFILING, instrumentationName, additionalNames);
+      super(instrumentationName, additionalNames);
     }
 
     @Override

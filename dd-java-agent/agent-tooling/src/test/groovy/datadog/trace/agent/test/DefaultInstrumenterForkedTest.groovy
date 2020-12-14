@@ -156,10 +156,6 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
       super(instrumentationName, [additionalName])
     }
 
-    def getEnabled() {
-      return super.enabled
-    }
-
     @Override
     ElementMatcher<? super TypeDescription> typeMatcher() {
       applyCalled = true
