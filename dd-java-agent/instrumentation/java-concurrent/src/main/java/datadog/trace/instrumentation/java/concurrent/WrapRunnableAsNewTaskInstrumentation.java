@@ -36,18 +36,12 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Def
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return namedOneOf(
         "io.netty.channel.epoll.EpollEventLoop",
-        "io.netty.channel.epoll.EpollEventLoopGroup",
-        "io.netty.channel.MultithreadEventLoopGroup",
         "io.netty.channel.nio.NioEventLoop",
-        "io.netty.channel.nio.NioEventLoopGroup",
         "io.netty.channel.SingleThreadEventLoop",
         "io.netty.util.concurrent.AbstractEventExecutor",
-        "io.netty.util.concurrent.AbstractEventExecutorGroup",
         "io.netty.util.concurrent.AbstractScheduledEventExecutor",
         "io.netty.util.concurrent.DefaultEventExecutor",
-        "io.netty.util.concurrent.DefaultEventExecutorGroup",
         "io.netty.util.concurrent.GlobalEventExecutor",
-        "io.netty.util.concurrent.MultithreadEventExecutorGroup",
         "io.netty.util.concurrent.SingleThreadEventExecutor",
         "java.util.concurrent.AbstractExecutorService",
         "java.util.concurrent.CompletableFuture$ThreadPerTaskExecutor",
