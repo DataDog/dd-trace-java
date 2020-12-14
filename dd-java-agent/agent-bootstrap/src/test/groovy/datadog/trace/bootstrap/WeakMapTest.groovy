@@ -1,9 +1,9 @@
 package datadog.trace.bootstrap
 
 import datadog.trace.api.Function
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class WeakMapTest extends Specification {
+class WeakMapTest extends DDSpecification {
 
   def supplier = new CounterSupplier()
 

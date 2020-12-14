@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap
 
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
-import spock.lang.Specification
 import spock.lang.Timeout
 
 import java.util.concurrent.Callable
@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static org.junit.Assume.assumeTrue
 
-class DatadogClassLoaderTest extends Specification {
+class DatadogClassLoaderTest extends DDSpecification {
   @Shared
   URL testJarLocation = new File("src/test/resources/classloader-test-jar/testjar-jdk8").toURI().toURL()
 

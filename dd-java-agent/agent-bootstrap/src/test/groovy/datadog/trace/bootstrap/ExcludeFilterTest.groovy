@@ -1,11 +1,13 @@
 package datadog.trace.bootstrap
 
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.*
-
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class ExcludeFilterTest extends Specification {
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.CALLABLE
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FUTURE
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE
+
+class ExcludeFilterTest extends DDSpecification {
 
   def "test empty ExcludeFilter"() {
     setup:

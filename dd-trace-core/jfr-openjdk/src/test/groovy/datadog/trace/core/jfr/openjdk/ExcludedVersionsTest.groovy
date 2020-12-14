@@ -1,8 +1,8 @@
 package datadog.trace.core.jfr.openjdk
 
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class ExcludedVersionsTest extends Specification {
+class ExcludedVersionsTest extends DDSpecification {
   def "expect #version is #excludedDescription"() {
 
     expect:

@@ -1,9 +1,9 @@
 package datadog.trace.agent.tooling
 
 import datadog.trace.api.Function
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class WeakCacheTest extends Specification {
+class WeakCacheTest extends DDSpecification {
   def supplier = new CounterSupplier()
 
   def weakCache = AgentTooling.newWeakCache()
