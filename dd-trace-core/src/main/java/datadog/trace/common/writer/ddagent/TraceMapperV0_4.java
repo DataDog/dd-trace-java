@@ -173,7 +173,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
   @Override
   public int messageBufferSize() {
-    return 5 << 20; // 5MB
+    return 512 << 10; // 512KB
   }
 
   @Override
