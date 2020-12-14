@@ -89,8 +89,6 @@ public class DDSpanContext implements AgentSpan.Context {
 
   private final Map<String, String> serviceNameMappings;
 
-  private final ExclusiveSpan exclusiveSpan;
-
   public DDSpanContext(
       final DDId traceId,
       final DDId spanId,
@@ -149,11 +147,6 @@ public class DDSpanContext implements AgentSpan.Context {
     final Thread current = Thread.currentThread();
     this.threadId = current.getId();
     this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
-
-    // It is safe that we let `this` escape into the ExclusiveSpan constructor,
-    // since ExclusiveSpan is only a wrapper and the instance can only be accessed from
-    // this DDSpanContext.
-    this.exclusiveSpan = new ExclusiveSpan(this);
   }
 
   @Override
@@ -378,7 +371,7 @@ public class DDSpanContext implements AgentSpan.Context {
       synchronized (unsafeTags) {
         unsafeTags.remove(tag);
       }
-    } else if (!trace.getTracer().getTagInterceptor().interceptTag(exclusiveSpan, tag, value)) {
+    } else if (!trace.getTracer().getTagInterceptor().interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeSetTag(tag, value);
       }
@@ -395,7 +388,7 @@ public class DDSpanContext implements AgentSpan.Context {
         if (!trace
             .getTracer()
             .getTagInterceptor()
-            .interceptTag(exclusiveSpan, tag.getKey(), tag.getValue())) {
+            .interceptTag(this, tag.getKey(), tag.getValue())) {
           unsafeSetTag(tag.getKey(), tag.getValue());
         }
       }
@@ -445,7 +438,7 @@ public class DDSpanContext implements AgentSpan.Context {
 
   public void processExclusiveSpan(final ExclusiveSpan.Consumer consumer) {
     synchronized (unsafeTags) {
-      consumer.accept(exclusiveSpan);
+      consumer.accept(new ExclusiveSpan(this));
     }
   }
 

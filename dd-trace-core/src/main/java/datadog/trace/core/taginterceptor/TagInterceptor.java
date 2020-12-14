@@ -17,6 +17,7 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.ExclusiveSpan;
 import java.util.Set;
 
@@ -46,7 +47,7 @@ public class TagInterceptor {
     this.ruleFlags = ruleFlags;
   }
 
-  public boolean interceptTag(ExclusiveSpan span, String tag, Object value) {
+  public boolean interceptTag(DDSpanContext span, String tag, Object value) {
     switch (tag) {
       case DDTags.RESOURCE_NAME:
         return interceptResourceName(span, value);
@@ -74,7 +75,7 @@ public class TagInterceptor {
     }
   }
 
-  private boolean intercept(ExclusiveSpan span, String tag, Object value) {
+  private boolean intercept(DDSpanContext span, String tag, Object value) {
     if (splitServiceTags.contains(tag)) {
       span.setServiceName(String.valueOf(value));
       return true;
@@ -82,7 +83,7 @@ public class TagInterceptor {
     return false;
   }
 
-  private boolean interceptResourceName(ExclusiveSpan span, Object value) {
+  private boolean interceptResourceName(DDSpanContext span, Object value) {
     if (ruleFlags.isEnabled(RESOURCE_NAME)) {
       if (value instanceof CharSequence) {
         span.setResourceName((CharSequence) value);
@@ -94,7 +95,7 @@ public class TagInterceptor {
     return false;
   }
 
-  private boolean interceptDbStatement(ExclusiveSpan span, Object value) {
+  private boolean interceptDbStatement(DDSpanContext span, Object value) {
     if (value instanceof CharSequence) {
       CharSequence resourceName = (CharSequence) value;
       if (resourceName.length() > 0) {
@@ -104,12 +105,12 @@ public class TagInterceptor {
     return true;
   }
 
-  private boolean interceptError(ExclusiveSpan span, Object value) {
-    span.setError(asBoolean(value));
+  private boolean interceptError(DDSpanContext span, Object value) {
+    span.setErrorFlag(asBoolean(value));
     return true;
   }
 
-  private boolean interceptAnalyticsSampleRate(ExclusiveSpan span, Object value) {
+  private boolean interceptAnalyticsSampleRate(DDSpanContext span, Object value) {
     Number analyticsSampleRate = getOrTryParse(value);
     if (null != analyticsSampleRate) {
       span.setMetric(ANALYTICS_SAMPLE_RATE, analyticsSampleRate);
@@ -117,17 +118,17 @@ public class TagInterceptor {
     return true;
   }
 
-  private boolean interceptSpanType(ExclusiveSpan span, Object value) {
+  private boolean interceptSpanType(DDSpanContext span, Object value) {
     if (value instanceof CharSequence) {
       span.setSpanType((CharSequence) value);
     } else {
-      span.setType(String.valueOf(value));
+      span.setSpanType(String.valueOf(value));
     }
     return true;
   }
 
   private boolean interceptServiceName(
-      RuleFlags.Feature feature, ExclusiveSpan span, Object value) {
+      RuleFlags.Feature feature, DDSpanContext span, Object value) {
     if (ruleFlags.isEnabled(feature)) {
       span.setServiceName(String.valueOf(value));
       return true;
@@ -136,7 +137,7 @@ public class TagInterceptor {
   }
 
   private boolean interceptSamplingPriority(
-      RuleFlags.Feature feature, int priority, ExclusiveSpan span, Object value) {
+      RuleFlags.Feature feature, int priority, DDSpanContext span, Object value) {
     if (ruleFlags.isEnabled(feature)) {
       if (asBoolean(value)) {
         span.setSamplingPriority(priority);
@@ -146,7 +147,7 @@ public class TagInterceptor {
     return false;
   }
 
-  private boolean interceptServletContext(ExclusiveSpan span, Object value) {
+  private boolean interceptServletContext(DDSpanContext span, Object value) {
     // even though this tag is sometimes used to set the service name
     // (which has the side effect of marking the span as eligible for metrics
     // in the trace agent) we also want to store it in the tags no matter what,
