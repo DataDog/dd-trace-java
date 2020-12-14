@@ -2,7 +2,16 @@ package datadog.trace.instrumentation.trace_annotation;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.isEquals;
+import static net.bytebuddy.matcher.ElementMatchers.isFinalizer;
+import static net.bytebuddy.matcher.ElementMatchers.isGetter;
+import static net.bytebuddy.matcher.ElementMatchers.isHashCode;
+import static net.bytebuddy.matcher.ElementMatchers.isSetter;
+import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
+import static net.bytebuddy.matcher.ElementMatchers.isToString;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -33,7 +42,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class TraceConfigInstrumentation implements Instrumenter {
 
   static final String PACKAGE_CLASS_NAME_REGEX = "[\\w.\\$]+";
-  private static final String METHOD_LIST_REGEX = "\\s*(?:\\w+\\s*,)*\\s*(?:\\w+\\s*,?)\\s*";
+  private static final String METHOD_LIST_REGEX =
+      "\\s*(?:\\*|(?:\\w+\\s*,)*\\s*(?:\\w+\\s*,?))\\s*";
   private static final String CONFIG_FORMAT =
       "(?:\\s*"
           + PACKAGE_CLASS_NAME_REGEX
@@ -63,7 +73,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
 
     } else if (!validateConfigString(configString)) {
       log.warn(
-          "Invalid trace method config '{}'. Must match 'package.Class$Name[method1,method2];*'.",
+          "Invalid trace method config '{}'. Must match 'package.Class$Name[method1,method2];*' or 'package.Class$Name[*];*'.",
           configString);
       classMethodsToTrace = Collections.emptyMap();
 
@@ -153,7 +163,20 @@ public class TraceConfigInstrumentation implements Instrumenter {
       ElementMatcher.Junction<MethodDescription> methodMatchers = null;
       for (final String methodName : methodNames) {
         if (methodMatchers == null) {
-          methodMatchers = named(methodName);
+          if (methodName.equals("*")) {
+            methodMatchers =
+                not(
+                    isHashCode()
+                        .or(isEquals())
+                        .or(isToString())
+                        .or(isFinalizer())
+                        .or(isGetter())
+                        .or(isConstructor())
+                        .or(isSetter())
+                        .or(isSynthetic()));
+          } else {
+            methodMatchers = named(methodName);
+          }
         } else {
           methodMatchers = methodMatchers.or(named(methodName));
         }
