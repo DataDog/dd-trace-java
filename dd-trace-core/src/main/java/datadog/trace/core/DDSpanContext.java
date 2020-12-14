@@ -28,10 +28,6 @@ public class DDSpanContext implements AgentSpan.Context {
 
   private static final Map<CharSequence, Number> EMPTY_METRICS = Collections.emptyMap();
 
-  // Shared with other span contexts
-  /** For technical reasons, the ref to the original tracer */
-  private final CoreTracer tracer;
-
   /** The collection of all span related to this one */
   private final PendingTrace trace;
 
@@ -101,12 +97,9 @@ public class DDSpanContext implements AgentSpan.Context {
       final CharSequence spanType,
       final int tagsSize,
       final PendingTrace trace,
-      final CoreTracer tracer,
       final Map<String, String> serviceNameMappings) {
 
-    assert tracer != null;
     assert trace != null;
-    this.tracer = tracer;
     this.trace = trace;
 
     assert traceId != null;
@@ -342,7 +335,7 @@ public class DDSpanContext implements AgentSpan.Context {
 
   @Deprecated
   public CoreTracer getTracer() {
-    return tracer;
+    return trace.getTracer();
   }
 
   public Map<CharSequence, Number> getMetrics() {
@@ -372,7 +365,7 @@ public class DDSpanContext implements AgentSpan.Context {
       synchronized (unsafeTags) {
         unsafeTags.remove(tag);
       }
-    } else if (!tracer.getTagInterceptor().interceptTag(exclusiveSpan, tag, value)) {
+    } else if (!trace.getTracer().getTagInterceptor().interceptTag(exclusiveSpan, tag, value)) {
       synchronized (unsafeTags) {
         unsafeSetTag(tag, value);
       }
@@ -386,7 +379,10 @@ public class DDSpanContext implements AgentSpan.Context {
 
     synchronized (unsafeTags) {
       for (final Map.Entry<String, ? extends Object> tag : map.entrySet()) {
-        if (!tracer.getTagInterceptor().interceptTag(exclusiveSpan, tag.getKey(), tag.getValue())) {
+        if (!trace
+            .getTracer()
+            .getTagInterceptor()
+            .interceptTag(exclusiveSpan, tag.getKey(), tag.getValue())) {
           unsafeSetTag(tag.getKey(), tag.getValue());
         }
       }

@@ -7,7 +7,6 @@ import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
@@ -132,7 +131,6 @@ class PayloadDispatcherTest extends DDSpecification {
       "",
       0,
       Mock(PendingTrace),
-      Mock(CoreTracer),
       [:]))
   }
 

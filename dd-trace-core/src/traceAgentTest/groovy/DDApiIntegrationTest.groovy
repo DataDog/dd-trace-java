@@ -46,7 +46,6 @@ class DDApiIntegrationTest extends DDSpecification {
     "fakeType",
     0,
     TRACER.pendingTraceFactory.create(DDId.ONE),
-    TRACER,
     [:])
 
   // Looks like okHttp needs to resolve this, even for connection over socket

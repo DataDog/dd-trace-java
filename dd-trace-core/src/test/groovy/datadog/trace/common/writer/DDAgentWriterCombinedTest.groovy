@@ -8,7 +8,6 @@ import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
@@ -223,7 +222,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       "",
       0,
       Mock(PendingTrace),
-      Mock(CoreTracer),
       [:])
     minimalSpan = new DDSpan(0, minimalContext)
     minimalTrace = [minimalSpan]
@@ -272,7 +270,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       "",
       0,
       Mock(PendingTrace),
-      Mock(CoreTracer),
       [:])
     def minimalSpan = new DDSpan(0, minimalContext)
     def minimalTrace = [minimalSpan]

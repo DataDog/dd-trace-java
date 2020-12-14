@@ -26,7 +26,7 @@ class SpanFactory {
       "fakeType",
       0,
       TRACER.pendingTraceFactory.create(DDId.ONE),
-      TRACER, [:])
+      [:])
     Thread.currentThread().setName(currentThreadName)
     return DDSpan.create(timestampMicro, context)
   }
@@ -47,7 +47,7 @@ class SpanFactory {
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
-      tracer, [:])
+      [:])
     return DDSpan.create(0, context)
   }
 
@@ -67,7 +67,7 @@ class SpanFactory {
       "fakeType",
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
-      tracer, [:])
+      [:])
     return DDSpan.create(0, context)
   }
 
@@ -87,7 +87,7 @@ class SpanFactory {
       "fakeType",
       0,
       trace,
-      trace.tracer, [:])
+      [:])
     return DDSpan.create(0, context)
   }
 
@@ -108,7 +108,7 @@ class SpanFactory {
       "fakeType",
       0,
       trace,
-      trace.tracer, [:])
+      [:])
     return DDSpan.create(0, context)
   }
 
@@ -128,7 +128,6 @@ class SpanFactory {
       "fakeType",
       0,
       TRACER.pendingTraceFactory.create(DDId.ONE),
-      TRACER,
       [:])
     context.setTag("env", envName)
     return DDSpan.create(0l, context)
