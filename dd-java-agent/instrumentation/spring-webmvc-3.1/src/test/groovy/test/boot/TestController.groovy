@@ -13,7 +13,7 @@ import org.springframework.web.servlet.view.RedirectView
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HERE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
@@ -56,8 +56,8 @@ class TestController {
 
   @RequestMapping("/not-here")
   ResponseEntity not_here() {
-    HttpServerTest.controller(NOT_FOUND) {
-      new ResponseEntity(NOT_FOUND.body, HttpStatus.valueOf(NOT_FOUND.status))
+    HttpServerTest.controller(NOT_HERE) {
+      new ResponseEntity(NOT_HERE.body, HttpStatus.valueOf(NOT_HERE.status))
     }
   }
 
