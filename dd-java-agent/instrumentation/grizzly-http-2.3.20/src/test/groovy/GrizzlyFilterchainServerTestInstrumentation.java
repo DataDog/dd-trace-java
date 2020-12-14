@@ -4,9 +4,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.test.base.HttpServerTestAdvice;
 import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.agent.builder.AgentBuilder;
-
 import java.util.Set;
+import net.bytebuddy.agent.builder.AgentBuilder;
 
 @AutoService(Instrumenter.class)
 public class GrizzlyFilterchainServerTestInstrumentation implements Instrumenter {

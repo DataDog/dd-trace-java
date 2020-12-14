@@ -91,9 +91,7 @@ public interface Instrumenter {
     protected final String packageName =
         getClass().getPackage() == null ? "" : getClass().getPackage().getName();
 
-    public Default(
-      final String instrumentationName,
-      final String... additionalNames) {
+    public Default(final String instrumentationName, final String... additionalNames) {
       instrumentationNames = new TreeSet<>(Arrays.asList(additionalNames));
       instrumentationNames.add(instrumentationName);
       instrumentationPrimaryName = instrumentationName;
