@@ -5,14 +5,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.util.Clock;
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -61,33 +58,20 @@ public class PendingTrace implements AgentTrace {
   /** Nano second ticks value at trace start */
   private final long startNanoTicks;
 
-  private final ConcurrentLinkedDeque<DDSpan> finishedSpans = new ConcurrentLinkedDeque();
+  private final ConcurrentLinkedDeque<DDSpan> finishedSpans = new ConcurrentLinkedDeque<>();
 
   // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
   private final AtomicInteger completedSpanCount = new AtomicInteger(0);
 
   private final AtomicInteger pendingReferenceCount = new AtomicInteger(0);
 
-  // FIXME: In async frameworks we may have situations where traces do not report due to references
-  //  being held by async operators. In order to support testing in these cases we should have a way
-  //  to keep track of the fact that this trace is ready to report but is still pending. This would
-  //  likely require a change to the writer interface to allow signaling this intent. This could
-  //  also give us the benefit of being able to recover for reporting traces that get stuck due to
-  //  references being held for long periods of time.
-
   /**
    * During a trace there are cases where the root span must be accessed (e.g. priority sampling and
-   * trace-search tags).
-   *
-   * <p>Use a weak ref because we still need to handle buggy cases where the root span is not
-   * correctly closed (see SpanCleaner).
-   *
-   * <p>The root span will be available in non-buggy cases because it has either finished and
-   * strongly ref'd in this queue or is unfinished and ref'd in a ContinuableScope.
+   * trace-search tags). These use cases are an obstacle to span-streaming.
    */
-  private final AtomicReference<WeakReference<DDSpan>> rootSpan = new AtomicReference<>();
+  private volatile DDSpan rootSpan = null;
 
-  private final AtomicBoolean rootSpanWritten = new AtomicBoolean(false);
+  private volatile boolean rootSpanWritten = false;
 
   /**
    * Updated with the latest nanoTicks each time getCurrentTimeNano is called (at the start and
@@ -147,8 +131,12 @@ public class PendingTrace implements AgentTrace {
       return;
     }
 
-    if (!rootSpanWritten.get()) {
-      rootSpan.compareAndSet(null, new WeakReference<>(span));
+    if (null == rootSpan) {
+      synchronized (this) {
+        if (!rootSpanWritten && null == rootSpan) {
+          rootSpan = span;
+        }
+      }
     }
 
     final int count = pendingReferenceCount.incrementAndGet();
@@ -186,8 +174,7 @@ public class PendingTrace implements AgentTrace {
   }
 
   public DDSpan getRootSpan() {
-    final WeakReference<DDSpan> rootRef = rootSpan.get();
-    return rootRef == null ? null : rootRef.get();
+    return rootSpan;
   }
 
   /** @return Long.MAX_VALUE if no spans finished. */
@@ -221,7 +208,7 @@ public class PendingTrace implements AgentTrace {
     final int count = pendingReferenceCount.decrementAndGet();
     int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
 
-    if (count == 0 && !rootSpanWritten.get()) {
+    if (count == 0 && !rootSpanWritten) {
       // Finished with no pending work ... write immediately
       write();
     } else if (isRootSpan) {
@@ -230,7 +217,7 @@ public class PendingTrace implements AgentTrace {
     } else if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
       // Trace is getting too big, write anything completed.
       partialFlush();
-    } else if (rootSpanWritten.get()) {
+    } else if (rootSpanWritten) {
       // Late arrival span ... delay write
       pendingTraceBuffer.enqueue(this);
     }
@@ -251,7 +238,6 @@ public class PendingTrace implements AgentTrace {
 
   /** Important to note: may be called multiple times. */
   void write() {
-    rootSpanWritten.set(true);
     int size = write(false);
     if (log.isDebugEnabled()) {
       log.debug("t_id={} -> wrote {} spans to {}.", traceId, size, tracer.writer);
@@ -263,6 +249,9 @@ public class PendingTrace implements AgentTrace {
       try (Recording recording = tracer.writeTimer()) {
         // Only one writer at a time
         synchronized (this) {
+          if (!isPartial) {
+            rootSpanWritten = true;
+          }
           int size = size();
           // If we get here and size is below 0, then the writer before us wrote out at least one
           // more trace than the size it had when it started. Those span(s) had been added to
