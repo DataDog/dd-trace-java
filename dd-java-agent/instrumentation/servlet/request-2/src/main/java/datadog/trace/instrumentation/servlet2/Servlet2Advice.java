@@ -43,10 +43,6 @@ public class Servlet2Advice {
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
 
     if (response instanceof HttpServletResponse) {
-      // For use by HttpServletResponseInstrumentation:
-      InstrumentationContext.get(HttpServletResponse.class, Boolean.class)
-          .put((HttpServletResponse) response, Boolean.TRUE);
-
       // Default value for checking for uncaught error later
       InstrumentationContext.get(ServletResponse.class, Integer.class).put(response, 200);
     }

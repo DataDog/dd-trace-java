@@ -318,11 +318,6 @@ class TomcatServlet3TestInclude extends TomcatServlet3Test {
     return false
   }
 
-  boolean hasResponseSpan(ServerEndpoint endpoint) {
-    // No response spans for include because response spans are only for the dispatching servlet
-    return false
-  }
-
   boolean bubblesResponse() {
     return false
   }

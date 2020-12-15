@@ -13,7 +13,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -41,10 +40,6 @@ public class Servlet3Advice {
     }
 
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
-
-    // For use by HttpServletResponseInstrumentation:
-    InstrumentationContext.get(HttpServletResponse.class, Boolean.class)
-        .put((HttpServletResponse) response, Boolean.TRUE);
 
     final AgentSpan.Context extractedContext;
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
@@ -103,7 +98,7 @@ public class Servlet3Advice {
       if (throwable != null) {
         DECORATE.onResponse(span, resp);
         if (resp.getStatus() == HttpServletResponse.SC_OK) {
-          // exception is thrown in filter chain, but status code is incorrect
+          // exception is thrown in filter chain, but status code is likely incorrect
           span.setTag(Tags.HTTP_STATUS, 500);
         }
         DECORATE.onError(span, throwable);
