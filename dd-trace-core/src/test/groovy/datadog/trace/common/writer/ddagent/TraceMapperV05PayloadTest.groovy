@@ -283,9 +283,9 @@ class TraceMapperV05PayloadTest extends DDSpecification {
             }
             for (Map.Entry<String, Number> metric : metrics.entrySet()) {
               if (metric.getValue() instanceof Double) {
-                assertEquals(expectedSpan.getMetrics().get(metric.getKey()).doubleValue(), metric.getValue().doubleValue(), 0.001)
+                assertEquals(expectedSpan.getUnsafeMetrics().get(metric.getKey()).doubleValue(), metric.getValue().doubleValue(), 0.001)
               } else {
-                assertEquals(expectedSpan.getMetrics().get(metric.getKey()), metric.getValue())
+                assertEquals(expectedSpan.getUnsafeMetrics().get(metric.getKey()), metric.getValue())
               }
             }
             String type = dictionary[unpacker.unpackInt()]

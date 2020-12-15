@@ -256,7 +256,7 @@ class TraceGenerator {
     }
 
     @Override
-    Map<String, Number> getMetrics() {
+    Map<String, Number> getUnsafeMetrics() {
       return metrics
     }
 

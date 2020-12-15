@@ -91,7 +91,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   private void writeMetrics(CoreSpan<?> span, Writable writable) {
-    Map<CharSequence, Number> metrics = span.getMetrics();
+    Map<CharSequence, Number> metrics = span.getUnsafeMetrics();
     int elementCount = metrics.size();
     elementCount += (span.isMeasured() ? 1 : 0);
     elementCount += (span.isTopLevel() ? 1 : 0);

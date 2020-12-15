@@ -90,7 +90,7 @@ class DDSpanContextTest extends DDSpecification {
     setup:
     def context = SpanFactory.newSpanOf(0).context
     context.setMetric("test", value)
-    def metrics = context.getMetrics()
+    def metrics = context.getUnsafeMetrics()
 
     expect:
     type.isInstance(metrics["test"])

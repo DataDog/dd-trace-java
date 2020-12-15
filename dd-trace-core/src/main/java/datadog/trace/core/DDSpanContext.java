@@ -343,7 +343,7 @@ public class DDSpanContext implements AgentSpan.Context {
     return trace.getTracer();
   }
 
-  public Map<CharSequence, Number> getMetrics() {
+  public Map<CharSequence, Number> getUnsafeMetrics() {
     return metrics;
   }
 
@@ -463,7 +463,7 @@ public class DDSpanContext implements AgentSpan.Context {
             .append("/")
             .append(getResourceName())
             .append(" metrics=")
-            .append(new TreeMap<>(getMetrics()));
+            .append(new TreeMap<>(getUnsafeMetrics()));
     if (errorFlag) {
       s.append(" *errored*");
     }

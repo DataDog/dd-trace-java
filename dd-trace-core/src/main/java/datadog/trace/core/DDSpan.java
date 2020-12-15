@@ -322,8 +322,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
    * @return metrics for this span
    */
   @Override
-  public Map<CharSequence, Number> getMetrics() {
-    return context.getMetrics();
+  public Map<CharSequence, Number> getUnsafeMetrics() {
+    return context.getUnsafeMetrics();
   }
 
   @Override

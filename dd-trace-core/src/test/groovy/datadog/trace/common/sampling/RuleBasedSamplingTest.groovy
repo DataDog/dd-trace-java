@@ -61,9 +61,9 @@ class RuleBasedSamplingTest extends DDSpecification {
     ((PrioritySampler) sampler).setSamplingPriority(span)
 
     then:
-    span.getMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == expectedRuleRate
-    span.getMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
-    span.getMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
+    span.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == expectedRuleRate
+    span.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
+    span.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
     span.getSamplingPriority() == expectedPriority
 
     where:
@@ -146,14 +146,14 @@ class RuleBasedSamplingTest extends DDSpecification {
     ((PrioritySampler) sampler).setSamplingPriority(span2)
 
     then:
-    span1.getMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span1.getMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span1.getMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span1.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
+    span1.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span1.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
     span1.getSamplingPriority() == SAMPLER_KEEP
 
-    span2.getMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span2.getMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span2.getMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span2.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
+    span2.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span2.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
     span2.getSamplingPriority() == SAMPLER_DROP
   }
 
@@ -172,14 +172,14 @@ class RuleBasedSamplingTest extends DDSpecification {
     ((PrioritySampler) sampler).setSamplingPriority(span2)
 
     then:
-    span1.getMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span1.getMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span1.getMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span1.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
+    span1.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span1.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
     span1.getSamplingPriority() == SAMPLER_KEEP
 
-    span2.getMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span2.getMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span2.getMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span2.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
+    span2.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span2.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
     span2.getSamplingPriority() == SAMPLER_DROP
   }
 }

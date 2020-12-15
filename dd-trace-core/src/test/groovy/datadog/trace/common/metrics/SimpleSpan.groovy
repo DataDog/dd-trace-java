@@ -168,7 +168,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
-  Map<CharSequence, Number> getMetrics() {
+  Map<CharSequence, Number> getUnsafeMetrics() {
     return null
   }
 

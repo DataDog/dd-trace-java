@@ -66,7 +66,7 @@ class RateByServiceSamplerTest extends DDSpecification {
     // sets correctly on root span
     span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
     // RateByServiceSamler must not set the sample rate
-    span.getMetrics().get(DDSpanContext.SAMPLE_RATE_KEY) == null
+    span.getUnsafeMetrics().get(DDSpanContext.SAMPLE_RATE_KEY) == null
   }
 
   def "sampling priority set when service later"() {

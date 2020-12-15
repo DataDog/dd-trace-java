@@ -58,7 +58,7 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   /** @return whether this span has a different service name from its parent, or is a local root. */
   boolean isTopLevel();
 
-  Map<CharSequence, Number> getMetrics();
+  Map<CharSequence, Number> getUnsafeMetrics();
 
   CharSequence getType();
 
