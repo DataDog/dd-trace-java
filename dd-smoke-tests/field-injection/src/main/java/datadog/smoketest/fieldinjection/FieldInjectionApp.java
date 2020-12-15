@@ -1,6 +1,8 @@
 package datadog.smoketest.fieldinjection;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 
 public class FieldInjectionApp {
 
@@ -13,6 +15,18 @@ public class FieldInjectionApp {
             if (field.getName().startsWith("__datadogContext")) {
               System.err.println("___FIELD___:" + className + ":" + field.getName());
             }
+          }
+          for (Class<?> intf : klass.getInterfaces()) {
+            System.err.println("___INTERFACE___:" + className + ":" + intf.getName());
+          }
+          for (Type genericIntf : klass.getGenericInterfaces()) {
+            Class<?> intf;
+            if (genericIntf instanceof ParameterizedType) {
+              intf = (Class<?>) ((ParameterizedType) genericIntf).getRawType();
+            } else {
+              intf = (Class<?>) genericIntf;
+            }
+            System.err.println("___GENERIC_INTERFACE___:" + className + ":" + intf.getName());
           }
           klass = klass.getSuperclass();
         }

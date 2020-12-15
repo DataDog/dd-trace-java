@@ -81,18 +81,23 @@ final class FieldInjectionVisitor implements AsmVisitorWrapper {
           final int version,
           final int access,
           final String name,
-          final String signature,
+          String signature,
           final String superName,
           String[] interfaces) {
         if (interfaces == null) {
           interfaces = new String[] {};
         }
-        final Set<String> set = new LinkedHashSet<>(Arrays.asList(interfaces));
-        set.add(INJECTED_FIELDS_MARKER_CLASS_NAME);
-        set.add(interfaceType.getInternalName());
         if (serialVersionUIDFieldInjection && instrumentedType.isAssignableTo(Serializable.class)) {
           serialVersionUIDInjector = new SerialVersionUIDInjector();
           serialVersionUIDInjector.visit(version, access, name, signature, superName, interfaces);
+        }
+        // extend interfaces and optional generic signature with marker and accessor
+        final Set<String> set = new LinkedHashSet<>(Arrays.asList(interfaces));
+        if (set.add(INJECTED_FIELDS_MARKER_CLASS_NAME) && null != signature) {
+          signature += 'L' + INJECTED_FIELDS_MARKER_CLASS_NAME + ';';
+        }
+        if (set.add(interfaceType.getInternalName()) && null != signature) {
+          signature += 'L' + interfaceType.getInternalName() + ';';
         }
         super.visit(version, access, name, signature, superName, set.toArray(new String[] {}));
       }
