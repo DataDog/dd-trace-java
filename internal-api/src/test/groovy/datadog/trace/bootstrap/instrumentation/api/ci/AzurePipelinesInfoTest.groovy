@@ -14,7 +14,7 @@ import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.
 import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_SYSTEM_PULLREQUEST_SOURCEREPOSITORYURI
 import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_SYSTEM_TASKINSTANCEID
 import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI
-import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_SYSTEM_TEAMPROJECT
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_SYSTEM_TEAMPROJECTID
 import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_WORKSPACE_PATH
 
 class AzurePipelinesInfoTest extends CIProviderInfoTest {
@@ -24,7 +24,7 @@ class AzurePipelinesInfoTest extends CIProviderInfoTest {
     environmentVariables.set(AZURE, "True")
     environmentVariables.set(AZURE_PIPELINE_NAME, "azure-pipelines-name")
     environmentVariables.set(AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI, "azure-pipelines-server-uri/")
-    environmentVariables.set(AZURE_SYSTEM_TEAMPROJECT, "azure-pipelines-project")
+    environmentVariables.set(AZURE_SYSTEM_TEAMPROJECTID, "azure-pipelines-project-id")
     environmentVariables.set(AZURE_BUILD_BUILDID, "azure-pipelines-build-id")
     environmentVariables.set(AZURE_SYSTEM_JOBID, "azure-pipelines-job-id")
     environmentVariables.set(AZURE_SYSTEM_TASKINSTANCEID, "azure-pipelines-task-id")
@@ -44,8 +44,8 @@ class AzurePipelinesInfoTest extends CIProviderInfoTest {
     ciInfo.ciPipelineId == "azure-pipelines-build-id"
     ciInfo.ciPipelineName == "azure-pipelines-name"
     ciInfo.ciPipelineNumber == "azure-pipelines-build-id"
-    ciInfo.ciPipelineUrl == "azure-pipelines-server-uri/azure-pipelines-project/_build/results?buildId=azure-pipelines-build-id&_a=summary"
-    ciInfo.ciJobUrl == "azure-pipelines-server-uri/azure-pipelines-project/_build/results?buildId=azure-pipelines-build-id&view=logs&j=azure-pipelines-job-id&t=azure-pipelines-task-id"
+    ciInfo.ciPipelineUrl == "azure-pipelines-server-uri/azure-pipelines-project-id/_build/results?buildId=azure-pipelines-build-id&_a=summary"
+    ciInfo.ciJobUrl == "azure-pipelines-server-uri/azure-pipelines-project-id/_build/results?buildId=azure-pipelines-build-id&view=logs&j=azure-pipelines-job-id&t=azure-pipelines-task-id"
     ciInfo.ciWorkspacePath == ciInfoWorkspace
     ciInfo.gitRepositoryUrl == ciInfoRepo
     ciInfo.gitCommit == ciInfoCommit
