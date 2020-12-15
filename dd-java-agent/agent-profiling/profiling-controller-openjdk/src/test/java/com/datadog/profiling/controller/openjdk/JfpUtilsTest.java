@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.io.IOException;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class JfpUtilsTest {
   private static final String CONFIG_ENTRY = "jdk.ThreadAllocationStatistics#enabled";
@@ -39,19 +41,19 @@ public class JfpUtilsTest {
     assertEquals("200", config.get(CONFIG_OVERRIDE_ENTRY));
   }
 
-  @Test
-  public void testLoadingConfigMinimal() throws IOException {
-    Map<String, String> config =
-        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, "minimal.jfp");
+  @ParameterizedTest
+  @ValueSource(strings = {"minimal", "minimal.jfp"})
+  public void testLoadingConfigMinimal(String override) throws IOException {
+    Map<String, String> config = JfpUtils.readNamedJfpResource(OpenJdkController.JFP, override);
     assertEquals("500 ms", config.get("jdk.ThreadSleep#threshold"));
     assertEquals("false", config.get("jdk.OldObjectSample#enabled"));
     assertEquals("false", config.get("jdk.ObjectAllocationInNewTLAB#enabled"));
   }
 
-  @Test
-  public void testLoadingConfigComprehensive() throws IOException {
-    Map<String, String> config =
-        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, "comprehensive.jfp");
+  @ParameterizedTest
+  @ValueSource(strings = {"comprehensive", "comprehensive.jfp"})
+  public void testLoadingConfigComprehensive(String override) throws IOException {
+    Map<String, String> config = JfpUtils.readNamedJfpResource(OpenJdkController.JFP, override);
     assertEquals("10 ms", config.get("jdk.ThreadSleep#threshold"));
     assertEquals("true", config.get("jdk.OldObjectSample#enabled"));
     assertEquals("true", config.get("jdk.ObjectAllocationInNewTLAB#enabled"));

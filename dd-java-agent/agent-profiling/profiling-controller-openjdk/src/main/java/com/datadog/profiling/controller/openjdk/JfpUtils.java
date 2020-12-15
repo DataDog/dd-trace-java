@@ -33,6 +33,7 @@ import java.util.Properties;
  */
 final class JfpUtils {
   private static final String OVERRIDES_PATH = "jfr/overrides/";
+  public static final String JFP_EXTENSION = ".jfp";
 
   private JfpUtils() {
     throw new UnsupportedOperationException("Toolkit!");
@@ -56,7 +57,7 @@ final class JfpUtils {
   }
 
   public static Map<String, String> readNamedJfpResource(
-      final String name, final String overridesFileName) throws IOException {
+      final String name, String overridesFileName) throws IOException {
     final Map<String, String> result = new HashMap<>();
 
     try (final InputStream stream = getNamedResource(name)) {
@@ -66,6 +67,9 @@ final class JfpUtils {
     if (overridesFileName != null) {
       InputStream overrideStream = null;
       try {
+        if (!overridesFileName.toLowerCase().endsWith(JFP_EXTENSION)) {
+          overridesFileName = overridesFileName + JFP_EXTENSION;
+        }
         File override = new File(overridesFileName);
         if (override.exists()) {
           overrideStream = new FileInputStream(override);
