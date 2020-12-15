@@ -1,7 +1,7 @@
 package datadog.trace.core.processor.rule;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.core.ExclusiveSpan;
+import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.processor.TraceProcessor;
 
 public class URLAsResourceNameRule implements TraceProcessor.Rule {
@@ -16,20 +16,21 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
   }
 
   @Override
-  public void processSpan(final ExclusiveSpan span) {
+  public void processSpan(final DDSpanContext span) {
     if (span.isResourceNameSet()) {
       return;
     }
-    final Object httpStatus = span.getTag(Tags.HTTP_STATUS);
+    final Object httpStatus = span.unsafeGetTag(Tags.HTTP_STATUS);
     if (NOT_FOUND.equals(httpStatus) || "404".equals(httpStatus)) {
       span.setResourceName("404");
       return;
     }
-    final Object url = span.getTag(Tags.HTTP_URL);
+    final Object url = span.unsafeGetTag(Tags.HTTP_URL);
     if (null == url) {
       return;
     }
-    span.setResourceName(extractResourceNameFromURL(span.getTag(Tags.HTTP_METHOD), url.toString()));
+    span.setResourceName(
+        extractResourceNameFromURL(span.unsafeGetTag(Tags.HTTP_METHOD), url.toString()));
   }
 
   private String extractResourceNameFromURL(final Object method, final String url) {

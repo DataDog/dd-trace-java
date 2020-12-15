@@ -408,12 +408,15 @@ public class DDSpanContext implements AgentSpan.Context {
     }
   }
 
-  Object unsafeGetTag(final String tag) {
+  /**
+   * This is not thread-safe and must only be used when it can be guaranteed that the context will
+   * not be mutated. This is internal API and must not be exposed to users.
+   *
+   * @param tag
+   * @return the value associated with the tag
+   */
+  public Object unsafeGetTag(final String tag) {
     return unsafeTags.get(tag);
-  }
-
-  Object unsafeGetAndRemoveTag(final String tag) {
-    return unsafeTags.remove(tag);
   }
 
   public Map<String, Object> getTags() {
@@ -428,12 +431,6 @@ public class DDSpanContext implements AgentSpan.Context {
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
     synchronized (unsafeTags) {
       consumer.accept(new Metadata(threadId, threadName, unsafeTags, baggageItems));
-    }
-  }
-
-  public void processExclusiveSpan(final ExclusiveSpan.Consumer consumer) {
-    synchronized (unsafeTags) {
-      consumer.accept(new ExclusiveSpan(this));
     }
   }
 

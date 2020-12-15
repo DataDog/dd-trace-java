@@ -1,7 +1,7 @@
 package datadog.trace.core.processor
 
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.ExclusiveSpan
+
 import datadog.trace.core.SpanFactory
 import datadog.trace.core.processor.rule.URLAsResourceNameRule
 import datadog.trace.test.util.DDSpecification
@@ -117,12 +117,7 @@ class URLAsResourceNameRuleTest extends DDSpecification {
     }
 
     when:
-    span.context().processExclusiveSpan(new ExclusiveSpan.Consumer() {
-      @Override
-      void accept(ExclusiveSpan exclusiveSpan) {
-        decorator.processSpan(exclusiveSpan)
-      }
-    })
+    decorator.processSpan(span.context())
 
     then:
     span.resourceName.toString() == resourceName
