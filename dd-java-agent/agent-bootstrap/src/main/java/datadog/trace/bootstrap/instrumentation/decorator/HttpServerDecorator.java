@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -112,7 +113,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
-      if (status != 0) {
+      if (status > UNSET_STATUS) {
         span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.get(status));
       }
       if (SERVER_ERROR_STATUSES.get(status)) {

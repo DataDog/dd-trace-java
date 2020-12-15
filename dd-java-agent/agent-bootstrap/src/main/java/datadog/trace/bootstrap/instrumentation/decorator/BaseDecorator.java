@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.cache.RadixTreeCache.PORTS;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
@@ -135,8 +136,7 @@ public abstract class BaseDecorator {
   }
 
   public AgentSpan setPeerPort(AgentSpan span, int port) {
-    // Negative or Zero ports might represent an unset/null value for an int type.  Skip setting.
-    if (port > 0) {
+    if (port > UNSET_PORT) {
       span.setTag(Tags.PEER_PORT, PORTS.get(port));
     }
 
