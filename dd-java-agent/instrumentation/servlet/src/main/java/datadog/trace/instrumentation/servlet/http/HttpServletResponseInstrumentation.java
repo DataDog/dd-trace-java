@@ -57,11 +57,6 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Traci
     return singletonMap(namedOneOf("sendError", "sendRedirect"), SendAdvice.class.getName());
   }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("javax.servlet.http.HttpServletResponse", Boolean.class.getName());
-  }
-
   public static class SendAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)

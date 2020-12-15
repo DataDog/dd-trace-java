@@ -46,11 +46,6 @@ public final class Servlet3Instrumentation extends Instrumenter.Tracing {
     };
   }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("javax.servlet.http.HttpServletResponse", Boolean.class.getName());
-  }
-
   /**
    * Here we are instrumenting the public method for HttpServlet. This should ensure that this
    * advice is always called before HttpServletInstrumentation which is instrumenting the protected
