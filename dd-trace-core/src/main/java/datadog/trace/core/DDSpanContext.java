@@ -34,12 +34,13 @@ public class DDSpanContext implements AgentSpan.Context {
       DDCaches.newFixedSizeCache(256);
 
   private static final Map<CharSequence, Number> EMPTY_METRICS = Collections.emptyMap();
+  private static final Map<String, String> EMPTY_BAGGAGE = Collections.emptyMap();
 
   /** The collection of all span related to this one */
   private final PendingTrace trace;
 
   /** Baggage is associated with the whole trace and shared with other spans */
-  private final Map<String, String> baggageItems;
+  private volatile Map<String, String> baggageItems;
 
   // Not Shared with other span contexts
   private final DDId traceId;
@@ -115,8 +116,8 @@ public class DDSpanContext implements AgentSpan.Context {
     this.parentId = parentId;
     this.parentServiceName = String.valueOf(parentServiceName);
 
-    if (baggageItems == null) {
-      this.baggageItems = new ConcurrentHashMap<>(0);
+    if (baggageItems == null || baggageItems.isEmpty()) {
+      this.baggageItems = EMPTY_BAGGAGE;
     } else {
       this.baggageItems = new ConcurrentHashMap<>(baggageItems);
     }
@@ -310,6 +311,13 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   public void setBaggageItem(final String key, final String value) {
+    if (baggageItems == EMPTY_BAGGAGE) {
+      synchronized (this) {
+        if (baggageItems == EMPTY_BAGGAGE) {
+          baggageItems = new ConcurrentHashMap<>(4);
+        }
+      }
+    }
     baggageItems.put(key, value);
   }
 
