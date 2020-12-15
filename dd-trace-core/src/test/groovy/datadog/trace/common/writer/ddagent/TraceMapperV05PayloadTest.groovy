@@ -98,7 +98,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       UUID.randomUUID().toString(),
       false))
     int traceSize = calculateSize(repeatedTrace)
-    int tracesRequiredToOverflowBody = traceMapper.messageBufferSize() / traceSize
+    int tracesRequiredToOverflowBody = (traceMapper.messageBufferSize() + traceSize - 1) / traceSize
     List<List<TraceGenerator.PojoSpan>> traces = new ArrayList<>(tracesRequiredToOverflowBody)
     for (int i = 0; i < tracesRequiredToOverflowBody; ++i) {
       traces.add(repeatedTrace)
@@ -238,7 +238,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
               meta.put(dictionary[unpacker.unpackInt()], dictionary[unpacker.unpackInt()])
             }
             for (Map.Entry<String, String> entry : meta.entrySet()) {
-              Object tag = expectedSpan.getTags().get(entry.getKey())
+              Object tag = expectedSpan.getTag(entry.getKey())
               if (null != tag) {
                 assertEquals(String.valueOf(tag), entry.getValue())
               } else {
@@ -283,9 +283,9 @@ class TraceMapperV05PayloadTest extends DDSpecification {
             }
             for (Map.Entry<String, Number> metric : metrics.entrySet()) {
               if (metric.getValue() instanceof Double) {
-                assertEquals(expectedSpan.getMetrics().get(metric.getKey()).doubleValue(), metric.getValue().doubleValue(), 0.001)
+                assertEquals(expectedSpan.getUnsafeMetrics().get(metric.getKey()).doubleValue(), metric.getValue().doubleValue(), 0.001)
               } else {
-                assertEquals(expectedSpan.getMetrics().get(metric.getKey()), metric.getValue())
+                assertEquals(expectedSpan.getUnsafeMetrics().get(metric.getKey()), metric.getValue())
               }
             }
             String type = dictionary[unpacker.unpackInt()]

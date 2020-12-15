@@ -105,6 +105,10 @@ public class PendingTrace implements AgentTrace {
     startNanoTicks = Clock.currentNanoTicks();
   }
 
+  CoreTracer getTracer() {
+    return tracer;
+  }
+
   /**
    * Current timestamp in nanoseconds.
    *

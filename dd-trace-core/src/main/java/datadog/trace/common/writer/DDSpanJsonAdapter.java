@@ -64,7 +64,7 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
     writer.value(span.getError());
     writer.name("metrics");
     writer.beginObject();
-    for (final Map.Entry<CharSequence, Number> entry : span.getMetrics().entrySet()) {
+    for (final Map.Entry<CharSequence, Number> entry : span.getUnsafeMetrics().entrySet()) {
       writer.name(entry.getKey().toString());
       writer.value(entry.getValue());
     }

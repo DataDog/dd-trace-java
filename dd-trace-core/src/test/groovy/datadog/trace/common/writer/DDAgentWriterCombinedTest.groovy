@@ -208,23 +208,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.close()
 
     where:
-    minimalContext = new DDSpanContext(
-      DDId.from(1),
-      DDId.from(1),
-      DDId.ZERO,
-      "",
-      "",
-      "",
-      "",
-      PrioritySampling.UNSET,
-      "",
-      [:],
-      false,
-      "",
-      0,
-      Mock(PendingTrace),
-      Mock(CoreTracer),
-      [:])
+    minimalContext = createMinimalContext()
     minimalSpan = new DDSpan(0, minimalContext)
     minimalTrace = [minimalSpan]
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
@@ -256,8 +240,12 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
-  def createMinimalTrace() {
-    def minimalContext = new DDSpanContext(
+  def createMinimalContext() {
+    def tracer = Mock(CoreTracer)
+    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
+    def trace = Mock(PendingTrace)
+    trace.getTracer() >> tracer
+    return new DDSpanContext(
       DDId.from(1),
       DDId.from(1),
       DDId.ZERO,
@@ -271,10 +259,11 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       false,
       "",
       0,
-      Mock(PendingTrace),
-      Mock(CoreTracer),
-      [:])
-    def minimalSpan = new DDSpan(0, minimalContext)
+      trace)
+  }
+
+  def createMinimalTrace() {
+    def minimalSpan = new DDSpan(0, createMinimalContext())
     def minimalTrace = [minimalSpan]
 
     return minimalTrace

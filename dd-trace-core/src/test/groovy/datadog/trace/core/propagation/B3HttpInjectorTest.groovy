@@ -40,9 +40,7 @@ class B3HttpInjectorTest extends DDSpecification {
         false,
         "fakeType",
         0,
-        tracer.pendingTraceFactory.create(DDId.ONE),
-        tracer,
-        [:])
+        tracer.pendingTraceFactory.create(DDId.ONE))
 
     final Map<String, String> carrier = Mock()
 

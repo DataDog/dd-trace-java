@@ -14,7 +14,7 @@ class MetricsAssert {
 
   private MetricsAssert(DDSpan span) {
     this.spanParentId = span.parentId
-    this.metrics = span.metrics
+    this.metrics = span.unsafeMetrics
   }
 
   static void assertMetrics(DDSpan span,

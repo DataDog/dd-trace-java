@@ -35,9 +35,7 @@ class DDSpanTest extends DDSpecification {
         false,
         "fakeType",
         0,
-        tracer.pendingTraceFactory.create(DDId.ONE),
-        tracer,
-        [:])
+        tracer.pendingTraceFactory.create(DDId.ONE))
 
     final DDSpan span = DDSpan.create(1L, context)
 
@@ -184,11 +182,11 @@ class DDSpanTest extends DDSpecification {
 
     expect:
     parent.context().samplingPriority == PrioritySampling.SAMPLER_KEEP
-    parent.getMetrics().get(DDSpanContext.PRIORITY_SAMPLING_KEY) == PrioritySampling.SAMPLER_KEEP
+    parent.getUnsafeMetrics().get(DDSpanContext.PRIORITY_SAMPLING_KEY) == PrioritySampling.SAMPLER_KEEP
     child1.getSamplingPriority() == parent.getSamplingPriority()
-    child1.getMetrics().get(DDSpanContext.PRIORITY_SAMPLING_KEY) == null
+    child1.getUnsafeMetrics().get(DDSpanContext.PRIORITY_SAMPLING_KEY) == null
     child2.getSamplingPriority() == parent.getSamplingPriority()
-    child2.getMetrics().get(DDSpanContext.PRIORITY_SAMPLING_KEY) == null
+    child2.getUnsafeMetrics().get(DDSpanContext.PRIORITY_SAMPLING_KEY) == null
   }
 
   def "origin set only on root span"() {
@@ -266,9 +264,7 @@ class DDSpanTest extends DDSpecification {
         false,
         "fakeType",
         0,
-        tracer.pendingTraceFactory.create(DDId.ONE),
-        tracer,
-        [:])
+        tracer.pendingTraceFactory.create(DDId.ONE))
     then:
     context.isTopLevel() == expectTopLevel
 

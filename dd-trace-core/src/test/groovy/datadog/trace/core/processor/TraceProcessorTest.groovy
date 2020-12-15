@@ -90,7 +90,7 @@ class TraceProcessorTest extends DDSpecification {
 
     then:
     span.isMeasured()
-    span.metrics.get(InstrumentationTags.DD_MEASURED) == null
+    span.unsafeMetrics.get(InstrumentationTags.DD_MEASURED) == null
     span.tags.get(InstrumentationTags.DD_MEASURED) == null
   }
 }

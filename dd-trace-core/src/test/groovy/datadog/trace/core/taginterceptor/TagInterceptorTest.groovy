@@ -266,7 +266,7 @@ class TagInterceptorTest extends DDSpecification {
 
   def "span metrics starts empty but added with rate limiting value of #rate"() {
     expect:
-    span.metrics == [:]
+    span.getUnsafeMetrics() == [:]
 
     when:
     span.setTag(ANALYTICS_SAMPLE_RATE, rate)
@@ -274,7 +274,7 @@ class TagInterceptorTest extends DDSpecification {
     writer.waitForTraces(1)
 
     then:
-    span.metrics.get(ANALYTICS_SAMPLE_RATE) == result
+    span.getUnsafeMetrics().get(ANALYTICS_SAMPLE_RATE) == result
 
     where:
     rate  | result

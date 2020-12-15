@@ -117,6 +117,10 @@ class PayloadDispatcherTest extends DDSpecification {
 
 
   def realSpan() {
+    CoreTracer tracer = Mock(CoreTracer)
+    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
+    PendingTrace trace = Mock(PendingTrace)
+    trace.getTracer() >> tracer
     return new DDSpan(0, new DDSpanContext(
       DDId.from(1),
       DDId.from(1),
@@ -131,9 +135,7 @@ class PayloadDispatcherTest extends DDSpecification {
       false,
       "",
       0,
-      Mock(PendingTrace),
-      Mock(CoreTracer),
-      [:]))
+      trace))
   }
 
 }

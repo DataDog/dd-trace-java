@@ -294,6 +294,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
   }
 
+  public String mapServiceName(String serviceName) {
+    String mapped = serviceNameMappings.get(serviceName);
+    return null == mapped ? serviceName : mapped;
+  }
+
   /**
    * If an application is using a non-system classloader, that classloader should be registered
    * here. Due to the way Spring Boot structures its' executable jar, this might log some warnings.
@@ -794,9 +799,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               errorFlag,
               spanType,
               tagsSize,
-              parentTrace,
-              CoreTracer.this,
-              serviceNameMappings);
+              parentTrace);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
