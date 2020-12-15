@@ -1,9 +1,9 @@
 package datadog.trace.common.writer
 
 import datadog.trace.core.DDSpan
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class MultiWriterTest extends Specification {
+class MultiWriterTest extends DDSpecification {
 
   def "test that multi writer delegates to all"() {
     setup:

@@ -1,15 +1,15 @@
 package utils
 
 import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.test.util.DDSpecification
 import org.spockframework.runtime.ConditionNotSatisfiedError
 import spock.lang.FailsWith
 import spock.lang.Shared
-import spock.lang.Specification
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
-class ThreadUtilsTest extends Specification {
+class ThreadUtilsTest extends DDSpecification {
 
   @Shared
   def counter = new AtomicInteger()

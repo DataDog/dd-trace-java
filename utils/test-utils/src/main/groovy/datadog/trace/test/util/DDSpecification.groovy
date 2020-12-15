@@ -4,6 +4,7 @@ import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.dynamic.ClassFileLocator
 import net.bytebuddy.dynamic.Transformer
+import net.bytebuddy.utility.JavaModule
 import org.junit.Rule
 import spock.lang.Specification
 
@@ -18,7 +19,7 @@ import static net.bytebuddy.matcher.ElementMatchers.named
 import static net.bytebuddy.matcher.ElementMatchers.none
 
 abstract class DDSpecification extends Specification {
-  private static final String CONFIG = "datadog.trace.api.Config"
+  static final String CONFIG = "datadog.trace.api.Config"
 
   private static Field configInstanceField
   private static Constructor configConstructor
@@ -29,6 +30,7 @@ abstract class DDSpecification extends Specification {
 
   // Keep track of config instance already made modifiable
   private static isConfigInstanceModifiable = false
+  static configModificationFailed = false
 
   @Rule
   public final ResetControllableEnvironmentVariables environmentVariables = new ResetControllableEnvironmentVariables()
@@ -39,34 +41,44 @@ abstract class DDSpecification extends Specification {
   private static Properties originalSystemProperties
 
   static void makeConfigInstanceModifiable() {
-    if (isConfigInstanceModifiable) {
+    if (isConfigInstanceModifiable || configModificationFailed) {
       return
     }
 
-    def instrumentation = ByteBuddyAgent.install()
-    new AgentBuilder.Default()
-      .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-      .with(AgentBuilder.RedefinitionStrategy.Listener.ErrorEscalating.FAIL_FAST)
-    // Config is injected into the bootstrap, so we need to provide a locator.
-      .with(
-        new AgentBuilder.LocationStrategy.Simple(
-          ClassFileLocator.ForClassLoader.ofSystemLoader()))
-      .ignore(none()) // Allow transforming bootstrap classes
-      .type(named(CONFIG))
-      .transform { builder, typeDescription, classLoader, module ->
-        builder
-          .field(named("INSTANCE"))
-          .transform(Transformer.ForField.withModifiers(PUBLIC, STATIC, VOLATILE))
-      }
-      .installOn(instrumentation)
-
     try {
+      def instrumentation = ByteBuddyAgent.install()
+      new AgentBuilder.Default()
+        .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
+        .with(AgentBuilder.RedefinitionStrategy.Listener.ErrorEscalating.FAIL_FAST)
+      // Config is injected into the bootstrap, so we need to provide a locator.
+        .with(
+          new AgentBuilder.LocationStrategy.Simple(
+            ClassFileLocator.ForClassLoader.ofSystemLoader()))
+        .ignore(none()) // Allow transforming bootstrap classes
+        .type(named(CONFIG))
+        .transform { builder, typeDescription, classLoader, module ->
+          builder
+            .field(named("INSTANCE"))
+            .transform(Transformer.ForField.withModifiers(PUBLIC, STATIC, VOLATILE))
+        }
+        .with(new ConfigInstrumentationFailedListener())
+        .installOn(instrumentation)
+
       Class configClass = Class.forName(CONFIG)
       configInstanceField = configClass.getDeclaredField("INSTANCE")
       configConstructor = configClass.getDeclaredConstructor()
       configConstructor.setAccessible(true)
       isConfigInstanceModifiable = true
-    } catch (ReflectiveOperationException e) {
+    } catch (ClassNotFoundException e) {
+      if (e.getMessage() == CONFIG) {
+        println("Config class not found in this classloader. Not transforming it")
+      } else {
+        configModificationFailed = true
+        println("Config will not be modifiable")
+        e.printStackTrace()
+      }
+    } catch (ReflectiveOperationException | IllegalStateException e) {
+      configModificationFailed = true
       println("Config will not be modifiable")
       e.printStackTrace()
     }
@@ -78,14 +90,17 @@ abstract class DDSpecification extends Specification {
   }
 
   private void restoreProperties() {
-    Properties copy = new Properties()
-    copy.putAll(originalSystemProperties)
-    System.setProperties(copy)
+    if (originalSystemProperties != null) {
+      Properties copy = new Properties()
+      copy.putAll(originalSystemProperties)
+      System.setProperties(copy)
+    }
 
     environmentVariables?.reset()
   }
 
   void setupSpec() {
+    assert !configModificationFailed: "Config class modification failed.  Ensure all test classes extend DDSpecification"
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
@@ -177,5 +192,14 @@ abstract class DDSpecification extends Specification {
     assert Modifier.isStatic(configInstanceField.getModifiers())
     assert Modifier.isVolatile(configInstanceField.getModifiers())
     assert !Modifier.isFinal(configInstanceField.getModifiers())
+  }
+}
+
+class ConfigInstrumentationFailedListener extends AgentBuilder.Listener.Adapter {
+  @Override
+  void onError(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded, Throwable throwable) {
+    if (DDSpecification.CONFIG == typeName) {
+      DDSpecification.configModificationFailed = true
+    }
   }
 }

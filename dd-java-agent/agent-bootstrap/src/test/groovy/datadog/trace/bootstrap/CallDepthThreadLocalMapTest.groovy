@@ -1,8 +1,8 @@
 package datadog.trace.bootstrap
 
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class CallDepthThreadLocalMapTest extends Specification {
+class CallDepthThreadLocalMapTest extends DDSpecification {
 
   def "test CallDepthThreadLocalMap"() {
     setup:
