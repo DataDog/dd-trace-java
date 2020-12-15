@@ -9,6 +9,7 @@ import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.ProfileUploader;
 import datadog.trace.api.Config;
+import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.time.Duration;
 import java.util.function.Predicate;
@@ -29,7 +30,7 @@ public class ProfilingAgent {
    * profiling before any other tool, and then attempt to start it again at normal time
    */
   public static synchronized void run(final boolean isStartingFirst)
-      throws IllegalArgumentException {
+      throws IllegalArgumentException, IOException {
     if (profiler == null) {
       final Config config = Config.get();
       if (isStartingFirst && !config.isProfilingStartForceFirst()) {

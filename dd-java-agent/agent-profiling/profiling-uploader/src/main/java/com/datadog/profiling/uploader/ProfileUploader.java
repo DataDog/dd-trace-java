@@ -20,14 +20,12 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DI
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.PidHelper;
-import com.datadog.profiling.uploader.util.StreamUtils;
 import datadog.common.container.ContainerInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.IOLogger;
 import datadog.trace.util.AgentProxySelector;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
@@ -51,7 +49,6 @@ import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.Dispatcher;
 import okhttp3.Headers;
-import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -61,9 +58,6 @@ import okhttp3.Response;
 /** The class for uploading profiles to the backend. */
 @Slf4j
 public final class ProfileUploader {
-
-  private static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
-
   static final String FORMAT_PARAM = "format";
   static final String TYPE_PARAM = "type";
   static final String RUNTIME_PARAM = "runtime";
@@ -166,10 +160,10 @@ public final class ProfileUploader {
   private final String containerId;
   private final int terminationTimeout;
   private final List<String> tags;
-  private final Compression compression;
+  private final CompressionType compressionType;
   private final Deque<Integer> requestSizeHistory;
 
-  public ProfileUploader(final Config config) {
+  public ProfileUploader(final Config config) throws IOException {
     this(config, new IOLogger(log), ContainerInfo.get().getContainerId(), TERMINATION_TIMEOUT);
   }
 
@@ -181,7 +175,8 @@ public final class ProfileUploader {
       final Config config,
       final IOLogger ioLogger,
       final String containerId,
-      final int terminationTimeout) {
+      final int terminationTimeout)
+      throws IOException {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
     agentless = config.isProfilingAgentless();
@@ -224,6 +219,7 @@ public final class ProfileUploader {
     final Duration requestTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
     final OkHttpClient.Builder clientBuilder =
         new OkHttpClient.Builder()
+            .retryOnConnectionFailure(true)
             .connectTimeout(requestTimeout)
             .writeTimeout(requestTimeout)
             .readTimeout(requestTimeout)
@@ -267,29 +263,35 @@ public final class ProfileUploader {
     // We are mainly talking to the same(ish) host so we need to raise this limit
     client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
 
-    compression = getCompression(CompressionType.of(config.getProfilingUploadCompression()));
+    compressionType = CompressionType.of(config.getProfilingUploadCompression());
 
     requestSizeHistory = new ArrayDeque<>(REQUEST_SIZE_HISTORY_SIZE);
     requestSizeHistory.add(SEED_EXPECTED_REQUEST_SIZE);
   }
 
   public void upload(final RecordingType type, final RecordingData data) {
+    upload(type, data, () -> {});
+  }
+
+  public void upload(final RecordingType type, final RecordingData data, Runnable onCompletion) {
     try {
       if (canEnqueueMoreRequests()) {
-        makeUploadRequest(type, data);
+        makeUploadRequest(
+            type,
+            data,
+            () -> {
+              data.release();
+              onCompletion.run();
+            });
+        return;
       } else {
         log.warn("Cannot upload profile data: too many enqueued requests!");
       }
     } catch (final IllegalStateException | IOException e) {
       log.warn("Problem uploading profile!", e);
-    } finally {
-      try {
-        data.getStream().close();
-      } catch (final IllegalStateException | IOException e) {
-        log.warn("Problem closing profile stream", e);
-      }
-      data.release();
     }
+    // the request was not made; release the recording data
+    data.release();
   }
 
   public void shutdown() {
@@ -312,41 +314,8 @@ public final class ProfileUploader {
     return client;
   }
 
-  @FunctionalInterface
-  private interface Compression {
-
-    RequestBody compress(InputStream is, int expectedSize) throws IOException;
-  }
-
-  private Compression getCompression(final CompressionType type) {
-    final StreamUtils.BytesConsumer<RequestBody> consumer =
-        (bytes, offset, length) -> RequestBody.create(OCTET_STREAM, bytes, offset, length);
-    final Compression compression;
-    // currently only gzip and off are supported
-    // this needs to be updated once more compression types are added
-    switch (type) {
-      case GZIP:
-        {
-          compression = (is, expectedSize) -> StreamUtils.gzipStream(is, expectedSize, consumer);
-          break;
-        }
-      case OFF:
-        {
-          compression = (is, expectedSize) -> StreamUtils.readStream(is, expectedSize, consumer);
-          break;
-        }
-      case ON:
-      case LZ4:
-      default:
-        {
-          compression = (is, expectedSize) -> StreamUtils.lz4Stream(is, expectedSize, consumer);
-          break;
-        }
-    }
-    return compression;
-  }
-
-  private void makeUploadRequest(final RecordingType type, final RecordingData data)
+  private void makeUploadRequest(
+      final RecordingType type, final RecordingData data, Runnable onCompletion)
       throws IOException {
     final int expectedRequestSize = getExpectedRequestSize();
     // TODO: it would be really nice to avoid copy here, but:
@@ -354,7 +323,7 @@ public final class ProfileUploader {
     // without reading whole stream
     // * OkHTTP doesn't provide direct way to send uploads from streams - and workarounds would
     // require stream that allows 'repeatable reads' because we may need to resend that data.
-    final RequestBody body = compression.compress(data.getStream(), expectedRequestSize);
+    final RequestBody body = new CompressingRequestBody(compressionType, data::getStream);
     if (log.isDebugEnabled()) {
       log.debug(
           "Uploading profile {} [{}] (Size={}/{} bytes)",
@@ -397,7 +366,23 @@ public final class ProfileUploader {
     if (containerId != null) {
       requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
     }
-    client.newCall(requestBuilder.build()).enqueue(responseCallback);
+    requestBuilder.addHeader("Transfer-Encoding", "chunked");
+    client
+        .newCall(requestBuilder.build())
+        .enqueue(
+            new Callback() {
+              @Override
+              public void onFailure(Call call, IOException e) {
+                responseCallback.onFailure(call, e);
+                onCompletion.run();
+              }
+
+              @Override
+              public void onResponse(Call call, Response response) throws IOException {
+                responseCallback.onResponse(call, response);
+                onCompletion.run();
+              }
+            });
   }
 
   private int getExpectedRequestSize() {
