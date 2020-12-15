@@ -8,6 +8,7 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.taginterceptor.TagInterceptor;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -378,12 +379,10 @@ public class DDSpanContext implements AgentSpan.Context {
       return;
     }
 
+    TagInterceptor tagInterceptor = trace.getTracer().getTagInterceptor();
     synchronized (unsafeTags) {
       for (final Map.Entry<String, ? extends Object> tag : map.entrySet()) {
-        if (!trace
-            .getTracer()
-            .getTagInterceptor()
-            .interceptTag(this, tag.getKey(), tag.getValue())) {
+        if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
           unsafeSetTag(tag.getKey(), tag.getValue());
         }
       }
