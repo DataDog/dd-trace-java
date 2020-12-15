@@ -234,7 +234,6 @@ public class PendingTrace implements AgentTrace {
 
   /** Important to note: may be called multiple times. */
   void write() {
-    rootSpanWritten = true;
     int size = write(false);
     if (log.isDebugEnabled()) {
       log.debug("t_id={} -> wrote {} spans to {}.", traceId, size, tracer.writer);
@@ -246,6 +245,9 @@ public class PendingTrace implements AgentTrace {
       try (Recording recording = tracer.writeTimer()) {
         // Only one writer at a time
         synchronized (this) {
+          if (!isPartial) {
+            rootSpanWritten = true;
+          }
           int size = size();
           // If we get here and size is below 0, then the writer before us wrote out at least one
           // more trace than the size it had when it started. Those span(s) had been added to
