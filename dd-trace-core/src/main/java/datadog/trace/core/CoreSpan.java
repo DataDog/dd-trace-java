@@ -53,6 +53,8 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   <U> U getTag(CharSequence name);
 
+  boolean hasSamplingPriority();
+
   boolean isMeasured();
 
   /** @return whether this span has a different service name from its parent, or is a local root. */

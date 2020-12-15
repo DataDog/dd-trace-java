@@ -158,6 +158,11 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
+  boolean hasSamplingPriority() {
+    return false
+  }
+
+  @Override
   boolean isMeasured() {
     return measured
   }

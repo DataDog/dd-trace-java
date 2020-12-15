@@ -342,7 +342,7 @@ public class AgentTracer {
 
     @Override
     public Integer getSamplingPriority() {
-      return PrioritySampling.UNSET;
+      return (int) PrioritySampling.UNSET;
     }
 
     @Override
