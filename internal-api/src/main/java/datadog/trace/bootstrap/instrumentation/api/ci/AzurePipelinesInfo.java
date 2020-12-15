@@ -8,7 +8,7 @@ class AzurePipelinesInfo extends CIProviderInfo {
   public static final String AZURE_PIPELINE_NAME = "BUILD_DEFINITIONNAME";
   public static final String AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI =
       "SYSTEM_TEAMFOUNDATIONSERVERURI";
-  public static final String AZURE_SYSTEM_TEAMPROJECT = "SYSTEM_TEAMPROJECT";
+  public static final String AZURE_SYSTEM_TEAMPROJECTID = "SYSTEM_TEAMPROJECTID";
   public static final String AZURE_BUILD_BUILDID = "BUILD_BUILDID";
   public static final String AZURE_SYSTEM_JOBID = "SYSTEM_JOBID";
   public static final String AZURE_SYSTEM_TASKINSTANCEID = "SYSTEM_TASKINSTANCEID";
@@ -37,7 +37,7 @@ class AzurePipelinesInfo extends CIProviderInfo {
 
   AzurePipelinesInfo() {
     final String uri = System.getenv(AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI);
-    final String project = System.getenv(AZURE_SYSTEM_TEAMPROJECT);
+    final String project = System.getenv(AZURE_SYSTEM_TEAMPROJECTID);
     final String buildId = System.getenv(AZURE_BUILD_BUILDID);
     final String jobId = System.getenv(AZURE_SYSTEM_JOBID);
     final String taskId = System.getenv(AZURE_SYSTEM_TASKINSTANCEID);
