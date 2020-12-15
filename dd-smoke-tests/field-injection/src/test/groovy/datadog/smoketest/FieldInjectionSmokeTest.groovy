@@ -56,19 +56,29 @@ class FieldInjectionSmokeTest extends Specification {
     Path testOutput = Files.createTempFile("output", "tmp")
     processBuilder.redirectError(testOutput.toFile())
     Process testedProcess = processBuilder.start()
+
     expect:
     testedProcess.waitFor() == 0
     List<String> lines = Files.readAllLines(testOutput)
     Map<String, Set<String>> foundTypesAndFields = new HashMap<>()
+    Map<String, List<String>> foundTypesAndInterfaces = new HashMap<>()
+    Map<String, List<String>> foundTypesAndGenericInterfaces = new HashMap<>()
     for (String line : lines) {
+      System.out.println(line)
       if (line.startsWith("___FIELD___")) {
         String[] parts = line.split(":")
-        foundTypesAndFields.compute(parts[1],
-          { String type, Set<String> fields -> null == fields ? new HashSet<>() : fields })
-          .add(parts[2])
+        foundTypesAndFields.computeIfAbsent(parts[1], { new HashSet<>() }).add(parts[2])
+      } else if (line.startsWith("___INTERFACE___")) {
+        String[] parts = line.split(":")
+        foundTypesAndInterfaces.computeIfAbsent(parts[1], { new HashSet<>() }).add(parts[2])
+      } else if (line.startsWith("___GENERIC_INTERFACE___")) {
+        String[] parts = line.split(":")
+        foundTypesAndGenericInterfaces.computeIfAbsent(parts[1], { new HashSet<>() }).add(parts[2])
       }
     }
     assert testedTypesAndExpectedFields == foundTypesAndFields
+    // check same list of names for interfaces and generic interfaces
+    assert foundTypesAndInterfaces == foundTypesAndGenericInterfaces
   }
 
 
