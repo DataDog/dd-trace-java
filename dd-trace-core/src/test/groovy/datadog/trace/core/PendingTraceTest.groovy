@@ -30,7 +30,7 @@ class PendingTraceTest extends DDSpecification {
   def setup() {
     assert trace.size() == 0
     assert trace.pendingReferenceCount.get() == 1
-    assert trace.rootSpanWritten.get() == false
+    assert trace.rootSpanWritten == false
   }
 
   def "single span gets added to trace and written when finished"() {
