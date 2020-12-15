@@ -69,6 +69,14 @@ abstract class DDSpecification extends Specification {
       configConstructor = configClass.getDeclaredConstructor()
       configConstructor.setAccessible(true)
       isConfigInstanceModifiable = true
+    } catch (ClassNotFoundException e) {
+      if (e.getMessage() == CONFIG) {
+        println("Config class not found in this classloader. Not transforming it")
+      } else {
+        configModificationFailed = true
+        println("Config will not be modifiable")
+        e.printStackTrace()
+      }
     } catch (ReflectiveOperationException | IllegalStateException e) {
       configModificationFailed = true
       println("Config will not be modifiable")
