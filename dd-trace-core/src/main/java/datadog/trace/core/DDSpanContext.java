@@ -123,7 +123,7 @@ public class DDSpanContext implements AgentSpan.Context {
 
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
-    final int capacity = ((tagsSize <= 0 ? 1 : tagsSize + 1) * 4) / 3;
+    final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
     this.unsafeTags = new HashMap<>(capacity);
 
     setServiceName(serviceName);
