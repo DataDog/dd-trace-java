@@ -301,19 +301,19 @@ public final class ProfileUploader {
     switch (type) {
       case GZIP:
         {
-          compression = (is, expectedSize) -> StreamUtils.gzipStream(is, expectedSize, consumer);
+          compression = (is, expectedSize) -> StreamUtils.gzipStream(is, consumer);
           break;
         }
       case OFF:
         {
-          compression = (is, expectedSize) -> StreamUtils.readStream(is, expectedSize, consumer);
+          compression = (is, expectedSize) -> StreamUtils.readStream(is, consumer);
           break;
         }
       case ON:
       case LZ4:
       default:
         {
-          compression = (is, expectedSize) -> StreamUtils.lz4Stream(is, expectedSize, consumer);
+          compression = (is, expectedSize) -> StreamUtils.lz4Stream(is, consumer);
           break;
         }
     }

@@ -20,6 +20,10 @@ public final class StreamUtils {
   // JMC's IOToolkit hides this from us...
   static final int ZIP_MAGIC[] = new int[] {80, 75, 3, 4};
   static final int GZ_MAGIC[] = new int[] {31, 139};
+
+  private static final byte[] COPY_BUFFER = new byte[8192];
+  private static final FastByteArrayOutputStream COMPRESSION_BUFFER = new FastByteArrayOutputStream(8 * 1024 * 1024); // 8MB should be sufficient for typical profiles
+
   /**
    * Consumes array or bytes along with offset and length and turns it into something usable.
    *
@@ -44,16 +48,21 @@ public final class StreamUtils {
    * @throws IOException
    */
   public static <T> T gzipStream(
-      InputStream is, final int expectedSize, final BytesConsumer<T> consumer) throws IOException {
+      InputStream is, final BytesConsumer<T> consumer) throws IOException {
     is = ensureMarkSupported(is);
     if (isCompressed(is)) {
-      return readStream(is, expectedSize, consumer);
+      return readStream(is, consumer);
     } else {
-      final FastByteArrayOutputStream baos = new FastByteArrayOutputStream(expectedSize);
-      try (final OutputStream zipped = new GZIPOutputStream(baos)) {
-        copy(is, zipped);
+      synchronized (COMPRESSION_BUFFER) {
+        try {
+          try (final OutputStream zipped = new GZIPOutputStream(COMPRESSION_BUFFER)) {
+            copy(is, zipped);
+          }
+          return COMPRESSION_BUFFER.consume(consumer);
+        } finally {
+          COMPRESSION_BUFFER.reset();
+        }
       }
-      return baos.consume(consumer);
     }
   }
 
@@ -67,21 +76,26 @@ public final class StreamUtils {
    * @throws IOException
    */
   public static <T> T lz4Stream(
-      InputStream is, final int expectedSize, final BytesConsumer<T> consumer) throws IOException {
+      InputStream is, final BytesConsumer<T> consumer) throws IOException {
     is = ensureMarkSupported(is);
     if (isCompressed(is)) {
-      return readStream(is, expectedSize, consumer);
+      return readStream(is, consumer);
     } else {
-      final FastByteArrayOutputStream baos = new FastByteArrayOutputStream(expectedSize);
-      try (final OutputStream zipped =
-          new LZ4FrameOutputStream(
-              baos,
-              LZ4FrameOutputStream.BLOCKSIZE.SIZE_64KB,
-              // copy of the default flag(s) used by LZ4FrameOutputStream
-              LZ4FrameOutputStream.FLG.Bits.BLOCK_INDEPENDENCE)) {
-        copy(is, zipped);
+      synchronized (COMPRESSION_BUFFER) {
+        try {
+          try (final OutputStream zipped =
+                 new LZ4FrameOutputStream(
+                   COMPRESSION_BUFFER,
+                   LZ4FrameOutputStream.BLOCKSIZE.SIZE_64KB,
+                   // copy of the default flag(s) used by LZ4FrameOutputStream
+                   LZ4FrameOutputStream.FLG.Bits.BLOCK_INDEPENDENCE)) {
+            copy(is, zipped);
+          }
+          return COMPRESSION_BUFFER.consume(consumer);
+        } finally {
+          COMPRESSION_BUFFER.reset();
+        }
       }
-      return baos.consume(consumer);
     }
   }
 
@@ -92,52 +106,53 @@ public final class StreamUtils {
    * cannot use that directly because it is not public and is not flexible enough.
    *
    * @param is the input stream
-   * @param expectedSize expected result size to preallocate buffers
    * @param consumer consumer to convert byte array to result
    * @return the stream data
    * @throws IOException
    */
   public static <T> T readStream(
-      final InputStream is, final int expectedSize, final BytesConsumer<T> consumer)
+      final InputStream is, final BytesConsumer<T> consumer)
       throws IOException {
-    final byte[] bytes = new byte[expectedSize];
-    int remaining = expectedSize;
+    synchronized (COPY_BUFFER) {
+      int expectedSize = COPY_BUFFER.length;
+      int remaining = expectedSize;
 
-    while (remaining > 0) {
-      final int offset = expectedSize - remaining;
-      final int read = is.read(bytes, offset, remaining);
-      if (read == -1) {
-        // end of stream before reading expectedSize bytes just return the bytes read so far
-        // 'offset' here is offset in 'bytes' buffer - which essentially represents length of data
-        // read so far.
-        return consumer.consume(bytes, 0, offset);
+      while (remaining > 0) {
+        final int offset = expectedSize - remaining;
+        final int read = is.read(COPY_BUFFER, offset, remaining);
+        if (read == -1) {
+          // end of stream before reading expectedSize bytes just return the bytes read so far
+          // 'offset' here is offset in 'bytes' buffer - which essentially represents length of data
+          // read so far.
+          return consumer.consume(COPY_BUFFER, 0, offset);
+        }
+        remaining -= read;
       }
-      remaining -= read;
-    }
 
-    // the stream was longer, so read the rest manually
-    final List<BufferChunk> additionalChunks = new ArrayList<>();
-    int additionalChunksLength = 0;
+      // the stream was longer, so read the rest manually
+      final List<BufferChunk> additionalChunks = new ArrayList<>();
+      int additionalChunksLength = 0;
 
-    while (true) {
-      final BufferChunk chunk = new BufferChunk(Math.max(32, is.available()));
-      final int readLength = chunk.readFrom(is);
-      if (readLength < 0) {
-        break;
-      } else {
-        additionalChunks.add(chunk);
-        additionalChunksLength += readLength;
+      while (true) {
+        final BufferChunk chunk = new BufferChunk(Math.max(32, is.available()));
+        final int readLength = chunk.readFrom(is);
+        if (readLength < 0) {
+          break;
+        } else {
+          additionalChunks.add(chunk);
+          additionalChunksLength += readLength;
+        }
       }
-    }
 
-    // now assemble resulting array
-    final byte[] result = new byte[bytes.length + additionalChunksLength];
-    System.arraycopy(bytes, 0, result, 0, bytes.length);
-    int offset = bytes.length;
-    for (final BufferChunk chunk : additionalChunks) {
-      offset += chunk.appendToArray(result, offset);
+      // now assemble resulting array
+      final byte[] result = new byte[COPY_BUFFER.length + additionalChunksLength];
+      System.arraycopy(COPY_BUFFER, 0, result, 0, COPY_BUFFER.length);
+      int offset = COPY_BUFFER.length;
+      for (final BufferChunk chunk : additionalChunks) {
+        offset += chunk.appendToArray(result, offset);
+      }
+      return consumer.consume(result, 0, result.length);
     }
-    return consumer.consume(result, 0, result.length);
   }
 
   private static class BufferChunk {
@@ -185,9 +200,10 @@ public final class StreamUtils {
    */
   private static void copy(final InputStream is, final OutputStream os) throws IOException {
     int length;
-    final byte[] buffer = new byte[8192];
-    while ((length = is.read(buffer)) > 0) {
-      os.write(buffer, 0, length);
+    synchronized (COPY_BUFFER) {
+      while ((length = is.read(COPY_BUFFER)) > 0) {
+        os.write(COPY_BUFFER, 0, length);
+      }
     }
   }
 

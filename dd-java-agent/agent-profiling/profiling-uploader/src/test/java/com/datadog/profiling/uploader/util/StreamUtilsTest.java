@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 
 class StreamUtilsTest {
 
-  private final int DEFAULT_EXPECTED_SIZE = 100;
   private final StreamUtils.BytesConsumer<byte[]> CONSUME_TO_BYTES =
       (bytes, offset, length) -> Arrays.copyOfRange(bytes, offset, offset + length);
 
@@ -48,34 +47,15 @@ class StreamUtilsTest {
 
   @Test
   public void readStreamNoCompression() throws IOException {
-    final int expectedSize = 1; // Try very small value to test 'undershoot' logic
     final byte[] bytes =
-        StreamUtils.readStream(testRecordingStream(), expectedSize, CONSUME_TO_BYTES);
-    assertArrayEquals(testRecordingBytes, bytes);
-  }
-
-  @Test
-  public void readStreamNoCompressionLargeExpectedSize() throws IOException {
-    final int expectedSize = testRecordingBytes.length * 2; // overshoot the size
-    final byte[] bytes =
-        StreamUtils.readStream(testRecordingStream(), expectedSize, CONSUME_TO_BYTES);
+        StreamUtils.readStream(testRecordingStream(), CONSUME_TO_BYTES);
     assertArrayEquals(testRecordingBytes, bytes);
   }
 
   @Test
   public void gzipStream() throws IOException {
-    final int expectedSize = 1; // Try very small value to test 'undershoot' logic
     final byte[] gzippedBytes =
-        StreamUtils.gzipStream(testRecordingStream(), expectedSize, CONSUME_TO_BYTES);
-
-    assertArrayEquals(testRecordingBytes, uncompressGzip(gzippedBytes));
-  }
-
-  @Test
-  public void gzipStreamLargeExpectedSize() throws IOException {
-    final int expectedSize = testRecordingBytes.length * 2; // overshoot the size
-    final byte[] gzippedBytes =
-        StreamUtils.gzipStream(testRecordingStream(), expectedSize, CONSUME_TO_BYTES);
+        StreamUtils.gzipStream(testRecordingStream(), CONSUME_TO_BYTES);
 
     assertArrayEquals(testRecordingBytes, uncompressGzip(gzippedBytes));
   }
@@ -85,7 +65,6 @@ class StreamUtilsTest {
     final byte[] bytes =
         StreamUtils.gzipStream(
             new ByteArrayInputStream(testRecordingGzippedBytes),
-            DEFAULT_EXPECTED_SIZE,
             CONSUME_TO_BYTES);
 
     assertArrayEquals(testRecordingGzippedBytes, bytes);
@@ -96,7 +75,6 @@ class StreamUtilsTest {
     final byte[] bytes =
         StreamUtils.gzipStream(
             new ByteArrayInputStream(testRecordingZippedBytes),
-            DEFAULT_EXPECTED_SIZE,
             CONSUME_TO_BYTES);
 
     assertArrayEquals(testRecordingZippedBytes, bytes);
@@ -107,7 +85,6 @@ class StreamUtilsTest {
     final byte[] bytes =
         StreamUtils.gzipStream(
             new ByteArrayInputStream(testRecordingLz4edBytes),
-            DEFAULT_EXPECTED_SIZE,
             CONSUME_TO_BYTES);
 
     assertArrayEquals(testRecordingLz4edBytes, bytes);
@@ -115,18 +92,8 @@ class StreamUtilsTest {
 
   @Test
   public void lz4Stream() throws IOException {
-    final int expectedSize = 1; // Try very small value to test 'undershoot' logic
     final byte[] gzippedBytes =
-        StreamUtils.lz4Stream(testRecordingStream(), expectedSize, CONSUME_TO_BYTES);
-
-    assertArrayEquals(testRecordingBytes, uncompressLz4(gzippedBytes));
-  }
-
-  @Test
-  public void lz4StreamLargeExpectedSize() throws IOException {
-    final int expectedSize = testRecordingBytes.length * 2; // overshoot the size
-    final byte[] gzippedBytes =
-        StreamUtils.lz4Stream(testRecordingStream(), expectedSize, CONSUME_TO_BYTES);
+        StreamUtils.lz4Stream(testRecordingStream(), CONSUME_TO_BYTES);
 
     assertArrayEquals(testRecordingBytes, uncompressLz4(gzippedBytes));
   }
@@ -136,7 +103,6 @@ class StreamUtilsTest {
     final byte[] bytes =
         StreamUtils.lz4Stream(
             new ByteArrayInputStream(testRecordingGzippedBytes),
-            DEFAULT_EXPECTED_SIZE,
             CONSUME_TO_BYTES);
 
     assertArrayEquals(testRecordingGzippedBytes, bytes);
@@ -147,7 +113,6 @@ class StreamUtilsTest {
     final byte[] bytes =
         StreamUtils.lz4Stream(
             new ByteArrayInputStream(testRecordingZippedBytes),
-            DEFAULT_EXPECTED_SIZE,
             CONSUME_TO_BYTES);
 
     assertArrayEquals(testRecordingZippedBytes, bytes);
@@ -158,7 +123,6 @@ class StreamUtilsTest {
     final byte[] bytes =
         StreamUtils.lz4Stream(
             new ByteArrayInputStream(testRecordingLz4edBytes),
-            DEFAULT_EXPECTED_SIZE,
             CONSUME_TO_BYTES);
 
     assertArrayEquals(testRecordingLz4edBytes, bytes);
