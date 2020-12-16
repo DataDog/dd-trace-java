@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -22,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
-  static DDSpan create(final long timestampMicro, final DDSpanContext context) {
+  static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
     final DDSpan span = new DDSpan(timestampMicro, context);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
@@ -57,7 +58,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  private DDSpan(final long timestampMicro, final DDSpanContext context) {
+  private DDSpan(final long timestampMicro, @Nonnull DDSpanContext context) {
     this.context = context;
 
     if (timestampMicro <= 0L) {
@@ -256,6 +257,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
+  @Nonnull
   public final DDSpanContext context() {
     return context;
   }

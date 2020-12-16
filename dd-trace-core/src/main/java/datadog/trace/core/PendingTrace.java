@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -42,7 +43,7 @@ public class PendingTrace implements AgentTrace {
       this.pendingTraceBuffer = pendingTraceBuffer;
     }
 
-    PendingTrace create(final DDId traceId) {
+    PendingTrace create(@Nonnull DDId traceId) {
       return new PendingTrace(tracer, traceId, pendingTraceBuffer);
     }
   }
@@ -80,7 +81,9 @@ public class PendingTrace implements AgentTrace {
   private volatile long lastReferenced = 0;
 
   private PendingTrace(
-      final CoreTracer tracer, final DDId traceId, PendingTraceBuffer pendingTraceBuffer) {
+      @Nonnull CoreTracer tracer,
+      @Nonnull DDId traceId,
+      @Nonnull PendingTraceBuffer pendingTraceBuffer) {
     this.tracer = tracer;
     this.traceId = traceId;
     this.pendingTraceBuffer = pendingTraceBuffer;
@@ -120,12 +123,6 @@ public class PendingTrace implements AgentTrace {
   }
 
   public void registerSpan(final DDSpan span) {
-    if (traceId == null || span.context() == null) {
-      log.error(
-          "Failed to register span ({}) due to null PendingTrace traceId or null span context",
-          span);
-      return;
-    }
     if (!traceId.equals(span.context().getTraceId())) {
       log.debug("t_id={} -> registered for wrong trace {}", traceId, span);
       return;
@@ -150,18 +147,8 @@ public class PendingTrace implements AgentTrace {
       log.debug("t_id={} -> added to trace, but not complete: {}", traceId, span);
       return;
     }
-    if (traceId == null || span.context() == null) {
-      log.error(
-          "Failed to add span ({}) due to null PendingTrace traceId or null span context", span);
-      return;
-    }
     if (!traceId.equals(span.getTraceId())) {
       log.debug("t_id={} -> span expired for wrong trace {}", traceId, span);
-      return;
-    }
-    if (traceId == null || span.context() == null) {
-      log.error(
-          "Failed to expire span ({}) due to null PendingTrace traceId or null span context", span);
       return;
     }
 
