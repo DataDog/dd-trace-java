@@ -12,7 +12,7 @@ import java.util.concurrent.RecursiveTask
 import java.util.concurrent.RunnableFuture
 import java.util.concurrent.TimeUnit
 
-class FieldInjectionSmokeTest extends Specification {
+class FieldInjectionLegacySmokeTest extends Specification {
 
   String javaPath() {
     final String separator = System.getProperty("file.separator")
@@ -44,6 +44,7 @@ class FieldInjectionSmokeTest extends Specification {
     command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log")
     command.add("-Ddd.writer.type=TraceStructureWriter")
     command.add("-Ddd.trace.debug=true")
+    command.add("-Ddd.trace.legacy.context.field.injection=true")
     command.add("-jar")
     command.add(jar)
     for (String type : testedTypesAndExpectedFields.keySet()) {

@@ -16,9 +16,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ContextTestInstrumentation extends Instrumenter.Tracing {
-  public ContextTestInstrumentation() {
-    super("context-test-isntrumenter1");
+public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing {
+  public FieldInjectionTestInstrumentation() {
+    super("fieldinjection-test");
   }
 
   @Override
@@ -51,7 +51,7 @@ public class ContextTestInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<String, String> contextStoreForAll() {
-    final Map<String, String> store = new HashMap<>(2);
+    final Map<String, String> store = new HashMap<>();
     String prefix = getClass().getName() + "$";
     store.put(prefix + "KeyClass", prefix + "Context");
     store.put(prefix + "UntransformableKeyClass", prefix + "Context");

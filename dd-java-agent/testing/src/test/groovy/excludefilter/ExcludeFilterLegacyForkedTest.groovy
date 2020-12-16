@@ -5,11 +5,13 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter
 import java.lang.reflect.Field
 import java.util.concurrent.Callable
 
-import static ExcludeFilterProviderTestInstrumentation.*
+import static ExcludeFilterTestInstrumentation.*
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.*
 
-
-class ExcludeFilterProviderTest extends AgentTestRunner {
+class ExcludeFilterLegacyForkedTest extends AgentTestRunner {
+  void configurePreAgent() {
+    injectSysConfig("dd.trace.legacy.context.field.injection", "true")
+  }
 
   def "test ExcludeFilter"() {
     expect:
