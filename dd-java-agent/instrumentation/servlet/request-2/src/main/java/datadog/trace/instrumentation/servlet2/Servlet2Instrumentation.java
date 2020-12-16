@@ -11,8 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -53,10 +51,7 @@ public final class Servlet2Instrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<String, String> contextStore() {
-    final Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("javax.servlet.http.HttpServletResponse", Boolean.class.getName());
-    contextStores.put("javax.servlet.ServletResponse", Integer.class.getName());
-    return Collections.unmodifiableMap(contextStores);
+    return singletonMap("javax.servlet.ServletResponse", Integer.class.getName());
   }
 
   /**
