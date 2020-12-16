@@ -65,28 +65,18 @@ final class JfpUtils {
     }
 
     if (overridesFileName != null) {
-      InputStream overrideStream = null;
-      try {
-        if (!overridesFileName.toLowerCase().endsWith(JFP_EXTENSION)) {
-          overridesFileName = overridesFileName + JFP_EXTENSION;
-        }
-        File override = new File(overridesFileName);
-        if (override.exists()) {
-          overrideStream = new FileInputStream(override);
-        } else {
-          overrideStream = getNamedResource(OVERRIDES_PATH + overridesFileName);
-        }
+      if (!overridesFileName.toLowerCase().endsWith(JFP_EXTENSION)) {
+        overridesFileName = overridesFileName + JFP_EXTENSION;
+      }
+      File override = new File(overridesFileName);
+      try (InputStream overrideStream =
+          override.exists()
+              ? new FileInputStream(override)
+              : getNamedResource(OVERRIDES_PATH + overridesFileName)) {
         if (overrideStream != null) {
           result.putAll(readJfpFile(overrideStream));
         } else {
           throw new IOException("Invalid override file " + overridesFileName);
-        }
-      } finally {
-        if (overrideStream != null) {
-          try {
-            overrideStream.close();
-          } catch (IOException ignored) {
-          }
         }
       }
     }
