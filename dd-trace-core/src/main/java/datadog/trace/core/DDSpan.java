@@ -441,6 +441,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
+  public boolean hasSamplingPriority() {
+    return context.getTrace().getRootSpan() == this;
+  }
+
+  @Override
   public boolean isMeasured() {
     return context.isMeasured();
   }

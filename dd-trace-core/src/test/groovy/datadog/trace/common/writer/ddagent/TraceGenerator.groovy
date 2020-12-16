@@ -342,5 +342,10 @@ class TraceGenerator {
       }
       return value as U
     }
+
+    @Override
+    boolean hasSamplingPriority() {
+      return false
+    }
   }
 }

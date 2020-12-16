@@ -93,9 +93,14 @@ public final class TraceMapperV0_5 implements TraceMapper {
   private void writeMetrics(CoreSpan<?> span, Writable writable) {
     Map<CharSequence, Number> metrics = span.getUnsafeMetrics();
     int elementCount = metrics.size();
+    elementCount += (span.hasSamplingPriority() ? 1 : 0);
     elementCount += (span.isMeasured() ? 1 : 0);
     elementCount += (span.isTopLevel() ? 1 : 0);
     writable.startMap(elementCount);
+    if (span.hasSamplingPriority()) {
+      writeDictionaryEncoded(writable, SAMPLING_PRIORITY_KEY);
+      writable.writeInt(span.samplingPriority());
+    }
     if (span.isMeasured()) {
       writeDictionaryEncoded(writable, InstrumentationTags.DD_MEASURED);
       writable.writeInt(1);

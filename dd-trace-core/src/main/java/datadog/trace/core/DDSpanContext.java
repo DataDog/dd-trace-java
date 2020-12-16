@@ -84,6 +84,8 @@ public class DDSpanContext implements AgentSpan.Context {
    * <p>For thread safety, this boolean is only modified or accessed under instance lock.
    */
   private boolean samplingPriorityLocked = false;
+
+  private volatile byte samplingPriorityV1 = PrioritySampling.UNSET;
   /** The origin of the trace. (eg. Synthetics) */
   private final String origin;
   /** Metrics on the span - access synchronized on the spanId */
@@ -249,14 +251,18 @@ public class DDSpanContext implements AgentSpan.Context {
     // sync with lockSamplingPriority
     synchronized (this) {
       if (samplingPriorityLocked) {
-        log.debug(
-            "samplingPriority locked at {}. Refusing to set to {}",
-            getMetric(PRIORITY_SAMPLING_KEY),
-            newPriority);
+        if (log.isDebugEnabled()) {
+          log.debug(
+              "samplingPriority locked at {}. Refusing to set to {}",
+              samplingPriorityV1,
+              newPriority);
+        }
         return false;
       } else {
-        setMetric(PRIORITY_SAMPLING_KEY, newPriority);
-        log.debug("Set sampling priority to {}", getMetric(PRIORITY_SAMPLING_KEY));
+        this.samplingPriorityV1 = (byte) newPriority;
+        if (log.isDebugEnabled()) {
+          log.debug("Set sampling priority to {}", samplingPriorityV1);
+        }
         return true;
       }
     }
@@ -269,8 +275,7 @@ public class DDSpanContext implements AgentSpan.Context {
       return rootSpan.context().getSamplingPriority();
     }
 
-    final Number val = getMetric(PRIORITY_SAMPLING_KEY);
-    return null == val ? PrioritySampling.UNSET : val.intValue();
+    return samplingPriorityV1;
   }
 
   /**
@@ -290,11 +295,13 @@ public class DDSpanContext implements AgentSpan.Context {
 
     // sync with setSamplingPriority
     synchronized (this) {
-      if (getMetric(PRIORITY_SAMPLING_KEY) == null) {
+      if (samplingPriorityV1 == PrioritySampling.UNSET) {
         log.debug("{} : refusing to lock unset samplingPriority", this);
       } else if (!samplingPriorityLocked) {
         samplingPriorityLocked = true;
-        log.debug("{} : locked samplingPriority to {}", this, getMetric(PRIORITY_SAMPLING_KEY));
+        if (log.isDebugEnabled()) {
+          log.debug("{} : locked samplingPriority to {}", this, samplingPriorityV1);
+        }
       }
       return samplingPriorityLocked;
     }
@@ -345,12 +352,6 @@ public class DDSpanContext implements AgentSpan.Context {
 
   public Map<CharSequence, Number> getUnsafeMetrics() {
     return metrics;
-  }
-
-  private Number getMetric(CharSequence key) {
-    synchronized (spanId) {
-      return metrics.get(key);
-    }
   }
 
   public void setMetric(final CharSequence key, final Number value) {
@@ -462,8 +463,15 @@ public class DDSpanContext implements AgentSpan.Context {
             .append(getOperationName())
             .append("/")
             .append(getResourceName())
-            .append(" metrics=")
-            .append(new TreeMap<>(getUnsafeMetrics()));
+            .append(" metrics=");
+
+    synchronized (spanId) {
+      Map<CharSequence, Number> metricsSnapshot = new TreeMap<>(getUnsafeMetrics());
+      if (samplingPriorityV1 != PrioritySampling.UNSET) {
+        metricsSnapshot.put(PRIORITY_SAMPLING_KEY, samplingPriorityV1);
+      }
+      s.append(metricsSnapshot);
+    }
     if (errorFlag) {
       s.append(" *errored*");
     }

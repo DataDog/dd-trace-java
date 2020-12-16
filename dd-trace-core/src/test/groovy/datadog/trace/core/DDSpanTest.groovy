@@ -182,11 +182,15 @@ class DDSpanTest extends DDSpecification {
 
     expect:
     parent.context().samplingPriority == PrioritySampling.SAMPLER_KEEP
-    parent.getUnsafeMetrics().get(DDSpanContext.PRIORITY_SAMPLING_KEY) == PrioritySampling.SAMPLER_KEEP
+    parent.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
+    parent.hasSamplingPriority()
     child1.getSamplingPriority() == parent.getSamplingPriority()
-    child1.getUnsafeMetrics().get(DDSpanContext.PRIORITY_SAMPLING_KEY) == null
     child2.getSamplingPriority() == parent.getSamplingPriority()
-    child2.getUnsafeMetrics().get(DDSpanContext.PRIORITY_SAMPLING_KEY) == null
+    !child1.hasSamplingPriority()
+    !child2.hasSamplingPriority()
+    // and check the internal field itself hasn't been set
+    child1.context().samplingPriorityV1 == PrioritySampling.UNSET
+    child2.context().samplingPriorityV1 == PrioritySampling.UNSET
   }
 
   def "origin set only on root span"() {
