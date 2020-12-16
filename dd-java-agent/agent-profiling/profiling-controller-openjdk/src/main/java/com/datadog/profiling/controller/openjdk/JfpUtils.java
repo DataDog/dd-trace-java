@@ -15,6 +15,7 @@
  */
 package com.datadog.profiling.controller.openjdk;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,6 +32,9 @@ import java.util.Properties;
  * parse XML.
  */
 final class JfpUtils {
+  private static final String OVERRIDES_PATH = "jfr/overrides/";
+  public static final String JFP_EXTENSION = ".jfp";
+
   private JfpUtils() {
     throw new UnsupportedOperationException("Toolkit!");
   }
@@ -53,15 +57,27 @@ final class JfpUtils {
   }
 
   public static Map<String, String> readNamedJfpResource(
-      final String name, final String overridesFile) throws IOException {
-    final Map<String, String> result;
+      final String name, String overridesFileName) throws IOException {
+    final Map<String, String> result = new HashMap<>();
+
     try (final InputStream stream = getNamedResource(name)) {
-      result = readJfpFile(stream);
+      result.putAll(readJfpFile(stream));
     }
 
-    if (overridesFile != null) {
-      try (final InputStream stream = new FileInputStream(overridesFile)) {
-        result.putAll(readJfpFile(stream));
+    if (overridesFileName != null) {
+      if (!overridesFileName.toLowerCase().endsWith(JFP_EXTENSION)) {
+        overridesFileName = overridesFileName + JFP_EXTENSION;
+      }
+      File override = new File(overridesFileName);
+      try (InputStream overrideStream =
+          override.exists()
+              ? new FileInputStream(override)
+              : getNamedResource(OVERRIDES_PATH + overridesFileName)) {
+        if (overrideStream != null) {
+          result.putAll(readJfpFile(overrideStream));
+        } else {
+          throw new IOException("Invalid override file " + overridesFileName);
+        }
       }
     }
     return Collections.unmodifiableMap(result);

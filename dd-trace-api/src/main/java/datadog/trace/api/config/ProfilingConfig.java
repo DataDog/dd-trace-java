@@ -18,6 +18,8 @@ public final class ProfilingConfig {
   public static final String PROFILING_API_KEY_VERY_OLD = "profiling.apikey";
   @Deprecated // Use dd.api-key-file instead
   public static final String PROFILING_API_KEY_FILE_VERY_OLD = "profiling.apikey.file";
+  public static final String PROFILING_TEMPLATE = "profiling.template";
+  public static final String PROFILING_TEMPLATE_DEFAULT = "default";
   public static final String PROFILING_TAGS = "profiling.tags";
   public static final String PROFILING_START_DELAY = "profiling.start-delay";
   // DANGEROUS! May lead on sigsegv on JVMs before 14
