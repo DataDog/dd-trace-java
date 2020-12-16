@@ -79,7 +79,6 @@ public class DDAgentApi {
   private String detectedVersion = null;
   private boolean agentRunning = false;
   private boolean agentDiscovered = false;
-  private boolean usingUnixDomainSockets;
   private final IOLogger ioLogger = new IOLogger(log);
 
   public DDAgentApi(
@@ -90,7 +89,6 @@ public class DDAgentApi {
       final boolean metricsReportingEnabled,
       final Monitoring monitoring) {
     this.agentUrl = agentUrl;
-    this.usingUnixDomainSockets = unixDomainSocketPath != null;
     this.timeoutMillis = timeoutMillis;
     this.metricsReportingEnabled = metricsReportingEnabled;
     this.httpClient = buildHttpClient(HttpUrl.get(agentUrl), unixDomainSocketPath, timeoutMillis);

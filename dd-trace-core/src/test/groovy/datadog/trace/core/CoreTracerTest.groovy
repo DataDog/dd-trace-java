@@ -138,11 +138,9 @@ class CoreTracerTest extends DDSpecification {
 
     when:
     injectSysConfig(AGENT_UNIX_DOMAIN_SOCKET, uds)
-    def tracer = CoreTracer.builder().build()
 
     then:
-    tracer.writer instanceof DDAgentWriter
-    !tracer.writer.api.usingUnixDomainSockets
+    Config.get().getAgentUnixDomainSocket() == uds
 
     where:
     uds = "asdf"
@@ -174,13 +172,8 @@ class CoreTracerTest extends DDSpecification {
     when:
     injectSysConfig(key, value)
 
-    def tracer = CoreTracer.builder().build()
-    // this test has no business reaching into the internals of another subsystem like this
-    ((DDAgentWriter) tracer.writer).api.detectEndpoint()
-
     then:
-    ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == value
-    ((DDAgentWriter) tracer.writer).api.tracesUrl.port() == 8126
+    Config.get().getAgentHost() == value
 
     where:
     key          | value
@@ -190,12 +183,9 @@ class CoreTracerTest extends DDSpecification {
   def "verify overriding port"() {
     when:
     injectSysConfig(key, value)
-    def tracer = CoreTracer.builder().build()
-    ((DDAgentWriter) tracer.writer).api.detectEndpoint()
 
     then:
-    ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == "localhost"
-    ((DDAgentWriter) tracer.writer).api.tracesUrl.port() == Integer.valueOf(value)
+    Config.get().getAgentPort() == Integer.valueOf(value)
 
     where:
     key                | value
