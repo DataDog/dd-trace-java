@@ -188,9 +188,6 @@ class DDSpanTest extends DDSpecification {
     child2.getSamplingPriority() == parent.getSamplingPriority()
     !child1.hasSamplingPriority()
     !child2.hasSamplingPriority()
-    // and check the internal field itself hasn't been set
-    child1.context().samplingPriorityV1 == PrioritySampling.UNSET
-    child2.context().samplingPriorityV1 == PrioritySampling.UNSET
   }
 
   def "origin set only on root span"() {
