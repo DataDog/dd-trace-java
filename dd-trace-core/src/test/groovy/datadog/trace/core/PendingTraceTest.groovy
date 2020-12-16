@@ -120,16 +120,6 @@ class PendingTraceTest extends DDSpecification {
     writer.traceCount.get() == 1
   }
 
-  def "add unfinished span to trace fails"() {
-    setup:
-    trace.addFinishedSpan(rootSpan)
-
-    expect:
-    trace.pendingReferenceCount.get() == 1
-    trace.finishedSpans.asList() == []
-    writer.traceCount.get() == 0
-  }
-
   def "child spans created after trace written reported separately"() {
     setup:
     rootSpan.finish()

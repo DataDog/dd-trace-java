@@ -138,11 +138,6 @@ public class PendingTrace implements AgentTrace {
   }
 
   void addFinishedSpan(final DDSpan span) {
-    if (span.getDurationNano() == 0) {
-      log.debug("t_id={} -> added to trace, but not complete: {}", traceId, span);
-      return;
-    }
-
     finishedSpans.addFirst(span);
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal
