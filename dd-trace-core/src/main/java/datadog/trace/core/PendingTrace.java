@@ -122,12 +122,7 @@ public class PendingTrace implements AgentTrace {
     return nanos < age;
   }
 
-  public void registerSpan(final DDSpan span) {
-    if (!traceId.equals(span.context().getTraceId())) {
-      log.debug("t_id={} -> registered for wrong trace {}", traceId, span);
-      return;
-    }
-
+  void registerSpan(final DDSpan span) {
     if (null == rootSpan) {
       synchronized (this) {
         if (!rootSpanWritten && null == rootSpan) {
@@ -142,13 +137,9 @@ public class PendingTrace implements AgentTrace {
     }
   }
 
-  public void addFinishedSpan(final DDSpan span) {
+  void addFinishedSpan(final DDSpan span) {
     if (span.getDurationNano() == 0) {
       log.debug("t_id={} -> added to trace, but not complete: {}", traceId, span);
-      return;
-    }
-    if (!traceId.equals(span.getTraceId())) {
-      log.debug("t_id={} -> span expired for wrong trace {}", traceId, span);
       return;
     }
 

@@ -130,27 +130,6 @@ class PendingTraceTest extends DDSpecification {
     writer.traceCount.get() == 0
   }
 
-  def "register span to wrong trace fails"() {
-    setup:
-    def otherTrace = tracer.pendingTraceFactory.create(DDId.from(traceId.toLong() - 10))
-    otherTrace.registerSpan(new DDSpan(0, rootSpan.context()))
-
-    expect:
-    otherTrace.pendingReferenceCount.get() == 0
-    otherTrace.finishedSpans.asList() == []
-  }
-
-  def "add span to wrong trace fails"() {
-    setup:
-    def otherTrace = tracer.pendingTraceFactory.create(DDId.from(traceId.toLong() - 10))
-    rootSpan.finish()
-    otherTrace.addFinishedSpan(rootSpan)
-
-    expect:
-    otherTrace.pendingReferenceCount.get() == 0
-    otherTrace.finishedSpans.asList() == []
-  }
-
   def "child spans created after trace written reported separately"() {
     setup:
     rootSpan.finish()
