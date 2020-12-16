@@ -26,7 +26,7 @@ class JettyHandlerTest extends HttpServerTest<Server> {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    
+
     injectSysConfig("dd.integration.jetty.enabled", "true")
   }
 

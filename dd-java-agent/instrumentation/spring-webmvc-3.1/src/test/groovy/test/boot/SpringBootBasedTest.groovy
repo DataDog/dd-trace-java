@@ -83,7 +83,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     authProvider.latestAuthentications.get(0).password == testPassword
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(2) {
         serverSpan(it, null, null, "POST", LOGIN)
         responseSpan(it, LOGIN)
@@ -103,7 +103,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     response.code() == NOT_HERE.status
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(3) {
         sortSpansByStart()
         serverSpan(it, null, null, method, NOT_HERE)

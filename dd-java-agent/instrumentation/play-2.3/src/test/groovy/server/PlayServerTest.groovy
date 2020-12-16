@@ -43,12 +43,6 @@ class PlayServerTest extends HttpServerTest<TestServer> {
   }
 
   @Override
-  // Return the handler span's name
-  String reorderHandlerSpan() {
-    "play.request"
-  }
-
-  @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     trace.span {
       serviceName expectedServiceName()

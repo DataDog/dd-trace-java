@@ -1,7 +1,4 @@
-import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.SimpleType
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
@@ -56,31 +53,6 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   @Override
   void addServlet(ServletContextHandler servletContext, String path, Class<Servlet> servlet) {
     servletContext.addServlet(servlet, path)
-  }
-
-  void cleanAndAssertTraces(
-    final int size,
-    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
-
-    // If this is failing, make sure HttpServerTestAdvice is applied correctly.
-    TEST_WRITER.waitForTraces(size * 2)
-
-    // Response instrumentation is broken with exceptions in jetty
-    // Exceptions are handled outside of the servlet flow
-    // Normally, the response spans would not be created because of the activeSpan() check
-    // Since we artificially create TEST_SPAN, the response spans are created there
-    // This removes the response spans added under TEST_SPAN
-
-    def testTrace = TEST_WRITER.findAll {
-      it.get(0).operationName.toString() == "TEST_SPAN"
-    }
-    testTrace[0].removeAll {
-      it.operationName.toString() == "servlet.response"
-    }
-
-    super.cleanAndAssertTraces(size, spec)
   }
 
   // FIXME: Add authentication tests back in...
