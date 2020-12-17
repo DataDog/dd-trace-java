@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCUtils.connectionFromStatement;
-import static datadog.trace.instrumentation.jdbc.JDBCUtils.unwrappedStatement;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
@@ -17,7 +17,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -53,6 +52,8 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return implementsInterface(named("java.sql.PreparedStatement"))
+        .and(not(extendsClass(named("com.zaxxer.hikari.proxy.StatementProxy"))))
+        .and(not(implementsInterface(named("com.mchange.v2.c3p0.C3P0ProxyStatement"))))
         .and(not(named("scalikejdbc.DBConnectionAttributesWiredPreparedStatement")));
   }
 
@@ -74,21 +75,18 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This final PreparedStatement statement) {
-      PreparedStatement actualStatement = unwrappedStatement(statement);
+      // we only inject sql into the unwrapped statement, so we don't need to unwrap
+      // it once per query: if we have sql, then it's not a wrapper
+      UTF8BytesString sql =
+          InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class).get(statement);
+      if (null == sql) {
+        return null;
+      }
 
-      final Connection connection = connectionFromStatement(actualStatement);
+      final Connection connection = connectionFromStatement(statement);
       if (connection == null) {
         return null;
       }
-
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(PreparedStatement.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
-      UTF8BytesString sql =
-          InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class)
-              .get(actualStatement);
 
       final AgentSpan span = startSpan(DATABASE_QUERY);
       DECORATE.afterStart(span);
@@ -107,7 +105,6 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
       DECORATE.beforeFinish(scope.span());
       scope.close();
       scope.span().finish();
-      CallDepthThreadLocalMap.reset(PreparedStatement.class);
     }
   }
 }

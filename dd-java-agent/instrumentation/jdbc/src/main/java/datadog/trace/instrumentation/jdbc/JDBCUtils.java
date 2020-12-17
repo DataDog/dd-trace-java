@@ -21,12 +21,17 @@ public abstract class JDBCUtils {
           // Additionally h2, instead of returning "false" in versions 1.3.169+, throws an exception
           // so those classes are hardcoded below
           try {
-            return !"org.h2.jdbc.JdbcConnection".equals(type.getName())
-                && !"org.h2.jdbcx.JdbcXAConnection.PooledJdbcConnection".equals(type.getName())
-                && !"org.h2.jdbc.JdbcPreparedStatement".equals(type.getName())
-                && !"org.h2.jdbc.JdbcCallableStatement".equals(type.getName())
-                && !Modifier.isAbstract(type.getMethod("isWrapperFor", Class.class).getModifiers())
-                && !Modifier.isAbstract(type.getMethod("unwrap", Class.class).getModifiers());
+            switch (type.getName()) {
+              case "org.h2.jdbc.JdbcConnection":
+              case "org.h2.jdbc.JdbcPreparedStatement":
+              case "org.h2.jdbc.JdbcCallableStatement":
+              case "org.h2.jdbcx.JdbcXAConnection.PooledJdbcConnection":
+                return false;
+              default:
+                return !Modifier.isAbstract(
+                        type.getMethod("isWrapperFor", Class.class).getModifiers())
+                    && !Modifier.isAbstract(type.getMethod("unwrap", Class.class).getModifiers());
+            }
           } catch (NoSuchMethodException ignored) {
           }
           return false;
@@ -34,19 +39,18 @@ public abstract class JDBCUtils {
       };
 
   public static PreparedStatement unwrappedStatement(PreparedStatement statement) {
-    if (CAN_UNWRAP.get(statement.getClass())) {
-      try {
-        // technically this could be recursive. In practice, one level is enough
-        // Recursive would require cycle checking
-        if (statement.isWrapperFor(PreparedStatement.class)) {
-          return statement.unwrap(PreparedStatement.class);
+    PreparedStatement origin = statement;
+    try {
+      while (CAN_UNWRAP.get(statement.getClass())
+          && statement.isWrapperFor(PreparedStatement.class)) {
+        PreparedStatement unwrapped = statement.unwrap(PreparedStatement.class);
+        if (unwrapped == origin) { // cycle detected
+          return statement;
         }
-      } catch (Exception ignored) {
-        // note that we will not even call this method unless it has been shown not to
-        // throw AbstractMethodError
+        statement = unwrapped;
       }
+    } catch (Exception ignored) {
     }
-
     return statement;
   }
 
