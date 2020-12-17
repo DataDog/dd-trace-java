@@ -40,6 +40,13 @@ public final class QuartzSchedulingInstrumentation extends Instrumenter.Default 
         QuartzSchedulingInstrumentation.class.getName() + "$QuartzSchedulingAdvice");
   }
 
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".QuartzDecorator"
+    };
+  }
+
   public static class QuartzSchedulingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onStartSpan(@Advice.Argument(0) JobExecutionContext context) {
