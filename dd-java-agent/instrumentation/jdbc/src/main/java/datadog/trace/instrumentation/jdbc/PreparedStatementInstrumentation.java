@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
@@ -54,7 +55,12 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
     return implementsInterface(named("java.sql.PreparedStatement"))
         .and(not(extendsClass(named("com.zaxxer.hikari.proxy.StatementProxy"))))
         .and(not(implementsInterface(named("com.mchange.v2.c3p0.C3P0ProxyStatement"))))
-        .and(not(named("scalikejdbc.DBConnectionAttributesWiredPreparedStatement")));
+        .and(
+            namedNoneOf(
+                "scalikejdbc.DBConnectionAttributesWiredPreparedStatement",
+                "org.datanucleus.store.rdbms.ParamLoggingPreparedStatement",
+                "org.datanucleus.store.rdbms.datasource.dbcp.DelegatingPreparedStatement",
+                "org.apache.commons.dbcp2.DelegatingPreparedStatement"));
   }
 
   @Override

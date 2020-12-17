@@ -46,7 +46,8 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
   public ElementMatcher<TypeDescription> typeMatcher() {
     return implementsInterface(named("java.sql.Connection"))
         .and(not(extendsClass(named("com.zaxxer.hikari.proxy.ConnectionProxy"))))
-        .and(not(implementsInterface(named("com.mchange.v2.c3p0.C3P0ProxyConnection"))));
+        .and(not(implementsInterface(named("com.mchange.v2.c3p0.C3P0ProxyConnection"))))
+        .and(not(named("org.datanucleus.api.jdo.JDOConnectionJDBCImpl")));
   }
 
   @Override
