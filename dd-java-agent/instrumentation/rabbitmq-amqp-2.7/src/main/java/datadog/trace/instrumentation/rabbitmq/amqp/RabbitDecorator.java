@@ -8,7 +8,6 @@ import com.rabbitmq.client.Command;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -67,7 +66,7 @@ public class RabbitDecorator extends ClientDecorator {
         routingKey == null || routingKey.isEmpty()
             ? "<all>"
             : routingKey.startsWith("amq.gen-") ? "<generated>" : routingKey;
-    span.setTag(DDTags.RESOURCE_NAME, "basic.publish " + exchangeName + " -> " + routing);
+    span.setResourceName("basic.publish " + exchangeName + " -> " + routing);
     span.setSpanType(InternalSpanTypes.MESSAGE_PRODUCER);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_PRODUCER);
     span.setTag(AMQP_COMMAND.toString(), "basic.publish");
@@ -77,7 +76,7 @@ public class RabbitDecorator extends ClientDecorator {
 
   public void onGet(final AgentSpan span, final String queue) {
     final String queueName = queue.startsWith("amq.gen-") ? "<generated>" : queue;
-    span.setTag(DDTags.RESOURCE_NAME, "basic.get " + queueName);
+    span.setResourceName("basic.get " + queueName);
 
     span.setTag(AMQP_COMMAND.toString(), "basic.get");
     span.setTag(AMQP_QUEUE, queue);
@@ -90,7 +89,7 @@ public class RabbitDecorator extends ClientDecorator {
     } else if (queue.startsWith("amq.gen-")) {
       queueName = "<generated>";
     }
-    span.setTag(DDTags.RESOURCE_NAME, "basic.deliver " + queueName);
+    span.setResourceName("basic.deliver " + queueName);
     span.setTag(AMQP_COMMAND.toString(), "basic.deliver");
 
     if (envelope != null) {
@@ -104,7 +103,7 @@ public class RabbitDecorator extends ClientDecorator {
 
     if (!name.equals("basic.publish")) {
       // Don't overwrite the name already set.
-      span.setTag(DDTags.RESOURCE_NAME, name);
+      span.setResourceName(name);
     }
     span.setTag(AMQP_COMMAND.toString(), name);
   }

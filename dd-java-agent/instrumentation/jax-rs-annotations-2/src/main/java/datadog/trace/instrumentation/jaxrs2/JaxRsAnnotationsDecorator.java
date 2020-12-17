@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jaxrs2;
 
 import datadog.trace.agent.tooling.ClassHierarchyIterable;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -65,9 +64,9 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     // When jax-rs is the root, we want to name using the path, otherwise use the class/method.
     final boolean isRootScope = parent == null;
     if (isRootScope && !resourceName.isEmpty()) {
-      span.setTag(DDTags.RESOURCE_NAME, resourceName);
+      span.setResourceName(resourceName);
     } else {
-      span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(target, method));
+      span.setResourceName(DECORATE.spanNameForMethod(target, method));
     }
   }
 
@@ -81,7 +80,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
       span.setTag(Tags.COMPONENT, "jax-rs");
 
       if (!resourceName.isEmpty()) {
-        span.setTag(DDTags.RESOURCE_NAME, resourceName);
+        span.setResourceName(resourceName);
       }
     }
   }

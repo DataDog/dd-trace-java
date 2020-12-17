@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.testng;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
@@ -31,7 +30,7 @@ public class TestNGDecorator extends TestDecorator {
     final String testName =
         (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
 
-    span.setTag(DDTags.RESOURCE_NAME, testSuite + "." + testName);
+    span.setResourceName(testSuite + "." + testName);
     span.setTag(Tags.TEST_SUITE, testSuite);
     span.setTag(Tags.TEST_NAME, testName);
   }

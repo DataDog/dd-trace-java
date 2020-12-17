@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
@@ -61,7 +60,7 @@ public final class DataSourceInstrumentation extends Instrumenter.Tracing {
       final AgentSpan span = startSpan(DATABASE_CONNECTION);
       DECORATE.afterStart(span);
 
-      span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(ds.getClass(), "getConnection"));
+      span.setResourceName(DECORATE.spanNameForMethod(ds.getClass(), "getConnection"));
 
       final AgentScope agentScope = activateSpan(span);
       agentScope.setAsyncPropagation(true);

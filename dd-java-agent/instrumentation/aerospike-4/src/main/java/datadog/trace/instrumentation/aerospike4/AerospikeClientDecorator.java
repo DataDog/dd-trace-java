@@ -7,7 +7,6 @@ import com.aerospike.client.cluster.Cluster;
 import com.aerospike.client.cluster.Node;
 import com.aerospike.client.cluster.Partition;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -78,7 +77,7 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
       }
       span.setTag(Tags.DB_INSTANCE, instanceName);
       if (Config.get().isDbClientSplitByInstance()) {
-        span.setTag(DDTags.SERVICE_NAME, instanceName);
+        span.setServiceName(instanceName);
       }
     }
 
@@ -86,7 +85,7 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
   }
 
   public void withMethod(final AgentSpan span, final String methodName) {
-    span.setTag(DDTags.RESOURCE_NAME, spanNameForMethod(AerospikeClient.class, methodName));
+    span.setResourceName(spanNameForMethod(AerospikeClient.class, methodName));
   }
 
   public AgentSpan startAerospikeSpan(final String methodName) {

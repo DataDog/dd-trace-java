@@ -150,7 +150,7 @@ public class SpringWebHttpServerDecorator
     final String viewName = mv.getViewName();
     if (viewName != null) {
       span.setTag("view.name", viewName);
-      span.setTag(DDTags.RESOURCE_NAME, viewName);
+      span.setResourceName(viewName);
     }
     if (mv.getView() != null) {
       span.setTag("view.type", className(mv.getView().getClass()));

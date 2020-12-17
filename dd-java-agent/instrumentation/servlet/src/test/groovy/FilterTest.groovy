@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.instrumentation.servlet.filter.FilterDecorator
 
 import javax.servlet.Filter
 import javax.servlet.FilterChain
@@ -40,7 +41,7 @@ class FilterTest extends AgentTestRunner {
         basicSpan(it, "parent")
         span {
           operationName "servlet.filter"
-          resourceName "${filter.class.simpleName}.doFilter"
+          resourceName "${consistentClassName(filter.class)}.doFilter"
           childOf span(0)
           tags {
             "component" "java-web-servlet-filter"
@@ -78,7 +79,7 @@ class FilterTest extends AgentTestRunner {
         basicSpan(it, "parent", null, ex)
         span {
           operationName "servlet.filter"
-          resourceName "${filter.class.simpleName}.doFilter"
+          resourceName "${consistentClassName(filter.class)}.doFilter"
           childOf span(0)
           errored true
           tags {
@@ -104,5 +105,9 @@ class FilterTest extends AgentTestRunner {
     @Override
     void destroy() {
     }
+  }
+
+  def consistentClassName(Class klass) {
+    return FilterDecorator.DECORATE.className(klass)
   }
 }

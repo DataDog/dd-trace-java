@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jdbc;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -121,14 +120,14 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   @Override
   public AgentSpan onStatement(final AgentSpan span, final CharSequence statement) {
     final CharSequence resourceName = statement == null ? DB_QUERY : statement;
-    span.setTag(DDTags.RESOURCE_NAME, resourceName);
+    span.setResourceName(resourceName);
     span.setTag(Tags.COMPONENT, JDBC_STATEMENT);
     return super.onStatement(span, statement);
   }
 
   public AgentSpan onPreparedStatement(final AgentSpan span, UTF8BytesString sql) {
     final UTF8BytesString resourceName = sql == null ? DB_QUERY : sql;
-    span.setTag(DDTags.RESOURCE_NAME, resourceName);
+    span.setResourceName(resourceName);
     span.setTag(Tags.COMPONENT, JDBC_PREPARED_STATEMENT);
     return super.onStatement(span, sql);
   }

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.lettuce5;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -61,8 +60,7 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
       setPeerPort(span, connection.getPort());
 
       span.setTag("db.redis.dbIndex", connection.getDatabase());
-      span.setTag(
-          DDTags.RESOURCE_NAME,
+      span.setResourceName(
           "CONNECT:"
               + connection.getHost()
               + ":"
@@ -75,8 +73,7 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
 
   public AgentSpan onCommand(final AgentSpan span, final RedisCommand command) {
     final String commandName = LettuceInstrumentationUtil.getCommandName(command);
-    span.setTag(
-        DDTags.RESOURCE_NAME, LettuceInstrumentationUtil.getCommandResourceName(commandName));
+    span.setResourceName(LettuceInstrumentationUtil.getCommandResourceName(commandName));
     return span;
   }
 }

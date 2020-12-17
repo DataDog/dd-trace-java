@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.elasticsearch;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -73,7 +72,7 @@ public class ElasticsearchTransportClientDecorator extends DatabaseClientDecorat
       if ("AutoPutMappingAction".equals(actionName)) {
         actionName = "PutMappingAction";
       }
-      span.setTag(DDTags.RESOURCE_NAME, actionName);
+      span.setResourceName(actionName);
       span.setTag("elasticsearch.action", actionName);
     }
     if (request != null) {

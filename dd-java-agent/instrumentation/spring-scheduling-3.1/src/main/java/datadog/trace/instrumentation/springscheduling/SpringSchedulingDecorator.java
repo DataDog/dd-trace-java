@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.springscheduling;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -39,7 +38,7 @@ public class SpringSchedulingDecorator extends BaseDecorator {
       } else {
         resourceName = spanNameForMethod(runnable.getClass(), "run");
       }
-      span.setTag(DDTags.RESOURCE_NAME, resourceName);
+      span.setResourceName(resourceName);
     }
     return span;
   }

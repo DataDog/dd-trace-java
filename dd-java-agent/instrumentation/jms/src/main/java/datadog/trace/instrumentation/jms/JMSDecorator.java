@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 
 import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -64,7 +63,7 @@ public final class JMSDecorator extends ClientDecorator {
   }
 
   public void onConsume(final AgentSpan span, final Message message) {
-    span.setTag(DDTags.RESOURCE_NAME, "Consumed from " + toResourceName(message, null));
+    span.setResourceName("Consumed from " + toResourceName(message, null));
 
     try {
       final long produceTime = message.getJMSTimestamp();
@@ -78,16 +77,16 @@ public final class JMSDecorator extends ClientDecorator {
   }
 
   public void onReceive(final AgentSpan span, final Method method) {
-    span.setTag(DDTags.RESOURCE_NAME, "JMS " + method.getName());
+    span.setResourceName("JMS " + method.getName());
   }
 
   public void onReceive(final AgentSpan span, final Message message) {
-    span.setTag(DDTags.RESOURCE_NAME, "Received from " + toResourceName(message, null));
+    span.setResourceName("Received from " + toResourceName(message, null));
   }
 
   public void onProduce(
       final AgentSpan span, final Message message, final Destination destination) {
-    span.setTag(DDTags.RESOURCE_NAME, "Produced for " + toResourceName(message, destination));
+    span.setResourceName("Produced for " + toResourceName(message, destination));
     span.setMeasured(true);
   }
 

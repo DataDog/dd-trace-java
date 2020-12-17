@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.HY
 
 import com.netflix.hystrix.HystrixInvokableInfo;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -90,8 +89,7 @@ public class HystrixDecorator extends BaseDecorator {
         span.setTag(HYSTRIX_GROUP, command.getCommandGroup().name());
         span.setTag(HYSTRIX_CIRCUIT_OPEN, command.isCircuitBreakerOpen());
       }
-      span.setTag(
-          DDTags.RESOURCE_NAME,
+      span.setResourceName(
           RESOURCE_NAME_CACHE.computeIfAbsent(
               new ResourceNameCacheKey(
                   command.getCommandGroup().name(), command.getCommandKey().name(), methodName),

@@ -2,7 +2,6 @@
 
 package datadog.trace.instrumentation.springdata;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -41,7 +40,7 @@ public final class SpringDataDecorator extends ClientDecorator {
     assert method != null;
 
     if (method != null) {
-      span.setTag(DDTags.RESOURCE_NAME, spanNameForMethod(method));
+      span.setResourceName(spanNameForMethod(method));
     }
     return span;
   }

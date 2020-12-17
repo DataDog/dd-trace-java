@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jsp;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -38,7 +37,7 @@ public class JSPDecorator extends BaseDecorator {
   public void onCompile(final AgentScope scope, final JspCompilationContext jspCompilationContext) {
     if (jspCompilationContext != null) {
       final AgentSpan span = scope.span();
-      span.setTag(DDTags.RESOURCE_NAME, jspCompilationContext.getJspFile());
+      span.setResourceName(jspCompilationContext.getJspFile());
 
       if (jspCompilationContext.getServletContext() != null) {
         span.setTag("servlet.context", jspCompilationContext.getServletContext().getContextPath());
@@ -58,7 +57,7 @@ public class JSPDecorator extends BaseDecorator {
     if (includeServletPath instanceof String) {
       resourceName = includeServletPath.toString();
     }
-    span.setTag(DDTags.RESOURCE_NAME, resourceName);
+    span.setResourceName(resourceName);
 
     final Object forwardOrigin = req.getAttribute(RequestDispatcher.FORWARD_SERVLET_PATH);
     if (forwardOrigin instanceof String) {

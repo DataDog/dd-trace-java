@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.twilio;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.twilio.rest.api.v2010.account.Call;
 import com.twilio.rest.api.v2010.account.Message;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -50,7 +49,7 @@ public class TwilioClientDecorator extends ClientDecorator {
     final String simpleClassName =
         serviceExecutor.getClass().getCanonicalName().replaceFirst("^com\\.twilio\\.rest\\.", "");
 
-    span.setTag(DDTags.RESOURCE_NAME, String.format("%s.%s", simpleClassName, methodName));
+    span.setResourceName(String.format("%s.%s", simpleClassName, methodName));
 
     return span;
   }

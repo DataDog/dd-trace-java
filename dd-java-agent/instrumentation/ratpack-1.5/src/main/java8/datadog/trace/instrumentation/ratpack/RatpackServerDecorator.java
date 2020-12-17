@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.ratpack;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -73,7 +72,7 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
     }
 
     final String resourceName = ctx.getRequest().getMethod().getName() + " " + description;
-    span.setTag(DDTags.RESOURCE_NAME, resourceName);
+    span.setResourceName(resourceName);
 
     return span;
   }

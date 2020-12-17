@@ -4,7 +4,6 @@ import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.Function;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
@@ -56,7 +55,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setTag("aws.operation", awsOperation.getSimpleName());
     span.setTag("aws.endpoint", request.getEndpoint().toString());
 
-    span.setTag(DDTags.RESOURCE_NAME, cache.getQualifiedName(awsOperation, awsServiceName));
+    span.setResourceName(cache.getQualifiedName(awsOperation, awsServiceName));
     span.setMeasured(true);
 
     if (contextStore != null) {
