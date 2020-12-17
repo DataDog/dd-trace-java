@@ -23,19 +23,9 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
-    1 * span.setTag(Tags.CI_PROVIDER_NAME, "ci-provider-name")
-    1 * span.setTag(Tags.CI_PIPELINE_ID, "ci-pipeline-id")
-    1 * span.setTag(Tags.CI_PIPELINE_NAME, "ci-pipeline-name")
-    1 * span.setTag(Tags.CI_PIPELINE_NUMBER, "ci-pipeline-number")
-    1 * span.setTag(Tags.CI_PIPELINE_URL, "ci-pipeline-url")
-    1 * span.setTag(Tags.CI_JOB_URL, "ci-job-url")
-    1 * span.setTag(Tags.CI_WORKSPACE_PATH, "ci-workspace-path")
-    1 * span.setTag(Tags.BUILD_SOURCE_ROOT, "ci-workspace-path")
-    1 * span.setTag(Tags.GIT_REPOSITORY_URL, "git-repository-url")
-    1 * span.setTag(Tags.GIT_COMMIT_SHA, "git-commit")
-    1 * span.setTag(Tags._GIT_COMMIT_SHA, "git-commit")
-    1 * span.setTag(Tags.GIT_BRANCH, "git-branch")
-    1 * span.setTag(Tags.GIT_TAG, "git-tag")
+    decorator.ciTags.each {
+      1 * span.setTag(it.key, it.value)
+    }
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
     _ * span.setOperationName(_)
@@ -86,58 +76,10 @@ class TestDecoratorTest extends BaseDecoratorTest {
   def newMockCiInfo() {
     return new CIProviderInfo() {
       @Override
-      String getCiProviderName() {
-        return "ci-provider-name"
-      }
-
-      @Override
-      String getCiPipelineId() {
-        return "ci-pipeline-id"
-      }
-
-      @Override
-      String getCiPipelineName() {
-        return "ci-pipeline-name"
-      }
-
-      @Override
-      String getCiPipelineNumber() {
-        return "ci-pipeline-number"
-      }
-
-      @Override
-      String getCiPipelineUrl() {
-        return "ci-pipeline-url"
-      }
-
-      @Override
-      String getCiJobUrl() {
-        return "ci-job-url"
-      }
-
-      @Override
-      String getCiWorkspacePath() {
-        return "ci-workspace-path"
-      }
-
-      @Override
-      String getGitRepositoryUrl() {
-        return "git-repository-url"
-      }
-
-      @Override
-      String getGitCommit() {
-        return "git-commit"
-      }
-
-      @Override
-      String getGitBranch() {
-        return "git-branch"
-      }
-
-      @Override
-      String getGitTag() {
-        return "git-tag"
+      Map<String, String> getCiTags() {
+        def mockCiTags = new HashMap()
+        mockCiTags.put("sample-ci-key", "sample-ci-value")
+        return mockCiTags
       }
     }
   }

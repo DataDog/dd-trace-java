@@ -14,18 +14,6 @@ class GithubActionsInfo extends CIProviderInfo {
   public static final String GHACTIONS_HEAD_REF = "GITHUB_HEAD_REF";
   public static final String GHACTIONS_REF = "GITHUB_REF";
 
-  private final String ciProviderName;
-  private final String ciPipelineId;
-  private final String ciPipelineName;
-  private final String ciPipelineNumber;
-  private final String ciPipelineUrl;
-  private final String ciJobUrl;
-  private final String ciWorkspacePath;
-  private final String gitRepositoryUrl;
-  private final String gitCommit;
-  private final String gitBranch;
-  private final String gitTag;
-
   GithubActionsInfo() {
     final String repo = System.getenv(GHACTIONS_REPOSITORY);
     final String commit = System.getenv(GHACTIONS_SHA);
@@ -42,6 +30,8 @@ class GithubActionsInfo extends CIProviderInfo {
     gitCommit = commit;
     gitBranch = buildGitBranch();
     gitTag = buildGitTag();
+
+    updateCiTags();
   }
 
   private String buildGitTag() {
@@ -76,60 +66,5 @@ class GithubActionsInfo extends CIProviderInfo {
 
   private String buildPipelineUrl(final String repo, final String commit) {
     return String.format("https://github.com/%s/commit/%s/checks", repo, commit);
-  }
-
-  @Override
-  public String getCiProviderName() {
-    return this.ciProviderName;
-  }
-
-  @Override
-  public String getCiPipelineId() {
-    return this.ciPipelineId;
-  }
-
-  @Override
-  public String getCiPipelineName() {
-    return this.ciPipelineName;
-  }
-
-  @Override
-  public String getCiPipelineNumber() {
-    return this.ciPipelineNumber;
-  }
-
-  @Override
-  public String getCiPipelineUrl() {
-    return this.ciPipelineUrl;
-  }
-
-  @Override
-  public String getCiJobUrl() {
-    return this.ciJobUrl;
-  }
-
-  @Override
-  public String getCiWorkspacePath() {
-    return this.ciWorkspacePath;
-  }
-
-  @Override
-  public String getGitRepositoryUrl() {
-    return this.gitRepositoryUrl;
-  }
-
-  @Override
-  public String getGitCommit() {
-    return this.gitCommit;
-  }
-
-  @Override
-  public String getGitBranch() {
-    return this.gitBranch;
-  }
-
-  @Override
-  public String getGitTag() {
-    return gitTag;
   }
 }

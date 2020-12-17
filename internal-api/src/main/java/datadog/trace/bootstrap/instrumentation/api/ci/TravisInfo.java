@@ -17,18 +17,6 @@ class TravisInfo extends CIProviderInfo {
   public static final String TRAVIS_GIT_BRANCH = "TRAVIS_BRANCH";
   public static final String TRAVIS_GIT_TAG = "TRAVIS_TAG";
 
-  private final String ciProviderName;
-  private final String ciPipelineId;
-  private final String ciPipelineName;
-  private final String ciPipelineNumber;
-  private final String ciPipelineUrl;
-  private final String ciJobUrl;
-  private final String ciWorkspacePath;
-  private final String gitRepositoryUrl;
-  private final String gitCommit;
-  private final String gitBranch;
-  private final String gitTag;
-
   TravisInfo() {
     ciProviderName = TRAVIS_PROVIDER_NAME;
     ciPipelineId = System.getenv(TRAVIS_PIPELINE_ID);
@@ -41,6 +29,8 @@ class TravisInfo extends CIProviderInfo {
     gitCommit = System.getenv(TRAVIS_GIT_COMMIT);
     gitTag = normalizeRef(System.getenv(TRAVIS_GIT_TAG));
     gitBranch = buildGitBranch(gitTag);
+
+    updateCiTags();
   }
 
   private String buildGitBranch(final String gitTag) {
@@ -70,60 +60,5 @@ class TravisInfo extends CIProviderInfo {
       repoSlug = System.getenv(TRAVIS_REPOSITORY_SLUG);
     }
     return repoSlug;
-  }
-
-  @Override
-  public String getCiProviderName() {
-    return ciProviderName;
-  }
-
-  @Override
-  public String getCiPipelineId() {
-    return ciPipelineId;
-  }
-
-  @Override
-  public String getCiPipelineName() {
-    return ciPipelineName;
-  }
-
-  @Override
-  public String getCiPipelineNumber() {
-    return ciPipelineNumber;
-  }
-
-  @Override
-  public String getCiPipelineUrl() {
-    return ciPipelineUrl;
-  }
-
-  @Override
-  public String getCiJobUrl() {
-    return ciJobUrl;
-  }
-
-  @Override
-  public String getCiWorkspacePath() {
-    return ciWorkspacePath;
-  }
-
-  @Override
-  public String getGitRepositoryUrl() {
-    return gitRepositoryUrl;
-  }
-
-  @Override
-  public String getGitCommit() {
-    return gitCommit;
-  }
-
-  @Override
-  public String getGitBranch() {
-    return gitBranch;
-  }
-
-  @Override
-  public String getGitTag() {
-    return gitTag;
   }
 }

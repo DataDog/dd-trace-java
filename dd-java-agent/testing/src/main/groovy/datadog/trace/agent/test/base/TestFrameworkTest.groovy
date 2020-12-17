@@ -44,19 +44,9 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         }
 
         if (isCI) {
-          "$Tags.CI_PROVIDER_NAME" ciProviderName
-          "$Tags.CI_PIPELINE_ID" ciPipelineId
-          "$Tags.CI_PIPELINE_NAME" ciPipelineName
-          "$Tags.CI_PIPELINE_NUMBER" ciPipelineNumber
-          "$Tags.CI_PIPELINE_URL" ciPipelineUrl
-          "$Tags.CI_JOB_URL" ciJobUrl
-          "$Tags.CI_WORKSPACE_PATH" ciWorkspacePath
-          "$Tags.BUILD_SOURCE_ROOT" ciWorkspacePath
-          "$Tags.GIT_REPOSITORY_URL" gitRepositoryUrl
-          "$Tags.GIT_COMMIT_SHA" gitCommit
-          "$Tags._GIT_COMMIT_SHA" gitCommit
-          "$Tags.GIT_BRANCH" gitBranch
-          "$Tags.GIT_TAG" gitTag
+          ciTags.each {
+            key, val -> tag(key, val)
+          }
         }
 
         defaultTags()
@@ -70,27 +60,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   @Shared
   boolean isCI = isCI()
   @Shared
-  String ciProviderName = ciProviderName()
-  @Shared
-  String ciPipelineId = ciPipelineId()
-  @Shared
-  String ciPipelineName = ciPipelineName()
-  @Shared
-  String ciPipelineNumber = ciPipelineNumber()
-  @Shared
-  String ciPipelineUrl = ciPipelineUrl()
-  @Shared
-  String ciJobUrl = ciJobUrl()
-  @Shared
-  String ciWorkspacePath = ciWorkspacePath()
-  @Shared
-  String gitRepositoryUrl = gitRepositoryUrl()
-  @Shared
-  String gitCommit = gitCommit()
-  @Shared
-  String gitBranch = gitBranch()
-  @Shared
-  String gitTag = gitTag()
+  Map<String, String> ciTags = ciTags()
 
   abstract String expectedOperationName()
 
@@ -100,26 +70,6 @@ abstract class TestFrameworkTest extends AgentTestRunner {
 
   abstract boolean isCI()
 
-  abstract String ciProviderName()
-
-  abstract String ciPipelineId()
-
-  abstract String ciPipelineName()
-
-  abstract String ciPipelineNumber()
-
-  abstract String ciPipelineUrl()
-
-  abstract String ciJobUrl()
-
-  abstract String ciWorkspacePath()
-
-  abstract String gitRepositoryUrl()
-
-  abstract String gitCommit()
-
-  abstract String gitBranch()
-
-  abstract String gitTag()
+  abstract Map<String, String> ciTags()
 
 }

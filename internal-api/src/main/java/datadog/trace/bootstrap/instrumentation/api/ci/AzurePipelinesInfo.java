@@ -23,18 +23,6 @@ class AzurePipelinesInfo extends CIProviderInfo {
       "SYSTEM_PULLREQUEST_SOURCEBRANCH";
   public static final String AZURE_BUILD_SOURCEBRANCH = "BUILD_SOURCEBRANCH";
 
-  private final String ciProviderName;
-  private final String ciPipelineId;
-  private final String ciPipelineName;
-  private final String ciPipelineNumber;
-  private final String ciPipelineUrl;
-  private final String ciJobUrl;
-  private final String ciWorkspacePath;
-  private final String gitRepositoryUrl;
-  private final String gitCommit;
-  private final String gitBranch;
-  private final String gitTag;
-
   AzurePipelinesInfo() {
     final String uri = System.getenv(AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI);
     final String project = System.getenv(AZURE_SYSTEM_TEAMPROJECTID);
@@ -53,6 +41,8 @@ class AzurePipelinesInfo extends CIProviderInfo {
     gitCommit = buildGitCommit();
     gitBranch = buildGitBranch();
     gitTag = buildGitTag();
+
+    updateCiTags();
   }
 
   private String buildGitTag() {
@@ -107,60 +97,5 @@ class AzurePipelinesInfo extends CIProviderInfo {
 
   private String buildCiPipelineUrl(final String uri, final String project, final String buildId) {
     return String.format("%s%s/_build/results?buildId=%s&_a=summary", uri, project, buildId);
-  }
-
-  @Override
-  public String getCiProviderName() {
-    return this.ciProviderName;
-  }
-
-  @Override
-  public String getCiPipelineId() {
-    return this.ciPipelineId;
-  }
-
-  @Override
-  public String getCiPipelineName() {
-    return this.ciPipelineName;
-  }
-
-  @Override
-  public String getCiPipelineNumber() {
-    return this.ciPipelineNumber;
-  }
-
-  @Override
-  public String getCiPipelineUrl() {
-    return this.ciPipelineUrl;
-  }
-
-  @Override
-  public String getCiJobUrl() {
-    return this.ciJobUrl;
-  }
-
-  @Override
-  public String getCiWorkspacePath() {
-    return this.ciWorkspacePath;
-  }
-
-  @Override
-  public String getGitRepositoryUrl() {
-    return this.gitRepositoryUrl;
-  }
-
-  @Override
-  public String getGitCommit() {
-    return this.gitCommit;
-  }
-
-  @Override
-  public String getGitBranch() {
-    return this.gitBranch;
-  }
-
-  @Override
-  public String getGitTag() {
-    return this.gitTag;
   }
 }

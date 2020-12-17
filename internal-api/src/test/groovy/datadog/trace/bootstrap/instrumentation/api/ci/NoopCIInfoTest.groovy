@@ -1,23 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.api.ci
 
 class NoopCIInfoTest extends CIProviderInfoTest {
+  @Override
+  CIProviderInfo instanceProvider() {
+    return new NoopCIInfo()
+  }
 
-  def "Noop CI info is set properly"() {
-    when:
-    def ciInfo = new NoopCIInfo()
-
-    then:
-    ciInfo.ciProviderName == null
-    ciInfo.ciPipelineId == null
-    ciInfo.ciPipelineName == null
-    ciInfo.ciPipelineNumber == null
-    ciInfo.ciPipelineUrl == null
-    ciInfo.ciJobUrl == null
-    ciInfo.ciWorkspacePath == null
-    ciInfo.gitRepositoryUrl == null
-    ciInfo.gitCommit == null
-    ciInfo.gitBranch == null
-    ciInfo.gitTag == null
-
+  @Override
+  String getProviderName() {
+    return NoopCIInfo.NOOP_PROVIDER_NAME
   }
 }

@@ -157,57 +157,7 @@ class TestNGTest extends TestFrameworkTest {
   }
 
   @Override
-  String ciProviderName() {
-    return TestNGDecorator.DECORATE.getCiProviderName()
-  }
-
-  @Override
-  String ciPipelineId() {
-    return TestNGDecorator.DECORATE.getCiPipelineId()
-  }
-
-  @Override
-  String ciPipelineName() {
-    return TestNGDecorator.DECORATE.getCiPipelineName()
-  }
-
-  @Override
-  String ciPipelineNumber() {
-    return TestNGDecorator.DECORATE.getCiPipelineNumber()
-  }
-
-  @Override
-  String ciPipelineUrl() {
-    return TestNGDecorator.DECORATE.getCiPipelineUrl()
-  }
-
-  @Override
-  String ciJobUrl() {
-    return TestNGDecorator.DECORATE.getCiJobUrl()
-  }
-
-  @Override
-  String ciWorkspacePath() {
-    return TestNGDecorator.DECORATE.getCiWorkspacePath()
-  }
-
-  @Override
-  String gitRepositoryUrl() {
-    return TestNGDecorator.DECORATE.getGitRepositoryUrl()
-  }
-
-  @Override
-  String gitCommit() {
-    return TestNGDecorator.DECORATE.getGitCommit()
-  }
-
-  @Override
-  String gitBranch() {
-    return TestNGDecorator.DECORATE.getGitBranch()
-  }
-
-  @Override
-  String gitTag() {
-    return TestNGDecorator.DECORATE.getGitTag()
+  Map<String, String> ciTags() {
+    return TestNGDecorator.DECORATE.getCiTags()
   }
 }

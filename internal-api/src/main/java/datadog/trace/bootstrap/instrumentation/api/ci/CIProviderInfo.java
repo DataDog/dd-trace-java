@@ -10,36 +10,82 @@ import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.G
 import static datadog.trace.bootstrap.instrumentation.api.ci.JenkinsInfo.JENKINS;
 import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS;
 
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
 
 public abstract class CIProviderInfo {
+
+  protected final Map<String, String> ciTags = new HashMap<>();
+  protected String ciProviderName;
+  protected String ciPipelineId;
+  protected String ciPipelineName;
+  protected String ciPipelineNumber;
+  protected String ciPipelineUrl;
+  protected String ciJobUrl;
+  protected String ciWorkspacePath;
+  protected String gitRepositoryUrl;
+  protected String gitCommit;
+  protected String gitBranch;
+  protected String gitTag;
 
   public boolean isCI() {
     return true;
   }
 
-  public abstract String getCiProviderName();
+  public Map<String, String> getCiTags() {
+    return ciTags;
+  }
 
-  public abstract String getCiPipelineId();
+  protected void updateCiTags() {
+    if (ciProviderName != null) {
+      ciTags.put(Tags.CI_PROVIDER_NAME, ciProviderName);
+    }
 
-  public abstract String getCiPipelineName();
+    if (ciPipelineId != null) {
+      ciTags.put(Tags.CI_PIPELINE_ID, ciPipelineId);
+    }
 
-  public abstract String getCiPipelineNumber();
+    if (ciPipelineName != null) {
+      ciTags.put(Tags.CI_PIPELINE_NAME, ciPipelineName);
+    }
 
-  public abstract String getCiPipelineUrl();
+    if (ciPipelineNumber != null) {
+      ciTags.put(Tags.CI_PIPELINE_NUMBER, ciPipelineNumber);
+    }
 
-  public abstract String getCiJobUrl();
+    if (ciPipelineUrl != null) {
+      ciTags.put(Tags.CI_PIPELINE_URL, ciPipelineUrl);
+    }
 
-  public abstract String getCiWorkspacePath();
+    if (ciJobUrl != null) {
+      ciTags.put(Tags.CI_JOB_URL, ciJobUrl);
+    }
 
-  public abstract String getGitRepositoryUrl();
+    if (ciWorkspacePath != null) {
+      ciTags.put(Tags.CI_WORKSPACE_PATH, ciWorkspacePath);
+      // ciTags.put(Tags.BUILD_SOURCE_ROOT, ciWorkspacePath);
+    }
 
-  public abstract String getGitCommit();
+    if (gitRepositoryUrl != null) {
+      ciTags.put(Tags.GIT_REPOSITORY_URL, gitRepositoryUrl);
+    }
 
-  public abstract String getGitBranch();
+    if (gitCommit != null) {
+      ciTags.put(Tags.GIT_COMMIT_SHA, gitCommit);
+      ciTags.put(Tags._GIT_COMMIT_SHA, gitCommit);
+    }
 
-  public abstract String getGitTag();
+    if (gitBranch != null) {
+      ciTags.put(Tags.GIT_BRANCH, gitBranch);
+    }
+
+    if (gitTag != null) {
+      ciTags.put(Tags.GIT_TAG, gitTag);
+    }
+  }
 
   public static CIProviderInfo selectCI() {
     // CI and Git information is obtained
