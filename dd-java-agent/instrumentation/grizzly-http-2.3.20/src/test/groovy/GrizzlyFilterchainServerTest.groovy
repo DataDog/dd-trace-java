@@ -70,11 +70,6 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
   }
 
   @Override
-  boolean reorderControllerSpan() {
-    true
-  }
-
-  @Override
   boolean testException() {
     // justification: grizzly async closes the channel which
     // looks like a ConnectException to the client when this happens

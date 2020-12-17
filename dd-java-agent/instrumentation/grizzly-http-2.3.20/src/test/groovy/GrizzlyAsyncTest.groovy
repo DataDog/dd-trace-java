@@ -27,11 +27,6 @@ class GrizzlyAsyncTest extends GrizzlyTest {
     GrizzlyHttpServerFactory.createHttpServer(new URI("http://localhost:$port"), rc)
   }
 
-  @Override
-  boolean reorderControllerSpan() {
-    true
-  }
-
   @Path("/")
   static class AsyncServiceResource {
     private ExecutorService executor = Executors.newSingleThreadExecutor()

@@ -35,28 +35,4 @@ abstract class JettyContinuationHandlerTest extends JettyHandlerTest {
       baseRequest.handled = true
     }
   }
-
-//  // This server seems to generate a TEST_SPAN twice... once for the initial request, and once for the continuation.
-//  void cleanAndAssertTraces(
-//    final int size,
-//    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-//    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-//    final Closure spec) {
-//
-//    // If this is failing, make sure HttpServerTestAdvice is applied correctly.
-//    TEST_WRITER.waitForTraces(size * 3)
-//    // TEST_WRITER is a CopyOnWriteArrayList, which doesn't support remove()
-//    def toRemove = TEST_WRITER.findAll {
-//      it.size() == 1 && it.get(0).operationName == "TEST_SPAN"
-//    }
-//    toRemove.each {
-//      assertTrace(it, 1) {
-//        basicSpan(it, "TEST_SPAN", "ServerEntry")
-//      }
-//    }
-//    assert toRemove.size() == size * 2
-//    TEST_WRITER.removeAll(toRemove)
-//
-//    assertTraces(size, spec)
-//  }
 }

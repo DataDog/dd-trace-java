@@ -102,11 +102,6 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   }
 
   @Override
-  boolean reorderControllerSpan() {
-    true
-  }
-
-  @Override
   boolean testNotFound() {
     // resource name is set by instrumentation, so not changed to 404
     false

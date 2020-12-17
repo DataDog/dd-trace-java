@@ -1,5 +1,6 @@
 package server
 
+import datadog.trace.agent.test.base.HttpServerTest
 import ratpack.exec.Promise
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.test.embed.EmbeddedApp
@@ -27,7 +28,7 @@ class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
           all {
             Promise.sync {
               SUCCESS
-            } then { ServerEndpoint endpoint ->
+            } then { HttpServerTest.ServerEndpoint endpoint ->
               controller(endpoint) {
                 context.response.status(endpoint.status).send(endpoint.body)
               }
@@ -38,7 +39,7 @@ class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
           all {
             Promise.sync {
               QUERY_PARAM
-            } then { ServerEndpoint endpoint ->
+            } then { HttpServerTest.ServerEndpoint endpoint ->
               controller(endpoint) {
                 context.response.status(endpoint.status).send(request.query)
               }
@@ -49,7 +50,7 @@ class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
           all {
             Promise.sync {
               REDIRECT
-            } then { ServerEndpoint endpoint ->
+            } then { HttpServerTest.ServerEndpoint endpoint ->
               controller(endpoint) {
                 context.redirect(endpoint.body)
               }
@@ -60,7 +61,7 @@ class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
           all {
             Promise.sync {
               ERROR
-            } then { ServerEndpoint endpoint ->
+            } then { HttpServerTest.ServerEndpoint endpoint ->
               controller(endpoint) {
                 context.response.status(endpoint.status).send(endpoint.body)
               }
@@ -71,7 +72,7 @@ class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
           all {
             Promise.sync {
               EXCEPTION
-            } then { ServerEndpoint endpoint ->
+            } then { HttpServerTest.ServerEndpoint endpoint ->
               controller(endpoint) {
                 throw new Exception(endpoint.body)
               }

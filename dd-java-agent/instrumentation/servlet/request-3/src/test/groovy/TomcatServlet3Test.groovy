@@ -106,7 +106,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
     }
 
     and:
-    cleanAndAssertTraces(count) {
+    assertTraces(count) {
       (1..count).eachWithIndex { val, i ->
         trace(spanCount(SUCCESS)) {
           sortSpansByStart()
@@ -145,7 +145,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
     }
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(spanCount(ERROR)) {
         sortSpansByStart()
         serverSpan(it, null, null, method, ERROR)

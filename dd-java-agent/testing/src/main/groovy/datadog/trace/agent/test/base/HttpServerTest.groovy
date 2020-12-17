@@ -1,15 +1,12 @@
 package datadog.trace.agent.test.base
 
 import ch.qos.logback.classic.Level
-import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.SimpleType
 import okhttp3.HttpUrl
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -19,9 +16,6 @@ import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
 
-import java.util.concurrent.atomic.AtomicBoolean
-
-import static datadog.trace.agent.test.asserts.TraceAssert.assertTrace
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -32,7 +26,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR
@@ -75,15 +68,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   int spanCount(ServerEndpoint endpoint) {
     return 2 + (hasHandlerSpan() ? 1 : 0) + (hasResponseSpan(endpoint) ? 1 : 0)
-  }
-
-  /** Return the handler span's name */
-  String reorderHandlerSpan() {
-    null
-  }
-
-  boolean reorderControllerSpan() {
-    false
   }
 
   boolean redirectHasBody() {
@@ -208,7 +192,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    cleanAndAssertTraces(count) {
+    assertTraces(count) {
       (1..count).eachWithIndex { val, i ->
         trace(spanCount(SUCCESS)) {
           sortSpansByStart()
@@ -245,7 +229,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.body().string() == SUCCESS.body
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(spanCount(SUCCESS)) {
         sortSpansByStart()
         serverSpan(it, traceId, parentId, method)
@@ -277,7 +261,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.body().string() == endpoint.body
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(spanCount(endpoint)) {
         sortSpansByStart()
         serverSpan(it, null, null, method, endpoint)
@@ -308,7 +292,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.body().string() == PATH_PARAM.body
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(spanCount(PATH_PARAM)) {
         sortSpansByStart()
         serverSpan(it, null, null, method, PATH_PARAM)
@@ -343,7 +327,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.body().string() == SUCCESS.body
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(spanCount(SUCCESS)) {
         sortSpansByStart()
         serverSpan(it, traceId, parentId)
@@ -377,7 +361,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.body().contentLength() < 1 || redirectHasBody()
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(spanCount(REDIRECT)) {
         sortSpansByStart()
         serverSpan(it, null, null, method, REDIRECT)
@@ -408,7 +392,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(spanCount(ERROR)) {
         sortSpansByStart()
         serverSpan(it, null, null, method, ERROR)
@@ -440,7 +424,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(spanCount(EXCEPTION)) {
         sortSpansByStart()
         serverSpan(it, null, null, method, EXCEPTION)
@@ -469,7 +453,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.code() == NOT_FOUND.status
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(spanCount(NOT_FOUND) - 1) { // no controller span
         sortSpansByStart()
         serverSpan(it, null, null, method, NOT_FOUND)
@@ -501,7 +485,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.body().contentLength() == 0
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(spanCount(TIMEOUT)) {
         sortSpansByStart()
         serverSpan(it, null, null, method, TIMEOUT)
@@ -533,7 +517,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.body().contentLength() == 0
 
     and:
-    cleanAndAssertTraces(1) {
+    assertTraces(1) {
       trace(spanCount(TIMEOUT_ERROR)) {
         sortSpansByStart()
         serverSpan(it, null, null, method, TIMEOUT_ERROR)
@@ -553,54 +537,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   //FIXME: add tests for POST with large/chunked data
-
-  void cleanAndAssertTraces(
-    final int size,
-    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
-
-    // If this is failing, make sure HttpServerTestAdvice is applied correctly.
-    TEST_WRITER.waitForTraces(size * 2)
-    // TEST_WRITER is a CopyOnWriteArrayList, which doesn't support remove()
-    def toRemove = TEST_WRITER.findAll {
-      it.size() == 1 && it.get(0).operationName.toString() == "TEST_SPAN"
-    }
-    toRemove.each {
-      assertTrace(it, 1) {
-        basicSpan(it, "TEST_SPAN", "ServerEntry")
-      }
-    }
-    assert toRemove.size() == size
-    TEST_WRITER.removeAll(toRemove)
-
-    if (reorderHandlerSpan()) {
-      TEST_WRITER.each {
-        def controllerSpan = it.find {
-          it.operationName.toString() == reorderHandlerSpan()
-        }
-        if (controllerSpan) {
-          it.remove(controllerSpan)
-          it.add(controllerSpan)
-        }
-      }
-    }
-
-    if (reorderControllerSpan() || reorderHandlerSpan()) {
-      // Some frameworks close the handler span before the controller returns, so we need to manually reorder it.
-      TEST_WRITER.each {
-        def controllerSpan = it.find {
-          it.operationName.toString() == "controller"
-        }
-        if (controllerSpan) {
-          it.remove(controllerSpan)
-          it.add(controllerSpan)
-        }
-      }
-    }
-
-    assertTraces(size, spec)
-  }
 
   void controllerSpan(TraceAssert trace, String errorMessage = null) {
     trace.span {
@@ -664,15 +600,5 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         defaultMetrics()
       }
     }
-  }
-
-  public static final AtomicBoolean ENABLE_TEST_ADVICE = new AtomicBoolean(false)
-
-  def setup() {
-    ENABLE_TEST_ADVICE.set(true)
-  }
-
-  def cleanup() {
-    ENABLE_TEST_ADVICE.set(false)
   }
 }

@@ -72,11 +72,6 @@ class VertxHttpServerTest extends HttpServerTest<Vertx> {
   }
 
   @Override
-  boolean reorderControllerSpan() {
-    true
-  }
-
-  @Override
   int spanCount(ServerEndpoint endpoint) {
     if (endpoint == NOT_FOUND) {
       return super.spanCount(endpoint) - 1
