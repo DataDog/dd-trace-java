@@ -22,9 +22,27 @@ testSets {
   }
 }
 
+sourceSets {
+  test.groovy.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.groovy
+  latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.groovy
+
+  test.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
+  latestDepTest.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
+}
+
+spotless {
+  groovy {
+    target('src/**/*.groovy')
+  }
+  scala {
+    targetExclude("${project(':dd-java-agent:instrumentation:scala-promise').path}/src/**/*.scala")
+  }
+}
+
 compileTestGroovy {
   classpath += files(sourceSets.test.scala.classesDirectory)
 }
+
 compileLatestDepTestGroovy {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
