@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
@@ -39,6 +40,9 @@ public final class ClassLoaderMatcher {
         "datadog.trace.bootstrap.DatadogClassLoader";
     private static final String DATADOG_DELEGATE_CLASSLOADER_NAME =
         "datadog.trace.bootstrap.DatadogClassLoader$DelegateClassLoader";
+    private static final boolean BOOTDELEGATION_CHECK_ENABLED =
+        Config.get().isBootDelegationCheckEnabled();
+
     private static final WeakCache<ClassLoader, Boolean> skipCache = AgentTooling.newWeakCache();
 
     private SkipClassLoaderMatcher() {}
@@ -51,6 +55,9 @@ public final class ClassLoaderMatcher {
       }
       if (canSkipClassLoaderByName(cl)) {
         return true;
+      }
+      if (!BOOTDELEGATION_CHECK_ENABLED) {
+        return false;
       }
       Boolean v = skipCache.getIfPresent(cl);
       if (v != null) {

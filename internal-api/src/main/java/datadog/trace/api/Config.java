@@ -402,6 +402,8 @@ public class Config {
 
   @Getter private final boolean resolverUseLoadClassEnabled;
 
+  @Getter private final boolean bootDelegationCheckEnabled;
+
   private final ConfigProvider configProvider;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
@@ -742,6 +744,9 @@ public class Config {
 
     resolverUseLoadClassEnabled =
         configProvider.getBoolean(TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS, true);
+
+    bootDelegationCheckEnabled =
+        configProvider.getBoolean(TraceInstrumentationConfig.BOOTDELEGATION_CHECK_ENABLED, true);
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
