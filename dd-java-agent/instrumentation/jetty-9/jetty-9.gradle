@@ -1,0 +1,36 @@
+muzzle {
+  pass {
+    group = "org.eclipse.jetty"
+    module = 'jetty-server'
+    versions = "[9,11)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.0.v20130308'
+
+  // Don't want to conflict with jetty from the test server.
+  testCompile(project(':dd-java-agent:testing')) {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
+
+  testCompile group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.0.v20130308'
+  testCompile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.0.0.v20130308'
+  testCompile group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.0.0.v20130308'
+
+  // Jetty 10.0 was not compiled for java 8.
+  latestDepTestCompile group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.+'
+  latestDepTestCompile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.+'
+  latestDepTestCompile group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.+'
+}

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.servlet3;
 
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.TIMEOUT;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
 import datadog.trace.api.Config;
@@ -35,7 +36,7 @@ public class TagSettingAsyncListener implements AsyncListener {
       if (Config.get().isServletAsyncTimeoutError()) {
         span.setError(true);
       }
-      span.setTag("timeout", event.getAsyncContext().getTimeout());
+      span.setTag(TIMEOUT, event.getAsyncContext().getTimeout());
       DECORATE.beforeFinish(span);
       span.finish();
     }

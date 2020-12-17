@@ -22,6 +22,8 @@ public class RequestDispatcherDecorator extends BaseDecorator {
       UTF8BytesString.createConstant("java-web-servlet-dispatcher");
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
   private static final Integer SERVER_ERROR = 500;
+  public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
+  public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
 
   private static final MethodHandle STATUS_CODE_METHOD;
 

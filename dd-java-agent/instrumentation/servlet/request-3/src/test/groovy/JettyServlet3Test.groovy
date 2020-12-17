@@ -1,4 +1,8 @@
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
@@ -6,11 +10,25 @@ import org.eclipse.jetty.servlet.ServletContextHandler
 import javax.servlet.Servlet
 import javax.servlet.http.HttpServletRequest
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 
 abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletContextHandler> {
+  static final boolean IS_LATEST
+  static {
+    try {
+      Class.forName("org.eclipse.jetty.server.HttpChannel")
+      IS_LATEST = true
+    } catch (ClassNotFoundException e) {
+      IS_LATEST = false
+    }
+  }
+
   @Override
   boolean testNotFound() {
     false
@@ -46,6 +64,11 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   }
 
   @Override
+  String component() {
+    return "jetty-server"
+  }
+
+  @Override
   String getContext() {
     return "jetty-context"
   }
@@ -53,6 +76,82 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   @Override
   void addServlet(ServletContextHandler servletContext, String path, Class<Servlet> servlet) {
     servletContext.addServlet(servlet, path)
+  }
+
+  @Override
+  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+    def dispatch = isDispatch()
+    def bubblesResponse = bubblesResponse()
+    trace.span {
+      serviceName expectedServiceName()
+      operationName expectedOperationName()
+      resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
+      spanType DDSpanTypes.HTTP_SERVER
+      // Exceptions are always bubbled up, other statuses: only if bubblesResponse == true
+      errored((endpoint.errored && bubblesResponse) || endpoint == EXCEPTION || endpoint == TIMEOUT_ERROR)
+      if (parentID != null) {
+        traceId traceID
+        parentId parentID
+      } else {
+        parent()
+      }
+      tags {
+        "$Tags.COMPONENT" component
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
+        "$Tags.PEER_PORT" Integer
+        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
+        "$Tags.HTTP_METHOD" method
+        "$Tags.HTTP_STATUS" { it == endpoint.status || !bubblesResponse }
+        if (context) {
+          "servlet.context" "/$context"
+        }
+
+        if (dispatch) {
+          "servlet.path" "/dispatch$endpoint.path"
+        } else {
+          "servlet.path" endpoint.path
+        }
+
+        if (endpoint.errored) {
+          "error.msg" { it == null || it == EXCEPTION.body }
+          "error.type" { it == null || it == Exception.name }
+          "error.stack" { it == null || it instanceof String }
+        }
+        if (endpoint.query) {
+          "$DDTags.HTTP_QUERY" endpoint.query
+        }
+        defaultTags(true)
+      }
+    }
+  }
+
+  void dispatchSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
+      serviceName expectedServiceName()
+      operationName "servlet.dispatch"
+      resourceName endpoint.path
+      errored(endpoint.errored && endpoint != TIMEOUT)
+      childOfPrevious()
+      tags {
+        "$Tags.COMPONENT" AsyncDispatcherDecorator.DECORATE.component()
+        if (endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR) {
+          "$Tags.HTTP_STATUS" endpoint.status
+        } else {
+          "timeout" 1_000
+        }
+        if (context) {
+          "servlet.context" "/$context"
+        }
+        "servlet.path" "/dispatch$endpoint.path"
+        if (endpoint.errored) {
+          "error.msg" { it == null || it == EXCEPTION.body }
+          "error.type" { it == null || it == Exception.name }
+          "error.stack" { it == null || it instanceof String }
+        }
+        defaultTags()
+      }
+    }
   }
 
   // FIXME: Add authentication tests back in...
@@ -86,6 +185,10 @@ class JettyServlet3TestSync extends JettyServlet3Test {
   Class<Servlet> servlet() {
     TestServlet3.Sync
   }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    return endpoint == REDIRECT || endpoint == ERROR || (endpoint == EXCEPTION && !IS_LATEST) || endpoint == NOT_FOUND
+  }
 }
 
 class JettyServlet3TestAsync extends JettyServlet3Test {
@@ -111,6 +214,10 @@ class JettyServlet3TestFakeAsync extends JettyServlet3Test {
   @Override
   Class<Servlet> servlet() {
     TestServlet3.FakeAsync
+  }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    return endpoint == REDIRECT || endpoint == ERROR || (endpoint == EXCEPTION && !IS_LATEST) || endpoint == NOT_FOUND
   }
 }
 
@@ -193,6 +300,10 @@ class JettyServlet3TestDispatchImmediate extends JettyServlet3Test {
   @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     dispatchSpan(trace, endpoint)
+  }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    return endpoint == REDIRECT || endpoint == ERROR || (endpoint == EXCEPTION && !IS_LATEST) || endpoint == NOT_FOUND
   }
 
   @Override

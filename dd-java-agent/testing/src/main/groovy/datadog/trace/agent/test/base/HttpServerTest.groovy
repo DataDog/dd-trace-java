@@ -103,8 +103,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     NOT_FOUND("not-found", 404, "not found"),
     NOT_HERE("not-here", 404, "not here"), // Explicitly returned 404 from a valid controller
 
-    TIMEOUT("timeout", -1, null),
-    TIMEOUT_ERROR("timeout_error", -1, null),
+    TIMEOUT("timeout", 500, null),
+    TIMEOUT_ERROR("timeout_error", 500, null),
 
     // TODO: add tests for the following cases:
     QUERY_PARAM("query?some=query", 200, "some=query"),
@@ -482,6 +482,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     then:
     response.code() == 500
+    response.body().string() == ""
     response.body().contentLength() == 0
 
     and:
@@ -514,6 +515,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (bubblesResponse()) {
       assert response.code() == 500
     }
+    response.body().string() == ""
     response.body().contentLength() == 0
 
     and:
