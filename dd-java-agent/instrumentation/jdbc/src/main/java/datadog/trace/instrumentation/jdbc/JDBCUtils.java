@@ -1,14 +1,12 @@
 package datadog.trace.instrumentation.jdbc;
 
 import datadog.trace.bootstrap.ExceptionLogger;
-import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 
 public abstract class JDBCUtils {
-  private static Field c3poField = null;
 
   // Cache if the class's isWrapperFor() or unwrap() methods are usable
   private static final ClassValue<Boolean> CAN_UNWRAP =
@@ -63,12 +61,6 @@ public abstract class JDBCUtils {
     try {
       connection = statement.getConnection();
 
-      if (c3poField != null) {
-        if (connection.getClass().getName().equals("com.mchange.v2.c3p0.impl.NewProxyConnection")) {
-          return (Connection) c3poField.get(connection);
-        }
-      }
-
       if (CAN_UNWRAP.get(connection.getClass())) {
         return tryUnwrap(connection);
       } else {
@@ -81,7 +73,7 @@ public abstract class JDBCUtils {
     }
   }
 
-  private static Connection tryUnwrap(Connection connection) throws ReflectiveOperationException {
+  private static Connection tryUnwrap(Connection connection) {
     try {
       // technically this could be recursive. In practice, one level is enough
       if (connection.isWrapperFor(Connection.class)) {
@@ -92,16 +84,6 @@ public abstract class JDBCUtils {
     } catch (Exception ignored) {
       // note that we will not even call this method unless it has been shown not to
       // throw AbstractMethodError
-    }
-
-    // Attempt to work around c3po delegating to an connection that doesn't support
-    // unwrapping.
-    final Class<? extends Connection> connectionClass = connection.getClass();
-    if (connectionClass.getName().equals("com.mchange.v2.c3p0.impl.NewProxyConnection")) {
-      final Field inner = connectionClass.getDeclaredField("inner");
-      inner.setAccessible(true);
-      c3poField = inner;
-      return (Connection) c3poField.get(connection);
     }
 
     return connection;
