@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.datanucleus;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -22,7 +22,9 @@ public class ParamLoggingStatementInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("org.datanucleus.store.rdbms.ParamLoggingPreparedStatement");
+    return namedOneOf(
+        "org.datanucleus.store.rdbms.ParamLoggingPreparedStatement",
+        "org.datanucleus.store.rdbms.datasource.dbcp.DelegatingPreparedStatement");
   }
 
   @Override
