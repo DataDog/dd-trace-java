@@ -7,10 +7,7 @@ muzzle {
     group = 'io.opentelemetry'
     versions = "[$otelVersion,0.8.0)"
     assertInverse = true
-    // I have no idea why gradle doesn't respect the version range above
-    // but I also have no time to figure it out for an instrumentation
-    // that is experimental
-    skipVersions = ['0.2.2', '0.2.3', '0.9.0']
+    skipVersions = ['0.2.2', '0.2.3', '0.9.0', '0.13.0']
   }
 }
 
