@@ -368,32 +368,6 @@
   [
     {
       "WORKSPACE": "/foo/bar",
-      "JOB_NAME": "jobName/KEY1=VALUE1,KEY2=VALUE2/another-branch",
-      "GIT_URL": "sample",
-      "GIT_BRANCH": "refs/heads/master",
-      "JENKINS_URL": "jenkins",
-      "BUILD_TAG": "jenkins-pipeline-id",
-      "BUILD_NUMBER": "jenkins-pipeline-number",
-      "BUILD_URL": "jenkins-pipeline-url",
-      "JOB_URL": "jenkins-job-url",
-      "GIT_COMMIT": "jenkins-git-commit"
-    },
-    {
-      "ci.pipeline.name": "jobName",
-      "ci.workspace_path": "/foo/bar",
-      "git.repository_url": "sample",
-      "git.branch": "master",
-      "ci.provider.name": "jenkins",
-      "ci.pipeline.id": "jenkins-pipeline-id",
-      "ci.pipeline.number": "jenkins-pipeline-number",
-      "ci.pipeline.url": "jenkins-pipeline-url",
-      "git.commit.sha": "jenkins-git-commit",
-      "git.commit_sha": "jenkins-git-commit"
-    }
-  ],
-  [
-    {
-      "WORKSPACE": "/foo/bar",
       "GIT_URL": "sample",
       "GIT_BRANCH": "origin/tags/0.1.0",
       "JENKINS_URL": "jenkins",
