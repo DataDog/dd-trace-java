@@ -29,7 +29,7 @@ public class AkkaMailboxInstrumentation extends Instrumenter.Tracing
     implements ExcludeFilterProvider {
 
   public AkkaMailboxInstrumentation() {
-    super("java_concurrent", "akka_concurrent", "akka_actor");
+    super("akka_actor_mailbox", "akka_actor", "akka_concurrent", "java_concurrent");
   }
 
   @Override

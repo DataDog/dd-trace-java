@@ -25,7 +25,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class AkkaActorCellInstrumentation extends Instrumenter.Tracing {
 
   public AkkaActorCellInstrumentation() {
-    super("java_concurrent", "akka_concurrent", "akka_actor");
+    super("akka_actor_receive", "akka_actor", "akka_concurrent", "java_concurrent");
   }
 
   @Override
