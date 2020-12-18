@@ -10,4 +10,12 @@ class NoopCIInfoTest extends CIProviderInfoTest {
   String getProviderName() {
     return NoopCIInfo.NOOP_PROVIDER_NAME
   }
+
+  def "test isCi is false"() {
+    when:
+    def provider = instanceProvider()
+
+    then:
+    !provider.isCI()
+  }
 }
