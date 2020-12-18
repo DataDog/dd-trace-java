@@ -2,7 +2,6 @@ import datadog.trace.agent.test.base.AbstractPromiseTest
 import spock.lang.Shared
 
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.function.Function
 
@@ -53,7 +52,6 @@ abstract class CompletableFuturePromiseTest extends AbstractPromiseTest<Completa
   def "test call with no parent"() {
     setup:
     def promise = newPromise()
-    def latch = new CountDownLatch(1)
 
     when:
     def mapped = map(promise) {
@@ -63,13 +61,10 @@ abstract class CompletableFuturePromiseTest extends AbstractPromiseTest<Completa
     onComplete(mapped) {
       assert it == "$value"
       runUnderTrace("callback") {}
-      latch.countDown()
     }
 
     runUnderTrace("other") {
       complete(promise, value)
-      // This is here to sort the spans so that `mapped` always finishes first
-      waitForLatchOrFail(latch)
     }
 
     then:

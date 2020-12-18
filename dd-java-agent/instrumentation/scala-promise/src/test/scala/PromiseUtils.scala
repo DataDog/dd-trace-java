@@ -1,9 +1,7 @@
 import groovy.lang.Closure
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Future, Promise}
-
-object PromiseUtils {
+class PromiseUtils(implicit ec: ExecutionContext) {
 
   def newPromise[T](): Promise[T] = Promise.apply()
 

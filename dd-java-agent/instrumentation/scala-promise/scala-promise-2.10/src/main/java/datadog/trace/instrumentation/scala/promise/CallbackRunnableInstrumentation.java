@@ -49,6 +49,8 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
     Map<ElementMatcher<MethodDescription>, String> transformations = new HashMap<>(4);
     transformations.put(isConstructor(), getClass().getName() + "$Construct");
     transformations.put(isMethod().and(named("run")), getClass().getName() + "$Run");
+    transformations.put(
+        isMethod().and(named("executeWithValue")), getClass().getName() + "$ExecuteWithValue");
     return unmodifiableMap(transformations);
   }
 
@@ -69,11 +71,6 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
         InstrumentationContext.get(CallbackRunnable.class, State.class).put(task, state);
       }
     }
-
-    /** CallbackRunnable was introduced in scala 2.10 */
-    private static void muzzleCheck(final CallbackRunnable<?> callback) {
-      callback.executeWithValue(null);
-    }
   }
 
   public static final class Run {
@@ -87,10 +84,24 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
     public static void after(@Advice.Enter TraceScope scope) {
       AdviceUtils.endTaskScope(scope);
     }
+  }
 
-    /** CallbackRunnable was introduced in scala 2.10 */
-    private static void muzzleCheck(final CallbackRunnable<?> callback) {
-      callback.executeWithValue(null);
+  public static final class ExecuteWithValue {
+    @Advice.OnMethodEnter
+    public static <T> void beforeExecute(@Advice.This CallbackRunnable<T> task) {
+      // about to enter an ExecutionContext so capture the scope if necessary
+      // (this used to happen automatically when the RunnableInstrumentation
+      // was relied on, and happens anyway if the ExecutionContext is backed
+      // by a wrapping Executor (e.g. FJP, ScheduledThreadPoolExecutor)
+      State state = InstrumentationContext.get(CallbackRunnable.class, State.class).get(task);
+      if (null == state) {
+        final TraceScope scope = activeScope();
+        if (scope != null) {
+          state = State.FACTORY.create();
+          state.captureAndSetContinuation(scope);
+          InstrumentationContext.get(CallbackRunnable.class, State.class).put(task, state);
+        }
+      }
     }
   }
 }

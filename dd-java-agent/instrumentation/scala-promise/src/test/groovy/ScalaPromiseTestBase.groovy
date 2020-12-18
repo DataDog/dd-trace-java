@@ -1,21 +1,29 @@
 import datadog.trace.agent.test.base.AbstractPromiseTest
+import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
+import spock.lang.Shared
 
-class Scala213PromiseTest extends AbstractPromiseTest<Promise<Boolean>, Future<String>> {
+abstract class ScalaPromiseTestBase extends AbstractPromiseTest<Promise<Boolean>, Future<String>> {
+
+  @Shared
+  PromiseUtils promiseUtils = new PromiseUtils(getExecutionContext())
+
+  abstract protected ExecutionContext getExecutionContext()
+
   @Override
   Promise<Boolean> newPromise() {
-    return PromiseUtils.newPromise()
+    return promiseUtils.newPromise()
   }
 
   @Override
   Future<String> map(Promise<Boolean> promise, Closure<String> callback) {
-    return PromiseUtils.map(promise, callback) as Future<String>
+    return promiseUtils.map(promise, callback) as Future<String>
   }
 
   @Override
   void onComplete(Future<String> promise, Closure callback) {
-    PromiseUtils.onComplete(promise, callback)
+    promiseUtils.onComplete(promise, callback)
   }
 
   @Override

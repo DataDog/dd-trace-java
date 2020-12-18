@@ -94,6 +94,12 @@ class ListWriterAssert {
   void trace(int expectedSize,
              @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
              @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    trace(expectedSize, false, spec)
+  }
+
+  void trace(int expectedSize, boolean sortByName,
+             @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
+             @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     def index = traceAssertCount.getAndIncrement()
 
     if (index >= size) {
@@ -103,7 +109,7 @@ class ListWriterAssert {
       throw new ConcurrentModificationException("ListWriter modified during assertion")
     }
     assertedIndexes.add(index)
-    assertTrace(trace(index), expectedSize, spec)
+    assertTrace(trace(index), expectedSize, sortByName, spec)
   }
 
   void assertTracesAllVerified() {
