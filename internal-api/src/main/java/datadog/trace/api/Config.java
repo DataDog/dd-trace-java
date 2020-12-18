@@ -942,8 +942,8 @@ public class Config {
       final String settingPrefix,
       final String settingSuffix,
       final boolean defaultEnabled) {
-    // If default is enabled, we want to enable individually,
-    // if default is disabled, we want to disable individually.
+    // If default is enabled, we want to disable individually.
+    // If default is disabled, we want to enable individually.
     boolean anyEnabled = defaultEnabled;
     for (final String name : integrationNames) {
       final String configKey = settingPrefix + name + settingSuffix;

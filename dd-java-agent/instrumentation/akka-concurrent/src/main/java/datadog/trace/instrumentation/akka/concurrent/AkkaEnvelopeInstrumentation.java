@@ -21,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class AkkaEnvelopeInstrumentation extends Instrumenter.Tracing {
 
   public AkkaEnvelopeInstrumentation() {
-    super("java_concurrent", "akka_concurrent", "akka_actor");
+    super("akka_actor_send", "akka_actor", "akka_concurrent", "java_concurrent");
   }
 
   @Override
