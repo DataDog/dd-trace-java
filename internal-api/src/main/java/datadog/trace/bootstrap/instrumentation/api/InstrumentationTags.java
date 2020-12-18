@@ -69,6 +69,16 @@ public class InstrumentationTags {
   public static final String EVENT = "event";
   public static final String MESSAGE = "message";
   public static final String HANDLER_TYPE = "handler.type";
+  public static final String QUARTZ_JOB_DETAIL = "quartz.job.detail";
+  public static final String QUARTZ_JOB_NAME = "quartz.job.name";
+  public static final String QUARTZ_JOB_GROUP = "quartz.job.group";
+  public static final String QUARTZ_REFIRE_COUNT = "quartz.refire.count";
+  public static final String QUARTZ_SCHEDULER_ACTUAL_TIME = "quartz.time.actualFireTime";
+  public static final String QUARTZ_SCHEDULER_FIRED_TIME = "quartz.time.scheduledFireTime";
+  public static final String QUARTZ_SCHEDULER_TIME_DIFFERENCE = "quartz.time.difference";
+  public static final String QUARTZ_SCHEDULER = "quartz.scheduler";
+  public static final String QUARTZ_TRIGGER_NAME = "quartz.trigger.name";
+  public static final String QUARTZ_TRIGGER_GROUP = "quartz.trigger.group";
   public static final String REQUEST_PREDICATE = "request.predicate";
   public static final String VIEW_NAME = "view.name";
   public static final String VIEW_TYPE = "view.type";

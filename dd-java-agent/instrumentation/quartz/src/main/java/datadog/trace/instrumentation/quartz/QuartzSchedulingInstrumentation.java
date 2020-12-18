@@ -4,10 +4,10 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.quartz.QuartzDecorator.DECORATE;
-import static datadog.trace.instrumentation.quartz.QuartzDecorator.SCHEDULED_CALL;
+import static datadog.trace.instrumentation.quartz.QuartzDecorator.JOB_INSTANCE;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.*;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -32,39 +32,43 @@ public final class QuartzSchedulingInstrumentation extends Instrumenter.Default 
     return implementsInterface(named("org.quartz.Job"));
   }
 
-  //  is execute and takes
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        named("execute").and(takesArgument(0, named("org.quartz.JobExecutionContext"))),
+        isMethod()
+            .and(isPublic())
+            .and(named("execute"))
+            .and(takesArgument(0, named("org.quartz.JobExecutionContext"))),
         QuartzSchedulingInstrumentation.class.getName() + "$QuartzSchedulingAdvice");
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".QuartzDecorator"
-    };
+    return new String[] {packageName + ".QuartzDecorator"};
   }
 
   public static class QuartzSchedulingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onStartSpan(@Advice.Argument(0) JobExecutionContext context) {
+    public static AgentScope enter(@Advice.Argument(0) JobExecutionContext context) {
       //      ignore active span
-      final AgentSpan span = startSpan(SCHEDULED_CALL, null);
+      final AgentSpan span = startSpan(JOB_INSTANCE);
       DECORATE.afterStart(span);
       DECORATE.onExecute(span, context);
-      final AgentScope scope = activateSpan(span);
-      return scope;
+      return activateSpan(span);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExitSpan(
-        @Advice.Argument(0) JobExecutionContext context,
-        @Advice.Thrown Throwable throwable,
-        @Advice.Enter AgentScope scope) {
-      DECORATE.beforeFinish(scope.span());
-      scope.span().finish();
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(
+        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      if (throwable != null) {
+        final AgentSpan span = scope.span();
+        DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(span);
+        span.finish();
+      }
+      final AgentSpan span = scope.span();
+      span.finish();
+      scope.close();
     }
   }
 }
