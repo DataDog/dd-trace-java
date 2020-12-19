@@ -56,6 +56,11 @@ public final class ClassLoaderMatcher {
       if (v != null) {
         return v;
       }
+      // workaround for jira osji modules class loaders:
+      if (cl.toString().startsWith("com.atlassian")) {
+        skipCache.put(cl, true);
+        return true;
+      }
       // when ClassloadingInstrumentation is active, checking delegatesToBootstrap() below is not
       // required, because ClassloadingInstrumentation forces all class loaders to load all of the
       // classes in Constants.BOOTSTRAP_PACKAGE_PREFIXES directly from the bootstrap class loader
