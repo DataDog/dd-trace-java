@@ -8,11 +8,29 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
 
   private static final Integer NOT_FOUND = 404;
 
+  private static final String FEATURE_ALIAS_STATUS_404_RULE = "Status404Rule";
+  private static final String FEATURE_ALIAS_STATUS_404_DECORATOR = "Status404Decorator";
+
   private static final BitSlicedBitapSearch PROTOCOL_SEARCH = new BitSlicedBitapSearch("://");
+
+  private boolean status404Disabled = false;
 
   @Override
   public String[] aliases() {
-    return new String[] {"URLAsResourceName", "Status404Rule", "Status404Decorator"};
+    return new String[] {"URLAsResourceName"};
+  }
+
+  @Override
+  public String[] featureAliases() {
+    return new String[] {FEATURE_ALIAS_STATUS_404_RULE, FEATURE_ALIAS_STATUS_404_DECORATOR};
+  }
+
+  @Override
+  public void disableFeature(final String feature) {
+    if (FEATURE_ALIAS_STATUS_404_RULE.equals(feature)
+        || FEATURE_ALIAS_STATUS_404_DECORATOR.equals(feature)) {
+      status404Disabled = true;
+    }
   }
 
   @Override
@@ -21,7 +39,7 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
       return;
     }
     final Object httpStatus = span.unsafeGetTag(Tags.HTTP_STATUS);
-    if (NOT_FOUND.equals(httpStatus) || "404".equals(httpStatus)) {
+    if (!status404Disabled && (NOT_FOUND.equals(httpStatus) || "404".equals(httpStatus))) {
       span.setResourceName("404");
       return;
     }

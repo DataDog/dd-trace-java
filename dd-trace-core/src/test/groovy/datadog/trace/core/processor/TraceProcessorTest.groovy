@@ -35,10 +35,28 @@ class TraceProcessorTest extends DDSpecification {
     URLAsResourceNameRule | null
     URLAsResourceNameRule | URLAsResourceNameRule.simpleName.toLowerCase()
     URLAsResourceNameRule | "URLAsResourceName"
-    URLAsResourceNameRule | "Status404Rule"
-    URLAsResourceNameRule | "Status404Decorator"
 
     name = alias == null ? rule.simpleName : alias
+  }
+
+  def "test disable status 404 feature"() {
+    setup:
+    injectSysConfig("trace.${featureAlias}.enabled", "false")
+    def processor = new TraceProcessor()
+    span.setTag(Tags.HTTP_STATUS, 404)
+    span.setTag(Tags.HTTP_METHOD, method)
+    span.setTag(Tags.HTTP_URL, url)
+
+    when:
+    processor.onTraceComplete(trace)
+
+    then:
+    span.resourceName.toString() == resourceName
+
+    where:
+    featureAlias          | method  | url         | resourceName
+    "Status404Rule"       | "POST"  | "/notfound" | "POST /notfound"
+    "Status404Decorator"  | "POST"  | "/notfound" | "POST /notfound"
   }
 
   def "set 404 as a resource on a 404 issue"() {
