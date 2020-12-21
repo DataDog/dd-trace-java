@@ -107,10 +107,10 @@ final class ContextStoreUtils {
   }
 
   static String getContextGetterName(final String keyClassName) {
-    return "get" + getContextFieldName(keyClassName);
+    return "$get$" + getContextFieldName(keyClassName);
   }
 
   static String getContextSetterName(final String key) {
-    return "set" + getContextFieldName(key);
+    return "$set$" + getContextFieldName(key);
   }
 }
