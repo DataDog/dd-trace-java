@@ -505,6 +505,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void close() {
     pendingTraceBuffer.close();
     writer.close();
+    statsDClient.close();
   }
 
   @Override
