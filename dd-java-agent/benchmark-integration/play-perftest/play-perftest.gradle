@@ -27,6 +27,7 @@ dependencies {
 }
 
 repositories {
+  mavenCentral()
   jcenter()
   maven {
     name "lightbend-maven-releases"
