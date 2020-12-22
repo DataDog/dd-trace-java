@@ -45,6 +45,14 @@ public class GlobalTracer {
     }
   }
 
+  public static void forceRegister(Tracer tracer) {
+    provider.set(tracer);
+    Callback callback = installationCallback.getAndSet(null);
+    if (callback != null) {
+      callback.installed(tracer);
+    }
+  }
+
   public static Tracer get() {
     return provider.get();
   }

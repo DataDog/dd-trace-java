@@ -30,4 +30,14 @@ public class TracerInstaller {
     }
     log.debug("Global tracer installed");
   }
+
+  public static void forceInstallGlobalTracer(CoreTracer tracer) {
+    try {
+      GlobalTracer.forceRegister(tracer);
+      AgentTracer.forceRegister(tracer);
+    } catch (final RuntimeException re) {
+      log.warn("Failed to register tracer: {}", tracer, re);
+    }
+    log.debug("Global tracer installed");
+  }
 }
