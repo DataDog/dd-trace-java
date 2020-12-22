@@ -8,8 +8,8 @@ plugins {
 
 repositories {
   mavenLocal()
-  jcenter()
   mavenCentral()
+  jcenter()
 }
 
 def sharedConfigDirectory = "$rootDir/../gradle"
