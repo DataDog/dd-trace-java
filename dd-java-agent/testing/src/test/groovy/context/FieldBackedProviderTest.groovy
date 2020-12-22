@@ -1,5 +1,6 @@
 package context
 
+import datadog.trace.agent.test.AbortTransformationException
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.ClasspathUtils
 import datadog.trace.api.Config
@@ -32,21 +33,14 @@ import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSour
 import static org.junit.Assume.assumeTrue
 
 class FieldBackedProviderTest extends AgentTestRunner {
-
   @Override
-  boolean onInstrumentationError(
-    final String typeName,
-    final ClassLoader classLoader,
-    final JavaModule module,
-    final boolean loaded,
-    final Throwable throwable) {
-    // Incorrect* classes assert on incorrect api usage. Error expected.
-    return !(typeName.startsWith(ContextTestInstrumentation.getName() + '$Incorrect') && throwable.getMessage().startsWith("Incorrect Context Api Usage detected."))
-  }
+  void onDiscovery(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
+    if (typeName != null && typeName.endsWith("UntransformableKeyClass")) {
+      throw new AbortTransformationException(
+        "Aborting transform for class name = " + typeName + ", loader = " + classLoader)
+    }
 
-  @Override
-  protected boolean shouldTransformClass(final String className, final ClassLoader classLoader) {
-    return className == null || (!className.endsWith("UntransformableKeyClass"))
+    super.onDiscovery(typeName, classLoader, module, loaded)
   }
 
   def "#keyClassName structure modified = #shouldModifyStructure"() {
