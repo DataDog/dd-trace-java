@@ -33,7 +33,7 @@ class GrpcTest extends AgentTestRunner {
         final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
         final Helloworld.Response reply = Helloworld.Response.newBuilder().setMessage("Hello $req.name").build()
         responseExecutor.execute {
-          if (testTracer.activeSpan() == null) {
+          if (TEST_TRACER.activeSpan() == null) {
             responseObserver.onError(new IllegalStateException("no active span"))
           } else {
             responseObserver.onNext(reply)

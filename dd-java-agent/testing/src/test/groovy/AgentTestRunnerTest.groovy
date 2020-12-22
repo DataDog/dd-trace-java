@@ -28,7 +28,7 @@ class AgentTestRunnerTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    
+
     injectSysConfig(TRACE_CLASSES_EXCLUDE, "config.exclude.packagename.*, config.exclude.SomeClass,config.exclude.SomeClass\$NestedClass")
   }
 
@@ -61,7 +61,7 @@ class AgentTestRunnerTest extends AgentTestRunner {
     sharedSpanClass.getClassLoader() == BOOTSTRAP_CLASSLOADER
     AgentTracer.getClassLoader() == BOOTSTRAP_CLASSLOADER
     !AGENT_INSTALLED_IN_CLINIT
-    getTestTracer() == AgentTracer.get()
+    TEST_TRACER == AgentTracer.get()
     getAgentTransformer() != null
     AgentTracer.get() == GlobalTracer.get()
     bootstrapClassesIncorrectlyLoaded == []
