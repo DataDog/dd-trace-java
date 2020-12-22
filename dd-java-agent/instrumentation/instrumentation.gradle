@@ -6,7 +6,7 @@ buildscript {
   }
 
   dependencies {
-    classpath "net.bytebuddy:byte-buddy-gradle-plugin:${versions.bytebuddy}"
+    classpath "net.bytebuddy:byte-buddy-gradle-plugin:1.10.14" // 1.10.15 gradle plugin has breaking changes
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.kotlin}"
   }
 }

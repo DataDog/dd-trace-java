@@ -44,7 +44,5 @@ public final class TraceInstrumentationConfig {
 
   public static final String RESOLVER_USE_LOADCLASS = "resolver.use.loadclass";
 
-  public static final String JSR14_TARGET_ADJUSTMENT_ENABLED = "jsr14.target.adjustment.enabled";
-
   private TraceInstrumentationConfig() {}
 }
