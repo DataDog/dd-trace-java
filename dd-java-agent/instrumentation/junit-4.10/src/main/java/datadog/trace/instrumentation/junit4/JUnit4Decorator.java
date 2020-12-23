@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.junit4;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.api.DisableTestTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -43,7 +42,7 @@ public class JUnit4Decorator extends TestDecorator {
     final String testSuite = description.getClassName();
     final String testName = (testNameArg != null) ? testNameArg : description.getMethodName();
 
-    span.setTag(DDTags.RESOURCE_NAME, testSuite + "." + testName);
+    span.setResourceName(testSuite + "." + testName);
     span.setTag(Tags.TEST_SUITE, testSuite);
     span.setTag(Tags.TEST_NAME, testName);
     // We cannot set TEST_PASS status in onTestFinish(...) method because that method

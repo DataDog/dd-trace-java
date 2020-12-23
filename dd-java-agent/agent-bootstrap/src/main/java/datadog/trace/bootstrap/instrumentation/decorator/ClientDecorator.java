@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 
@@ -15,7 +14,7 @@ public abstract class ClientDecorator extends BaseDecorator {
   @Override
   public AgentSpan afterStart(final AgentSpan span) {
     if (service() != null) {
-      span.setTag(DDTags.SERVICE_NAME, service());
+      span.setServiceName(service());
     }
     span.setTag(Tags.SPAN_KIND, spanKind());
     return super.afterStart(span);

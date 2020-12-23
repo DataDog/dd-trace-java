@@ -14,7 +14,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
@@ -77,7 +76,7 @@ public final class FilterInstrumentation extends Instrumenter.Tracing {
       DECORATE.afterStart(span);
 
       // Here we use "this" instead of "the method target" to distinguish abstract filter instances.
-      span.setTag(DDTags.RESOURCE_NAME, filter.getClass().getSimpleName() + ".doFilter");
+      span.setResourceName(DECORATE.spanNameForMethod(filter.getClass(), "doFilter"));
 
       final AgentScope agentScope = activateSpan(span);
       agentScope.setAsyncPropagation(true);

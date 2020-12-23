@@ -19,7 +19,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
 
     then:
     if (serviceName != null) {
-      1 * span.setTag(DDTags.SERVICE_NAME, serviceName)
+      1 * span.setServiceName(serviceName)
     }
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, "client")
@@ -47,7 +47,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
         1 * span.setTag(Tags.PEER_HOSTNAME, session.hostname)
       }
       if (renameService && session.instance) {
-        1 * span.setTag(DDTags.SERVICE_NAME, session.instance)
+        1 * span.setServiceName(session.instance)
       }
     }
     0 * _

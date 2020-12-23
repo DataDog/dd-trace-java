@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.junit5;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
@@ -33,7 +32,7 @@ public class JUnit5Decorator extends TestDecorator {
   }
 
   public void onTestStart(final AgentSpan span, final String testSuite, final String testName) {
-    span.setTag(DDTags.RESOURCE_NAME, testSuite + "." + testName);
+    span.setResourceName(testSuite + "." + testName);
     span.setTag(Tags.TEST_SUITE, testSuite);
     span.setTag(Tags.TEST_NAME, testName);
     span.setTag(Tags.TEST_STATUS, TEST_PASS);

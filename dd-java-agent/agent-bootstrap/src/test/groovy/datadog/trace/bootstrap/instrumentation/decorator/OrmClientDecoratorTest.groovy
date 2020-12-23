@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-import datadog.trace.api.DDTags
-
 class OrmClientDecoratorTest extends DatabaseClientDecoratorTest {
 
   def "test onOperation #testName"() {
@@ -13,7 +11,7 @@ class OrmClientDecoratorTest extends DatabaseClientDecoratorTest {
 
     then:
     if (isSet) {
-      1 * span.setTag(DDTags.RESOURCE_NAME, entityName)
+      1 * span.setResourceName(entityName)
     }
     0 * _
 

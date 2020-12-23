@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -55,7 +54,7 @@ public class RoutesInstrumentation extends Instrumenter.Tracing {
       final AgentSpan span = activeSpan();
       if (span != null && routeMatch != null) {
         final String resourceName = method.name().toUpperCase() + " " + routeMatch.getMatchUri();
-        span.setTag(DDTags.RESOURCE_NAME, resourceName);
+        span.setResourceName(resourceName);
       }
     }
   }

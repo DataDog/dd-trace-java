@@ -32,7 +32,6 @@ import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.MessageProperties;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -119,8 +118,8 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
 
       final Connection connection = channel.getConnection();
 
-      final AgentSpan span =
-          startSpan(AMQP_COMMAND).setTag(DDTags.RESOURCE_NAME, method).setMeasured(true);
+      final AgentSpan span = startSpan(AMQP_COMMAND).setMeasured(true);
+      span.setResourceName(method);
       DECORATE.setPeerPort(span, connection.getPort());
       DECORATE.afterStart(span);
       DECORATE.onPeerConnection(span, connection.getAddress());

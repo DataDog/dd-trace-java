@@ -17,7 +17,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
@@ -86,7 +85,7 @@ public final class HttpServletInstrumentation extends Instrumenter.Tracing {
       DECORATE.afterStart(span);
 
       // Here we use the Method instead of "this.class.name" to distinguish calls to "super".
-      span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(method));
+      span.setResourceName(DECORATE.spanNameForMethod(method));
 
       final AgentScope agentScope = activateSpan(span);
       agentScope.setAsyncPropagation(true);

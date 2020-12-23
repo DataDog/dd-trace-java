@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.couchbase.client;
 
 import static datadog.trace.instrumentation.couchbase.client.CouchbaseClientDecorator.DECORATE;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.rxjava.TracedOnSubscribe;
 import java.lang.reflect.Method;
@@ -27,7 +26,7 @@ public class CouchbaseOnSubscribe extends TracedOnSubscribe {
   protected void afterStart(final AgentSpan span) {
     super.afterStart(span);
 
-    span.setTag(DDTags.RESOURCE_NAME, resourceName);
+    span.setResourceName(resourceName);
 
     if (bucket != null) {
       span.setTag("bucket", bucket);

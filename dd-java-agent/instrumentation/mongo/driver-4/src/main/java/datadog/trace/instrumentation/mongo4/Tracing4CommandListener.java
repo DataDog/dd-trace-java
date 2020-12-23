@@ -12,7 +12,6 @@ import com.mongodb.event.CommandListener;
 import com.mongodb.event.CommandStartedEvent;
 import com.mongodb.event.CommandSucceededEvent;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -41,7 +40,7 @@ public class Tracing4CommandListener implements CommandListener {
       if (applicationName != null) {
         span.setTag(Tags.DB_INSTANCE, applicationName);
         if (Config.get().isDbClientSplitByInstance()) {
-          span.setTag(DDTags.SERVICE_NAME, applicationName);
+          span.setServiceName(applicationName);
         }
       }
       if (event.getConnectionDescription() != null

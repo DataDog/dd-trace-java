@@ -22,7 +22,6 @@ import com.twitter.util.Future;
 import com.twitter.util.FutureEventListener;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -80,13 +79,13 @@ public class FinatraInstrumentation extends Instrumenter.Tracing {
 
       // Update the parent "netty.request"
       final AgentSpan parent = activeSpan();
-      parent.setTag(DDTags.RESOURCE_NAME, request.method().name() + " " + path);
+      parent.setResourceName(request.method().name() + " " + path);
       parent.setTag(Tags.COMPONENT, "finatra");
       parent.setSpanName(FINATRA_REQUEST);
 
       final AgentSpan span = startSpan(FINATRA_CONTROLLER);
       DECORATE.afterStart(span);
-      span.setTag(DDTags.RESOURCE_NAME, DECORATE.className(clazz));
+      span.setResourceName(DECORATE.className(clazz));
 
       final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);

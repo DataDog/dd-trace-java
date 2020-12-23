@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.kafka_streams;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -48,7 +47,7 @@ public class KafkaStreamsDecorator extends ClientDecorator {
   public void onConsume(final AgentSpan span, final StampedRecord record) {
     if (record != null) {
       final String topic = record.topic() == null ? "kafka" : record.topic();
-      span.setTag(DDTags.RESOURCE_NAME, RESOURCE_NAME_CACHE.computeIfAbsent(topic, PREFIX));
+      span.setResourceName(RESOURCE_NAME_CACHE.computeIfAbsent(topic, PREFIX));
       span.setTag("partition", record.partition());
       span.setTag("offset", record.offset());
       span.setMeasured(true);

@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.Function;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
@@ -42,7 +41,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       span.setTag(Tags.DB_INSTANCE, instanceName);
 
       if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
-        span.setTag(DDTags.SERVICE_NAME, instanceName);
+        span.setServiceName(instanceName);
       }
 
       CharSequence hostName = dbHostname(connection);

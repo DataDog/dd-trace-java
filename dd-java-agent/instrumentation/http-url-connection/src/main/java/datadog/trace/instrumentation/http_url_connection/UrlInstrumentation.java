@@ -13,7 +13,6 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.InternalJarURLHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -77,9 +76,10 @@ public class UrlInstrumentation extends Instrumenter.Tracing {
           span.setTag(
               Tags.PEER_PORT,
               url.getPort() > UNSET_PORT ? PORTS.get(url.getPort()) : PORTS.get(80));
-          span.setTag(Tags.PEER_HOSTNAME, url.getHost());
-          if (Config.get().isHttpClientSplitByDomain()) {
-            span.setTag(DDTags.SERVICE_NAME, url.getHost());
+          String host = url.getHost();
+          span.setTag(Tags.PEER_HOSTNAME, host);
+          if (Config.get().isHttpClientSplitByDomain() && null != host && !host.isEmpty()) {
+            span.setServiceName(host);
           }
 
           span.setError(true);
