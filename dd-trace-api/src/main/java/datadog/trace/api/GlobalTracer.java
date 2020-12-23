@@ -2,7 +2,8 @@ package datadog.trace.api;
 
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.context.ScopeListener;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.ArrayList;
+import java.util.Collection;
 
 /**
  * A global reference to the registered Datadog tracer.
@@ -31,14 +32,19 @@ public class GlobalTracer {
         @Override
         public void addScopeListener(ScopeListener listener) {}
       };
-  private static final AtomicReference<Tracer> provider = new AtomicReference<>(NO_OP);
+
+  private static final Collection<Callback> installationCallbacks = new ArrayList<>();
+  private static Tracer provider = NO_OP;
 
   public static void registerIfAbsent(Tracer p) {
-    if (p != null && p != NO_OP) {
-      boolean installed = provider.compareAndSet(NO_OP, p);
-      if (installed) {
-        Callback callback = installationCallback.getAndSet(null);
-        if (callback != null) {
+    if (p == null || p == NO_OP) {
+      throw new IllegalArgumentException();
+    }
+
+    synchronized (installationCallbacks) {
+      if (provider == NO_OP) {
+        provider = p;
+        for (Callback callback : installationCallbacks) {
           callback.installed(p);
         }
       }
@@ -46,43 +52,32 @@ public class GlobalTracer {
   }
 
   public static void forceRegister(Tracer tracer) {
-    provider.set(tracer);
-    Callback callback = installationCallback.getAndSet(null);
-    if (callback != null) {
-      callback.installed(tracer);
+    if (tracer == null || tracer == NO_OP) {
+      throw new IllegalArgumentException();
+    }
+
+    synchronized (installationCallbacks) {
+      provider = tracer;
+      for (Callback callback : installationCallbacks) {
+        callback.installed(tracer);
+      }
     }
   }
 
   public static Tracer get() {
-    return provider.get();
+    return provider;
   }
 
   // --------------------------------------------------------------------------------
   // All code below is to support the callback registration in WithGlobalTracer
   // --------------------------------------------------------------------------------
+  static void registerInstallationCallback(Callback callback) {
+    synchronized (installationCallbacks) {
+      installationCallbacks.add(callback);
 
-  // Needs to use a read that can't be reordered for the code in WithGlobalTracer to be correct
-  static boolean isTracerInstalled() {
-    return provider.get() != NO_OP;
-  }
-
-  private static final AtomicReference<Callback> installationCallback = new AtomicReference<>(null);
-
-  // Needs to use a read that can't be reordered for the code in WithGlobalTracer to be correct
-  static boolean isCallbackInstalled() {
-    return installationCallback.get() != null;
-  }
-
-  static boolean registerInstallationCallback(Callback callback) {
-    if (!isTracerInstalled()) {
-      boolean installed = installationCallback.compareAndSet(null, callback);
-      // Check if the tracer was installed while we were doing this, and try to back out
-      if (installed && isTracerInstalled()) {
-        installed = !installationCallback.compareAndSet(callback, null);
+      if (provider != NO_OP) {
+        callback.installed(provider);
       }
-      return installed;
-    } else {
-      return false;
     }
   }
 

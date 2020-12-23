@@ -161,7 +161,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   protected void cleanupAfterAgent() {}
 
   def cleanupSpec() {
-    TEST_TRACER.close()
+    TEST_TRACER?.close()
 
     if (null != activeTransformer) {
       INSTRUMENTATION.removeTransformer(activeTransformer)
