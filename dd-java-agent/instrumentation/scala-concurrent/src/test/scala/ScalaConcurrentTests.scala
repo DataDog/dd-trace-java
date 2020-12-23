@@ -28,7 +28,7 @@ class ScalaConcurrentTests {
     }
     badFuture.onComplete(t => tracedChild("bad complete"))
 
-    blockUntilChildSpansFinished(4)
+    blockUntilChildSpansFinished(activeSpan(), 4)
     return 5
   }
 
@@ -45,7 +45,7 @@ class ScalaConcurrentTests {
         }.onComplete(_ => tracedChild("callback"))
     )
 
-    blockUntilChildSpansFinished(1)
+    blockUntilChildSpansFinished(activeSpan(), 1)
     return 2
   }
 
@@ -72,7 +72,7 @@ class ScalaConcurrentTests {
     afterPromise2.onComplete(_ => tracedChild("keptPromise2"))
     failedAfterPromise.onComplete(_ => tracedChild("brokenPromise"))
 
-    blockUntilChildSpansFinished(4)
+    blockUntilChildSpansFinished(activeSpan(), 4)
     return 5
   }
 
@@ -94,7 +94,7 @@ class ScalaConcurrentTests {
     }))
     Await.result(completedVal, 30.seconds)
 
-    blockUntilChildSpansFinished(3)
+    blockUntilChildSpansFinished(activeSpan(), 3)
     return 4
   }
 
@@ -118,7 +118,7 @@ class ScalaConcurrentTests {
       case e: Exception => {}
     }
 
-    blockUntilChildSpansFinished(1)
+    blockUntilChildSpansFinished(activeSpan(), 1)
     return 2
   }
 

@@ -191,9 +191,15 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   void blockUntilChildSpansFinished(final int numberOfSpans) {
     final AgentSpan span = TEST_TRACER.activeSpan()
-    final long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS
+
+    blockUntilChildSpansFinished(span, numberOfSpans)
+  }
+
+  static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
     if (span instanceof DDSpan) {
       final PendingTrace pendingTrace = ((DDSpan) span).context().getTrace()
+
+      final long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS
 
       while (pendingTrace.size() < numberOfSpans) {
         if (System.currentTimeMillis() > deadline) {

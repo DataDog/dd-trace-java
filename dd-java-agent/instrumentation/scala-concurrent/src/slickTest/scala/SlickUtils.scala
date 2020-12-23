@@ -1,19 +1,17 @@
-import datadog.trace.agent.test.AgentTestRunner.{
-  TEST_WRITER,
-  blockUntilChildSpansFinished
-}
+import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
   activeScope,
   activeSpan
 }
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import slick.jdbc.H2Profile.api._
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
-class SlickUtils {
+class SlickUtils(TEST_WRITER: ListWriter) {
 
   import SlickUtils._
 
@@ -47,7 +45,7 @@ class SlickUtils {
       activeScope().setAsyncPropagation(true)
       database.run(sql"#$query".as[Int])
     } finally {
-      blockUntilChildSpansFinished(1)
+      blockUntilChildSpansFinished(activeSpan(), 1)
     }
   }
 
