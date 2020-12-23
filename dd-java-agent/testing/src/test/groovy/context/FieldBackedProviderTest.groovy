@@ -35,7 +35,7 @@ import static org.junit.Assume.assumeTrue
 class FieldBackedProviderTest extends AgentTestRunner {
   @Override
   void onDiscovery(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
-    if (typeName != null && typeName.endsWith("UntransformableKeyClass")) {
+    if (typeName?.endsWith("UntransformableKeyClass")) {
       throw new AbortTransformationException(
         "Aborting transform for class name = " + typeName + ", loader = " + classLoader)
     }

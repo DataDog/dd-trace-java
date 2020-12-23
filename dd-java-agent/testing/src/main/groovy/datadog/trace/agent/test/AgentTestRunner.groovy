@@ -53,6 +53,8 @@ import static datadog.trace.api.IdGenerationStrategy.THREAD_PREFIX
  *       in an initialized state.
  * </ul>
  */
+// CodeNarc incorrectly thinks ".class" is unnecessary in @RunWith
+@SuppressWarnings('UnnecessaryDotClass')
 @RunWith(SpockRunner.class)
 abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.Listener {
   private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10)
@@ -68,21 +70,27 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
    *
    * <p>Before the start of each test the reported traces will be reset.
    */
+  @SuppressWarnings('PropertyName')
   @Shared
   ListWriter TEST_WRITER
 
+  @SuppressWarnings('PropertyName')
   @Shared
   TracerAPI TEST_TRACER
 
+  @SuppressWarnings('PropertyName')
   @Shared
   StatsDClient STATS_D_CLIENT = Mock(StatsDClient)
 
+  @SuppressWarnings('PropertyName')
   @Shared
   Set<String> TRANSFORMED_CLASSES_NAMES = Sets.newConcurrentHashSet()
 
+  @SuppressWarnings('PropertyName')
   @Shared
   Set<TypeDescription> TRANSFORMED_CLASSES_TYPES = Sets.newConcurrentHashSet()
 
+  @SuppressWarnings('PropertyName')
   @Shared
   AtomicInteger INSTRUMENTATION_ERROR_COUNT = new AtomicInteger(0)
 
