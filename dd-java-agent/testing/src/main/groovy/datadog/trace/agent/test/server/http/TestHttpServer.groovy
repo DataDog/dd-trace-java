@@ -14,6 +14,8 @@ import org.eclipse.jetty.server.handler.HandlerList
 import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.server.http.HttpServletRequestExtractAdapter.GETTER
@@ -47,26 +49,39 @@ class TestHttpServer implements AutoCloseable {
     }
   }
 
-  def start() {
+  TestHttpServer start() {
     if (internalServer.isStarted()) {
-      return
+      return this
     }
-
-    assert handlers != null: "handlers must be defined"
-    def handlerList = new HandlerList()
-    handlerList.handlers = handlers.configured
-    internalServer.handler = handlerList
-    internalServer.start()
-    // set after starting, otherwise two callbacks get added.
-    internalServer.stopAtShutdown = true
-
-    address = new URI("http://localhost:${internalServer.connectors[0].localPort}")
-    System.out.println("Started server $this on port ${address.getPort()}")
+    synchronized (this) {
+      if (!internalServer.isRunning()) {
+        assert handlers != null: "handlers must be defined"
+        def handlerList = new HandlerList()
+        handlerList.handlers = handlers.configured
+        internalServer.handler = handlerList
+        internalServer.start()
+        // set after starting, otherwise two callbacks get added.
+        internalServer.stopAtShutdown = true
+        address = new URI("http://localhost:${internalServer.connectors[0].localPort}")
+      }
+      long startTime = System.nanoTime()
+      long rem = TimeUnit.SECONDS.toMillis(5)
+      while (!internalServer.isStarted()) {
+        if (rem <= 0) {
+          throw new TimeoutException("Failed to start server $this on port ${address.port}")
+        }
+        Thread.sleep(Math.min(rem, 100))
+        long endTime = System.nanoTime()
+        rem -= TimeUnit.NANOSECONDS.toMillis(endTime - startTime)
+        startTime = endTime
+      }
+      System.out.println("Started server $this on port ${address.port}")
+    }
     return this
   }
 
   def stop() {
-    System.out.println("Stopping server $this on port $address.port")
+    System.out.println("Stopping server $this on port ${address.port}")
     internalServer.stop()
     return this
   }
