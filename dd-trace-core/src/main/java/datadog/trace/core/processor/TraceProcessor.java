@@ -29,6 +29,11 @@ public class TraceProcessor {
     for (final String alias : rule.aliases()) {
       enabled &= Config.get().isRuleEnabled(alias);
     }
+    for (final String featureAlias : rule.featureAliases()) {
+      if (!Config.get().isRuleEnabled(featureAlias)) {
+        rule.disableFeature(featureAlias);
+      }
+    }
     if (!enabled) {
       log.debug("{} disabled", rule.getClass().getSimpleName());
     }
@@ -37,6 +42,10 @@ public class TraceProcessor {
 
   public interface Rule {
     String[] aliases();
+
+    String[] featureAliases();
+
+    void disableFeature(String feature);
 
     void processSpan(DDSpanContext span);
   }
