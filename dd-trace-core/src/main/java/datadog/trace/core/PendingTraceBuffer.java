@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_MONITOR;
+import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import java.util.concurrent.TimeUnit;
@@ -36,6 +37,10 @@ class PendingTraceBuffer implements AutoCloseable {
   public void close() {
     closed = true;
     worker.interrupt();
+    try {
+      worker.join(THREAD_JOIN_TIMOUT_MS);
+    } catch (InterruptedException ignored) {
+    }
   }
 
   public void flush() {

@@ -2,6 +2,7 @@ package datadog.trace.common.metrics;
 
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
+import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -147,6 +148,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   @Override
   public void close() {
     stop();
+    try {
+      thread.join(THREAD_JOIN_TIMOUT_MS);
+    } catch (InterruptedException ignored) {
+    }
   }
 
   @Override

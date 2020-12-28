@@ -20,7 +20,7 @@ import static net.bytebuddy.matcher.ElementMatchers.named
 import static net.bytebuddy.matcher.ElementMatchers.none
 
 abstract class DDSpecification extends Specification {
-  private static final CHECK_TIMEOUT_MS = 2000
+  private static final CHECK_TIMEOUT_MS = 3000
 
   static final String CONFIG = "datadog.trace.api.Config"
 
