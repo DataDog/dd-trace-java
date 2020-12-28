@@ -140,6 +140,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   def setup() {
     configureLoggingLevels()
 
+    assertThreadsEachCleanup = false
+    
     assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
 
     // Config is reset before each test. Thus, configurePreAgent() has to be called before each test
