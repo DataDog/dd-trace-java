@@ -115,10 +115,6 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
       span.setResourceName(target);
       span.setSpanType(InternalSpanTypes.HTTP_SERVER);
 
-      if (servletSpan != null) {
-        servletSpan.setTag("servlet.dispatch", target);
-      }
-
       // In case we lose context, inject trace into to the request.
       propagate().inject(span, request, SETTER);
 

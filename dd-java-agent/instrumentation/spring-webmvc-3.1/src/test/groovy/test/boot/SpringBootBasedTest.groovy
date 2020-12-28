@@ -222,9 +222,6 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" endpoint.status
         "servlet.path" endpoint.path
-        if (endpoint == NOT_FOUND) {
-          "servlet.dispatch" "/error"
-        }
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }

@@ -17,6 +17,8 @@ public class Servlet3Decorator
   public static final CharSequence JAVA_WEB_SERVLET =
       UTF8BytesString.createConstant("java-web-servlet");
   public static final Servlet3Decorator DECORATE = new Servlet3Decorator();
+  public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
+  public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
 
   @Override
   protected String[] instrumentationNames() {
@@ -57,12 +59,16 @@ public class Servlet3Decorator
   public AgentSpan onRequest(final AgentSpan span, final HttpServletRequest request) {
     assert span != null;
     if (request != null) {
-      span.setTag("servlet.path", request.getServletPath());
-      span.setTag("servlet.context", request.getContextPath());
+      String contextPath = request.getContextPath();
+      String servletPath = request.getServletPath();
 
-      if (request.getServletContext() != null) {
-        request.setAttribute(DD_SPAN_ATTRIBUTE, span);
-      }
+      span.setTag("servlet.context", contextPath);
+      span.setTag("servlet.path", servletPath);
+
+      // Used by AsyncContextInstrumentation because the context path may be reset
+      // (eg by jetty) by the time the async context is dispatched.
+      request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
+      request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
     return super.onRequest(span, request);
   }

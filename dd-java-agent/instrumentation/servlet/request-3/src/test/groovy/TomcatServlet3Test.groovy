@@ -121,9 +121,8 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         }
 
         def (String traceId, String spanId) = accessLogValue.loggedIds[i]
-        def idIndex = hasHandlerSpan() && handlerTriggersValue() ? 1 : 0
-        assert trace(i).get(idIndex).traceId.toString() == traceId
-        assert trace(i).get(idIndex).spanId.toString() == spanId
+        assert trace(i).get(0).traceId.toString() == traceId
+        assert trace(i).get(0).spanId.toString() == spanId
       }
     }
 
@@ -159,9 +158,8 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
       }
 
       def (String traceId, String spanId) = accessLogValue.loggedIds[0]
-      def idIndex = hasHandlerSpan() && handlerTriggersValue() ? 1 : 0
-      assert trace(0).get(idIndex).traceId.toString() == traceId
-      assert trace(0).get(idIndex).spanId.toString() == spanId
+      assert trace(0).get(0).traceId.toString() == traceId
+      assert trace(0).get(0).spanId.toString() == spanId
     }
 
     where:
