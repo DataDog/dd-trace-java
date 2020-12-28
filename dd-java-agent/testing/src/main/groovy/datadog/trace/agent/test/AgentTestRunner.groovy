@@ -142,6 +142,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
 
+    // Config is reset before each test. Thus, configurePreAgent() has to be called before each test
+    // even though the agent is already installed
     configurePreAgent()
 
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
@@ -154,7 +156,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   void cleanup() {
     TEST_TRACER.flush()
-    new MockUtil().attachMock(STATS_D_CLIENT, this)
+    new MockUtil().detachMock(STATS_D_CLIENT)
   }
 
   /** Override to clean up things after the agent is removed */

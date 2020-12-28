@@ -34,6 +34,8 @@ public class TracerInstaller {
 
   public static void forceInstallGlobalTracer(CoreTracer tracer) {
     try {
+      log.warn("Overriding installed global tracer.  This is not intended for production use");
+
       GlobalTracer.forceRegister(tracer);
       AgentTracer.forceRegister(tracer);
 
