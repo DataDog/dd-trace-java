@@ -68,6 +68,9 @@ public interface AgentSpan extends MutableSpan {
 
   boolean hasResourceName();
 
+  @Override
+  AgentSpan setResourceName(final CharSequence resourceName);
+
   interface Context {
     DDId getTraceId();
 
