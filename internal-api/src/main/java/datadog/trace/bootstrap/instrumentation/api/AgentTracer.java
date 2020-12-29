@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
 import datadog.trace.api.DDId;
-import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -251,7 +250,7 @@ public class AgentTracer {
     }
 
     @Override
-    public MutableSpan setTag(final String tag, final Number value) {
+    public AgentSpan setTag(final String tag, final Number value) {
       return this;
     }
 
@@ -316,7 +315,7 @@ public class AgentTracer {
     }
 
     @Override
-    public MutableSpan setOperationName(final CharSequence serviceName) {
+    public AgentSpan setOperationName(final CharSequence serviceName) {
       return this;
     }
 
@@ -326,7 +325,7 @@ public class AgentTracer {
     }
 
     @Override
-    public MutableSpan setServiceName(final String serviceName) {
+    public AgentSpan setServiceName(final String serviceName) {
       return this;
     }
 
@@ -336,7 +335,7 @@ public class AgentTracer {
     }
 
     @Override
-    public MutableSpan setResourceName(final CharSequence resourceName) {
+    public AgentSpan setResourceName(final CharSequence resourceName) {
       return this;
     }
 
@@ -346,7 +345,7 @@ public class AgentTracer {
     }
 
     @Override
-    public MutableSpan setSamplingPriority(final int newPriority) {
+    public AgentSpan setSamplingPriority(final int newPriority) {
       return this;
     }
 
@@ -386,7 +385,7 @@ public class AgentTracer {
     }
 
     @Override
-    public MutableSpan getRootSpan() {
+    public AgentSpan getRootSpan() {
       return this;
     }
 
