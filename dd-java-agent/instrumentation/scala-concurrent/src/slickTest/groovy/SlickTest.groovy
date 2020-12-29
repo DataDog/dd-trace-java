@@ -5,7 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 class SlickTest extends AgentTestRunner {
 
   // Can't be @Shared, otherwise the work queue is initialized before the instrumentation is applied
-  def database = new SlickUtils()
+  def database = new SlickUtils(TEST_WRITER)
 
   def "Basic statement generates spans"() {
     setup:

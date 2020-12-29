@@ -73,6 +73,10 @@ public class AgentTracer {
     }
   }
 
+  public static void forceRegister(TracerAPI tracer) {
+    provider.set(tracer);
+  }
+
   public static TracerAPI get() {
     return provider.get();
   }

@@ -25,9 +25,23 @@ public class TracerInstaller {
     try {
       GlobalTracer.registerIfAbsent(tracer);
       AgentTracer.registerIfAbsent(tracer);
+
+      log.debug("Global tracer installed");
     } catch (final RuntimeException re) {
       log.warn("Failed to register tracer: {}", tracer, re);
     }
-    log.debug("Global tracer installed");
+  }
+
+  public static void forceInstallGlobalTracer(CoreTracer tracer) {
+    try {
+      log.warn("Overriding installed global tracer.  This is not intended for production use");
+
+      GlobalTracer.forceRegister(tracer);
+      AgentTracer.forceRegister(tracer);
+
+      log.debug("Global tracer installed");
+    } catch (final RuntimeException re) {
+      log.warn("Failed to register tracer: {}", tracer, re);
+    }
   }
 }

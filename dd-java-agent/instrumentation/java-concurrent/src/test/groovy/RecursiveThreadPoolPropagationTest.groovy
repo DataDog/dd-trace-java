@@ -337,7 +337,7 @@ class RecursiveThreadPoolPropagationTest extends AgentTestRunner {
     5     | 4                                       | mixedSubmissionAndExecution | new DefaultEventLoopGroup(parallelism)
   }
 
-  private static void assertTrace(int depth) {
+  private void assertTrace(int depth) {
     TEST_WRITER.waitForTraces(1)
     TEST_WRITER.size() == 1
     int i = 0

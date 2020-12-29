@@ -3,6 +3,7 @@ package datadog.trace.agent.test.base
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
+import net.bytebuddy.utility.JavaModule
 import okhttp3.OkHttpClient
 import spock.lang.Shared
 
@@ -41,6 +42,17 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
     PortUtils.waitForPortToClose(port, 10, TimeUnit.SECONDS)
     println getClass().name + " http server stopped at: http://localhost:$port/"
   }
+
+  @Override
+  void onError(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded, Throwable throwable) {
+    if (throwable instanceof IllegalStateException
+      && throwable.message.startsWith("Illegal access: this web application instance has been stopped already. Could not load")) {
+      println "Ignoring class load error at shutdown"
+    } else {
+      super.onError(typeName, classLoader, module, loaded, throwable)
+    }
+  }
+
 
   URI buildAddress() {
     return new URI("http://localhost:$port/")

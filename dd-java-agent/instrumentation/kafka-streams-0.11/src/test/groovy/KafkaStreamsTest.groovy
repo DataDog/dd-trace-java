@@ -60,7 +60,7 @@ class KafkaStreamsTest extends AgentTestRunner {
         // ensure consistent ordering of traces
         // this is the last processing step so we should see 2 traces here
         TEST_WRITER.waitForTraces(3)
-        getTestTracer().activeSpan().setTag("testing", 123)
+        TEST_TRACER.activeSpan().setTag("testing", 123)
         records.add(record)
       }
     })
@@ -85,7 +85,7 @@ class KafkaStreamsTest extends AgentTestRunner {
         @Override
         String apply(String textLine) {
           TEST_WRITER.waitForTraces(2) // ensure consistent ordering of traces
-          getTestTracer().activeSpan().setTag("asdf", "testing")
+          TEST_TRACER.activeSpan().setTag("asdf", "testing")
           return textLine.toLowerCase()
         }
       })

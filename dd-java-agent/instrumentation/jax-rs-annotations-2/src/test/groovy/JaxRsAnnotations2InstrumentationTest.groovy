@@ -121,10 +121,7 @@ class JaxRsAnnotations2InstrumentationTest extends AgentTestRunner {
     // TODO: uncomment when we drop support for Java 7
 //    "GET /child/invoke"         | new JavaInterfaces.DefaultChildClassOnInterface()
 
-    className = getClassName(obj.class)
-
-    // JavaInterfaces classes are loaded on a different classloader, so we need to find the right cache instance.
-    decorator = obj.class.classLoader.loadClass(JaxRsAnnotationsDecorator.name).getField("DECORATE").get(null)
+    className = JaxRsAnnotationsDecorator.DECORATE.className(obj.class)
   }
 
   def "no annotations has no effect"() {

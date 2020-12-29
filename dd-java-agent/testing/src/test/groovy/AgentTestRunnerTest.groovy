@@ -4,11 +4,12 @@ import datadog.trace.agent.test.SpockRunner
 import datadog.trace.agent.test.utils.ClasspathUtils
 import datadog.trace.agent.tooling.Constants
 import datadog.trace.api.GlobalTracer
+import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import spock.lang.Shared
 
-import java.lang.reflect.Field
 import java.util.concurrent.TimeoutException
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -16,19 +17,14 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_
 
 class AgentTestRunnerTest extends AgentTestRunner {
   private static final ClassLoader BOOTSTRAP_CLASSLOADER = null
-  private static final boolean AGENT_INSTALLED_IN_CLINIT
 
   @Shared
   private Class sharedSpanClass
 
-  static {
-    AGENT_INSTALLED_IN_CLINIT = getAgentTransformer() != null
-  }
-
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    
+
     injectSysConfig(TRACE_CLASSES_EXCLUDE, "config.exclude.packagename.*, config.exclude.SomeClass,config.exclude.SomeClass\$NestedClass")
   }
 
@@ -57,12 +53,9 @@ class AgentTestRunnerTest extends AgentTestRunner {
     }
 
     expect:
-    // shared OT classes should cause no trouble
     sharedSpanClass.getClassLoader() == BOOTSTRAP_CLASSLOADER
     AgentTracer.getClassLoader() == BOOTSTRAP_CLASSLOADER
-    !AGENT_INSTALLED_IN_CLINIT
-    getTestTracer() == AgentTracer.get()
-    getAgentTransformer() != null
+    TEST_TRACER == AgentTracer.get()
     AgentTracer.get() == GlobalTracer.get()
     bootstrapClassesIncorrectlyLoaded == []
   }
@@ -75,6 +68,22 @@ class AgentTestRunnerTest extends AgentTestRunner {
 
     then:
     thrown(TimeoutException)
+  }
+
+  def "waiting for noop span returns immediately"() {
+    when:
+    AgentScope scope
+    runUnderTrace("parent") {
+      scope = TEST_TRACER.activateSpan(AgentTracer.NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+
+      blockUntilChildSpansFinished(1)
+    }
+
+    then:
+    noExceptionThrown()
+
+    cleanup:
+    scope?.close()
   }
 
   def "logging works"() {
@@ -127,17 +136,6 @@ class AgentTestRunnerTest extends AgentTestRunner {
           childOf(span(0))
         }
       }
-    }
-  }
-
-  private static getAgentTransformer() {
-    Field f
-    try {
-      f = AgentTestRunner.getDeclaredField("activeTransformer")
-      f.setAccessible(true)
-      return f.get(null)
-    } finally {
-      f.setAccessible(false)
     }
   }
 }

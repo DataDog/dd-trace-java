@@ -41,13 +41,12 @@ class ClassInjectingLoadClassDisabledForkedTest extends AgentTestRunner {
   }
 
   @Override
-  protected boolean onInstrumentationError(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded, Throwable throwable) {
+  void onError(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded, Throwable throwable) {
     if (typeName == "${ClassInjectingTestInstrumentation.name}\$ToBeInstrumented") {
       instrumentationFailure = true
-      return false
+    } else {
+      super.onError(typeName, classLoader, module, loaded, throwable)
     }
-
-    return super.onInstrumentationError(typeName, classLoader, module, loaded, throwable)
   }
 
   @Shared
