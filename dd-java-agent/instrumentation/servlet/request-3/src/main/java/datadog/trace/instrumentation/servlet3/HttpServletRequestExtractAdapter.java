@@ -19,17 +19,5 @@ public class HttpServletRequestExtractAdapter
         break;
       }
     }
-    /*
-     * Read from the attributes and override the headers.
-     * This is used by ServletRequestSetter when a request is async-dispatched.
-     */
-    Enumeration<String> attributeNames = carrier.getAttributeNames();
-    while (attributeNames.hasMoreElements()) {
-      String name = attributeNames.nextElement();
-      Object attribute = carrier.getAttribute(name);
-      if (attribute instanceof String && !classifier.accept(name, (String) attribute)) {
-        return;
-      }
-    }
   }
 }

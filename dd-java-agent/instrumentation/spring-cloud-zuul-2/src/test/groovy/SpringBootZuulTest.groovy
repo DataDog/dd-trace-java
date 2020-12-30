@@ -167,7 +167,7 @@ class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> 
     }
   }
 
-  // This adds the "servlet.path" and "servlet.dispatch" tags to the normal server span
+  // This adds the "servlet.path" tag to the normal server span
   @Override
   void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
     trace.span {
@@ -191,7 +191,6 @@ class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> 
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" endpoint.status
         "servlet.path" endpoint.path
-        "servlet.dispatch" "/$endpoint.path"
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }

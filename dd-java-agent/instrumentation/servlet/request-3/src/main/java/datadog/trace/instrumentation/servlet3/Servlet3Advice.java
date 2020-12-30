@@ -27,28 +27,29 @@ import net.bytebuddy.asm.Advice;
 public class Servlet3Advice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(
-      @Advice.This final Object servlet,
-      @Advice.Argument(0) final ServletRequest request,
-      @Advice.Argument(1) final ServletResponse response) {
-
-    final boolean hasServletTrace = request.getAttribute(DD_SPAN_ATTRIBUTE) instanceof AgentSpan;
+  public static AgentScope onEnter(@Advice.Argument(0) final ServletRequest request) {
     final boolean invalidRequest = !(request instanceof HttpServletRequest);
-    if (invalidRequest || hasServletTrace) {
-      // Tracing might already be applied by the FilterChain or a parent request (forward/include).
+    if (invalidRequest) {
       return null;
     }
 
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
 
-    final AgentSpan.Context extractedContext;
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
     if (dispatchSpan instanceof AgentSpan) {
-      extractedContext = ((AgentSpan) dispatchSpan).context();
       request.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
-    } else {
-      extractedContext = propagate().extract(httpServletRequest, GETTER);
+      // Activate the dispatch span as the request span so it can be finished with the request.
+      // We don't want to create a new servlet.request span since this is internal processing.
+      return activateSpan(((AgentSpan) dispatchSpan));
     }
+
+    final boolean hasServletTrace = request.getAttribute(DD_SPAN_ATTRIBUTE) instanceof AgentSpan;
+    if (hasServletTrace) {
+      // Tracing might already be applied by the FilterChain or a parent request (forward/include).
+      return null;
+    }
+
+    final AgentSpan.Context extractedContext = propagate().extract(httpServletRequest, GETTER);
 
     final AgentSpan span = startSpan(SERVLET_REQUEST, extractedContext).setMeasured(true);
 

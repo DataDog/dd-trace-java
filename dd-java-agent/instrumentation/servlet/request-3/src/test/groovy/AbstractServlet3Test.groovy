@@ -3,6 +3,7 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -101,22 +102,15 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     super.request(uri, method, body)
   }
 
-  // Almost identical to serverSpan()
   void dispatchSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     trace.span {
       serviceName expectedServiceName()
-      operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "GET ${endpoint.resolve(address).path.replace("/dispatch", "")}"
-      spanType DDSpanTypes.HTTP_SERVER
+      operationName "servlet.dispatch"
+      resourceName endpoint.path
       errored endpoint.errored
       childOfPrevious()
       tags {
-        "$Tags.COMPONENT" component
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
-        "$Tags.PEER_PORT" Integer
-        "$Tags.HTTP_URL" "${endpoint.resolve(address)}".replace("/dispatch", "")
-        "$Tags.HTTP_METHOD" "GET"
+        "$Tags.COMPONENT" AsyncDispatcherDecorator.DECORATE.component()
         if (endpoint.status > 0) {
           "$Tags.HTTP_STATUS" endpoint.status
         } else {
@@ -125,14 +119,11 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
         if (context) {
           "servlet.context" "/$context"
         }
-        "servlet.path" endpoint.status == 404 ? endpoint.path : "$endpoint.path".replace("/dispatch", "")
+        "servlet.path" "/dispatch$endpoint.path"
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }
           "error.stack" { it == null || it instanceof String }
-        }
-        if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.query
         }
         defaultTags()
       }
@@ -254,7 +245,6 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
 
         if (dispatch) {
           "servlet.path" "/dispatch$endpoint.path"
-          "servlet.dispatch" endpoint.path
         } else {
           "servlet.path" endpoint.path
         }
