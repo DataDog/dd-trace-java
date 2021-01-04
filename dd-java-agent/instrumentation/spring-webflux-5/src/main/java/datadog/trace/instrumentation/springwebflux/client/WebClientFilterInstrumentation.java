@@ -30,7 +30,6 @@ public class WebClientFilterInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpHeadersInjectAdapter",
       packageName + ".SpringWebfluxHttpClientDecorator",
       packageName + ".TraceWebClientSubscriber",
       packageName + ".WebClientTracingFilter",
