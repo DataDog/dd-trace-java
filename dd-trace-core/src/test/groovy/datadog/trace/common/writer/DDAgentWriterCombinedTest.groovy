@@ -605,9 +605,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
   }
 
   def "statsd success"() {
-    def numTracesAccepted = 0
-    def numRequests = 0
-    def numResponses = 0
+    def numTracesAccepted = new AtomicInteger(0)
+    def numRequests = new AtomicInteger(0)
+    def numResponses = new AtomicInteger(0)
 
     setup:
     def minimalTrace = createMinimalTrace()
@@ -624,13 +624,13 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
     def statsd = Stub(StatsDClient)
     statsd.incrementCounter("queue.enqueued.traces", _) >> { stat ->
-      numTracesAccepted += 1
+      numTracesAccepted.incrementAndGet()
     }
     statsd.incrementCounter("api.requests.total") >> { stat ->
-      numRequests += 1
+      numRequests.incrementAndGet()
     }
     statsd.incrementCounter("api.responses.total", _) >> { stat, tags ->
-      numResponses += 1
+      numResponses.incrementAndGet()
     }
 
     def healthMetrics = new HealthMetrics(statsd)
@@ -646,9 +646,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.flush()
 
     then:
-    numTracesAccepted == 1
-    numRequests == 1
-    numResponses == 1
+    numTracesAccepted.get() == 1
+    numRequests.get() == 1
+    numResponses.get() == 1
 
     cleanup:
     agent.close()
@@ -659,9 +659,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
   }
 
   def "statsd comm failure"() {
-    def numRequests = 0
-    def numResponses = 0
-    def numErrors = 0
+    def numRequests = new AtomicInteger(0)
+    def numResponses = new AtomicInteger(0)
+    def numErrors = new AtomicInteger(0)
 
     setup:
     def minimalTrace = createMinimalTrace()
@@ -671,13 +671,13 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
     def statsd = Stub(StatsDClient)
     statsd.incrementCounter("api.requests.total") >> { stat ->
-      numRequests += 1
+      numRequests.incrementAndGet()
     }
     statsd.incrementCounter("api.responses.total", _) >> { stat, tags ->
-      numResponses += 1
+      numResponses.incrementAndGet()
     }
     statsd.incrementCounter("api.errors.total", _) >> { stat ->
-      numErrors += 1
+      numErrors.incrementAndGet()
     }
 
     def healthMetrics = new HealthMetrics(statsd)
@@ -692,9 +692,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.flush()
 
     then:
-    numRequests == 1
-    numResponses == 0
-    numErrors == 1
+    numRequests.get() == 1
+    numResponses.get() == 0
+    numErrors.get() == 1
 
     cleanup:
     writer.close()
