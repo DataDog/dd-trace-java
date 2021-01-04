@@ -13,9 +13,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Constants;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.Constants;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -44,11 +44,6 @@ public final class ClassloadingInstrumentation extends Instrumenter.Tracing {
     // bootstrap loader (or happen to _be_ the bootstrap loader)
     return namedNoneOf("java.lang.ClassLoader", "com.ibm.oti.vm.BootstrapClassLoader")
         .and(extendsClass(named("java.lang.ClassLoader")));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {Constants.class.getName()};
   }
 
   @Override

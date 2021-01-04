@@ -6,8 +6,8 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Constants;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.Constants;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
@@ -29,11 +29,6 @@ public final class GlassFishInstrumentation extends Instrumenter.Tracing {
 
   public GlassFishInstrumentation() {
     super("glassfish");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {Constants.class.getName()};
   }
 
   @Override
