@@ -39,12 +39,11 @@ class AgentTaskSchedulerTest extends DDSpecification {
     !scheduler.isShutdown()
 
     when:
-    scheduler.scheduleAtFixedRate(task, latch, 10, 10, MILLISECONDS)
+    scheduler.scheduleAtFixedRate(task, latch, 50, 10, MILLISECONDS)
     scheduler.taskCount() == 1
 
     then:
     latch.await(500, MILLISECONDS)
-    scheduler.taskCount() == 1
   }
 
   def "test weak scheduling"() {
