@@ -56,6 +56,17 @@ public final class NameMatchers {
   }
 
   /**
+   * Matches a {@link NamedElement} for its name's suffix.
+   *
+   * @param suffix The expected name's suffix.
+   * @param <T> The type of the matched object.
+   * @return An element matcher for a named element's name's suffix.
+   */
+  public static <T extends NamedElement> ElementMatcher.Junction<T> nameEndsWith(String suffix) {
+    return SuffixMatcher.of(suffix);
+  }
+
+  /**
    * Matches a {@link NamedElement} for its exact name.
    *
    * @param name The expected name.
@@ -150,6 +161,38 @@ public final class NameMatchers {
     @Override
     public boolean matches(T target) {
       return target.getActualName().startsWith(prefix);
+    }
+  }
+
+  private static final class SuffixMatcher<T extends NamedElement>
+      extends ElementMatcher.Junction.AbstractBase<T> {
+
+    private static final ConcurrentHashMap<String, SuffixMatcher<? extends NamedElement>>
+        DEDUPLICATOR = new ConcurrentHashMap<>();
+
+    @SuppressWarnings("unchecked")
+    static <T extends NamedElement> SuffixMatcher<T> of(String suffix) {
+      // TODO use computeIfAbsent when baselining on JDK8
+      SuffixMatcher<?> matcher = DEDUPLICATOR.get(suffix);
+      if (null == matcher) {
+        matcher = new SuffixMatcher<>(suffix);
+        SuffixMatcher<?> predecessor = DEDUPLICATOR.putIfAbsent(suffix, matcher);
+        if (null != predecessor) {
+          matcher = predecessor;
+        }
+      }
+      return (SuffixMatcher<T>) matcher;
+    }
+
+    private final String suffix;
+
+    private SuffixMatcher(String suffix) {
+      this.suffix = suffix;
+    }
+
+    @Override
+    public boolean matches(T target) {
+      return target.getActualName().endsWith(suffix);
     }
   }
 }
