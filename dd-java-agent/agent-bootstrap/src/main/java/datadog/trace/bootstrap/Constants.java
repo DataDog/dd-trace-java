@@ -3,7 +3,7 @@ package datadog.trace.bootstrap;
 /**
  * Some useful constants.
  *
- * <p>Idea here is to keep this class safe to inject into client's class loader.
+ * <p>The idea here is to keep this class safe to inject into client's class loader.
  */
 public final class Constants {
 
