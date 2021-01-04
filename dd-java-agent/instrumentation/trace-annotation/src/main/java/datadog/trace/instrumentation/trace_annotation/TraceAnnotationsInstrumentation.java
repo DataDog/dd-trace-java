@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.trace_annotation;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.instrumentation.trace_annotation.TraceConfigInstrumentation.PACKAGE_CLASS_NAME_REGEX;
 import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
 import static net.bytebuddy.matcher.ElementMatchers.is;
@@ -12,10 +12,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.Trace;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -35,15 +33,16 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing 
           + PACKAGE_CLASS_NAME_REGEX
           + "\\s*;?\\s*";
 
-  private static final List<String> DEFAULT_ANNOTATIONS =
-      Arrays.asList(
-          "com.newrelic.api.agent.Trace",
-          "kamon.annotation.Trace",
-          "com.tracelytics.api.ext.LogMethod",
-          "io.opentracing.contrib.dropwizard.Trace",
-          "org.springframework.cloud.sleuth.annotation.NewSpan");
+  private static final String[] DEFAULT_ANNOTATIONS = {
+    "com.newrelic.api.agent.Trace",
+    "kamon.annotation.Trace",
+    "com.tracelytics.api.ext.LogMethod",
+    "io.opentracing.contrib.dropwizard.Trace",
+    "org.springframework.cloud.sleuth.annotation.NewSpan"
+  };
 
-  private final Set<String> additionalTraceAnnotations;
+  private static final String[] EMPTY = new String[0];
+  private final String[] additionalTraceAnnotations;
   private final ElementMatcher.Junction<NamedElement> methodTraceMatcher;
 
   public TraceAnnotationsInstrumentation() {
@@ -51,14 +50,14 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing 
 
     final String configString = Config.get().getTraceAnnotations();
     if (configString == null) {
-      additionalTraceAnnotations = Collections.unmodifiableSet(new HashSet<>(DEFAULT_ANNOTATIONS));
+      additionalTraceAnnotations = DEFAULT_ANNOTATIONS;
     } else if (configString.trim().isEmpty()) {
-      additionalTraceAnnotations = Collections.emptySet();
+      additionalTraceAnnotations = EMPTY;
     } else if (!configString.matches(CONFIG_FORMAT)) {
       log.warn(
           "Invalid trace annotations config '{}'. Must match 'package.Annotation$Name;*'.",
           configString);
-      additionalTraceAnnotations = Collections.emptySet();
+      additionalTraceAnnotations = EMPTY;
     } else {
       final String[] annotationClasses = configString.split(";", -1);
       final Set<String> annotations = new HashSet<>(annotationClasses.length);
@@ -67,14 +66,12 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing 
           annotations.add(annotationClass.trim());
         }
       }
-      additionalTraceAnnotations = Collections.unmodifiableSet(annotations);
+      additionalTraceAnnotations = annotations.toArray(EMPTY);
     }
 
     ElementMatcher.Junction<NamedElement> methodTraceMatcher =
-        is(new TypeDescription.ForLoadedType(Trace.class));
-    for (final String annotationName : additionalTraceAnnotations) {
-      methodTraceMatcher = methodTraceMatcher.or(named(annotationName));
-    }
+        is(new TypeDescription.ForLoadedType(Trace.class))
+            .or(namedOneOf(additionalTraceAnnotations));
     this.methodTraceMatcher = methodTraceMatcher;
   }
 

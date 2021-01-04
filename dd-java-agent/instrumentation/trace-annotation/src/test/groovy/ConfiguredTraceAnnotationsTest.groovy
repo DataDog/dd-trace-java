@@ -54,11 +54,11 @@ class ConfiguredTraceAnnotationsTest extends AgentTestRunner {
     }
 
     expect:
-    new TraceAnnotationsInstrumentation().additionalTraceAnnotations == expected.toSet()
+    new HashSet<>(Arrays.asList(new TraceAnnotationsInstrumentation().additionalTraceAnnotations)) == expected.toSet()
 
     where:
     value                               | expected
-    null                                | DEFAULT_ANNOTATIONS.toList()
+    null                                | Arrays.asList(DEFAULT_ANNOTATIONS)
     " "                                 | []
     "some.Invalid[]"                    | []
     "some.package.ClassName "           | ["some.package.ClassName"]
