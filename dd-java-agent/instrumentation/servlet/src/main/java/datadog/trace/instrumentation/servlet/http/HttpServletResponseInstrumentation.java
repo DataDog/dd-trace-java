@@ -13,7 +13,6 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -75,8 +74,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Traci
       final AgentSpan span = startSpan(SERVLET_RESPONSE);
       DECORATE.afterStart(span);
 
-      span.setTag(
-          DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(HttpServletResponse.class, method));
+      span.setResourceName(DECORATE.spanNameForMethod(HttpServletResponse.class, method));
 
       final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
