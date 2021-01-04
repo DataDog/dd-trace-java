@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.springweb;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -122,13 +121,10 @@ public class SpringWebHttpServerDecorator
     if (handler instanceof HandlerMethod) {
       // name span based on the class and method name defined in the handler
       final Method method = ((HandlerMethod) handler).getMethod();
-      span.setTag(
-          DDTags.RESOURCE_NAME,
+      span.setResourceName(
           DECORATE.spanNameForMethod(method.getDeclaringClass(), method.getName()));
     } else {
-      span.setTag(
-          DDTags.RESOURCE_NAME,
-          DECORATE.spanNameForMethod(handler.getClass(), getMethodName(handler)));
+      span.setResourceName(DECORATE.spanNameForMethod(handler.getClass(), getMethodName(handler)));
     }
   }
 
