@@ -11,6 +11,19 @@ muzzle {
   }
 }
 
+// We need to set up the spotless targets here before we apply the standard settings to avoid
+// having all the scala files in the common test directories being added as well, making spotless
+// fail because the files are outside this project directory
+apply plugin: 'com.diffplug.gradle.spotless'
+spotless {
+  groovy {
+    target('src/**/*.groovy')
+  }
+  scala {
+    target('src/**/*.scala')
+  }
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.
 
@@ -28,15 +41,6 @@ sourceSets {
 
   test.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
   latestDepTest.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
-}
-
-spotless {
-  groovy {
-    target('src/**/*.groovy')
-  }
-  scala {
-    targetExclude("${project(':dd-java-agent:instrumentation:scala-promise').path}/src/**/*.scala")
-  }
 }
 
 compileTestGroovy {
