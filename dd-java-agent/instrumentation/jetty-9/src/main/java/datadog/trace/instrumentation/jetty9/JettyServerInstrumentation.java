@@ -1,13 +1,14 @@
 package datadog.trace.instrumentation.jetty9;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
-import static datadog.trace.instrumentation.jetty9.HttpServletRequestExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.SERVLET_REQUEST;
+import static datadog.trace.instrumentation.jetty9.RequestExtractAdapter.GETTER;
 import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
@@ -33,7 +34,7 @@ import org.eclipse.jetty.server.Response;
 public final class JettyServerInstrumentation extends Instrumenter.Tracing {
 
   public JettyServerInstrumentation() {
-    super("jetty", "jetty-9");
+    super("jetty");
   }
 
   @Override
@@ -45,7 +46,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JettyDecorator",
-      packageName + ".HttpServletRequestExtractAdapter",
+      packageName + ".RequestExtractAdapter",
       packageName + ".RequestURIDataAdapter",
     };
   }
@@ -74,7 +75,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
         JettyServerInstrumentation.class.getName() + "$HandleAdvice");
     transformers.put(
         // name changed to recycle in 9.3.0
-        named("reset").or(named("recycle")).and(takesNoArguments()),
+        namedOneOf("reset", "recycle").and(takesNoArguments()),
         JettyServerInstrumentation.class.getName() + "$ResetAdvice");
     return transformers;
   }

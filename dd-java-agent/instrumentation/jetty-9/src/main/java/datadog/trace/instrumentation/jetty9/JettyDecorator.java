@@ -3,11 +3,10 @@ package datadog.trace.instrumentation.jetty9;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
 
-public class JettyDecorator
-    extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
+public class JettyDecorator extends HttpServerDecorator<Request, Request, Response> {
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence JETTY_SERVER = UTF8BytesString.create("jetty-server");
   public static final JettyDecorator DECORATE = new JettyDecorator();
@@ -16,7 +15,7 @@ public class JettyDecorator
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"jetty", "jetty-9"};
+    return new String[] {"jetty"};
   }
 
   @Override
@@ -25,27 +24,27 @@ public class JettyDecorator
   }
 
   @Override
-  protected String method(final HttpServletRequest httpServletRequest) {
-    return httpServletRequest.getMethod();
+  protected String method(final Request request) {
+    return request.getMethod();
   }
 
   @Override
-  protected URIDataAdapter url(final HttpServletRequest httpServletRequest) {
-    return new RequestURIDataAdapter(httpServletRequest);
+  protected URIDataAdapter url(final Request request) {
+    return new RequestURIDataAdapter(request);
   }
 
   @Override
-  protected String peerHostIP(final HttpServletRequest httpServletRequest) {
-    return httpServletRequest.getRemoteAddr();
+  protected String peerHostIP(final Request request) {
+    return request.getRemoteAddr();
   }
 
   @Override
-  protected int peerPort(final HttpServletRequest httpServletRequest) {
-    return httpServletRequest.getRemotePort();
+  protected int peerPort(final Request request) {
+    return request.getRemotePort();
   }
 
   @Override
-  protected int status(final HttpServletResponse httpServletResponse) {
-    return httpServletResponse.getStatus();
+  protected int status(final Response response) {
+    return response.getStatus();
   }
 }

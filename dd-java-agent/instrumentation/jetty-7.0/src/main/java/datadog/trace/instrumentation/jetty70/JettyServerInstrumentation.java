@@ -5,9 +5,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
-import static datadog.trace.instrumentation.jetty70.HttpServletRequestExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.jetty70.JettyDecorator.DECORATE;
 import static datadog.trace.instrumentation.jetty70.JettyDecorator.SERVLET_REQUEST;
+import static datadog.trace.instrumentation.jetty70.RequestExtractAdapter.GETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -49,7 +49,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JettyDecorator",
-      packageName + ".HttpServletRequestExtractAdapter",
+      packageName + ".RequestExtractAdapter",
       packageName + ".RequestURIDataAdapter",
     };
   }
@@ -120,6 +120,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
 
   // Working assumption is that all channels get reset rather than GC'd.
   // This should give us the final status code and the broadest span time measurement.
+  // If this assumption fails, the span would not be finished properly.
   public static class ResetAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final HttpConnection channel) {

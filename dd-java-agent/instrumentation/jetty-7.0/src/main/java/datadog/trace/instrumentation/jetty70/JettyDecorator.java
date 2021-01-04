@@ -24,23 +24,23 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
   }
 
   @Override
-  protected String method(final Request Request) {
-    return Request.getMethod();
+  protected String method(final Request request) {
+    return request.getMethod();
   }
 
   @Override
-  protected URIDataAdapter url(final Request Request) {
-    return new RequestURIDataAdapter(Request);
+  protected URIDataAdapter url(final Request request) {
+    return new RequestURIDataAdapter(request);
   }
 
   @Override
-  protected String peerHostIP(final Request Request) {
-    return Request.getRemoteAddr();
+  protected String peerHostIP(final Request request) {
+    return request.getRemoteAddr();
   }
 
   @Override
-  protected int peerPort(final Request Request) {
-    return Request.getRemotePort();
+  protected int peerPort(final Request request) {
+    return request.getRemotePort();
   }
 
   @Override
