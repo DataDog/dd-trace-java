@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -50,11 +51,7 @@ public final class NameMatchers {
 
     private SetMatcher(boolean include, String... values) {
       this.include = include;
-      this.values = new HashSet<>(values.length * 2);
-      // happens early in the program and don't want to allocate a list
-      for (String value : values) {
-        this.values.add(value);
-      }
+      this.values = new HashSet<>(Arrays.asList(values));
     }
 
     private SetMatcher(boolean include, Collection<String> values) {
