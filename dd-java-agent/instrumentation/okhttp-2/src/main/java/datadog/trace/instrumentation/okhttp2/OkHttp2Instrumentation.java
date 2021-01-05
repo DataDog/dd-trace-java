@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.okhttp2;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import com.squareup.okhttp.Interceptor;

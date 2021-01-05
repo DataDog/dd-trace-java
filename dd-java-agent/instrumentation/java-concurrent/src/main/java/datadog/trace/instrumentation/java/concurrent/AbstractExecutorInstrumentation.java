@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.any;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;

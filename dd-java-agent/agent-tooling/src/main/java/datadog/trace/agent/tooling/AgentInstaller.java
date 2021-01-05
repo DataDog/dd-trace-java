@@ -2,9 +2,9 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.skipClassLoader;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.any;
-import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import datadog.trace.agent.tooling.context.FieldBackedProvider;

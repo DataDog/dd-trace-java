@@ -2,11 +2,11 @@ package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.PREPARED_STATEMENTS_SQL;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 

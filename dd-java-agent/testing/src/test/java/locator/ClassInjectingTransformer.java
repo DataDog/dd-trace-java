@@ -1,10 +1,10 @@
 package locator;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.jar.asm.Opcodes.ACC_ABSTRACT;
 import static net.bytebuddy.jar.asm.Opcodes.ACC_INTERFACE;
 import static net.bytebuddy.jar.asm.Opcodes.ACC_PUBLIC;
 import static net.bytebuddy.jar.asm.Opcodes.V1_7;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;

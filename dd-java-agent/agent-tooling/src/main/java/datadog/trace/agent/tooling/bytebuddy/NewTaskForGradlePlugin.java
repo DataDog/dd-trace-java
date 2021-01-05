@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
-import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 
 import java.io.IOException;
 import net.bytebuddy.build.Plugin;

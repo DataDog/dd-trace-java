@@ -1,11 +1,11 @@
 package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.failSafe;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.DDTransformers;

@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf
 import static net.bytebuddy.matcher.ElementMatchers.isMethod
-import static net.bytebuddy.matcher.ElementMatchers.named
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
 abstract class BaseExceptionHandlerTest extends DDSpecification {
   @Shared
