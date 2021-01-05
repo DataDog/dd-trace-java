@@ -73,7 +73,16 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
     return transformers;
   }
 
-  // This advice is needed to link the Generator with the Response so we can get the right status
+  /**
+   * HttpConnection's have both a generator and a response instance. The generator is what writes
+   * out the final bytes that are sent back to the requestor. We read the status code from the
+   * response in ResetAdvice, but in some cases the final status code is only set in the generator
+   * directly, not the response. (For example, this happens when an exception is thrown and jetty
+   * must send a 500 status.) We use the JettyGeneratorInstrumentation to ensure that the response
+   * is updated when the generator is. Since the status on the response is reset when the connection
+   * is reset, this minor change in behavior is inconsequential. This advice provides the needed
+   * link between generator -> response to enable this.
+   */
   public static class ConstructorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void link(
@@ -83,7 +92,10 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  // handleRequest is used instead of handle to allow the incoming request to be fully parsed.
+  /**
+   * The handleRequest call denotes the earliest point at which the incoming request is fully
+   * parsed. This allows us to read the headers from the request to extract propagation info.
+   */
   public static class HandleRequestAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
@@ -92,7 +104,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
 
       Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (existingSpan instanceof AgentSpan) {
-        // Request already gone through initial processing.
+        // Request already gone through initial processing, so just activate the span.
         return activateSpan((AgentSpan) existingSpan);
       }
 
@@ -113,13 +125,15 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void closeScope(@Advice.Enter final AgentScope scope) {
+      // Span is finished when the connection is reset, so we only need to close the scope here.
       scope.close();
     }
   }
 
-  // Working assumption is that all channels get reset rather than GC'd.
-  // This should give us the final status code and the broadest span time measurement.
-  // If this assumption fails, the span would not be finished properly.
+  /**
+   * Jetty ensures that connections are reset immediately after the response is sent. This provides
+   * a reliable point to finish the server span at the last possible moment.
+   */
   public static class ResetAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final AbstractHttpConnection channel) {

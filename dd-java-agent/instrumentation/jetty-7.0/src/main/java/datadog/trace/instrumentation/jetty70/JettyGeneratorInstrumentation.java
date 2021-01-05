@@ -42,7 +42,14 @@ public final class JettyGeneratorInstrumentation extends Instrumenter.Tracing {
         JettyGeneratorInstrumentation.class.getName() + "$SetResponseAdvice");
   }
 
-  // This advice ensures that the right status is updated on the response.
+  /**
+   * The generator is what writes out the final bytes that are sent back to the requestor. We read
+   * the status code from the response in ResetAdvice, but in some cases the final status code is
+   * only set in the generator directly, not the response. (For example, this happens when an
+   * exception is thrown and jetty must send a 500 status.) We use this instrumentation to ensure
+   * that the response is updated when the generator is. Since the status on the response is reset
+   * when the connection is reset, this minor change in behavior is inconsequential.
+   */
   public static class SetResponseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void updateResponse(

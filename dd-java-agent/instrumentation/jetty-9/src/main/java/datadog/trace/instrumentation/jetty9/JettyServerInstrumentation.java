@@ -88,7 +88,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
 
       Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (existingSpan instanceof AgentSpan) {
-        // Request already gone through initial processing.
+        // Request already gone through initial processing, so just activate the span.
         return activateSpan((AgentSpan) existingSpan);
       }
 
@@ -113,8 +113,10 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  // Working assumption is that all channels get reset rather than GC'd.
-  // This should give us the final status code and the broadest span time measurement.
+  /**
+   * Jetty ensures that connections are reset immediately after the response is sent. This provides
+   * a reliable point to finish the server span at the last possible moment.
+   */
   public static class ResetAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void stopSpan(@Advice.This final HttpChannel<?> channel) {
