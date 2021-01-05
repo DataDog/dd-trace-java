@@ -527,13 +527,8 @@ public class Config {
 
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
 
-    String proxyNoProxy = configProvider.getString(TracerConfig.PROXY_NO_PROXY);
-    if (null != proxyNoProxy && !proxyNoProxy.isEmpty()) {
-      // DD_PROXY_NO_PROXY is specified as a space-separated list of hosts
-      noProxyHosts = new HashSet<>(Arrays.asList(proxyNoProxy.split(" ")));
-    } else {
-      noProxyHosts = Collections.emptySet();
-    }
+    // DD_PROXY_NO_PROXY is specified as a space-separated list of hosts
+    noProxyHosts = new HashSet<>(configProvider.getSpacedList(TracerConfig.PROXY_NO_PROXY));
 
     prioritySamplingEnabled =
         configProvider.getBoolean(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
