@@ -13,7 +13,7 @@ import net.bytebuddy.jar.asm.Opcodes
 import spock.lang.Shared
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType
-import static net.bytebuddy.matcher.ElementMatchers.named
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
 class SafeHasSuperTypeMatcherTest extends DDSpecification {
   @Shared

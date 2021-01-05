@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.datanucleus;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -8,7 +9,6 @@ import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DAT
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DATANUCLEUS_QUERY_EXECUTE;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;

@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.akka.init;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import akka.actor.ActorSystem$;
 import com.google.auto.service.AutoService;

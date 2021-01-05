@@ -11,7 +11,7 @@ import net.bytebuddy.jar.asm.Opcodes
 import spock.lang.Shared
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass
-import static net.bytebuddy.matcher.ElementMatchers.named
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
 class ExtendsClassMatcherTest extends DDSpecification {
   @Shared

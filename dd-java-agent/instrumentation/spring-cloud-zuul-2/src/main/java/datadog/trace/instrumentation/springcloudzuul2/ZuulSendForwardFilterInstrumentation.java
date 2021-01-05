@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.springcloudzuul2;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.springcloudzuul2.ResourceNameCache.RESOURCE_NAME_CACHE;
 import static datadog.trace.instrumentation.springcloudzuul2.ResourceNameCache.RESOURCE_NAME_JOINER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;

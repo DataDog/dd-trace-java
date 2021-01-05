@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling;
 
-import static net.bytebuddy.matcher.ElementMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.bootstrap.DatadogClassLoader.BootstrapClassLoaderProxy;

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -8,7 +9,6 @@ import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.AKK
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders.GETTER;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import akka.NotUsed;

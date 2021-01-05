@@ -14,7 +14,7 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface
-import static net.bytebuddy.matcher.ElementMatchers.named
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
 class HasInterfaceMatcherTest extends DDSpecification {
   @Shared
