@@ -96,7 +96,9 @@ public class StatusLogger {
       writer.name("service");
       writer.value(config.getServiceName());
       writer.name("agent_url");
-      writer.value("http://" + config.getAgentHost() + ":" + config.getAgentPort());
+      writer.value(config.getAgentUrl());
+      writer.name("agent_unix_domain_socket");
+      writer.value(config.getAgentUnixDomainSocket());
       writer.name("agent_error");
       writer.value(!agentServiceCheck(config));
       writer.name("debug");
