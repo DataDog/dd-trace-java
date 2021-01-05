@@ -21,6 +21,7 @@ class JDBCWrappedInterfacesTest extends AgentTestRunner {
     super.configurePreAgent()
 
     injectSysConfig("dd.trace.jdbc.prepared.statement.class.name", "test.TestPreparedStatement")
+    injectSysConfig("dd.trace.jdbc.connection.class.name", "test.TestConnection")
   }
 
   static query = "SELECT 1"

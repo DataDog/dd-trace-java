@@ -261,6 +261,8 @@ public class Config {
   private static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
       "trace.jdbc.prepared.statement.class.name";
 
+  private static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
+
   private static final String TRACE_AGENT_URL_TEMPLATE = "http://%s:%d";
 
   private static final String PROFILING_REMOTE_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
@@ -414,6 +416,7 @@ public class Config {
   @Getter private final boolean resolverUseLoadClassEnabled;
 
   @Getter private final String jdbcPreparedStatementClassName;
+  @Getter private final String jdbcConnectionClassName;
 
   private final ConfigProvider configProvider;
 
@@ -739,6 +742,8 @@ public class Config {
 
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
+
+    jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
 
     kafkaClientPropagationEnabled =
         configProvider.getBoolean(
