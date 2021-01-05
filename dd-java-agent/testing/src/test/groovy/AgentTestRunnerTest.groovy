@@ -2,8 +2,8 @@ import com.google.common.reflect.ClassPath
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.SpockRunner
 import datadog.trace.agent.test.utils.ClasspathUtils
-import datadog.trace.agent.tooling.Constants
 import datadog.trace.api.GlobalTracer
+import datadog.trace.bootstrap.Constants
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer

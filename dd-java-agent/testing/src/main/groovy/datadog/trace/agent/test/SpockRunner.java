@@ -26,7 +26,7 @@ import org.spockframework.runtime.Sputnik;
  */
 public class SpockRunner extends Sputnik {
   /**
-   * An exact copy of {@link datadog.trace.agent.tooling.Constants#BOOTSTRAP_PACKAGE_PREFIXES}.
+   * An exact copy of {@link datadog.trace.bootstrap.Constants#BOOTSTRAP_PACKAGE_PREFIXES}.
    *
    * <p>This list is needed to initialize the bootstrap classpath because Utils' static initializer
    * references bootstrap classes (e.g. DatadogClassLoader).
