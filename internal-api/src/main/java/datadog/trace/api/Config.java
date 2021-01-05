@@ -258,6 +258,9 @@ public class Config {
   public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
       TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 
+  private static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
+      "trace.jdbc.prepared.statement.class.name";
+
   private static final String TRACE_AGENT_URL_TEMPLATE = "http://%s:%d";
 
   private static final String PROFILING_REMOTE_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
@@ -409,6 +412,8 @@ public class Config {
   @Getter private final boolean internalExitOnFailure;
 
   @Getter private final boolean resolverUseLoadClassEnabled;
+
+  @Getter private final String jdbcPreparedStatementClassName;
 
   private final ConfigProvider configProvider;
 
@@ -731,6 +736,9 @@ public class Config {
             DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE);
 
     profilingExcludeAgentThreads = configProvider.getBoolean(PROFILING_EXCLUDE_AGENT_THREADS, true);
+
+    jdbcPreparedStatementClassName =
+        configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
 
     kafkaClientPropagationEnabled =
         configProvider.getBoolean(
