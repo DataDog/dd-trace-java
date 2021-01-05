@@ -47,11 +47,16 @@ final class ConfigConverter {
 
   @NonNull
   static List<String> parseList(final String str) {
+    return parseList(str, ",");
+  }
+
+  @NonNull
+  static List<String> parseList(final String str, final String separator) {
     if (str == null || str.trim().isEmpty()) {
       return Collections.emptyList();
     }
 
-    final String[] tokens = str.split(",", -1);
+    final String[] tokens = str.split(separator, -1);
     // Remove whitespace from each item.
     for (int i = 0; i < tokens.length; i++) {
       tokens[i] = tokens[i].trim();

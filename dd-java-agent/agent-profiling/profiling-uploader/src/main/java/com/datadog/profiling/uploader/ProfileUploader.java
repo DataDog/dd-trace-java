@@ -24,6 +24,7 @@ import com.datadog.profiling.uploader.util.StreamUtils;
 import datadog.common.container.ContainerInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.IOLogger;
+import datadog.trace.util.AgentProxySelector;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.io.InputStream;
@@ -217,6 +218,7 @@ public final class ProfileUploader {
             .writeTimeout(requestTimeout)
             .readTimeout(requestTimeout)
             .callTimeout(requestTimeout)
+            .proxySelector(AgentProxySelector.INSTANCE)
             .dispatcher(new Dispatcher(okHttpExecutorService))
             .connectionPool(connectionPool);
 

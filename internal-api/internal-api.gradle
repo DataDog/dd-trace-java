@@ -19,6 +19,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
   "datadog.trace.logging.LoggingSettingsDescription",
+  "datadog.trace.util.AgentProxySelector",
   "datadog.trace.util.AgentTaskScheduler",
   "datadog.trace.util.AgentTaskScheduler.PeriodicTask",
   "datadog.trace.util.AgentTaskScheduler.ShutdownHook",

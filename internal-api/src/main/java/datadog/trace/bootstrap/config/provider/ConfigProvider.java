@@ -117,6 +117,10 @@ public final class ConfigProvider {
     return ConfigConverter.parseList(getString(key));
   }
 
+  public final List<String> getSpacedList(String key) {
+    return ConfigConverter.parseList(getString(key), " ");
+  }
+
   public final Map<String, String> getMergedMap(String key) {
     Map<String, String> merged = new HashMap<>();
     // reverse iterate to allow overrides

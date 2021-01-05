@@ -90,6 +90,7 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -302,6 +303,7 @@ public class Config {
   @Getter private final int agentPort;
   @Getter private final String agentUnixDomainSocket;
   @Getter private final int agentTimeout;
+  @Getter private final Set<String> noProxyHosts;
   @Getter private final boolean prioritySamplingEnabled;
   @Getter private final String prioritySamplingForce;
   @Getter private final boolean traceResolverEnabled;
@@ -524,6 +526,10 @@ public class Config {
             && agentPort == DEFAULT_TRACE_AGENT_PORT;
 
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
+
+    // DD_PROXY_NO_PROXY is specified as a space-separated list of hosts
+    noProxyHosts = new HashSet<>(configProvider.getSpacedList(TracerConfig.PROXY_NO_PROXY));
+
     prioritySamplingEnabled =
         configProvider.getBoolean(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
     prioritySamplingForce =

@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import datadog.common.container.ContainerInfo;
 import datadog.trace.common.writer.ddagent.unixdomainsockets.UnixDomainSocketFactory;
 import datadog.trace.core.DDTraceCoreInfo;
+import datadog.trace.util.AgentProxySelector;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -54,6 +55,7 @@ public final class OkHttpUtils {
         .connectTimeout(timeoutMillis, MILLISECONDS)
         .writeTimeout(timeoutMillis, MILLISECONDS)
         .readTimeout(timeoutMillis, MILLISECONDS)
+        .proxySelector(AgentProxySelector.INSTANCE)
 
         // We don't do async so this shouldn't matter, but just to be safe...
         .dispatcher(new Dispatcher(RejectingExecutorService.INSTANCE))
