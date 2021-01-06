@@ -1,9 +1,7 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -102,34 +100,6 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     super.request(uri, method, body)
   }
 
-  void dispatchSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
-    trace.span {
-      serviceName expectedServiceName()
-      operationName "servlet.dispatch"
-      resourceName endpoint.path
-      errored endpoint.errored
-      childOfPrevious()
-      tags {
-        "$Tags.COMPONENT" AsyncDispatcherDecorator.DECORATE.component()
-        if (endpoint.status > 0) {
-          "$Tags.HTTP_STATUS" endpoint.status
-        } else {
-          "timeout" 1_000
-        }
-        if (context) {
-          "servlet.context" "/$context"
-        }
-        "servlet.path" "/dispatch$endpoint.path"
-        if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
-          "error.stack" { it == null || it instanceof String }
-        }
-        defaultTags()
-      }
-    }
-  }
-
   void includeSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     trace.span {
       serviceName expectedServiceName()
@@ -141,6 +111,10 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
       childOfPrevious()
       tags {
         "$Tags.COMPONENT" "java-web-servlet-dispatcher"
+        if (context) {
+          "servlet.context" "/$context"
+        }
+        "servlet.path" "/dispatch$endpoint.path"
 
         // Dispatcher.include doesn't bubble the status of the included
         "$Tags.HTTP_STATUS" Integer
@@ -165,9 +139,15 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
       childOfPrevious()
       tags {
         "$Tags.COMPONENT" "java-web-servlet-dispatcher"
+        "$Tags.HTTP_STATUS" endpoint.status
 
-        if (endpoint.status > 0) {
-          "$Tags.HTTP_STATUS" endpoint.status
+        if (context) {
+          "servlet.context" "/$context"
+        }
+        if (dispatch) {
+          "servlet.path" "/dispatch$endpoint.path"
+        } else {
+          "servlet.path" endpoint.path
         }
 
         if (endpoint.errored) {
@@ -205,60 +185,18 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
           defaultTags()
         }
       }
+    } else if (endpoint == EXCEPTION) {
+      trace.span {
+        operationName "servlet.response"
+        resourceName "HttpServletResponse.sendError"
+        childOf(trace.span(0)) // Not a child of the controller because sendError called by framework
+        tags {
+          "component" "java-web-servlet-response"
+          defaultTags()
+        }
+      }
     } else {
       throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
-    }
-  }
-
-  @Override
-  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    def dispatch = isDispatch()
-    def bubblesResponse = bubblesResponse()
-    trace.span {
-      serviceName expectedServiceName()
-      operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
-      spanType DDSpanTypes.HTTP_SERVER
-      // Exceptions are always bubbled up, other statuses: only if bubblesResponse == true
-      errored((endpoint.errored && bubblesResponse) || endpoint == EXCEPTION)
-      if (parentID != null) {
-        traceId traceID
-        parentId parentID
-      } else {
-        parent()
-      }
-      tags {
-        "$Tags.COMPONENT" component
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
-        "$Tags.PEER_PORT" Integer
-        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
-        "$Tags.HTTP_METHOD" method
-        if (endpoint.status > 0) {
-          "$Tags.HTTP_STATUS" { it == endpoint.status || !bubblesResponse }
-        } else {
-          "timeout" 1_000
-        }
-        if (context) {
-          "servlet.context" "/$context"
-        }
-
-        if (dispatch) {
-          "servlet.path" "/dispatch$endpoint.path"
-        } else {
-          "servlet.path" endpoint.path
-        }
-
-        if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
-          "error.stack" { it == null || it instanceof String }
-        }
-        if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.query
-        }
-        defaultTags(true)
-      }
     }
   }
 }

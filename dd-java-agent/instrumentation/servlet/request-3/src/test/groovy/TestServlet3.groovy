@@ -63,9 +63,11 @@ class TestServlet3 {
       def context = req.startAsync()
       if (endpoint.name().contains("TIMEOUT")) {
         context.setTimeout(1_000)
-        // this line makes Jetty behave like Tomcat and immediately return 500 to the client
-        // otherwise it will continue to repeat the same request until the client times out
-        context.addListener({ resp.status = 500; it.asyncContext.complete() } as AsyncListener)
+        if (resp.class.name.startsWith("org.eclipse.jetty")) {
+          // this line makes Jetty behave like Tomcat and immediately return 500 to the client
+          // otherwise it will continue to repeat the same request until the client times out
+          context.addListener({ resp.status = 500; it.asyncContext.complete() } as AsyncListener)
+        }
       }
       context.start {
         try {

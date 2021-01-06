@@ -135,6 +135,7 @@ class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> 
       childOfPrevious()
       tags {
         "$Tags.COMPONENT" "java-web-servlet-dispatcher"
+        "servlet.path" endpoint.path
 
         if (endpoint.errored) {
           "$Tags.HTTP_STATUS" endpoint.status

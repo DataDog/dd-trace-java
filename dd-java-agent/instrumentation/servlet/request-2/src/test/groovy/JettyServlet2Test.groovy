@@ -3,7 +3,6 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.servlet2.Servlet2Decorator
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
@@ -13,6 +12,7 @@ import javax.servlet.http.HttpServletRequest
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -65,7 +65,7 @@ class JettyServlet2Test extends HttpServerTest<Server> {
 
   @Override
   String component() {
-    return Servlet2Decorator.DECORATE.component()
+    return "jetty-server"
   }
 
   @Override
@@ -81,6 +81,46 @@ class JettyServlet2Test extends HttpServerTest<Server> {
   @Override
   boolean testNotFound() {
     false
+  }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    return endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == EXCEPTION || endpoint == ERROR
+  }
+
+  void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
+    if (endpoint == REDIRECT) {
+      trace.span {
+        operationName "servlet.response"
+        resourceName "HttpServletResponse.sendRedirect"
+        childOfPrevious()
+        tags {
+          "component" "java-web-servlet-response"
+          defaultTags()
+        }
+      }
+    } else if (endpoint == NOT_FOUND || endpoint == ERROR) {
+      trace.span {
+        operationName "servlet.response"
+        resourceName "HttpServletResponse.sendError"
+        childOfPrevious()
+        tags {
+          "component" "java-web-servlet-response"
+          defaultTags()
+        }
+      }
+    } else if (endpoint == EXCEPTION) {
+      trace.span {
+        operationName "servlet.response"
+        resourceName "HttpServletResponse.sendError"
+        childOf(span.localRootSpan) // sendError is called by the app server, not the controller.
+        tags {
+          "component" "java-web-servlet-response"
+          defaultTags()
+        }
+      }
+    } else {
+      throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
+    }
   }
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
@@ -101,7 +141,7 @@ class JettyServlet2Test extends HttpServerTest<Server> {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        // No peer port
+        "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" endpoint.status

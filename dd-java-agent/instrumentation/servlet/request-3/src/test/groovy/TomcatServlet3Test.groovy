@@ -1,6 +1,10 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.CorrelationIdentifier
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import org.apache.catalina.AccessLog
 import org.apache.catalina.Context
 import org.apache.catalina.connector.Request
@@ -18,9 +22,12 @@ import javax.servlet.Servlet
 import javax.servlet.ServletException
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 
 @Unroll
 abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> {
@@ -88,6 +95,86 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
 
   boolean handlerTriggersValue() {
     return true
+  }
+
+  @Override
+  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+    def dispatch = isDispatch()
+    def bubblesResponse = bubblesResponse()
+    trace.span {
+      serviceName expectedServiceName()
+      operationName expectedOperationName()
+      resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
+      spanType DDSpanTypes.HTTP_SERVER
+      // Exceptions are always bubbled up, other statuses: only if bubblesResponse == true
+      errored((endpoint.errored && bubblesResponse && endpoint != TIMEOUT) || endpoint == EXCEPTION || endpoint == TIMEOUT_ERROR)
+      if (parentID != null) {
+        traceId traceID
+        parentId parentID
+      } else {
+        parent()
+      }
+      tags {
+        "$Tags.COMPONENT" component
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
+        "$Tags.PEER_PORT" Integer
+        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
+        "$Tags.HTTP_METHOD" method
+        if (endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR) {
+          "$Tags.HTTP_STATUS" { it == endpoint.status || !bubblesResponse }
+        } else {
+          "timeout" 1_000
+        }
+        if (context) {
+          "servlet.context" "/$context"
+        }
+
+        if (dispatch) {
+          "servlet.path" "/dispatch$endpoint.path"
+        } else {
+          "servlet.path" endpoint.path
+        }
+
+        if (endpoint.errored) {
+          "error.msg" { it == null || it == EXCEPTION.body }
+          "error.type" { it == null || it == Exception.name }
+          "error.stack" { it == null || it instanceof String }
+        }
+        if (endpoint.query) {
+          "$DDTags.HTTP_QUERY" endpoint.query
+        }
+        defaultTags(true)
+      }
+    }
+  }
+
+  void dispatchSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
+      serviceName expectedServiceName()
+      operationName "servlet.dispatch"
+      resourceName endpoint.path
+      errored(endpoint.errored && endpoint != TIMEOUT)
+      childOfPrevious()
+      tags {
+        "$Tags.COMPONENT" AsyncDispatcherDecorator.DECORATE.component()
+        if (endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR) {
+          "$Tags.HTTP_STATUS" endpoint.status
+        } else {
+          "timeout" 1_000
+        }
+        if (context) {
+          "servlet.context" "/$context"
+        }
+        "servlet.path" "/dispatch$endpoint.path"
+        if (endpoint.errored) {
+          "error.msg" { it == null || it == EXCEPTION.body }
+          "error.type" { it == null || it == Exception.name }
+          "error.stack" { it == null || it instanceof String }
+        }
+        defaultTags()
+      }
+    }
   }
 
   def "access log has ids for #count requests"() {
@@ -208,7 +295,11 @@ class ErrorHandlerValve extends ErrorReportValve {
       return
     }
     try {
-      response.writer.print(t ? t.cause.message : response.message)
+      if (t) {
+        response.writer.print(t.cause.message)
+      } else if (response.message) {
+        response.writer.print(response.message)
+      }
     } catch (IOException e) {
       e.printStackTrace()
     }
