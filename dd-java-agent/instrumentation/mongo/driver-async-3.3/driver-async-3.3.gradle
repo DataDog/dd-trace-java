@@ -8,7 +8,7 @@ muzzle {
   pass {
     group = "org.mongodb"
     module = "mongodb-driver-async"
-    versions = "[3.3,)"
+    versions = "[3.0,)"
     extraDependency 'org.mongodb:mongo-java-driver:3.3.0'
     assertInverse = true
   }

@@ -1,17 +1,17 @@
 package datadog.trace.instrumentation.mongo;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
+import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import com.mongodb.async.client.MongoClientSettings;
+import com.mongodb.event.CommandListener;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.lang.reflect.Modifier;
-import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -27,18 +27,15 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.mongodb.async.client.MongoClientSettings$Builder")
-        .and(
-            declaresMethod(
-                named("addCommandListener")
-                    .and(
-                        takesArguments(
-                            new TypeDescription.Latent(
-                                "com.mongodb.event.CommandListener",
-                                Modifier.PUBLIC,
-                                null,
-                                Collections.<TypeDescription.Generic>emptyList())))
-                    .and(isPublic())));
+    // the first class is only in older async drivers, and the second is in later
+    // async drivers, but is also in version 4 of the driver. If we find the second
+    // class, we'll activate the instrumentation, but take care to only add a subscriber
+    // if no other datadog subscribers are present. If the driver 4 instrumentation
+    // activates, it will remove other datadog subscribers
+    return namedOneOf(
+            "com.mongodb.async.client.MongoClientSettings$Builder",
+            "com.mongodb.MongoClientSettings$Builder")
+        .and(declaresField(named("commandListeners")));
   }
 
   @Override
@@ -58,12 +55,13 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
   public static class MongoAsyncClientAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void injectTraceListener(@Advice.This final Object dis) {
-      // referencing "this" in the method args causes the class to load under a transformer.
-      // This bypasses the Builder instrumentation. Casting as a workaround.
-      final MongoClientSettings.Builder builder = (MongoClientSettings.Builder) dis;
-      final TracingCommandListener listener = new TracingCommandListener();
-      builder.addCommandListener(listener);
+    public static void injectTraceListener(
+        @Advice.FieldValue("commandListeners") List<CommandListener> listeners) {
+      if (!listeners.isEmpty()
+          && listeners.get(listeners.size() - 1).getClass().getName().startsWith("datadog.")) {
+        return;
+      }
+      listeners.add(new TracingCommandListener());
     }
   }
 }
