@@ -17,16 +17,15 @@ configurations.bundles {
 dependencies {
   compileOnly group: 'org.osgi', name: 'org.osgi.core', version: '4.2.0'
   compileOnly group: 'org.osgi', name: 'org.osgi.compendium', version: '4.2.0'
-  compileOnly group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
-  compileOnly group: 'com.google.guava', name: 'guava', version: '30.1-jre'
+  compileOnly group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+  compileOnly group: 'com.google.guava', name: 'guava', version: '20.0'
   compileOnly group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.13'
 
-  equinox 'org.eclipse.platform:org.eclipse.osgi:3.16.100'
+  equinox 'org.eclipse.platform:org.eclipse.osgi:3.15.300'
   felix 'org.apache.felix:org.apache.felix.framework:6.0.4'
 
-  bundles 'org.ops4j.pax.logging:pax-logging-api:2.0.6'
-  bundles 'com.google.guava:guava:30.1-jre'
-  bundles 'com.google.guava:failureaccess:1.0.1'
+  bundles 'org.ops4j.pax.logging:pax-logging-api:1.10.7'
+  bundles 'com.google.guava:guava:20.0'
   bundles 'org.apache.felix:org.apache.felix.configadmin:1.9.18'
   bundles 'org.apache.httpcomponents:httpcore-osgi:4.4.14'
   bundles 'org.apache.httpcomponents:httpclient-osgi:4.5.13'
