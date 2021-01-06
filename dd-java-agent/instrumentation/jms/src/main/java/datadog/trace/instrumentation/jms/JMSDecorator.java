@@ -62,8 +62,10 @@ public final class JMSDecorator extends ClientDecorator {
     return spanKind;
   }
 
-  public void onConsume(final AgentSpan span, final Message message) {
-    span.setResourceName("Consumed from " + toResourceName(message, null));
+  public void onConsume(final AgentSpan span, final Message message, UTF8BytesString resourceName) {
+    if (null != resourceName) {
+      span.setResourceName(resourceName);
+    }
 
     try {
       final long produceTime = message.getJMSTimestamp();
