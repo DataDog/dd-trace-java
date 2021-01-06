@@ -1,11 +1,12 @@
 package datadog.trace.instrumentation.mongo4;
 
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
+
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.event.CommandStartedEvent;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -14,10 +15,7 @@ import org.bson.BsonDocument;
 import org.bson.BsonString;
 import org.bson.BsonValue;
 
-public class Mongo4ClientDecorator
-    extends DBTypeProcessingDatabaseClientDecorator<CommandStartedEvent> {
-
-  public static final UTF8BytesString MONGO_QUERY = UTF8BytesString.createConstant("mongo.query");
+public class Mongo4ClientDecorator extends DatabaseClientDecorator<CommandStartedEvent> {
 
   public static final Mongo4ClientDecorator DECORATE = new Mongo4ClientDecorator();
 
@@ -74,6 +72,13 @@ public class Mongo4ClientDecorator
 
     span.setResourceName(mongoCmd);
     return onStatement(span, mongoCmd);
+  }
+
+  @Override
+  public AgentSpan afterStart(AgentSpan span) {
+    span.setServiceName(dbType());
+    span.setTag(DB_TYPE, dbType());
+    return super.afterStart(span);
   }
 
   /**

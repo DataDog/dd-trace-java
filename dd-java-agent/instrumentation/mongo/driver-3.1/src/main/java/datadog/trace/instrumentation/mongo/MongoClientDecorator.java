@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.mongo;
 
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
+
 import com.mongodb.connection.ClusterId;
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.connection.ConnectionId;
@@ -7,8 +9,7 @@ import com.mongodb.connection.ServerId;
 import com.mongodb.event.CommandStartedEvent;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -17,10 +18,7 @@ import org.bson.BsonDocument;
 import org.bson.BsonString;
 import org.bson.BsonValue;
 
-public class MongoClientDecorator
-    extends DBTypeProcessingDatabaseClientDecorator<CommandStartedEvent> {
-
-  public static final UTF8BytesString MONGO_QUERY = UTF8BytesString.createConstant("mongo.query");
+public class MongoClientDecorator extends DatabaseClientDecorator<CommandStartedEvent> {
 
   public static final MongoClientDecorator DECORATE = new MongoClientDecorator();
 
@@ -85,6 +83,13 @@ public class MongoClientDecorator
     }
 
     return null;
+  }
+
+  @Override
+  public AgentSpan afterStart(AgentSpan span) {
+    span.setServiceName(dbType());
+    span.setTag(DB_TYPE, dbType());
+    return super.afterStart(span);
   }
 
   public AgentSpan onStatement(final AgentSpan span, final BsonDocument statement) {
