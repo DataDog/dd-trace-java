@@ -9,14 +9,17 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
@@ -54,6 +57,11 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
       packageName + ".MessageExtractAdapter$1",
       packageName + ".MessageInjectAdapter"
     };
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("javax.jms.MessageConsumer", UTF8BytesString.class.getName());
   }
 
   @Override
@@ -95,7 +103,10 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         if (message == null) {
           CONSUMER_DECORATE.onReceive(span, method);
         } else {
-          CONSUMER_DECORATE.onConsume(span, message);
+          UTF8BytesString resourceName =
+              InstrumentationContext.get(MessageConsumer.class, UTF8BytesString.class)
+                  .get(consumer);
+          CONSUMER_DECORATE.onConsume(span, message, resourceName);
         }
         CONSUMER_DECORATE.onError(span, throwable);
         CONSUMER_DECORATE.beforeFinish(span);
