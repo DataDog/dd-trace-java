@@ -1,0 +1,38 @@
+plugins {
+  id "com.github.johnrengelman.shadow" version "5.2.0"
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+description = 'SpringBoot Spring-Data-Mongo Smoke Tests.'
+
+// The standard spring-boot plugin doesn't play nice with our project
+// so we'll build a fat jar instead
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+  }
+}
+
+shadowJar {
+  configurations = [
+    project.configurations.compile,
+    project.configurations.main_java8Compile
+  ]
+}
+
+dependencies {
+  main_java8Compile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.4.1'
+  main_java8Compile group: 'org.springframework.boot', name: 'spring-boot-starter-data-mongodb', version: '2.4.1'
+
+  testCompile project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn shadowJar
+
+  jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archivePath}"
+}
