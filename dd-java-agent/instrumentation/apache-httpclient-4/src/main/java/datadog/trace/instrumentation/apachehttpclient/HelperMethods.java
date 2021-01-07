@@ -32,7 +32,7 @@ public class HelperMethods {
   }
 
   public static void doMethodExit(
-    final AgentScope scope, final Object result, final Throwable throwable) {
+      final AgentScope scope, final Object result, final Throwable throwable) {
     if (scope == null) {
       return;
     }

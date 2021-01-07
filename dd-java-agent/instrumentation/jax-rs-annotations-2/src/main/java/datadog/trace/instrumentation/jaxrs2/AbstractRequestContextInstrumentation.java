@@ -3,22 +3,13 @@ package datadog.trace.instrumentation.jaxrs2;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DECORATE;
-import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.JAX_RS_REQUEST_ABORT;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.lang.reflect.Method;
 import java.util.Map;
-import javax.ws.rs.container.ContainerRequestContext;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -46,7 +37,7 @@ public abstract class AbstractRequestContextInstrumentation extends Instrumenter
       "datadog.trace.agent.tooling.ClassHierarchyIterable$ClassIterator",
       packageName + ".JaxRsAnnotationsDecorator",
       packageName + ".JaxRsAnnotationsDecorator$1",
-      AbstractRequestContextInstrumentation.class.getName() + "$RequestFilterHelper",
+      packageName + ".RequestFilterHelper",
     };
   }
 
@@ -58,53 +49,5 @@ public abstract class AbstractRequestContextInstrumentation extends Instrumenter
             .and(takesArguments(1))
             .and(takesArgument(0, named("javax.ws.rs.core.Response"))),
         getClass().getName() + "$ContainerRequestContextAdvice");
-  }
-
-  public static class RequestFilterHelper {
-    public static AgentScope createOrUpdateAbortSpan(
-        final ContainerRequestContext context, final Class resourceClass, final Method method) {
-
-      if (method != null && resourceClass != null) {
-        context.setProperty(JaxRsAnnotationsDecorator.ABORT_HANDLED, true);
-        // The ordering of the specific and general abort instrumentation is unspecified
-        // The general instrumentation (ContainerRequestFilterInstrumentation) saves spans
-        // properties if it ran first
-        AgentSpan parent = (AgentSpan) context.getProperty(JaxRsAnnotationsDecorator.ABORT_PARENT);
-        AgentSpan span = (AgentSpan) context.getProperty(JaxRsAnnotationsDecorator.ABORT_SPAN);
-
-        if (span == null) {
-          parent = activeSpan();
-          span = startSpan(JAX_RS_REQUEST_ABORT);
-
-          final AgentScope scope = activateSpan(span);
-          scope.setAsyncPropagation(true);
-
-          DECORATE.afterStart(span);
-          DECORATE.onJaxRsSpan(span, parent, resourceClass, method);
-
-          return scope;
-        } else {
-          DECORATE.onJaxRsSpan(span, parent, resourceClass, method);
-          return null;
-        }
-      } else {
-        return null;
-      }
-    }
-
-    public static void closeSpanAndScope(final AgentScope scope, final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-
-      final AgentSpan span = scope.span();
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-      }
-
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
-    }
   }
 }
