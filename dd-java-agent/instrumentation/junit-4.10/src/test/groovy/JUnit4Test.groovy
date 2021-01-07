@@ -131,57 +131,7 @@ class JUnit4Test extends TestFrameworkTest {
   }
 
   @Override
-  String ciProviderName() {
-    return JUnit4Decorator.DECORATE.getCiProviderName()
-  }
-
-  @Override
-  String ciPipelineId() {
-    return JUnit4Decorator.DECORATE.getCiPipelineId()
-  }
-
-  @Override
-  String ciPipelineName() {
-    return JUnit4Decorator.DECORATE.getCiPipelineName()
-  }
-
-  @Override
-  String ciPipelineNumber() {
-    return JUnit4Decorator.DECORATE.getCiPipelineNumber()
-  }
-
-  @Override
-  String ciPipelineUrl() {
-    return JUnit4Decorator.DECORATE.getCiPipelineUrl()
-  }
-
-  @Override
-  String ciJobUrl() {
-    return JUnit4Decorator.DECORATE.getCiJobUrl()
-  }
-
-  @Override
-  String ciWorkspacePath() {
-    return JUnit4Decorator.DECORATE.getCiWorkspacePath()
-  }
-
-  @Override
-  String gitRepositoryUrl() {
-    return JUnit4Decorator.DECORATE.getGitRepositoryUrl()
-  }
-
-  @Override
-  String gitCommit() {
-    return JUnit4Decorator.DECORATE.getGitCommit()
-  }
-
-  @Override
-  String gitBranch() {
-    return JUnit4Decorator.DECORATE.getGitBranch()
-  }
-
-  @Override
-  String gitTag() {
-    return JUnit4Decorator.DECORATE.getGitTag()
+  Map<String, String> ciTags() {
+    return JUnit4Decorator.DECORATE.getCiTags()
   }
 }

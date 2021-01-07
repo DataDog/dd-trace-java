@@ -10,36 +10,23 @@ import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.G
 import static datadog.trace.bootstrap.instrumentation.api.ci.JenkinsInfo.JENKINS;
 import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS;
 
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
 
 public abstract class CIProviderInfo {
+
+  protected Map<String, String> ciTags = new HashMap<>();
 
   public boolean isCI() {
     return true;
   }
 
-  public abstract String getCiProviderName();
-
-  public abstract String getCiPipelineId();
-
-  public abstract String getCiPipelineName();
-
-  public abstract String getCiPipelineNumber();
-
-  public abstract String getCiPipelineUrl();
-
-  public abstract String getCiJobUrl();
-
-  public abstract String getCiWorkspacePath();
-
-  public abstract String getGitRepositoryUrl();
-
-  public abstract String getGitCommit();
-
-  public abstract String getGitBranch();
-
-  public abstract String getGitTag();
+  public Map<String, String> getCiTags() {
+    return ciTags;
+  }
 
   public static CIProviderInfo selectCI() {
     // CI and Git information is obtained
@@ -112,6 +99,103 @@ public abstract class CIProviderInfo {
       return urlStr.replace(userInfo + "@", "");
     } catch (final URISyntaxException ex) {
       return urlStr;
+    }
+  }
+
+  public static class CITagsBuilder {
+
+    private final Map<String, String> ciTags = new HashMap<>();
+    private String ciPipelineId;
+    private String ciPipelineName;
+    private String ciPipelineNumber;
+    private String ciPipelineUrl;
+    private String ciJobUrl;
+    private String ciWorkspacePath;
+    private String gitRepositoryUrl;
+    private String gitCommit;
+    private String gitBranch;
+    private String gitTag;
+
+    public CITagsBuilder withCiProviderName(final String ciProviderName) {
+      if (ciProviderName != null) {
+        ciTags.put(Tags.CI_PROVIDER_NAME, ciProviderName);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiPipelineId(final String ciPipelineId) {
+      if (ciPipelineId != null) {
+        ciTags.put(Tags.CI_PIPELINE_ID, ciPipelineId);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiPipelineName(final String ciPipelineName) {
+      if (ciPipelineName != null) {
+        ciTags.put(Tags.CI_PIPELINE_NAME, ciPipelineName);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiPipelineNumber(final String ciPipelineNumber) {
+      if (ciPipelineNumber != null) {
+        ciTags.put(Tags.CI_PIPELINE_NUMBER, ciPipelineNumber);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiPipelineUrl(final String ciPipelineUrl) {
+      if (ciPipelineUrl != null) {
+        ciTags.put(Tags.CI_PIPELINE_URL, ciPipelineUrl);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiJorUrl(final String ciJobUrl) {
+      if (ciJobUrl != null) {
+        ciTags.put(Tags.CI_JOB_URL, ciJobUrl);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiWorkspacePath(final String ciWorkspacePath) {
+      if (ciWorkspacePath != null) {
+        ciTags.put(Tags.CI_WORKSPACE_PATH, ciWorkspacePath);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitRepositoryUrl(final String gitRepositoryUrl) {
+      if (gitRepositoryUrl != null) {
+        ciTags.put(Tags.GIT_REPOSITORY_URL, gitRepositoryUrl);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitCommit(final String gitCommit) {
+      if (gitCommit != null) {
+        ciTags.put(Tags.GIT_COMMIT_SHA, gitCommit);
+        ciTags.put(Tags._GIT_COMMIT_SHA, gitCommit);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitBranch(final String gitBranch) {
+      if (gitBranch != null) {
+        ciTags.put(Tags.GIT_BRANCH, gitBranch);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitTag(final String gitTag) {
+      if (gitTag != null) {
+        ciTags.put(Tags.GIT_TAG, gitTag);
+      }
+      return this;
+    }
+
+    public Map<String, String> build() {
+      return ciTags;
     }
   }
 }

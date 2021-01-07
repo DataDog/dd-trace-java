@@ -18,30 +18,22 @@ class JenkinsInfo extends CIProviderInfo {
   public static final String JENKINS_GIT_COMMIT = "GIT_COMMIT";
   public static final String JENKINS_GIT_BRANCH = "GIT_BRANCH";
 
-  private final String ciProviderName;
-  private final String ciPipelineId;
-  private final String ciPipelineName;
-  private final String ciPipelineNumber;
-  private final String ciPipelineUrl;
-  private final String ciJobUrl;
-  private final String ciWorkspacePath;
-  private final String gitRepositoryUrl;
-  private final String gitCommit;
-  private final String gitBranch;
-  private final String gitTag;
-
   JenkinsInfo() {
-    ciProviderName = JENKINS_PROVIDER_NAME;
-    ciPipelineId = System.getenv(JENKINS_PIPELINE_ID);
-    ciPipelineNumber = System.getenv(JENKINS_PIPELINE_NUMBER);
-    ciPipelineUrl = System.getenv(JENKINS_PIPELINE_URL);
-    ciJobUrl = null; // ciJobUrl cannot be built using Jenkins Environment Variables.
-    ciWorkspacePath = expandTilde(System.getenv(JENKINS_WORKSPACE_PATH));
-    gitRepositoryUrl = filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL));
-    gitCommit = System.getenv(JENKINS_GIT_COMMIT);
-    gitBranch = buildGitBranch();
-    gitTag = buildGitTag();
-    ciPipelineName = buildCiPipelineName(gitBranch);
+    final String gitBranch = buildGitBranch();
+
+    this.ciTags =
+        new CITagsBuilder()
+            .withCiProviderName(JENKINS_PROVIDER_NAME)
+            .withCiPipelineId(System.getenv(JENKINS_PIPELINE_ID))
+            .withCiPipelineName(buildCiPipelineName(gitBranch))
+            .withCiPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
+            .withCiPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
+            .withCiWorkspacePath(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
+            .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL)))
+            .withGitCommit(System.getenv(JENKINS_GIT_COMMIT))
+            .withGitBranch(gitBranch)
+            .withGitTag(buildGitTag())
+            .build();
   }
 
   private String buildGitBranch() {
@@ -65,61 +57,6 @@ class JenkinsInfo extends CIProviderInfo {
   private String buildCiPipelineName(final String branch) {
     final String jobName = System.getenv(JENKINS_PIPELINE_NAME);
     return filterJenkinsJobName(jobName, branch);
-  }
-
-  @Override
-  public String getCiProviderName() {
-    return this.ciProviderName;
-  }
-
-  @Override
-  public String getCiPipelineId() {
-    return this.ciPipelineId;
-  }
-
-  @Override
-  public String getCiPipelineName() {
-    return this.ciPipelineName;
-  }
-
-  @Override
-  public String getCiPipelineNumber() {
-    return this.ciPipelineNumber;
-  }
-
-  @Override
-  public String getCiPipelineUrl() {
-    return this.ciPipelineUrl;
-  }
-
-  @Override
-  public String getCiJobUrl() {
-    return this.ciJobUrl;
-  }
-
-  @Override
-  public String getCiWorkspacePath() {
-    return this.ciWorkspacePath;
-  }
-
-  @Override
-  public String getGitRepositoryUrl() {
-    return this.gitRepositoryUrl;
-  }
-
-  @Override
-  public String getGitCommit() {
-    return this.gitCommit;
-  }
-
-  @Override
-  public String getGitBranch() {
-    return this.gitBranch;
-  }
-
-  @Override
-  public String getGitTag() {
-    return this.gitTag;
   }
 
   private String filterJenkinsJobName(final String jobName, final String gitBranch) {

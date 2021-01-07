@@ -16,35 +16,27 @@ class AppVeyorInfo extends CIProviderInfo {
       "APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH";
   public static final String APPVEYOR_REPO_TAG_NAME = "APPVEYOR_REPO_TAG_NAME";
 
-  private final String ciProviderName;
-  private final String ciPipelineId;
-  private final String ciPipelineName;
-  private final String ciPipelineNumber;
-  private final String ciPipelineUrl;
-  private final String ciJobUrl;
-  private final String ciWorkspacePath;
-  private final String gitRepositoryUrl;
-  private final String gitCommit;
-  private final String gitBranch;
-  private final String gitTag;
-
   AppVeyorInfo() {
     final String buildId = System.getenv(APPVEYOR_BUILD_ID);
     final String repoName = System.getenv(APPVEYOR_REPO_NAME);
     final String url = buildPipelineUrl(repoName, buildId);
     final String repoProvider = System.getenv(APPVEYOR_REPO_PROVIDER);
+    final String tag = buildGitTag(repoProvider);
 
-    ciProviderName = APPVEYOR_PROVIDER_NAME;
-    ciPipelineId = buildId;
-    ciPipelineName = repoName;
-    ciPipelineNumber = System.getenv(APPVEYOR_PIPELINE_NUMBER);
-    ciPipelineUrl = url;
-    ciJobUrl = url;
-    ciWorkspacePath = expandTilde(System.getenv(APPVEYOR_WORKSPACE_PATH));
-    gitRepositoryUrl = buildGitRepositoryUrl(repoProvider, repoName);
-    gitCommit = buildGitCommit(repoProvider);
-    gitTag = buildGitTag(repoProvider);
-    gitBranch = buildGitBranch(repoProvider, gitTag);
+    this.ciTags =
+        new CITagsBuilder()
+            .withCiProviderName(APPVEYOR_PROVIDER_NAME)
+            .withCiPipelineId(buildId)
+            .withCiPipelineName(repoName)
+            .withCiPipelineNumber(System.getenv(APPVEYOR_PIPELINE_NUMBER))
+            .withCiPipelineUrl(url)
+            .withCiJorUrl(url)
+            .withCiWorkspacePath(expandTilde(System.getenv(APPVEYOR_WORKSPACE_PATH)))
+            .withGitRepositoryUrl(buildGitRepositoryUrl(repoProvider, repoName))
+            .withGitCommit(buildGitCommit(repoProvider))
+            .withGitBranch(buildGitBranch(repoProvider, tag))
+            .withGitTag(tag)
+            .build();
   }
 
   private String buildGitTag(final String repoProvider) {
@@ -85,60 +77,5 @@ class AppVeyorInfo extends CIProviderInfo {
 
   private String buildPipelineUrl(final String repoName, final String buildId) {
     return String.format("https://ci.appveyor.com/project/%s/builds/%s", repoName, buildId);
-  }
-
-  @Override
-  public String getCiProviderName() {
-    return this.ciProviderName;
-  }
-
-  @Override
-  public String getCiPipelineId() {
-    return this.ciPipelineId;
-  }
-
-  @Override
-  public String getCiPipelineName() {
-    return this.ciPipelineName;
-  }
-
-  @Override
-  public String getCiPipelineNumber() {
-    return this.ciPipelineNumber;
-  }
-
-  @Override
-  public String getCiPipelineUrl() {
-    return this.ciPipelineUrl;
-  }
-
-  @Override
-  public String getCiJobUrl() {
-    return this.ciJobUrl;
-  }
-
-  @Override
-  public String getCiWorkspacePath() {
-    return this.ciWorkspacePath;
-  }
-
-  @Override
-  public String getGitRepositoryUrl() {
-    return this.gitRepositoryUrl;
-  }
-
-  @Override
-  public String getGitCommit() {
-    return this.gitCommit;
-  }
-
-  @Override
-  public String getGitBranch() {
-    return this.gitBranch;
-  }
-
-  @Override
-  public String getGitTag() {
-    return this.gitTag;
   }
 }

@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api.ci
 import datadog.trace.test.util.DDSpecification
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
-import spock.lang.Shared
+import org.junit.contrib.java.lang.system.RestoreSystemProperties
 
 import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR
 import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE
@@ -21,8 +21,8 @@ abstract class CIProviderInfoTest extends DDSpecification {
   @Rule
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
 
-  @Shared
-  def userHome = System.getProperty("user.home")
+  @Rule
+  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
 
   def setup() {
     // Clear all environment variables used to decide which CI/Git data
@@ -30,6 +30,29 @@ abstract class CIProviderInfoTest extends DDSpecification {
     // Add the new CI envvar discriminant here if other CI provider is added.
     environmentVariables.clear(JENKINS, GITLAB, TRAVIS, CIRCLECI, APPVEYOR, AZURE, BITBUCKET, GHACTIONS, BUILDKITE)
   }
+
+  def "test ci provider info is set properly"() {
+    setup:
+    ciSpec.env.each {
+      environmentVariables.set(it.key, it.value)
+      if (it.key == "HOME") {
+        System.setProperty("user.home", it.value)
+      }
+    }
+
+    when:
+    def ciInfo = instanceProvider()
+
+    then:
+    ciInfo.ciTags == ciSpec.tags
+
+    where:
+    ciSpec << CISpecExtractor.extract(getProviderName())
+  }
+
+  abstract CIProviderInfo instanceProvider()
+
+  abstract String getProviderName()
 
   def "test correct info is selected"() {
     setup:

@@ -23,18 +23,6 @@ class AzurePipelinesInfo extends CIProviderInfo {
       "SYSTEM_PULLREQUEST_SOURCEBRANCH";
   public static final String AZURE_BUILD_SOURCEBRANCH = "BUILD_SOURCEBRANCH";
 
-  private final String ciProviderName;
-  private final String ciPipelineId;
-  private final String ciPipelineName;
-  private final String ciPipelineNumber;
-  private final String ciPipelineUrl;
-  private final String ciJobUrl;
-  private final String ciWorkspacePath;
-  private final String gitRepositoryUrl;
-  private final String gitCommit;
-  private final String gitBranch;
-  private final String gitTag;
-
   AzurePipelinesInfo() {
     final String uri = System.getenv(AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI);
     final String project = System.getenv(AZURE_SYSTEM_TEAMPROJECTID);
@@ -42,17 +30,20 @@ class AzurePipelinesInfo extends CIProviderInfo {
     final String jobId = System.getenv(AZURE_SYSTEM_JOBID);
     final String taskId = System.getenv(AZURE_SYSTEM_TASKINSTANCEID);
 
-    ciProviderName = AZURE_PROVIDER_NAME;
-    ciPipelineId = System.getenv(AZURE_BUILD_BUILDID);
-    ciPipelineName = System.getenv(AZURE_PIPELINE_NAME);
-    ciPipelineNumber = System.getenv(AZURE_BUILD_BUILDID);
-    ciWorkspacePath = expandTilde(System.getenv(AZURE_WORKSPACE_PATH));
-    ciPipelineUrl = buildCiPipelineUrl(uri, project, buildId);
-    ciJobUrl = buildCiJobUrl(uri, project, buildId, jobId, taskId);
-    gitRepositoryUrl = buildGitRepositoryUrl();
-    gitCommit = buildGitCommit();
-    gitBranch = buildGitBranch();
-    gitTag = buildGitTag();
+    this.ciTags =
+        new CITagsBuilder()
+            .withCiProviderName(AZURE_PROVIDER_NAME)
+            .withCiPipelineId(System.getenv(AZURE_BUILD_BUILDID))
+            .withCiPipelineName(System.getenv(AZURE_PIPELINE_NAME))
+            .withCiPipelineNumber(System.getenv(AZURE_BUILD_BUILDID))
+            .withCiPipelineUrl(buildCiPipelineUrl(uri, project, buildId))
+            .withCiJorUrl(buildCiJobUrl(uri, project, buildId, jobId, taskId))
+            .withCiWorkspacePath(expandTilde(System.getenv(AZURE_WORKSPACE_PATH)))
+            .withGitRepositoryUrl(buildGitRepositoryUrl())
+            .withGitCommit(buildGitCommit())
+            .withGitBranch(buildGitBranch())
+            .withGitTag(buildGitTag())
+            .build();
   }
 
   private String buildGitTag() {
@@ -107,60 +98,5 @@ class AzurePipelinesInfo extends CIProviderInfo {
 
   private String buildCiPipelineUrl(final String uri, final String project, final String buildId) {
     return String.format("%s%s/_build/results?buildId=%s&_a=summary", uri, project, buildId);
-  }
-
-  @Override
-  public String getCiProviderName() {
-    return this.ciProviderName;
-  }
-
-  @Override
-  public String getCiPipelineId() {
-    return this.ciPipelineId;
-  }
-
-  @Override
-  public String getCiPipelineName() {
-    return this.ciPipelineName;
-  }
-
-  @Override
-  public String getCiPipelineNumber() {
-    return this.ciPipelineNumber;
-  }
-
-  @Override
-  public String getCiPipelineUrl() {
-    return this.ciPipelineUrl;
-  }
-
-  @Override
-  public String getCiJobUrl() {
-    return this.ciJobUrl;
-  }
-
-  @Override
-  public String getCiWorkspacePath() {
-    return this.ciWorkspacePath;
-  }
-
-  @Override
-  public String getGitRepositoryUrl() {
-    return this.gitRepositoryUrl;
-  }
-
-  @Override
-  public String getGitCommit() {
-    return this.gitCommit;
-  }
-
-  @Override
-  public String getGitBranch() {
-    return this.gitBranch;
-  }
-
-  @Override
-  public String getGitTag() {
-    return this.gitTag;
   }
 }

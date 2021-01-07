@@ -17,30 +17,23 @@ class TravisInfo extends CIProviderInfo {
   public static final String TRAVIS_GIT_BRANCH = "TRAVIS_BRANCH";
   public static final String TRAVIS_GIT_TAG = "TRAVIS_TAG";
 
-  private final String ciProviderName;
-  private final String ciPipelineId;
-  private final String ciPipelineName;
-  private final String ciPipelineNumber;
-  private final String ciPipelineUrl;
-  private final String ciJobUrl;
-  private final String ciWorkspacePath;
-  private final String gitRepositoryUrl;
-  private final String gitCommit;
-  private final String gitBranch;
-  private final String gitTag;
-
   TravisInfo() {
-    ciProviderName = TRAVIS_PROVIDER_NAME;
-    ciPipelineId = System.getenv(TRAVIS_PIPELINE_ID);
-    ciPipelineNumber = System.getenv(TRAVIS_PIPELINE_NUMBER);
-    ciPipelineUrl = System.getenv(TRAVIS_PIPELINE_URL);
-    ciJobUrl = System.getenv(TRAVIS_JOB_URL);
-    ciWorkspacePath = expandTilde(System.getenv(TRAVIS_WORKSPACE_PATH));
-    ciPipelineName = buildCiPipelineName();
-    gitRepositoryUrl = buildGitRepositoryUrl();
-    gitCommit = System.getenv(TRAVIS_GIT_COMMIT);
-    gitTag = normalizeRef(System.getenv(TRAVIS_GIT_TAG));
-    gitBranch = buildGitBranch(gitTag);
+    final String gitTag = normalizeRef(System.getenv(TRAVIS_GIT_TAG));
+
+    this.ciTags =
+        new CITagsBuilder()
+            .withCiProviderName(TRAVIS_PROVIDER_NAME)
+            .withCiPipelineId(System.getenv(TRAVIS_PIPELINE_ID))
+            .withCiPipelineName(buildCiPipelineName())
+            .withCiPipelineNumber(System.getenv(TRAVIS_PIPELINE_NUMBER))
+            .withCiPipelineUrl(System.getenv(TRAVIS_PIPELINE_URL))
+            .withCiJorUrl(System.getenv(TRAVIS_JOB_URL))
+            .withCiWorkspacePath(expandTilde(System.getenv(TRAVIS_WORKSPACE_PATH)))
+            .withGitRepositoryUrl(buildGitRepositoryUrl())
+            .withGitCommit(System.getenv(TRAVIS_GIT_COMMIT))
+            .withGitBranch(buildGitBranch(gitTag))
+            .withGitTag(gitTag)
+            .build();
   }
 
   private String buildGitBranch(final String gitTag) {
@@ -70,60 +63,5 @@ class TravisInfo extends CIProviderInfo {
       repoSlug = System.getenv(TRAVIS_REPOSITORY_SLUG);
     }
     return repoSlug;
-  }
-
-  @Override
-  public String getCiProviderName() {
-    return ciProviderName;
-  }
-
-  @Override
-  public String getCiPipelineId() {
-    return ciPipelineId;
-  }
-
-  @Override
-  public String getCiPipelineName() {
-    return ciPipelineName;
-  }
-
-  @Override
-  public String getCiPipelineNumber() {
-    return ciPipelineNumber;
-  }
-
-  @Override
-  public String getCiPipelineUrl() {
-    return ciPipelineUrl;
-  }
-
-  @Override
-  public String getCiJobUrl() {
-    return ciJobUrl;
-  }
-
-  @Override
-  public String getCiWorkspacePath() {
-    return ciWorkspacePath;
-  }
-
-  @Override
-  public String getGitRepositoryUrl() {
-    return gitRepositoryUrl;
-  }
-
-  @Override
-  public String getGitCommit() {
-    return gitCommit;
-  }
-
-  @Override
-  public String getGitBranch() {
-    return gitBranch;
-  }
-
-  @Override
-  public String getGitTag() {
-    return gitTag;
   }
 }
