@@ -2,6 +2,7 @@ package datadog.smoketest.springboot.controller;
 
 import datadog.smoketest.springboot.mongo.Doc;
 import datadog.smoketest.springboot.mongo.DocRepository;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -9,13 +10,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 public class WebController {
 
-  @Autowired
-  DocRepository docRepository;
+  @Autowired DocRepository docRepository;
 
   @RequestMapping("/docs")
   public List<Doc> getDocs() {

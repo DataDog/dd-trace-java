@@ -4,7 +4,7 @@ import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 
-class SpringBootSmokeTest extends AbstractServerSmokeTest {
+class SpringBootMongoIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
   ProcessBuilder createProcessBuilder() {
