@@ -19,6 +19,9 @@ class DatadogClassLoaderTest extends DDSpecification {
   @Shared
   URL testJarLocation = new File("src/test/resources/classloader-test-jar/testjar-jdk8").toURI().toURL()
 
+  @Shared
+  URL nestedTestJarLocation = new File("src/test/resources/classloader-test-jar/jar-with-nested-classes-jdk8").toURI().toURL()
+
   @Timeout(value = 60, unit = TimeUnit.SECONDS)
   def "DD classloader does not lock classloading around instance"() {
     setup:
@@ -198,5 +201,26 @@ class DatadogClassLoaderTest extends DDSpecification {
     then:
     noExceptionThrown()
 
+  }
+
+  def "test load nested classes and call getEnclosingClass"() {
+    given:
+    assumeTrue(isJavaVersionAtLeast(8))
+
+    DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy = new DatadogClassLoader.BootstrapClassLoaderProxy()
+    DatadogClassLoader classLoader = new DatadogClassLoader(nestedTestJarLocation, "prefix", bootstrapProxy, null)
+
+    when:
+    Class<?> klass = classLoader.loadClass("p.EnclosingClass\$StaticInnerClass")
+    String simpleName = klass.getSimpleName()
+
+    then:
+    simpleName == "StaticInnerClass"
+
+    when:
+    Class<?> enclosing = klass.getEnclosingClass()
+
+    then:
+    enclosing.getSimpleName() == "EnclosingClass"
   }
 }
