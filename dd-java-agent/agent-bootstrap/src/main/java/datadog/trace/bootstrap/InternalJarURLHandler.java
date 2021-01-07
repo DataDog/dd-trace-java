@@ -25,7 +25,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
 
   private final String name;
   private final FileNotInInternalJar notFound;
-  private final Map<String, DelegationInfo> packages = new HashMap<>();
+  private final Map<String, Lock> packages = new HashMap<>();
   private final JarFile bootstrapJarFile;
 
   private WeakReference<Pair<String, JarEntry>> cache = NULL;
@@ -48,7 +48,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
               if (name.length() > prefix) {
                 String dir = name.substring(prefix, name.length() - 1);
                 String currentPackage = dir.replace('/', '.');
-                packages.put(currentPackage, new DelegationInfo(currentPackage));
+                packages.put(currentPackage, new Lock(currentPackage));
               }
             }
           }
@@ -64,11 +64,11 @@ public class InternalJarURLHandler extends URLStreamHandler {
     this.bootstrapJarFile = jarFile;
   }
 
-  Map<String, DelegationInfo> getPackages() {
+  Map<String, Lock> getPackages() {
     return packages;
   }
 
-  DelegationInfo getDelegationInfo(String packageName) {
+  Lock getPackageLock(String packageName) {
     return packages.get(packageName);
   }
 
@@ -142,15 +142,14 @@ public class InternalJarURLHandler extends URLStreamHandler {
   }
 
   /**
-   * This {@link DelegationInfo} allows the class loading code to check if failures to find a class
-   * should be delegated to {@code findClass} or if it should fall through to {@code
-   * super.loadClass} which is needed for classes that we inject that live in the {@code java.*}
-   * package.
+   * This {@link Lock} allows the class loading code to check if failures to find a class should be
+   * delegated to {@code findClass} or if it should fall through to {@code super.loadClass} which is
+   * needed for classes that we inject that live in the {@code java.*} package.
    */
-  public static final class DelegationInfo {
+  public static final class Lock {
     private final boolean delegateFailureToFindClass;
 
-    public DelegationInfo(String packageName) {
+    public Lock(String packageName) {
       this.delegateFailureToFindClass = !packageName.startsWith("java.");
     }
 
