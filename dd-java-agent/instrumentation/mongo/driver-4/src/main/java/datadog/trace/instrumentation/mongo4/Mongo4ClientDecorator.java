@@ -17,7 +17,7 @@ import org.bson.BsonValue;
 public class Mongo4ClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<CommandStartedEvent> {
 
-  public static final UTF8BytesString MONGO_QUERY = UTF8BytesString.createConstant("mongo.query");
+  public static final UTF8BytesString MONGO_QUERY = UTF8BytesString.create("mongo.query");
 
   public static final Mongo4ClientDecorator DECORATE = new Mongo4ClientDecorator();
 

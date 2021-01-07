@@ -46,7 +46,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0) {
+        mongoSpan(it, 0, "create") {
           assert it.replaceAll(" ", "") == "{\"create\":\"$collectionName\",\"capped\":\"?\"}" ||
             it == "{\"create\": \"$collectionName\", \"capped\": \"?\", \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
           true
@@ -69,7 +69,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, {
+        mongoSpan(it, 0, "create", {
           assert it.replaceAll(" ", "") == "{\"create\":\"$collectionName\",\"capped\":\"?\"}" ||
             it == "{\"create\": \"$collectionName\", \"capped\": \"?\", \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
           true
@@ -94,7 +94,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     count.get() == 0
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0) {
+        mongoSpan(it, 0, "count") {
           assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
             it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
           true
@@ -130,14 +130,14 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     count.get() == 1
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0) {
+        mongoSpan(it, 0, "insert") {
           assert it.replaceAll(" ", "") == "{\"insert\":\"$collectionName\",\"ordered\":\"?\",\"documents\":[{\"_id\":\"?\",\"password\":\"?\"}]}" ||
             it == "{\"insert\": \"$collectionName\", \"ordered\": \"?\", \"\$db\": \"?\", \"documents\": [{\"_id\": \"?\", \"password\": \"?\"}]}"
           true
         }
       }
       trace(1) {
-        mongoSpan(it, 0) {
+        mongoSpan(it, 0, "count") {
           assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
             it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
           true
@@ -181,14 +181,14 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     count.get() == 1
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0) {
+        mongoSpan(it, 0, "update") {
           assert it.replaceAll(" ", "") == "{\"update\":\"?\",\"ordered\":\"?\",\"updates\":[{\"q\":{\"password\":\"?\"},\"u\":{\"\$set\":{\"password\":\"?\"}}}]}" ||
             it == "{\"update\": \"?\", \"ordered\": \"?\", \"\$db\": \"?\", \"updates\": [{\"q\": {\"password\": \"?\"}, \"u\": {\"\$set\": {\"password\": \"?\"}}}]}"
           true
         }
       }
       trace(1) {
-        mongoSpan(it, 0) {
+        mongoSpan(it, 0, "count") {
           assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
             it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
           true
@@ -230,14 +230,14 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     count.get() == 0
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0) {
+        mongoSpan(it, 0, "delete") {
           assert it.replaceAll(" ", "") == "{\"delete\":\"?\",\"ordered\":\"?\",\"deletes\":[{\"q\":{\"password\":\"?\"},\"limit\":\"?\"}]}" ||
             it == "{\"delete\": \"?\", \"ordered\": \"?\", \"\$db\": \"?\", \"deletes\": [{\"q\": {\"password\": \"?\"}, \"limit\": \"?\"}]}"
           true
         }
       }
       trace(1) {
-        mongoSpan(it, 0) {
+        mongoSpan(it, 0, "count") {
           assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
             it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
           true
@@ -275,7 +275,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     }
   }
 
-  def mongoSpan(TraceAssert trace, int index, Closure<Boolean> statementEval, String instance = "some-instance", Object parentSpan = null, Throwable exception = null) {
+  def mongoSpan(TraceAssert trace, int index, String operation, Closure<Boolean> statementEval, String instance = "some-instance", Object parentSpan = null, Throwable exception = null) {
     trace.span {
       serviceName "mongo"
       operationName "mongo.query"
@@ -293,6 +293,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
         "$Tags.PEER_PORT" port
         "$Tags.DB_TYPE" "mongo"
         "$Tags.DB_INSTANCE" instance
+        "$Tags.DB_OPERATION" operation
         defaultTags()
       }
     }
