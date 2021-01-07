@@ -55,6 +55,7 @@ include ':utils:histograms'
 include ':utils:test-utils'
 
 // smoke tests
+include ':dd-smoke-tests:agent-isolation'
 include ':dd-smoke-tests:cli'
 include ':dd-smoke-tests:field-injection'
 include ':dd-smoke-tests:java9-modules'

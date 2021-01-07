@@ -1,0 +1,46 @@
+plugins {
+  id "com.github.johnrengelman.shadow" version "5.2.0"
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+description = 'Check declaring instrumentation classes do not leak to other agents'
+apply from: "$rootDir/gradle/java.gradle"
+
+task appJar(type: Jar, dependsOn: classes) {
+  archiveBaseName = "app"
+  from sourceSets.main.output
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.agentisolation.App')
+  }
+  include('datadog\\smoketest\\agentisolation\\App.class')
+}
+
+task agentJar(type: Jar, dependsOn: classes) {
+  archiveBaseName = "agent"
+  from sourceSets.main.output
+  manifest {
+    attributes('Premain-Class': 'datadog.smoketest.agentisolation.Agent')
+  }
+  include('datadog\\smoketest\\agentisolation\\Agent.class')
+}
+
+dependencies {
+  implementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.13'
+  testCompile project(':dd-smoke-tests')
+}
+
+shadowJar {
+  exclude 'datadog\\smoketest\\agentisolation\\Agent.class'
+  manifest.inheritFrom project.tasks.appJar.manifest
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn tasks.named("shadowJar")
+  dependsOn tasks.named("agentJar")
+
+  jvmArgs "-Ddatadog.smoketest.agentisolation.appJar.path=${tasks.shadowJar.archivePath}"
+  jvmArgs "-Ddatadog.smoketest.agentisolation.agentJar.path=${tasks.agentJar.archivePath}"
+}
