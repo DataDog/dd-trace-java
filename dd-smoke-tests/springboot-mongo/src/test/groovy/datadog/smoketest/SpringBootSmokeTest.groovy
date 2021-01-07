@@ -34,11 +34,11 @@ class SpringBootSmokeTest extends AbstractServerSmokeTest {
     setup:
     String url = "http://localhost:${httpPort}/docs"
     MediaType plainText = MediaType.parse("text/plain; charset=utf-8")
-    client.newCall(new Request.Builder().url(url).post(RequestBody.create(plainText, "foo")).build())
-    client.newCall(new Request.Builder().url(url).post(RequestBody.create(plainText, "bar")).build())
+    client.newCall(new Request.Builder().url(url).post(RequestBody.create(plainText, "foo")).build()).execute()
+    client.newCall(new Request.Builder().url(url).post(RequestBody.create(plainText, "bar")).build()).execute()
 
     when:
-    def response = client.newCall(new Request.Builder().url(url).get().build())
+    def response = client.newCall(new Request.Builder().url(url).get().build()).execute()
 
     then:
     def responseBodyStr = response.body().string()
