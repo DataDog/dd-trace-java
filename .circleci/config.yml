@@ -131,6 +131,8 @@ jobs:
       - image: rabbitmq
         # This is used by aerospike instrumentation tests
       - image: aerospike
+        # This is used by mongodb smoke tests
+      - image: mongo
 
     parameters:
       testTask:

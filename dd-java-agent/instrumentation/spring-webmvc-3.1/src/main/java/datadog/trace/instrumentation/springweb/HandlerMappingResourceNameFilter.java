@@ -12,7 +12,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.support.GenericBeanDefinition;
+import org.springframework.beans.factory.annotation.AnnotatedGenericBeanDefinition;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExecutionChain;
@@ -82,11 +82,13 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
     return Ordered.HIGHEST_PRECEDENCE + 1;
   }
 
-  public static class BeanDefinition extends GenericBeanDefinition {
+  public static class BeanDefinition extends AnnotatedGenericBeanDefinition {
+    private static final long serialVersionUID = 5623859691503032280L;
+
     public BeanDefinition() {
-      setScope(SCOPE_SINGLETON);
-      setBeanClass(HandlerMappingResourceNameFilter.class);
+      super(HandlerMappingResourceNameFilter.class);
       setBeanClassName(HandlerMappingResourceNameFilter.class.getName());
+      setScope(SCOPE_SINGLETON);
     }
   }
 }

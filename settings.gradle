@@ -69,6 +69,7 @@ include ':dd-smoke-tests:quarkus'
 include ':dd-smoke-tests:slf4j-mdc'
 include ':dd-smoke-tests:springboot'
 include ':dd-smoke-tests:springboot-grpc'
+include ':dd-smoke-tests:springboot-mongo'
 include ':dd-smoke-tests:wildfly'
 include ':dd-smoke-tests:profiling-integration-tests'
 
