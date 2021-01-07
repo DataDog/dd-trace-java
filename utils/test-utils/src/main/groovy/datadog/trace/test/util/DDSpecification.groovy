@@ -180,11 +180,16 @@ abstract class DDSpecification extends Specification {
     // between test cleanup and these assertions
     long deadline = System.currentTimeMillis() + CHECK_TIMEOUT_MS
 
-    while (System.currentTimeMillis() < deadline && !getDDThreads().isEmpty()) {
+    Set<Thread> threads = getDDThreads()
+    while (System.currentTimeMillis() < deadline && !threads.isEmpty()) {
       Thread.sleep(100)
+      threads = getDDThreads()
     }
 
-    assert getDDThreads().isEmpty(): "DD threads still active.  Forget to close() a tracer?"
+    if (!threads.isEmpty()) {
+      println("WARNING: DD threads still active.  Forget to close() a tracer?")
+      println threads.collect { it.name }
+    }
   }
 
   void injectSysConfig(String name, String value) {
