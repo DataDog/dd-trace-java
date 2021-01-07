@@ -3,28 +3,16 @@
 package datadog.trace.instrumentation.springdata;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.springdata.SpringDataDecorator.DECORATOR;
-import static datadog.trace.instrumentation.springdata.SpringDataDecorator.REPOSITORY_OPERATION;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.aopalliance.intercept.MethodInterceptor;
-import org.aopalliance.intercept.MethodInvocation;
-import org.springframework.aop.framework.ProxyFactory;
-import org.springframework.data.repository.Repository;
-import org.springframework.data.repository.core.RepositoryInformation;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
 import org.springframework.data.repository.core.support.RepositoryProxyPostProcessor;
 
@@ -44,8 +32,8 @@ public final class SpringRepositoryInstrumentation extends Instrumenter.Tracing 
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SpringDataDecorator",
-      getClass().getName() + "$RepositoryInterceptor",
-      getClass().getName() + "$InterceptingRepositoryProxyPostProcessor",
+      packageName + ".RepositoryInterceptor",
+      packageName + ".InterceptingRepositoryProxyPostProcessor",
     };
   }
 
@@ -68,64 +56,6 @@ public final class SpringRepositoryInstrumentation extends Instrumenter.Tracing 
     private void muzzleCheck(final RepositoryProxyPostProcessor processor) {
       processor.postProcess(null, null);
       // (see usage in InterceptingRepositoryProxyPostProcessor below)
-    }
-  }
-
-  public static final class InterceptingRepositoryProxyPostProcessor
-      implements RepositoryProxyPostProcessor {
-    public static final RepositoryProxyPostProcessor INSTANCE =
-        new InterceptingRepositoryProxyPostProcessor();
-
-    // DQH - TODO: Support older versions?
-    // The signature of postProcess changed to add RepositoryInformation in
-    // spring-data-commons 1.9.0
-    // public void postProcess(final ProxyFactory factory) {
-    //   factory.addAdvice(0, RepositoryInterceptor.INSTANCE);
-    // }
-
-    @Override
-    public void postProcess(
-        final ProxyFactory factory, final RepositoryInformation repositoryInformation) {
-      factory.addAdvice(0, RepositoryInterceptor.INSTANCE);
-    }
-  }
-
-  static final class RepositoryInterceptor implements MethodInterceptor {
-    public static final MethodInterceptor INSTANCE = new RepositoryInterceptor();
-
-    private RepositoryInterceptor() {}
-
-    @Override
-    public Object invoke(final MethodInvocation methodInvocation) throws Throwable {
-      final Method invokedMethod = methodInvocation.getMethod();
-      final Class<?> clazz = invokedMethod.getDeclaringClass();
-
-      final boolean isRepositoryOp = Repository.class.isAssignableFrom(clazz);
-      // Since this interceptor is the outer most interceptor, non-Repository methods
-      // including Object methods will also flow through here.  Don't create spans for those.
-      if (!isRepositoryOp) {
-        return methodInvocation.proceed();
-      }
-
-      final AgentSpan span = startSpan(REPOSITORY_OPERATION);
-      DECORATOR.afterStart(span);
-      DECORATOR.onOperation(span, invokedMethod);
-
-      final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
-
-      Object result = null;
-      try {
-        result = methodInvocation.proceed();
-      } catch (final Throwable t) {
-        DECORATOR.onError(scope, t);
-        throw t;
-      } finally {
-        DECORATOR.beforeFinish(scope);
-        scope.close();
-        span.finish();
-      }
-      return result;
     }
   }
 }

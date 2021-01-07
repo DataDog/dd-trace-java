@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.sa
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.rediscala.RediscalaClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.rediscala.RediscalaClientDecorator.REDIS_COMMAND;
@@ -19,7 +18,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.context.TraceScope;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -28,8 +26,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 import redis.RedisCommand;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
-import scala.runtime.AbstractFunction1;
-import scala.util.Try;
 
 @AutoService(Instrumenter.class)
 public final class RediscalaInstrumentation extends Instrumenter.Tracing {
@@ -56,8 +52,7 @@ public final class RediscalaInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      RediscalaInstrumentation.class.getName() + "$OnCompleteHandler",
-      packageName + ".RediscalaClientDecorator",
+      packageName + ".OnCompleteHandler", packageName + ".RediscalaClientDecorator",
     };
   }
 
@@ -100,31 +95,6 @@ public final class RediscalaInstrumentation extends Instrumenter.Tracing {
       }
       scope.close();
       // span finished in OnCompleteHandler
-    }
-  }
-
-  public static class OnCompleteHandler extends AbstractFunction1<Try<Object>, Void> {
-    private final AgentSpan span;
-
-    public OnCompleteHandler(final AgentSpan span) {
-      this.span = span;
-    }
-
-    @Override
-    public Void apply(final Try<Object> result) {
-      try {
-        if (result.isFailure()) {
-          DECORATE.onError(span, result.failed().get());
-        }
-        DECORATE.beforeFinish(span);
-        final TraceScope scope = activeScope();
-        if (scope != null) {
-          scope.setAsyncPropagation(false);
-        }
-      } finally {
-        span.finish();
-      }
-      return null;
     }
   }
 }

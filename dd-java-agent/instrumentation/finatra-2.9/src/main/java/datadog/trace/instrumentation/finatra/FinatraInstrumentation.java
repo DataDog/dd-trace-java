@@ -19,9 +19,7 @@ import com.google.auto.service.AutoService;
 import com.twitter.finagle.http.Request;
 import com.twitter.finagle.http.Response;
 import com.twitter.util.Future;
-import com.twitter.util.FutureEventListener;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -41,9 +39,7 @@ public class FinatraInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".FinatraDecorator", FinatraInstrumentation.class.getName() + "$Listener"
-    };
+    return new String[] {packageName + ".FinatraDecorator", packageName + ".Listener"};
   }
 
   @Override
@@ -112,34 +108,6 @@ public class FinatraInstrumentation extends Instrumenter.Tracing {
       }
 
       responseOption.get().addEventListener(new Listener(scope));
-    }
-  }
-
-  public static class Listener implements FutureEventListener<Response> {
-    private final AgentScope scope;
-
-    public Listener(final AgentScope scope) {
-      this.scope = scope;
-    }
-
-    @Override
-    public void onSuccess(final Response response) {
-      // Don't use DECORATE.onResponse because this is the controller span
-      if (Config.get().getHttpServerErrorStatuses().get(DECORATE.status(response))) {
-        scope.span().setError(true);
-      }
-
-      DECORATE.beforeFinish(scope.span());
-      scope.span().finish();
-      scope.close();
-    }
-
-    @Override
-    public void onFailure(final Throwable cause) {
-      DECORATE.onError(scope.span(), cause);
-      DECORATE.beforeFinish(scope.span());
-      scope.span().finish();
-      scope.close();
     }
   }
 }
