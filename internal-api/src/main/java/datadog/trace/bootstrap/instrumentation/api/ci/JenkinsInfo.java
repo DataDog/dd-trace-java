@@ -19,19 +19,21 @@ class JenkinsInfo extends CIProviderInfo {
   public static final String JENKINS_GIT_BRANCH = "GIT_BRANCH";
 
   JenkinsInfo() {
-    ciProviderName = JENKINS_PROVIDER_NAME;
-    ciPipelineId = System.getenv(JENKINS_PIPELINE_ID);
-    ciPipelineNumber = System.getenv(JENKINS_PIPELINE_NUMBER);
-    ciPipelineUrl = System.getenv(JENKINS_PIPELINE_URL);
-    ciJobUrl = null; // ciJobUrl cannot be built using Jenkins Environment Variables.
-    ciWorkspacePath = expandTilde(System.getenv(JENKINS_WORKSPACE_PATH));
-    gitRepositoryUrl = filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL));
-    gitCommit = System.getenv(JENKINS_GIT_COMMIT);
-    gitBranch = buildGitBranch();
-    gitTag = buildGitTag();
-    ciPipelineName = buildCiPipelineName(gitBranch);
+    final String gitBranch = buildGitBranch();
 
-    updateCiTags();
+    this.ciTags =
+        new CITagsBuilder()
+            .withCiProviderName(JENKINS_PROVIDER_NAME)
+            .withCiPipelineId(System.getenv(JENKINS_PIPELINE_ID))
+            .withCiPipelineName(buildCiPipelineName(gitBranch))
+            .withCiPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
+            .withCiPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
+            .withCiWorkspacePath(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
+            .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL)))
+            .withGitCommit(System.getenv(JENKINS_GIT_COMMIT))
+            .withGitBranch(gitBranch)
+            .withGitTag(buildGitTag())
+            .build();
   }
 
   private String buildGitBranch() {

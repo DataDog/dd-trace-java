@@ -16,19 +16,22 @@ class CircleCIInfo extends CIProviderInfo {
   public static final String CIRCLECI_GIT_TAG = "CIRCLE_TAG";
 
   CircleCIInfo() {
-    ciProviderName = CIRCLECI_PROVIDER_NAME;
-    ciPipelineId = System.getenv(CIRCLECI_PIPELINE_ID);
-    ciPipelineName = System.getenv(CIRCLECI_PIPELINE_NAME);
-    ciPipelineNumber = System.getenv(CIRCLECI_PIPELINE_NUMBER);
-    ciPipelineUrl = System.getenv(CIRCLECI_BUILD_URL);
-    ciJobUrl = System.getenv(CIRCLECI_BUILD_URL);
-    ciWorkspacePath = expandTilde(System.getenv(CIRCLECI_WORKSPACE_PATH));
-    gitRepositoryUrl = filterSensitiveInfo(System.getenv(CIRCLECI_GIT_REPOSITORY_URL));
-    gitCommit = System.getenv(CIRCLECI_GIT_COMMIT);
-    gitTag = normalizeRef(System.getenv(CIRCLECI_GIT_TAG));
-    gitBranch = buildGitBranch(gitTag);
+    final String gitTag = normalizeRef(System.getenv(CIRCLECI_GIT_TAG));
 
-    updateCiTags();
+    this.ciTags =
+        new CITagsBuilder()
+            .withCiProviderName(CIRCLECI_PROVIDER_NAME)
+            .withCiPipelineId(System.getenv(CIRCLECI_PIPELINE_ID))
+            .withCiPipelineName(System.getenv(CIRCLECI_PIPELINE_NAME))
+            .withCiPipelineNumber(System.getenv(CIRCLECI_PIPELINE_NUMBER))
+            .withCiPipelineUrl(System.getenv(CIRCLECI_BUILD_URL))
+            .withCiJorUrl(System.getenv(CIRCLECI_BUILD_URL))
+            .withCiWorkspacePath(expandTilde(System.getenv(CIRCLECI_WORKSPACE_PATH)))
+            .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(CIRCLECI_GIT_REPOSITORY_URL)))
+            .withGitCommit(System.getenv(CIRCLECI_GIT_COMMIT))
+            .withGitBranch(buildGitBranch(gitTag))
+            .withGitTag(gitTag)
+            .build();
   }
 
   private String buildGitBranch(final String gitTag) {

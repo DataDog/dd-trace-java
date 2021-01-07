@@ -19,19 +19,20 @@ class GithubActionsInfo extends CIProviderInfo {
     final String commit = System.getenv(GHACTIONS_SHA);
     final String url = buildPipelineUrl(repo, commit);
 
-    ciProviderName = GHACTIONS_PROVIDER_NAME;
-    ciPipelineId = System.getenv(GHACTIONS_PIPELINE_ID);
-    ciPipelineName = System.getenv(GHACTIONS_PIPELINE_NAME);
-    ciPipelineNumber = System.getenv(GHACTIONS_PIPELINE_NUMBER);
-    ciPipelineUrl = url;
-    ciJobUrl = url;
-    ciWorkspacePath = expandTilde(System.getenv(GHACTIONS_WORKSPACE_PATH));
-    gitRepositoryUrl = buildGitRepositoryUrl(repo);
-    gitCommit = commit;
-    gitBranch = buildGitBranch();
-    gitTag = buildGitTag();
-
-    updateCiTags();
+    this.ciTags =
+        new CITagsBuilder()
+            .withCiProviderName(GHACTIONS_PROVIDER_NAME)
+            .withCiPipelineId(System.getenv(GHACTIONS_PIPELINE_ID))
+            .withCiPipelineName(System.getenv(GHACTIONS_PIPELINE_NAME))
+            .withCiPipelineNumber(System.getenv(GHACTIONS_PIPELINE_NUMBER))
+            .withCiPipelineUrl(url)
+            .withCiJorUrl(url)
+            .withCiWorkspacePath(expandTilde(System.getenv(GHACTIONS_WORKSPACE_PATH)))
+            .withGitRepositoryUrl(buildGitRepositoryUrl(repo))
+            .withGitCommit(commit)
+            .withGitBranch(buildGitBranch())
+            .withGitTag(buildGitTag())
+            .build();
   }
 
   private String buildGitTag() {

@@ -18,18 +18,7 @@ import java.util.Map;
 
 public abstract class CIProviderInfo {
 
-  protected final Map<String, String> ciTags = new HashMap<>();
-  protected String ciProviderName;
-  protected String ciPipelineId;
-  protected String ciPipelineName;
-  protected String ciPipelineNumber;
-  protected String ciPipelineUrl;
-  protected String ciJobUrl;
-  protected String ciWorkspacePath;
-  protected String gitRepositoryUrl;
-  protected String gitCommit;
-  protected String gitBranch;
-  protected String gitTag;
+  protected Map<String, String> ciTags = new HashMap<>();
 
   public boolean isCI() {
     return true;
@@ -37,54 +26,6 @@ public abstract class CIProviderInfo {
 
   public Map<String, String> getCiTags() {
     return ciTags;
-  }
-
-  protected void updateCiTags() {
-    if (ciProviderName != null) {
-      ciTags.put(Tags.CI_PROVIDER_NAME, ciProviderName);
-    }
-
-    if (ciPipelineId != null) {
-      ciTags.put(Tags.CI_PIPELINE_ID, ciPipelineId);
-    }
-
-    if (ciPipelineName != null) {
-      ciTags.put(Tags.CI_PIPELINE_NAME, ciPipelineName);
-    }
-
-    if (ciPipelineNumber != null) {
-      ciTags.put(Tags.CI_PIPELINE_NUMBER, ciPipelineNumber);
-    }
-
-    if (ciPipelineUrl != null) {
-      ciTags.put(Tags.CI_PIPELINE_URL, ciPipelineUrl);
-    }
-
-    if (ciJobUrl != null) {
-      ciTags.put(Tags.CI_JOB_URL, ciJobUrl);
-    }
-
-    if (ciWorkspacePath != null) {
-      ciTags.put(Tags.CI_WORKSPACE_PATH, ciWorkspacePath);
-      // ciTags.put(Tags.BUILD_SOURCE_ROOT, ciWorkspacePath);
-    }
-
-    if (gitRepositoryUrl != null) {
-      ciTags.put(Tags.GIT_REPOSITORY_URL, gitRepositoryUrl);
-    }
-
-    if (gitCommit != null) {
-      ciTags.put(Tags.GIT_COMMIT_SHA, gitCommit);
-      ciTags.put(Tags._GIT_COMMIT_SHA, gitCommit);
-    }
-
-    if (gitBranch != null) {
-      ciTags.put(Tags.GIT_BRANCH, gitBranch);
-    }
-
-    if (gitTag != null) {
-      ciTags.put(Tags.GIT_TAG, gitTag);
-    }
   }
 
   public static CIProviderInfo selectCI() {
@@ -158,6 +99,103 @@ public abstract class CIProviderInfo {
       return urlStr.replace(userInfo + "@", "");
     } catch (final URISyntaxException ex) {
       return urlStr;
+    }
+  }
+
+  public static class CITagsBuilder {
+
+    private final Map<String, String> ciTags = new HashMap<>();
+    private String ciPipelineId;
+    private String ciPipelineName;
+    private String ciPipelineNumber;
+    private String ciPipelineUrl;
+    private String ciJobUrl;
+    private String ciWorkspacePath;
+    private String gitRepositoryUrl;
+    private String gitCommit;
+    private String gitBranch;
+    private String gitTag;
+
+    public CITagsBuilder withCiProviderName(final String ciProviderName) {
+      if (ciProviderName != null) {
+        ciTags.put(Tags.CI_PROVIDER_NAME, ciProviderName);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiPipelineId(final String ciPipelineId) {
+      if (ciPipelineId != null) {
+        ciTags.put(Tags.CI_PIPELINE_ID, ciPipelineId);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiPipelineName(final String ciPipelineName) {
+      if (ciPipelineName != null) {
+        ciTags.put(Tags.CI_PIPELINE_NAME, ciPipelineName);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiPipelineNumber(final String ciPipelineNumber) {
+      if (ciPipelineNumber != null) {
+        ciTags.put(Tags.CI_PIPELINE_NUMBER, ciPipelineNumber);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiPipelineUrl(final String ciPipelineUrl) {
+      if (ciPipelineUrl != null) {
+        ciTags.put(Tags.CI_PIPELINE_URL, ciPipelineUrl);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiJorUrl(final String ciJobUrl) {
+      if (ciJobUrl != null) {
+        ciTags.put(Tags.CI_JOB_URL, ciJobUrl);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiWorkspacePath(final String ciWorkspacePath) {
+      if (ciWorkspacePath != null) {
+        ciTags.put(Tags.CI_WORKSPACE_PATH, ciWorkspacePath);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitRepositoryUrl(final String gitRepositoryUrl) {
+      if (gitRepositoryUrl != null) {
+        ciTags.put(Tags.GIT_REPOSITORY_URL, gitRepositoryUrl);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitCommit(final String gitCommit) {
+      if (gitCommit != null) {
+        ciTags.put(Tags.GIT_COMMIT_SHA, gitCommit);
+        ciTags.put(Tags._GIT_COMMIT_SHA, gitCommit);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitBranch(final String gitBranch) {
+      if (gitBranch != null) {
+        ciTags.put(Tags.GIT_BRANCH, gitBranch);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitTag(final String gitTag) {
+      if (gitTag != null) {
+        ciTags.put(Tags.GIT_TAG, gitTag);
+      }
+      return this;
+    }
+
+    public Map<String, String> build() {
+      return ciTags;
     }
   }
 }

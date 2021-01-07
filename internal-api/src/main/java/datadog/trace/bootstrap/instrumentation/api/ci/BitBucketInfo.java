@@ -19,19 +19,20 @@ class BitBucketInfo extends CIProviderInfo {
     final String number = System.getenv(BITBUCKET_BUILD_NUMBER);
     final String url = buildPipelineUrl(repo, number);
 
-    ciProviderName = BITBUCKET_PROVIDER_NAME;
-    ciPipelineId = buildPipelineId();
-    ciPipelineName = repo;
-    ciPipelineNumber = number;
-    ciPipelineUrl = url;
-    ciJobUrl = url;
-    ciWorkspacePath = expandTilde(System.getenv(BITBUCKET_WORKSPACE_PATH));
-    gitRepositoryUrl = filterSensitiveInfo(System.getenv(BITBUCKET_GIT_REPOSITORY_URL));
-    gitCommit = System.getenv(BITBUCKET_GIT_COMMIT);
-    gitBranch = normalizeRef(System.getenv(BITBUCKET_GIT_BRANCH));
-    gitTag = normalizeRef(System.getenv(BITBUCKET_GIT_TAG));
-
-    updateCiTags();
+    this.ciTags =
+        new CITagsBuilder()
+            .withCiProviderName(BITBUCKET_PROVIDER_NAME)
+            .withCiPipelineId(buildPipelineId())
+            .withCiPipelineName(repo)
+            .withCiPipelineNumber(number)
+            .withCiPipelineUrl(url)
+            .withCiJorUrl(url)
+            .withCiWorkspacePath(expandTilde(System.getenv(BITBUCKET_WORKSPACE_PATH)))
+            .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(BITBUCKET_GIT_REPOSITORY_URL)))
+            .withGitCommit(System.getenv(BITBUCKET_GIT_COMMIT))
+            .withGitBranch(normalizeRef(System.getenv(BITBUCKET_GIT_BRANCH)))
+            .withGitTag(normalizeRef(System.getenv(BITBUCKET_GIT_TAG)))
+            .build();
   }
 
   private String buildPipelineUrl(final String repo, final String number) {
