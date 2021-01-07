@@ -24,7 +24,6 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.glassfish.grizzly.http.server.AfterServiceListener;
 import org.glassfish.grizzly.http.server.Request;
 
 @AutoService(Instrumenter.class)
@@ -50,7 +49,7 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing {
       packageName + ".GrizzlyDecorator",
       packageName + ".GrizzlyRequestExtractAdapter",
       packageName + ".RequestURIDataAdapter",
-      getClass().getName() + "$SpanClosingListener"
+      packageName + ".SpanClosingListener"
     };
   }
 
@@ -105,22 +104,6 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing {
       }
       scope.close();
       // span finished by SpanClosingListener
-    }
-  }
-
-  public static class SpanClosingListener implements AfterServiceListener {
-    public static final SpanClosingListener LISTENER = new SpanClosingListener();
-
-    @Override
-    public void onAfterService(final Request request) {
-      final Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
-      if (spanAttr instanceof AgentSpan) {
-        request.removeAttribute(DD_SPAN_ATTRIBUTE);
-        final AgentSpan span = (AgentSpan) spanAttr;
-        DECORATE.onResponse(span, request.getResponse());
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
     }
   }
 }
