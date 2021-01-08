@@ -810,19 +810,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(rootSpanTags);
       return context;
     }
-
-    private Number getOrTryParse(Object value) {
-      if (value instanceof Number) {
-        return (Number) value;
-      } else if (value instanceof String) {
-        try {
-          return Double.parseDouble((String) value);
-        } catch (NumberFormatException ignore) {
-
-        }
-      }
-      return null;
-    }
   }
 
   private static class ShutdownHook extends Thread {
