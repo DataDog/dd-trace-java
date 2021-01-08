@@ -2,13 +2,11 @@ package datadog.trace.common.metrics
 
 import datadog.trace.api.WellKnownTags
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Ignore
 import spock.lang.Requires
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.util.concurrent.TimeUnit.SECONDS
 
-@Ignore("requires an upgrade to an as yet unreleased agent to run")
 @Requires({ "true" == System.getenv("CI") && isJavaVersionAtLeast(8) })
 class AgentIntegrationTest extends DDSpecification {
 
