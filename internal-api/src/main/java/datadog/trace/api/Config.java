@@ -65,6 +65,8 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
@@ -257,11 +259,6 @@ public class Config {
 
   public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
       TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
-
-  private static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
-      "trace.jdbc.prepared.statement.class.name";
-
-  private static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
 
   private static final String TRACE_AGENT_URL_TEMPLATE = "http://%s:%d";
 
