@@ -27,7 +27,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(Instrumenter.class)
@@ -47,7 +46,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
     return new String[] {
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapter",
-      KafkaProducerInstrumentation.class.getName() + "$ProducerCallback"
+      packageName + ".KafkaProducerCallback",
     };
   }
 
@@ -74,7 +73,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record);
 
-      callback = new ProducerCallback(callback, parent, span);
+      callback = new KafkaProducerCallback(callback, parent, span);
 
       if (record.value() == null) {
         span.setTag(InstrumentationTags.TOMBSTONE, true);
@@ -116,35 +115,6 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
       // span finished by ProducerCallback
-    }
-  }
-
-  public static class ProducerCallback implements Callback {
-    private final Callback callback;
-    private final AgentSpan parent;
-    private final AgentSpan span;
-
-    public ProducerCallback(final Callback callback, final AgentSpan parent, final AgentSpan span) {
-      this.callback = callback;
-      this.parent = parent;
-      this.span = span;
-    }
-
-    @Override
-    public void onCompletion(final RecordMetadata metadata, final Exception exception) {
-      PRODUCER_DECORATE.onError(span, exception);
-      PRODUCER_DECORATE.beforeFinish(span);
-      span.finish();
-      if (callback != null) {
-        if (parent != null) {
-          try (final AgentScope scope = activateSpan(parent)) {
-            scope.setAsyncPropagation(true);
-            callback.onCompletion(metadata, exception);
-          }
-        } else {
-          callback.onCompletion(metadata, exception);
-        }
-      }
     }
   }
 }

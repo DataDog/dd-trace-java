@@ -18,6 +18,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.hibernate.SharedSessionContract;
 import org.hibernate.Transaction;
 
 @AutoService(Instrumenter.class)
@@ -40,7 +41,7 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
         TransactionInstrumentation.class.getName() + "$TransactionCommitAdvice");
   }
 
-  public static class TransactionCommitAdvice extends V4Advice {
+  public static class TransactionCommitAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startCommit(
@@ -60,6 +61,14 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
         @Advice.Thrown final Throwable throwable) {
 
       SessionMethodUtils.closeScope(state, throwable, null, true);
+    }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate starting at 4.0.
+     */
+    public static void muzzleCheck(final SharedSessionContract contract) {
+      contract.createCriteria("");
     }
   }
 }

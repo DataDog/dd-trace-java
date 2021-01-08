@@ -6,7 +6,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientHelpers.*;
+import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientHelpers.AkkaHttpHeaders;
+import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientHelpers.OnCompleteHandler;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import akka.http.scaladsl.HttpExt;
@@ -40,6 +41,7 @@ public final class AkkaHttpSingleRequestInstrumentation extends Instrumenter.Tra
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".AkkaHttpClientHelpers",
       packageName + ".AkkaHttpClientHelpers$OnCompleteHandler",
       packageName + ".AkkaHttpClientHelpers$AkkaHttpHeaders",
       packageName + ".AkkaHttpClientHelpers$HasSpanHeader",

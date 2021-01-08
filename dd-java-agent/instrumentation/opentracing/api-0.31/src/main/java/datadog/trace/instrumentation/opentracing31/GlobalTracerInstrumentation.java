@@ -43,7 +43,7 @@ public class GlobalTracerInstrumentation extends Instrumenter.Tracing {
     return new String[] {
       packageName + ".OTTracer",
       packageName + ".OTTracer$OTSpanBuilder",
-      packageName + ".OTPropagation$TextMapInjectSetter",
+      packageName + ".OTTextMapSetter",
       packageName + ".OTScopeManager",
       packageName + ".OTScopeManager$OTScope",
       packageName + ".OTScopeManager$OTTraceScope",

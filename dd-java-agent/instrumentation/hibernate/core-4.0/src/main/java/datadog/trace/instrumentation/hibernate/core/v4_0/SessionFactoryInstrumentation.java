@@ -47,7 +47,7 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
         SessionFactoryInstrumentation.class.getName() + "$SessionFactoryAdvice");
   }
 
-  public static class SessionFactoryAdvice extends V4Advice {
+  public static class SessionFactoryAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void openSession(@Advice.Return final SharedSessionContract session) {
@@ -59,6 +59,14 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
       final ContextStore<SharedSessionContract, SessionState> contextStore =
           InstrumentationContext.get(SharedSessionContract.class, SessionState.class);
       contextStore.putIfAbsent(session, new SessionState(span));
+    }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate starting at 4.0.
+     */
+    public static void muzzleCheck(final SharedSessionContract contract) {
+      contract.createCriteria("");
     }
   }
 }
