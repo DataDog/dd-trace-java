@@ -8,6 +8,7 @@ import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR
 import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE
 import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitriseInfo.BITRISE
 import static datadog.trace.bootstrap.instrumentation.api.ci.BuildkiteInfo.BUILDKITE
 import static datadog.trace.bootstrap.instrumentation.api.ci.CIProviderInfo.selectCI
 import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI
@@ -28,7 +29,7 @@ abstract class CIProviderInfoTest extends DDSpecification {
     // Clear all environment variables used to decide which CI/Git data
     // must be set in the Test span (See TestDecorator constructor).
     // Add the new CI envvar discriminant here if other CI provider is added.
-    environmentVariables.clear(JENKINS, GITLAB, TRAVIS, CIRCLECI, APPVEYOR, AZURE, BITBUCKET, GHACTIONS, BUILDKITE)
+    environmentVariables.clear(JENKINS, GITLAB, TRAVIS, CIRCLECI, APPVEYOR, AZURE, BITBUCKET, GHACTIONS, BUILDKITE, BITRISE)
   }
 
   def "test ci provider info is set properly"() {
@@ -75,6 +76,7 @@ abstract class CIProviderInfoTest extends DDSpecification {
     GHACTIONS     | GithubActionsInfo
     BITBUCKET     | BitBucketInfo
     BUILDKITE     | BuildkiteInfo
+    BITRISE       | BitriseInfo
     "none"        | NoopCIInfo
   }
 }
