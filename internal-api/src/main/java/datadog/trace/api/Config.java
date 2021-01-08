@@ -59,6 +59,7 @@ import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
@@ -345,6 +346,7 @@ public class Config {
   @Getter private final boolean perfMetricsEnabled;
 
   @Getter private final boolean tracerMetricsEnabled;
+  @Getter private final boolean tracerMetricsBufferingEnabled;
   @Getter private final int tracerMetricsMaxAggregates;
   @Getter private final int tracerMetricsMaxPending;
 
@@ -627,6 +629,8 @@ public class Config {
 
     tracerMetricsEnabled =
         isJavaVersionAtLeast(8) && configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+    tracerMetricsBufferingEnabled =
+        configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 1000);
     tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
 

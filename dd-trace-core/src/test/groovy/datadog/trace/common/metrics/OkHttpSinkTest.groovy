@@ -31,7 +31,7 @@ class OkHttpSinkTest extends DDSpecification {
     String path = "v0.5/stats"
     EventListener listener = Mock(EventListener)
     OkHttpClient client = Mock(OkHttpClient)
-    OkHttpSink sink = new OkHttpSink(client, agentUrl, path)
+    OkHttpSink sink = new OkHttpSink(client, agentUrl, path, true)
     sink.register(listener)
 
     when:
@@ -66,7 +66,7 @@ class OkHttpSinkTest extends DDSpecification {
     EventListener listener = new BlockingListener(latch)
     OkHttpClient client = Mock(OkHttpClient)
     OkHttpSink sink = new OkHttpSink(client, agentUrl, path,
-      TimeUnit.MILLISECONDS.toNanos(100))
+      TimeUnit.MILLISECONDS.toNanos(100), true)
     sink.register(listener)
     AtomicBoolean first = new AtomicBoolean(true)
 
