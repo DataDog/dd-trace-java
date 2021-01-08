@@ -1,8 +1,13 @@
+import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
+import com.datadoghq.sketch.ddsketch.proto.DDSketch
+import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
+import datadog.trace.core.histogram.DDSketchHistogram
 import datadog.trace.core.histogram.Histogram
 import datadog.trace.core.histogram.Histograms
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
+import java.nio.ByteBuffer
 import java.util.concurrent.ThreadLocalRandom
 
 class DDSketchHistogramTest extends DDSpecification {
@@ -35,19 +40,25 @@ class DDSketchHistogramTest extends DDSpecification {
   def "test quantiles have 1% relative error"() {
     setup:
     Histogram histogram = Histograms.newHistogramFactory().newHistogram()
-    when:
     long[] data = sortedRandomData(size) {
       scenario(params)
     }
+    when: "add values to sketch"
     for (long value : data) {
       histogram.accept(value)
     }
 
-    then:
-    for (double quantile : quantiles) {
-      double relativeError = relativeError(histogram.valueAtQuantile(quantile), empiricalQuantile(data, quantile))
-      assert relativeError < 0.01
-    }
+    then: "have accurate quantiles"
+    validateQuantiles(histogram, data)
+
+    when: "perform serialization round trip"
+    ByteBuffer buffer = histogram.serialize()
+    Histogram newHistogram = new DDSketchHistogram(DDSketchProtoBinding.fromProto({
+      new CollapsingLowestDenseStore(1024)
+    }, DDSketch.parseFrom(buffer.array())))
+
+    then: "quantiles accurate afterwards"
+    validateQuantiles(newHistogram, data)
 
     where:
     scenario   |   size   | params
@@ -65,6 +76,14 @@ class DDSketchHistogramTest extends DDSpecification {
     normal     |   100000 | [1000D, 10D]
     normal     |   10000  | [10000D, 100D]
     normal     |   100000 | [10000D, 100D]
+  }
+
+  def validateQuantiles(Histogram histogram, long[] data) {
+    for (double quantile : quantiles) {
+      double relativeError = relativeError(histogram.valueAtQuantile(quantile), empiricalQuantile(data, quantile))
+      assert relativeError < 0.01
+    }
+    true
   }
 
   def relativeError(double value, double expected) {
