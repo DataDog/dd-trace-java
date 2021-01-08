@@ -10,10 +10,14 @@ public final class DDSketchHistogram implements Histogram, HistogramFactory {
   private final DDSketch sketch;
 
   public DDSketchHistogram() {
-    this.sketch =
+    this(
         new DDSketch(
             new BitwiseLinearlyInterpolatedMapping(0.01),
-            () -> new CollapsingLowestDenseStore(1024));
+            () -> new CollapsingLowestDenseStore(1024)));
+  }
+
+  public DDSketchHistogram(DDSketch sketch) {
+    this.sketch = sketch;
   }
 
   @Override
