@@ -33,23 +33,34 @@ public final class OkHttpSink implements Sink, EventListener {
   private final AtomicLong lastRequestTime = new AtomicLong();
   private final AtomicLong asyncRequestCounter = new AtomicLong();
   private final long asyncThresholdLatency;
+  private final boolean bufferingEnabled;
 
   private final AtomicBoolean asyncTaskStarted = new AtomicBoolean(false);
   private volatile AgentTaskScheduler.Scheduled<OkHttpSink> future;
 
-  public OkHttpSink(String agentUrl, long timeoutMillis) {
-    this(buildHttpClient(HttpUrl.get(agentUrl), timeoutMillis), agentUrl, "v0.5/stats");
+  public OkHttpSink(String agentUrl, long timeoutMillis, boolean bufferingEnabled) {
+    this(
+        buildHttpClient(HttpUrl.get(agentUrl), timeoutMillis),
+        agentUrl,
+        "v0.5/stats",
+        bufferingEnabled);
   }
 
-  public OkHttpSink(OkHttpClient client, String agentUrl, String path) {
-    this(client, agentUrl, path, SECONDS.toNanos(1));
+  public OkHttpSink(OkHttpClient client, String agentUrl, String path, boolean bufferingEnabled) {
+    this(client, agentUrl, path, SECONDS.toNanos(1), bufferingEnabled);
   }
 
-  public OkHttpSink(OkHttpClient client, String agentUrl, String path, long asyncThresholdLatency) {
+  public OkHttpSink(
+      OkHttpClient client,
+      String agentUrl,
+      String path,
+      long asyncThresholdLatency,
+      boolean bufferingEnabled) {
     this.client = client;
     this.metricsUrl = HttpUrl.get(agentUrl).resolve(path);
     this.listeners = new CopyOnWriteArrayList<>();
     this.asyncThresholdLatency = asyncThresholdLatency;
+    this.bufferingEnabled = bufferingEnabled;
   }
 
   @Override
@@ -58,7 +69,7 @@ public final class OkHttpSink implements Sink, EventListener {
     // without copying the buffer, otherwise this needs to be async,
     // so need to copy and buffer the request, and let it be executed
     // on the main task scheduler as a last resort
-    if (lastRequestTime.get() < asyncThresholdLatency) {
+    if (!bufferingEnabled || lastRequestTime.get() < asyncThresholdLatency) {
       send(
           prepareRequest(metricsUrl)
               .put(msgpackRequestBodyOf(Collections.singletonList(buffer)))

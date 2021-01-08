@@ -16,7 +16,7 @@ class AgentIntegrationTest extends DDSpecification {
   def "send metrics to trace agent should notify with OK event"() {
     setup:
     def listener = Mock(EventListener)
-    OkHttpSink sink = new OkHttpSink("http://localhost:8126", 5000L)
+    OkHttpSink sink = new OkHttpSink("http://localhost:8126", 5000L, false)
     sink.register(listener)
 
     when:

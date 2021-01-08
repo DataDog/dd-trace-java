@@ -33,6 +33,8 @@ public final class GeneralConfig {
   public static final String PERF_METRICS_ENABLED = "trace.perf.metrics.enabled";
 
   public static final String TRACER_METRICS_ENABLED = "trace.tracer.metrics.enabled";
+  public static final String TRACER_METRICS_BUFFERING_ENABLED =
+      "trace.tracer.metrics.buffering.enabled";
   public static final String TRACER_METRICS_MAX_AGGREGATES = "trace.tracer.metrics.max.aggregates";
   public static final String TRACER_METRICS_MAX_PENDING = "trace.tracer.metrics.max.pending";
 

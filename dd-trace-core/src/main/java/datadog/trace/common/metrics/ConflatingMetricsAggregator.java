@@ -36,7 +36,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   public ConflatingMetricsAggregator(Config config) {
     this(
         config.getWellKnownTags(),
-        new OkHttpSink(config.getAgentUrl(), config.getAgentTimeout()),
+        new OkHttpSink(
+            config.getAgentUrl(),
+            config.getAgentTimeout(),
+            config.isTracerMetricsBufferingEnabled()),
         config.getTracerMetricsMaxAggregates(),
         config.getTracerMetricsMaxPending());
   }
