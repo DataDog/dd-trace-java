@@ -1,5 +1,7 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
+
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Objects;
 
@@ -17,10 +19,10 @@ public final class MetricKey {
       CharSequence operationName,
       CharSequence type,
       int httpStatusCode) {
-    this.resource = UTF8BytesString.create(null == resource ? "" : resource);
-    this.service = UTF8BytesString.create(null == service ? "" : service);
-    this.operationName = UTF8BytesString.create(null == operationName ? "" : operationName);
-    this.type = UTF8BytesString.create(null == type ? "" : type);
+    this.resource = null == resource ? EMPTY : UTF8BytesString.create(resource);
+    this.service = null == service ? EMPTY : UTF8BytesString.create(service);
+    this.operationName = null == operationName ? EMPTY : UTF8BytesString.create(operationName);
+    this.type = null == type ? EMPTY : UTF8BytesString.create(type);
     this.httpStatusCode = httpStatusCode;
   }
 

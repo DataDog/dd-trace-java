@@ -10,6 +10,8 @@ import java.nio.ByteBuffer;
  */
 public final class UTF8BytesString implements CharSequence {
 
+  public static final UTF8BytesString EMPTY = UTF8BytesString.create("");
+
   @Deprecated
   public static UTF8BytesString createConstant(CharSequence string) {
     return create(string);
