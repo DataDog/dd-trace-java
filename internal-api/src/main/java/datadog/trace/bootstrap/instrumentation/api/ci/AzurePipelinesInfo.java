@@ -97,6 +97,6 @@ class AzurePipelinesInfo extends CIProviderInfo {
   }
 
   private String buildCiPipelineUrl(final String uri, final String project, final String buildId) {
-    return String.format("%s%s/_build/results?buildId=%s&_a=summary", uri, project, buildId);
+    return String.format("%s%s/_build/results?buildId=%s", uri, project, buildId);
   }
 }

@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api.ci;
 import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR;
 import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE;
 import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET;
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitriseInfo.BITRISE;
 import static datadog.trace.bootstrap.instrumentation.api.ci.BuildkiteInfo.BUILDKITE;
 import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI;
 import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB;
@@ -50,6 +51,8 @@ public abstract class CIProviderInfo {
       return new GithubActionsInfo();
     } else if (System.getenv(BUILDKITE) != null) {
       return new BuildkiteInfo();
+    } else if (System.getenv(BITRISE) != null) {
+      return new BitriseInfo();
     } else {
       return new NoopCIInfo();
     }
