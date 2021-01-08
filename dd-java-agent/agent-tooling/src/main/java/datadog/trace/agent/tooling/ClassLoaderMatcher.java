@@ -93,11 +93,11 @@ public final class ClassLoaderMatcher {
     private static boolean delegatesToBootstrap(final ClassLoader loader) {
       boolean delegates = true;
       if (!loadsExpectedClass(loader, Tracer.class)) {
-        log.debug("loader {} failed to delegate bootstrap opentracing class", loader);
+        log.debug("Loader {} failed to delegate to bootstrap dd-trace-api class", loader);
         delegates = false;
       }
       if (!loadsExpectedClass(loader, PatchLogger.class)) {
-        log.debug("loader {} failed to delegate bootstrap datadog class", loader);
+        log.debug("Loader {} failed to delegate to bootstrap agent-bootstrap class", loader);
         delegates = false;
       }
       return delegates;
