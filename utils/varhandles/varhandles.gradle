@@ -1,0 +1,16 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_9
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+sourceCompatibility = JavaVersion.VERSION_1_9
+targetCompatibility = JavaVersion.VERSION_1_9
+
+minimumBranchCoverage = 0.7
+minimumInstructionCoverage = 0.7
+
+dependencies {
+  implementation project(':internal-api')
+  testCompile project(':utils:test-utils')
+}

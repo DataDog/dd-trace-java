@@ -32,6 +32,8 @@ testSets {
 dependencies {
   compile project(':dd-trace-api')
   compile project(':internal-api')
+  compile project(':utils:unsafe')
+  compile project(':utils:varhandles')
   compile project(':utils:histograms')
   compile project(':utils:container-utils')
 

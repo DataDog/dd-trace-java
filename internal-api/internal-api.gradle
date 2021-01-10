@@ -18,6 +18,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTrace",
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
+  "datadog.trace.api.Platform.ConcurrentArrayOperationsHolder",
   "datadog.trace.bootstrap.instrumentation.ci.git.GitInfo",
   "datadog.trace.bootstrap.instrumentation.ci.git.GitInfo.GitInfoBuilder",
   "datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo",
