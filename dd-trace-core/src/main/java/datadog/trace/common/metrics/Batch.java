@@ -72,7 +72,9 @@ public final class Batch {
     if (count >= 0) {
       // wait for the duration to have been set.
       // note this mechanism only supports a single reader
-      while (committed.get() != count) ;
+      while (committed.get() != count) {
+        Thread.yield();
+      }
       committed.set(0);
       aggregate.recordDurations(count, durations);
     }
