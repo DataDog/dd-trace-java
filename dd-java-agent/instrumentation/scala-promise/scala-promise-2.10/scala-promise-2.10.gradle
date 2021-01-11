@@ -52,10 +52,9 @@ compileLatestDepTestGroovy {
 }
 
 dependencies {
-  compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.9.3'
-
-  // first version that works with the tests (without dependency problems):
-  testCompile group: 'org.scala-lang', name: 'scala-library', version: '2.10.2'
+  // first version that works with the tests on JDK11 (without dependency problems):
+  compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
+  testCompile group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
 
   latestDepTestCompile group: 'org.scala-lang', name: 'scala-library', version: '2.12.+'
 }
