@@ -3,6 +3,7 @@ package datadog.smoketest
 
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.RecordedRequest
+import org.junit.Ignore
 
 import java.util.concurrent.TimeUnit
 
@@ -19,6 +20,7 @@ class ProfilingIntegrationShutdownTest extends AbstractProfilingIntegrationTest 
     return RUN_APP_FOR
   }
 
+  @Ignore("flaky")
   def "test that profiling agent doesn't prevent app from exiting"() {
     setup:
     profilingServer.enqueue(new MockResponse().setResponseCode(200))
