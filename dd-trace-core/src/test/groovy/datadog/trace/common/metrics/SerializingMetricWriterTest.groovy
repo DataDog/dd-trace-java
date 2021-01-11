@@ -8,6 +8,7 @@ import org.msgpack.core.MessageUnpacker
 import spock.lang.Requires
 
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicLongArray
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.util.concurrent.TimeUnit.MILLISECONDS
@@ -38,8 +39,8 @@ class SerializingMetricWriterTest extends DDSpecification {
     where:
     content << [
       [
-              Pair.of(new MetricKey("resource1", "service1", "operation1", "type", 0), new AggregateMetric().recordDurations(10, 1L)),
-              Pair.of(new MetricKey("resource2", "service2", "operation2", "type2", 200), new AggregateMetric().recordDurations(9, 1L))
+        Pair.of(new MetricKey("resource1", "service1", "operation1", "type", 0), new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))),
+        Pair.of(new MetricKey("resource2", "service2", "operation2", "type2", 200), new AggregateMetric().recordDurations(9, new AtomicLongArray(1L)))
       ]
     ]
   }

@@ -11,8 +11,10 @@ import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLongArray
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
+import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG
 
 @Requires({ isJavaVersionAtLeast(8) })
 class AggregateMetricTest extends DDSpecification {
@@ -21,7 +23,7 @@ class AggregateMetricTest extends DDSpecification {
     given:
     AggregateMetric aggregate = new AggregateMetric()
     when:
-    aggregate.recordDurations(3, 0L, 1, 2, 3)
+    aggregate.recordDurations(3, new AtomicLongArray(1, 2, 3))
     then:
     aggregate.getDuration() == 6
   }
@@ -30,7 +32,7 @@ class AggregateMetricTest extends DDSpecification {
     given:
     AggregateMetric aggregate = new AggregateMetric()
     when:
-    aggregate.recordDurations(3, 1L, 1, 2, 3)
+    aggregate.recordDurations(3, new AtomicLongArray(1, 2, 3))
     then:
     aggregate.getDuration() == 6
   }
@@ -38,7 +40,7 @@ class AggregateMetricTest extends DDSpecification {
   def "clear"() {
     given:
     AggregateMetric aggregate = new AggregateMetric()
-    .recordDurations(3, 1L, 5, 6, 7)
+    .recordDurations(3, new AtomicLongArray(5, 6, 7))
     when:
     aggregate.clear()
     then:
@@ -49,31 +51,33 @@ class AggregateMetricTest extends DDSpecification {
 
   def "contribute batch with key to aggregate"() {
     given:
-    AggregateMetric aggregate = new AggregateMetric().recordDurations(3, 1L, 0L, 0L, 0L)
+    AggregateMetric aggregate = new AggregateMetric().recordDurations(3, new AtomicLongArray(0L, 0L, 0L | ERROR_TAG))
 
-    Batch batch = new Batch().withKey(new MetricKey("foo", "bar", "qux", "type", 0))
-    batch.add(false, 10)
-    batch.add(false, 10)
-    batch.add(false, 10)
+    Batch batch = new Batch().reset(new MetricKey("foo", "bar", "qux", "type", 0))
+    batch.add(0L, 10)
+    batch.add(0L, 10)
+    batch.add(0L, 10)
 
     when:
     batch.contributeTo(aggregate)
 
-    then: "key cleared and values contributed to existing aggregate"
-    batch.getKey() == null
+    then: "batch used and values contributed to existing aggregate"
+    batch.isUsed()
     aggregate.getDuration() == 30
     aggregate.getHitCount() == 6
     aggregate.getErrorCount() == 1
   }
 
-  def "ignore batches without keys"() {
+  def "ignore used batches"() {
     given:
-    AggregateMetric aggregate = new AggregateMetric().recordDurations(10, 1L,
-      1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L)
+    AggregateMetric aggregate = new AggregateMetric().recordDurations(10,
+      new AtomicLongArray(1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L | ERROR_TAG))
 
 
     Batch batch = new Batch()
-    batch.add(false, 10)
+    batch.contributeTo(aggregate)
+    // must be used now
+    batch.add(0L, 10)
 
     when:
     batch.contributeTo(aggregate)
@@ -88,7 +92,7 @@ class AggregateMetricTest extends DDSpecification {
     given:
     AggregateMetric aggregate = new AggregateMetric()
     when:
-    aggregate.recordDurations(3, 0L, 1, 2, 3, 0, 0, 0)
+    aggregate.recordDurations(3, new AtomicLongArray(1, 2, 3, 0, 0, 0))
     then:
     aggregate.getDuration() == 6
     aggregate.getHitCount() == 3
@@ -99,7 +103,7 @@ class AggregateMetricTest extends DDSpecification {
     given:
     AggregateMetric aggregate = new AggregateMetric()
     when:
-    aggregate.recordDurations(3, 2L, 1, 2, 3)
+    aggregate.recordDurations(3, new AtomicLongArray(1, 2, 3 | ERROR_TAG))
     then:
     aggregate.getHitCount() == 3
     aggregate.getErrorCount() == 1
@@ -109,7 +113,9 @@ class AggregateMetricTest extends DDSpecification {
     given:
     AggregateMetric aggregate = new AggregateMetric()
     when:
-    aggregate.recordDurations(10, 0xAAL, 1, 100, 2, 99, 3, 98, 4, 97)
+    aggregate.recordDurations(10,
+      new AtomicLongArray(1, 100 | ERROR_TAG, 2, 99 | ERROR_TAG, 3,
+      98  | ERROR_TAG, 4, 97  | ERROR_TAG))
     then:
     Histogram errorLatencies = aggregate.getErrorLatencies()
     Histogram okLatencies = aggregate.getOkLatencies()
@@ -137,10 +143,10 @@ class AggregateMetricTest extends DDSpecification {
         readerLatch.await()
         for (int j = 0; j < 10_000; ++j) {
           Batch batch = queue.peekLast()
-          if (batch?.add(false, 1)) {
+          if (batch?.add(0L, 1)) {
             written.incrementAndGet()
           } else {
-            queue.offer(new Batch().withKey(key))
+            queue.offer(new Batch().reset(key))
           }
         }
         writerLatch.countDown()

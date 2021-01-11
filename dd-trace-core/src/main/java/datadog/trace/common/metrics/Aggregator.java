@@ -50,11 +50,11 @@ final class Aggregator implements Runnable {
     Thread currentThread = Thread.currentThread();
     while (!currentThread.isInterrupted()) {
       try {
-        Batch batch = inbox.take();
+        Batch batch = inbox.poll(100, MILLISECONDS);
         if (batch == ConflatingMetricsAggregator.POISON_PILL) {
           report(wallClockTime());
           return;
-        } else {
+        } else if (null != batch) {
           MetricKey key = batch.getKey();
           // important that it is still *this* batch pending, must not remove otherwise
           pending.remove(key, batch);

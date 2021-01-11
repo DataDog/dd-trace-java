@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
-import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLongArray;
 
 /**
  * This is a thread-safe container for partial conflating and accumulating partial aggregates on the
@@ -13,19 +14,30 @@ import java.util.Arrays;
  */
 public final class Batch {
 
-  public static final Batch NULL = new Batch(null);
+  private static final int MAX_BATCH_SIZE = 64;
+  public static final Batch NULL = new Batch((AtomicLongArray) null);
 
-  private volatile MetricKey key;
+  /**
+   * This counter has two states 1 - negative - the batch has been used, must not add values 2 -
+   * otherwise - the number of values added to the batch
+   */
+  private final AtomicInteger count = new AtomicInteger(0);
+  /** incremented when a duration has been added. */
+  private final AtomicInteger committed = new AtomicInteger(0);
 
-  private int count = 0;
-  private long errorMask = 0L;
-  private final long[] durations;
+  private MetricKey key;
+  private final AtomicLongArray durations;
 
-  Batch() {
-    this(new long[64]);
+  Batch(MetricKey key) {
+    this(new AtomicLongArray(MAX_BATCH_SIZE));
+    this.key = key;
   }
 
-  private Batch(long[] durations) {
+  Batch() {
+    this(new AtomicLongArray(MAX_BATCH_SIZE));
+  }
+
+  private Batch(AtomicLongArray durations) {
     this.durations = durations;
   }
 
@@ -33,42 +45,36 @@ public final class Batch {
     return key;
   }
 
-  public Batch withKey(MetricKey key) {
+  public Batch reset(MetricKey key) {
     this.key = key;
+    this.count.set(0);
     return this;
   }
 
-  public boolean add(boolean error, long durationNanos) {
-    if (null != key && count < 64) {
-      synchronized (this) {
-        if (null != key) {
-          return addExclusive(error, durationNanos);
-        }
-      }
-    }
-    return false;
+  public boolean isUsed() {
+    return this.count.get() < 0;
   }
 
-  boolean addExclusive(boolean error, long durationNanos) {
-    if (count < 64) {
-      if (error) {
-        errorMask |= (1L << count);
-      }
-      durations[count++] = durationNanos;
+  public boolean add(long tag, long durationNanos) {
+    // technically this would be wrong if there were 2^31 unsuccessful
+    // attempts to add a value, but this an acceptable risk
+    int position = count.getAndIncrement();
+    if (position >= 0 && position < durations.length()) {
+      durations.set(position, tag | durationNanos);
+      committed.incrementAndGet();
       return true;
     }
     return false;
   }
 
-  public synchronized void contributeTo(AggregateMetric aggregate) {
-    this.key = null;
-    aggregate.recordDurations(count, errorMask, durations);
-    clear();
-  }
-
-  private void clear() {
-    this.count = 0;
-    this.errorMask = 0L;
-    Arrays.fill(durations, 0L);
+  public void contributeTo(AggregateMetric aggregate) {
+    int count = Math.min(this.count.getAndSet(Integer.MIN_VALUE), MAX_BATCH_SIZE);
+    if (count >= 0) {
+      // wait for the duration to have been set.
+      // note this mechanism only supports a single reader
+      while (committed.get() != count) ;
+      committed.set(0);
+      aggregate.recordDurations(count, durations);
+    }
   }
 }
