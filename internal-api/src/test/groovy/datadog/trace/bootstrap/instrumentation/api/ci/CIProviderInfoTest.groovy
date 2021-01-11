@@ -26,10 +26,10 @@ abstract class CIProviderInfoTest extends DDSpecification {
   public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
 
   def setup() {
-    // Clear all environment variables used to decide which CI/Git data
-    // must be set in the Test span (See TestDecorator constructor).
-    // Add the new CI envvar discriminant here if other CI provider is added.
-    environmentVariables.clear(JENKINS, GITLAB, TRAVIS, CIRCLECI, APPVEYOR, AZURE, BITBUCKET, GHACTIONS, BUILDKITE, BITRISE)
+    // Clear all environment variables to avoid clashes between
+    // real CI/Git environment variables and the spec CI/Git
+    // environment variables.
+    environmentVariables.clear(System.getenv().keySet() as String[])
   }
 
   def "test ci provider info is set properly"() {
