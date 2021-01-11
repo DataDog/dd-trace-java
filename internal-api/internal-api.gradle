@@ -19,6 +19,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
   "datadog.trace.api.Platform.ConcurrentArrayOperationsHolder",
+  "datadog.trace.api.Platform", // tested in other modules
   "datadog.trace.bootstrap.instrumentation.ci.git.GitInfo",
   "datadog.trace.bootstrap.instrumentation.ci.git.GitInfo.GitInfoBuilder",
   "datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo",

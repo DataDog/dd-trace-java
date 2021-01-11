@@ -58,65 +58,6 @@ public final class Platform {
     return ConcurrentOperationsHolder.CAS_FACTORY.createIntCAS(type, field);
   }
 
-  private static final class NonConcurrentArrayOperationsFallback
-      implements ConcurrentArrayOperations {
-
-    @Override
-    public Object getObjectVolatile(Object[] array, int index) {
-      return array[index];
-    }
-
-    @Override
-    public void putObjectVolatile(Object[] array, int index, Object x) {
-      array[index] = x;
-    }
-
-    @Override
-    public int getIntVolatile(int[] array, int index) {
-      return array[index];
-    }
-
-    @Override
-    public long getLongVolatile(long[] array, int index) {
-      return array[index];
-    }
-
-    @Override
-    public void putIntVolatile(int[] array, int index, int x) {
-      array[index] = x;
-    }
-
-    @Override
-    public boolean getBooleanVolatile(boolean[] array, int index) {
-      return array[index];
-    }
-
-    @Override
-    public void putBooleanVolatile(boolean[] array, int index, boolean x) {
-      array[index] = x;
-    }
-
-    @Override
-    public void putLongVolatile(long[] array, int index, long x) {
-      array[index] = x;
-    }
-
-    @Override
-    public void putOrderedObject(Object[] array, int index, Object x) {
-      array[index] = x;
-    }
-
-    @Override
-    public void putOrderedInt(int[] array, int index, int x) {
-      array[index] = x;
-    }
-
-    @Override
-    public void putOrderedLong(long[] array, int index, long x) {
-      array[index] = x;
-    }
-  }
-
   private static final class ConcurrentOperationsHolder {
     static final ConcurrentArrayOperations OPERATIONS;
     static final CASFactory CAS_FACTORY;
@@ -140,11 +81,9 @@ public final class Platform {
         }
       } catch (Throwable t) {
         log.debug(
-            "Unexpectedly could not load ConcurrentArrayOperations, falling back to default implementation without visibility guarantees",
+            "Unexpectedly could not load ConcurrentArrayOperations or CASFactory",
             t);
-        // Weird visibility bugs will likely follow from this,
-        // but the tracer will more or less function as expected
-        operations = new NonConcurrentArrayOperationsFallback();
+        operations = null;
         casFactory = null;
       }
       OPERATIONS = operations;

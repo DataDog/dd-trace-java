@@ -7,7 +7,6 @@ import datadog.trace.core.unsafe.UnsafeConcurrentArrayOperations
 import datadog.trace.core.varhandles.VarHandleCAS
 import datadog.trace.core.varhandles.VarHandleConcurrentArrayOperations
 import datadog.trace.test.util.DDSpecification
-import datadog.trace.unsafe.ReferenceCAS
 import datadog.trace.unsafe.ConcurrentArrayOperations
 
 class TestLoadCorrectConcurrentOperations extends DDSpecification {
@@ -26,13 +25,17 @@ class TestLoadCorrectConcurrentOperations extends DDSpecification {
   }
 
   def "unsafe CAS are not loaded on JDK9+"() {
-    when:
-    ReferenceCAS<String> cas = Platform.createReferenceCAS(TestObject, "testField", String)
-    then:
+    expect:
+    assertCorrectImplementationLoaded(Platform.createReferenceCAS(TestObject, "testField", String))
+    assertCorrectImplementationLoaded(Platform.createIntCAS(TestObject, "intField"))
+    assertCorrectImplementationLoaded(Platform.createLongCAS(TestObject, "longField"))
+  }
+
+  boolean assertCorrectImplementationLoaded(Object cas) {
     if (Platform.isJavaVersionAtLeast(9)) {
-      cas instanceof VarHandleCAS
+      return cas instanceof VarHandleCAS
     } else {
-      cas instanceof UnsafeCAS
+      return cas instanceof UnsafeCAS
     }
   }
 }
