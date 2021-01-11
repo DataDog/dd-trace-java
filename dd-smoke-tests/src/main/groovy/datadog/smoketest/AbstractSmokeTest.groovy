@@ -15,6 +15,8 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork
+import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork
 
 abstract class AbstractSmokeTest extends Specification {
 
@@ -83,6 +85,8 @@ abstract class AbstractSmokeTest extends Specification {
     System.out.println("Mock agent started at " + server.address)
 
     defaultJavaProperties = [
+      "${getMaxMemoryArgumentForFork()}",
+      "${getMinMemoryArgumentForFork()}",
       "-javaagent:${shadowJarPath}",
       "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
       "-Ddd.trace.agent.port=${server.address.port}",

@@ -1,5 +1,8 @@
 package datadog.trace.agent.test;
 
+import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork;
+import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -180,7 +183,10 @@ public class IntegrationTestUtils {
     final String path = System.getProperty("java.home") + separator + "bin" + separator + "java";
 
     final List<String> vmArgsList = new ArrayList<>(Arrays.asList(jvmArgs));
+
     vmArgsList.add(getAgentArgument());
+    vmArgsList.add(getMaxMemoryArgumentForFork());
+    vmArgsList.add(getMinMemoryArgumentForFork());
     vmArgsList.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log");
 
     final List<String> commands = new ArrayList<>();
