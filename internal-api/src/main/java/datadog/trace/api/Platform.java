@@ -1,7 +1,11 @@
 package datadog.trace.api;
 
+import datadog.trace.unsafe.CASFactory;
 import datadog.trace.unsafe.ConcurrentArrayOperations;
 import datadog.trace.util.Strings;
+import datadog.trace.unsafe.IntCAS;
+import datadog.trace.unsafe.LongCAS;
+import datadog.trace.unsafe.ReferenceCAS;
 import java.lang.reflect.InvocationTargetException;
 import lombok.extern.slf4j.Slf4j;
 
@@ -38,7 +42,20 @@ public final class Platform {
   }
 
   public static ConcurrentArrayOperations concurrentArrayOperations() {
-    return ConcurrentArrayOperationsHolder.OPERATIONS;
+    return ConcurrentOperationsHolder.OPERATIONS;
+  }
+
+  public static <T> ReferenceCAS<T> createReferenceCAS(
+      Class<?> type, String field, Class<T> fieldType) {
+    return ConcurrentOperationsHolder.CAS_FACTORY.createReferenceCAS(type, field, fieldType);
+  }
+
+  public static LongCAS createLongCAS(Class<?> type, String field) {
+    return ConcurrentOperationsHolder.CAS_FACTORY.createLongCAS(type, field);
+  }
+
+  public static IntCAS createIntCAS(Class<?> type, String field) {
+    return ConcurrentOperationsHolder.CAS_FACTORY.createIntCAS(type, field);
   }
 
   private static final class NonConcurrentArrayOperationsFallback
@@ -100,11 +117,13 @@ public final class Platform {
     }
   }
 
-  private static final class ConcurrentArrayOperationsHolder {
+  private static final class ConcurrentOperationsHolder {
     static final ConcurrentArrayOperations OPERATIONS;
+    static final CASFactory CAS_FACTORY;
 
     static {
       ConcurrentArrayOperations operations;
+      CASFactory casFactory;
       try {
         if (isJavaVersionAtLeast(9)) {
           // we need to avoid loading sun.misc.Unsafe after Java 9, because it logs
@@ -113,9 +132,11 @@ public final class Platform {
           operations =
               loadAndInstantiate(
                   "datadog.trace.core.varhandles.VarHandleConcurrentArrayOperations");
+          casFactory = loadAndInstantiate("datadog.trace.core.varhandles.VarHandleCASFactory");
         } else {
           operations =
               loadAndInstantiate("datadog.trace.core.unsafe.UnsafeConcurrentArrayOperations");
+          casFactory = loadAndInstantiate("datadog.trace.core.unsafe.UnsafeCASFactory");
         }
       } catch (Throwable t) {
         log.debug(
@@ -124,15 +145,18 @@ public final class Platform {
         // Weird visibility bugs will likely follow from this,
         // but the tracer will more or less function as expected
         operations = new NonConcurrentArrayOperationsFallback();
+        casFactory = null;
       }
       OPERATIONS = operations;
+      CAS_FACTORY = casFactory;
     }
 
-    private static ConcurrentArrayOperations loadAndInstantiate(String className)
+    @SuppressWarnings("unchecked")
+    private static <T> T loadAndInstantiate(String className)
         throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
             InvocationTargetException, InstantiationException {
-      return (ConcurrentArrayOperations)
-          ConcurrentArrayOperationsHolder.class
+      return (T)
+          ConcurrentOperationsHolder.class
               .getClassLoader()
               .loadClass(className)
               .getDeclaredConstructor()
