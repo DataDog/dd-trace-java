@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -107,21 +108,23 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getOperationName(),
             span.getType(),
             span.getTag(Tags.HTTP_STATUS, ZERO));
-    boolean error = span.getError() > 0;
+    long tag = span.getError() > 0 ? ERROR_TAG : 0L;
     long durationNanos = span.getDurationNano();
     Batch batch = pending.get(key);
     if (null != batch) {
       // there is a pending batch, try to win the race to add to it
       // returning false means that either the batch can't take any
       // more data, or it has already been consumed
-      if (batch.add(error, durationNanos)) {
+      if (batch.add(tag, durationNanos)) {
         // added to a pending batch prior to consumption
         // so skip publishing to the queue
         return;
       }
+      // recycle the older key
+      key = batch.getKey();
     }
     batch = newBatch(key);
-    batch.addExclusive(error, durationNanos);
+    batch.add(tag, durationNanos);
     // overwrite the last one if present, it was already full
     // or had been consumed by the time we tried to add to it
     pending.put(key, batch);
@@ -131,7 +134,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private Batch newBatch(MetricKey key) {
     Batch batch = batchPool.poll();
-    return (null == batch ? new Batch() : batch).withKey(key);
+    if (null == batch) {
+      return new Batch(key);
+    }
+    return batch.reset(key);
   }
 
   public void stop() {

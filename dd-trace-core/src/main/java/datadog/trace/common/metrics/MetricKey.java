@@ -3,7 +3,6 @@ package datadog.trace.common.metrics;
 import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.Objects;
 
 /** The aggregation key for tracked metrics. */
 public final class MetricKey {
@@ -12,6 +11,7 @@ public final class MetricKey {
   private final UTF8BytesString operationName;
   private final UTF8BytesString type;
   private final int httpStatusCode;
+  private final int hash;
 
   public MetricKey(
       CharSequence resource,
@@ -24,6 +24,14 @@ public final class MetricKey {
     this.operationName = null == operationName ? EMPTY : UTF8BytesString.create(operationName);
     this.type = null == type ? EMPTY : UTF8BytesString.create(type);
     this.httpStatusCode = httpStatusCode;
+    // unrolled polynomial hashcode which avoids allocating varargs
+    // the constants are 31^4, 31^3, 31^2, 31^1, 31^0
+    this.hash =
+        923521 * this.resource.hashCode()
+            + 29791 * this.service.hashCode()
+            + 961 * this.operationName.hashCode()
+            + 31 * this.type.hashCode()
+            + httpStatusCode;
   }
 
   public UTF8BytesString getResource() {
@@ -48,18 +56,21 @@ public final class MetricKey {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    MetricKey metricKey = (MetricKey) o;
-    return httpStatusCode == metricKey.httpStatusCode
-        && resource.equals(metricKey.resource)
-        && service.equals(metricKey.service)
-        && operationName.equals(metricKey.operationName)
-        && type.equals(metricKey.type);
+    try {
+      MetricKey metricKey = (MetricKey) o;
+      return hash == metricKey.hash
+          && httpStatusCode == metricKey.httpStatusCode
+          && resource.equals(metricKey.resource)
+          && service.equals(metricKey.service)
+          && operationName.equals(metricKey.operationName)
+          && type.equals(metricKey.type);
+    } catch (ClassCastException unlikely) {
+    }
+    return false;
   }
 
   @Override
   public int hashCode() {
-    return 97 * Objects.hash(resource, service, operationName, type) + httpStatusCode;
+    return hash;
   }
 }
