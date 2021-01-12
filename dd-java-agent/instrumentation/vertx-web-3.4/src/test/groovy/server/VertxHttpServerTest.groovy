@@ -62,6 +62,11 @@ class VertxHttpServerTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  String testPathParam() {
+    "/path/:id/param"
+  }
+
+  @Override
   boolean testExceptionBody() {
     // Vertx wraps the exception
     false
@@ -113,6 +118,11 @@ class VertxChainingHttpServerTest extends VertxHttpServerTest {
   @Override
   protected Class<AbstractVerticle> verticle() {
     VertxChainingTestServer
+  }
+
+  @Override
+  String testPathParam() {
+    null
   }
 
   @Override
