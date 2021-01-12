@@ -10,12 +10,13 @@ class RateLimitedLoggerTest extends DDSpecification {
   final delay = 5
   final exception = new RuntimeException("bad thing")
 
-  Logger log = Mock(Logger)
-  TimeSource timeSource = Mock(TimeSource)
-  RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
+
 
   def "Debug level"() {
     setup:
+    Logger log = Mock(Logger)
+    TimeSource timeSource = Mock(TimeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     log.isDebugEnabled() >> true
 
     when:
@@ -28,6 +29,7 @@ class RateLimitedLoggerTest extends DDSpecification {
 
   def "default warning once"() {
     setup:
+    Logger log = Mock(Logger)
     def defaultRateLimitedLog = new RatelimitedLogger(log, MINUTES.toNanos(5))
     log.isWarnEnabled() >> true
 
@@ -44,6 +46,9 @@ class RateLimitedLoggerTest extends DDSpecification {
 
   def "warning once"() {
     setup:
+    Logger log = Mock(Logger)
+    TimeSource timeSource = Mock(TimeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     log.isWarnEnabled() >> true
     timeSource.getNanoTime() >> delay
 
@@ -59,6 +64,9 @@ class RateLimitedLoggerTest extends DDSpecification {
 
   def "warning twice"() {
     setup:
+    Logger log = Mock(Logger)
+    TimeSource timeSource = Mock(TimeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     log.isWarnEnabled() >> true
     timeSource.getNanoTime() >>> [delay, delay * 2]
 
@@ -73,6 +81,10 @@ class RateLimitedLoggerTest extends DDSpecification {
   }
 
   def "no logs"() {
+    setup:
+    Logger log = Mock(Logger)
+    TimeSource timeSource = Mock(TimeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     when:
     rateLimitedLog.warn("test {} {}", "message", exception)
 
@@ -82,6 +94,9 @@ class RateLimitedLoggerTest extends DDSpecification {
 
   def "no args"() {
     setup:
+    Logger log = Mock(Logger)
+    TimeSource timeSource = Mock(TimeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     log.isWarnEnabled() >> true
     timeSource.getNanoTime() >> delay
 
