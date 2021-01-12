@@ -46,7 +46,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     api.selectTraceMapper() >> { callRealMethod() }
     return api
   }
-  def healthMetrics = Mock(HealthMetrics)
 
   def setup() {
     // Register for two threads.
@@ -140,6 +139,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
   def "test flush by time"() {
     setup:
+    def healthMetrics = Mock(HealthMetrics)
     def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
@@ -208,14 +208,13 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.close()
 
     where:
-    minimalContext = createMinimalContext()
-    minimalSpan = new DDSpan(0, minimalContext)
-    minimalTrace = [minimalSpan]
+    minimalTrace = createMinimalTrace()
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
   def "check that there are no interactions after close"() {
     setup:
+    def healthMetrics = Mock(HealthMetrics)
     def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
@@ -263,7 +262,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
   }
 
   def createMinimalTrace() {
-    def minimalSpan = new DDSpan(0, createMinimalContext())
+    def context = createMinimalContext()
+    def minimalSpan = new DDSpan(0, context)
+    context.getTrace().getRootSpan() >> minimalSpan
     def minimalTrace = [minimalSpan]
 
     return minimalTrace
@@ -271,6 +272,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
   def "monitor happy path"() {
     setup:
+    def healthMetrics = Mock(HealthMetrics)
     def minimalTrace = createMinimalTrace()
 
     // DQH -- need to set-up a dummy agent for the final send callback to work
@@ -318,6 +320,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
   def "monitor agent returns error"() {
     setup:
+    def healthMetrics = Mock(HealthMetrics)
     def minimalTrace = createMinimalTrace()
 
     // DQH -- need to set-up a dummy agent for the final send callback to work
@@ -372,6 +375,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
   def "unreachable agent test"() {
     setup:
+    def healthMetrics = Mock(HealthMetrics)
     def minimalTrace = createMinimalTrace()
     def version = agentVersion
 

@@ -287,9 +287,6 @@ class PendingTraceTest extends DDSpecification {
     // Sufficiently large to fill the buffer:
     5           | 2000
     10          | 1000
-    10          | 1000
-    100         | 500
-    100         | 500
-    1000        | 100
+    50          | 500
   }
 }

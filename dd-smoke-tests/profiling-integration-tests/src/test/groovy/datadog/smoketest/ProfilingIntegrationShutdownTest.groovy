@@ -3,7 +3,7 @@ package datadog.smoketest
 
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.RecordedRequest
-import org.junit.Ignore
+import spock.lang.Ignore
 
 import java.util.concurrent.TimeUnit
 

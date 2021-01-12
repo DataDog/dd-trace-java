@@ -32,6 +32,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     Logger log = Mock(Logger)
     def defaultRateLimitedLog = new RatelimitedLogger(log, MINUTES.toNanos(5))
     log.isWarnEnabled() >> true
+    log.isDebugEnabled() >> false
 
     when:
     def firstLog = defaultRateLimitedLog.warn("test {} {}", "message", exception)
@@ -50,6 +51,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     TimeSource timeSource = Mock(TimeSource)
     RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     log.isWarnEnabled() >> true
+    log.isDebugEnabled() >> false
     timeSource.getNanoTime() >> delay
 
     when:
@@ -68,6 +70,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     TimeSource timeSource = Mock(TimeSource)
     RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     log.isWarnEnabled() >> true
+    log.isDebugEnabled() >> false
     timeSource.getNanoTime() >>> [delay, delay * 2]
 
     when:
@@ -98,6 +101,7 @@ class RateLimitedLoggerTest extends DDSpecification {
     TimeSource timeSource = Mock(TimeSource)
     RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     log.isWarnEnabled() >> true
+    log.isDebugEnabled() >> false
     timeSource.getNanoTime() >> delay
 
     when:
