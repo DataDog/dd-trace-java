@@ -43,7 +43,6 @@ public class Tags {
   public static final String CI_PIPELINE_URL = "ci.pipeline.url";
   public static final String CI_JOB_URL = "ci.job.url";
   public static final String CI_WORKSPACE_PATH = "ci.workspace_path";
-  public static final String BUILD_SOURCE_ROOT = "build.source_root";
 
   public static final String GIT_REPOSITORY_URL = "git.repository_url";
   public static final String GIT_COMMIT_SHA = "git.commit.sha";
