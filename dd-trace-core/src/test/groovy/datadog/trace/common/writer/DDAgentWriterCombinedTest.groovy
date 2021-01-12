@@ -208,9 +208,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.close()
 
     where:
-    minimalContext = createMinimalContext()
-    minimalSpan = new DDSpan(0, minimalContext)
-    minimalTrace = [minimalSpan]
+    minimalTrace = createMinimalTrace()
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
@@ -264,7 +262,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
   }
 
   def createMinimalTrace() {
-    def minimalSpan = new DDSpan(0, createMinimalContext())
+    def context = createMinimalContext()
+    def minimalSpan = new DDSpan(0, context)
+    context.getTrace().getRootSpan() >> minimalSpan
     def minimalTrace = [minimalSpan]
 
     return minimalTrace
