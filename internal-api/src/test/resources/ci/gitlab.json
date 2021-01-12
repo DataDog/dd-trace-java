@@ -20,7 +20,6 @@
       "ci.provider.name": "gitlab",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -45,7 +44,6 @@
       "ci.provider.name": "gitlab",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -72,7 +70,6 @@
       "ci.workspace_path": "foo/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -99,7 +96,6 @@
       "ci.workspace_path": "/foo/bar~",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -126,7 +122,6 @@
       "ci.workspace_path": "/foo/~/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -155,7 +150,6 @@
       "ci.workspace_path": "/not-my-home/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -184,7 +178,6 @@
       "ci.workspace_path": "~foo/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -213,7 +206,6 @@
       "ci.workspace_path": "/not-my-home",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -240,7 +232,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -265,7 +256,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -290,7 +280,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -317,7 +306,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -344,7 +332,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "feature/one",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -370,7 +357,6 @@
       "ci.provider.name": "gitlab",
       "ci.workspace_path": "/foo/bar",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample",
       "git.tag": "0.1.0"
     }
@@ -397,7 +383,6 @@
       "ci.provider.name": "gitlab",
       "ci.workspace_path": "/foo/bar",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample",
       "git.tag": "0.1.0"
     }
@@ -424,7 +409,6 @@
       "ci.provider.name": "gitlab",
       "ci.workspace_path": "/foo/bar",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "sample",
       "git.tag": "0.1.0"
     }
@@ -452,7 +436,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "http://hostname.com/repo.git"
     }
   ],
@@ -479,7 +462,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "http://hostname.com/repo.git"
     }
   ],
@@ -506,7 +488,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "http://hostname.com/repo.git"
     }
   ],
@@ -533,7 +514,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "http://hostname.com/repo.git"
     }
   ],
@@ -560,7 +540,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "gitlab-git-commit",
-      "git.commit_sha": "gitlab-git-commit",
       "git.repository_url": "git@hostname.com:org/repo.git"
     }
   ]

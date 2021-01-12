@@ -21,7 +21,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -47,7 +46,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -73,7 +71,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -99,7 +96,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -125,7 +121,6 @@
       "ci.workspace_path": "foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -151,7 +146,6 @@
       "ci.workspace_path": "/foo/bar~",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -177,7 +171,6 @@
       "ci.workspace_path": "/foo/~/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -205,7 +198,6 @@
       "ci.workspace_path": "/not-my-home/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -233,7 +225,6 @@
       "ci.workspace_path": "~foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -261,7 +252,6 @@
       "ci.workspace_path": "/not-my-home",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -287,7 +277,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -313,7 +302,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "feature/one",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -339,7 +327,6 @@
       "ci.provider.name": "circleci",
       "ci.workspace_path": "/foo/bar",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample",
       "git.tag": "0.1.0"
     }
@@ -366,7 +353,6 @@
       "ci.provider.name": "circleci",
       "ci.workspace_path": "/foo/bar",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample",
       "git.tag": "0.1.0"
     }
@@ -393,7 +379,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -419,7 +404,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "sample"
     }
   ],
@@ -445,7 +429,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "http://hostname.com/repo.git"
     }
   ],
@@ -471,7 +454,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "http://hostname.com/repo.git"
     }
   ],
@@ -497,7 +479,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "http://hostname.com/repo.git"
     }
   ],
@@ -523,7 +504,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "http://hostname.com/repo.git"
     }
   ],
@@ -549,7 +529,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "circleci-git-commit",
-      "git.commit_sha": "circleci-git-commit",
       "git.repository_url": "git@hostname.com:org/repo.git"
     }
   ]
