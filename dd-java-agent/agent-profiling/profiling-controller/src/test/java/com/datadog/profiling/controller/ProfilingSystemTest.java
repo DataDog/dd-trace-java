@@ -20,6 +20,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDI
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -366,6 +367,31 @@ public class ProfilingSystemTest {
             threadLocalRandom);
 
     assertEquals(startupDelay, system.getStartupDelay());
+  }
+
+  @Test
+  public void testEarlyShutdownException() throws InterruptedException, ConfigurationException {
+    when(controller.createRecording(any()))
+        .thenThrow(new IllegalStateException("Shutdown in progress"));
+
+    final Duration startupDelay = Duration.ofMillis(1);
+
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            controller,
+            listener,
+            startupDelay,
+            Duration.ZERO,
+            Duration.ofMillis(100),
+            false,
+            scheduler,
+            threadLocalRandom);
+
+    system.start();
+    Thread.sleep(200);
+    // start will be aborted, but the IllegalStateException won't bubble up
+    assertFalse(system.isStarted());
+    system.shutdown();
   }
 
   private Answer<Object> generateMockRecordingData(

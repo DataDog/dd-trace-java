@@ -12,6 +12,9 @@ import java.util.concurrent.RecursiveTask
 import java.util.concurrent.RunnableFuture
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork
+import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork
+
 class FieldInjectionSmokeTest extends Specification {
 
   String javaPath() {
@@ -40,6 +43,8 @@ class FieldInjectionSmokeTest extends Specification {
     String jar = System.getProperty("datadog.smoketest.fieldinjection.shadowJar.path")
     List<String> command = new ArrayList<>()
     command.add(javaPath())
+    command.add("${getMaxMemoryArgumentForFork()}" as String)
+    command.add("${getMinMemoryArgumentForFork()}" as String)
     command.add("-javaagent:${shadowJarPath}" as String)
     command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log")
     command.add("-Ddd.writer.type=TraceStructureWriter")

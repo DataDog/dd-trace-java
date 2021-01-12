@@ -1,6 +1,5 @@
 package datadog.smoketest
 
-
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Timeout
@@ -10,6 +9,9 @@ import java.nio.file.Path
 import java.util.concurrent.ForkJoinTask
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
+
+import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork
+import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork
 
 class AgentIsolationSmokeTest extends Specification {
 
@@ -32,6 +34,8 @@ class AgentIsolationSmokeTest extends Specification {
     String agent = System.getProperty("datadog.smoketest.agentisolation.agentJar.path")
     List<String> command = new ArrayList<>()
     command.add(javaPath())
+    command.add("${getMaxMemoryArgumentForFork()}" as String)
+    command.add("${getMinMemoryArgumentForFork()}" as String)
     command.add("-javaagent:${shadowJarPath}" as String)
     command.add("-javaagent:${agent}=${triggerTypes.join(",")}" as String)
     command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log")
