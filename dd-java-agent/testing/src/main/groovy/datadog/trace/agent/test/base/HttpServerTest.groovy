@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -100,6 +101,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     REDIRECT("redirect", 302, "/redirected"),
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
     EXCEPTION("exception", 500, "controller exception"),
+    CUSTOM_EXCEPTION("custom-exception", 510, "custom exception"), // exception thrown with custom error
     NOT_FOUND("not-found", 404, "not found"),
     NOT_HERE("not-here", 404, "not here"), // Explicitly returned 404 from a valid controller
 
@@ -431,7 +433,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if (hasHandlerSpan()) {
           handlerSpan(it, EXCEPTION)
         }
-        controllerSpan(it, EXCEPTION.body)
+        controllerSpan(it, EXCEPTION)
         if (hasResponseSpan(EXCEPTION)) {
           responseSpan(it, EXCEPTION)
         }
@@ -540,7 +542,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   //FIXME: add tests for POST with large/chunked data
 
-  void controllerSpan(TraceAssert trace, String errorMessage = null) {
+  void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
+    def errorMessage = endpoint?.body
     trace.span {
       serviceName expectedServiceName()
       operationName "controller"
@@ -549,7 +552,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       childOfPrevious()
       tags {
         if (errorMessage) {
-          errorTags(Exception, errorMessage)
+          errorTags(endpoint == CUSTOM_EXCEPTION ? InputMismatchException : Exception, errorMessage)
         }
         defaultTags()
       }
