@@ -25,6 +25,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.control.NonFatal
 
+import scala.language.postfixOps
+
 class AkkaHttpTestWebServer(port: Int, binder: Binder) {
   implicit val system = {
     val name = s"${binder.name}-$port"
@@ -125,7 +127,7 @@ object AkkaHttpTestWebServer {
           try inner(())(ctx).fast
             .recoverWith(handleException)(ctx.executionContext)
           catch {
-            case NonFatal(e) ⇒
+            case NonFatal(e) =>
               handleException
                 .applyOrElse[Throwable, Future[RouteResult]](e, throw _)
           }
