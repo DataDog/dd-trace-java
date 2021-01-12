@@ -21,6 +21,7 @@ import spock.lang.Unroll
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 
+import static TestServlet3.SERVLET_TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -124,7 +125,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         if (endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR) {
           "$Tags.HTTP_STATUS" { it == endpoint.status || !bubblesResponse }
         } else {
-          "timeout" 1_000
+          "timeout" SERVLET_TIMEOUT
         }
         if (context) {
           "servlet.context" "/$context"
@@ -161,7 +162,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         if (endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR) {
           "$Tags.HTTP_STATUS" endpoint.status
         } else {
-          "timeout" 1_000
+          "timeout" SERVLET_TIMEOUT
         }
         if (context) {
           "servlet.context" "/$context"

@@ -10,6 +10,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler
 import javax.servlet.Servlet
 import javax.servlet.http.HttpServletRequest
 
+import static TestServlet3.SERVLET_TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -138,7 +139,7 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
         if (endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR) {
           "$Tags.HTTP_STATUS" endpoint.status
         } else {
-          "timeout" 1_000
+          "timeout" SERVLET_TIMEOUT
         }
         if (context) {
           "servlet.context" "/$context"
