@@ -15,6 +15,6 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'org.unbroken-dome.test-sets'
 
 dependencies {
-  compile group: 'org.quartz-scheduler', name: 'quartz', version: '2.3.2'
+  compileOnly group: 'org.quartz-scheduler', name: 'quartz', version: '2.3.2'
   testCompile group: 'org.quartz-scheduler', name: 'quartz', version: '2.3.2'
 }
