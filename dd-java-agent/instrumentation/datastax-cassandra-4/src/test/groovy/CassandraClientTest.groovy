@@ -27,6 +27,9 @@ class CassandraClientTest extends AgentTestRunner {
   @Shared
   int port
 
+  @Shared
+  InetSocketAddress address
+
   def setupSpec() {
     /*
      This timeout seems excessive but we've seen tests fail with timeout of 40s.
@@ -37,13 +40,8 @@ class CassandraClientTest extends AgentTestRunner {
     EmbeddedCassandraServerHelper.startEmbeddedCassandra(EmbeddedCassandraServerHelper.CASSANDRA_RNDPORT_YML_FILE, 120000L)
 
     port = EmbeddedCassandraServerHelper.getNativeTransportPort()
-  }
+    address = new InetSocketAddress(EmbeddedCassandraServerHelper.getHost(), port)
 
-  def cleanupSpec() {
-    EmbeddedCassandraServerHelper.cleanEmbeddedCassandra()
-  }
-
-  def setup() {
     runUnderTrace("setup") {
       Session session = sessionBuilder().build()
       session.execute("DROP KEYSPACE IF EXISTS test_keyspace")
@@ -53,6 +51,10 @@ class CassandraClientTest extends AgentTestRunner {
 
     TEST_WRITER.waitForTraces(1)
     TEST_WRITER.start()
+  }
+
+  def cleanupSpec() {
+    EmbeddedCassandraServerHelper.cleanEmbeddedCassandra()
   }
 
   def "test sync"() {
@@ -198,7 +200,7 @@ class CassandraClientTest extends AgentTestRunner {
       .build()
 
     return CqlSession.builder()
-      .addContactPoint(new InetSocketAddress(EmbeddedCassandraServerHelper.getHost(), EmbeddedCassandraServerHelper.getNativeTransportPort()))
+      .addContactPoint(address)
       .withLocalDatacenter("datacenter1")
       .withConfigLoader(configLoader)
   }
