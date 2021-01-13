@@ -46,10 +46,10 @@ class BaseDecoratorTest extends DDSpecification {
     0 * _
 
     where:
-    connection                                      | _
-    new InetSocketAddress("localhost", 888)         | _
-    new InetSocketAddress("ipv6.google.com", 999)   | _
-    new InetSocketAddress("bad.address.local", 999) | _
+    connection                                                   | _
+    new InetSocketAddress("localhost", 888)                      | _
+    new InetSocketAddress("ipv6.google.com", 999)                | _
+    InetSocketAddress.createUnresolved("bad.address.local", 999) | _
   }
 
   def "test onError"() {
