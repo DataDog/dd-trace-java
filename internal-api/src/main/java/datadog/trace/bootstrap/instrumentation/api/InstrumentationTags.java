@@ -75,7 +75,6 @@ public class InstrumentationTags {
   public static final String QUARTZ_REFIRE_COUNT = "quartz.refire.count";
   public static final String QUARTZ_SCHEDULER_ACTUAL_TIME = "quartz.time.actualFireTime";
   public static final String QUARTZ_SCHEDULER_FIRED_TIME = "quartz.time.scheduledFireTime";
-  public static final String QUARTZ_SCHEDULER_TIME_DIFFERENCE = "quartz.time.difference";
   public static final String QUARTZ_SCHEDULER = "quartz.scheduler";
   public static final String QUARTZ_TRIGGER_NAME = "quartz.trigger.name";
   public static final String QUARTZ_TRIGGER_GROUP = "quartz.trigger.group";

@@ -21,7 +21,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.quartz.JobExecutionContext;
 
 @AutoService(Instrumenter.class)
-public final class QuartzSchedulingInstrumentation extends Instrumenter.Default {
+public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing {
 
   public QuartzSchedulingInstrumentation() {
     super("quartz");

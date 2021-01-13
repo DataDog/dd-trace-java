@@ -6,7 +6,7 @@ muzzle {
   pass {
     group = 'org.quartz-scheduler'
     module = 'quartz'
-    versions = "[2.3.2,]"
+    versions = "[2.0.0,2.3.2]"
     assertInverse = true
   }
 }
