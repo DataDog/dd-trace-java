@@ -17,6 +17,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 
 class TestServlet3 {
 
+  public static final long SERVLET_TIMEOUT = 1000
+
   static HttpServerTest.ServerEndpoint getEndpoint(HttpServletRequest req) {
     // Most correct would be to get the dispatched path from the request
     // This is not part of the spec varies by implementation so the simplest is just removing
@@ -62,7 +64,7 @@ class TestServlet3 {
       def phaser = new Phaser(2)
       def context = req.startAsync()
       if (endpoint.name().contains("TIMEOUT")) {
-        context.setTimeout(1_000)
+        context.setTimeout(SERVLET_TIMEOUT)
         if (resp.class.name.startsWith("org.eclipse.jetty")) {
           // this line makes Jetty behave like Tomcat and immediately return 500 to the client
           // otherwise it will continue to repeat the same request until the client times out
@@ -102,7 +104,7 @@ class TestServlet3 {
                 throw new Exception(endpoint.body)
               case TIMEOUT:
               case TIMEOUT_ERROR:
-                sleep context.getTimeout() + 2_000
+                sleep context.getTimeout() + 10
                 break
             }
           }
