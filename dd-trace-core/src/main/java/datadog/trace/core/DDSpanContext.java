@@ -260,9 +260,6 @@ public class DDSpanContext implements AgentSpan.Context {
         return false;
       } else {
         this.samplingPriorityV1 = (byte) newPriority;
-        if (log.isDebugEnabled()) {
-          log.debug("Set sampling priority to {}", samplingPriorityV1);
-        }
         return true;
       }
     }
@@ -299,9 +296,6 @@ public class DDSpanContext implements AgentSpan.Context {
         log.debug("{} : refusing to lock unset samplingPriority", this);
       } else if (!samplingPriorityLocked) {
         samplingPriorityLocked = true;
-        if (log.isDebugEnabled()) {
-          log.debug("{} : locked samplingPriority to {}", this, samplingPriorityV1);
-        }
       }
       return samplingPriorityLocked;
     }

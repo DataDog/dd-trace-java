@@ -42,7 +42,6 @@ class DatadogHttpCodec {
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
         setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
       }
-      log.debug("{} - Datadog parent context injected", context.getTraceId());
     }
   }
 

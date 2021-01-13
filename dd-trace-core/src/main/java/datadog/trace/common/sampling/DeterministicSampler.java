@@ -41,8 +41,6 @@ public class DeterministicSampler<T extends CoreSpan<T>> implements RateSampler<
       }
     }
 
-    log.debug("{} - Span is sampled: {}", span, sampled);
-
     return sampled;
   }
 
