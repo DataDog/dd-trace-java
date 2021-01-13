@@ -158,6 +158,7 @@ public final class ProfileUploader {
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
   private final Callback responseCallback;
+  private final boolean agentless;
   private final String apiKey;
   private final String url;
   private final String containerId;
@@ -176,6 +177,7 @@ public final class ProfileUploader {
   ProfileUploader(final Config config, final IOLogger ioLogger, final String containerId) {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
+    agentless = config.isProfilingAgentless();
     responseCallback = new ResponseCallback(ioLogger);
     this.containerId = containerId;
 
@@ -379,7 +381,10 @@ public final class ProfileUploader {
             // Note: this header is used to disable tracing of profiling requests
             .addHeader(DATADOG_META_LANG, JAVA_LANG)
             .post(requestBody);
-    if (apiKey != null) {
+    if (agentless && apiKey != null) {
+      // we only add the api key header if we know we're doing agentless profiling. No point in
+      // adding it to other agent-based requests since we know the datadog-agent isn't going to
+      // make use of it.
       requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
     }
     if (containerId != null) {

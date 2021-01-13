@@ -61,7 +61,6 @@ import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
-import okhttp3.mockwebserver.SocketPolicy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -129,7 +128,8 @@ public class ProfileUploaderTest {
     url = server.url(URL_PATH);
 
     when(config.getFinalProfilingUrl()).thenReturn(server.url(URL_PATH).toString());
-    when(config.getApiKey()).thenReturn(API_KEY_VALUE);
+    when(config.isProfilingAgentless()).thenReturn(false);
+    when(config.getApiKey()).thenReturn(null);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
 
@@ -160,7 +160,7 @@ public class ProfileUploaderTest {
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
 
-    assertEquals(API_KEY_VALUE, recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
 
     final Multimap<String, Object> parameters =
         ProfilingTestUtils.parseProfilingRequestParameters(recordedRequest);
@@ -213,8 +213,8 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testRequestWithNoAPIKey() throws IOException, InterruptedException {
-    when(config.getApiKey()).thenReturn(null);
+  public void testAgentRequestWithApiKey() throws IOException, InterruptedException {
+    when(config.getApiKey()).thenReturn(API_KEY_VALUE);
 
     uploader = new ProfileUploader(config);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -226,7 +226,21 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void test404WithoutAPIKey() throws IOException, InterruptedException {
+  public void testAgentlessRequest() throws IOException, InterruptedException {
+    when(config.getApiKey()).thenReturn(API_KEY_VALUE);
+    when(config.isProfilingAgentless()).thenReturn(true);
+
+    uploader = new ProfileUploader(config);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+
+    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(request);
+    assertEquals(API_KEY_VALUE, request.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+  }
+
+  @Test
+  public void test404() throws IOException, InterruptedException {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(null);
 
@@ -241,9 +255,10 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void test404WithAPIKey() throws IOException, InterruptedException {
+  public void test404Agentless() throws IOException, InterruptedException {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
+    when(config.isProfilingAgentless()).thenReturn(true);
 
     uploader = new ProfileUploader(config);
     server.enqueue(new MockResponse().setResponseCode(404));
@@ -251,7 +266,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(request);
-    assertEquals(request.getHeader(ProfileUploader.HEADER_DD_API_KEY), API_KEY_VALUE);
+    assertEquals(API_KEY_VALUE, request.getHeader(ProfileUploader.HEADER_DD_API_KEY));
   }
 
   @Test
@@ -274,7 +289,6 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedFirstRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(server.url(""), recordedFirstRequest.getRequestUrl());
-    assertEquals(API_KEY_VALUE, recordedFirstRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
     assertNull(recordedFirstRequest.getHeader("Proxy-Authorization"));
     assertEquals(backendHost, recordedFirstRequest.getHeader("Host"));
     assertEquals(
@@ -282,7 +296,6 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedSecondRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(server.url(""), recordedSecondRequest.getRequestUrl());
-    assertEquals(API_KEY_VALUE, recordedSecondRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
     assertEquals(
         Credentials.basic("username", "password"),
         recordedSecondRequest.getHeader("Proxy-Authorization"));
@@ -377,11 +390,12 @@ public class ProfileUploaderTest {
 
   @Test
   public void testNoReplyFromServer() throws IOException, InterruptedException {
-    server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));
+    server.enqueue(new MockResponse().setBodyDelay(10, TimeUnit.SECONDS));
     final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
     uploader.upload(RECORDING_TYPE, recording);
-    uploader.shutdown();
 
+    // Shutting down uploader ensures all callbacks are called on http client
+    uploader.shutdown();
     verify(recording.getStream()).close();
     verify(recording).release();
     verify(ioLogger).error(eq("Received empty reply from " + url + " after uploading profile"));

@@ -32,6 +32,7 @@ import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.Config.PERF_METRICS_ENABLED
 import static datadog.trace.api.Config.PRIORITIZATION_TYPE
 import static datadog.trace.api.Config.PRIORITY_SAMPLING
+import static datadog.trace.api.Config.PROFILING_AGENTLESS
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_OLD
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_VERY_OLD
 import static datadog.trace.api.Config.PROFILING_ENABLED
@@ -174,6 +175,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROFILING_EXCEPTION_SAMPLE_LIMIT, "811")
     prop.setProperty(PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS, "1121")
     prop.setProperty(PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
+    prop.setProperty(PROFILING_AGENTLESS, "true")
 
     when:
     Config config = Config.get(prop)
@@ -237,6 +239,7 @@ class ConfigTest extends DDSpecification {
     config.profilingExceptionSampleLimit == 811
     config.profilingExceptionHistogramTopItems == 1121
     config.profilingExceptionHistogramMaxCollectionSize == 1122
+    config.profilingAgentless == true
   }
 
   def "specify overrides via system properties"() {
@@ -298,6 +301,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROFILING_EXCEPTION_SAMPLE_LIMIT, "811")
     System.setProperty(PREFIX + PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS, "1121")
     System.setProperty(PREFIX + PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
+    System.setProperty(PREFIX + PROFILING_AGENTLESS, "true")
 
     when:
     Config config = new Config()
@@ -360,6 +364,7 @@ class ConfigTest extends DDSpecification {
     config.profilingExceptionSampleLimit == 811
     config.profilingExceptionHistogramTopItems == 1121
     config.profilingExceptionHistogramMaxCollectionSize == 1122
+    config.profilingAgentless == true
   }
 
   def "specify overrides via env vars"() {
@@ -1295,11 +1300,11 @@ class ConfigTest extends DDSpecification {
     config.profilingProxyPassword == "test-secret-proxy-password"
   }
 
-  def "custom datadog site with API key"() {
+  def "custom datadog site with agentless profiling"() {
     setup:
     def prop = new Properties()
     prop.setProperty(SITE, "some.new.site")
-    prop.setProperty(API_KEY, "feedbeef")
+    prop.setProperty(PROFILING_AGENTLESS, "true")
 
     when:
     Config config = Config.get(prop)
@@ -1308,7 +1313,7 @@ class ConfigTest extends DDSpecification {
     config.getFinalProfilingUrl() == "https://intake.profile.some.new.site/v1/input"
   }
 
-  def "custom datadog site without API key"() {
+  def "custom datadog site without agentless profiling"() {
     setup:
     def prop = new Properties()
     prop.setProperty(SITE, "some.new.site")
@@ -1320,6 +1325,17 @@ class ConfigTest extends DDSpecification {
     config.getFinalProfilingUrl() == "http://" + config.getAgentHost() + ":" + config.getAgentPort() + "/profiling/v1/input"
   }
 
+  def "presence of api key does not lead to agentless profiling"() {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(API_KEY, "some.api.key")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.getFinalProfilingUrl() == "http://" + config.getAgentHost() + ":" + config.getAgentPort() + "/profiling/v1/input"
+  }
 
   def "custom profiling url override"() {
     setup:
