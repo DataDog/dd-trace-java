@@ -4,6 +4,8 @@ import datadog.trace.api.time.TimeSource
 import datadog.trace.test.util.DDSpecification
 import org.slf4j.Logger
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import static java.util.concurrent.TimeUnit.MINUTES
 
 class RateLimitedLoggerTest extends DDSpecification {
@@ -59,6 +61,34 @@ class RateLimitedLoggerTest extends DDSpecification {
     def secondLog = rateLimitedLog.warn("test {} {}", "message", exception)
 
     then:
+    1 * log.warn("test {} {} (Will not log errors for 5 minutes)", "message", exception)
+    firstLog
+    !secondLog
+  }
+
+
+  def "warning once negative time"() {
+    setup:
+    AtomicInteger counter = new AtomicInteger(0)
+    Logger log = Mock(Logger)
+    TimeSource timeSource = Mock(TimeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
+    log.isWarnEnabled() >> true
+    log.isDebugEnabled() >> false
+    timeSource.getNanoTime() >> {
+      int invocation = counter.getAndIncrement()
+      if (invocation == 0) {
+        return Long.MIN_VALUE
+      }
+      return Long.MIN_VALUE + delay - 1
+    }
+
+    when:
+    def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
+    def secondLog = rateLimitedLog.warn("test {} {}", "message", exception)
+
+    then:
+    counter.get() == 2
     1 * log.warn("test {} {} (Will not log errors for 5 minutes)", "message", exception)
     firstLog
     !secondLog
