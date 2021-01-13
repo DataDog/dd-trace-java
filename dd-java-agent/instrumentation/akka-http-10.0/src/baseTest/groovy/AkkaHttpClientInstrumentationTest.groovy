@@ -1,4 +1,5 @@
 import akka.actor.ActorSystem
+import akka.http.Version
 import akka.http.javadsl.Http
 import akka.http.javadsl.model.HttpMethods
 import akka.http.javadsl.model.HttpRequest
@@ -12,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator
 import java.util.concurrent.CompletionStage
 import scala.compat.java8.FutureConverters
+import scala.concurrent.Future
 import spock.lang.Shared
 import spock.lang.Timeout
 
@@ -21,7 +23,13 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
   @Shared
   ActorSystem system = ActorSystem.create()
   @Shared
-  ActorMaterializer materializer = ActorMaterializer.create(system)
+  boolean callsNeedMaterializer = { ->
+    def ver = Version.current()
+    // Skip the materializer in the calls for 10.2+
+    ver.startsWith("10.0.") || ver.startsWith("10.1.")
+  }()
+  @Shared
+  ActorMaterializer materializer = callsNeedMaterializer ? ActorMaterializer.create(system) : null
 
   abstract CompletionStage<HttpResponse> doRequest(HttpRequest request)
 
@@ -70,7 +78,11 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
   def "singleRequest exception trace"() {
     when:
     // Passing null causes NPE in singleRequest
-    Http.get(system).singleRequest(null, materializer)
+    if (callsNeedMaterializer) {
+      Http.get(system).singleRequest(null, materializer)
+    } else {
+      Http.get(system).singleRequest(null)
+    }
 
     then:
     def exception = thrown NullPointerException
@@ -100,7 +112,10 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
 class AkkaHttpJavaClientInstrumentationTest extends AkkaHttpClientInstrumentationTest {
   @Override
   CompletionStage<HttpResponse> doRequest(HttpRequest request) {
-    return Http.get(system).singleRequest(request, materializer)
+    if (callsNeedMaterializer) {
+      return Http.get(system).singleRequest(request, materializer)
+    }
+    return Http.get(system).singleRequest(request)
   }
 }
 
@@ -109,7 +124,12 @@ class AkkaHttpScalaClientInstrumentationTest extends AkkaHttpClientInstrumentati
   CompletionStage<HttpResponse> doRequest(HttpRequest request) {
     def http = akka.http.scaladsl.Http.apply(system)
     def sRequest = (akka.http.scaladsl.model.HttpRequest) request
-    def f = http.singleRequest(sRequest, http.defaultClientHttpsContext(), (ConnectionPoolSettings) ConnectionPoolSettings.apply(system), system.log(), materializer)
+    Future<akka.http.scaladsl.model.HttpResponse> f = null
+    if (callsNeedMaterializer) {
+      f = http.singleRequest(sRequest, http.defaultClientHttpsContext(), (ConnectionPoolSettings) ConnectionPoolSettings.apply(system), system.log(), materializer)
+    } else {
+      f = http.singleRequest(sRequest, http.defaultClientHttpsContext(), (ConnectionPoolSettings) ConnectionPoolSettings.apply(system), system.log())
+    }
     return FutureConverters.toJava(f)
   }
 }
