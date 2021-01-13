@@ -10,6 +10,10 @@ class SpanBuilderTest extends DDSpecification {
   def writer = new ListWriter()
   def tracer = DDTracer.builder().writer(writer).build()
 
+  def cleanup() {
+    tracer?.close()
+  }
+
   def "should inherit the DD parent attributes addReference CHILD_OF"() {
     setup:
     def expectedName = "fakeName"

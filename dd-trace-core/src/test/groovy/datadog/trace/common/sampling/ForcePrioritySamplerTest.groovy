@@ -4,8 +4,6 @@ import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreTracer
-import datadog.trace.core.DDSpan
-import datadog.trace.core.SpanFactory
 import datadog.trace.test.util.DDSpecification
 
 class ForcePrioritySamplerTest extends DDSpecification {
@@ -15,14 +13,18 @@ class ForcePrioritySamplerTest extends DDSpecification {
   def "force priority sampling"() {
     setup:
     def sampler = new ForcePrioritySampler(prioritySampling)
+    def tracer = CoreTracer.builder().writer(writer).sampler(sampler).build()
 
     when:
-    DDSpan span1 = SpanFactory.newSpanOf("foo", "bar")
+    def span1 = tracer.buildSpan("test").start()
     sampler.setSamplingPriority(span1)
 
     then:
     span1.getSamplingPriority() == expectedSampling
     sampler.sample(span1)
+
+    cleanup:
+    tracer.close()
 
     where:
     prioritySampling              | expectedSampling
@@ -49,6 +51,9 @@ class ForcePrioritySamplerTest extends DDSpecification {
     writer.waitForTraces(1)
     span.getSamplingPriority() == expectedSampling
 
+    cleanup:
+    tracer.close()
+
     where:
     prioritySampling              | expectedSampling
     PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP
@@ -67,6 +72,9 @@ class ForcePrioritySamplerTest extends DDSpecification {
 
     then:
     span.getSamplingPriority() == expectedPriority
+
+    cleanup:
+    tracer.close()
 
     where:
     tagName       | tagValue | expectedPriority
@@ -88,6 +96,7 @@ class ForcePrioritySamplerTest extends DDSpecification {
 
     cleanup:
     span.finish()
+    tracer.close()
 
     where:
     tagName       | tagValue

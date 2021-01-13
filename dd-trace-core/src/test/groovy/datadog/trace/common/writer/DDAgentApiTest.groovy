@@ -3,6 +3,8 @@ package datadog.trace.common.writer
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.timgroup.statsd.NoOpStatsDClient
+import datadog.trace.api.DDId
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -10,9 +12,9 @@ import datadog.trace.common.writer.ddagent.DDAgentResponseListener
 import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
+import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
-import datadog.trace.core.SpanFactory
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
@@ -52,6 +54,7 @@ class DDAgentApiTest extends DDSpecification {
       }
     }
   }
+
 
   def "sending an empty list of traces returns no errors"() {
     setup:
@@ -143,16 +146,16 @@ class DDAgentApiTest extends DDSpecification {
 
     // Populate thread info dynamically as it is different when run via gradle vs idea.
     where:
-    traces                                                                 | expectedRequestBody
-    []                                                                     | []
-    [[SpanFactory.newSpanOf(1L).setTag("service.name", "my-service")]]     | [[new TreeMap<>([
+    traces                                              | expectedRequestBody
+    []                                                  | []
+    [[buildSpan(1L, "service.name", "my-service")]]     | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "thread.id": "${Thread.currentThread().id}"],
       "metrics"  : [
-        (InstrumentationTags.DD_TOP_LEVEL as String) : 1,
-        (RateByServiceSampler.SAMPLING_AGENT_RATE)   : 1.0,
-        (DDSpanContext.PRIORITY_SAMPLING_KEY)        : 1
+        (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
+        (InstrumentationTags.DD_TOP_LEVEL as String): 1,
+        (RateByServiceSampler.SAMPLING_AGENT_RATE)  : 1.0,
       ],
       "name"     : "fakeOperation",
       "parent_id": 0,
@@ -163,14 +166,14 @@ class DDAgentApiTest extends DDSpecification {
       "trace_id" : 1,
       "type"     : "fakeType"
     ])]]
-    [[SpanFactory.newSpanOf(100L).setTag("resource.name", "my-resource")]] | [[new TreeMap<>([
+    [[buildSpan(100L, "resource.name", "my-resource")]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
       "meta"     : ["thread.name": Thread.currentThread().getName(), "thread.id": "${Thread.currentThread().id}"],
       "metrics"  : [
-        (InstrumentationTags.DD_TOP_LEVEL as String) : 1,
-        (RateByServiceSampler.SAMPLING_AGENT_RATE)   : 1.0,
-        (DDSpanContext.PRIORITY_SAMPLING_KEY)        : 1
+        (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
+        (InstrumentationTags.DD_TOP_LEVEL as String): 1,
+        (RateByServiceSampler.SAMPLING_AGENT_RATE)  : 1.0,
       ],
       "name"     : "fakeOperation",
       "parent_id": 0,
@@ -345,7 +348,15 @@ class DDAgentApiTest extends DDSpecification {
     if (agentVersion.equals("v0.5/traces")) {
       return convertListV5(bytes)
     }
-    return mapper.readValue(bytes, new TypeReference<List<List<TreeMap<String, Object>>>>() {})
+    def returnVal = mapper.readValue(bytes, new TypeReference<List<List<TreeMap<String, Object>>>>() {})
+    returnVal.each {
+      it.each {
+        it["meta"].remove("runtime-id")
+        it["meta"].remove("language")
+      }
+    }
+
+    return returnVal
   }
 
   static List<List<TreeMap<String, Object>>> convertListV5(byte[] bytes) {
@@ -368,6 +379,9 @@ class DDAgentApiTest extends DDSpecification {
           map.put("meta", span.get(9))
           map.put("metrics", span.get(10))
           map.put("type", span.get(11))
+
+          map.get("meta").remove("runtime-id")
+          map.get("meta").remove("language")
         }
         mapTrace.add(map)
       }
@@ -404,5 +418,31 @@ class DDAgentApiTest extends DDSpecification {
 
   DDAgentApi createAgentApi(int port) {
     return new DDAgentApi("http://localhost:" + port, null, 1000, monitoring)
+  }
+
+  DDSpan buildSpan(long timestamp, String tag, String value) {
+    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+
+    def context = new DDSpanContext(
+      DDId.from(1),
+      DDId.from(1),
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      [:],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.from(1)))
+
+    def span = DDSpan.create(timestamp, context)
+    span.setTag(tag, value)
+
+    tracer.close()
+    return span
   }
 }

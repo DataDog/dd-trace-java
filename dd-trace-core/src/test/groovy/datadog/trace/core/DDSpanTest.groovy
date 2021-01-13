@@ -18,26 +18,17 @@ class DDSpanTest extends DDSpecification {
   def sampler = new RateByServiceSampler()
   def tracer = CoreTracer.builder().writer(writer).sampler(sampler).build()
 
+  def cleanup() {
+    tracer?.close()
+  }
+
   def "getters and setters"() {
     setup:
-    final DDSpanContext context =
-      new DDSpanContext(
-        DDId.from(1),
-        DDId.from(1),
-        DDId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        PrioritySampling.UNSET,
-        null,
-        Collections.<String, String> emptyMap(),
-        false,
-        "fakeType",
-        0,
-        tracer.pendingTraceFactory.create(DDId.ONE))
-
-    final DDSpan span = DDSpan.create(1L, context)
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanType("fakeType")
+      .start()
 
     when:
     span.setServiceName("service")
@@ -70,7 +61,7 @@ class DDSpanTest extends DDSpecification {
     span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
 
     when:
-    context.lockSamplingPriority()
+    span.context().lockSamplingPriority()
     span.setSamplingPriority(PrioritySampling.USER_KEEP)
     then:
     span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
@@ -90,7 +81,7 @@ class DDSpanTest extends DDSpecification {
     when:
     final String resourceName = "fake"
     final String serviceName = "myService"
-    span = CoreTracer.builder().build()
+    span = tracer
       .buildSpan(opName)
       .withResourceName(resourceName)
       .withServiceName(serviceName)
@@ -271,11 +262,11 @@ class DDSpanTest extends DDSpecification {
 
     where:
     parentServiceName                     | expectTopLevel
-    "foo"                                 |  true
-    UTF8BytesString.create("foo")         |  true
-    "fakeService"                         |  false
-    UTF8BytesString.create("fakeService") |  false
-    ""                                    |  true
-    null                                  |  true
+    "foo"                                 | true
+    UTF8BytesString.create("foo")         | true
+    "fakeService"                         | false
+    UTF8BytesString.create("fakeService") | false
+    ""                                    | true
+    null                                  | true
   }
 }

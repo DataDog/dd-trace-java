@@ -18,6 +18,10 @@ class OT31ApiTest extends DDSpecification {
   @Subject
   Tracer tracer = DDTracer.builder().writer(writer).build()
 
+  def cleanup() {
+    tracer?.close()
+  }
+  
   def "test startActive"() {
     when:
     def scope = tracer.buildSpan("some name").startActive(finishSpan)

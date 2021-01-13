@@ -1,16 +1,10 @@
 package datadog.trace.core
 
-
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Shared
 
 class TraceCorrelationTest extends DDSpecification {
-
-  static final WRITER = new ListWriter()
-
-  @Shared
-  CoreTracer tracer = CoreTracer.builder().writer(WRITER).build()
+  def tracer = CoreTracer.builder().writer(new ListWriter()).build()
 
   def span = tracer.buildSpan("test").start()
   def scope = tracer.activateSpan(span)
@@ -18,6 +12,7 @@ class TraceCorrelationTest extends DDSpecification {
   def cleanup() {
     scope.close()
     span.finish()
+    tracer.close()
   }
 
   def "get trace id without trace"() {

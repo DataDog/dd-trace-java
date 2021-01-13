@@ -31,7 +31,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.common.writer.DDAgentWriter.BUFFER_SIZE
 import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
-import static datadog.trace.core.SpanFactory.newSpanOf
 
 @Timeout(10)
 class DDAgentWriterCombinedTest extends DDSpecification {
@@ -39,6 +38,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
   def monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
   def phaser = new Phaser()
+
+  // Only used to create spans
+  def dummyTracer = CoreTracer.builder().writer(new ListWriter()).build()
 
   def apiWithVersion(String version) {
     def api = Mock(DDAgentApi)
@@ -51,6 +53,10 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     // Register for two threads.
     phaser.register()
     phaser.register()
+  }
+
+  def cleanup() {
+    dummyTracer?.close()
   }
 
   def "no interactions because of initial flush"() {
@@ -70,6 +76,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     then:
     0 * _
 
+    cleanup:
+    writer.close()
+
     where:
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
@@ -84,6 +93,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       .flushFrequencySeconds(-1)
       .build()
     writer.start()
+    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
 
     when:
     writer.write(trace)
@@ -100,7 +110,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.close()
 
     where:
-    trace = [newSpanOf(0, "fixed-thread-name")]
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
@@ -114,6 +123,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       .flushFrequencySeconds(-1)
       .build()
     writer.start()
+    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
 
     when:
     (1..traceCount).each {
@@ -131,7 +141,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.close()
 
     where:
-    trace = [newSpanOf(0, "fixed-thread-name")]
     bufferSize = 1024
     traceCount = 100 // Shouldn't trigger payload, but bigger than the disruptor size.
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
@@ -148,6 +157,8 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       .flushFrequencySeconds(1)
       .build()
     writer.start()
+    def span = dummyTracer.buildSpan("fakeOperation").start()
+    def trace = (1..10).collect { span }
 
     when:
     (1..5).each {
@@ -170,8 +181,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.close()
 
     where:
-    span = newSpanOf(0, "fixed-thread-name")
-    trace = (1..10).collect { span }
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
@@ -234,6 +243,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     1 * healthMetrics.onFlush(_)
     1 * healthMetrics.onShutdown(_)
     0 * _
+
+    cleanup:
+    writer.close()
 
     where:
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]

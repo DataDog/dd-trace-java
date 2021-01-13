@@ -61,6 +61,9 @@ class HaystackHttpInjectorTest extends DDSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
     1 * carrier.put(DD_PARENT_ID_BAGGAGE_KEY, "0")
 
+    cleanup:
+    tracer.close()
+
     where:
     traceId               | spanId                | samplingPriority              | origin | traceUuid                              | spanUuid
     "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"
@@ -110,6 +113,9 @@ class HaystackHttpInjectorTest extends DDSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
 
+    cleanup:
+    tracer.close()
+    
     where:
     traceId               | spanId                | samplingPriority              | origin | traceUuid                              | spanUuid
     "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"

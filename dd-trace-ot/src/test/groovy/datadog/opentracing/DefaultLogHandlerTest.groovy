@@ -12,6 +12,10 @@ class DefaultLogHandlerTest extends DDSpecification {
   def writer = new ListWriter()
   def tracer = CoreTracer.builder().writer(writer).build()
 
+  def cleanup() {
+    tracer?.close()
+  }
+
   def "handles correctly the error passed in the fields"() {
     setup:
     final LogHandler underTest = new DefaultLogHandler()
@@ -165,6 +169,9 @@ class DefaultLogHandlerTest extends DDSpecification {
 
     then:
     noExceptionThrown()
+
+    cleanup:
+    loggingTracer.close()
   }
 
   def "sanity test when passed log handler is null"() {
@@ -187,6 +194,9 @@ class DefaultLogHandlerTest extends DDSpecification {
 
     then:
     noExceptionThrown()
+
+    cleanup:
+    loggingTracer.close()
   }
 
   def "should delegate simple logs to logHandler"() {
@@ -207,6 +217,9 @@ class DefaultLogHandlerTest extends DDSpecification {
 
     then:
     1 * logHandler.log(timeStamp, expectedLogEvent, span.delegate)
+
+    cleanup:
+    loggingTracer.close()
   }
 
   def "should delegate simple logs with timestamp to logHandler"() {
@@ -226,6 +239,9 @@ class DefaultLogHandlerTest extends DDSpecification {
 
     then:
     1 * logHandler.log(expectedLogEvent, span.delegate)
+
+    cleanup:
+    loggingTracer.close()
   }
 
   def "should delegate logs with fields to logHandler"() {
@@ -245,6 +261,9 @@ class DefaultLogHandlerTest extends DDSpecification {
 
     then:
     1 * logHandler.log(fieldsMap, span.delegate)
+
+    cleanup:
+    loggingTracer.close()
   }
 
   def "should delegate logs with fields and timestamp to logHandler"() {
@@ -265,5 +284,8 @@ class DefaultLogHandlerTest extends DDSpecification {
 
     then:
     1 * logHandler.log(timeStamp, fieldsMap, span.delegate)
+
+    cleanup:
+    loggingTracer.close()
   }
 }
