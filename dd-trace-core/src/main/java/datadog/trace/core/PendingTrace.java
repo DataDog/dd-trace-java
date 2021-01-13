@@ -131,10 +131,7 @@ public class PendingTrace implements AgentTrace {
       }
     }
 
-    final int count = pendingReferenceCount.incrementAndGet();
-    if (log.isDebugEnabled()) {
-      log.debug("t_id={} -> registered span {}. count = {}", traceId, span, count);
-    }
+    pendingReferenceCount.incrementAndGet();
   }
 
   void addFinishedSpan(final DDSpan span) {
@@ -165,11 +162,7 @@ public class PendingTrace implements AgentTrace {
    */
   @Override
   public void registerContinuation(final AgentScope.Continuation continuation) {
-    final int count = pendingReferenceCount.incrementAndGet();
-    if (log.isDebugEnabled()) {
-      log.debug(
-          "t_id={} -> registered continuation {} -- count = {}", traceId, continuation, count);
-    }
+    pendingReferenceCount.incrementAndGet();
   }
 
   @Override
@@ -194,11 +187,6 @@ public class PendingTrace implements AgentTrace {
       // Late arrival span ... delay write
       pendingTraceBuffer.enqueue(this);
     }
-
-    if (log.isDebugEnabled()) {
-      log.debug(
-          "t_id={} -> expired reference. root={} pending count={}", traceId, isRootSpan, count);
-    }
   }
 
   /** Important to note: may be called multiple times. */
@@ -211,10 +199,7 @@ public class PendingTrace implements AgentTrace {
 
   /** Important to note: may be called multiple times. */
   void write() {
-    int size = write(false);
-    if (log.isDebugEnabled()) {
-      log.debug("t_id={} -> wrote {} spans to {}.", traceId, size, tracer.writer);
-    }
+    write(false);
   }
 
   private int write(boolean isPartial) {
