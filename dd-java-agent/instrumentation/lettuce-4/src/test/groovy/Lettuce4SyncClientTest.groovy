@@ -180,6 +180,7 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
     setup:
     String res = syncCommands.get("TESTKEY")
 
+    expect:
     res == "TESTVAL"
     assertTraces(1) {
       trace(1) {
