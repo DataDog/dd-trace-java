@@ -135,7 +135,7 @@ public interface Instrumenter {
 
     @Override
     public final AgentBuilder instrument(final AgentBuilder parentAgentBuilder) {
-      if (!enabled) {
+      if (!isEnabled()) {
         log.debug("Instrumentation {} is disabled", this);
         return parentAgentBuilder;
       }

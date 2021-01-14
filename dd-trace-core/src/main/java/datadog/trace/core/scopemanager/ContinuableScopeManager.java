@@ -85,6 +85,13 @@ public class ContinuableScopeManager implements AgentScopeManager {
     return activate(span, source, true, isAsyncPropagating);
   }
 
+  @Override
+  public TraceScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
+    Continuation continuation = new SingleContinuation(this, span, source);
+    continuation.register();
+    return continuation;
+  }
+
   private AgentScope activate(
       final AgentSpan span,
       final ScopeSource source,
@@ -395,7 +402,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       this.trace = spanUnderScope.context().getTrace();
     }
 
-    private Continuation register() {
+    Continuation register() {
       trace.registerContinuation(this);
       return this;
     }

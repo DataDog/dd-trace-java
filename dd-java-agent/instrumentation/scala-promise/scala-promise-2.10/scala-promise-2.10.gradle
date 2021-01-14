@@ -28,33 +28,55 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.
 
 apply plugin: 'org.unbroken-dome.test-sets'
-
 testSets {
   latestDepTest {
     dirName = 'test'
+  }
+
+  latestDepForkedTest {
+    extendsFrom latestDepTest
+    dirName = 'forkedTest'
   }
 }
 
 sourceSets {
   test.groovy.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.groovy
+  test.groovy.srcDir sourceSets.latestDepForkedTest.groovy
   latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.groovy
+  latestDepForkedTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.groovy
 
   test.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
   latestDepTest.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
+  latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
 }
 
 compileTestGroovy {
   classpath += files(sourceSets.test.scala.classesDirectory)
+  dependsOn compileTestScala
 }
 
 compileLatestDepTestGroovy {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
+  dependsOn compileLatestDepTestScala
+}
+
+compileLatestDepForkedTestGroovy {
+  classpath += files(sourceSets.latestDepForkedTest.scala.classesDirectory)
+  dependsOn compileLatestDepForkedTestScala
+}
+
+latestDepTest {
+  dependsOn latestDepForkedTest
 }
 
 dependencies {
   // first version that works with the tests on JDK11 (without dependency problems):
   compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
+  compile project(':dd-java-agent:instrumentation:scala-promise')
+
   testCompile group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
+  testCompile project(':dd-java-agent:instrumentation:scala-promise')
 
   latestDepTestCompile group: 'org.scala-lang', name: 'scala-library', version: '2.12.+'
+  latestDepTestCompile project(':dd-java-agent:instrumentation:scala-promise')
 }
