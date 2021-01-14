@@ -89,7 +89,6 @@ class QuartzTest extends AgentTestRunner {
 
   void jobSpan(TraceAssert trace, String schedulerName) {
     trace.span {
-      serviceName "worker.org.gradle.process.internal.worker.GradleWorkerMain"
       operationName "job.instance"
       resourceName QuartzTestJob.toString()
       errored false
