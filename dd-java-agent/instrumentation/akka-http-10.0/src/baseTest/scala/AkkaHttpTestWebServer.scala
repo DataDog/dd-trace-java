@@ -136,7 +136,7 @@ object AkkaHttpTestWebServer {
     )
   }
 
-  private def route(implicit ec: ExecutionContext): Route = withController {
+  def route(implicit ec: ExecutionContext): Route = withController {
     get {
       path(SUCCESS.rawPath) {
         complete(
@@ -177,7 +177,7 @@ object AkkaHttpTestWebServer {
   // This part defines the sync and async handler functions
   // ---------------------------------------------------------------------- //
 
-  private val syncHandler: HttpRequest => HttpResponse = {
+  val syncHandler: HttpRequest => HttpResponse = {
     case HttpRequest(GET, uri: Uri, _, _, _) => {
       val path = uri.path.toString()
       val endpoint = HttpServerTest.ServerEndpoint.forPath(path)
@@ -217,7 +217,7 @@ object AkkaHttpTestWebServer {
     }
   }
 
-  private def asyncHandler(
+  def asyncHandler(
       implicit ec: ExecutionContext
   ): HttpRequest => Future[HttpResponse] = { request =>
     Future { syncHandler(request) }

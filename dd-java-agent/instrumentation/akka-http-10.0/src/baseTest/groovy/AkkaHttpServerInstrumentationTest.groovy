@@ -94,21 +94,21 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
   }
 }
 
-class AkkaHttpServerInstrumentationTestSync extends AkkaHttpServerInstrumentationTest {
+class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstrumentationTest {
   @Override
   AkkaHttpTestWebServer startServer(int port) {
     return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandleSync())
   }
 }
 
-class AkkaHttpServerInstrumentationTestAsync extends AkkaHttpServerInstrumentationTest {
+class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentationTest {
   @Override
   AkkaHttpTestWebServer startServer(int port) {
     return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandleAsync())
   }
 }
 
-class AkkaHttpServerInstrumentationTestBindAndHandle extends AkkaHttpServerInstrumentationTest {
+class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstrumentationTest {
   @Override
   AkkaHttpTestWebServer startServer(int port) {
     return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandle())
@@ -120,7 +120,7 @@ class AkkaHttpServerInstrumentationTestBindAndHandle extends AkkaHttpServerInstr
   }
 }
 
-class AkkaHttpServerInstrumentationTestBindAndHandleAsyncWithRouteAsyncHandler extends AkkaHttpServerInstrumentationTest {
+class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest extends AkkaHttpServerInstrumentationTest {
   @Override
   AkkaHttpTestWebServer startServer(int port) {
     return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandleAsyncWithRouteAsyncHandler())
