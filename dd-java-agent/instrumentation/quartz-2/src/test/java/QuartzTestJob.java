@@ -1,8 +1,7 @@
+import java.util.concurrent.CountDownLatch;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
-
-import java.util.concurrent.CountDownLatch;
 
 public class QuartzTestJob implements Job {
   @Override
