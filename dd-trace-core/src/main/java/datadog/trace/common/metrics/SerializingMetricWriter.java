@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.core.serialization.WritableFormatter.Feature.SINGLE_MESSAGE;
+import static datadog.trace.core.serialization.msgpack.MsgPackWriter.Feature.RESIZEABLE;
+import static datadog.trace.core.serialization.msgpack.MsgPackWriter.Feature.SINGLE_MESSAGE;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.trace.api.WellKnownTags;
@@ -36,7 +37,10 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
     this.wellKnownTags = wellKnownTags;
-    this.writer = new MsgPackWriter(sink, ByteBuffer.allocate(1 << 20), EnumSet.of(SINGLE_MESSAGE));
+    this.writer =
+        new MsgPackWriter(
+            // 64KB
+            sink, ByteBuffer.allocate(64 << 10), EnumSet.of(RESIZEABLE, SINGLE_MESSAGE));
   }
 
   @Override
@@ -68,7 +72,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   }
 
   @Override
-  public void add(final MetricKey key, final AggregateMetric aggregate) {
+  public void add(MetricKey key, AggregateMetric aggregate) {
     writer.format(
         new Metric(key, aggregate),
         new Mapper<Metric>() {

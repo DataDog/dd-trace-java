@@ -125,7 +125,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
         // faster than the message content
         throw DICTIONARY_FULL;
       }
-      final int dictionaryCode = dictionaryWriter.messageCount() - 1;
+      final int dictionaryCode = encoding.size();
       encoding.put(target, dictionaryCode);
       // this call can fail, but the dictionary has been written to now
       // so should make sure dictionary state is consistent first
