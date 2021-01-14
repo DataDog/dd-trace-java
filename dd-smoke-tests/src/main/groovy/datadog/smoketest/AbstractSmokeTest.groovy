@@ -70,6 +70,8 @@ abstract class AbstractSmokeTest extends Specification {
   }
 
   def setup() {
+    assert testedProcess.isAlive()
+    
     traceRequests.clear()
     traceCount.set(0)
   }
