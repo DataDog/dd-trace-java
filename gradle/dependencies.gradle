@@ -21,7 +21,7 @@ ext {
     scala213      : "2.13.4",
     kotlin        : "1.3.72",
     coroutines    : "1.3.0",
-    dogstatsd     : "2.9.0",
+    dogstatsd     : "2.11.0",
     jnr_unixsocket: "0.28",
     commons       : "3.2",
     mockito       : '3.5.10',
