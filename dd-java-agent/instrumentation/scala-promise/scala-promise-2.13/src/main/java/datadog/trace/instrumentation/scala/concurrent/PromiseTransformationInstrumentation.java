@@ -122,15 +122,15 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
       // (this used to happen automatically when the RunnableInstrumentation
       // was relied on, and happens anyway if the ExecutionContext is backed
       // by a wrapping Executor (e.g. FJP, ScheduledThreadPoolExecutor)
-      ContextStore<Transformation, State> tStore =
+      ContextStore<Transformation, State> contextStore =
           InstrumentationContext.get(Transformation.class, State.class);
-      State state = tStore.get(task);
+      State state = contextStore.get(task);
       if (PromiseHelper.completionPriority) {
         final AgentSpan span = InstrumentationContext.get(Try.class, AgentSpan.class).get(resolved);
-        State oState = state;
+        State oldState = state;
         state = PromiseHelper.handleSpan(span, state);
-        if (state != oState) {
-          tStore.put(task, state);
+        if (state != oldState) {
+          contextStore.put(task, state);
         }
       }
       // If nothing else has been picked up, then try to pick up the current Scope
@@ -139,7 +139,7 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
         if (scope != null) {
           state = State.FACTORY.create();
           state.captureAndSetContinuation(scope);
-          tStore.put(task, state);
+          contextStore.put(task, state);
         }
       }
     }

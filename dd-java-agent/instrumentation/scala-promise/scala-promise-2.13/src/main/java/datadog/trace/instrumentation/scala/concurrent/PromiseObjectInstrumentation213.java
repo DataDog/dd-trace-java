@@ -34,6 +34,7 @@ public class PromiseObjectInstrumentation213 extends Instrumenter.Tracing {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
+    // The $ at the end is how Scala encodes a Scala object (as opposed to a class or trait)
     return named("scala.concurrent.impl.Promise$");
   }
 
@@ -58,7 +59,7 @@ public class PromiseObjectInstrumentation213 extends Instrumenter.Tracing {
   public boolean isEnabled() {
     // Only enable this if integrations have been enabled and the extra "integration"
     // scala_promise_completion_priority has been enabled specifically
-    return defaultEnabled
+    return super.isEnabled()
         && Config.get()
             .isIntegrationEnabled(
                 Collections.singletonList("scala_promise_completion_priority"), false);

@@ -58,7 +58,7 @@ public class DefaultPromiseInstrumentation extends Instrumenter.Tracing {
   public boolean isEnabled() {
     // Only enable this if integrations have been enabled and the extra "integration"
     // scala_promise_completion_priority has been enabled specifically
-    return defaultEnabled
+    return super.isEnabled()
         && Config.get()
             .isIntegrationEnabled(
                 Collections.singletonList("scala_promise_completion_priority"), false);

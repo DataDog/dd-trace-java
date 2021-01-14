@@ -46,7 +46,7 @@ public class PromiseHelper {
    * @param resolved the current Try
    * @param span the current Span
    * @param existing the currently stored Span for the Try
-   * @return the Try that should be assoicated with the Span
+   * @return the Try that should be associated with the Span
    */
   public static <T> Try<T> getTry(
       final Try<T> resolved, final AgentSpan span, final AgentSpan existing) {

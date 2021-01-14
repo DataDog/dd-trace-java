@@ -37,6 +37,7 @@ public class FutureObjectInstrumentation210 extends Instrumenter.Tracing {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
+    // The $ at the end is how Scala encodes a Scala object (as opposed to a class or trait)
     return named("scala.concurrent.Future$");
   }
 
