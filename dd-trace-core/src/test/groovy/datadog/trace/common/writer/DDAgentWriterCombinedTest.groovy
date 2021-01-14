@@ -15,6 +15,7 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.FlushingBuffer
 import datadog.trace.core.serialization.Mapper
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.core.test.DDCoreSpecification
@@ -200,7 +201,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     when:
     def mapper = agentVersion.equals("v0.5/traces") ? new TraceMapperV0_5() : new TraceMapperV0_4()
     int traceSize = calculateSize(minimalTrace, mapper)
-    int maxedPayloadTraceCount = ((int) ((mapper.messageBufferSize() - 5) / traceSize))
+    int maxedPayloadTraceCount = ((int) ((mapper.messageBufferSize()) / traceSize))
     (0..maxedPayloadTraceCount).each {
       writer.write(minimalTrace)
     }
@@ -720,14 +721,13 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
   }
 
   static int calculateSize(List<DDSpan> trace, Mapper<List<DDSpan>> mapper) {
-    ByteBuffer buffer = ByteBuffer.allocate(1024)
     AtomicInteger size = new AtomicInteger()
-    def packer = new MsgPackWriter(new ByteBufferConsumer() {
+    def packer = new MsgPackWriter(new FlushingBuffer(1024, new ByteBufferConsumer() {
       @Override
-      void accept(int messageCount, ByteBuffer buffy) {
-        size.set(buffy.limit() - buffy.position() - 1)
+      void accept(int messageCount, ByteBuffer buffer) {
+        size.set(buffer.limit() - buffer.position())
       }
-    }, buffer)
+    }))
     packer.format(trace, mapper)
     packer.flush()
     return size.get()

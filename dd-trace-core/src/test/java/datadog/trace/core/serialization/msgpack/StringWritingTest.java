@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNotNull;
 import datadog.trace.core.serialization.ByteBufferConsumer;
 import datadog.trace.core.serialization.EncodingCache;
 import datadog.trace.core.serialization.EncodingCachingStrategies;
+import datadog.trace.core.serialization.FlushingBuffer;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.Writable;
 import java.io.IOException;
@@ -15,7 +16,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,7 +43,7 @@ public class StringWritingTest {
       };
 
   private final List<Map<String, String>> maps;
-  private final ByteBuffer buffer = ByteBuffer.allocate(10 << 10);
+  private final int TEN_KB = 10 << 10;
 
   public StringWritingTest(List<Map<String, String>> maps) {
     this.maps = maps;
@@ -146,13 +146,14 @@ public class StringWritingTest {
   public void testSerialiseTextMapWithCache() {
     MsgPackWriter packer =
         new MsgPackWriter(
-            new ByteBufferConsumer() {
-              @Override
-              public void accept(int messageCount, ByteBuffer buffer) {
-                testBufferContents(buffer);
-              }
-            },
-            buffer);
+            new FlushingBuffer(
+                TEN_KB,
+                new ByteBufferConsumer() {
+                  @Override
+                  public void accept(int messageCount, ByteBuffer buffer) {
+                    testBufferContents(buffer);
+                  }
+                }));
     for (Map<String, String> map : maps) {
       packer.format(
           map,
@@ -170,13 +171,14 @@ public class StringWritingTest {
   public void testSerialiseTextMapWithoutCache() {
     MsgPackWriter packer =
         new MsgPackWriter(
-            new ByteBufferConsumer() {
-              @Override
-              public void accept(int messageCount, ByteBuffer buffer) {
-                testBufferContents(buffer);
-              }
-            },
-            buffer);
+            new FlushingBuffer(
+                TEN_KB,
+                new ByteBufferConsumer() {
+                  @Override
+                  public void accept(int messageCount, ByteBuffer buffer) {
+                    testBufferContents(buffer);
+                  }
+                }));
     for (Map<String, String> map : maps) {
       packer.format(
           map,
@@ -190,17 +192,9 @@ public class StringWritingTest {
     packer.flush();
   }
 
-  @After
-  public void resetBuffer() {
-    buffer.position(0);
-    buffer.limit(buffer.capacity());
-  }
-
   private void testBufferContents(ByteBuffer buffer) {
     try {
       MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-      int length = unpacker.unpackArrayHeader();
-      assertEquals(maps.size(), length);
       for (Map<String, String> map : maps) {
         int mapSize = unpacker.unpackMapHeader();
         assertEquals(map.size(), mapSize);

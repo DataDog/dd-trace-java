@@ -1,16 +1,13 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.core.serialization.msgpack.MsgPackWriter.Feature.RESIZEABLE;
-import static datadog.trace.core.serialization.msgpack.MsgPackWriter.Feature.SINGLE_MESSAGE;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.core.serialization.FlushingBuffer;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.Writable;
 import datadog.trace.core.serialization.WritableFormatter;
 import datadog.trace.core.serialization.msgpack.MsgPackWriter;
-import java.nio.ByteBuffer;
-import java.util.EnumSet;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -37,10 +34,7 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
     this.wellKnownTags = wellKnownTags;
-    this.writer =
-        new MsgPackWriter(
-            // 64KB
-            sink, ByteBuffer.allocate(64 << 10), EnumSet.of(RESIZEABLE, SINGLE_MESSAGE));
+    this.writer = new MsgPackWriter(new FlushingBuffer(5 << 20, sink));
   }
 
   @Override

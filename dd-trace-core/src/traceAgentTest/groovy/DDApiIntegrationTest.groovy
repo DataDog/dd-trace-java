@@ -10,6 +10,7 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.FlushingBuffer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
 import org.testcontainers.containers.GenericContainer
@@ -214,9 +215,8 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
   Payload prepareRequest(List<List<DDSpan>> traces, TraceMapper traceMapper) {
-    ByteBuffer buffer = ByteBuffer.allocate(1 << 20)
     Traces traceCapture = new Traces()
-    def packer = new MsgPackWriter(traceCapture, buffer)
+    def packer = new MsgPackWriter(new FlushingBuffer(1 << 10, traceCapture))
     for (trace in traces) {
       packer.format(trace, traceMapper)
     }

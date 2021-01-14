@@ -11,13 +11,12 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.StringTables;
-import datadog.trace.core.serialization.ByteBufferConsumer;
+import datadog.trace.core.serialization.GrowableBuffer;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.Writable;
 import datadog.trace.core.serialization.WritableFormatter;
 import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 import java.io.IOException;
-import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
@@ -31,12 +30,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
   static final byte[] EMPTY =
       ByteBuffer.allocate(3).put((byte) 0x92).put((byte) 0x90).put((byte) 0x90).array();
 
-  private static final DictionaryFull DICTIONARY_FULL = new DictionaryFull();
-
-  private final ByteBuffer[] dictionary = new ByteBuffer[1];
   private final WritableFormatter dictionaryWriter;
   private final DictionaryMapper dictionaryMapper = new DictionaryMapper();
   private final Map<Object, Integer> encoding = new HashMap<>();
+  private final GrowableBuffer dictionary;
 
   private final MetaWriter metaWriter = new MetaWriter();
 
@@ -45,16 +42,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   public TraceMapperV0_5(final int bufferSize) {
-    this.dictionaryWriter =
-        new MsgPackWriter(
-            new ByteBufferConsumer() {
-              @Override
-              public void accept(final int messageCount, final ByteBuffer buffer) {
-                dictionary[0] = buffer;
-              }
-            },
-            ByteBuffer.allocate(bufferSize),
-            true);
+    // growable buffer is implicitly bounded by the fixed size buffer
+    // the messages themselves are written into
+    this.dictionary = new GrowableBuffer(bufferSize);
+    this.dictionaryWriter = new MsgPackWriter(dictionary);
     reset();
   }
 
@@ -119,13 +110,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
     final Object target = null == value ? "" : value;
     final Integer encoded = encoding.get(target);
     if (null == encoded) {
-      if (!dictionaryWriter.format(target, dictionaryMapper)) {
-        dictionaryWriter.flush();
-        // signal the need for a flush because the string table filled up
-        // faster than the message content
-        throw DICTIONARY_FULL;
-      }
-      final int dictionaryCode = encoding.size();
+      dictionaryWriter.format(target, dictionaryMapper);
+      final int dictionaryCode = dictionary.messageCount() - 1;
       encoding.put(target, dictionaryCode);
       // this call can fail, but the dictionary has been written to now
       // so should make sure dictionary state is consistent first
@@ -137,7 +123,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   @Override
   public Payload newPayload() {
-    return new PayloadV0_5(getDictionary());
+    return new PayloadV0_5(dictionary.slice(), dictionary.messageCount());
   }
 
   @Override
@@ -145,19 +131,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
     return 2 << 20; // 2MB
   }
 
-  private ByteBuffer getDictionary() {
-    if (dictionary[0] == null) {
-      // this has the side effect of populating the dictionary array
-      // (this is a prime candidate for refactoring)
-      dictionaryWriter.flush();
-    }
-    return dictionary[0];
-  }
-
   @Override
   public void reset() {
-    dictionaryWriter.reset();
-    dictionary[0] = null;
+    dictionary.reset();
     encoding.clear();
   }
 
@@ -192,14 +168,20 @@ public final class TraceMapperV0_5 implements TraceMapper {
   private static class PayloadV0_5 extends Payload {
 
     private final ByteBuffer dictionary;
+    private final int stringCount;
 
-    private PayloadV0_5(final ByteBuffer dictionary) {
+    private PayloadV0_5(ByteBuffer dictionary, int stringCount) {
       this.dictionary = dictionary;
+      this.stringCount = stringCount;
     }
 
     @Override
     int sizeInBytes() {
-      return 1 + dictionary.remaining() + body.remaining();
+      return 1
+          + msgpackArrayHeaderSize(stringCount)
+          + dictionary.remaining()
+          + msgpackArrayHeaderSize(traceCount())
+          + body.remaining();
     }
 
     @Override
@@ -219,14 +201,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
     private List<ByteBuffer> toList() {
       return Arrays.asList(
           // msgpack array header with 2 elements (FIXARRAY | 2)
-          ByteBuffer.allocate(1).put(0, (byte) 0x92), dictionary, body);
-    }
-  }
-
-  private static final class DictionaryFull extends BufferOverflowException {
-    @Override
-    public synchronized Throwable fillInStackTrace() {
-      return this;
+          ByteBuffer.allocate(1).put(0, (byte) 0x92),
+          msgpackArrayHeader(stringCount),
+          dictionary,
+          msgpackArrayHeader(traceCount()),
+          body);
     }
   }
 

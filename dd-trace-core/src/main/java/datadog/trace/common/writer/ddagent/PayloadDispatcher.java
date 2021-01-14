@@ -5,6 +5,7 @@ import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.serialization.ByteBufferConsumer;
+import datadog.trace.core.serialization.FlushingBuffer;
 import datadog.trace.core.serialization.WritableFormatter;
 import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 import java.nio.ByteBuffer;
@@ -54,7 +55,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
         this.batchTimer =
             monitoring.newTimer(
                 "tracer.trace.buffer.fill.time", "endpoint:" + traceMapper.endpoint());
-        this.packer = new MsgPackWriter(this, ByteBuffer.allocate(traceMapper.messageBufferSize()));
+        this.packer = new MsgPackWriter(new FlushingBuffer(traceMapper.messageBufferSize(), this));
         batchTimer.start();
       }
     }

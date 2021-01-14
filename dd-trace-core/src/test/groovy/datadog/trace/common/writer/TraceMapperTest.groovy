@@ -3,6 +3,7 @@ package datadog.trace.common.writer
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.FlushingBuffer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.core.test.DDCoreSpecification
 import org.msgpack.core.MessagePack
@@ -23,22 +24,21 @@ class TraceMapperTest extends DDCoreSpecification {
     when:
     TraceMapper traceMapper = new TraceMapperV0_5()
     CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer()
-    MsgPackWriter packer = new MsgPackWriter(sink, ByteBuffer.allocate(1024))
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, sink))
     packer.format(trace, traceMapper)
     packer.flush()
 
     then:
     sink.captured != null
-    ByteBuffer dictionaryBytes = traceMapper.getDictionary()
+    ByteBuffer dictionaryBytes = traceMapper.dictionary.slice()
 
     MessageUnpacker dictionaryUnpacker = MessagePack.newDefaultUnpacker(dictionaryBytes)
-    int dictionaryLength = dictionaryUnpacker.unpackArrayHeader()
+    int dictionaryLength = traceMapper.encoding.size()
     String[] dictionary = new String[dictionaryLength]
     for (int i = 0; i < dictionary.length; ++i) {
       dictionary[i] = dictionaryUnpacker.unpackString()
     }
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(sink.captured)
-    1 == unpacker.unpackArrayHeader()
     int traceCount = unpacker.unpackArrayHeader()
     traceCount == 1
     for (int i = 0; i < traceCount; ++i) {

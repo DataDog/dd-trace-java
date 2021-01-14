@@ -1,5 +1,3 @@
 package datadog.trace.core.serialization;
 
-public interface WritableFormatter extends Writable, MessageFormatter {
-  void reset();
-}
+public interface WritableFormatter extends Writable, MessageFormatter {}
