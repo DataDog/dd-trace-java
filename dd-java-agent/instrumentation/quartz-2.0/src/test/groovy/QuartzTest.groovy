@@ -3,11 +3,11 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.quartz.CronScheduleBuilder
 import org.quartz.JobBuilder
-import org.quartz.JobDetail;
+import org.quartz.JobDetail
 import org.quartz.Scheduler
 import org.quartz.Trigger
 import org.quartz.TriggerBuilder
-import org.quartz.impl.StdSchedulerFactory;
+import org.quartz.impl.StdSchedulerFactory
 import spock.lang.Shared
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -24,23 +24,23 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QU
 
 
 class QuartzTest extends AgentTestRunner {
-  public static final String JOB_NAME = "job";
-  public static final String GROUP_NAME = "group";
-  public static final String TRIGGER_NAME = "trigger";
+  public static final String JOB_NAME = "job"
+  public static final String GROUP_NAME = "group"
+  public static final String TRIGGER_NAME = "trigger"
 
   @Shared
-  Scheduler scheduler;
+  Scheduler scheduler
 
   def "Test simple trigger scheduling" () {
     setup:
     scheduler = new StdSchedulerFactory().getScheduler()
     def latch = new CountDownLatch(1)
 
-    JobDetail jobDetail = JobBuilder.newJob(QuartzTestJob.class).withIdentity(JOB_NAME, GROUP_NAME).build();
+    JobDetail jobDetail = JobBuilder.newJob(QuartzTestJob).withIdentity(JOB_NAME, GROUP_NAME).build()
     jobDetail.getJobDataMap().put("latch", latch)
 
-    Trigger trigger = TriggerBuilder.newTrigger().withIdentity(TRIGGER_NAME, GROUP_NAME).startNow().build();
-    scheduler.scheduleJob(jobDetail, trigger);
+    Trigger trigger = TriggerBuilder.newTrigger().withIdentity(TRIGGER_NAME, GROUP_NAME).startNow().build()
+    scheduler.scheduleJob(jobDetail, trigger)
 
     when:
     scheduler.start()
@@ -54,7 +54,7 @@ class QuartzTest extends AgentTestRunner {
     }
 
     cleanup:
-    scheduler.shutdown();
+    scheduler.shutdown()
   }
 
   def "Test cron trigger scheduling"() {
@@ -62,7 +62,7 @@ class QuartzTest extends AgentTestRunner {
     scheduler = new StdSchedulerFactory().getScheduler()
     def latch = new CountDownLatch(1)
 
-    JobDetail jobDetail = JobBuilder.newJob(QuartzTestJob.class).withIdentity(JOB_NAME, GROUP_NAME).build();
+    JobDetail jobDetail = JobBuilder.newJob(QuartzTestJob).withIdentity(JOB_NAME, GROUP_NAME).build()
     jobDetail.getJobDataMap().put("latch", latch)
 
     Trigger cronTrigger = TriggerBuilder.newTrigger()
@@ -84,14 +84,14 @@ class QuartzTest extends AgentTestRunner {
     }
 
     cleanup:
-    scheduler.shutdown();
+    scheduler.shutdown()
   }
 
   void jobSpan(TraceAssert trace, String schedulerName) {
     trace.span {
       serviceName "worker.org.gradle.process.internal.worker.GradleWorkerMain"
       operationName "job.instance"
-      resourceName QuartzTestJob.class.toString()
+      resourceName QuartzTestJob.toString()
       errored false
 
       tags {
