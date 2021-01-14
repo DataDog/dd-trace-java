@@ -178,7 +178,6 @@ public abstract class CIProviderInfo {
     public CITagsBuilder withGitCommit(final String gitCommit) {
       if (gitCommit != null) {
         ciTags.put(Tags.GIT_COMMIT_SHA, gitCommit);
-        ciTags.put(Tags._GIT_COMMIT_SHA, gitCommit);
       }
       return this;
     }
