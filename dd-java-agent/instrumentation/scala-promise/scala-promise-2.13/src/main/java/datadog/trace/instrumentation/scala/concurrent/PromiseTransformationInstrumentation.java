@@ -2,11 +2,13 @@ package datadog.trace.instrumentation.scala.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static java.util.Collections.singletonMap;
 import static java.util.Collections.unmodifiableMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
@@ -47,7 +49,8 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     Map<ElementMatcher<MethodDescription>, String> transformations = new HashMap<>(8);
-    transformations.put(isConstructor(), getClass().getName() + "$Construct");
+    transformations.put(
+        isConstructor().and(takesArguments(4)), getClass().getName() + "$Construct");
     transformations.put(
         isMethod().and(named("submitWithValue")), getClass().getName() + "$SubmitWithValue");
     transformations.put(isMethod().and(named("run")), getClass().getName() + "$Run");
@@ -57,9 +60,12 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
 
   @Override
   public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    // make sure nothing else instruments this
-    return singletonMap(
-        RUNNABLE, Collections.singleton("scala.concurrent.impl.Promise$Transformation"));
+    // force other instrumentations (e.g. Runnable) not to deal with this type
+    Map<ExcludeFilter.ExcludeType, Collection<String>> map = new HashMap<>();
+    Collection<String> pt = Collections.singleton("scala.concurrent.impl.Promise$Transformation");
+    map.put(RUNNABLE, pt);
+    map.put(EXECUTOR, pt);
+    return map;
   }
 
   public static final class Construct {
