@@ -144,6 +144,13 @@ public abstract class CIProviderInfo {
       return this;
     }
 
+    public CITagsBuilder withCiStageName(final String ciStageName) {
+      if (ciStageName != null) {
+        ciTags.put(Tags.CI_STAGE_NAME, ciStageName);
+      }
+      return this;
+    }
+
     public CITagsBuilder withCiJobName(final String ciJobName) {
       if (ciJobName != null) {
         ciTags.put(Tags.CI_JOB_NAME, ciJobName);
