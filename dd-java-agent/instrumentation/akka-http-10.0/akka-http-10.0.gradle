@@ -17,9 +17,7 @@ testSets {
     dirName = 'baseTest'
   }
 
-  latestDepTest {
-    dirName = 'baseTest'
-  }
+  latestDepTest
 
   lagomTest
 }
@@ -80,6 +78,11 @@ configurations {
 // Create test artifacts so play-2.6 can reuse the akka-http test instrumentation
 artifacts {
   testArtifacts baseTestJar
+}
+
+sourceSets {
+  latestDepTest.groovy.srcDir sourceSets.baseTest.groovy
+  latestDepTest.scala.srcDir sourceSets.baseTest.scala
 }
 
 dependencies {
