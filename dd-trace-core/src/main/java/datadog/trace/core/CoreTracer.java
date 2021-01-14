@@ -357,6 +357,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return scopeManager.activate(span, source, isAsyncPropagating);
   }
 
+  @Override
+  public TraceScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
+    return scopeManager.captureSpan(span, source);
+  }
+
   public TagInterceptor getTagInterceptor() {
     return tagInterceptor;
   }

@@ -86,7 +86,7 @@ public interface Instrumenter {
     private final String instrumentationPrimaryName;
     private InstrumentationContextProvider contextProvider;
     private boolean initialized;
-    private final boolean enabled;
+    protected final boolean defaultEnabled;
 
     protected final String packageName =
         getClass().getPackage() == null ? "" : getClass().getPackage().getName();
@@ -96,7 +96,7 @@ public interface Instrumenter {
       instrumentationNames.add(instrumentationName);
       instrumentationPrimaryName = instrumentationName;
 
-      enabled = Config.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
+      defaultEnabled = Config.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
     }
 
     // Since the super(...) call is first in the constructor, we can't really rely on things
@@ -135,7 +135,7 @@ public interface Instrumenter {
 
     @Override
     public final AgentBuilder instrument(final AgentBuilder parentAgentBuilder) {
-      if (!enabled) {
+      if (!isEnabled()) {
         log.debug("Instrumentation {} is disabled", this);
         return parentAgentBuilder;
       }
@@ -323,7 +323,7 @@ public interface Instrumenter {
     }
 
     public boolean isEnabled() {
-      return enabled;
+      return defaultEnabled;
     }
 
     @Override

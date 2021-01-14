@@ -50,6 +50,17 @@ public final class State {
     return false;
   }
 
+  public boolean setOrCancelContinuation(final TraceScope.Continuation continuation) {
+    if (continuationRef.compareAndSet(null, CLAIMED)) {
+      // lazy write is guaranteed to be seen by getAndSet
+      continuationRef.lazySet(continuation);
+      return true;
+    } else {
+      continuation.cancel();
+      return false;
+    }
+  }
+
   public void closeContinuation() {
     TraceScope.Continuation continuation = getAndResetContinuation();
     if (null != continuation) {

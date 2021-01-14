@@ -63,6 +63,15 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
     return converter.toAgentSpan(delegate.activeSpan());
   }
 
+  @Override
+  public TraceScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
+    // I can't see a better way to do this, and I don't know if this even makes sense.
+    AgentScope scope = this.activate(span, source);
+    TraceScope.Continuation continuation = scope.capture();
+    scope.close();
+    return continuation;
+  }
+
   class CustomScopeManagerScope implements AgentScope, TraceScope {
     private final Scope delegate;
     private final boolean traceScope;

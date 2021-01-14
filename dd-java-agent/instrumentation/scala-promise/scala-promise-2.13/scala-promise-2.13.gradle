@@ -28,19 +28,26 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.
 
 apply plugin: 'org.unbroken-dome.test-sets'
-
 testSets {
   latestDepTest {
     dirName = 'test'
+  }
+
+  latestDepForkedTest {
+    extendsFrom latestDepTest
+    dirName = 'forkedTest'
   }
 }
 
 sourceSets {
   test.groovy.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.groovy
+  test.groovy.srcDir sourceSets.latestDepForkedTest.groovy
   latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.groovy
+  latestDepForkedTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.groovy
 
   test.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
   latestDepTest.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
+  latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
 }
 
 compileTestGroovy {
@@ -51,11 +58,21 @@ compileLatestDepTestGroovy {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
 
+compileLatestDepForkedTestGroovy {
+  classpath += files(sourceSets.latestDepForkedTest.scala.classesDirectory)
+}
+
+latestDepTest {
+  dependsOn latestDepForkedTest
+}
+
 dependencies {
   compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.13.0'
+  compile project(':dd-java-agent:instrumentation:scala-promise')
 
-  // first version that works with the tests (without dependency problems):
   testCompile group: 'org.scala-lang', name: 'scala-library', version: '2.13.0'
+  testCompile project(':dd-java-agent:instrumentation:scala-promise')
 
   latestDepTestCompile group: 'org.scala-lang', name: 'scala-library', version: '+'
+  latestDepTestCompile project(':dd-java-agent:instrumentation:scala-promise')
 }

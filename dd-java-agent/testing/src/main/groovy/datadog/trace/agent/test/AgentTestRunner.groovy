@@ -149,7 +149,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     configurePreAgent()
 
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
-
     TEST_TRACER.flush()
     TEST_WRITER.start()
 
