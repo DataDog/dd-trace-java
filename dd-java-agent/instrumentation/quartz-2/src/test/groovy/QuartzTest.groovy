@@ -14,14 +14,11 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_JOB_GROUP
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_JOB_NAME
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_REFIRE_COUNT
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_SCHEDULER
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_SCHEDULER_ACTUAL_TIME
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_SCHEDULER_FIRED_TIME
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_GROUP
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_NAME
-
-
 
 class QuartzTest extends AgentTestRunner {
   public static final String JOB_NAME = "job"
@@ -100,7 +97,6 @@ class QuartzTest extends AgentTestRunner {
         "$QUARTZ_TRIGGER_GROUP" GROUP_NAME
         "$QUARTZ_JOB_NAME" JOB_NAME
         "$QUARTZ_JOB_GROUP" GROUP_NAME
-        "$QUARTZ_REFIRE_COUNT" 0
         "$QUARTZ_SCHEDULER_FIRED_TIME" String
         "$QUARTZ_SCHEDULER_ACTUAL_TIME" String
         defaultTags()
