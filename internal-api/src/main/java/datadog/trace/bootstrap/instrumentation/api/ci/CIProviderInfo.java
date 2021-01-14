@@ -108,16 +108,6 @@ public abstract class CIProviderInfo {
   public static class CITagsBuilder {
 
     private final Map<String, String> ciTags = new HashMap<>();
-    private String ciPipelineId;
-    private String ciPipelineName;
-    private String ciPipelineNumber;
-    private String ciPipelineUrl;
-    private String ciJobUrl;
-    private String ciWorkspacePath;
-    private String gitRepositoryUrl;
-    private String gitCommit;
-    private String gitBranch;
-    private String gitTag;
 
     public CITagsBuilder withCiProviderName(final String ciProviderName) {
       if (ciProviderName != null) {
@@ -150,6 +140,13 @@ public abstract class CIProviderInfo {
     public CITagsBuilder withCiPipelineUrl(final String ciPipelineUrl) {
       if (ciPipelineUrl != null) {
         ciTags.put(Tags.CI_PIPELINE_URL, ciPipelineUrl);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiJobName(final String ciJobName) {
+      if (ciJobName != null) {
+        ciTags.put(Tags.CI_JOB_NAME, ciJobName);
       }
       return this;
     }
