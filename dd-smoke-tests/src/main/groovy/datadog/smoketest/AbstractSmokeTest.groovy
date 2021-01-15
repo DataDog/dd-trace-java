@@ -70,8 +70,14 @@ abstract class AbstractSmokeTest extends Specification {
   }
 
   def setup() {
-    assert testedProcess.isAlive()
-    
+    // TODO: once java7 support is dropped use testedProcess.isAlive() instead
+    try {
+      testedProcess.exitValue()
+      assert false: "Process not alive before test"
+    } catch (IllegalThreadStateException ignored) {
+      // expected
+    }
+
     traceRequests.clear()
     traceCount.set(0)
   }
