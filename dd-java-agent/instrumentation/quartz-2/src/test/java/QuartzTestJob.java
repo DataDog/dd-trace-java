@@ -1,5 +1,4 @@
 import java.util.concurrent.CountDownLatch;
-
 import org.quartz.*;
 
 public class QuartzTestJob implements Job {

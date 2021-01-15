@@ -19,6 +19,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QU
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_SCHEDULER_FIRED_TIME
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_GROUP
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_NAME
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class QuartzTest extends AgentTestRunner {
   public static final String JOB_NAME = "job"
@@ -35,7 +36,6 @@ class QuartzTest extends AgentTestRunner {
     scheduler.getContext().put("latch", latch)
 
     JobDetail jobDetail = JobBuilder.newJob(QuartzTestJob).withIdentity(JOB_NAME, GROUP_NAME).build()
-
     Trigger trigger = TriggerBuilder.newTrigger().withIdentity(TRIGGER_NAME, GROUP_NAME).startNow().build()
     scheduler.scheduleJob(jobDetail, trigger)
 
@@ -43,7 +43,7 @@ class QuartzTest extends AgentTestRunner {
     scheduler.start()
 
     then:
-    latch.await(2L, TimeUnit.SECONDS)
+    latch.await(10L, TimeUnit.SECONDS)
     assertTraces(1) {
       trace(1) {
           jobSpan(it, scheduler.getSchedulerName())
@@ -65,15 +65,14 @@ class QuartzTest extends AgentTestRunner {
     Trigger cronTrigger = TriggerBuilder.newTrigger()
       .withIdentity(TRIGGER_NAME, GROUP_NAME)
       .forJob(jobDetail)
-      .withSchedule(CronScheduleBuilder.cronSchedule("* * * ? * *")).build() // run every second
+      .withSchedule(CronScheduleBuilder.cronSchedule("0/5 * * ? * *")).build() // run every second
     scheduler.scheduleJob(jobDetail, cronTrigger)
 
     when:
     scheduler.start()
 
     then:
-    latch.await(2L, TimeUnit.SECONDS)
-
+    latch.await(10L, TimeUnit.SECONDS)
     assertTraces(1) {
       trace(1) {
         jobSpan(it, scheduler.getSchedulerName())
@@ -83,6 +82,7 @@ class QuartzTest extends AgentTestRunner {
     cleanup:
     scheduler.shutdown()
   }
+
   def "Test XML job and trigger configuration"() {
     setup:
     scheduler = new StdSchedulerFactory("testConfig.properties").getScheduler()
@@ -93,9 +93,42 @@ class QuartzTest extends AgentTestRunner {
     scheduler.start()
 
     then:
-    latch.await(2L, TimeUnit.SECONDS)
+    latch.await(10L, TimeUnit.SECONDS)
 
     assertTraces(1) {
+      trace(1) {
+        jobSpan(it, scheduler.getSchedulerName())
+      }
+    }
+
+    cleanup:
+    scheduler.shutdown()
+  }
+
+  def "Test creating a new trace when starting a job"() {
+    setup:
+    scheduler = new StdSchedulerFactory().getScheduler()
+    def latch = new CountDownLatch(1)
+    scheduler.getContext().put("latch", latch)
+
+    JobDetail jobDetail = JobBuilder.newJob(QuartzTestJob).withIdentity(JOB_NAME, GROUP_NAME).build()
+    Trigger trigger = TriggerBuilder.newTrigger().withIdentity(TRIGGER_NAME, GROUP_NAME).startNow().build()
+    scheduler.scheduleJob(jobDetail, trigger)
+
+    when:
+    runUnderTrace("root") {
+      scheduler.start()
+    }
+
+    then:
+    latch.await(10L, TimeUnit.SECONDS)
+    assertTraces(2) {
+      trace(1) {
+        span {
+          resourceName "root"
+          operationName "root"
+        }
+      }
       trace(1) {
         jobSpan(it, scheduler.getSchedulerName())
       }

@@ -18,7 +18,7 @@
         <job-name>job</job-name>
         <job-group>group</job-group>
         <!-- It will run every second -->
-        <cron-expression>* * * ? * *</cron-expression>
+        <cron-expression>0/5 * * ? * *</cron-expression>
       </cron>
     </trigger>
   </schedule>
