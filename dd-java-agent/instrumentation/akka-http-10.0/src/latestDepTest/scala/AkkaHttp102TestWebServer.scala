@@ -49,4 +49,19 @@ object AkkaHttp102TestWebServer {
         .bindSync(AkkaHttpTestWebServer.syncHandler)
     }
   }
+
+  val ServerBuilderBindHttp2: Binder = new Binder {
+    override def name: String = "server-builder-bind-http2"
+    override def bind(port: Int)(
+        implicit system: ActorSystem,
+        materializer: Materializer
+    ): Future[ServerBinding] = {
+      import materializer.executionContext
+      Http()
+        .newServerAt("localhost", port)
+        .withMaterializer(materializer)
+        .adaptSettings(AkkaHttpTestWebServer.enableHttp2)
+        .bind(AkkaHttpTestWebServer.asyncHandler)
+    }
+  }
 }

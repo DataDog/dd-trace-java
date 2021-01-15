@@ -131,3 +131,10 @@ class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest e
     return true
   }
 }
+
+class AkkaHttpServerInstrumentationAsyncHttp2Test extends AkkaHttpServerInstrumentationTest {
+  @Override
+  AkkaHttpTestWebServer startServer(int port) {
+    return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandleAsyncHttp2())
+  }
+}

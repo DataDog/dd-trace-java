@@ -24,3 +24,9 @@ class AkkaHttp102ServerInstrumentationBindSyncTest extends AkkaHttpServerInstrum
   }
 }
 
+class AkkaHttp102ServerInstrumentationBindAsyncHttp2Test extends AkkaHttpServerInstrumentationTest {
+  @Override
+  AkkaHttpTestWebServer startServer(int port) {
+    return new AkkaHttpTestWebServer(port, AkkaHttp102TestWebServer.ServerBuilderBindHttp2())
+  }
+}

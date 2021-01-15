@@ -98,15 +98,19 @@ dependencies {
   testCompile project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
 
   baseTestCompile deps.scala211
-  baseTestCompile group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.0'
+  // First 10.0.x version with a convenient way to test http2 support
+  baseTestCompile group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.10'
+  baseTestCompile group: 'com.typesafe.akka', name: 'akka-http2-support_2.11', version: '10.0.10'
 
   // There are some internal API changes in 10.1 that we would like to test separately for
   version101TestCompile deps.scala212
   version101TestCompile group: 'com.typesafe.akka', name: 'akka-http_2.12', version: '10.1.+'
+  version101TestCompile group: 'com.typesafe.akka', name: 'akka-http2-support_2.12', version: '10.1.+'
   version101TestCompile group: 'com.typesafe.akka', name: 'akka-stream_2.12', version: '2.5.+'
 
   latestDepTestCompile deps.scala213
-  latestDepTestCompile group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '+'
+  latestDepTestCompile group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.2.+'
+  // http2 support is included in akka-http since 10.2.x
   latestDepTestCompile group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '2.6.+'
 
   lagomTestCompile deps.scala211
