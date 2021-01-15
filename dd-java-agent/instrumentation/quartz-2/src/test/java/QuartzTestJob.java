@@ -1,12 +1,15 @@
 import java.util.concurrent.CountDownLatch;
-import org.quartz.Job;
-import org.quartz.JobExecutionContext;
-import org.quartz.JobExecutionException;
+
+import org.quartz.*;
 
 public class QuartzTestJob implements Job {
   @Override
   public void execute(JobExecutionContext context) throws JobExecutionException {
-    CountDownLatch latch = (CountDownLatch) context.getMergedJobDataMap().get("latch");
-    latch.countDown();
+    try {
+      CountDownLatch latch = (CountDownLatch) context.getScheduler().getContext().get("latch");
+      latch.countDown();
+    } catch (SchedulerException e) {
+      e.printStackTrace();
+    }
   }
 }

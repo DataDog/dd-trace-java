@@ -32,9 +32,9 @@ class QuartzTest extends AgentTestRunner {
     setup:
     scheduler = new StdSchedulerFactory().getScheduler()
     def latch = new CountDownLatch(1)
+    scheduler.getContext().put("latch", latch)
 
     JobDetail jobDetail = JobBuilder.newJob(QuartzTestJob).withIdentity(JOB_NAME, GROUP_NAME).build()
-    jobDetail.getJobDataMap().put("latch", latch)
 
     Trigger trigger = TriggerBuilder.newTrigger().withIdentity(TRIGGER_NAME, GROUP_NAME).startNow().build()
     scheduler.scheduleJob(jobDetail, trigger)
@@ -43,7 +43,7 @@ class QuartzTest extends AgentTestRunner {
     scheduler.start()
 
     then:
-    latch.await(10L, TimeUnit.SECONDS)
+    latch.await(2L, TimeUnit.SECONDS)
     assertTraces(1) {
       trace(1) {
           jobSpan(it, scheduler.getSchedulerName())
@@ -58,9 +58,9 @@ class QuartzTest extends AgentTestRunner {
     setup:
     scheduler = new StdSchedulerFactory().getScheduler()
     def latch = new CountDownLatch(1)
+    scheduler.getContext().put("latch", latch)
 
     JobDetail jobDetail = JobBuilder.newJob(QuartzTestJob).withIdentity(JOB_NAME, GROUP_NAME).build()
-    jobDetail.getJobDataMap().put("latch", latch)
 
     Trigger cronTrigger = TriggerBuilder.newTrigger()
       .withIdentity(TRIGGER_NAME, GROUP_NAME)
@@ -72,7 +72,28 @@ class QuartzTest extends AgentTestRunner {
     scheduler.start()
 
     then:
-    latch.await(10L, TimeUnit.SECONDS)
+    latch.await(2L, TimeUnit.SECONDS)
+
+    assertTraces(1) {
+      trace(1) {
+        jobSpan(it, scheduler.getSchedulerName())
+      }
+    }
+
+    cleanup:
+    scheduler.shutdown()
+  }
+  def "Test XML job and trigger configuration"() {
+    setup:
+    scheduler = new StdSchedulerFactory("testConfig.properties").getScheduler()
+    def latch = new CountDownLatch(1)
+    scheduler.getContext().put("latch", latch)
+
+    when:
+    scheduler.start()
+
+    then:
+    latch.await(2L, TimeUnit.SECONDS)
 
     assertTraces(1) {
       trace(1) {
