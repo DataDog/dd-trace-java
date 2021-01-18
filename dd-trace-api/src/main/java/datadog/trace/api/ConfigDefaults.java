@@ -63,6 +63,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT = 10_000;
   static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS = 50;
   static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE = 10000;
+  static final boolean DEFAULT_PROFILING_AGENTLESS = false;
 
   static final boolean DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED = true;
 

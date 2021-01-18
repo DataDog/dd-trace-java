@@ -22,6 +22,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITIZATION_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_AGENTLESS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
@@ -248,6 +249,8 @@ public class Config {
       ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
   public static final String PROFILING_EXCLUDE_AGENT_THREADS =
       ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
+  // Not intended for production use
+  public static final String PROFILING_AGENTLESS = ProfilingConfig.PROFILING_AGENTLESS;
 
   public static final String KAFKA_CLIENT_PROPAGATION_ENABLED =
       TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
@@ -369,6 +372,7 @@ public class Config {
   @Getter private final int traceRateLimit;
 
   @Getter private final boolean profilingEnabled;
+  @Getter private final boolean profilingAgentless;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   @Getter private final int profilingStartDelay;
@@ -660,6 +664,8 @@ public class Config {
     traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
+    profilingAgentless =
+        configProvider.getBoolean(PROFILING_AGENTLESS, DEFAULT_PROFILING_AGENTLESS);
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -755,6 +761,11 @@ public class Config {
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
+
+    if (profilingAgentless && apiKey == null) {
+      log.warn(
+          "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
+    }
 
     log.debug("New instance: {}", this);
   }
@@ -865,13 +876,13 @@ public class Config {
 
   public String getFinalProfilingUrl() {
     if (profilingUrl != null) {
-      // when profilingUrl is set we use it regardless of apiKey
+      // when profilingUrl is set we use it regardless of apiKey/agentless config
       return profilingUrl;
-    } else if (apiKey != null) {
-      // when profilingUrl is not set and apiKey is set we send directly to our intake
+    } else if (profilingAgentless) {
+      // when agentless profiling is turned on we send directly to our intake
       return String.format(PROFILING_REMOTE_URL_TEMPLATE, site);
     } else {
-      // when profilingUrl and apiKey are not set we send to the dd trace agent running locally
+      // when profilingUrl and agentless are not set we send to the dd trace agent running locally
       return String.format(PROFILING_LOCAL_URL_TEMPLATE, agentHost, agentPort);
     }
   }
