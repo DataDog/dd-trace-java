@@ -5,8 +5,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.DATABASE_CONNECTION;
-import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.DECORATE;
+import static datadog.trace.bootstrap.instrumentation.jdbc.DataSourceDecorator.DATABASE_CONNECTION;
+import static datadog.trace.bootstrap.instrumentation.jdbc.DataSourceDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 
 import com.google.auto.service.AutoService;
@@ -29,13 +29,6 @@ public final class DataSourceInstrumentation extends Instrumenter.Tracing {
   @Override
   public boolean defaultEnabled() {
     return false;
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DataSourceDecorator",
-    };
   }
 
   @Override

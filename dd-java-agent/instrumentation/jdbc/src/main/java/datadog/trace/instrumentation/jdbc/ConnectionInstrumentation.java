@@ -5,7 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.PREPARED_STATEMENTS_SQL;
+import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCDecorator.PREPARED_STATEMENTS_SQL;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -42,13 +42,6 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return implementsInterface(named("java.sql.Connection"));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator",
-    };
   }
 
   @Override

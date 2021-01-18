@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jdbc;
+package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import datadog.trace.bootstrap.ExceptionLogger;
 import java.lang.reflect.Field;

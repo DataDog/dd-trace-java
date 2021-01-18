@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jdbc;
+package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
