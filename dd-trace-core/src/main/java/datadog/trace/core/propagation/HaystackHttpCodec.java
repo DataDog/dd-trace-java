@@ -123,6 +123,9 @@ public class HaystackHttpCodec {
 
     @Override
     public boolean accept(String key, String value) {
+      if (null == key || key.isEmpty()) {
+        return true;
+      }
       char first = Character.toLowerCase(key.charAt(0));
       String lowerCaseKey = null;
       int classification = IGNORE;

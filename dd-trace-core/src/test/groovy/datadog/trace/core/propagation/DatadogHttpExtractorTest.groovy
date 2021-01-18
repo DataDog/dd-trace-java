@@ -19,6 +19,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
   def "extract http headers"() {
     setup:
     def headers = [
+      ""                                      : "empty key",
       (TRACE_ID_KEY.toUpperCase())            : traceId,
       (SPAN_ID_KEY.toUpperCase())             : spanId,
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",

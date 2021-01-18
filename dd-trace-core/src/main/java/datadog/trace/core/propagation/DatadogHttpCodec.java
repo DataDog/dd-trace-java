@@ -72,6 +72,9 @@ class DatadogHttpCodec {
 
     @Override
     public boolean accept(String key, String value) {
+      if (null == key || key.isEmpty()) {
+        return true;
+      }
       String lowerCaseKey = null;
       int classification = IGNORE;
       char first = Character.toLowerCase(key.charAt(0));
