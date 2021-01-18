@@ -85,6 +85,9 @@ class B3HttpCodec {
 
     @Override
     public boolean accept(String key, String value) {
+      if (null == key || key.isEmpty()) {
+        return true;
+      }
       String lowerCaseKey = null;
       int classification = IGNORE;
       if (Character.toLowerCase(key.charAt(0)) == 'x') {

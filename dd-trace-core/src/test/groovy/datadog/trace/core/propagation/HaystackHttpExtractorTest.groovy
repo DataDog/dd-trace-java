@@ -17,6 +17,7 @@ class HaystackHttpExtractorTest extends DDSpecification {
   def "extract http headers"() {
     setup:
     def headers = [
+      ""                                      : "empty key",
       (TRACE_ID_KEY.toUpperCase())            : traceUuid,
       (SPAN_ID_KEY.toUpperCase())             : spanUuid,
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",

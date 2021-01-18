@@ -17,6 +17,7 @@ class B3HttpExtractorTest extends DDSpecification {
   def "extract http headers"() {
     setup:
     def headers = [
+      ""                          : "empty key",
       (TRACE_ID_KEY.toUpperCase()): traceId.toString(16).toLowerCase(),
       (SPAN_ID_KEY.toUpperCase()) : spanId.toString(16).toLowerCase(),
       SOME_HEADER                 : "my-interesting-info",
