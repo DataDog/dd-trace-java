@@ -66,6 +66,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
     "org.sqlite.Conn",
     "org.sqlite.jdbc3.JDBC3Connection",
     "org.sqlite.jdbc4.JDBC4Connection",
+    "test.TestConnection",
     // this won't match any class unless the property is set
     Config.get().getJdbcConnectionClassName()
   };

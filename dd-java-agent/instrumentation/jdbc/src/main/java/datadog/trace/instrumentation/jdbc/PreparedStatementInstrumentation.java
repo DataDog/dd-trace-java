@@ -100,6 +100,7 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
     "org.sqlite.jdbc3.JDBC3PreparedStatement",
     "org.sqlite.jdbc4.JDBC4PreparedStatement",
     "org.sqlite.PrepStmt",
+    "test.TestPreparedStatement",
     // this won't match any classes unless set
     Config.get().getJdbcPreparedStatementClassName()
   };
