@@ -12,6 +12,7 @@ import akka.http.scaladsl.server.{
   Route,
   RouteResult
 }
+import akka.http.scaladsl.settings.ServerSettings
 import akka.http.scaladsl.util.FastFuture.EnhancedFuture
 import akka.stream.{ActorMaterializer, Materializer}
 import com.typesafe.config.Config
@@ -21,10 +22,10 @@ import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import groovy.lang.Closure
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.control.NonFatal
-
 import scala.language.postfixOps
 
 class AkkaHttpTestWebServer(port: Int, binder: Binder) {
@@ -98,6 +99,23 @@ object AkkaHttpTestWebServer {
     ): Future[ServerBinding] = {
       import materializer.executionContext
       Http().bindAndHandleAsync(asyncHandler, "localhost", port)
+    }
+  }
+
+  val BindAndHandleAsyncHttp2: Binder = new Binder {
+    override def name: String = "bind-and-handle-async-http2"
+    override def bind(port: Int)(
+        implicit system: ActorSystem,
+        materializer: Materializer
+    ): Future[ServerBinding] = {
+      import materializer.executionContext
+      val serverSettings = enableHttp2(ServerSettings(system))
+      Http().bindAndHandleAsync(
+        asyncHandler,
+        "localhost",
+        port,
+        settings = serverSettings
+      )
     }
   }
 
@@ -221,5 +239,11 @@ object AkkaHttpTestWebServer {
       implicit ec: ExecutionContext
   ): HttpRequest => Future[HttpResponse] = { request =>
     Future { syncHandler(request) }
+  }
+
+  def enableHttp2(serverSettings: ServerSettings): ServerSettings = {
+    val previewServerSettings =
+      serverSettings.previewServerSettings.withEnableHttp2(true)
+    serverSettings.withPreviewServerSettings(previewServerSettings)
   }
 }
