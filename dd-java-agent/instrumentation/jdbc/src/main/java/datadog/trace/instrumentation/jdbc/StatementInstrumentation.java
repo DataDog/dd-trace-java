@@ -16,8 +16,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.util.Map;
@@ -41,6 +43,11 @@ public final class StatementInstrumentation extends Instrumenter.Tracing {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return implementsInterface(named("java.sql.Statement"));
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("java.sql.Connection", DBInfo.class.getName());
   }
 
   @Override
@@ -74,7 +81,8 @@ public final class StatementInstrumentation extends Instrumenter.Tracing {
 
       final AgentSpan span = startSpan(DATABASE_QUERY);
       DECORATE.afterStart(span);
-      DECORATE.onConnection(span, connection);
+      DECORATE.onConnection(
+          span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
       DECORATE.onStatement(span, sql);
       return activateSpan(span);
     }

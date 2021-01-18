@@ -4,13 +4,13 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CONNECTION_INFO;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
@@ -36,6 +36,11 @@ public final class DriverInstrumentation extends Instrumenter.Tracing {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return implementsInterface(named("java.sql.Driver"));
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("java.sql.Connection", DBInfo.class.getName());
   }
 
   @Override
@@ -66,7 +71,7 @@ public final class DriverInstrumentation extends Instrumenter.Tracing {
         return;
       }
       final DBInfo dbInfo = JDBCConnectionUrlParser.parse(url, props);
-      CONNECTION_INFO.put(connection, dbInfo);
+      InstrumentationContext.get(Connection.class, DBInfo.class).put(connection, dbInfo);
     }
   }
 }

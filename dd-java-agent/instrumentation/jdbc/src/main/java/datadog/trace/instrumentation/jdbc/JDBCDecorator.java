@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jdbc;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -12,29 +13,21 @@ import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
-import java.util.Collections;
-import java.util.Map;
-import java.util.WeakHashMap;
 
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   // use a fixed size cache to avoid creating background cleanup work
   public static final DDCache<String, UTF8BytesString> PREPARED_STATEMENTS_SQL =
       DDCaches.newFixedSizeCache(256);
-  // use a weak hash map and expunge when connections happen rather than in the background,
-  // because connections are rare events in well written applications
-  public static final Map<Connection, DBInfo> CONNECTION_INFO =
-      Collections.synchronizedMap(new WeakHashMap<Connection, DBInfo>());
 
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
-  public static final CharSequence JAVA_JDBC = UTF8BytesString.createConstant("java-jdbc");
-  public static final CharSequence DATABASE_QUERY =
-      UTF8BytesString.createConstant("database.query");
-  private static final UTF8BytesString DB_QUERY = UTF8BytesString.createConstant("DB Query");
+  public static final CharSequence JAVA_JDBC = UTF8BytesString.create("java-jdbc");
+  public static final CharSequence DATABASE_QUERY = UTF8BytesString.create("database.query");
+  private static final UTF8BytesString DB_QUERY = UTF8BytesString.create("DB Query");
   private static final UTF8BytesString JDBC_STATEMENT =
-      UTF8BytesString.createConstant("java-jdbc-statement");
+      UTF8BytesString.create("java-jdbc-statement");
   private static final UTF8BytesString JDBC_PREPARED_STATEMENT =
-      UTF8BytesString.createConstant("java-jdbc-prepared_statement");
+      UTF8BytesString.create("java-jdbc-prepared_statement");
 
   @Override
   protected String[] instrumentationNames() {
@@ -80,9 +73,12 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return info.getHost();
   }
 
-  public AgentSpan onConnection(final AgentSpan span, final Connection connection) {
-    DBInfo dbInfo = CONNECTION_INFO.get(connection);
-    /**
+  public AgentSpan onConnection(
+      final AgentSpan span,
+      final Connection connection,
+      ContextStore<Connection, DBInfo> contextStore) {
+    DBInfo dbInfo = contextStore.get(connection);
+    /*
      * Logic to get the DBInfo from a JDBC Connection, if the connection was not created via
      * Driver.connect, or it has never seen before, the connectionInfo map will return null and will
      * attempt to extract DBInfo from the connection. If the DBInfo can't be extracted, then the
@@ -107,7 +103,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         } catch (final SQLException se) {
           dbInfo = DBInfo.DEFAULT;
         }
-        CONNECTION_INFO.put(connection, dbInfo);
+        contextStore.put(connection, dbInfo);
       }
     }
 
