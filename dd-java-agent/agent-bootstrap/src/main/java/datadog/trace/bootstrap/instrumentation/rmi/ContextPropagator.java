@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.rmi.context;
+package datadog.trace.bootstrap.instrumentation.rmi;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;

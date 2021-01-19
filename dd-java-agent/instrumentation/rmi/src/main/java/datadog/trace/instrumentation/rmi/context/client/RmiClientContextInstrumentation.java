@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.rmi.context.client;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.instrumentation.rmi.context.ContextPropagator.PROPAGATOR;
+import static datadog.trace.bootstrap.instrumentation.rmi.ContextPropagator.PROPAGATOR;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -58,15 +58,6 @@ public class RmiClientContextInstrumentation extends Instrumenter.Tracing {
   public Map<String, String> contextStoreForAll() {
     // caching if a connection can support enhanced format
     return singletonMap("sun.rmi.transport.Connection", "java.lang.Boolean");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.rmi.context.ContextPayload$InjectAdapter",
-      "datadog.trace.instrumentation.rmi.context.ContextPayload",
-      "datadog.trace.instrumentation.rmi.context.ContextPropagator"
-    };
   }
 
   @Override

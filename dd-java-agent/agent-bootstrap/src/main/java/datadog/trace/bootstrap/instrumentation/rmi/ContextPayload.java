@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.rmi.context;
+package datadog.trace.bootstrap.instrumentation.rmi;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 

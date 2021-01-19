@@ -5,8 +5,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.rmi.client.RmiClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.rmi.client.RmiClientDecorator.RMI_INVOKE;
+import static datadog.trace.bootstrap.instrumentation.rmi.RmiClientDecorator.DECORATE;
+import static datadog.trace.bootstrap.instrumentation.rmi.RmiClientDecorator.RMI_INVOKE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -32,11 +32,6 @@ public final class RmiClientInstrumentation extends Instrumenter.Tracing {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return extendsClass(named("sun.rmi.server.UnicastRef"));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".RmiClientDecorator"};
   }
 
   @Override

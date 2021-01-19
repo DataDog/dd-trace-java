@@ -1,13 +1,12 @@
-package datadog.trace.instrumentation.rmi.context.server;
+package datadog.trace.bootstrap.instrumentation.rmi;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.rmi.ContextPropagator.DD_CONTEXT_CALL_ID;
+import static datadog.trace.bootstrap.instrumentation.rmi.ContextPropagator.PROPAGATOR;
 import static datadog.trace.bootstrap.instrumentation.rmi.ThreadLocalContext.THREAD_LOCAL_CONTEXT;
-import static datadog.trace.instrumentation.rmi.context.ContextPropagator.DD_CONTEXT_CALL_ID;
-import static datadog.trace.instrumentation.rmi.context.ContextPropagator.PROPAGATOR;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
-import datadog.trace.instrumentation.rmi.context.ContextPayload;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.rmi.Remote;
