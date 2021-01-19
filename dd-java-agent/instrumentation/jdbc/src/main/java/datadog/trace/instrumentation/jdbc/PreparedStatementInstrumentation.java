@@ -8,10 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
-import static datadog.trace.instrumentation.jdbc.JDBCUtils.connectionFromStatement;
-import static datadog.trace.instrumentation.jdbc.JDBCUtils.unwrappedStatement;
 import static java.util.Collections.singletonMap;
-import static java.util.Collections.unmodifiableMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -19,7 +16,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -27,6 +24,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -131,10 +130,11 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    Map<String, String> definition = new HashMap<>(4);
-    definition.put("java.sql.PreparedStatement", UTF8BytesString.class.getName());
-    definition.put("java.sql.Connection", DBInfo.class.getName());
-    return unmodifiableMap(definition);
+    Map<String, String> contextStore = new HashMap<>(4);
+    contextStore.put("java.sql.PreparedStatement", UTF8BytesString.class.getName());
+    contextStore.put("java.sql.Statement", Boolean.class.getName());
+    contextStore.put("java.sql.Connection", DBInfo.class.getName());
+    return contextStore;
   }
 
   @Override
@@ -146,7 +146,7 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCUtils", packageName + ".JDBCUtils$1", packageName + ".JDBCDecorator",
+      packageName + ".JDBCDecorator",
     };
   }
 
@@ -161,33 +161,38 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This final PreparedStatement statement) {
-      PreparedStatement actualStatement = unwrappedStatement(statement);
-
-      final Connection connection = connectionFromStatement(actualStatement);
-      if (connection == null) {
+      ContextStore<Statement, Boolean> interceptionTracker =
+          InstrumentationContext.get(Statement.class, Boolean.class);
+      if (Boolean.TRUE.equals(interceptionTracker.get(statement))) {
         return null;
       }
+      interceptionTracker.put(statement, Boolean.TRUE);
+      try {
+        Connection connection = statement.getConnection();
+        UTF8BytesString sql =
+            InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class)
+                .get(statement);
+        if (null == sql) {
+          return null;
+        }
 
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(PreparedStatement.class);
-      if (callDepth > 0) {
+        final AgentSpan span = startSpan(DATABASE_QUERY);
+        DECORATE.afterStart(span);
+        DECORATE.onConnection(
+            span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        DECORATE.onPreparedStatement(span, sql);
+        return activateSpan(span);
+      } catch (SQLException e) {
+        // if we can't get the connection for any reason
         return null;
       }
-
-      UTF8BytesString sql =
-          InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class)
-              .get(actualStatement);
-
-      final AgentSpan span = startSpan(DATABASE_QUERY);
-      DECORATE.afterStart(span);
-      DECORATE.onConnection(
-          span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-      DECORATE.onPreparedStatement(span, sql);
-      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.This PreparedStatement statement,
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
@@ -195,7 +200,7 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
       DECORATE.beforeFinish(scope.span());
       scope.close();
       scope.span().finish();
-      CallDepthThreadLocalMap.reset(PreparedStatement.class);
+      InstrumentationContext.get(Statement.class, Boolean.class).put(statement, null);
     }
   }
 }
