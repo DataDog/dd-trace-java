@@ -140,9 +140,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
   public void addScopeListener(final ScopeListener listener) {
     scopeListeners.add(listener);
     log.debug("Added scope listener {}", listener);
-    if (active() != null) {
+    AgentSpan activeSpan = activeSpan();
+    if (activeSpan != null) {
       // Notify the listener about the currently active scope
-      listener.afterScopeActivated();
+      listener.afterScopeActivated(activeSpan.getTraceId(), activeSpan.context().getSpanId());
     }
   }
 
@@ -286,10 +287,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
       return super.toString() + "->" + span;
     }
 
-    public void afterActivated() {
+    public void afterActivated(ContinuableScope scope) {
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         try {
-          listener.afterScopeActivated();
+          listener.afterScopeActivated(scope.span.getTraceId(), scope.span.context().getSpanId());
         } catch (Exception e) {
           log.debug("ScopeListener threw exception in afterActivated()", e);
         }
@@ -315,7 +316,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       while (curScope != null) {
         if (curScope.alive()) {
           if (changedTop) {
-            curScope.afterActivated();
+            curScope.afterActivated(curScope);
           }
           break;
         }
@@ -331,7 +332,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     /** Pushes a new scope unto the stack */
     final void push(final ContinuableScope scope) {
       stack.push(scope);
-      scope.afterActivated();
+      scope.afterActivated(scope);
     }
 
     /** Fast check to see if the expectedScope is on top the stack */

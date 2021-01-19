@@ -1,7 +1,6 @@
 package datadog.trace.core.jfr.openjdk;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.api.DDId;
 import datadog.trace.context.ScopeListener;
 import jdk.jfr.EventType;
 
@@ -9,18 +8,16 @@ import jdk.jfr.EventType;
 public class ScopeEventFactory implements ScopeListener {
   private final ThreadLocal<ScopeEvent> scopeEventThreadLocal = new ThreadLocal<>();
   private final EventType eventType;
-  private final AgentScopeManager scopeManager;
 
-  public ScopeEventFactory(AgentScopeManager scopeManager) throws ClassNotFoundException {
+  public ScopeEventFactory() throws ClassNotFoundException {
     ExcludedVersions.checkVersionExclusion();
     // Note: Loading ScopeEvent when ScopeEventFactory is loaded is important because it also loads
     // JFR classes - which may not be present on some JVMs
     eventType = EventType.getEventType(ScopeEvent.class);
-    this.scopeManager = scopeManager;
   }
 
   @Override
-  public void afterScopeActivated() {
+  public void afterScopeActivated(DDId traceId, DDId spanId) {
     ScopeEvent scopeEvent = scopeEventThreadLocal.get();
 
     if (scopeEvent != null) {
@@ -28,10 +25,7 @@ public class ScopeEventFactory implements ScopeListener {
     }
 
     if (eventType.isEnabled()) {
-      AgentSpan span = scopeManager.activeSpan();
-
-      ScopeEvent nextScopeEvent =
-          new ScopeEvent(span.context().getTraceId(), span.context().getSpanId());
+      ScopeEvent nextScopeEvent = new ScopeEvent(traceId, spanId);
       nextScopeEvent.start();
       scopeEventThreadLocal.set(nextScopeEvent);
     } else {

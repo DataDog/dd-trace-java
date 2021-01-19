@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.log;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.DDId;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -43,12 +44,10 @@ public class LogContextScopeListener implements ScopeListener, WithGlobalTracer.
   }
 
   @Override
-  public void afterScopeActivated() {
+  public void afterScopeActivated(DDId traceId, DDId spanId) {
     try {
-      putMethod.invoke(
-          null, CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-      putMethod.invoke(
-          null, CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+      putMethod.invoke(null, CorrelationIdentifier.getTraceIdKey(), traceId.toString());
+      putMethod.invoke(null, CorrelationIdentifier.getSpanIdKey(), spanId.toString());
     } catch (final Exception e) {
       log.debug("Exception setting log context context", e);
     }

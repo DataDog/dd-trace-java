@@ -530,8 +530,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       ScopeListener scopeListener =
           (ScopeListener)
               Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
-                  .getDeclaredConstructor(AgentScopeManager.class)
-                  .newInstance(continuableScopeManager);
+                  .getDeclaredConstructor()
+                  .newInstance();
 
       continuableScopeManager.addScopeListener(scopeListener);
     } catch (final ClassFormatError | ReflectiveOperationException | NoClassDefFoundError e) {
