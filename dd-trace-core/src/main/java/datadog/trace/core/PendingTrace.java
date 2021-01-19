@@ -37,20 +37,23 @@ public class PendingTrace implements AgentTrace {
   static class Factory {
     private final CoreTracer tracer;
     private final PendingTraceBuffer pendingTraceBuffer;
+    private final boolean strictTraceWrites;
 
-    Factory(CoreTracer tracer, PendingTraceBuffer pendingTraceBuffer) {
+    Factory(CoreTracer tracer, PendingTraceBuffer pendingTraceBuffer, boolean strictTraceWrites) {
       this.tracer = tracer;
       this.pendingTraceBuffer = pendingTraceBuffer;
+      this.strictTraceWrites = strictTraceWrites;
     }
 
     PendingTrace create(@Nonnull DDId traceId) {
-      return new PendingTrace(tracer, traceId, pendingTraceBuffer);
+      return new PendingTrace(tracer, traceId, pendingTraceBuffer, strictTraceWrites);
     }
   }
 
   private final CoreTracer tracer;
   private final DDId traceId;
   private final PendingTraceBuffer pendingTraceBuffer;
+  private final boolean strictTraceWrites;
 
   // TODO: consider moving these time fields into DDTracer to ensure that traces have precise
   // relative time
@@ -83,10 +86,12 @@ public class PendingTrace implements AgentTrace {
   private PendingTrace(
       @Nonnull CoreTracer tracer,
       @Nonnull DDId traceId,
-      @Nonnull PendingTraceBuffer pendingTraceBuffer) {
+      @Nonnull PendingTraceBuffer pendingTraceBuffer,
+      boolean strictTraceWrites) {
     this.tracer = tracer;
     this.traceId = traceId;
     this.pendingTraceBuffer = pendingTraceBuffer;
+    this.strictTraceWrites = strictTraceWrites;
 
     startTimeNano = Clock.currentNanoTime();
     startNanoTicks = Clock.currentNanoTicks();
@@ -172,9 +177,12 @@ public class PendingTrace implements AgentTrace {
 
   private void decrementRefAndMaybeWrite(boolean isRootSpan) {
     final int count = pendingReferenceCount.decrementAndGet();
+    if (strictTraceWrites && count < 0) {
+      throw new IllegalStateException("Pending reference count " + count + " is negative");
+    }
     int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
 
-    if (count == 0 && !rootSpanWritten) {
+    if (count == 0 && (strictTraceWrites || !rootSpanWritten)) {
       // Finished with no pending work ... write immediately
       write();
     } else if (isRootSpan) {

@@ -19,12 +19,12 @@ import static datadog.trace.core.PendingTraceBuffer.BUFFER_SIZE
 @Timeout(5)
 class PendingTraceBufferTest extends DDSpecification {
   @Subject
-  def buffer = new PendingTraceBuffer()
+  def buffer = PendingTraceBuffer.delaying()
   def bufferSpy = Spy(buffer)
 
   def tracer = Mock(CoreTracer)
   def scopeManager = new ContinuableScopeManager(10, new DDNoopScopeEventFactory(), new NoOpStatsDClient(), true, true)
-  def factory = new PendingTrace.Factory(tracer, bufferSpy)
+  def factory = new PendingTrace.Factory(tracer, bufferSpy, false)
   List<TraceScope.Continuation> continuations = []
 
   def cleanup() {

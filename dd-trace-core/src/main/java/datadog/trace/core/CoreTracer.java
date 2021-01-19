@@ -75,7 +75,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
   private static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
 
-  private final PendingTraceBuffer pendingTraceBuffer = new PendingTraceBuffer();
+  private final PendingTraceBuffer pendingTraceBuffer;
 
   /** Default service name if none provided on the trace or span */
   final String serviceName;
@@ -161,6 +161,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       serviceNameMappings(config.getServiceMapping());
       taggedHeaders(config.getHeaderTags());
       partialFlushMinSpans(config.getPartialFlushMinSpans());
+      strictTraceWrites(config.isTraceStrictWritesEnabled());
 
       return this;
     }
@@ -183,7 +184,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> taggedHeaders,
       final int partialFlushMinSpans,
       final StatsDClient statsDClient,
-      final TagInterceptor tagInterceptor) {
+      final TagInterceptor tagInterceptor,
+      final boolean strictTraceWrites) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -235,7 +237,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
-    pendingTraceFactory = new PendingTrace.Factory(this, pendingTraceBuffer);
+    this.pendingTraceBuffer =
+        strictTraceWrites ? PendingTraceBuffer.mute() : PendingTraceBuffer.delaying();
+    pendingTraceFactory = new PendingTrace.Factory(this, pendingTraceBuffer, strictTraceWrites);
     pendingTraceBuffer.start();
 
     this.writer.start();
