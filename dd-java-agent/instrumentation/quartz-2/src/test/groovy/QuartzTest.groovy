@@ -111,12 +111,11 @@ class QuartzTest extends AgentTestRunner {
     def latch = new CountDownLatch(1)
     scheduler.getContext().put("latch", latch)
 
-    JobDetail jobDetail = JobBuilder.newJob(QuartzTestJob).withIdentity(JOB_NAME, GROUP_NAME).build()
-    Trigger trigger = TriggerBuilder.newTrigger().withIdentity(TRIGGER_NAME, GROUP_NAME).startNow().build()
-    scheduler.scheduleJob(jobDetail, trigger)
-
     when:
     runUnderTrace("root") {
+      JobDetail jobDetail = JobBuilder.newJob(QuartzTestJob).withIdentity(JOB_NAME, GROUP_NAME).build()
+      Trigger trigger = TriggerBuilder.newTrigger().withIdentity(TRIGGER_NAME, GROUP_NAME).startNow().build()
+      scheduler.scheduleJob(jobDetail, trigger)
       scheduler.start()
     }
 
