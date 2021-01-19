@@ -524,11 +524,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   private static DDScopeEventFactory createScopeEventFactory() {
-    try {
-      return (DDScopeEventFactory)
-          Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory").newInstance();
-    } catch (final ClassFormatError | ReflectiveOperationException | NoClassDefFoundError e) {
-      log.debug("Profiling of ScopeEvents is not available");
+    if (Config.get().isProfilingEnabled()) {
+      try {
+        return (DDScopeEventFactory)
+            Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory").newInstance();
+      } catch (final ClassFormatError | ReflectiveOperationException | NoClassDefFoundError e) {
+        log.debug("Profiling of ScopeEvents is not available");
+      }
     }
     return new DDNoopScopeEventFactory();
   }
