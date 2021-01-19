@@ -189,6 +189,10 @@ abstract class ScalaPromiseCompletionPriorityTestBase extends ScalaPromiseTestBa
     return true
   }
 
+  String await(Future<String>future) {
+    return promiseUtils.await(future)
+  }
+
   def "reuses span from completed promise"() {
     setup:
     def promise = newPromise()
@@ -202,20 +206,30 @@ abstract class ScalaPromiseCompletionPriorityTestBase extends ScalaPromiseTestBa
       runUnderTrace("mapped") {}
       "$it"
     }
+
+    then:
+    get(promise) == value
+    await(mapped) == "$value"
+    assertTraces(2) {
+      trace(1,) {
+        basicSpan(it, "other")
+      }
+      trace(1) {
+        basicSpan(it, "mapped", otherSpan)
+      }
+    }
+
+    when:
+    TEST_WRITER.clear()
     onComplete(mapped) {
       assert it == "$value"
       runUnderTrace("callback") {}
     }
 
     then:
-    get(promise) == value
-    assertTraces(2) {
-      trace(1,) {
-        basicSpan(it, "other")
-      }
-      trace(2, true) {
+    assertTraces(1) {
+      trace(1) {
         basicSpan(it, "callback", otherSpan)
-        basicSpan(it, "mapped", otherSpan)
       }
     }
 
