@@ -124,6 +124,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     final int status
     final String body
     final Boolean errored
+    final Boolean throwsException
     final boolean hasPathParam
 
     ServerEndpoint(String uri, int status, String body) {
@@ -134,6 +135,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       this.status = status
       this.body = body
       this.errored = status >= 500 || name().contains("ERROR")
+      this.throwsException = name().contains("EXCEPTION")
       this.hasPathParam = body == "123"
     }
 

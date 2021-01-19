@@ -15,16 +15,21 @@ import javax.servlet.http.HttpServletResponse;
 public class TagSettingAsyncListener implements AsyncListener {
   private final AtomicBoolean activated;
   private final AgentSpan span;
+  private final boolean isDispatch;
 
-  public TagSettingAsyncListener(final AtomicBoolean activated, final AgentSpan span) {
+  public TagSettingAsyncListener(
+      final AtomicBoolean activated, final AgentSpan span, boolean isDispatch) {
     this.activated = activated;
     this.span = span;
+    this.isDispatch = isDispatch;
   }
 
   @Override
   public void onComplete(final AsyncEvent event) throws IOException {
     if (activated.compareAndSet(false, true)) {
-      DECORATE.onResponse(span, (HttpServletResponse) event.getSuppliedResponse());
+      if (!isDispatch) {
+        DECORATE.onResponse(span, (HttpServletResponse) event.getSuppliedResponse());
+      }
       DECORATE.beforeFinish(span);
       span.finish();
     }
@@ -45,11 +50,13 @@ public class TagSettingAsyncListener implements AsyncListener {
   @Override
   public void onError(final AsyncEvent event) throws IOException {
     if (event.getThrowable() != null && activated.compareAndSet(false, true)) {
-      DECORATE.onResponse(span, (HttpServletResponse) event.getSuppliedResponse());
-      if (((HttpServletResponse) event.getSuppliedResponse()).getStatus()
-          == HttpServletResponse.SC_OK) {
-        // exception is thrown in filter chain, but status code is incorrect
-        span.setTag(Tags.HTTP_STATUS, 500);
+      if (!isDispatch) {
+        DECORATE.onResponse(span, (HttpServletResponse) event.getSuppliedResponse());
+        if (((HttpServletResponse) event.getSuppliedResponse()).getStatus()
+            == HttpServletResponse.SC_OK) {
+          // exception is thrown in filter chain, but status code is incorrect
+          span.setTag(Tags.HTTP_STATUS, 500);
+        }
       }
       DECORATE.onError(span, event.getThrowable());
       DECORATE.beforeFinish(span);

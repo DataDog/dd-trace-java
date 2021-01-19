@@ -18,14 +18,14 @@ import org.apache.tomcat.JarScanType
 import spock.lang.Shared
 import spock.lang.Unroll
 
+import javax.servlet.RequestDispatcher
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 
 import static TestServlet3.SERVLET_TIMEOUT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
@@ -83,6 +83,11 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
   }
 
   @Override
+  String component() {
+    return "tomcat-server"
+  }
+
+  @Override
   String getContext() {
     return "tomcat-context"
   }
@@ -108,7 +113,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
       resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
       spanType DDSpanTypes.HTTP_SERVER
       // Exceptions are always bubbled up, other statuses: only if bubblesResponse == true
-      errored((endpoint.errored && bubblesResponse && endpoint != TIMEOUT) || endpoint == EXCEPTION || endpoint == TIMEOUT_ERROR)
+      errored((endpoint.errored && bubblesResponse) || [EXCEPTION, CUSTOM_EXCEPTION, TIMEOUT_ERROR].contains(endpoint))
       if (parentID != null) {
         traceId traceID
         parentId parentID
@@ -122,11 +127,7 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
-        if (endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR) {
-          "$Tags.HTTP_STATUS" { it == endpoint.status || !bubblesResponse }
-        } else {
-          "timeout" SERVLET_TIMEOUT
-        }
+        "$Tags.HTTP_STATUS" { it == endpoint.status || !bubblesResponse }
         if (context) {
           "servlet.context" "/$context"
         }
@@ -138,8 +139,8 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         }
 
         if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
+          "error.msg" { it == null || it == EXCEPTION.body || it == CUSTOM_EXCEPTION.body }
+          "error.type" { it == null || it == Exception.name || it == InputMismatchException.name }
           "error.stack" { it == null || it instanceof String }
         }
         if (endpoint.query) {
@@ -155,13 +156,11 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
       serviceName expectedServiceName()
       operationName "servlet.dispatch"
       resourceName endpoint.path
-      errored(endpoint.errored && endpoint != TIMEOUT)
+      errored(endpoint.throwsException || endpoint == TIMEOUT_ERROR)
       childOfPrevious()
       tags {
         "$Tags.COMPONENT" AsyncDispatcherDecorator.DECORATE.component()
-        if (endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR) {
-          "$Tags.HTTP_STATUS" endpoint.status
-        } else {
+        if (endpoint == TIMEOUT || endpoint == TIMEOUT_ERROR) {
           "timeout" SERVLET_TIMEOUT
         }
         if (context) {
@@ -169,8 +168,8 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         }
         "servlet.path" "/dispatch$endpoint.path"
         if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
+          "error.msg" { it == null || it == EXCEPTION.body || it == CUSTOM_EXCEPTION.body }
+          "error.type" { it == null || it == Exception.name || it == InputMismatchException.name }
           "error.stack" { it == null || it instanceof String }
         }
         defaultTags()
@@ -292,15 +291,26 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
 class ErrorHandlerValve extends ErrorReportValve {
   @Override
   protected void report(Request request, Response response, Throwable t) {
-    if (response.getStatus() < 400 || response.getContentWritten() > 0 || !response.setErrorReported()) {
+    if (!response.error) {
       return
     }
     try {
       if (t) {
-        response.writer.print(t.cause.message)
+        if (t instanceof ServletException) {
+          t = t.rootCause
+        }
+        while (t.cause != null) {
+          t = t.cause
+        }
+        if (t instanceof InputMismatchException) {
+          response.status = CUSTOM_EXCEPTION.status
+        }
+        response.reporter.write(t.message)
       } else if (response.message) {
-        response.writer.print(response.message)
+        response.reporter.write(response.message)
       }
+      request.removeAttribute(RequestDispatcher.ERROR_EXCEPTION)
+
     } catch (IOException e) {
       e.printStackTrace()
     }
@@ -354,9 +364,10 @@ class TomcatServlet3TestAsync extends TomcatServlet3Test {
     true
   }
 
-  boolean hasResponseSpan(ServerEndpoint endpoint) {
-    // No response spans for errors in async
-    return endpoint == REDIRECT || endpoint == NOT_FOUND
+  @Override
+  boolean testException() {
+    // The exception will just cause an async timeout
+    false
   }
 }
 
@@ -465,6 +476,11 @@ class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
   }
 
   @Override
+  boolean testException() {
+    false
+  }
+
+  @Override
   boolean testTimeout() {
     true
   }
@@ -472,11 +488,6 @@ class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
   @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     dispatchSpan(trace, endpoint)
-  }
-
-  boolean hasResponseSpan(ServerEndpoint endpoint) {
-    // No response spans for errors in async
-    return endpoint == REDIRECT || endpoint == NOT_FOUND
   }
 
   @Override

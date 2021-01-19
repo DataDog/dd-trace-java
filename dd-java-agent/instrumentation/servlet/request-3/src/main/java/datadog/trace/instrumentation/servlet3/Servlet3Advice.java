@@ -27,7 +27,9 @@ import net.bytebuddy.asm.Advice;
 public class Servlet3Advice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(@Advice.Argument(0) final ServletRequest request) {
+  public static AgentScope onEnter(
+      @Advice.Argument(0) final ServletRequest request,
+      @Advice.Local("isDispatch") boolean isDispatch) {
     final boolean invalidRequest = !(request instanceof HttpServletRequest);
     if (invalidRequest) {
       return null;
@@ -38,6 +40,7 @@ public class Servlet3Advice {
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
     if (dispatchSpan instanceof AgentSpan) {
       request.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
+      isDispatch = true; // local default is false;
       // Activate the dispatch span as the request span so it can be finished with the request.
       // We don't want to create a new servlet.request span since this is internal processing.
       return activateSpan(((AgentSpan) dispatchSpan));
@@ -45,7 +48,8 @@ public class Servlet3Advice {
 
     final boolean hasServletTrace = request.getAttribute(DD_SPAN_ATTRIBUTE) instanceof AgentSpan;
     if (hasServletTrace) {
-      // Tracing might already be applied by the FilterChain or a parent request (forward/include).
+      // Tracing might already be applied by other instrumentation,
+      // the FilterChain or a parent request (forward/include).
       return null;
     }
 
@@ -74,6 +78,7 @@ public class Servlet3Advice {
       @Advice.Argument(0) final ServletRequest request,
       @Advice.Argument(1) final ServletResponse response,
       @Advice.Enter final AgentScope scope,
+      @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Thrown final Throwable throwable) {
     // Set user.principal regardless of who created this span.
     final Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
@@ -97,10 +102,14 @@ public class Servlet3Advice {
       final AgentSpan span = scope.span();
 
       if (throwable != null) {
-        DECORATE.onResponse(span, resp);
-        if (resp.getStatus() == HttpServletResponse.SC_OK) {
-          // exception is thrown in filter chain, but status code is likely incorrect
-          span.setTag(Tags.HTTP_STATUS, 500);
+        if (!isDispatch) {
+          // We don't want to put the status on the dispatch span.
+          // (It might be wrong/different from the server span with an exception handler.)
+          DECORATE.onResponse(span, resp);
+          if (resp.getStatus() == HttpServletResponse.SC_OK) {
+            // exception is thrown in filter chain, but status code is likely incorrect
+            span.setTag(Tags.HTTP_STATUS, 500);
+          }
         }
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
@@ -109,7 +118,8 @@ public class Servlet3Advice {
         final AtomicBoolean activated = new AtomicBoolean(false);
         if (req.isAsyncStarted()) {
           try {
-            req.getAsyncContext().addListener(new TagSettingAsyncListener(activated, span));
+            req.getAsyncContext()
+                .addListener(new TagSettingAsyncListener(activated, span, isDispatch));
           } catch (final IllegalStateException e) {
             // org.eclipse.jetty.server.Request may throw an exception here if request became
             // finished after check above. We just ignore that exception and move on.
@@ -117,7 +127,9 @@ public class Servlet3Advice {
         }
         // Check again in case the request finished before adding the listener.
         if (!req.isAsyncStarted() && activated.compareAndSet(false, true)) {
-          DECORATE.onResponse(span, resp);
+          if (!isDispatch) {
+            DECORATE.onResponse(span, resp);
+          }
           DECORATE.beforeFinish(span);
           span.finish(); // Finish the span manually since finishSpanOnClose was false
         }

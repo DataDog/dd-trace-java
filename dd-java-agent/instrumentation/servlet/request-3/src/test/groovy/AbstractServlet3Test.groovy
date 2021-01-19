@@ -2,13 +2,13 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import okhttp3.Request
 import okhttp3.RequestBody
 
 import javax.servlet.Servlet
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -17,6 +17,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static org.junit.Assume.assumeTrue
 
 abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERVER> {
   @Override
@@ -26,11 +27,6 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     }
 
     return new URI("http://localhost:$port/$context/")
-  }
-
-  @Override
-  String component() {
-    return Servlet3Decorator.DECORATE.component()
   }
 
   @Override
@@ -72,6 +68,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     addServlet(context, QUERY_PARAM.path, servlet)
     addServlet(context, ERROR.path, servlet)
     addServlet(context, EXCEPTION.path, servlet)
+    addServlet(context, CUSTOM_EXCEPTION.path, servlet)
     addServlet(context, REDIRECT.path, servlet)
     addServlet(context, AUTH_REQUIRED.path, servlet)
     addServlet(context, TIMEOUT.path, servlet)
@@ -84,6 +81,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     addServlet(context, "/dispatch" + REDIRECT.path, dispatchServlet)
     addServlet(context, "/dispatch" + ERROR.path, dispatchServlet)
     addServlet(context, "/dispatch" + EXCEPTION.path, dispatchServlet)
+    addServlet(context, "/dispatch" + CUSTOM_EXCEPTION.path, dispatchServlet)
     addServlet(context, "/dispatch" + AUTH_REQUIRED.path, dispatchServlet)
     addServlet(context, "/dispatch" + TIMEOUT.path, dispatchServlet)
     addServlet(context, "/dispatch" + TIMEOUT_ERROR.path, dispatchServlet)
@@ -100,6 +98,38 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     super.request(uri, method, body)
   }
 
+  def "test exception with custom status"() {
+    setup:
+    assumeTrue(testException())
+    def request = request(CUSTOM_EXCEPTION, method, body).build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == CUSTOM_EXCEPTION.status
+    if (testExceptionBody()) {
+      assert response.body().string() == CUSTOM_EXCEPTION.body
+    }
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(CUSTOM_EXCEPTION)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, CUSTOM_EXCEPTION)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, CUSTOM_EXCEPTION)
+        }
+        controllerSpan(it, CUSTOM_EXCEPTION)
+        if (hasResponseSpan(CUSTOM_EXCEPTION)) {
+          responseSpan(it, CUSTOM_EXCEPTION)
+        }
+      }
+    }
+
+    where:
+    method = "GET"
+    body = null
+  }
+
   void includeSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     trace.span {
       serviceName expectedServiceName()
@@ -107,7 +137,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
       resourceName endpoint.status == 404 ? "404" : "$endpoint.path".replace("/dispatch", "")
       spanType DDSpanTypes.HTTP_SERVER
       // Exceptions are always bubbled up, other statuses aren't
-      errored endpoint == EXCEPTION
+      errored endpoint == EXCEPTION || endpoint == CUSTOM_EXCEPTION
       childOfPrevious()
       tags {
         "$Tags.COMPONENT" "java-web-servlet-dispatcher"
@@ -116,12 +146,9 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
         }
         "servlet.path" "/dispatch$endpoint.path"
 
-        // Dispatcher.include doesn't bubble the status of the included
-        "$Tags.HTTP_STATUS" Integer
-
         if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
+          "error.msg" { it == null || it == EXCEPTION.body || it == CUSTOM_EXCEPTION.body }
+          "error.type" { it == null || it == Exception.name || it == InputMismatchException.name }
           "error.stack" { it == null || it instanceof String }
         }
         defaultTags()
@@ -133,13 +160,12 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     trace.span {
       serviceName expectedServiceName()
       operationName "servlet.forward"
-      resourceName endpoint.status == 404 ? "404" : "$endpoint.path".replace("/dispatch", "")
+      resourceName "$endpoint.path".replace("/dispatch", "")
       spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint.errored
+      errored endpoint.throwsException
       childOfPrevious()
       tags {
         "$Tags.COMPONENT" "java-web-servlet-dispatcher"
-        "$Tags.HTTP_STATUS" endpoint.status
 
         if (context) {
           "servlet.context" "/$context"
@@ -151,8 +177,8 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
         }
 
         if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
+          "error.msg" { it == null || it == EXCEPTION.body || it == CUSTOM_EXCEPTION.body }
+          "error.type" { it == null || it == Exception.name || it == InputMismatchException.name }
           "error.stack" { it == null || it instanceof String }
         }
         defaultTags()
@@ -161,7 +187,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {
-    return endpoint == REDIRECT || endpoint == ERROR || endpoint == NOT_FOUND
+    return [REDIRECT, ERROR, NOT_FOUND].contains(endpoint)
   }
 
   void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
@@ -185,7 +211,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
           defaultTags()
         }
       }
-    } else if (endpoint == EXCEPTION) {
+    } else if (endpoint == EXCEPTION || endpoint == CUSTOM_EXCEPTION) {
       trace.span {
         operationName "servlet.response"
         resourceName "HttpServletResponse.sendError"

@@ -31,6 +31,7 @@ dependencies {
   testCompile project(':dd-java-agent:instrumentation:jetty-7.0') // See if there's any conflicts.
   testCompile project(':dd-java-agent:instrumentation:jetty-7.6') // See if there's any conflicts.
   testCompile project(':dd-java-agent:instrumentation:jetty-9') // See if there's any conflicts.
+  testCompile project(':dd-java-agent:instrumentation:tomcat-5.5') // See if there's any conflicts.
   testCompile project(':dd-java-agent:instrumentation:servlet')
   testCompile group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.2.0.v20160908'
   testCompile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '8.2.0.v20160908'
@@ -43,6 +44,6 @@ dependencies {
   latestDepTestCompile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.+'
 
   // FIXME: 9.0.24 seems to have changed something...
-  latestDepTestCompile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '9.0.22'
-  latestDepTestCompile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '9.0.22'
+  latestDepTestCompile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '9.+'
+  latestDepTestCompile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '9.+'
 }

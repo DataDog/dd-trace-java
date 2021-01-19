@@ -5,14 +5,17 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.jetty9.JettyDecorator
+import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletHandler
 
 import javax.servlet.Servlet
+import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
 
 import static JettyServlet3Test.IS_LATEST
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -30,8 +33,19 @@ class JettyServletHandlerTest extends AbstractServlet3Test<Server, ServletHandle
     setupServlets(handler)
     server.addBean(new ErrorHandler() {
       protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
-        Throwable th = (Throwable) request.getAttribute("javax.servlet.error.exception")
-        writer.write(th ? th.message : message)
+        Throwable t = (Throwable) request.getAttribute("javax.servlet.error.exception")
+        def response = ((Request) request).response
+        if (t) {
+          if (t instanceof ServletException) {
+            t = t.rootCause
+          }
+          if (t instanceof InputMismatchException) {
+            response.status = CUSTOM_EXCEPTION.status
+          }
+          writer.write(t.message)
+        } else {
+          writer.write(message)
+        }
       }
     })
     server.start()
@@ -105,8 +119,8 @@ class JettyServletHandlerTest extends AbstractServlet3Test<Server, ServletHandle
         }
 
         if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
+          "error.msg" { it == null || it == EXCEPTION.body || it == CUSTOM_EXCEPTION.body }
+          "error.type" { it == null || it == Exception.name || it == InputMismatchException.name }
           "error.stack" { it == null || it instanceof String }
         }
         if (endpoint.query) {
@@ -117,8 +131,12 @@ class JettyServletHandlerTest extends AbstractServlet3Test<Server, ServletHandle
     }
   }
 
+  @Override
   boolean hasResponseSpan(ServerEndpoint endpoint) {
-    return endpoint == REDIRECT || endpoint == ERROR || (endpoint == EXCEPTION && !IS_LATEST) || endpoint == NOT_FOUND
+    if (IS_LATEST) {
+      return [NOT_FOUND, ERROR, REDIRECT].contains(endpoint)
+    }
+    return [NOT_FOUND, ERROR, EXCEPTION, CUSTOM_EXCEPTION, REDIRECT].contains(endpoint)
   }
 
   @Override
