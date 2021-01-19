@@ -11,6 +11,7 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCUtils.connectionFromStatement;
 import static datadog.trace.instrumentation.jdbc.JDBCUtils.unwrappedStatement;
 import static java.util.Collections.singletonMap;
+import static java.util.Collections.unmodifiableMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -23,8 +24,10 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -128,7 +131,10 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("java.sql.PreparedStatement", UTF8BytesString.class.getName());
+    Map<String, String> definition = new HashMap<>(4);
+    definition.put("java.sql.PreparedStatement", UTF8BytesString.class.getName());
+    definition.put("java.sql.Connection", DBInfo.class.getName());
+    return unmodifiableMap(definition);
   }
 
   @Override
@@ -173,7 +179,8 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
 
       final AgentSpan span = startSpan(DATABASE_QUERY);
       DECORATE.afterStart(span);
-      DECORATE.onConnection(span, connection);
+      DECORATE.onConnection(
+          span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
       DECORATE.onPreparedStatement(span, sql);
       return activateSpan(span);
     }
