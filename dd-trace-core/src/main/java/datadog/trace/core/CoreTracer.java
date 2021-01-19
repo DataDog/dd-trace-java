@@ -532,7 +532,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         log.debug("Profiling of ScopeEvents is not available");
       }
     }
-    return new DDNoopScopeEventFactory();
+    return DDNoopScopeEventFactory.INSTANCE;
   }
 
   private static StatsDClient createStatsDClient(final Config config) {
