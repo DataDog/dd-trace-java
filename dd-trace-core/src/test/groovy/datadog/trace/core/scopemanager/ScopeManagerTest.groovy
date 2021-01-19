@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager
 
 import com.timgroup.statsd.StatsDClient
 import datadog.trace.agent.test.utils.ThreadUtils
+import datadog.trace.api.DDId
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
@@ -899,7 +900,8 @@ class EventCountingListener implements ScopeListener {
 
   public final List<EVENT> events = new ArrayList<>()
 
-  void afterScopeActivated() {
+  @Override
+  void afterScopeActivated(DDId traceId, DDId spanId) {
     synchronized (events) {
       events.add(ACTIVATE)
     }
@@ -917,7 +919,8 @@ class ExceptionThrowingScopeListener implements ScopeListener {
   boolean throwOnScopeActivated = false
   boolean throwOnScopeClosed = false
 
-  void afterScopeActivated() {
+  @Override
+  void afterScopeActivated(DDId traceId, DDId spanId) {
     if (throwOnScopeActivated) {
       throw new RuntimeException("Exception on activated")
     }

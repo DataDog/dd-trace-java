@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.log;
 
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.api.DDId;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.context.ScopeListener;
@@ -12,9 +13,9 @@ import datadog.trace.context.ScopeListener;
 public abstract class LogContextScopeListener implements ScopeListener, WithGlobalTracer.Callback {
 
   @Override
-  public void afterScopeActivated() {
-    add(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-    add(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+  public void afterScopeActivated(DDId traceId, DDId spanId) {
+    add(CorrelationIdentifier.getTraceIdKey(), traceId);
+    add(CorrelationIdentifier.getSpanIdKey(), spanId);
   }
 
   @Override
