@@ -142,6 +142,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
   void configurePreAgent() {
     super.configurePreAgent()
 
+    injectSysConfig("dd.trace.jdbc.prepared.statement.class.name", "test.TestPreparedStatement")
     injectSysConfig("dd.integration.jdbc-datasource.enabled", "true")
   }
 

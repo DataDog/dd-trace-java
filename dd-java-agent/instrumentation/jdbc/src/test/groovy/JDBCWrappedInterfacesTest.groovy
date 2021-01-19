@@ -15,6 +15,15 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
  * H2 classes are called out because the don't implement the Wrapper interface.  They are based an older spec leading to AbstractMethodError
  */
 class JDBCWrappedInterfacesTest extends AgentTestRunner {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.trace.jdbc.prepared.statement.class.name", "test.TestPreparedStatement")
+    injectSysConfig("dd.trace.jdbc.connection.class.name", "test.TestConnection")
+  }
+
   static query = "SELECT 1"
 
   def "prepare on unwrapped conn, execute unwrapped stmt"() {
