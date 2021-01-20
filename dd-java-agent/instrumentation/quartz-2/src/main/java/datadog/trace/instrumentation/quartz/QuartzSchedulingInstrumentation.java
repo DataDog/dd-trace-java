@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.quartz.QuartzDecorator.DECORATE;
-import static datadog.trace.instrumentation.quartz.QuartzDecorator.JOB_INSTANCE;
+import static datadog.trace.instrumentation.quartz.QuartzDecorator.SCHEDULED_CALL;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -51,7 +51,7 @@ public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter(@Advice.Argument(0) JobExecutionContext context) {
       //      ignore active span
-      final AgentSpan span = startSpan(JOB_INSTANCE);
+      final AgentSpan span = startSpan(SCHEDULED_CALL);
       DECORATE.afterStart(span);
       DECORATE.onExecute(span, context);
       return activateSpan(span);

@@ -47,7 +47,7 @@ class QuartzTest extends AgentTestRunner {
     latch.await(10L, TimeUnit.SECONDS)
     assertTraces(1) {
       trace(1) {
-          jobSpan(it, scheduler.getSchedulerName())
+          jobSpan(it)
       }
     }
 
@@ -76,7 +76,7 @@ class QuartzTest extends AgentTestRunner {
     latch.await(10L, TimeUnit.SECONDS)
     assertTraces(1) {
       trace(1) {
-        jobSpan(it, scheduler.getSchedulerName())
+        jobSpan(it)
       }
     }
 
@@ -98,7 +98,7 @@ class QuartzTest extends AgentTestRunner {
 
     assertTraces(1) {
       trace(1) {
-        jobSpan(it, scheduler.getSchedulerName())
+        jobSpan(it)
       }
     }
 
@@ -127,7 +127,7 @@ class QuartzTest extends AgentTestRunner {
         basicSpan(it, "root")
       }
       trace(1) {
-        jobSpan(it, scheduler.getSchedulerName())
+        jobSpan(it)
       }
     }
 
@@ -135,7 +135,7 @@ class QuartzTest extends AgentTestRunner {
     scheduler.shutdown()
   }
 
-  void jobSpan(TraceAssert trace, String schedulerName) {
+  void jobSpan(TraceAssert trace) {
     trace.span {
       operationName "scheduled.call"
       resourceName QuartzTestJob.toString()
@@ -143,7 +143,7 @@ class QuartzTest extends AgentTestRunner {
 
       tags {
         "$Tags.COMPONENT" "quartz"
-        "$QUARTZ_SCHEDULER" schedulerName
+//        "$QUARTZ_SCHEDULER" schedulerName
         "$QUARTZ_TRIGGER_NAME" TRIGGER_NAME
         "$QUARTZ_TRIGGER_GROUP" GROUP_NAME
         "$QUARTZ_JOB_NAME" JOB_NAME

@@ -18,7 +18,7 @@ import org.quartz.SchedulerException;
 
 @Slf4j
 public class QuartzDecorator extends BaseDecorator {
-  public static final CharSequence JOB_INSTANCE = UTF8BytesString.createConstant("scheduled.call");
+  public static final CharSequence SCHEDULED_CALL = UTF8BytesString.createConstant("scheduled.call");
   public static final QuartzDecorator DECORATE = new QuartzDecorator();
 
   private QuartzDecorator() {}
@@ -41,10 +41,10 @@ public class QuartzDecorator extends BaseDecorator {
   public AgentSpan onExecute(final AgentSpan span, JobExecutionContext context) {
     if (context != null) {
       span.setTag(DDTags.RESOURCE_NAME, context.getJobInstance().getClass()).toString();
-      try {
-        span.setTag(QUARTZ_SCHEDULER, context.getScheduler().getSchedulerName());
-      } catch (SchedulerException ignore) {
-      }
+//      try {
+//        span.setTag(QUARTZ_SCHEDULER, context.getScheduler().getSchedulerName());
+//      } catch (SchedulerException ignore) {
+//      }
       span.setTag(QUARTZ_TRIGGER_NAME, context.getTrigger().getKey().getName());
       span.setTag(QUARTZ_TRIGGER_GROUP, context.getTrigger().getKey().getGroup());
       span.setTag(QUARTZ_JOB_NAME, context.getTrigger().getJobKey().getName());
