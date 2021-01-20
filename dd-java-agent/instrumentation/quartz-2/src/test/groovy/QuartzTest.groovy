@@ -12,6 +12,7 @@ import spock.lang.Shared
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_JOB_GROUP
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_JOB_NAME
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_SCHEDULER
@@ -123,10 +124,7 @@ class QuartzTest extends AgentTestRunner {
     latch.await(10L, TimeUnit.SECONDS)
     assertTraces(2) {
       trace(1) {
-        span {
-          resourceName "root"
-          operationName "root"
-        }
+        basicSpan(it, "root")
       }
       trace(1) {
         jobSpan(it, scheduler.getSchedulerName())
@@ -139,7 +137,7 @@ class QuartzTest extends AgentTestRunner {
 
   void jobSpan(TraceAssert trace, String schedulerName) {
     trace.span {
-      operationName "job.instance"
+      operationName "scheduled.call"
       resourceName QuartzTestJob.toString()
       errored false
 
@@ -150,8 +148,8 @@ class QuartzTest extends AgentTestRunner {
         "$QUARTZ_TRIGGER_GROUP" GROUP_NAME
         "$QUARTZ_JOB_NAME" JOB_NAME
         "$QUARTZ_JOB_GROUP" GROUP_NAME
-        "$QUARTZ_SCHEDULER_FIRED_TIME" String
-        "$QUARTZ_SCHEDULER_ACTUAL_TIME" String
+//        "$QUARTZ_SCHEDULER_FIRED_TIME" String
+//        "$QUARTZ_SCHEDULER_ACTUAL_TIME" String
         defaultTags()
       }
     }

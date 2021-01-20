@@ -17,7 +17,7 @@
         <group>group</group>
         <job-name>job</job-name>
         <job-group>group</job-group>
-        <!-- It will run every second -->
+        <!-- Job to run every 5 secs -->
         <cron-expression>0/5 * * ? * *</cron-expression>
       </cron>
     </trigger>
