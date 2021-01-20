@@ -11,16 +11,11 @@ import java.util.concurrent.FutureTask
 import java.util.concurrent.RecursiveTask
 import java.util.concurrent.RunnableFuture
 import java.util.concurrent.TimeUnit
-import java.util.regex.Matcher
-import java.util.regex.Pattern
 
 import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork
 import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork
 
-class FieldInjectionSmokeTest extends Specification {
-
-  private static final Pattern CONTEXT_STORE_ALLOCATION =
-      Pattern.compile('.*Allocated ContextStore #(\\d+) to (\\S+) -> (\\S+)')
+class FieldInjectionLegacySmokeTest extends Specification {
 
   String javaPath() {
     final String separator = System.getProperty("file.separator")
@@ -54,7 +49,7 @@ class FieldInjectionSmokeTest extends Specification {
     command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log")
     command.add("-Ddd.writer.type=TraceStructureWriter")
     command.add("-Ddd.trace.debug=true")
-    command.add("-Ddd.trace.legacy.context.field.injection=false")
+    command.add("-Ddd.trace.legacy.context.field.injection=true")
     command.add("-jar")
     command.add(jar)
     for (String type : testedTypesAndExpectedFields.keySet()) {
@@ -74,12 +69,10 @@ class FieldInjectionSmokeTest extends Specification {
     Map<String, Set<String>> foundTypesAndFields = new HashMap<>()
     Map<String, List<String>> foundTypesAndInterfaces = new HashMap<>()
     Map<String, List<String>> foundTypesAndGenericInterfaces = new HashMap<>()
-    Map<String, String> storeFieldAliases = new HashMap<>()
     for (String line : lines) {
       System.out.println(line)
       if (line.startsWith("___FIELD___")) {
         String[] parts = line.split(":")
-        parts[2] = storeFieldAliases.get(parts[2])
         foundTypesAndFields.computeIfAbsent(parts[1], { new HashSet<>() }).add(parts[2])
       } else if (line.startsWith("___INTERFACE___")) {
         String[] parts = line.split(":")
@@ -87,15 +80,6 @@ class FieldInjectionSmokeTest extends Specification {
       } else if (line.startsWith("___GENERIC_INTERFACE___")) {
         String[] parts = line.split(":")
         foundTypesAndGenericInterfaces.computeIfAbsent(parts[1], { new HashSet<>() }).add(parts[2])
-      } else {
-        Matcher storeAllocation = CONTEXT_STORE_ALLOCATION.matcher(line)
-        if (storeAllocation.matches()) {
-          // assertions use context key while internally we use storeId,
-          // so we need to record the storeId alias for each context key
-          String storeId = storeAllocation.group(1)
-          String keyName = storeAllocation.group(2)
-          storeFieldAliases.put(fieldName(storeId), fieldName(keyName))
-        }
       }
     }
     assert testedTypesAndExpectedFields == foundTypesAndFields

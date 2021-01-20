@@ -19,10 +19,10 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ExcludeFilterProviderTestInstrumentation extends Instrumenter.Tracing
+public class ExcludeFilterTestInstrumentation extends Instrumenter.Tracing
     implements ExcludeFilterProvider {
 
-  public ExcludeFilterProviderTestInstrumentation() {
+  public ExcludeFilterTestInstrumentation() {
     super("excludefilter-test");
   }
 
@@ -48,14 +48,14 @@ public class ExcludeFilterProviderTestInstrumentation extends Instrumenter.Traci
   public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
     EnumMap<ExcludeFilter.ExcludeType, Collection<String>> excludedTypes =
         new EnumMap<>(ExcludeFilter.ExcludeType.class);
+    String prefix = getClass().getName() + "$";
     excludedTypes.put(
-        RUNNABLE,
-        Arrays.asList(ExcludedRunnable.class.getName(), CallableExcludedRunnable.class.getName()));
+        RUNNABLE, Arrays.asList(prefix + "ExcludedRunnable", prefix + "CallableExcludedRunnable"));
     excludedTypes.put(
         CALLABLE,
         Arrays.asList(
-            ExcludedCallable.class.getName(),
-            RunnableExcludedCallable.class.getName(),
+            prefix + "ExcludedCallable",
+            prefix + "RunnableExcludedCallable",
             "net.sf.cglib.core.internal.LoadingCache$2" // Excluded for global ignore matcher
             ));
     return excludedTypes;

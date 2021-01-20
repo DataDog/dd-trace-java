@@ -43,7 +43,6 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
 
     then:
     testedProcess.exitValue() == 0
-    // temporarily ignore VM instrumentation assertion errors on IBM J9
-    !logHasErrors || System.getProperty("java.vm.name").contains("IBM J9 VM")
+    !logHasErrors
   }
 }

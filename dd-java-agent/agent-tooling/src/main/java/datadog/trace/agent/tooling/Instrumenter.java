@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.DDTransformers;
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
+import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.agent.tooling.context.FieldBackedProvider;
 import datadog.trace.agent.tooling.context.InstrumentationContextProvider;
 import datadog.trace.agent.tooling.context.NoopContextProvider;
@@ -124,7 +125,11 @@ public interface Instrumenter {
             }
           }
           if (!contextStores.isEmpty()) {
-            contextProvider = new FieldBackedProvider(this, contextStores);
+            if (Config.get().isLegacyContextFieldInjection()) {
+              contextProvider = new FieldBackedProvider(this, contextStores);
+            } else {
+              contextProvider = new FieldBackedContextProvider(this, contextStores);
+            }
           } else {
             contextProvider = NoopContextProvider.INSTANCE;
           }

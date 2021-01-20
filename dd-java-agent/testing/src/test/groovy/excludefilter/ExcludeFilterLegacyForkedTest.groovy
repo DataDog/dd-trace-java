@@ -2,14 +2,23 @@ package excludefilter
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter
+
 import java.lang.reflect.Field
 import java.util.concurrent.Callable
 
-import static ExcludeFilterProviderTestInstrumentation.*
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.*
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE
+import static excludefilter.ExcludeFilterTestInstrumentation.CallableExcludedRunnable
+import static excludefilter.ExcludeFilterTestInstrumentation.CallableRunnable
+import static excludefilter.ExcludeFilterTestInstrumentation.ExcludedCallable
+import static excludefilter.ExcludeFilterTestInstrumentation.ExcludedRunnable
+import static excludefilter.ExcludeFilterTestInstrumentation.NormalCallable
+import static excludefilter.ExcludeFilterTestInstrumentation.NormalRunnable
+import static excludefilter.ExcludeFilterTestInstrumentation.RunnableExcludedCallable
 
-
-class ExcludeFilterProviderTest extends AgentTestRunner {
+class ExcludeFilterLegacyForkedTest extends AgentTestRunner {
+  void configurePreAgent() {
+    injectSysConfig("dd.trace.legacy.context.field.injection", "true")
+  }
 
   def "test ExcludeFilter"() {
     expect:
