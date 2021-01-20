@@ -330,6 +330,7 @@ public class Config {
   @Getter private final boolean scopeStrictMode;
   @Getter private final boolean scopeInheritAsyncPropagation;
   @Getter private final int partialFlushMinSpans;
+  @Getter private final boolean traceStrictWritesEnabled;
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final boolean serialVersionUIDFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
@@ -597,6 +598,9 @@ public class Config {
 
     partialFlushMinSpans =
         configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
+
+    traceStrictWritesEnabled =
+        configProvider.getBoolean(TracerConfig.TRACE_STRICT_WRITES_ENABLED, false);
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(
