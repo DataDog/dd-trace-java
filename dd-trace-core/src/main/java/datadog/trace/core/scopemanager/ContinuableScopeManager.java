@@ -122,14 +122,9 @@ public class ContinuableScopeManager implements AgentScopeManager {
   }
 
   private ContinuableScope handleSpan(
-      final Continuation continuation,
-      final AgentSpan span,
-      final ScopeSource source,
-      final boolean overrideAsyncPropagation,
-      final boolean isAsyncPropagating) {
+      final Continuation continuation, final AgentSpan span, final ScopeSource source) {
     ContinuableScope active = inheritAsyncPropagation ? scopeStack().top() : null;
-    return handleSpan(
-        active, continuation, span, source, overrideAsyncPropagation, isAsyncPropagating);
+    return handleSpan(active, continuation, span, source, true, true);
   }
 
   private ContinuableScope handleSpan(
@@ -290,7 +285,9 @@ public class ContinuableScopeManager implements AgentScopeManager {
      */
     @Override
     public ContinuableScopeManager.Continuation capture() {
-      return capture(false);
+      return isAsyncPropagating
+          ? new SingleContinuation(scopeManager, span, source).register()
+          : null;
     }
 
     /**
@@ -300,21 +297,9 @@ public class ContinuableScopeManager implements AgentScopeManager {
      */
     @Override
     public ContinuableScopeManager.Continuation captureConcurrent() {
-      return capture(true);
-    }
-
-    private ContinuableScopeManager.Continuation capture(boolean concurrent) {
-      if (isAsyncPropagating()) {
-        final ContinuableScopeManager.Continuation continuation;
-        if (concurrent) {
-          continuation = new ConcurrentContinuation(scopeManager, span, source);
-        } else {
-          continuation = new SingleContinuation(scopeManager, span, source);
-        }
-        return continuation.register();
-      } else {
-        return null;
-      }
+      return isAsyncPropagating
+          ? new ConcurrentContinuation(scopeManager, span, source).register()
+          : null;
     }
 
     @Override
@@ -428,16 +413,12 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public AgentScope activate() {
-      final boolean overrideAsyncPropagation = true;
-      final boolean isAsyncPropagating = DEFAULT_ASYNC_PROPAGATING;
       if (used.compareAndSet(false, true)) {
-        return scopeManager.handleSpan(
-            this, spanUnderScope, source, overrideAsyncPropagation, isAsyncPropagating);
+        return scopeManager.handleSpan(this, spanUnderScope, source);
       } else {
         log.debug(
             "Failed to activate continuation. Reusing a continuation not allowed. Spans may be reported separately.");
-        return scopeManager.handleSpan(
-            null, spanUnderScope, source, overrideAsyncPropagation, isAsyncPropagating);
+        return scopeManager.handleSpan(null, spanUnderScope, source);
       }
     }
 
@@ -516,10 +497,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public AgentScope activate() {
       if (tryActivate()) {
-        final boolean overrideAsyncPropagation = true;
-        final boolean isAsyncPropagating = true;
-        return scopeManager.handleSpan(
-            this, spanUnderScope, source, overrideAsyncPropagation, isAsyncPropagating);
+        return scopeManager.handleSpan(this, spanUnderScope, source);
       } else {
         return null;
       }
