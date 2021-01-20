@@ -294,15 +294,22 @@ public class DDCachingPoolStrategy implements PoolStrategy {
       // Intentionally not "thread safe". Duplicate work deemed an acceptable trade-off.
       if (!isResolved) {
         Class<?> klass = null;
-        ClassLoader classLoader = loaderRef.get();
-        if (classLoader != null) {
-          try {
-            // Please note that by doing a loadClass, the type we are resolving will bypass
-            // transformation since we are in the middle of a transformation. This should
-            // be a very rare occurrence and not affect any classes we want to instrument.
-            klass = classLoader.loadClass(className);
-          } catch (ClassNotFoundException ignored) {
+        ClassLoader classLoader = null;
+        try {
+          // Please note that by doing a loadClass, the type we are resolving will bypass
+          // transformation since we are in the middle of a transformation. This should
+          // be a very rare occurrence and not affect any classes we want to instrument.
+          if (loaderRef != null) {
+            classLoader = loaderRef.get();
+            if (classLoader != null) {
+              klass = classLoader.loadClass(className);
+            } else {
+              // classloader has been unloaded
+            }
+          } else { // bootstrap type resolution
+            klass = Class.forName(className, false, null);
           }
+        } catch (Throwable ignored) {
         }
         if (klass != null) {
           // We managed to load the class
