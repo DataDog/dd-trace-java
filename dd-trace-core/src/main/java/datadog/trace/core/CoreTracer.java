@@ -5,7 +5,7 @@ import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetric
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.timgroup.statsd.NoOpStatsDClient;
-import com.timgroup.statsd.NonBlockingStatsDClientBuilder;
+import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import com.timgroup.statsd.StatsDClientException;
 import datadog.trace.api.Config;
@@ -547,12 +547,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       }
 
       try {
-        return new NonBlockingStatsDClientBuilder()
-            .prefix("datadog.tracer")
-            .hostname(host)
-            .port(port)
-            .constantTags(generateConstantTags(config))
-            .build();
+        return new NonBlockingStatsDClient(
+            "datadog.tracer", host, port, generateConstantTags(config));
       } catch (final StatsDClientException e) {
         log.error("Unable to create StatsD client", e);
         return new NoOpStatsDClient();
