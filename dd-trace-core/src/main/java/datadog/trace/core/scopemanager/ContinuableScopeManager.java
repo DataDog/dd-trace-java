@@ -76,25 +76,25 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
   @Override
   public AgentScope activate(final AgentSpan span, final ScopeSource source) {
-    return activate(span, source, false, /* ignored */ false);
+    return activate(span, source.id(), false, /* ignored */ false);
   }
 
   @Override
   public AgentScope activate(
       final AgentSpan span, final ScopeSource source, boolean isAsyncPropagating) {
-    return activate(span, source, true, isAsyncPropagating);
+    return activate(span, source.id(), true, isAsyncPropagating);
   }
 
   @Override
   public TraceScope.Continuation captureSpan(final AgentSpan span, final ScopeSource source) {
-    Continuation continuation = new SingleContinuation(this, span, source);
+    Continuation continuation = new SingleContinuation(this, span, source.id());
     continuation.register();
     return continuation;
   }
 
   private AgentScope activate(
       final AgentSpan span,
-      final ScopeSource source,
+      final byte source,
       final boolean overrideAsyncPropagation,
       final boolean isAsyncPropagating) {
     ScopeStack scopeStack = scopeStack();
@@ -122,7 +122,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
   }
 
   private ContinuableScope handleSpan(
-      final Continuation continuation, final AgentSpan span, final ScopeSource source) {
+      final Continuation continuation, final AgentSpan span, final byte source) {
     ContinuableScope active = inheritAsyncPropagation ? scopeStack().top() : null;
     return handleSpan(active, continuation, span, source, true, true);
   }
@@ -131,7 +131,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       final ContinuableScope active,
       final Continuation continuation,
       final AgentSpan span,
-      final ScopeSource source,
+      final byte source,
       final boolean overrideAsyncPropagation,
       final boolean isAsyncPropagating) {
     // Inherit the async propagation from the active scope unless the a value is overridden
@@ -179,7 +179,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     /** Flag to propagate this scope across async boundaries. */
     private volatile boolean isAsyncPropagating;
 
-    private final ScopeSource source;
+    private final byte source;
 
     private final AtomicInteger referenceCount = new AtomicInteger(1);
 
@@ -191,7 +191,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
         final ContinuableScopeManager scopeManager,
         final ContinuableScopeManager.Continuation continuation,
         final AgentSpan span,
-        final ScopeSource source,
+        final byte source,
         final boolean isAsyncPropagating) {
       this.isAsyncPropagating = isAsyncPropagating;
       this.span = span;
@@ -214,7 +214,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
         scopeManager.statsDClient.incrementCounter("scope.close.error");
 
-        if (source == ScopeSource.MANUAL) {
+        if (source == ScopeSource.MANUAL.id()) {
           scopeManager.statsDClient.incrementCounter("scope.user.close.error");
 
           if (scopeManager.strictMode) {
@@ -376,11 +376,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     final ContinuableScopeManager scopeManager;
     final AgentSpan spanUnderScope;
-    final ScopeSource source;
+    final byte source;
     final AgentTrace trace;
 
     public Continuation(
-        ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, ScopeSource source) {
+        ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
       this.scopeManager = scopeManager;
       this.spanUnderScope = spanUnderScope;
       this.source = source;
@@ -407,7 +407,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     private SingleContinuation(
         final ContinuableScopeManager scopeManager,
         final AgentSpan spanUnderScope,
-        final ScopeSource source) {
+        final byte source) {
       super(scopeManager, spanUnderScope, source);
     }
 
@@ -465,7 +465,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     private ConcurrentContinuation(
         final ContinuableScopeManager scopeManager,
         final AgentSpan spanUnderScope,
-        final ScopeSource source) {
+        final byte source) {
       super(scopeManager, spanUnderScope, source);
     }
 
