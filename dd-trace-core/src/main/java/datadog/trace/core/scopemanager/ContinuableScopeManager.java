@@ -177,11 +177,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
     /** Continuation that created this scope. May be null. */
     private final ContinuableScopeManager.Continuation continuation;
     /** Flag to propagate this scope across async boundaries. */
-    private volatile boolean isAsyncPropagating;
+    private boolean isAsyncPropagating;
 
     private final byte source;
 
-    private final AtomicInteger referenceCount = new AtomicInteger(1);
+    private int referenceCount = 1;
 
     private final DDScopeEvent event;
 
@@ -250,17 +250,17 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     final void incrementReferences() {
-      referenceCount.incrementAndGet();
+      ++referenceCount;
     }
 
     /** Decrements ref count -- returns true if the scope is still alive */
     final boolean decrementReferences() {
-      return referenceCount.decrementAndGet() > 0;
+      return --referenceCount > 0;
     }
 
     /** Returns true if the scope is still alive (non-zero ref count) */
     final boolean alive() {
-      return referenceCount.get() > 0;
+      return referenceCount > 0;
     }
 
     @Override
