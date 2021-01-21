@@ -287,10 +287,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
       return super.toString() + "->" + span;
     }
 
-    public void afterActivated(ContinuableScope scope) {
+    public void afterActivated() {
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         try {
-          listener.afterScopeActivated(scope.span.getTraceId(), scope.span.context().getSpanId());
+          listener.afterScopeActivated(span.getTraceId(), span.context().getSpanId());
         } catch (Exception e) {
           log.debug("ScopeListener threw exception in afterActivated()", e);
         }
@@ -316,7 +316,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       while (curScope != null) {
         if (curScope.alive()) {
           if (changedTop) {
-            curScope.afterActivated(curScope);
+            curScope.afterActivated();
           }
           break;
         }
@@ -332,7 +332,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     /** Pushes a new scope unto the stack */
     final void push(final ContinuableScope scope) {
       stack.push(scope);
-      scope.afterActivated(scope);
+      scope.afterActivated();
     }
 
     /** Fast check to see if the expectedScope is on top the stack */
