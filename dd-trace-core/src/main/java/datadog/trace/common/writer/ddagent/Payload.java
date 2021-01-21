@@ -11,12 +11,16 @@ import okhttp3.RequestBody;
 
 public abstract class Payload {
 
+  private static final ByteBuffer EMPTY_ARRAY = ByteBuffer.allocate(1).put(0, (byte) 0x90);
+
   private int traceCount = 0;
-  protected ByteBuffer body;
+  protected ByteBuffer body = EMPTY_ARRAY.duplicate();
 
   public Payload withBody(int traceCount, ByteBuffer body) {
     this.traceCount = traceCount;
-    this.body = body;
+    if (null != body) {
+      this.body = body;
+    }
     return this;
   }
 

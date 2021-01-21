@@ -50,10 +50,15 @@ class MetricsIntegrationTest extends DDSpecification {
     listener.events.size() == 1 && listener.events[0] == OK
   }
 
-  class BlockingListener implements EventListener {
+  static class BlockingListener implements EventListener {
 
     List<EventType> events = new CopyOnWriteArrayList<>()
     final CountDownLatch latch
+
+    BlockingListener(CountDownLatch latch) {
+      this.latch = latch
+    }
+
     @Override
     void onEvent(EventType eventType, String message) {
       events.add(eventType)
