@@ -15,9 +15,6 @@ import java.util.concurrent.TimeUnit
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_JOB_GROUP
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_JOB_NAME
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_SCHEDULER
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_SCHEDULER_ACTUAL_TIME
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_SCHEDULER_FIRED_TIME
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_GROUP
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_NAME
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -143,13 +140,10 @@ class QuartzTest extends AgentTestRunner {
 
       tags {
         "$Tags.COMPONENT" "quartz"
-//        "$QUARTZ_SCHEDULER" schedulerName
         "$QUARTZ_TRIGGER_NAME" TRIGGER_NAME
         "$QUARTZ_TRIGGER_GROUP" GROUP_NAME
         "$QUARTZ_JOB_NAME" JOB_NAME
         "$QUARTZ_JOB_GROUP" GROUP_NAME
-//        "$QUARTZ_SCHEDULER_FIRED_TIME" String
-//        "$QUARTZ_SCHEDULER_ACTUAL_TIME" String
         defaultTags()
       }
     }

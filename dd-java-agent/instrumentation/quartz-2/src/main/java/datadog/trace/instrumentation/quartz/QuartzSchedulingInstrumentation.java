@@ -50,7 +50,6 @@ public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing 
   public static class QuartzSchedulingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter(@Advice.Argument(0) JobExecutionContext context) {
-      //      ignore active span
       final AgentSpan span = startSpan(SCHEDULED_CALL);
       DECORATE.afterStart(span);
       DECORATE.onExecute(span, context);
