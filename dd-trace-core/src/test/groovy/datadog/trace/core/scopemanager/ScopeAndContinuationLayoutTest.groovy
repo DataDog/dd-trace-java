@@ -8,7 +8,8 @@ import spock.lang.Requires
 class ScopeAndContinuationLayoutTest extends DDSpecification {
 
   def "continuable scope layout"() {
-    expect: layoutAcceptable(ContinuableScopeManager.ContinuableScope, 40)
+    expect:
+    layoutAcceptable(ContinuableScopeManager.ContinuableScope, 32)
   }
 
   def "single continuation layout"() {
