@@ -1,8 +1,7 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.core.serialization.WritableFormatter.Feature.RESIZEABLE;
 import static datadog.trace.core.serialization.WritableFormatter.Feature.SINGLE_MESSAGE;
-import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.core.serialization.Mapper;
@@ -16,31 +15,28 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public final class SerializingMetricWriter implements MetricWriter {
 
-  private static final byte[] HOSTNAME = "Hostname".getBytes(US_ASCII);
-  private static final byte[] NAME = "Name".getBytes(US_ASCII);
-  private static final byte[] ENV = "Env".getBytes(US_ASCII);
-  private static final byte[] SERVICE = "Service".getBytes(US_ASCII);
-  private static final byte[] RESOURCE = "Resource".getBytes(US_ASCII);
-  private static final byte[] VERSION = "Version".getBytes(US_ASCII);
-  private static final byte[] HITS = "Hits".getBytes(US_ASCII);
-  private static final byte[] ERRORS = "Errors".getBytes(US_ASCII);
-  private static final byte[] DURATION = "Duration".getBytes(US_ASCII);
-  private static final byte[] TYPE = "Type".getBytes(US_ASCII);
-  private static final byte[] HTTP_STATUS_CODE = "HTTPStatusCode".getBytes(US_ASCII);
-  private static final byte[] START = "Start".getBytes(US_ASCII);
-  private static final byte[] STATS = "Stats".getBytes(US_ASCII);
-  private static final byte[] OK_SUMMARY = "OkSummary".getBytes(US_ASCII);
-  private static final byte[] ERROR_SUMMARY = "ErrorSummary".getBytes(US_ASCII);
+  private static final byte[] HOSTNAME = "Hostname".getBytes(ISO_8859_1);
+  private static final byte[] NAME = "Name".getBytes(ISO_8859_1);
+  private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
+  private static final byte[] SERVICE = "Service".getBytes(ISO_8859_1);
+  private static final byte[] RESOURCE = "Resource".getBytes(ISO_8859_1);
+  private static final byte[] VERSION = "Version".getBytes(ISO_8859_1);
+  private static final byte[] HITS = "Hits".getBytes(ISO_8859_1);
+  private static final byte[] ERRORS = "Errors".getBytes(ISO_8859_1);
+  private static final byte[] DURATION = "Duration".getBytes(ISO_8859_1);
+  private static final byte[] TYPE = "Type".getBytes(ISO_8859_1);
+  private static final byte[] HTTP_STATUS_CODE = "HTTPStatusCode".getBytes(ISO_8859_1);
+  private static final byte[] START = "Start".getBytes(ISO_8859_1);
+  private static final byte[] STATS = "Stats".getBytes(ISO_8859_1);
+  private static final byte[] OK_SUMMARY = "OkSummary".getBytes(ISO_8859_1);
+  private static final byte[] ERROR_SUMMARY = "ErrorSummary".getBytes(ISO_8859_1);
 
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
     this.wellKnownTags = wellKnownTags;
-    this.writer =
-        new MsgPackWriter(
-            // 64KB
-            sink, ByteBuffer.allocate(64 << 10), EnumSet.of(RESIZEABLE, SINGLE_MESSAGE));
+    this.writer = new MsgPackWriter(sink, ByteBuffer.allocate(1 << 20), EnumSet.of(SINGLE_MESSAGE));
   }
 
   @Override
@@ -72,7 +68,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   }
 
   @Override
-  public void add(MetricKey key, AggregateMetric aggregate) {
+  public void add(final MetricKey key, final AggregateMetric aggregate) {
     writer.format(
         new Metric(key, aggregate),
         new Mapper<Metric>() {
