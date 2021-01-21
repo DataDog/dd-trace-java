@@ -181,7 +181,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     private final byte source;
 
-    private int referenceCount = 1;
+    private short referenceCount = 1;
 
     private final DDScopeEvent event;
 
