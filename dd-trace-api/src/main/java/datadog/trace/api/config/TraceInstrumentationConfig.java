@@ -44,6 +44,9 @@ public final class TraceInstrumentationConfig {
       "kafka.client.base64.decoding.enabled";
 
   public static final String HYSTRIX_TAGS_ENABLED = "hystrix.tags.enabled";
+
+  public static final String OSGI_SEARCH_DEPTH = "osgi.search.depth";
+
   public static final String SERVLET_PRINCIPAL_ENABLED = "trace.servlet.principal.enabled";
   public static final String SERVLET_ASYNC_TIMEOUT_ERROR = "trace.servlet.async-timeout.error";
 

@@ -18,6 +18,7 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
+    command.add("-Ddd.profiling.enabled=false")
     command.add((String) "-Dorg.osgi.framework.storage=${storageDir}")
     command.add("-Dorg.osgi.framework.bootdelegation=")
     command.add("-Dorg.osgi.framework.bundle.parent=framework")
@@ -39,10 +40,23 @@ abstract class AbstractOSGiSmokeTest extends AbstractSmokeTest {
   def "example application runs without errors"() {
     when:
     testedProcess.waitFor()
-    checkLog()
+    boolean instrumentedMessageClient = false
+    checkLog {
+      // check for additional OSGi class-loader issues
+      if (it.contains("Cannot resolve type description") ||
+          it.contains("Instrumentation muzzled")) {
+        println it
+        logHasErrors = true
+      }
+      if (it.contains("Transformed datadog.smoketest.osgi.client.MessageClient")) {
+        println it
+        instrumentedMessageClient = true
+      }
+    }
 
     then:
     testedProcess.exitValue() == 0
+    instrumentedMessageClient
     !logHasErrors
   }
 }

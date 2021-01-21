@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
+import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static net.bytebuddy.agent.builder.AgentBuilder.PoolStrategy;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
@@ -295,6 +296,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
       if (!isResolved) {
         Class<?> klass = null;
         ClassLoader classLoader = null;
+        LOCATING_CLASS.begin();
         try {
           // Please note that by doing a loadClass, the type we are resolving will bypass
           // transformation since we are in the middle of a transformation. This should
@@ -310,6 +312,8 @@ public class DDCachingPoolStrategy implements PoolStrategy {
             klass = Class.forName(className, false, null);
           }
         } catch (Throwable ignored) {
+        } finally {
+          LOCATING_CLASS.end();
         }
         if (klass != null) {
           // We managed to load the class

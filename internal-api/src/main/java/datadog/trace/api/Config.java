@@ -70,6 +70,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
 
@@ -400,6 +401,9 @@ public class Config {
   @Getter private final boolean kafkaClientBase64DecodingEnabled;
 
   @Getter private final boolean hystrixTagsEnabled;
+
+  @Getter private final int osgiSearchDepth;
+
   @Getter private final boolean servletPrincipalEnabled;
   @Getter private final boolean servletAsyncTimeoutError;
 
@@ -760,6 +764,8 @@ public class Config {
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
+
+    osgiSearchDepth = configProvider.getInteger(OSGI_SEARCH_DEPTH, 1);
 
     servletPrincipalEnabled =
         configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED, false);
