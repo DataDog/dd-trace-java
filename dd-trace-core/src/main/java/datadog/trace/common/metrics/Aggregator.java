@@ -80,15 +80,17 @@ final class Aggregator implements Runnable {
   private void report(long when) {
     if (dirty) {
       expungeStaleAggregates();
-      writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
-      for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
-        if (aggregate.getValue().getHitCount() > 0) {
-          writer.add(aggregate.getKey(), aggregate.getValue());
-          aggregate.getValue().clear();
+      if (!aggregates.isEmpty()) {
+        writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
+        for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
+          if (aggregate.getValue().getHitCount() > 0) {
+            writer.add(aggregate.getKey(), aggregate.getValue());
+            aggregate.getValue().clear();
+          }
         }
+        // note that this may do IO and block
+        writer.finishBucket();
       }
-      // note that this may do IO and block
-      writer.finishBucket();
       dirty = false;
     }
   }

@@ -105,6 +105,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   @Override
+  public void report() {
+    boolean published;
+    do {
+      published = inbox.offer(REPORT);
+    } while (!published);
+  }
+
+  @Override
   public void publish(List<? extends CoreSpan<?>> trace) {
     if (enabled) {
       for (CoreSpan<?> span : trace) {
@@ -202,10 +210,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
     @Override
     public void run(ConflatingMetricsAggregator target) {
-      boolean published;
-      do {
-        published = target.inbox.offer(REPORT);
-      } while (!published);
+      target.report();
     }
   }
 }
