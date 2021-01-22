@@ -18,6 +18,7 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.PreparedStatement;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -91,7 +92,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("java.sql.PreparedStatement", UTF8BytesString.class.getName());
+    return singletonMap("java.sql.PreparedStatement", DBQueryInfo.class.getName());
   }
 
   @Override
@@ -121,13 +122,13 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addDBInfo(
         @Advice.Argument(0) final String sql, @Advice.Return final PreparedStatement statement) {
-      ContextStore<PreparedStatement, UTF8BytesString> contextStore =
-          InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class);
+      ContextStore<PreparedStatement, DBQueryInfo> contextStore =
+          InstrumentationContext.get(PreparedStatement.class, DBQueryInfo.class);
       if (null == contextStore.get(statement)) {
         // Sometimes the prepared statement is not reused, but the underlying String is reused, so
         // check if we have seen this String before
         UTF8BytesString utf8Sql = PREPARED_STATEMENTS_SQL.computeIfAbsent(sql, UTF8_ENCODE);
-        contextStore.putIfAbsent(statement, utf8Sql);
+        contextStore.putIfAbsent(statement, new DBQueryInfo(utf8Sql));
       }
     }
   }

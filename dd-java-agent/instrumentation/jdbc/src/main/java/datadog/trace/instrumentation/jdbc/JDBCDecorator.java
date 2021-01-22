@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
+import static datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo.extractOperation;
+
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.ContextStore;
@@ -9,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
+import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -116,15 +120,20 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   @Override
   public AgentSpan onStatement(final AgentSpan span, final CharSequence statement) {
     final CharSequence resourceName = statement == null ? DB_QUERY : statement;
+    span.setTag(DB_OPERATION, extractOperation(statement));
     span.setResourceName(resourceName);
     span.setTag(Tags.COMPONENT, JDBC_STATEMENT);
-    return super.onStatement(span, statement);
+    return span;
   }
 
-  public AgentSpan onPreparedStatement(final AgentSpan span, UTF8BytesString sql) {
-    final UTF8BytesString resourceName = sql == null ? DB_QUERY : sql;
-    span.setResourceName(resourceName);
+  public AgentSpan onPreparedStatement(final AgentSpan span, DBQueryInfo dbQueryInfo) {
+    if (null != dbQueryInfo) {
+      span.setResourceName(dbQueryInfo.getSql());
+      span.setTag(DB_OPERATION, dbQueryInfo.getOperation());
+    } else {
+      span.setResourceName(DB_QUERY);
+    }
     span.setTag(Tags.COMPONENT, JDBC_PREPARED_STATEMENT);
-    return super.onStatement(span, sql);
+    return span;
   }
 }

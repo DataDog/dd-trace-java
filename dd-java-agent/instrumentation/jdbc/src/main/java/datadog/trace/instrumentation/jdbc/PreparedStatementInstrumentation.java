@@ -20,8 +20,8 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
+import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -131,7 +131,7 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>(4);
-    contextStore.put("java.sql.PreparedStatement", UTF8BytesString.class.getName());
+    contextStore.put("java.sql.PreparedStatement", DBQueryInfo.class.getName());
     contextStore.put("java.sql.Statement", Boolean.class.getName());
     contextStore.put("java.sql.Connection", DBInfo.class.getName());
     return contextStore;
@@ -169,10 +169,9 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
       interceptionTracker.put(statement, Boolean.TRUE);
       try {
         Connection connection = statement.getConnection();
-        UTF8BytesString sql =
-            InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class)
-                .get(statement);
-        if (null == sql) {
+        DBQueryInfo queryInfo =
+            InstrumentationContext.get(PreparedStatement.class, DBQueryInfo.class).get(statement);
+        if (null == queryInfo) {
           return null;
         }
 
@@ -180,7 +179,7 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
         DECORATE.afterStart(span);
         DECORATE.onConnection(
             span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        DECORATE.onPreparedStatement(span, sql);
+        DECORATE.onPreparedStatement(span, queryInfo);
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason
