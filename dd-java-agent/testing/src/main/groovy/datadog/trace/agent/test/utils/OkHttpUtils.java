@@ -33,7 +33,8 @@ public class OkHttpUtils {
   }
 
   static OkHttpClient.Builder clientBuilder() {
-    final TimeUnit unit = TimeUnit.MINUTES;
+    // Increase timeout locally to allow time for debugging.
+    final TimeUnit unit = System.getenv("CI") != null ? TimeUnit.MINUTES : TimeUnit.HOURS;
     return new OkHttpClient.Builder()
         .addInterceptor(LOGGING_INTERCEPTOR)
         .connectTimeout(1, unit)
