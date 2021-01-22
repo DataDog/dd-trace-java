@@ -19,6 +19,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 
@@ -83,9 +84,11 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
       }
     }
 
-    private void muzzleCheck(HttpChannel<?> connection, HttpServletRequest request) {
+    private void muzzleCheck(
+        HttpChannel<?> connection, HttpServletRequest request, HttpFields fields) {
       connection.run();
       request.getContextPath();
+      fields.getField(0);
     }
   }
 }

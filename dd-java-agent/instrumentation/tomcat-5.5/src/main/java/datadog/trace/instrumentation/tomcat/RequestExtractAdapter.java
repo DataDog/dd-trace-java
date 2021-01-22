@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.tomcat;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import java.util.Enumeration;
 import org.apache.coyote.Request;
+import org.apache.tomcat.util.buf.MessageBytes;
+import org.apache.tomcat.util.http.MimeHeaders;
 
 public class RequestExtractAdapter implements AgentPropagation.ContextVisitor<Request> {
 
@@ -10,10 +11,11 @@ public class RequestExtractAdapter implements AgentPropagation.ContextVisitor<Re
 
   @Override
   public void forEachKey(Request carrier, AgentPropagation.KeyClassifier classifier) {
-    Enumeration<String> headerNames = carrier.getMimeHeaders().names();
-    while (headerNames.hasMoreElements()) {
-      String header = headerNames.nextElement();
-      if (!classifier.accept(header, carrier.getHeader(header))) {
+    MimeHeaders headers = carrier.getMimeHeaders();
+    for (int i = 0; i < headers.size(); ++i) {
+      MessageBytes header = headers.getName(i);
+      MessageBytes value = headers.getValue(i);
+      if (!classifier.accept(header.toString(), value.toString())) {
         return;
       }
     }

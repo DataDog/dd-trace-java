@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator._500;
 import static datadog.trace.instrumentation.servlet3.HttpServletRequestExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.SERVLET_REQUEST;
@@ -108,7 +109,7 @@ public class Servlet3Advice {
           DECORATE.onResponse(span, resp);
           if (resp.getStatus() == HttpServletResponse.SC_OK) {
             // exception is thrown in filter chain, but status code is likely incorrect
-            span.setTag(Tags.HTTP_STATUS, 500);
+            span.setTag(Tags.HTTP_STATUS, _500);
           }
         }
         DECORATE.onError(span, throwable);

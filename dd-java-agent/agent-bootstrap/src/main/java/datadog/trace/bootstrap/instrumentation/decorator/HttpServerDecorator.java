@@ -26,6 +26,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
 
+  // Assigned here to avoid repeat boxing and cache lookup.
+  public static final Integer _500 = HTTP_STATUSES.get(500);
+
   protected abstract String method(REQUEST request);
 
   protected abstract URIDataAdapter url(REQUEST request);
