@@ -130,4 +130,51 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     cleanup:
     aggregator.close()
   }
+
+  def "aggregate not updated in reporting interval not reported"() {
+    setup:
+    int reportingInterval = 1
+    int maxAggregates = 10
+    MetricWriter writer = Mock(MetricWriter)
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+      Mock(Sink), writer, maxAggregates, 10, reportingInterval, SECONDS)
+    long duration = 100
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    for (int i = 0; i < 5; ++i) {
+      aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+    }
+    latch.await(2, SECONDS)
+
+    then: "all aggregates should be reported"
+    1 * writer.finishBucket() >> { latch.countDown() }
+    1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
+    for (int i = 0; i < 5; ++i) {
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> {
+        MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getDuration() == duration
+      }
+    }
+
+    when:
+    latch = new CountDownLatch(1)
+    for (int i = 1; i < 5; ++i) {
+      aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+    }
+    latch.await(2, SECONDS)
+
+    then: "aggregate not updated in cycle is not reported"
+    1 * writer.finishBucket() >> { latch.countDown() }
+    1 * writer.startBucket(4, _, SECONDS.toNanos(reportingInterval))
+    for (int i = 1; i < 5; ++i) {
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> {
+        MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getDuration() == duration
+      }
+    }
+    0 * writer.add(new MetricKey("resource", "service0", "operation", "type", 0), _)
+
+    cleanup:
+    aggregator.close()
+  }
 }
