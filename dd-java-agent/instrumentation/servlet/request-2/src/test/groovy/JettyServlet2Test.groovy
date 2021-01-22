@@ -10,6 +10,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler
 import javax.servlet.http.HttpServletRequest
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -88,38 +89,28 @@ class JettyServlet2Test extends HttpServerTest<Server> {
   }
 
   void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
-    if (endpoint == REDIRECT) {
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendRedirect"
-        childOfPrevious()
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
-        }
+    String method
+    switch (endpoint) {
+      case REDIRECT:
+        method = "sendRedirect"
+        break
+      case ERROR:
+      case NOT_FOUND:
+      case EXCEPTION:
+      case CUSTOM_EXCEPTION:
+        method = "sendError"
+        break
+      default:
+        throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
+    }
+    trace.span {
+      operationName "servlet.response"
+      resourceName "HttpServletResponse.$method"
+      childOfPrevious()
+      tags {
+        "component" "java-web-servlet-response"
+        defaultTags()
       }
-    } else if (endpoint == NOT_FOUND || endpoint == ERROR) {
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendError"
-        childOfPrevious()
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
-        }
-      }
-    } else if (endpoint == EXCEPTION) {
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendError"
-        childOf(span.localRootSpan) // sendError is called by the app server, not the controller.
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
-        }
-      }
-    } else {
-      throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
     }
   }
 

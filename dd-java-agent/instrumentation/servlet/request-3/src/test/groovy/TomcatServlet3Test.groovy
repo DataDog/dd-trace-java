@@ -18,7 +18,6 @@ import org.apache.tomcat.JarScanType
 import spock.lang.Shared
 import spock.lang.Unroll
 
-import javax.servlet.RequestDispatcher
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 
@@ -138,10 +137,10 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
           "servlet.path" endpoint.path
         }
 
-        if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body || it == CUSTOM_EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name || it == InputMismatchException.name }
-          "error.stack" { it == null || it instanceof String }
+        if (endpoint.throwsException) {
+          "error.msg" endpoint.body
+          "error.type" { it == Exception.name || it == InputMismatchException.name }
+          "error.stack" String
         }
         if (endpoint.query) {
           "$DDTags.HTTP_QUERY" endpoint.query
@@ -167,10 +166,10 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
           "servlet.context" "/$context"
         }
         "servlet.path" "/dispatch$endpoint.path"
-        if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body || it == CUSTOM_EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name || it == InputMismatchException.name }
-          "error.stack" { it == null || it instanceof String }
+        if (endpoint.throwsException) {
+          "error.msg" endpoint.body
+          "error.type" { it == Exception.name || it == InputMismatchException.name }
+          "error.stack" String
         }
         defaultTags()
       }
@@ -309,7 +308,6 @@ class ErrorHandlerValve extends ErrorReportValve {
       } else if (response.message) {
         response.reporter.write(response.message)
       }
-      request.removeAttribute(RequestDispatcher.ERROR_EXCEPTION)
 
     } catch (IOException e) {
       e.printStackTrace()
@@ -449,6 +447,11 @@ class TomcatServlet3TestDispatchImmediate extends TomcatServlet3Test {
 
   boolean isDispatch() {
     return true
+  }
+
+  @Override
+  boolean testException() {
+    false
   }
 
   @Override

@@ -146,10 +146,10 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
         }
         "servlet.path" "/dispatch$endpoint.path"
 
-        if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body || it == CUSTOM_EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name || it == InputMismatchException.name }
-          "error.stack" { it == null || it instanceof String }
+        if (endpoint.throwsException) {
+          "error.msg" endpoint.body
+          "error.type" { it == Exception.name || it == InputMismatchException.name }
+          "error.stack" String
         }
         defaultTags()
       }
@@ -176,10 +176,10 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
           "servlet.path" endpoint.path
         }
 
-        if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body || it == CUSTOM_EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name || it == InputMismatchException.name }
-          "error.stack" { it == null || it instanceof String }
+        if (endpoint.throwsException) {
+          "error.msg" endpoint.body
+          "error.type" { it == Exception.name || it == InputMismatchException.name }
+          "error.stack" String
         }
         defaultTags()
       }
@@ -191,38 +191,32 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
   }
 
   void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
-    if (endpoint == REDIRECT) {
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendRedirect"
-        childOfPrevious()
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
-        }
-      }
-    } else if (endpoint == ERROR || endpoint == NOT_FOUND) {
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendError"
-        childOfPrevious()
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
-        }
-      }
-    } else if (endpoint == EXCEPTION || endpoint == CUSTOM_EXCEPTION) {
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendError"
+    String method
+    switch (endpoint) {
+      case REDIRECT:
+        method = "sendRedirect"
+        break
+      case ERROR:
+      case NOT_FOUND:
+      case EXCEPTION:
+      case CUSTOM_EXCEPTION:
+        method = "sendError"
+        break
+      default:
+        throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
+    }
+    trace.span {
+      operationName "servlet.response"
+      resourceName "HttpServletResponse.$method"
+      if (endpoint.throwsException) {
         childOf(trace.span(0)) // Not a child of the controller because sendError called by framework
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
-        }
+      } else {
+        childOfPrevious()
       }
-    } else {
-      throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
+      tags {
+        "component" "java-web-servlet-response"
+        defaultTags()
+      }
     }
   }
 }

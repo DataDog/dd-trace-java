@@ -1,6 +1,5 @@
 package test.filter
 
-
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
@@ -70,28 +69,25 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
   }
 
   void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
-    if (endpoint == REDIRECT) {
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendRedirect"
-        childOfPrevious()
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
-        }
+    String method
+    switch (endpoint) {
+      case REDIRECT:
+        method = "sendRedirect"
+        break
+      case ERROR:
+        method = "sendError"
+        break
+      default:
+        throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
+    }
+    trace.span {
+      operationName "servlet.response"
+      resourceName "HttpServletResponse.$method"
+      childOfPrevious()
+      tags {
+        "component" "java-web-servlet-response"
+        defaultTags()
       }
-    } else if (endpoint == ERROR) {
-      trace.span {
-        operationName "servlet.response"
-        resourceName "HttpServletResponse.sendError"
-        childOfPrevious()
-        tags {
-          "component" "java-web-servlet-response"
-          defaultTags()
-        }
-      }
-    } else {
-      throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
     }
   }
 
