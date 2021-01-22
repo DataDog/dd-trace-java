@@ -1,15 +1,11 @@
-package datadog.trace.instrumentation.springcloudzuul2.test.java;
-
 import com.netflix.zuul.ZuulFilter;
 import com.netflix.zuul.context.RequestContext;
 import java.lang.management.ManagementFactory;
 import javax.servlet.http.HttpServletRequest;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.netflix.zuul.EnableZuulProxy;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 @SpringBootApplication(scanBasePackages = "doesnotexist")
 @EnableZuulProxy

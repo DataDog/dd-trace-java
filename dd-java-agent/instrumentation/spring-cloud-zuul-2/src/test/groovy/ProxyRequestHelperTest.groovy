@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.OkHttpUtils
-import datadog.trace.instrumentation.springcloudzuul2.test.java.ZuulGatewayTestApplication
 import okhttp3.FormBody
 import okhttp3.RequestBody
 import org.springframework.boot.SpringApplication
