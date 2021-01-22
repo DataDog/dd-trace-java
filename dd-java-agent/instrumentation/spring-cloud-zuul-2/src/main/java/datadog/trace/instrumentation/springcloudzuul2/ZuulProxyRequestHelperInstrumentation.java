@@ -6,12 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -31,15 +29,18 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-//      packageName + ".ResourceNameCache", packageName + ".ResourceNameCache$1",
+      //      packageName + ".ResourceNameCache", packageName + ".ResourceNameCache$1",
     };
   }
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-      isMethod().and(named("isIncludedHeader")).and(takesArgument(0, TypeDescription.STRING)).and(returns(Boolean.class)),
-      ZuulProxyRequestHelperInstrumentation.class.getName() + "$ExcludeDDHeaderAdvice");
+        isMethod()
+            .and(named("isIncludedHeader"))
+            .and(takesArgument(0, TypeDescription.STRING))
+            .and(returns(Boolean.class)),
+        ZuulProxyRequestHelperInstrumentation.class.getName() + "$ExcludeDDHeaderAdvice");
   }
 
   /**
@@ -50,27 +51,29 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing 
    */
   public static class ExcludeDDHeaderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(@Advice.Argument(0) final String header, @Advice.Return(readOnly = false) boolean include) {
+    public static void onExit(
+        @Advice.Argument(0) final String header, @Advice.Return(readOnly = false) boolean include) {
       // for now get all the B3, Haystack, Datadog headers and ignore them
-      Set<String> headers = new HashSet<String>(Arrays.asList(
-        new String[] {
-          "x-datadog-trace-id",
-          "x-datadog-parent-id",
-          "x-datadog-sampling-priority",
-          "x-datadog-origin"
-          //B3 headers
-//        "X-B3-TraceId",
-//        "X-B3-SpanId",
-//        "X-B3-Sampled",
-          //Haystack
-//        "Trace-ID",
-//        "Span-ID",
-//        "Parent-ID",
-//        "Haystack-Trace-ID",
-//        "Haystack-Span-ID",
-//        "Haystack-Parent-ID"
-        }
-      ));
+      Set<String> headers =
+          new HashSet<String>(
+              Arrays.asList(
+                  new String[] {
+                    "x-datadog-trace-id",
+                    "x-datadog-parent-id",
+                    "x-datadog-sampling-priority",
+                    "x-datadog-origin"
+                    // B3 headers
+                    //        "X-B3-TraceId",
+                    //        "X-B3-SpanId",
+                    //        "X-B3-Sampled",
+                    // Haystack
+                    //        "Trace-ID",
+                    //        "Span-ID",
+                    //        "Parent-ID",
+                    //        "Haystack-Trace-ID",
+                    //        "Haystack-Span-ID",
+                    //        "Haystack-Parent-ID"
+                  }));
       String haystack_baggage_prefix = "Baggage-";
       String dd_baggage_prefix = "ot-baggage-";
 
