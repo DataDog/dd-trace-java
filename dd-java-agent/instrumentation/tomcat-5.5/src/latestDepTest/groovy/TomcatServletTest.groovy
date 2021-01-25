@@ -4,19 +4,18 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import jakarta.servlet.Servlet
+import jakarta.servlet.ServletException
 import org.apache.catalina.Context
-import org.apache.catalina.Engine
 import org.apache.catalina.Wrapper
-import org.apache.catalina.connector.Connector
 import org.apache.catalina.connector.Request
 import org.apache.catalina.connector.Response
 import org.apache.catalina.core.StandardHost
-import org.apache.catalina.startup.Embedded
+import org.apache.catalina.startup.Tomcat
 import org.apache.catalina.valves.ErrorReportValve
+import org.apache.tomcat.JarScanFilter
+import org.apache.tomcat.JarScanType
 import spock.lang.Unroll
-
-import javax.servlet.Servlet
-import javax.servlet.ServletException
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -26,63 +25,44 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 import static org.junit.Assume.assumeTrue
 
 @Unroll
-class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
+class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
 
   @Override
-  Embedded startServer(int port) {
-    def server = new Embedded()
+  Tomcat startServer(int port) {
+    def tomcatServer = new Tomcat()
+
     def baseDir = Files.createTempDir()
     baseDir.deleteOnExit()
+    tomcatServer.setBaseDir(baseDir.getAbsolutePath())
 
-    System.setProperty("catalina.home", baseDir.path)
+    tomcatServer.setPort(port)
+    tomcatServer.getConnector().enableLookups = true // get localhost instead of 127.0.0.1
 
-    final File webappDir = new File(baseDir, "/webapps")
-    webappDir.mkdirs()
-    webappDir.deleteOnExit()
+    final File applicationDir = new File(baseDir, "/webapps/ROOT")
+    if (!applicationDir.exists()) {
+      applicationDir.mkdirs()
+      applicationDir.deleteOnExit()
+    }
+    Context servletContext = tomcatServer.addWebapp("/$context", applicationDir.getAbsolutePath())
+    // Speed up startup by disabling jar scanning:
+    servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
+      @Override
+      boolean check(JarScanType jarScanType, String jarName) {
+        return false
+      }
+    })
 
-    // Call createEngine() to create an Engine object, and then call its property setters as desired.
-    Engine engine = server.createEngine()
-    engine.name = "test"
-    engine.setDefaultHost("localhost")
+    setupServlets(servletContext)
 
-    // Call createHost() to create at least one virtual Host associated with the newly created Engine, and then call its property setters as desired.
-    StandardHost host = server.createHost("localhost", "$webappDir")
-    //  After you customize this Host, add it to the corresponding Engine with engine.addChild(host).
-    engine.addChild(host)
+    (tomcatServer.host as StandardHost).errorReportValveClass = ErrorHandlerValve.name
 
+    tomcatServer.start()
 
-    // Call createContext() to create at least one Context associated with each newly created Host, and then call its property setters as desired.
-    Context context = server.createContext("/$context", "$webappDir")
-    context.privileged = true
-    setupServlets(context)
-
-    // After you customize this Context, add it to the corresponding Host with host.addChild(context).
-    host.addChild(context)
-    // You SHOULD create a Context with a pathname equal to a zero-length string, which will be used to process all requests not mapped to some other Context.
-
-    // Call addEngine() to attach this Engine to the set of defined Engines for this object.
-    server.addEngine(engine)
-
-    // Call createConnector() to create at least one TCP/IP connector, and then call its property setters as desired.
-    // There seems to be a bug in this version that makes it impossible to create an 'http' connector
-//    Connector connector = server.createConnector("localhost", port, true)
-    Connector connector = new Connector("HTTP/1.1")
-    connector.enableLookups = true // get localhost instead of 127.0.0.1
-    connector.scheme = "http"
-    connector.port = port
-
-    // Call addConnector() to attach this Connector to the set of defined Connectors for this object. The added Connector will use the most recently added Engine to process its received requests.
-    server.addConnector(connector)
-
-    host.errorReportValveClass = ErrorHandlerValve.name
-
-    server.start()
-
-    return server
+    return tomcatServer
   }
 
   @Override
-  void stopServer(Embedded server) {
+  void stopServer(Tomcat server) {
     server.stop()
     server.destroy()
   }
@@ -98,7 +78,7 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
     wrapper.name = UUID.randomUUID()
     wrapper.servletClass = servlet.name
     servletContext.addChild(wrapper)
-    servletContext.addServletMapping(path, wrapper.name)
+    servletContext.addServletMappingDecoded(path, wrapper.name)
   }
 
   @Override

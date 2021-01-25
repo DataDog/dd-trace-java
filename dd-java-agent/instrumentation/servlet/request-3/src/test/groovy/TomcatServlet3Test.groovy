@@ -138,8 +138,9 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
         }
 
         if (endpoint.throwsException) {
-          "error.msg" endpoint.body
-          "error.type" { it == Exception.name || it == InputMismatchException.name }
+          // Exception classes get wrapped in ServletException
+          "error.msg" { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body }
+          "error.type" { it == ServletException.name || it == InputMismatchException.name }
           "error.stack" String
         }
         if (endpoint.query) {

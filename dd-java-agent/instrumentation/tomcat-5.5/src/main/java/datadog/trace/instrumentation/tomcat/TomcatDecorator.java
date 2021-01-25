@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
-import javax.servlet.ServletException;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
@@ -76,13 +75,13 @@ public class TomcatDecorator extends HttpServerDecorator<Request, Request, Respo
     if (Config.get().isServletPrincipalEnabled() && req.getUserPrincipal() != null) {
       span.setTag(DDTags.USER_NAME, req.getUserPrincipal().getName());
     }
-    Object ex = req.getAttribute("javax.servlet.error.exception");
-    if (ex instanceof Throwable) {
-      Throwable throwable = (Throwable) ex;
-      if (throwable instanceof ServletException) {
-        throwable = ((ServletException) throwable).getRootCause();
-      }
-      onError(span, throwable);
+    Object throwable = req.getAttribute("javax.servlet.error.exception");
+    if (throwable == null) {
+      // Servlet 4+ (Tomcat 10+)
+      throwable = req.getAttribute("jakarta.servlet.error.exception");
+    }
+    if (throwable instanceof Throwable) {
+      onError(span, (Throwable) throwable);
     }
     return super.onResponse(span, response);
   }
