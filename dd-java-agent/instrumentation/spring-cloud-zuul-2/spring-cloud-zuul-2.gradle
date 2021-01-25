@@ -25,6 +25,10 @@ dependencies {
   testCompile project(':dd-java-agent:instrumentation:servlet:request-3')
   testCompile project(':dd-java-agent:instrumentation:spring-webmvc-3.1')
 
+  // These two are used need for spans to propagate correctly:
+  testCompile project(':dd-java-agent:instrumentation:apache-httpclient-4')
+  testCompile project(':dd-java-agent:instrumentation:http-url-connection')
+
   testCompile group: 'org.spockframework', name: 'spock-spring', version: "$versions.spock"
 
   // These two version sets are compatible together:
