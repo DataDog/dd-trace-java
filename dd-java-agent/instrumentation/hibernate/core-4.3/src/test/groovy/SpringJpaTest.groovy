@@ -38,6 +38,7 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
+            "$Tags.DB_OPERATION" "select"
             defaultTags()
           }
         }
@@ -66,6 +67,7 @@ class SpringJpaTest extends AgentTestRunner {
               "$Tags.DB_TYPE" "hsqldb"
               "$Tags.DB_INSTANCE" "test"
               "$Tags.DB_USER" "sa"
+              "$Tags.DB_OPERATION" "call"
               defaultTags()
             }
           }
@@ -82,6 +84,7 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
+            "$Tags.DB_OPERATION" "insert"
             defaultTags()
           }
         }
@@ -107,6 +110,7 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
+            "$Tags.DB_OPERATION" "select"
             defaultTags()
           }
         }
@@ -122,6 +126,7 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
+            "$Tags.DB_OPERATION" "update"
             defaultTags()
           }
         }
@@ -147,6 +152,7 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
+            "$Tags.DB_OPERATION" "select"
             defaultTags()
           }
         }
@@ -170,6 +176,7 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
+            "$Tags.DB_OPERATION" "select"
             defaultTags()
           }
         }
@@ -185,6 +192,7 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
+            "$Tags.DB_OPERATION" "delete"
             defaultTags()
           }
         }

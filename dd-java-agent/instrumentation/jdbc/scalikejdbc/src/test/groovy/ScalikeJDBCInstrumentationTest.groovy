@@ -163,6 +163,7 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
             if (username != null) {
               "$Tags.DB_USER" username
             }
+            "$Tags.DB_OPERATION" "SELECT"
             defaultTags()
           }
         }

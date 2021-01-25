@@ -242,7 +242,7 @@ class JDBCWrappedInterfacesTest extends AgentTestRunner {
   }
 
   // All of the tests should return the same result
-  def assertDBTraces(String database = "testdb") {
+  def assertDBTraces(String database = "testdb", String operation = "SELECT") {
     assertTraces(1) {
       trace(2) {
         basicSpan(it, "parent")
@@ -257,6 +257,7 @@ class JDBCWrappedInterfacesTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "${database}"
+            "$Tags.DB_OPERATION" "${operation}"
             defaultTags()
           }
         }

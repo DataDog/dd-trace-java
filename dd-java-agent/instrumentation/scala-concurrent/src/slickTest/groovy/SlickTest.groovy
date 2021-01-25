@@ -40,6 +40,7 @@ class SlickTest extends AgentTestRunner {
             "$Tags.DB_TYPE" SlickUtils.Driver()
             "$Tags.DB_INSTANCE" SlickUtils.Db()
             "$Tags.DB_USER" SlickUtils.Username()
+            "$Tags.DB_OPERATION" "SELECT"
             defaultTags()
           }
         }
