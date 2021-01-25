@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
+import static datadog.trace.common.metrics.Batch.REPORT;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
@@ -10,6 +11,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.util.AgentTaskScheduler;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
@@ -32,8 +34,11 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final BlockingQueue<Batch> inbox;
   private final Sink sink;
   private final Aggregator aggregator;
+  private final long reportingInterval;
+  private final TimeUnit reportingIntervalTimeUnit;
 
   private volatile boolean enabled = true;
+  private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
   public ConflatingMetricsAggregator(Config config) {
     this(
@@ -82,12 +87,29 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         new Aggregator(
             metricWriter, batchPool, inbox, pending, maxAggregates, reportingInterval, timeUnit);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
+    this.reportingInterval = reportingInterval;
+    this.reportingIntervalTimeUnit = timeUnit;
   }
 
   @Override
   public void start() {
     sink.register(this);
     thread.start();
+    cancellation =
+        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+            new ReportTask(),
+            this,
+            reportingInterval,
+            reportingInterval,
+            reportingIntervalTimeUnit);
+  }
+
+  @Override
+  public void report() {
+    boolean published;
+    do {
+      published = inbox.offer(REPORT);
+    } while (!published);
   }
 
   @Override
@@ -142,6 +164,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   public void stop() {
+    if (null != cancellation) {
+      cancellation.cancel();
+    }
     inbox.offer(POISON_PILL);
   }
 
@@ -178,5 +203,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.batchPool.clear();
     this.inbox.clear();
     this.aggregator.clearAggregates();
+  }
+
+  private static final class ReportTask
+      implements AgentTaskScheduler.Task<ConflatingMetricsAggregator> {
+
+    @Override
+    public void run(ConflatingMetricsAggregator target) {
+      target.report();
+    }
   }
 }
