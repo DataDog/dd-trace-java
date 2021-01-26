@@ -12,13 +12,12 @@ import datadog.trace.common.writer.ddagent.DDAgentResponseListener
 import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Shared
 import spock.lang.Timeout
@@ -32,7 +31,7 @@ import java.util.concurrent.atomic.AtomicReference
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 @Timeout(20)
-class DDAgentApiTest extends DDSpecification {
+class DDAgentApiTest extends DDCoreSpecification {
 
   @Shared
   Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
@@ -421,7 +420,7 @@ class DDAgentApiTest extends DDSpecification {
   }
 
   DDSpan buildSpan(long timestamp, String tag, String value) {
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     def context = new DDSpanContext(
       DDId.from(1),

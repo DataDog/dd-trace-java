@@ -1,9 +1,8 @@
 package datadog.trace.common.sampling
 
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
@@ -12,7 +11,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 
-class RuleBasedSamplingTest extends DDSpecification {
+class RuleBasedSamplingTest extends DDCoreSpecification {
   def "Rule Based Sampler is not created when properties not set"() {
     when:
     Sampler sampler = Sampler.Builder.forConfig(new Properties())
@@ -49,7 +48,7 @@ class RuleBasedSamplingTest extends DDSpecification {
     if (rateLimit != null) {
       properties.setProperty(TRACE_RATE_LIMIT, rateLimit)
     }
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     when:
     Sampler sampler = Sampler.Builder.forConfig(properties)
@@ -140,7 +139,7 @@ class RuleBasedSamplingTest extends DDSpecification {
 
   def "Rate limit is set for rate limited spans"() {
     setup:
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     when:
     Properties properties = new Properties()
@@ -179,7 +178,7 @@ class RuleBasedSamplingTest extends DDSpecification {
 
   def "Rate limit is set for rate limited spans (matched on different rules)"() {
     setup:
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     when:
     Properties properties = new Properties()

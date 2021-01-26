@@ -2,20 +2,19 @@ package datadog.trace.common.writer
 
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
 
 import java.nio.ByteBuffer
 
-class TraceMapperTest extends DDSpecification {
+class TraceMapperTest extends DDCoreSpecification {
 
   def "test trace mapper v0.5"() {
     setup:
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
     def span = tracer.buildSpan(null).withTag("service.name", "my-service")
       .withTag("elasticsearch.version", "7.0").start()
     span.setBaggageItem("baggage", "item")

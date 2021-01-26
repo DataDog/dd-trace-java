@@ -8,7 +8,7 @@ class PendingTraceTest extends PendingTraceTestBase {
 
   @Override
   CoreTracer.CoreTracerBuilder getBuilder() {
-    return CoreTracer.builder()
+    return tracerBuilder()
   }
 
   @Timeout(value = 60, unit = TimeUnit.SECONDS)

@@ -14,7 +14,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.propagation.DatadogHttpCodec
 import datadog.trace.core.propagation.HttpCodec
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Timeout
 
 import static datadog.trace.api.config.GeneralConfig.ENV
@@ -29,7 +29,7 @@ import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
 
 @Timeout(10)
-class CoreTracerTest extends DDSpecification {
+class CoreTracerTest extends DDCoreSpecification {
 
   def "verify defaults on tracer"() {
     when:
@@ -121,7 +121,7 @@ class CoreTracerTest extends DDSpecification {
     injectSysConfig(PRIORITY_SAMPLING, "false")
 
     when:
-    def tracer = CoreTracer.builder().build()
+    def tracer = tracerBuilder().build()
 
     then:
     tracer.sampler instanceof AllSampler
@@ -135,7 +135,7 @@ class CoreTracerTest extends DDSpecification {
     injectSysConfig(WRITER_TYPE, "LoggingWriter")
 
     when:
-    def tracer = CoreTracer.builder().build()
+    def tracer = tracerBuilder().build()
 
     then:
     tracer.writer instanceof LoggingWriter
@@ -165,7 +165,7 @@ class CoreTracerTest extends DDSpecification {
     injectSysConfig(HEADER_TAGS, mapString)
 
     when:
-    def tracer = CoreTracer.builder().build()
+    def tracer = tracerBuilder().build()
     // Datadog extractor gets placed first
     def taggedHeaders = tracer.extractor.extractors[0].taggedHeaders
 
@@ -211,7 +211,7 @@ class CoreTracerTest extends DDSpecification {
   def "Writer is instance of LoggingWriter when property set"() {
     when:
     injectSysConfig("writer.type", "LoggingWriter")
-    def tracer = CoreTracer.builder().build()
+    def tracer = tracerBuilder().build()
 
     then:
     tracer.writer instanceof LoggingWriter
@@ -223,7 +223,7 @@ class CoreTracerTest extends DDSpecification {
   def "Shares TraceCount with DDApi with #key = #value"() {
     setup:
     injectSysConfig(key, value)
-    final CoreTracer tracer = CoreTracer.builder().build()
+    final CoreTracer tracer = tracerBuilder().build()
 
     expect:
     tracer.writer instanceof DDAgentWriter
@@ -239,7 +239,7 @@ class CoreTracerTest extends DDSpecification {
 
   def "root tags are applied only to root spans"() {
     setup:
-    def tracer = CoreTracer.builder().localRootSpanTags(['only_root': 'value']).build()
+    def tracer = tracerBuilder().localRootSpanTags(['only_root': 'value']).build()
     def root = tracer.buildSpan('my_root').start()
     def child = tracer.buildSpan('my_child').asChildOf(root).start()
 
@@ -256,7 +256,7 @@ class CoreTracerTest extends DDSpecification {
   def "priority sampling when span finishes"() {
     given:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
 
     when:
     def span = tracer.buildSpan("operation").start()
@@ -273,7 +273,7 @@ class CoreTracerTest extends DDSpecification {
   def "priority sampling set when child span complete"() {
     given:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
 
     when:
     def root = tracer.buildSpan("operation").start()
@@ -298,7 +298,7 @@ class CoreTracerTest extends DDSpecification {
   def "span priority set when injecting"() {
     given:
     injectSysConfig("writer.type", "LoggingWriter")
-    def tracer = CoreTracer.builder().build()
+    def tracer = tracerBuilder().build()
     def setter = Mock(AgentPropagation.Setter)
     def carrier = new Object()
 
@@ -321,7 +321,7 @@ class CoreTracerTest extends DDSpecification {
   def "span priority only set after first injection"() {
     given:
     def sampler = new ControllableSampler()
-    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
     def setter = Mock(AgentPropagation.Setter)
     def carrier = new Object()
 
@@ -356,7 +356,7 @@ class CoreTracerTest extends DDSpecification {
   def "injection doesn't override set priority"() {
     given:
     def sampler = new ControllableSampler()
-    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
     def setter = Mock(AgentPropagation.Setter)
     def carrier = new Object()
 

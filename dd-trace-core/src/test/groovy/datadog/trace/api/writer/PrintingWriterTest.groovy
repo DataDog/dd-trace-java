@@ -4,15 +4,14 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.PrintingWriter
-import datadog.trace.core.CoreTracer
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import okio.Buffer
 
 import java.nio.charset.StandardCharsets
 
-class PrintingWriterTest extends DDSpecification {
+class PrintingWriterTest extends DDCoreSpecification {
 
-  def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+  def tracer = tracerBuilder().writer(new ListWriter()).build()
   def sampleTrace
   def secondTrace
 

@@ -4,7 +4,7 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer.CoreTracerBuilder
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.CountDownLatch
@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS
 
-abstract class PendingTraceTestBase extends DDSpecification {
+abstract class PendingTraceTestBase extends DDCoreSpecification {
 
   abstract CoreTracerBuilder getBuilder()
 
