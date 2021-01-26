@@ -19,8 +19,8 @@ class StringTablesTest extends DDSpecification {
       approxSizeBytesIgnoringHashMapOverhead += entry.getKey().length()
       approxSizeBytesIgnoringHashMapOverhead += entry.getValue().length
     }
-    // less than 4KB memory overhead seems reasonable for reducing GBs of allocations
+    // less than 8KB memory overhead seems reasonable for reducing GBs of allocations
     expect:
-    approxSizeBytesIgnoringHashMapOverhead < 1024 * 4
+    approxSizeBytesIgnoringHashMapOverhead < 1024 * 8
   }
 }
