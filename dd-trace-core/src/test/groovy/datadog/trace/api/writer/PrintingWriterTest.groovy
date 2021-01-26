@@ -16,7 +16,9 @@ class PrintingWriterTest extends DDSpecification {
   def sampleTrace
   def secondTrace
 
-  def adapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(Map, String, Types.newParameterizedType(List, Map)))
+  def adapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(Map, String,
+    Types.newParameterizedType(List,
+    Types.newParameterizedType(List, Map))))
 
   def setup() {
     def builder = tracer.buildSpan("fakeOperation")
