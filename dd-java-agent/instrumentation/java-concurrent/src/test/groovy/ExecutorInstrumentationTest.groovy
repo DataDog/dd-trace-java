@@ -142,6 +142,15 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAny"              | invokeAny           | new CustomThreadPoolExecutor()
     "invokeAny with timeout" | invokeAnyTimeout    | new CustomThreadPoolExecutor()
 
+
+    "execute Runnable"       | executeRunnable     | new TypeAwareThreadPoolExecutor()
+    "submit Runnable"        | submitRunnable      | new TypeAwareThreadPoolExecutor()
+    "submit Callable"        | submitCallable      | new TypeAwareThreadPoolExecutor()
+    "invokeAll"              | invokeAll           | new TypeAwareThreadPoolExecutor()
+    "invokeAll with timeout" | invokeAllTimeout    | new TypeAwareThreadPoolExecutor()
+    "invokeAny"              | invokeAny           | new TypeAwareThreadPoolExecutor()
+    "invokeAny with timeout" | invokeAnyTimeout    | new TypeAwareThreadPoolExecutor()
+
     // Internal executor used by CompletableFuture
     "execute Runnable"       | executeRunnable     | java7SafeCompletableFutureThreadPerTaskExecutor()
 
