@@ -39,11 +39,11 @@ class PrintingWriterTest extends DDSpecification {
 
     when:
     writer.write(sampleTrace)
-    Map<String, List<Map>> result = adapter.fromJson(buffer.readString(StandardCharsets.UTF_8))
+    Map<String, List<List<Map>>> result = adapter.fromJson(buffer.readString(StandardCharsets.UTF_8))
 
     then:
-    result["traces"].size() == sampleTrace.size()
-    result["traces"].each {
+    result["traces"][0].size() == sampleTrace.size()
+    result["traces"][0].each {
       assert it["service"] == "fakeService"
       assert it["name"] == "fakeOperation"
       assert it["resource"] == "fakeResource"
@@ -63,8 +63,8 @@ class PrintingWriterTest extends DDSpecification {
     result = adapter.fromJson(buffer.readString(StandardCharsets.UTF_8))
 
     then:
-    result["traces"].size() == secondTrace.size()
-    result["traces"].each {
+    result["traces"][0].size() == secondTrace.size()
+    result["traces"][0].each {
       assert it["service"] == "fakeService"
       assert it["name"] == "fakeOperation"
       assert it["resource"] == "fakeResource"
@@ -88,11 +88,11 @@ class PrintingWriterTest extends DDSpecification {
 
     when:
     writer.write(sampleTrace)
-    Map<String, List<Map>> result = adapter.fromJson(buffer.readString(StandardCharsets.UTF_8))
+    Map<String, List<List<Map>>> result = adapter.fromJson(buffer.readString(StandardCharsets.UTF_8))
 
     then:
-    result["traces"].size() == sampleTrace.size()
-    result["traces"].each {
+    result["traces"][0].size() == sampleTrace.size()
+    result["traces"][0].each {
       assert it["service"] == "fakeService"
       assert it["name"] == "fakeOperation"
       assert it["resource"] == "fakeResource"
