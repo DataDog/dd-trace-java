@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.propagation.TagContext
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
@@ -17,10 +17,10 @@ import static datadog.trace.api.DDTags.THREAD_NAME
 import static datadog.trace.core.DDSpanContext.ORIGIN_KEY
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
-class CoreSpanBuilderTest extends DDSpecification {
+class CoreSpanBuilderTest extends DDCoreSpecification {
 
   def writer = new ListWriter()
-  def tracer = CoreTracer.builder().writer(writer).build()
+  def tracer = tracerBuilder().writer(writer).build()
 
   def cleanup() {
     tracer.close()
@@ -345,7 +345,7 @@ class CoreSpanBuilderTest extends DDSpecification {
   def "global span tags populated on each span"() {
     setup:
     injectSysConfig("dd.trace.span.tags", tagString)
-    def customTracer = CoreTracer.builder().writer(writer).build()
+    def customTracer = tracerBuilder().writer(writer).build()
     def span = customTracer.buildSpan("op name").withServiceName("foo").start()
 
     expect:

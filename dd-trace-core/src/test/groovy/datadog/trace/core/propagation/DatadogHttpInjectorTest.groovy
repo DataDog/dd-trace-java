@@ -3,9 +3,8 @@ package datadog.trace.core.propagation
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpanContext
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.DatadogHttpCodec.ORIGIN_KEY
@@ -14,14 +13,14 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY
 import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY
 
-class DatadogHttpInjectorTest extends DDSpecification {
+class DatadogHttpInjectorTest extends DDCoreSpecification {
 
   HttpCodec.Injector injector = new DatadogHttpCodec.Injector()
 
   def "inject http headers"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
         DDId.from(traceId),

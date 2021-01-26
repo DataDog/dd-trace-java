@@ -8,7 +8,7 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
   CoreTracer.CoreTracerBuilder getBuilder() {
     def props = new Properties()
     props.setProperty(TRACE_STRICT_WRITES_ENABLED, "true")
-    return CoreTracer.builder().withProperties(props)
+    return tracerBuilder().withProperties(props)
   }
 
   def "trace is not reported until unfinished continuation is closed"() {

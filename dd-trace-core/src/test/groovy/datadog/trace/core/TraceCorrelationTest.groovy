@@ -1,10 +1,10 @@
 package datadog.trace.core
 
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
-class TraceCorrelationTest extends DDSpecification {
-  def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+class TraceCorrelationTest extends DDCoreSpecification {
+  def tracer = tracerBuilder().writer(new ListWriter()).build()
 
   def span = tracer.buildSpan("test").start()
   def scope = tracer.activateSpan(span)

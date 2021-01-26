@@ -11,21 +11,20 @@ import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreSpan
-import datadog.trace.core.CoreTracer
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 
-class TagInterceptorTest extends DDSpecification {
+class TagInterceptorTest extends DDCoreSpecification {
   def setup() {
     injectSysConfig(SPLIT_BY_TAGS, "sn.tag1,sn.tag2")
   }
 
   def "set service name"() {
     setup:
-    def tracer = CoreTracer.builder()
+    def tracer = tracerBuilder()
       .serviceName("wrong-service")
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
@@ -60,7 +59,7 @@ class TagInterceptorTest extends DDSpecification {
 
   def "default or configured service name can be remapped without setting tag"() {
     setup:
-    def tracer = CoreTracer.builder()
+    def tracer = tracerBuilder()
       .serviceName(serviceName)
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
@@ -86,7 +85,7 @@ class TagInterceptorTest extends DDSpecification {
 
   def "set service name from servlet.context with context '#context'"() {
     when:
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
     def span = tracer.buildSpan("test").start()
     span.setTag(DDTags.SERVICE_NAME, serviceName)
     span.setTag("servlet.context", context)
@@ -112,7 +111,7 @@ class TagInterceptorTest extends DDSpecification {
   def "setting service name as a property disables servlet.context with context '#context'"() {
     when:
     injectSysConfig("service", serviceName)
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
     def span = tracer.buildSpan("test").start()
     span.setTag("servlet.context", context)
 
@@ -140,7 +139,7 @@ class TagInterceptorTest extends DDSpecification {
 
   def "mapping causes servlet.context to not change service name"() {
     setup:
-    def tracer = CoreTracer.builder()
+    def tracer = tracerBuilder()
       .serviceName(serviceName)
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
@@ -166,8 +165,8 @@ class TagInterceptorTest extends DDSpecification {
     mapping = [(serviceName): "new-service"]
   }
 
-  static createSplittingTracer(tag) {
-    return CoreTracer.builder()
+  def createSplittingTracer(tag) {
+    return tracerBuilder()
       .serviceName("my-service")
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
@@ -250,7 +249,7 @@ class TagInterceptorTest extends DDSpecification {
   def "set resource name"() {
     when:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
 
     def span = tracer.buildSpan("test").start()
     span.setTag(DDTags.RESOURCE_NAME, name)
@@ -269,7 +268,7 @@ class TagInterceptorTest extends DDSpecification {
 
   def "set span type"() {
     when:
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
     def span = tracer.buildSpan("test").start()
     span.setSpanType(type)
     span.finish()
@@ -287,7 +286,7 @@ class TagInterceptorTest extends DDSpecification {
   def "set span type with tag"() {
     when:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     def span = tracer.buildSpan("test").start()
     span.setTag(DDTags.SPAN_TYPE, type)
     span.finish()
@@ -306,7 +305,7 @@ class TagInterceptorTest extends DDSpecification {
   def "span metrics starts empty but added with rate limiting value of #rate"() {
     when:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     def span = tracer.buildSpan("test").start()
 
     then:
@@ -345,7 +344,7 @@ class TagInterceptorTest extends DDSpecification {
 
   def "set priority sampling via tag"() {
     when:
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
     def span = tracer.buildSpan("test").start()
     span.setTag(tag, value)
 
@@ -373,7 +372,7 @@ class TagInterceptorTest extends DDSpecification {
   def "set error flag when error tag reported"() {
     when:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     def span = tracer.buildSpan("test").start()
     span.setTag(Tags.ERROR, error)
     span.finish()
@@ -394,7 +393,7 @@ class TagInterceptorTest extends DDSpecification {
   def "#attribute interceptors apply to builder too"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
 
     when:
     def span = tracer.buildSpan("interceptor.test").withTag(name, value).start()
@@ -417,7 +416,7 @@ class TagInterceptorTest extends DDSpecification {
   def "decorators apply to builder too"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
 
     when:
     def span = tracer.buildSpan("decorator.test").withTag("sn.tag1", "some val").start()
@@ -457,7 +456,7 @@ class TagInterceptorTest extends DDSpecification {
     setup:
     injectSysConfig("dd.trace.${decorator}.enabled", "$enabled")
 
-    def tracer = CoreTracer.builder()
+    def tracer = tracerBuilder()
       .serviceName("some-service")
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
@@ -485,7 +484,7 @@ class TagInterceptorTest extends DDSpecification {
     setup:
     injectSysConfig("dd.trace.ServiceNameTagInterceptor.enabled", "false")
 
-    def tracer = CoreTracer.builder()
+    def tracer = tracerBuilder()
       .serviceName("some-service")
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
@@ -512,7 +511,7 @@ class TagInterceptorTest extends DDSpecification {
 
   def "change top level status when changing service name"() {
     setup:
-    def tracer = CoreTracer.builder()
+    def tracer = tracerBuilder()
       .serviceName("some-service")
       .writer(new LoggingWriter())
       .sampler(new AllSampler())

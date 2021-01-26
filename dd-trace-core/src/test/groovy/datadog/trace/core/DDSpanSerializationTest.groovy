@@ -1,6 +1,5 @@
 package datadog.trace.core
 
-
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
@@ -8,7 +7,7 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferInput
@@ -16,12 +15,12 @@ import org.msgpack.value.ValueType
 
 import java.nio.ByteBuffer
 
-class DDSpanSerializationTest extends DDSpecification {
+class DDSpanSerializationTest extends DDCoreSpecification {
 
   def "serialize trace with id #value as int"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     def context = createContext(spanType, tracer, value)
     def span = DDSpan.create(0, context)
     def buffer = ByteBuffer.allocate(1024)
@@ -73,7 +72,7 @@ class DDSpanSerializationTest extends DDSpecification {
   def "serialize trace with id #value as int v0.5"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     def context = createContext(spanType, tracer, value)
     def span = DDSpan.create(0, context)
     def buffer = ByteBuffer.allocate(1024)
@@ -130,7 +129,7 @@ class DDSpanSerializationTest extends DDSpecification {
   def "serialize trace with baggage and tags correctly v0.4"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     def context = new DDSpanContext(
       DDId.ONE,
       DDId.ONE,
@@ -201,7 +200,7 @@ class DDSpanSerializationTest extends DDSpecification {
   def "serialize trace with baggage and tags correctly v0.5"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     def context = new DDSpanContext(
       DDId.ONE,
       DDId.ONE,

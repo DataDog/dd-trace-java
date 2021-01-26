@@ -4,12 +4,11 @@ import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
-class RateByServiceSamplerTest extends DDSpecification {
+class RateByServiceSamplerTest extends DDCoreSpecification {
   static serializer = DDAgentApi.RESPONSE_ADAPTER
 
   def "invalid rate -> 1"() {
@@ -33,7 +32,7 @@ class RateByServiceSamplerTest extends DDSpecification {
   def "rate by service name"() {
     setup:
     RateByServiceSampler serviceSampler = new RateByServiceSampler()
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     when:
     String response = '{"rate_by_service": {"service:spock,env:test":0.0}}'
@@ -69,7 +68,7 @@ class RateByServiceSamplerTest extends DDSpecification {
   def "sampling priority set on context"() {
     setup:
     RateByServiceSampler serviceSampler = new RateByServiceSampler()
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
     String response = '{"rate_by_service": {"service:,env:":1.0}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
@@ -93,7 +92,7 @@ class RateByServiceSamplerTest extends DDSpecification {
   def "sampling priority set when service later"() {
     def sampler = new RateByServiceSampler()
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).sampler(sampler).build()
+    def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
     sampler.onResponse("test", serializer
       .fromJson('{"rate_by_service":{"service:,env:":1.0,"service:spock,env:":0.0}}'))
@@ -127,7 +126,7 @@ class RateByServiceSamplerTest extends DDSpecification {
   def "setting forced tracing via tag"() {
     when:
     def sampler = new RateByServiceSampler()
-    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
     def span = tracer.buildSpan("root").start()
     if (tagName) {
       span.setTag(tagName, tagValue)
@@ -149,7 +148,7 @@ class RateByServiceSamplerTest extends DDSpecification {
   def "not setting forced tracing via tag or setting it wrong value not causing exception"() {
     setup:
     def sampler = new RateByServiceSampler()
-    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
     def span = tracer.buildSpan("root").start()
     if (tagName) {
       span.setTag(tagName, tagValue)

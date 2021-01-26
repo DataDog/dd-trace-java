@@ -3,15 +3,14 @@ package datadog.trace.common.writer
 import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Subject
 
 import java.util.concurrent.TimeUnit
 
-class DDAgentWriterTest extends DDSpecification {
+class DDAgentWriterTest extends DDCoreSpecification {
 
   def api = Mock(DDAgentApi)
   def monitor = Mock(HealthMetrics)
@@ -22,7 +21,7 @@ class DDAgentWriterTest extends DDSpecification {
   def writer = new DDAgentWriter(api, monitor, monitoring, worker)
 
   // Only used to create spans
-  def dummyTracer = CoreTracer.builder().writer(new ListWriter()).build()
+  def dummyTracer = tracerBuilder().writer(new ListWriter()).build()
 
   def cleanup() {
     writer.close()
