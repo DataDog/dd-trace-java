@@ -22,13 +22,15 @@ public class PrintingWriter implements Writer {
     sink = Okio.buffer(Okio.sink(outputStream));
 
     this.jsonAdapter =
-      new Moshi.Builder()
-        .add(DDSpanJsonAdapter.buildFactory(hexIds))
-        .build()
-        .adapter(
-          Types.newParameterizedType(
-            Map.class, String.class, Types.newParameterizedType(List.class,
-              Types.newParameterizedType(List.class, DDSpan.class))));
+        new Moshi.Builder()
+            .add(DDSpanJsonAdapter.buildFactory(hexIds))
+            .build()
+            .adapter(
+                Types.newParameterizedType(
+                    Map.class,
+                    String.class,
+                    Types.newParameterizedType(
+                        List.class, Types.newParameterizedType(List.class, DDSpan.class))));
   }
 
   @Override
