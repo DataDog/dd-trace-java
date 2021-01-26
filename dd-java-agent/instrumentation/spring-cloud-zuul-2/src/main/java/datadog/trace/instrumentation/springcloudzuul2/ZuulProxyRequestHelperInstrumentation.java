@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.springcloudzuul2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.springcloudzuul2.HeaderUtils.DD_PACKAGE_PREFIX;
+import static datadog.trace.instrumentation.springcloudzuul2.HeaderUtils.EXCLUDED_HEADERS;
+import static datadog.trace.instrumentation.springcloudzuul2.HeaderUtils.HAYSTACK_PACKAGE_PREFIX;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static datadog.trace.instrumentation.springcloudzuul2.HeaderUtils.EXCLUDED_HEADERS;
-import static datadog.trace.instrumentation.springcloudzuul2.HeaderUtils.DD_PACKAGE_PREFIX;
-import static datadog.trace.instrumentation.springcloudzuul2.HeaderUtils.HAYSTACK_PACKAGE_PREFIX;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -36,9 +36,7 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing 
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HeaderUtils"
-    };
+    return new String[] {packageName + ".HeaderUtils"};
   }
 
   /**
@@ -52,9 +50,9 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing 
     public static void onExit(
         @Advice.Argument(0) final String header, @Advice.Return(readOnly = false) boolean include) {
 
-      if (EXCLUDED_HEADERS.contains(header)
-          || DD_PACKAGE_PREFIX.startsWith(header)
-          || HAYSTACK_PACKAGE_PREFIX.startsWith(header)) include = false;
+      if (DD_PACKAGE_PREFIX.startsWith(header)
+          || HAYSTACK_PACKAGE_PREFIX.startsWith(header)
+          || EXCLUDED_HEADERS.contains(header)) include = false;
     }
   }
 }
