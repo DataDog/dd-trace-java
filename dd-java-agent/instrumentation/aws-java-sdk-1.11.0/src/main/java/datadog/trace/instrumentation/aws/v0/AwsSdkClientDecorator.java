@@ -12,7 +12,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("java-aws-sdk");
@@ -34,10 +36,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
                 }
               }));
 
-  private final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore;
+  private final ContextStore<AmazonWebServiceRequest, ?> contextStore;
 
-  public AwsSdkClientDecorator(
-      final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore) {
+  public AwsSdkClientDecorator(final ContextStore<AmazonWebServiceRequest, ?> contextStore) {
     this.contextStore = contextStore;
   }
 
@@ -59,13 +60,19 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setMeasured(true);
 
     if (contextStore != null) {
-      final RequestMeta requestMeta = contextStore.get(originalRequest);
-      if (requestMeta != null) {
+      final Object storedMeta = contextStore.get(originalRequest);
+      if (storedMeta instanceof RequestMeta) {
+        RequestMeta requestMeta = (RequestMeta) storedMeta;
         span.setTag("aws.bucket.name", requestMeta.getBucketName());
         span.setTag("aws.queue.url", requestMeta.getQueueUrl());
         span.setTag("aws.queue.name", requestMeta.getQueueName());
         span.setTag("aws.stream.name", requestMeta.getStreamName());
         span.setTag("aws.table.name", requestMeta.getTableName());
+      } else if (null != storedMeta) {
+        log.warn(
+            "Expected request metadata from {}, but was from {}",
+            RequestMeta.class.getClassLoader(),
+            storedMeta.getClass().getClassLoader());
       }
     }
 
