@@ -5,7 +5,6 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.core.DDSpan
 import okhttp3.HttpUrl
 import okhttp3.Request
-import okhttp3.Response
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
 import spock.lang.Shared
@@ -23,7 +22,7 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
   @Shared
   int proxyPort = proxySocket.localPort
 
-  public static final PARENT_ID = 0;
+  public static final ROOT_SPAN_ID = 0;
   public static final TRACE_ID = 0;
 
   @Override
@@ -74,12 +73,12 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
     def request = new Request.Builder()
       .url(url)
       .method("GET", null)
-      .header("x-datadog-trace-id", PARENT_ID.toString())
+      .header("x-datadog-trace-id", ROOT_SPAN_ID.toString())
       .header("x-datadog-parent-id", TRACE_ID.toString())
       .build()
 
     when:
-    Response response = client.newCall(request).execute()
+    client.newCall(request).execute()
 
     then:
     assertTraces(2) {
@@ -113,12 +112,12 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
     def request = new Request.Builder()
       .url(url)
       .method("GET", null)
-      .header("x-datadog-trace-id", PARENT_ID.toString())
+      .header("x-datadog-trace-id", ROOT_SPAN_ID.toString())
       .header("x-datadog-parent-id", TRACE_ID.toString())
       .build()
 
     when:
-    Response response = client.newCall(request).execute()
+    client.newCall(request).execute()
 
     then:
     assertTraces(4) {

@@ -2,14 +2,15 @@ package datadog.trace.instrumentation.springcloudzuul2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.*;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static datadog.trace.instrumentation.springcloudzuul2.HeaderUtils.EXCLUDED_HEADERS;
+import static datadog.trace.instrumentation.springcloudzuul2.HeaderUtils.DD_PACKAGE_PREFIX;
+import static datadog.trace.instrumentation.springcloudzuul2.HeaderUtils.HAYSTACK_PACKAGE_PREFIX;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -30,7 +31,14 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing 
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         isMethod().and(named("isIncludedHeader")).and(takesArgument(0, TypeDescription.STRING)),
-        ZuulProxyRequestHelperInstrumentation.class.getName() + "$ExcludeDDHeaderAdvice");
+        ZuulProxyRequestHelperInstrumentation.class.getName() + "$ProxyRequestHelperAdvice");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".HeaderUtils"
+    };
   }
 
   /**
@@ -39,36 +47,14 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing 
    * action of filtering/forwarding the incoming request will not overwrite the headers added by the
    * agent when instrumenting the proxy
    */
-  public static class ExcludeDDHeaderAdvice {
+  public static class ProxyRequestHelperAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.Argument(0) final String header, @Advice.Return(readOnly = false) boolean include) {
-      // for now get all the B3, Haystack, Datadog headers and ignore them
-      Set<String> headers =
-          new HashSet<String>(
-              Arrays.asList(
-                  // DD headers
-                  "x-datadog-trace-id",
-                  "x-datadog-parent-id",
-                  "x-datadog-sampling-priority",
-                  "x-datadog-origin",
-                  // B3 headers
-                  "X-B3-TraceId",
-                  "X-B3-SpanId",
-                  "X-B3-Sampled",
-                  // Haystack headers
-                  "Trace-ID",
-                  "Span-ID",
-                  "Parent-ID",
-                  "Haystack-Trace-ID",
-                  "Haystack-Span-ID",
-                  "Haystack-Parent-ID"));
 
-      String haystack_baggage_prefix = "Baggage-";
-      String dd_baggage_prefix = "ot-baggage-";
-      if (headers.contains(header)
-          || dd_baggage_prefix.startsWith(header)
-          || haystack_baggage_prefix.startsWith(header)) include = false;
+      if (EXCLUDED_HEADERS.contains(header)
+          || DD_PACKAGE_PREFIX.startsWith(header)
+          || HAYSTACK_PACKAGE_PREFIX.startsWith(header)) include = false;
     }
   }
 }
