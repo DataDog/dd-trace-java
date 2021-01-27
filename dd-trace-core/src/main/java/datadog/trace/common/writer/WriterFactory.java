@@ -1,7 +1,9 @@
 package datadog.trace.common.writer;
 
-import static datadog.trace.bootstrap.instrumentation.api.PrioritizationConstants.ENSURE_TRACE_TYPE;
+import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.*;
+import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE;
+import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 
 import com.timgroup.statsd.StatsDClient;
 import datadog.common.container.ServerlessInfo;
@@ -74,10 +76,9 @@ public class WriterFactory {
             Config.get().isTracerMetricsEnabled(),
             monitoring);
 
-    final String prioritizationType = config.getPrioritizationType();
-    Prioritization prioritization = null;
-    if (ENSURE_TRACE_TYPE.equals(prioritizationType)) {
-      prioritization = Prioritization.ENSURE_TRACE;
+    Prioritization prioritization =
+        config.getEnumValue(PRIORITIZATION_TYPE, Prioritization.class, FAST_LANE);
+    if (ENSURE_TRACE == prioritization) {
       log.info(
           "Using 'EnsureTrace' prioritization type. (Do not use this type if your application is running in production mode)");
     }

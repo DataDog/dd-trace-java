@@ -17,7 +17,6 @@ public enum Prioritization {
       return new EnsureTraceStrategy(primary, secondary);
     }
   },
-
   FAST_LANE {
     @Override
     public PrioritizationStrategy create(
@@ -31,30 +30,22 @@ public enum Prioritization {
         final Queue<Object> primary, final Queue<Object> secondary) {
       return new DeadLettersStrategy(primary, secondary);
     }
+  },
+  DROP {
+    @Override
+    public PrioritizationStrategy create(Queue<Object> primary, Queue<Object> secondary) {
+      return new DropStrategy(primary);
+    }
   };
 
   public abstract PrioritizationStrategy create(Queue<Object> primary, Queue<Object> secondary);
 
-  private static final class EnsureTraceStrategy implements PrioritizationStrategy {
+  private abstract static class PrioritizationStrategyWithFlush implements PrioritizationStrategy {
 
-    private final Queue<Object> primary;
-    private final Queue<Object> secondary;
+    protected final Queue<Object> primary;
 
-    private EnsureTraceStrategy(final Queue<Object> primary, final Queue<Object> secondary) {
+    protected PrioritizationStrategyWithFlush(Queue<Object> primary) {
       this.primary = primary;
-      this.secondary = secondary;
-    }
-
-    @Override
-    public boolean publish(final int priority, final List<DDSpan> trace) {
-      switch (priority) {
-        case SAMPLER_DROP:
-        case USER_DROP:
-          return secondary.offer(trace);
-        default:
-          blockingOffer(primary, trace);
-          return true;
-      }
     }
 
     @Override
@@ -71,21 +62,42 @@ public enum Prioritization {
       }
     }
 
-    private void blockingOffer(final Queue<Object> queue, final Object data) {
+    protected void blockingOffer(final Queue<Object> queue, final Object event) {
       boolean offered;
       do {
-        offered = queue.offer(data);
+        offered = queue.offer(event);
       } while (!offered);
     }
   }
 
-  private static final class FastLaneStrategy implements PrioritizationStrategy {
+  private static final class EnsureTraceStrategy extends PrioritizationStrategyWithFlush {
 
-    private final Queue<Object> primary;
+    private final Queue<Object> secondary;
+
+    private EnsureTraceStrategy(final Queue<Object> primary, final Queue<Object> secondary) {
+      super(primary);
+      this.secondary = secondary;
+    }
+
+    @Override
+    public boolean publish(final int priority, final List<DDSpan> trace) {
+      switch (priority) {
+        case SAMPLER_DROP:
+        case USER_DROP:
+          return secondary.offer(trace);
+        default:
+          blockingOffer(primary, trace);
+          return true;
+      }
+    }
+  }
+
+  private static final class FastLaneStrategy extends PrioritizationStrategyWithFlush {
+
     private final Queue<Object> secondary;
 
     private FastLaneStrategy(final Queue<Object> primary, final Queue<Object> secondary) {
-      this.primary = primary;
+      super(primary);
       this.secondary = secondary;
     }
 
@@ -98,27 +110,6 @@ public enum Prioritization {
         default:
           return primary.offer(trace);
       }
-    }
-
-    @Override
-    public boolean flush(final long timeout, final TimeUnit timeUnit) {
-      // ok not to flush the secondary
-      final CountDownLatch latch = new CountDownLatch(1);
-      final FlushEvent event = new FlushEvent(latch);
-      offer(primary, event);
-      try {
-        return latch.await(timeout, timeUnit);
-      } catch (final InterruptedException e) {
-        Thread.currentThread().interrupt();
-        return false;
-      }
-    }
-
-    private void offer(final Queue<Object> queue, final FlushEvent event) {
-      boolean offered;
-      do {
-        offered = queue.offer(event);
-      } while (!offered);
     }
   }
 
@@ -166,6 +157,24 @@ public enum Prioritization {
       do {
         offered = queue.offer(event);
       } while (!offered);
+    }
+  }
+
+  private static final class DropStrategy extends PrioritizationStrategyWithFlush {
+
+    private DropStrategy(final Queue<Object> primary) {
+      super(primary);
+    }
+
+    @Override
+    public boolean publish(final int priority, final List<DDSpan> trace) {
+      switch (priority) {
+        case SAMPLER_DROP:
+        case USER_DROP:
+          return false;
+        default:
+          return primary.offer(trace);
+      }
     }
   }
 }

@@ -20,7 +20,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_LEGACY_CONTEXT_FIELD_INJE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITIZATION_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_AGENTLESS;
@@ -262,7 +261,6 @@ public class Config {
   @Getter private final boolean traceEnabled;
   @Getter private final boolean integrationsEnabled;
   @Getter private final String writerType;
-  @Getter private final String prioritizationType;
   @Getter private final boolean agentConfiguredUsingDefault;
   @Getter private final String agentUrl;
   @Getter private final String agentHost;
@@ -425,7 +423,6 @@ public class Config {
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
-    prioritizationType = configProvider.getString(PRIORITIZATION_TYPE, DEFAULT_PRIORITIZATION_TYPE);
 
     idGenerationStrategy =
         configProvider.getEnum(ID_GENERATION_STRATEGY, IdGenerationStrategy.class, RANDOM);
@@ -904,6 +901,10 @@ public class Config {
   public boolean isTraceAnalyticsIntegrationEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
     return isEnabled(Arrays.asList(integrationNames), "", ".analytics.enabled", defaultEnabled);
+  }
+
+  public <T extends Enum<T>> T getEnumValue(String name, Class<T> type, T defaultValue) {
+    return configProvider.getEnum(PREFIX + name, type, defaultValue);
   }
 
   private static boolean isDebugMode() {
