@@ -1,21 +1,24 @@
 repositories {
-  mavenLocal()
-  mavenCentral()
-  jcenter()
+  //  mavenLocal()
   maven {
-    url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
-    content {
-      includeGroup "org.openjdk.jmc"
-    }
-    mavenContent {
-      snapshotsOnly()
-    }
+    url "http://127.0.0.1:8081/artifactory/java-cache"
   }
-  maven {
-    url "https://repo.typesafe.com/typesafe/releases"
-    content {
-      includeGroup "com.typesafe.play"
-      includeGroup "play"
-    }
-  }
+  //  mavenCentral()
+  //  jcenter()
+  //  maven {
+  //    url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
+  //    content {
+  //      includeGroup "org.openjdk.jmc"
+  //    }
+  //    mavenContent {
+  //      snapshotsOnly()
+  //    }
+  //  }
+  //  maven {
+  //    url "https://repo.typesafe.com/typesafe/releases"
+  //    content {
+  //      includeGroup "com.typesafe.play"
+  //      includeGroup "play"
+  //    }
+  //  }
 }

@@ -15,8 +15,11 @@ gradlePlugin {
 
 repositories {
   mavenLocal()
-  jcenter()
-  mavenCentral()
+  maven {
+    url = uri("http://127.0.0.1:8081/artifactory/java-cache")
+  }
+//  jcenter()
+//  mavenCentral()
 }
 
 dependencies {

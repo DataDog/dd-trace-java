@@ -5,6 +5,7 @@ defaults: &defaults
   resource_class: xlarge
   docker:
     - image: &default_container datadog/dd-trace-java-docker-build:latest
+    - image: bantonsson/datadog-repo-cache-test:latest
 
 # The caching setup of the build dependencies is somewhat involved because of how CircleCI works.
 #
@@ -87,8 +88,12 @@ jobs:
     steps:
       - setup_code
 
-      - restore_cache:
-          <<: *cache_keys
+      #- restore_cache:
+      #    <<: *cache_keys
+
+      - run:
+          name: Wait a while
+          command: sleep 30
 
       - run:
           name: Build Project
@@ -112,13 +117,13 @@ jobs:
             - .gradle
             - workspace
 
-      - save_cache:
-          key: dd-trace-java-v2-{{ .Branch }}-{{ .Revision }}
-          <<: *save_cache_paths
+      #- save_cache:
+      #    key: dd-trace-java-v2-{{ .Branch }}-{{ .Revision }}
+      #    <<: *save_cache_paths
 
-      - save_cache:
-          key: dd-trace-java-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}
-          <<: *save_cache_paths
+      #- save_cache:
+      #    key: dd-trace-java-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}
+      #    <<: *save_cache_paths
 
   default_test_job: &default_test_job
     <<: *defaults
@@ -144,8 +149,12 @@ jobs:
     steps:
       - setup_code
 
-      - restore_cache:
-          <<: *cache_keys
+      #- restore_cache:
+      #    <<: *cache_keys
+
+      - run:
+          name: Wait a while
+          command: sleep 30
 
       - run:
           name: Run Tests
@@ -171,15 +180,15 @@ jobs:
       - store_test_results:
           path: ./results
 
-  agent_integration_tests:
-    <<: *default_test_job
-    docker:
-      - image: *default_container
-      - image: datadog/agent:7.22.0
-        environment:
-          - DD_APM_ENABLED=true
-          - DD_BIND_HOST=0.0.0.0
-          - DD_API_KEY=invalid_key_but_this_is_fine
+  #agent_integration_tests:
+  #  <<: *default_test_job
+  #  docker:
+  #    - image: *default_container
+  #    - image: datadog/agent:7.22.0
+  #      environment:
+  #        - DD_APM_ENABLED=true
+  #        - DD_BIND_HOST=0.0.0.0
+  #        - DD_API_KEY=invalid_key_but_this_is_fine
 
   check:
     <<: *defaults
@@ -187,8 +196,12 @@ jobs:
     steps:
       - setup_code
 
-      - restore_cache:
-          <<: *cache_keys
+      #- restore_cache:
+      #    <<: *cache_keys
+
+      - run:
+          name: Wait a while
+          command: sleep 30
 
       - run:
           name: Build Project
@@ -216,47 +229,47 @@ jobs:
       - store_artifacts:
           path: ./reports
 
-  muzzle:
-    <<: *defaults
-    parallelism: 8
-    steps:
-      - setup_code
-
-      # We are not running with a separate cache of all muzzle artifacts here because it gets very big and
-      # ends up taking more time restoring/saving than the actual increase in time it takes just
-      # downloading the artifacts each time.
-      #
-      # Let's at least restore the build cache to have something to start from.
-      - restore_cache:
-          <<: *cache_keys
-
-      - run:
-          name: Gather muzzle tasks
-          command: >-
-            SKIP_BUILDSCAN="true"
-            ./gradlew writeMuzzleTasksToFile
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=8
-
-      - run:
-          name: Verify Muzzle
-          command: >-
-            SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=16
-
-      - run:
-          name: Collect Reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - store_test_results:
-          path: workspace/build/muzzle-test-results
+  #muzzle:
+  #  <<: *defaults
+  #  parallelism: 8
+  #  steps:
+  #    - setup_code
+  #
+  #    # We are not running with a separate cache of all muzzle artifacts here because it gets very big and
+  #    # ends up taking more time restoring/saving than the actual increase in time it takes just
+  #    # downloading the artifacts each time.
+  #    #
+  #    # Let's at least restore the build cache to have something to start from.
+  #    - restore_cache:
+  #        <<: *cache_keys
+  #
+  #    - run:
+  #        name: Gather muzzle tasks
+  #        command: >-
+  #          SKIP_BUILDSCAN="true"
+  #          ./gradlew writeMuzzleTasksToFile
+  #          << pipeline.parameters.gradle_flags >>
+  #          --max-workers=8
+  #
+  #    - run:
+  #        name: Verify Muzzle
+  #        command: >-
+  #          SKIP_BUILDSCAN="true"
+  #          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
+  #          ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
+  #          << pipeline.parameters.gradle_flags >>
+  #          --max-workers=16
+  #
+  #    - run:
+  #        name: Collect Reports
+  #        when: on_fail
+  #        command: .circleci/collect_reports.sh
+  #
+  #    - store_artifacts:
+  #        path: ./reports
+  #
+  #    - store_test_results:
+  #        path: workspace/build/muzzle-test-results
 
 workflows:
   build_test_deploy:
@@ -296,13 +309,13 @@ workflows:
             tags:
               only: /.*/
 
-      - agent_integration_tests:
-          requires:
-            - build
-          testTask: traceAgentTest
-          filters:
-            tags:
-              only: /.*/
+      #- agent_integration_tests:
+      #    requires:
+      #      - build
+      #    testTask: traceAgentTest
+      #    filters:
+      #      tags:
+      #        only: /.*/
 
       - check:
           requires:
@@ -311,12 +324,12 @@ workflows:
             tags:
               only: /.*/
 
-      - muzzle:
-          requires:
-            - build
-          filters:
-            branches:
-              ignore: master
+      #- muzzle:
+      #    requires:
+      #      - build
+      #    filters:
+      #      branches:
+      #        ignore: master
 
   daily:
     triggers:
