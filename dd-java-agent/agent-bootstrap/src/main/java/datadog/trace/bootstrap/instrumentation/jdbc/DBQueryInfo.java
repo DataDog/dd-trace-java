@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
+import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public final class DBQueryInfo {
@@ -8,8 +9,8 @@ public final class DBQueryInfo {
   private final UTF8BytesString sql;
 
   public DBQueryInfo(UTF8BytesString sql) {
-    this.sql = sql;
-    this.operation = UTF8BytesString.create(extractOperation(sql));
+    this.sql = SQLNormalizer.normalize(sql);
+    this.operation = UTF8BytesString.create(extractOperation(this.sql));
   }
 
   public UTF8BytesString getOperation() {
