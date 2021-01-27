@@ -3,8 +3,6 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 import static datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo.extractOperation;
 
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -19,10 +17,6 @@ import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
-
-  // use a fixed size cache to avoid creating background cleanup work
-  public static final DDCache<String, UTF8BytesString> PREPARED_STATEMENTS_SQL =
-      DDCaches.newFixedSizeCache(256);
 
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
   public static final CharSequence JAVA_JDBC = UTF8BytesString.create("java-jdbc");

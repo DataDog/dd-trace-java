@@ -35,6 +35,14 @@ public final class UTF8BytesString implements CharSequence {
     }
   }
 
+  public static UTF8BytesString create(String string, byte[] utf8Bytes) {
+    if (null == utf8Bytes) {
+      return null;
+    } else {
+      return new UTF8BytesString(string, utf8Bytes);
+    }
+  }
+
   private final String string;
   private byte[] utf8Bytes;
 
@@ -43,7 +51,11 @@ public final class UTF8BytesString implements CharSequence {
   }
 
   private UTF8BytesString(byte[] utf8Bytes) {
-    this.string = new String(utf8Bytes, UTF_8);
+    this(new String(utf8Bytes, UTF_8), utf8Bytes);
+  }
+
+  private UTF8BytesString(String string, byte[] utf8Bytes) {
+    this.string = string;
     this.utf8Bytes = utf8Bytes;
   }
 

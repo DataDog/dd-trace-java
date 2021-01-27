@@ -5,8 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.sa
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.api.Functions.UTF8_ENCODE;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.PREPARED_STATEMENTS_SQL;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -17,7 +15,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.PreparedStatement;
 import java.util.Map;
@@ -104,13 +101,6 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator",
-    };
-  }
-
-  @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         nameStartsWith("prepare")
@@ -129,8 +119,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
       if (null == contextStore.get(statement)) {
         // Sometimes the prepared statement is not reused, but the underlying String is reused, so
         // check if we have seen this String before
-        UTF8BytesString utf8Sql = PREPARED_STATEMENTS_SQL.computeIfAbsent(sql, UTF8_ENCODE);
-        contextStore.putIfAbsent(statement, new DBQueryInfo(utf8Sql));
+        contextStore.putIfAbsent(statement, new DBQueryInfo(sql));
       }
     }
   }
