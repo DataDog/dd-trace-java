@@ -43,12 +43,13 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
     "com.mysql.cj.jdbc.JdbcConnection",
     // should cover derby
     "org.apache.derby.impl.jdbc.EmbedConnection",
+    "org.apache.hive.jdbc.HiveConnection",
+    "org.apache.phoenix.jdbc.PhoenixConnection",
     // complete
     "org.h2.jdbc.JdbcConnection",
     // complete
     "org.hsqldb.jdbc.JDBCConnection",
     "org.hsqldb.jdbc.jdbcConnection",
-    "org.apache.hive.jdbc.HiveConnection",
     // complete
     "org.mariadb.jdbc.MariaDbConnection",
     "org.mariadb.jdbc.MySQLConnection",

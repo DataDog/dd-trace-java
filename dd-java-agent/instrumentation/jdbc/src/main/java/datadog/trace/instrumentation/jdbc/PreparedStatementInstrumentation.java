@@ -66,6 +66,7 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
     // hive
     "org.apache.hive.jdbc.HivePreparedStatement",
     "org.apache.hive.jdbc.HiveCallableStatement",
+    "org.apache.phoenix.jdbc.PhoenixPreparedStatement",
     // covers h2
     "org.h2.jdbc.JdbcPreparedStatement",
     "org.h2.jdbc.JdbcCallableStatement",
