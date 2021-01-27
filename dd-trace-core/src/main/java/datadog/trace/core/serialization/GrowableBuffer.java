@@ -2,6 +2,10 @@ package datadog.trace.core.serialization;
 
 import java.nio.ByteBuffer;
 
+/**
+ * This buffer doesn't have a bounded length, and grows exponentially. Don't use it except when
+ * serialising the contents of a bounded data structure.
+ */
 public final class GrowableBuffer implements StreamingBuffer {
 
   private ByteBuffer buffer;
