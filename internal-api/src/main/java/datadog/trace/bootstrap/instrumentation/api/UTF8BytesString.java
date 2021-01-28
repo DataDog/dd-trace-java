@@ -53,6 +53,12 @@ public final class UTF8BytesString implements CharSequence {
     buffer.put(utf8Bytes);
   }
 
+  /** Writes the UTF8 encoding of the wrapped {@code String}. */
+  public byte[] getUtf8Bytes() {
+    encodeIfNecessary();
+    return utf8Bytes;
+  }
+
   public int encodedLength() {
     encodeIfNecessary();
     return utf8Bytes.length;

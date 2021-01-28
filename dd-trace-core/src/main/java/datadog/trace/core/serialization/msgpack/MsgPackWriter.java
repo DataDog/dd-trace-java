@@ -1,119 +1,128 @@
 package datadog.trace.core.serialization.msgpack;
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.serialization.ByteBufferConsumer;
 import datadog.trace.core.serialization.Codec;
 import datadog.trace.core.serialization.EncodingCache;
+import datadog.trace.core.serialization.Mapper;
+import datadog.trace.core.serialization.StreamingBuffer;
+import datadog.trace.core.serialization.ValueWriter;
 import datadog.trace.core.serialization.WritableFormatter;
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
-import java.util.EnumSet;
+import java.util.Map;
 
 /** Not thread-safe (use one per thread). */
-public class MsgPackWriter extends WritableFormatter {
-
-  private static final int MAX_ARRAY_HEADER_SIZE = 5;
-
-  private static final boolean IS_JVM_9_OR_LATER = isJavaVersionAtLeast(9);
+public class MsgPackWriter implements WritableFormatter {
 
   // see https://github.com/msgpack/msgpack/blob/master/spec.md
-  private static final byte NULL = (byte) 0xC0;
+  public static final byte NULL = (byte) 0xC0;
 
-  private static final byte FALSE = (byte) 0xC2;
-  private static final byte TRUE = (byte) 0xC3;
+  public static final byte FALSE = (byte) 0xC2;
+  public static final byte TRUE = (byte) 0xC3;
 
-  private static final byte UINT8 = (byte) 0xCC;
-  private static final byte UINT16 = (byte) 0xCD;
-  private static final byte UINT32 = (byte) 0xCE;
-  private static final byte UINT64 = (byte) 0xCF;
+  public static final byte UINT8 = (byte) 0xCC;
+  public static final byte UINT16 = (byte) 0xCD;
+  public static final byte UINT32 = (byte) 0xCE;
+  public static final byte UINT64 = (byte) 0xCF;
 
-  private static final byte INT8 = (byte) 0xD0;
-  private static final byte INT16 = (byte) 0xD1;
-  private static final byte INT32 = (byte) 0xD2;
-  private static final byte INT64 = (byte) 0xD3;
+  public static final byte INT8 = (byte) 0xD0;
+  public static final byte INT16 = (byte) 0xD1;
+  public static final byte INT32 = (byte) 0xD2;
+  public static final byte INT64 = (byte) 0xD3;
 
-  private static final byte FLOAT32 = (byte) 0xCA;
-  private static final byte FLOAT64 = (byte) 0xCB;
+  public static final byte FLOAT32 = (byte) 0xCA;
+  public static final byte FLOAT64 = (byte) 0xCB;
 
-  private static final byte STR8 = (byte) 0xD9;
-  private static final byte STR16 = (byte) 0xDA;
-  private static final byte STR32 = (byte) 0xDB;
+  public static final byte STR8 = (byte) 0xD9;
+  public static final byte STR16 = (byte) 0xDA;
+  public static final byte STR32 = (byte) 0xDB;
 
-  private static final byte BIN8 = (byte) 0xC4;
-  private static final byte BIN16 = (byte) 0xC5;
-  private static final byte BIN32 = (byte) 0xC6;
+  public static final byte BIN8 = (byte) 0xC4;
+  public static final byte BIN16 = (byte) 0xC5;
+  public static final byte BIN32 = (byte) 0xC6;
 
-  private static final byte ARRAY16 = (byte) 0xDC;
-  private static final byte ARRAY32 = (byte) 0xDD;
+  public static final byte ARRAY16 = (byte) 0xDC;
+  public static final byte ARRAY32 = (byte) 0xDD;
 
-  private static final byte MAP16 = (byte) 0xDE;
-  private static final byte MAP32 = (byte) 0xDF;
+  public static final byte MAP16 = (byte) 0xDE;
+  public static final byte MAP32 = (byte) 0xDF;
 
-  private static final int NEGFIXNUM = 0xE0;
-  private static final int FIXSTR = 0xA0;
-  private static final int FIXARRAY = 0x90;
-  private static final int FIXMAP = 0x80;
+  public static final int NEGFIXNUM = 0xE0;
+  public static final int FIXSTR = 0xA0;
+  public static final int FIXARRAY = 0x90;
+  public static final int FIXMAP = 0x80;
 
-  public MsgPackWriter(
-      Codec codec, ByteBufferConsumer sink, ByteBuffer buffer, boolean manualReset) {
-    super(
-        codec,
-        sink,
-        buffer,
-        manualReset ? EnumSet.of(Feature.MANUAL_RESET) : EnumSet.noneOf(Feature.class),
-        5);
+  private final Codec codec;
+
+  private final StreamingBuffer buffer;
+
+  public MsgPackWriter(StreamingBuffer buffer) {
+    this(Codec.INSTANCE, buffer);
   }
 
-  public MsgPackWriter(Codec codec, ByteBufferConsumer sink, ByteBuffer buffer) {
-    this(codec, sink, buffer, false);
-  }
-
-  public MsgPackWriter(ByteBufferConsumer sink, ByteBuffer buffer) {
-    this(Codec.INSTANCE, sink, buffer);
-  }
-
-  public MsgPackWriter(
-      ByteBufferConsumer sink, ByteBuffer buffer, EnumSet<WritableFormatter.Feature> features) {
-    super(Codec.INSTANCE, sink, buffer, features, 5);
-  }
-
-  public MsgPackWriter(ByteBufferConsumer sink, ByteBuffer buffer, boolean manualReset) {
-    this(Codec.INSTANCE, sink, buffer, manualReset);
+  public MsgPackWriter(Codec codec, StreamingBuffer buffer) {
+    this.codec = codec;
+    this.buffer = buffer;
   }
 
   @Override
-  protected void initBuffer() {
-    this.buffer.position(MAX_ARRAY_HEADER_SIZE);
-    super.initBuffer();
-  }
-
-  public void reset() {
-    initBuffer();
-    buffer.limit(buffer.capacity());
-    messageCount = 0;
+  public void flush() {
+    if (buffer.isDirty()) {
+      buffer.flush();
+    }
   }
 
   @Override
-  protected void writeHeader(boolean writeArray) {
-    if (writeArray) {
-      int pos = headerPosition();
-      buffer.position(pos);
-      startArray(messageCount);
-      buffer.position(pos);
+  public <T> boolean format(T message, Mapper<T> mapper) {
+    try {
+      mapper.map(message, this);
+      buffer.mark();
+      return true;
+    } catch (BufferOverflowException overflow) {
+      // if the buffer has finite capacity, it will overflow
+      // if we tried to serialise a message larger than the
+      // max capacity, then reject the message
+      if (buffer.flush()) {
+        try {
+          mapper.map(message, this);
+          buffer.mark();
+          return true;
+        } catch (BufferOverflowException fatal) {
+          return false;
+        }
+      }
+      return false;
+    }
+  }
+
+  // NOTE - implementations pulled up to this level should
+  // not write directly to the buffer
+
+  @Override
+  public void writeMap(
+      Map<? extends CharSequence, ? extends Object> map, EncodingCache encodingCache) {
+    startMap(map.size());
+    for (Map.Entry<? extends CharSequence, ? extends Object> entry : map.entrySet()) {
+      writeString(entry.getKey(), encodingCache);
+      writeObject(entry.getValue(), encodingCache);
+    }
+  }
+
+  @Override
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public void writeObject(Object value, EncodingCache encodingCache) {
+    // unpeel a very common case, but should try to move away from sending
+    // UTF8BytesString down this codepath at all
+    if (value instanceof UTF8BytesString) {
+      writeUTF8((UTF8BytesString) value);
+    } else if (null == value) {
+      writeNull();
     } else {
-      buffer.position(MAX_ARRAY_HEADER_SIZE);
+      ValueWriter writer = codec.get(value.getClass());
+      writer.write(value, this, encodingCache);
     }
-  }
-
-  private int headerPosition() {
-    if (messageCount < 0x10) {
-      return 4;
-    } else if (messageCount < 0x10000) {
-      return 2;
-    }
-    return 0;
   }
 
   @Override
@@ -138,80 +147,12 @@ public class MsgPackWriter extends WritableFormatter {
           return;
         }
       }
-      writeUTF8String(s);
-    }
-  }
-
-  private void writeUTF8String(CharSequence s) {
-    int mark = buffer.position();
-    writeStringHeader(s.length());
-    int actualLength = utf8Encode(s);
-    if (actualLength > s.length()) {
-      int lengthWritten = stringLength(s.length());
-      int lengthRequired = stringLength(actualLength);
-      if (lengthRequired != lengthWritten) {
-        // could shift the string itself to the right but just do it again
-        buffer.position(mark);
-        writeStringHeader(actualLength);
-        utf8Encode(s);
-      } else { // just go back and fix it
-        fixStringHeaderInPlace(mark, lengthRequired, actualLength);
-      }
-    }
-  }
-
-  private int utf8Encode(CharSequence s) {
-    if (IS_JVM_9_OR_LATER && s.length() < 64 && s instanceof String) {
-      // this allocates less with JDK9+ and is a lot faster than
-      // doing it yourself (avoids lots of bounds checks).
-      // Using UTF8ByteString wherever possible should make this rare anyway.
-      byte[] utf8 = ((String) s).getBytes(UTF_8);
-      buffer.put(utf8);
-      return utf8.length;
-    }
-    return allocationFreeUTF8Encode(s);
-  }
-
-  private int allocationFreeUTF8Encode(CharSequence s) {
-    int written = 0;
-    for (int i = 0; i < s.length(); ++i) {
-      char c = s.charAt(i);
-      if (c < 0x80) {
-        buffer.put((byte) c);
-        written++;
-      } else if (c < 0x800) {
-        buffer.putChar((char) (((0xC0 | (c >> 6)) << 8) | (0x80 | (c & 0x3F))));
-        written += 2;
-      } else if (Character.isSurrogate(c)) {
-        if (!Character.isHighSurrogate(c)) {
-          buffer.put((byte) '?');
-          written++;
-        } else if (++i == s.length()) {
-          buffer.put((byte) '?');
-          written++;
-        } else {
-          char next = s.charAt(i);
-          if (!Character.isLowSurrogate(next)) {
-            buffer.put((byte) '?');
-            buffer.put(Character.isHighSurrogate(next) ? (byte) '?' : (byte) next);
-            written += 2;
-          } else {
-            int codePoint = Character.toCodePoint(c, next);
-            buffer.putInt(
-                ((0xF0 | (codePoint >> 18)) << 24)
-                    | ((0x80 | ((codePoint >> 12) & 0x3F)) << 16)
-                    | ((0x80 | ((codePoint >> 6) & 0x3F)) << 8)
-                    | ((0x80 | (codePoint & 0x3F))));
-            written += 4;
-          }
-        }
+      if (s instanceof UTF8BytesString) {
+        writeUTF8((UTF8BytesString) s);
       } else {
-        buffer.putChar((char) (((0xE0 | c >> 12) << 8) | (0x80 | c >> 6 & 0x3F)));
-        buffer.put((byte) (0x80 | c & 0x3F));
-        written += 3;
+        writeUTF8(String.valueOf(s).getBytes(UTF_8));
       }
     }
-    return written;
   }
 
   @Override
@@ -228,7 +169,7 @@ public class MsgPackWriter extends WritableFormatter {
   @Override
   public void writeUTF8(UTF8BytesString string) {
     writeStringHeader(string.encodedLength());
-    string.transferTo(buffer);
+    buffer.put(string.getUtf8Bytes());
   }
 
   @Override
@@ -541,7 +482,15 @@ public class MsgPackWriter extends WritableFormatter {
 
   @Override
   public void startMap(int elementCount) {
-    writeMapHeader(elementCount);
+    if (elementCount < 0x10) {
+      buffer.put((byte) (FIXMAP | elementCount));
+    } else if (elementCount < 0x10000) {
+      buffer.put(MAP16);
+      buffer.putShort((short) elementCount);
+    } else {
+      buffer.put(MAP32);
+      buffer.putInt(elementCount);
+    }
   }
 
   @Override
@@ -551,7 +500,15 @@ public class MsgPackWriter extends WritableFormatter {
 
   @Override
   public void startArray(int elementCount) {
-    writeArrayHeader(elementCount);
+    if (elementCount < 0x10) {
+      buffer.put((byte) (FIXARRAY | elementCount));
+    } else if (elementCount < 0x10000) {
+      buffer.put(ARRAY16);
+      buffer.putShort((short) elementCount);
+    } else {
+      buffer.put(ARRAY32);
+      buffer.putInt(elementCount);
+    }
   }
 
   void writeStringHeader(int length) {
@@ -562,33 +519,9 @@ public class MsgPackWriter extends WritableFormatter {
       buffer.put((byte) length);
     } else if (length < 0x10000) {
       buffer.put(STR16);
-      buffer.putChar((char) length);
+      buffer.putShort((short) length);
     } else {
       buffer.put(STR32);
-      buffer.putInt(length);
-    }
-  }
-
-  void writeArrayHeader(int length) {
-    if (length < 0x10) {
-      buffer.put((byte) (FIXARRAY | length));
-    } else if (length < 0x10000) {
-      buffer.put(ARRAY16);
-      buffer.putChar((char) length);
-    } else {
-      buffer.put(ARRAY32);
-      buffer.putInt(length);
-    }
-  }
-
-  void writeMapHeader(int length) {
-    if (length < 0x10) {
-      buffer.put((byte) (FIXMAP | length));
-    } else if (length < 0x10000) {
-      buffer.put(MAP16);
-      buffer.putChar((char) length);
-    } else {
-      buffer.put(MAP32);
       buffer.putInt(length);
     }
   }
@@ -599,39 +532,10 @@ public class MsgPackWriter extends WritableFormatter {
       buffer.put((byte) length);
     } else if (length < 0x10000) {
       buffer.put(BIN16);
-      buffer.putChar((char) length);
+      buffer.putShort((short) length);
     } else {
       buffer.put(BIN32);
       buffer.putInt(length);
-    }
-  }
-
-  private static int stringLength(int length) {
-    if (length < 0x10) {
-      return FIXSTR;
-    } else if (length < 0x100) {
-      return STR8;
-    } else if (length < 0x10000) {
-      return STR16;
-    } else {
-      return STR32;
-    }
-  }
-
-  private void fixStringHeaderInPlace(int mark, int lengthType, int actualLength) {
-    switch (lengthType) {
-      case FIXSTR:
-        buffer.put(mark, (byte) (FIXSTR | actualLength));
-        break;
-      case STR8:
-        buffer.put(mark + 1, (byte) (actualLength));
-        break;
-      case STR16:
-        buffer.putChar(mark + 1, (char) (actualLength));
-        break;
-      case STR32:
-        buffer.putInt(mark + 1, (actualLength));
-        break;
     }
   }
 }

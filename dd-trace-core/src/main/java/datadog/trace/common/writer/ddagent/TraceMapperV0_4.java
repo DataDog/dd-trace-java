@@ -12,22 +12,22 @@ import static datadog.trace.core.StringTables.SPAN_ID;
 import static datadog.trace.core.StringTables.START;
 import static datadog.trace.core.StringTables.TRACE_ID;
 import static datadog.trace.core.StringTables.TYPE;
+import static datadog.trace.core.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.trace.core.serialization.EncodingCachingStrategies.CONSTANT_KEYS;
 import static datadog.trace.core.serialization.EncodingCachingStrategies.NO_CACHING;
 import static datadog.trace.core.serialization.Util.integerToStringBuffer;
 import static datadog.trace.core.serialization.Util.writeLongAsString;
-import static java.util.Collections.singletonList;
 
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
-import datadog.trace.core.http.OkHttpUtils;
 import datadog.trace.core.serialization.Writable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import okhttp3.RequestBody;
@@ -188,11 +188,15 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     @Override
     int sizeInBytes() {
-      return body.remaining();
+      return msgpackArrayHeaderSize(traceCount()) + body.remaining();
     }
 
     @Override
     void writeTo(WritableByteChannel channel) throws IOException {
+      ByteBuffer header = msgpackArrayHeader(traceCount());
+      while (header.hasRemaining()) {
+        channel.write(header);
+      }
       while (body.hasRemaining()) {
         channel.write(body);
       }
@@ -200,7 +204,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     @Override
     RequestBody toRequest() {
-      return OkHttpUtils.msgpackRequestBodyOf(singletonList(body));
+      return msgpackRequestBodyOf(Arrays.asList(msgpackArrayHeader(traceCount()), body));
     }
   }
 }
