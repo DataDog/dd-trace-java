@@ -68,6 +68,14 @@ abstract class ScalaUnitPromiseTestNoPropagation extends ScalaUnitPromiseTestBas
         return "f1"
       }
     })
+
+    then:
+    // Since the execution is forked before the trace is started
+    // we need to wait for the future to finish to guarantee the
+    // order of the traces that we assert against in assertTraces
+    promiseUtils.await(f1) == "f1"
+
+    when:
     def f2 = promiseUtils.apply({
       runUnderTrace("f2") {
         return "f2"
@@ -75,7 +83,6 @@ abstract class ScalaUnitPromiseTestNoPropagation extends ScalaUnitPromiseTestBas
     })
 
     then:
-    promiseUtils.await(f1) == "f1"
     promiseUtils.await(f2) == "f2"
     assertTraces(2) {
       trace(1) {
@@ -113,6 +120,8 @@ abstract class ScalaUnitPromiseTestPropagation extends ScalaUnitPromiseTestBase 
     })
 
     then:
+    // Here we sort the spans by name in assertTraces, so we don't
+    // care in which order they actually happen
     promiseUtils.await(f1) == "f1"
     promiseUtils.await(f2) == "f2"
     assertTraces(1) {
