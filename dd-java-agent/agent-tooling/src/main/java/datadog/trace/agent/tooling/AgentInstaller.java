@@ -182,25 +182,27 @@ public class AgentInstaller {
   private static ElementMatcher.Junction<Object> matchesConfiguredExcludes() {
     final List<String> excludedClasses = Config.get().getExcludedClasses();
     ElementMatcher.Junction matcher = none();
-    List<String> literals = new ArrayList<>();
-    List<String> prefixes = new ArrayList<>();
-    // first accumulate by operation because a lot of work can be aggregated
-    for (String excludedClass : excludedClasses) {
-      excludedClass = excludedClass.trim();
-      if (excludedClass.endsWith("*")) {
-        // remove the trailing *
-        prefixes.add(excludedClass.substring(0, excludedClass.length() - 1));
-      } else {
-        literals.add(excludedClass);
+    if (!excludedClasses.isEmpty()) {
+      List<String> literals = new ArrayList<>();
+      List<String> prefixes = new ArrayList<>();
+      // first accumulate by operation because a lot of work can be aggregated
+      for (String excludedClass : excludedClasses) {
+        excludedClass = excludedClass.trim();
+        if (excludedClass.endsWith("*")) {
+          // remove the trailing *
+          prefixes.add(excludedClass.substring(0, excludedClass.length() - 1));
+        } else {
+          literals.add(excludedClass);
+        }
       }
-    }
-    if (!literals.isEmpty()) {
-      matcher = matcher.or(namedOneOf(literals));
-    }
-    for (String prefix : prefixes) {
-      // TODO - with a prefix tree this matching logic can be handled by a
-      // single longest common prefix query
-      matcher = matcher.or(nameStartsWith(prefix));
+      if (!literals.isEmpty()) {
+        matcher = matcher.or(namedOneOf(literals));
+      }
+      for (String prefix : prefixes) {
+        // TODO - with a prefix tree this matching logic can be handled by a
+        // single longest common prefix query
+        matcher = matcher.or(nameStartsWith(prefix));
+      }
     }
     return matcher;
   }
