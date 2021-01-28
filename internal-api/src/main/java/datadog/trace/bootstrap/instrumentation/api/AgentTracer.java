@@ -10,7 +10,6 @@ import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class AgentTracer {
 
@@ -65,24 +64,24 @@ public class AgentTracer {
 
   private static final TracerAPI DEFAULT = new NoopTracerAPI();
 
-  private static final AtomicReference<TracerAPI> provider = new AtomicReference<>(DEFAULT);
+  private static volatile TracerAPI provider = DEFAULT;
 
   public static boolean isRegistered() {
-    return provider.get() != DEFAULT;
+    return provider != DEFAULT;
   }
 
-  public static void registerIfAbsent(final TracerAPI trace) {
-    if (trace != null && trace != DEFAULT) {
-      provider.compareAndSet(DEFAULT, trace);
+  public static synchronized void registerIfAbsent(final TracerAPI tracer) {
+    if (tracer != null && tracer != DEFAULT) {
+      provider = tracer;
     }
   }
 
-  public static void forceRegister(TracerAPI tracer) {
-    provider.set(tracer);
+  public static synchronized void forceRegister(TracerAPI tracer) {
+    provider = tracer;
   }
 
   public static TracerAPI get() {
-    return provider.get();
+    return provider;
   }
 
   // Not intended to be constructed.
