@@ -1,3 +1,4 @@
+import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.WithHttpServer
 import datadog.trace.agent.test.utils.PortUtils
@@ -22,14 +23,16 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
   @Shared
   int proxyPort = proxySocket.localPort
 
-  public static final ROOT_SPAN_ID = 0;
-  public static final TRACE_ID = 0;
-
+  public static final String PARENT_ID = "0"
+  public static final String TRACE_ID = "0"
+  public static final String APP_NAME = "test"
+  public static final String TRACE_ID_HEADER = "X-DATADOG-TRACE-ID"
+  public static final String PARENT_ID_HEADER = "X-DATADOG-PARENT-ID"
   @Override
   ConfigurableApplicationContext startServer(int port) {
     def server = new SpringApplication(TestApplication)
     def properties = new Properties()
-    properties.put("spring.application.name", "test")
+    properties.put("spring.application.name", APP_NAME)
     properties.put("server.port", port)
     server.setDefaultProperties(properties)
     return server.run()
@@ -48,7 +51,7 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
     def gatewayProperties = new Properties()
     gatewayProperties.put("ribbon.eureka.enabled", false)
     gatewayProperties.put("server.port", proxyPort)
-    gatewayProperties.put("zuul.routes.test.url", getAddress().toString())
+    gatewayProperties.put("zuul.routes." + APP_NAME + ".url", getAddress().toString())
     zuulGateway.setDefaultProperties(gatewayProperties)
     proxyServer = zuulGateway.run()
 
@@ -62,19 +65,12 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
 
   def "Test propagation for singular call through proxy"() {
     setup:
-    def url = new HttpUrl.Builder()
-      .scheme("http")
-      .host("localhost")
-      .port(proxyPort)
-      .addPathSegment("test")
-      .addPathSegment("available")
-      .build()
-
+    def url = buildProxyURL(["available"])
     def request = new Request.Builder()
       .url(url)
       .method("GET", null)
-      .header("x-datadog-trace-id", ROOT_SPAN_ID.toString())
-      .header("x-datadog-parent-id", TRACE_ID.toString())
+      .header(PARENT_ID_HEADER, PARENT_ID)
+      .header(TRACE_ID_HEADER, TRACE_ID)
       .build()
 
     when:
@@ -100,20 +96,12 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
 
   def "Test span propagation for nested calls through proxy"() {
     setup:
-    def url = new HttpUrl.Builder()
-      .scheme("http")
-      .host("localhost")
-      .port(proxyPort)
-      .addPathSegment("test")
-      .addPathSegment("nested")
-      .addPathSegment(proxyPort.toString())
-      .build()
-
+    def url = buildProxyURL(["nested", proxyPort.toString()])
     def request = new Request.Builder()
       .url(url)
       .method("GET", null)
-      .header("x-datadog-trace-id", ROOT_SPAN_ID.toString())
-      .header("x-datadog-parent-id", TRACE_ID.toString())
+      .header(PARENT_ID_HEADER, PARENT_ID)
+      .header(TRACE_ID_HEADER, TRACE_ID)
       .build()
 
     when:
@@ -145,6 +133,53 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
         serverSpan(it, "spring.handler", DDSpanTypes.HTTP_SERVER)
       }
     }
+  }
+
+  def "Test baggage headers to be correctly ignored through proxy"() {
+    setup:
+    def hsBaggageHeader = "Baggage-test"
+    def ddBaggageHeader = "ot-baggage-test"
+    def nonTracerHeader ="ot"
+
+    def url = buildProxyURL(["headers"])
+    def request = new Request.Builder()
+      .url(url)
+      .method("GET", null)
+      .header(PARENT_ID_HEADER, PARENT_ID)
+      .header(TRACE_ID_HEADER, TRACE_ID)
+      .header(hsBaggageHeader, "shouldnotappear")
+      .header(ddBaggageHeader, "shouldnotappear")
+      .header(nonTracerHeader, "shouldAppear")
+      .build()
+
+    when:
+    def response = client.newCall(request).execute().body()
+    def receivedHeaders = new ObjectMapper().readValue(response.string(), HashMap)
+
+    then:
+    assert !receivedHeaders.containsKey(hsBaggageHeader)
+    assert !receivedHeaders.containsKey(ddBaggageHeader)
+    assert receivedHeaders.containsKey(nonTracerHeader)
+
+    assert receivedHeaders.containsKey(defaultParentHeader)
+    assert ((String) receivedHeaders.get(defaultParentHeader)) != PARENT_ID
+    assert receivedHeaders.containsKey(defaultTraceHeader)
+
+    where:
+    defaultParentHeader = "x-datadog-parent-id"
+    defaultTraceHeader = "x-datadog-parent-id"
+  }
+
+  HttpUrl buildProxyURL(List<String> path) {
+    def url = new HttpUrl.Builder()
+      .scheme("http")
+      .host("localhost")
+      .port(proxyPort)
+      .addPathSegment(APP_NAME)
+    path.each { seg ->
+      url.addPathSegment(seg)
+    }
+    return url.build()
   }
 
   void serverSpan(TraceAssert trace, String opName, Object type, DDSpan parentSpan = null, boolean error = false) {

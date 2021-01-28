@@ -38,4 +38,5 @@ dependencies {
   testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test'
   testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-web'
   testCompile group: 'org.springframework.cloud', name: 'spring-cloud-starter-netflix-zuul'
+  testCompile group: 'com.fasterxml.jackson.core', name: 'jackson-databind'
 }
