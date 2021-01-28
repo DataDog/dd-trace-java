@@ -40,7 +40,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
     "com.mysql.jdbc.jdbc2.Connection",
     "com.mysql.jdbc.ConnectionImpl",
     "com.mysql.jdbc.JDBC4Connection",
-    "com.mysql.cj.jdbc.JdbcConnection",
+    "com.mysql.cj.jdbc.ConnectionImpl",
     // should cover derby
     "org.apache.derby.impl.jdbc.EmbedConnection",
     "org.apache.hive.jdbc.HiveConnection",
