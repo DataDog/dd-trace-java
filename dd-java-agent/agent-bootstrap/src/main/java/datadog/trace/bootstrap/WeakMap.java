@@ -4,7 +4,6 @@ import datadog.trace.api.Function;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
 public interface WeakMap<K, V> {
@@ -23,23 +22,20 @@ public interface WeakMap<K, V> {
 
   @Slf4j
   class Provider {
-    private static final AtomicReference<Implementation> provider =
-        new AtomicReference<>(Implementation.DEFAULT);
+    private static volatile Implementation PROVIDER = Implementation.DEFAULT;
 
-    public static void registerIfAbsent(final Implementation provider) {
+    public static synchronized void registerIfAbsent(final Implementation provider) {
       if (provider != null && provider != Implementation.DEFAULT) {
-        if (Provider.provider.compareAndSet(Implementation.DEFAULT, provider)) {
-          log.debug("Weak map provider set to {}", provider);
-        }
+        PROVIDER = provider;
       }
     }
 
     public static boolean isProviderRegistered() {
-      return provider.get() != Implementation.DEFAULT;
+      return PROVIDER != Implementation.DEFAULT;
     }
 
     public static <K, V> WeakMap<K, V> newWeakMap() {
-      return provider.get().get();
+      return PROVIDER.get();
     }
   }
 

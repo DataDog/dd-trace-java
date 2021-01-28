@@ -19,7 +19,7 @@ class WeakConcurrentSupplierTest extends DDSpecification {
 
   def "#name accepts null values"() {
     setup:
-    WeakMap.Provider.provider.set(supplier)
+    WeakMap.Provider.PROVIDER.set(supplier)
     def map = WeakMap.Provider.newWeakMap()
 
     when:
@@ -36,7 +36,7 @@ class WeakConcurrentSupplierTest extends DDSpecification {
 
   def "Calling newWeakMap on #name creates independent maps"() {
     setup:
-    WeakMap.Provider.provider.set(supplier)
+    WeakMap.Provider.PROVIDER.set(supplier)
     def key = new Object()
     def map1 = WeakMap.Provider.newWeakMap()
     def map2 = WeakMap.Provider.newWeakMap()
@@ -77,7 +77,7 @@ class WeakConcurrentSupplierTest extends DDSpecification {
 
   def "Unreferenced map gets cleaned up on #name"() {
     setup:
-    WeakMap.Provider.provider.set(supplier)
+    WeakMap.Provider.PROVIDER.set(supplier)
     def map = WeakMap.Provider.newWeakMap()
     def ref = new WeakReference(map)
 
