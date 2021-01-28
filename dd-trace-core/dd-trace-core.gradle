@@ -14,7 +14,6 @@ excludedClassesCoverage += [
   'datadog.trace.common.writer.ddagent.unixdomainsockets.UnixDomainSocketFactory',
   'datadog.trace.core.scopemanager.ScopeInterceptor.DelegatingScope',
   'datadog.trace.core.jfr.DDNoopScopeEventFactory',
-  'datadog.trace.core.PendingTraceBuffer.DelayingPendingTraceBuffer.FlushElement',
   'datadog.trace.core.StatusLogger',
   'datadog.trace.core.scopemanager.ContinuableScopeManager.SingleContinuation'
 ]
