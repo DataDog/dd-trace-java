@@ -49,10 +49,12 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.Argument(0) final String header, @Advice.Return(readOnly = false) boolean include) {
+      if (!include) return;
 
-      if (DD_PACKAGE_PREFIX.startsWith(header)
-          || HAYSTACK_PACKAGE_PREFIX.startsWith(header)
-          || EXCLUDED_HEADERS.contains(header)) include = false;
+      String lowercaseHeader = header.toLowerCase();
+      if (lowercaseHeader.startsWith(HAYSTACK_PACKAGE_PREFIX)
+          || lowercaseHeader.startsWith(DD_PACKAGE_PREFIX)
+          || EXCLUDED_HEADERS.contains(lowercaseHeader)) include = false;
     }
   }
 }
