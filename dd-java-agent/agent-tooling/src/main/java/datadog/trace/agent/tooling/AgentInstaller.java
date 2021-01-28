@@ -33,7 +33,6 @@ import net.bytebuddy.utility.JavaModule;
 @Slf4j
 public class AgentInstaller {
   private static final boolean DEBUG = log.isDebugEnabled();
-  private static final Config CONFIG = Config.get();
 
   private static final List<Runnable> LOG_MANAGER_CALLBACKS = new CopyOnWriteArrayList<>();
   private static final List<Runnable> MBEAN_SERVER_BUILDER_CALLBACKS = new CopyOnWriteArrayList<>();
@@ -56,8 +55,10 @@ public class AgentInstaller {
      */
     if (Config.get().isTraceEnabled() || Config.get().isProfilingEnabled()) {
       installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
-      log.debug("Class instrumentation installed");
-    } else {
+      if (DEBUG) {
+        log.debug("Class instrumentation installed");
+      }
+    } else if (DEBUG) {
       log.debug("Tracing is disabled, not installing instrumentations.");
     }
   }
@@ -103,7 +104,7 @@ public class AgentInstaller {
     ignoredAgentBuilder = ignoredAgentBuilder.or(matchesConfiguredExcludes());
 
     AgentBuilder agentBuilder = ignoredAgentBuilder;
-    if (log.isDebugEnabled()) {
+    if (DEBUG) {
       agentBuilder =
           agentBuilder
               .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
@@ -126,18 +127,24 @@ public class AgentInstaller {
       if (instrumenter instanceof ExcludeFilterProvider) {
         ExcludeFilterProvider provider = (ExcludeFilterProvider) instrumenter;
         ExcludeFilter.add(provider.excludedClasses());
-        log.debug(
-            "Adding filtered classes from instrumentation {}", instrumenter.getClass().getName());
+        if (DEBUG) {
+          log.debug(
+              "Adding filtered classes from instrumentation {}", instrumenter.getClass().getName());
+        }
       }
     }
 
     Set<Instrumenter.TargetSystem> enabledSystems = getEnabledSystems();
     for (final Instrumenter instrumenter : loader) {
       if (!instrumenter.isApplicable(enabledSystems)) {
-        log.debug("Instrumentation {} is not applicable", instrumenter.getClass().getName());
+        if (DEBUG) {
+          log.debug("Instrumentation {} is not applicable", instrumenter.getClass().getName());
+        }
         continue;
       }
-      log.debug("Loading instrumentation {}", instrumenter.getClass().getName());
+      if (DEBUG) {
+        log.debug("Loading instrumentation {}", instrumenter.getClass().getName());
+      }
 
       try {
         agentBuilder = instrumenter.instrument(agentBuilder);
@@ -146,7 +153,9 @@ public class AgentInstaller {
         log.error("Unable to load instrumentation {}", instrumenter.getClass().getName(), e);
       }
     }
-    log.debug("Installed {} instrumenter(s)", numInstrumenters);
+    if (DEBUG) {
+      log.debug("Installed {} instrumenter(s)", numInstrumenters);
+    }
 
     return agentBuilder.installOn(inst);
   }
@@ -169,7 +178,7 @@ public class AgentInstaller {
     try {
       System.setProperty(TypeDefinition.RAW_TYPES_PROPERTY, "true");
       final boolean rawTypes = TypeDescription.AbstractBase.RAW_TYPES;
-      if (!rawTypes) {
+      if (!rawTypes && DEBUG) {
         log.debug("Too late to enable {}", TypeDefinition.RAW_TYPES_PROPERTY);
       }
     } finally {
@@ -221,7 +230,7 @@ public class AgentInstaller {
         final List<Class<?>> batch,
         final Throwable throwable,
         final List<Class<?>> types) {
-      if (log.isDebugEnabled()) {
+      if (DEBUG) {
         log.debug(
             "Exception while retransforming " + batch.size() + " classes: " + batch, throwable);
       }
@@ -245,7 +254,7 @@ public class AgentInstaller {
         final JavaModule module,
         final boolean loaded,
         final Throwable throwable) {
-      if (log.isDebugEnabled()) {
+      if (DEBUG) {
         log.debug(
             "Failed to handle {} for transformation on classloader {}: {}",
             typeName,
@@ -261,7 +270,9 @@ public class AgentInstaller {
         final JavaModule module,
         final boolean loaded,
         final DynamicType dynamicType) {
-      log.debug("Transformed {} -- {}", typeDescription.getName(), classLoader);
+      if (DEBUG) {
+        log.debug("Transformed {} -- {}", typeDescription.getName(), classLoader);
+      }
     }
 
     @Override
