@@ -52,7 +52,6 @@ public final class ReferenceMatcher {
     if (loader == BOOTSTRAP_LOADER) {
       loader = Utils.getBootstrapProxy();
     }
-    final ClassLoader cl = loader;
     return mismatchCache.computeIfAbsent(
         loader,
         // Can't use a function reference because of Java7 support
