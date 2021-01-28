@@ -54,7 +54,9 @@ public class ZuulProxyRequestHelperInstrumentation extends Instrumenter.Tracing 
       String lowercaseHeader = header.toLowerCase();
       if (lowercaseHeader.startsWith(HAYSTACK_PACKAGE_PREFIX)
           || lowercaseHeader.startsWith(DD_PACKAGE_PREFIX)
-          || EXCLUDED_HEADERS.contains(lowercaseHeader)) include = false;
+          || EXCLUDED_HEADERS.contains(lowercaseHeader)) {
+        include = false;
+      }
     }
   }
 }
