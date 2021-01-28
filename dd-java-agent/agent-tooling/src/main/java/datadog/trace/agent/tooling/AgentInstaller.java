@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -33,8 +32,11 @@ import net.bytebuddy.utility.JavaModule;
 
 @Slf4j
 public class AgentInstaller {
-  private static final ConcurrentHashMap<String, List<Runnable>> CLASS_LOAD_CALLBACKS =
-      new ConcurrentHashMap<>();
+  private static final boolean DEBUG = log.isDebugEnabled();
+  private static final Config CONFIG = Config.get();
+
+  private static final List<Runnable> LOG_MANAGER_CALLBACKS = new CopyOnWriteArrayList<>();
+  private static final List<Runnable> MBEAN_SERVER_BUILDER_CALLBACKS = new CopyOnWriteArrayList<>();
   private static volatile Instrumentation INSTRUMENTATION;
 
   public static Instrumentation getInstrumentation() {
@@ -304,8 +306,13 @@ public class AgentInstaller {
    * @param callback runnable to invoke when class name matches
    */
   public static void registerClassLoadCallback(final String className, final Runnable callback) {
-    CLASS_LOAD_CALLBACKS.putIfAbsent(className, new CopyOnWriteArrayList<Runnable>());
-    CLASS_LOAD_CALLBACKS.get(className).add(callback);
+    if ("java.util.logging.LogManager".equals(className)) {
+      LOG_MANAGER_CALLBACKS.add(callback);
+    } else if ("javax.management.MBeanServerBuilder".equals(className)) {
+      MBEAN_SERVER_BUILDER_CALLBACKS.add(callback);
+    } else if (DEBUG) {
+      log.debug("Callback not registered for unexpecte class {}", className);
+    }
   }
 
   private static class ClassLoadListener implements AgentBuilder.Listener {
@@ -345,7 +352,14 @@ public class AgentInstaller {
         final ClassLoader classLoader,
         final JavaModule javaModule,
         final boolean b) {
-      final List<Runnable> callbacks = CLASS_LOAD_CALLBACKS.get(typeName);
+      final List<Runnable> callbacks;
+      if ("java.util.logging.LogManager".equals(typeName)) {
+        callbacks = LOG_MANAGER_CALLBACKS;
+      } else if ("javax.management.MBeanServerBuilder".equals(typeName)) {
+        callbacks = MBEAN_SERVER_BUILDER_CALLBACKS;
+      } else {
+        callbacks = null;
+      }
       if (callbacks != null) {
         for (final Runnable callback : callbacks) {
           callback.run();
