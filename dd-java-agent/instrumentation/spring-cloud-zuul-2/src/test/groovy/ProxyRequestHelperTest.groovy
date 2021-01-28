@@ -157,13 +157,13 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
     def receivedHeaders = new ObjectMapper().readValue(response.string(), HashMap)
 
     then:
-    assert !receivedHeaders.containsKey(hsBaggageHeader)
-    assert !receivedHeaders.containsKey(ddBaggageHeader)
-    assert receivedHeaders.containsKey(nonTracerHeader)
+    !receivedHeaders.containsKey(hsBaggageHeader)
+    !receivedHeaders.containsKey(ddBaggageHeader)
+    receivedHeaders.containsKey(nonTracerHeader)
 
-    assert receivedHeaders.containsKey(defaultParentHeader)
-    assert ((String) receivedHeaders.get(defaultParentHeader)) != PARENT_ID
-    assert receivedHeaders.containsKey(defaultTraceHeader)
+    receivedHeaders.containsKey(defaultParentHeader)
+    ((String) receivedHeaders.get(defaultParentHeader)) != PARENT_ID
+    receivedHeaders.containsKey(defaultTraceHeader)
 
     where:
     defaultParentHeader = "x-datadog-parent-id"
@@ -182,14 +182,13 @@ class ProxyRequestHelperTest extends WithHttpServer<ConfigurableApplicationConte
     return url.build()
   }
 
-  void serverSpan(TraceAssert trace, String opName, Object type, DDSpan parentSpan = null, boolean error = false) {
+  void serverSpan(TraceAssert trace, String opName, Object type, DDSpan parentSpan = null) {
     trace.span {
       if (parentSpan) {
         childOf parentSpan
       }
       operationName opName
       spanType type
-      errored error
     }
   }
 }
