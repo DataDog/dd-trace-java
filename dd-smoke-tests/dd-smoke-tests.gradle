@@ -8,7 +8,7 @@ dependencies {
 }
 
 def smokeTestLimit = gradle.sharedServices.registerIfAbsent("smokeTestLimit", BuildService) {
-  maxParallelUsages = 1
+  maxParallelUsages = 2
 }
 
 subprojects { subProject ->
