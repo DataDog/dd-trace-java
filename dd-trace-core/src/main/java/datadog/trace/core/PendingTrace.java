@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
  * Delayed write is handled by PendingTraceBuffer. <br>
  */
 @Slf4j
-public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
+public class PendingTrace implements AgentTrace {
 
   static class Factory {
     private final CoreTracer tracer;
@@ -153,7 +153,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   /** @return Long.MAX_VALUE if no spans finished. */
-  public long oldestFinishedTime() {
+  long oldestFinishedTime() {
     long oldest = Long.MAX_VALUE;
     for (DDSpan span : finishedSpans) {
       oldest = Math.min(oldest, span.getStartTime() + span.getDurationNano());
@@ -206,7 +206,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   /** Important to note: may be called multiple times. */
-  public void write() {
+  void write() {
     write(false);
   }
 

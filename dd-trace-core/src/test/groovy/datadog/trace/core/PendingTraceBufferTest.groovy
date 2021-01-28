@@ -239,6 +239,47 @@ class PendingTraceBufferTest extends DDSpecification {
     0 * _
   }
 
+  def "flush clears the buffer"() {
+    setup:
+    // Don't start the buffer thread
+    def trace = factory.create(DDId.ONE)
+    def parent = newSpanOf(trace)
+    def child = newSpanOf(parent)
+
+    when:
+    parent.finish() // This should enqueue
+
+    then:
+    trace.size() == 1
+    trace.pendingReferenceCount.get() == 1
+    !trace.rootSpanWritten
+    1 * bufferSpy.enqueue(trace)
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    0 * _
+
+    when:
+    buffer.flush()
+
+    then:
+    trace.size() == 0
+    trace.pendingReferenceCount.get() == 1
+    trace.rootSpanWritten
+    1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
+    1 * tracer.write({ it.size() == 1 })
+    0 * _
+
+    when:
+    child.finish()
+
+    then:
+    trace.size() == 1
+    trace.pendingReferenceCount.get() == 0
+    trace.rootSpanWritten
+    _ * tracer.getPartialFlushMinSpans() >> 10
+    1 * bufferSpy.enqueue(trace)
+    0 * _
+  }
+
   def addContinuation(DDSpan span) {
     def scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION, true)
     continuations << scope.capture()
