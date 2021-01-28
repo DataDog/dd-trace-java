@@ -3,7 +3,6 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.jetty9.JettyDecorator
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.AbstractHandler
@@ -54,7 +53,7 @@ class Jetty9Test extends HttpServerTest<Server> {
 
   @Override
   String component() {
-    return JettyDecorator.DECORATE.component()
+    return "jetty-server"
   }
 
   @Override

@@ -106,7 +106,11 @@ class JettyServlet2Test extends HttpServerTest<Server> {
     trace.span {
       operationName "servlet.response"
       resourceName "HttpServletResponse.$method"
-      childOfPrevious()
+      if (endpoint.throwsException) {
+        childOf(trace.span(0)) // Not a child of the controller because sendError called by framework
+      } else {
+        childOfPrevious()
+      }
       tags {
         "component" "java-web-servlet-response"
         defaultTags()
