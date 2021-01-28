@@ -2,12 +2,12 @@ package datadog.trace.core
 
 import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
-class DDSpanContextTest extends DDSpecification {
+class DDSpanContextTest extends DDCoreSpecification {
 
   def writer = new ListWriter()
-  def tracer = CoreTracer.builder().writer(writer).build()
+  def tracer = tracerBuilder().writer(writer).build()
 
   def cleanup() {
     tracer.close()

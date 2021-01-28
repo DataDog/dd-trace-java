@@ -21,12 +21,17 @@ import reactor.core.publisher.Mono;
  * https://github.com/spring-cloud/spring-cloud-sleuth/blob/master/spring-cloud-sleuth-core/src/main/java/org/springframework/cloud/sleuth/instrument/web/client/TraceWebClientBeanPostProcessor.java
  */
 public class WebClientTracingFilter implements ExchangeFilterFunction {
+  private static final WebClientTracingFilter INSTANCE = new WebClientTracingFilter();
+
+  /**
+   * It's not expected that this method would be called concurrently. This should only be created
+   * during the start-up and configuration phase of an app. If a builder is being modified on
+   * multiple threads it would exhibit ConcurrentModificationException even without the agent
+   */
   public static void addFilter(final List<ExchangeFilterFunction> exchangeFilterFunctions) {
-    // Since the builder where we instrument the build function can be reused, we need
-    // to only add the filter once
-    exchangeFilterFunctions.removeIf(
-        filterFunction -> filterFunction instanceof WebClientTracingFilter);
-    exchangeFilterFunctions.add(0, new WebClientTracingFilter());
+    // Since the builder we instrument the can be reused, we need to only add the filter once
+    exchangeFilterFunctions.removeIf(filterFunction -> filterFunction == INSTANCE);
+    exchangeFilterFunctions.add(0, INSTANCE);
   }
 
   @Override

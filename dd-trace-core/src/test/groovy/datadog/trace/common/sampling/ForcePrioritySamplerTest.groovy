@@ -3,17 +3,16 @@ package datadog.trace.common.sampling
 import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
-import datadog.trace.core.CoreTracer
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
-class ForcePrioritySamplerTest extends DDSpecification {
+class ForcePrioritySamplerTest extends DDCoreSpecification {
 
   def writer = new ListWriter()
 
   def "force priority sampling"() {
     setup:
     def sampler = new ForcePrioritySampler(prioritySampling)
-    def tracer = CoreTracer.builder().writer(writer).sampler(sampler).build()
+    def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
     when:
     def span1 = tracer.buildSpan("test").start()
@@ -35,7 +34,7 @@ class ForcePrioritySamplerTest extends DDSpecification {
   def "sampling priority set"() {
     setup:
     def sampler = new ForcePrioritySampler(prioritySampling)
-    def tracer = CoreTracer.builder().writer(writer).sampler(sampler).build()
+    def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
     when:
     def span = tracer.buildSpan("test").start()
@@ -63,7 +62,7 @@ class ForcePrioritySamplerTest extends DDSpecification {
   def "setting forced tracing via tag"() {
     when:
     def sampler = new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP)
-    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
     def span = tracer.buildSpan("root").start()
     if (tagName) {
       span.setTag(tagName, tagValue)
@@ -85,7 +84,7 @@ class ForcePrioritySamplerTest extends DDSpecification {
   def "not setting forced tracing via tag or setting it wrong value not causing exception"() {
     setup:
     def sampler = new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP)
-    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
     def span = tracer.buildSpan("root").start()
     if (tagName) {
       span.setTag(tagName, tagValue)

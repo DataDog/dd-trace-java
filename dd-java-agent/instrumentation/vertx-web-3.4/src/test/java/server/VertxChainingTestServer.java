@@ -3,6 +3,7 @@ package server;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS;
@@ -37,7 +38,6 @@ public class VertxChainingTestServer extends AbstractVerticle {
                     SUCCESS,
                     () ->
                         ctx.response().setStatusCode(SUCCESS.getStatus()).end(SUCCESS.getBody())));
-
     router
         .route(QUERY_PARAM.getPath())
         .handler(
@@ -48,7 +48,16 @@ public class VertxChainingTestServer extends AbstractVerticle {
                         ctx.response()
                             .setStatusCode(QUERY_PARAM.getStatus())
                             .end(ctx.request().query())));
-
+    router
+        .route("/path/:id/param")
+        .handler(
+            ctx ->
+                controller(
+                    PATH_PARAM,
+                    () ->
+                        ctx.response()
+                            .setStatusCode(PATH_PARAM.getStatus())
+                            .end(ctx.request().getParam("id"))));
     router
         .route(REDIRECT.getPath())
         .handler(
@@ -60,7 +69,6 @@ public class VertxChainingTestServer extends AbstractVerticle {
                             .setStatusCode(REDIRECT.getStatus())
                             .putHeader("location", REDIRECT.getBody())
                             .end()));
-
     router
         .route(ERROR.getPath())
         .handler(
@@ -68,7 +76,6 @@ public class VertxChainingTestServer extends AbstractVerticle {
                 controller(
                     ERROR,
                     () -> ctx.response().setStatusCode(ERROR.getStatus()).end(ERROR.getBody())));
-
     router
         .route(EXCEPTION.getPath())
         .handler(ctx -> controller(EXCEPTION, VertxChainingTestServer::exception));

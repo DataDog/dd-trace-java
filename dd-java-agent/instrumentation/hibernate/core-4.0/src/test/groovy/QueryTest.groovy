@@ -72,6 +72,7 @@ class QueryTest extends AbstractHibernateTest {
             "$Tags.DB_TYPE" "h2"
             "$Tags.DB_INSTANCE" "db1"
             "$Tags.DB_USER" "sa"
+            "$Tags.DB_OPERATION" CharSequence
             defaultTags()
           }
         }
@@ -113,6 +114,7 @@ class QueryTest extends AbstractHibernateTest {
               "$Tags.DB_TYPE" "h2"
               "$Tags.DB_INSTANCE" "db1"
               "$Tags.DB_USER" "sa"
+              "$Tags.DB_OPERATION" CharSequence
               defaultTags()
             }
           }
@@ -206,6 +208,7 @@ class QueryTest extends AbstractHibernateTest {
             "$Tags.DB_TYPE" "h2"
             "$Tags.DB_INSTANCE" "db1"
             "$Tags.DB_USER" "sa"
+            "$Tags.DB_OPERATION" "select"
             defaultTags()
           }
         }

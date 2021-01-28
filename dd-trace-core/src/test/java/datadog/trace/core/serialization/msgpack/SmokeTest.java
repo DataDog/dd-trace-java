@@ -4,9 +4,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import datadog.trace.core.serialization.ByteBufferConsumer;
-import datadog.trace.core.serialization.Codec;
 import datadog.trace.core.serialization.EncodingCache;
 import datadog.trace.core.serialization.EncodingCachingStrategies;
+import datadog.trace.core.serialization.FlushingBuffer;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.Writable;
 import java.io.IOException;
@@ -58,57 +58,54 @@ public class SmokeTest {
   @Test
   public void testWriteMessage() {
     final Foo message = Foo.create();
-    ByteBuffer buffer = ByteBuffer.allocate(1024);
     MsgPackWriter packer =
         new MsgPackWriter(
-            Codec.INSTANCE,
-            new ByteBufferConsumer() {
-              @Override
-              public void accept(int messageCount, ByteBuffer buffy) {
-                assertEquals(1, messageCount);
-                try {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  int count = unpacker.unpackArrayHeader();
-                  assertEquals(1, count);
-                  assertEquals("id1", unpacker.unpackString());
-                  assertEquals(message.id1, unpacker.unpackLong());
-                  assertEquals("id2", unpacker.unpackString());
-                  assertEquals(message.id2, unpacker.unpackLong());
-                  assertEquals("name", unpacker.unpackString());
-                  assertEquals(message.name, unpacker.unpackString());
-                  assertEquals("values", unpacker.unpackString());
-                  int length = unpacker.unpackArrayHeader();
-                  assertEquals(message.values.length, length);
-                  for (int i : message.values) {
-                    assertEquals(i, unpacker.unpackInt());
-                  }
-                  assertEquals("tags", unpacker.unpackString());
-                  int mapHeader = unpacker.unpackMapHeader();
-                  assertEquals(message.tags.size(), mapHeader);
-                  for (int i = 0; i < mapHeader; ++i) {
-                    String key = unpacker.unpackString();
-                    Object expected = message.tags.get(key);
-                    assertNotNull(expected);
-                    if (expected instanceof Float) {
-                      assertEquals((Float) expected, unpacker.unpackFloat(), 0.0001);
-                    } else if (expected instanceof Double) {
-                      assertEquals((Double) expected, unpacker.unpackDouble(), 0.0001);
-                    } else if (expected instanceof List) {
-                      List<String> l = (List<String>) expected;
-                      assertEquals(l.size(), unpacker.unpackArrayHeader());
-                      for (String element : l) {
-                        assertEquals(element, unpacker.unpackString());
+            new FlushingBuffer(
+                1024,
+                new ByteBufferConsumer() {
+                  @Override
+                  public void accept(int messageCount, ByteBuffer buffy) {
+                    assertEquals(1, messageCount);
+                    try {
+                      MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
+                      assertEquals("id1", unpacker.unpackString());
+                      assertEquals(message.id1, unpacker.unpackLong());
+                      assertEquals("id2", unpacker.unpackString());
+                      assertEquals(message.id2, unpacker.unpackLong());
+                      assertEquals("name", unpacker.unpackString());
+                      assertEquals(message.name, unpacker.unpackString());
+                      assertEquals("values", unpacker.unpackString());
+                      int length = unpacker.unpackArrayHeader();
+                      assertEquals(message.values.length, length);
+                      for (int i : message.values) {
+                        assertEquals(i, unpacker.unpackInt());
                       }
-                    } else if (expected instanceof String) {
-                      assertEquals(expected, unpacker.unpackString());
+                      assertEquals("tags", unpacker.unpackString());
+                      int mapHeader = unpacker.unpackMapHeader();
+                      assertEquals(message.tags.size(), mapHeader);
+                      for (int i = 0; i < mapHeader; ++i) {
+                        String key = unpacker.unpackString();
+                        Object expected = message.tags.get(key);
+                        assertNotNull(expected);
+                        if (expected instanceof Float) {
+                          assertEquals((Float) expected, unpacker.unpackFloat(), 0.0001);
+                        } else if (expected instanceof Double) {
+                          assertEquals((Double) expected, unpacker.unpackDouble(), 0.0001);
+                        } else if (expected instanceof List) {
+                          List<String> l = (List<String>) expected;
+                          assertEquals(l.size(), unpacker.unpackArrayHeader());
+                          for (String element : l) {
+                            assertEquals(element, unpacker.unpackString());
+                          }
+                        } else if (expected instanceof String) {
+                          assertEquals(expected, unpacker.unpackString());
+                        }
+                      }
+                    } catch (IOException e) {
+                      Assert.fail(e.getMessage());
                     }
                   }
-                } catch (IOException e) {
-                  Assert.fail(e.getMessage());
-                }
-              }
-            },
-            buffer);
+                }));
     packer.format(
         message,
         new Mapper<Foo>() {

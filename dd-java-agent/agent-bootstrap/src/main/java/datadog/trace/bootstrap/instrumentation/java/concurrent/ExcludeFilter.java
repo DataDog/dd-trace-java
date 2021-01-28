@@ -1,9 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -40,6 +42,8 @@ public class ExcludeFilter {
   }
 
   private static final ExcludeType[] SKIP_TYPE_VALUES = ExcludeType.values();
+  private static final Map<ExcludeType, List<String>> SKIP_TYPE_PREFIXES =
+      new EnumMap<>(ExcludeType.class);
 
   public static boolean exclude(ExcludeType type, Object instance) {
     return SKIP.get(instance.getClass()).contains(type);
@@ -58,6 +62,12 @@ public class ExcludeFilter {
           for (ExcludeType type : SKIP_TYPE_VALUES) {
             if (exclude(type, name)) {
               skipTypes.add(type);
+            } else {
+              for (String prefix : SKIP_TYPE_PREFIXES.get(type)) {
+                if (name.startsWith(prefix)) {
+                  skipTypes.add(type);
+                }
+              }
             }
           }
           return skipTypes;
@@ -71,6 +81,11 @@ public class ExcludeFilter {
     for (ExcludeType type : ExcludeType.values()) {
       excludedClassNames.put(type, new HashSet<String>());
     }
+    for (ExcludeType type : SKIP_TYPE_VALUES) {
+      SKIP_TYPE_PREFIXES.put(type, new ArrayList<String>());
+    }
+    // TODO generic prefix registration
+    SKIP_TYPE_PREFIXES.get(ExcludeType.RUNNABLE).add("slick.");
   }
 
   /**

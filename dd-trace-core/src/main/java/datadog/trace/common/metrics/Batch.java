@@ -15,7 +15,8 @@ import java.util.concurrent.atomic.AtomicLongArray;
 public final class Batch {
 
   private static final int MAX_BATCH_SIZE = 64;
-  public static final Batch NULL = new Batch((AtomicLongArray) null);
+  static final Batch NULL = new Batch((AtomicLongArray) null);
+  static final Batch REPORT = new Batch((AtomicLongArray) null);
 
   /**
    * This counter has two states 1 - negative - the batch has been used, must not add values 2 -

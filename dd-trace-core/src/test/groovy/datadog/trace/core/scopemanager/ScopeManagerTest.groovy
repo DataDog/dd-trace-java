@@ -13,7 +13,7 @@ import datadog.trace.context.ScopeListener
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Shared
 
 import java.lang.ref.WeakReference
@@ -25,7 +25,7 @@ import static datadog.trace.core.scopemanager.EventCountingListener.EVENT.ACTIVA
 import static datadog.trace.core.scopemanager.EventCountingListener.EVENT.CLOSE
 import static datadog.trace.test.util.GCUtils.awaitGC
 
-class ScopeManagerTest extends DDSpecification {
+class ScopeManagerTest extends DDCoreSpecification {
   private static final long TIMEOUT_MS = 10_000
 
   ListWriter writer
@@ -37,7 +37,7 @@ class ScopeManagerTest extends DDSpecification {
   def setup() {
     writer = new ListWriter()
     statsDClient = Mock()
-    tracer = CoreTracer.builder().writer(writer).statsDClient(statsDClient).build()
+    tracer = tracerBuilder().writer(writer).statsDClient(statsDClient).build()
     scopeManager = tracer.scopeManager
     eventCountingListener = new EventCountingListener()
     scopeManager.addScopeListener(eventCountingListener)

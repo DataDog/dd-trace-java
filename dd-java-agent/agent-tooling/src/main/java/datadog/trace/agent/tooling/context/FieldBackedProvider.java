@@ -37,7 +37,10 @@ import net.bytebuddy.matcher.ElementMatcher;
  * is rewritten to:<br>
  * <em>FieldBackedProvider$ContextStore$Runnable$RunnableState12345.getContextStore(runnableRunnable.class,
  * RunnableState.class)</em>
+ *
+ * @deprecated not used in the new field-injection strategy
  */
+@Deprecated
 @Slf4j
 public final class FieldBackedProvider implements InstrumentationContextProvider {
 

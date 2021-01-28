@@ -36,6 +36,35 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     client = null
   }
 
+  MongoCollection<Document> setupCollection(String dbName, String collectionName) {
+    MongoCollection<Document> collection = runUnderTrace("setup") {
+      MongoDatabase db = client.getDatabase(dbName)
+      def latch = new CountDownLatch(1)
+      // This creates a trace that isn't linked to the parent... using NIO internally that we don't handle.
+      db.createCollection(collectionName).subscribe(toSubscriber { latch.countDown() })
+      latch.await()
+      return db.getCollection(collectionName)
+    }
+    TEST_WRITER.waitForTraces(2)
+    TEST_WRITER.clear()
+    return collection
+  }
+
+  void insertDocument(MongoCollection<Document> collection, Document document, Subscriber<?> subscriber) {
+    def publisher = collection.insertOne(document)
+    if (null != subscriber) {
+      publisher.subscribe(subscriber)
+    } else {
+      def latch = new CountDownLatch(1)
+      publisher.subscribe(toSubscriber {
+        latch.countDown()
+      })
+      latch.await()
+      TEST_WRITER.waitForTraces(1)
+      TEST_WRITER.clear()
+    }
+  }
+
   def "test create collection"() {
     setup:
     MongoDatabase db = client.getDatabase(dbName)
@@ -109,20 +138,11 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test insert"() {
     setup:
-    MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(dbName)
-      def latch1 = new CountDownLatch(1)
-      // This creates a trace that isn't linked to the parent... using NIO internally that we don't handle.
-      db.createCollection(collectionName).subscribe(toSubscriber { latch1.countDown() })
-      latch1.await()
-      return db.getCollection(collectionName)
-    }
-    TEST_WRITER.waitForTraces(2)
-    TEST_WRITER.clear()
+    def collection = setupCollection(dbName, collectionName)
 
     when:
     def count = new CompletableFuture()
-    collection.insertOne(new Document("password", "SECRET")).subscribe(toSubscriber {
+    insertDocument(collection, new Document("password", "SECRET"), toSubscriber {
       collection.estimatedDocumentCount().subscribe(toSubscriber { count.complete(it) })
     })
 
@@ -152,19 +172,8 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test update"() {
     setup:
-    MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(dbName)
-      def latch1 = new CountDownLatch(1)
-      db.createCollection(collectionName).subscribe(toSubscriber { latch1.countDown() })
-      latch1.await()
-      def coll = db.getCollection(collectionName)
-      def latch2 = new CountDownLatch(1)
-      coll.insertOne(new Document("password", "OLDPW")).subscribe(toSubscriber { latch2.countDown() })
-      latch2.await()
-      return coll
-    }
-    TEST_WRITER.waitForTraces(1)
-    TEST_WRITER.clear()
+    MongoCollection<Document> collection = setupCollection(dbName, collectionName)
+    insertDocument(collection, new Document("password", "OLDPW"), null)
 
     when:
     def result = new CompletableFuture<UpdateResult>()
@@ -203,19 +212,8 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test delete"() {
     setup:
-    MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(dbName)
-      def latch1 = new CountDownLatch(1)
-      db.createCollection(collectionName).subscribe(toSubscriber { latch1.countDown() })
-      latch1.await()
-      def coll = db.getCollection(collectionName)
-      def latch2 = new CountDownLatch(1)
-      coll.insertOne(new Document("password", "SECRET")).subscribe(toSubscriber { latch2.countDown() })
-      latch2.await()
-      return coll
-    }
-    TEST_WRITER.waitForTraces(1)
-    TEST_WRITER.clear()
+    MongoCollection<Document> collection = setupCollection(dbName, collectionName)
+    insertDocument(collection, new Document("password", "SECRET"), null)
 
     when:
     def result = new CompletableFuture<DeleteResult>()

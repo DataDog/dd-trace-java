@@ -15,9 +15,10 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.FlushingBuffer
 import datadog.trace.core.serialization.Mapper
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Retry
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
@@ -33,14 +34,14 @@ import static datadog.trace.common.writer.DDAgentWriter.BUFFER_SIZE
 import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
 
 @Timeout(10)
-class DDAgentWriterCombinedTest extends DDSpecification {
+class DDAgentWriterCombinedTest extends DDCoreSpecification {
 
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
   def monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
   def phaser = new Phaser()
 
   // Only used to create spans
-  def dummyTracer = CoreTracer.builder().writer(new ListWriter()).build()
+  def dummyTracer = tracerBuilder().writer(new ListWriter()).build()
 
   def apiWithVersion(String version) {
     def api = Mock(DDAgentApi)
@@ -200,7 +201,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     when:
     def mapper = agentVersion.equals("v0.5/traces") ? new TraceMapperV0_5() : new TraceMapperV0_4()
     int traceSize = calculateSize(minimalTrace, mapper)
-    int maxedPayloadTraceCount = ((int) ((mapper.messageBufferSize() - 5) / traceSize))
+    int maxedPayloadTraceCount = ((int) ((mapper.messageBufferSize()) / traceSize))
     (0..maxedPayloadTraceCount).each {
       writer.write(minimalTrace)
     }
@@ -720,14 +721,13 @@ class DDAgentWriterCombinedTest extends DDSpecification {
   }
 
   static int calculateSize(List<DDSpan> trace, Mapper<List<DDSpan>> mapper) {
-    ByteBuffer buffer = ByteBuffer.allocate(1024)
     AtomicInteger size = new AtomicInteger()
-    def packer = new MsgPackWriter(new ByteBufferConsumer() {
+    def packer = new MsgPackWriter(new FlushingBuffer(1024, new ByteBufferConsumer() {
       @Override
-      void accept(int messageCount, ByteBuffer buffy) {
-        size.set(buffy.limit() - buffy.position() - 1)
+      void accept(int messageCount, ByteBuffer buffer) {
+        size.set(buffer.limit() - buffer.position())
       }
-    }, buffer)
+    }))
     packer.format(trace, mapper)
     packer.flush()
     return size.get()

@@ -2,12 +2,11 @@ package datadog.trace.core.processor
 
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.processor.rule.URLAsResourceNameRule
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Subject
 
-class URLAsResourceNameRuleTest extends DDSpecification {
+class URLAsResourceNameRuleTest extends DDCoreSpecification {
 
   @Subject
   def decorator = new URLAsResourceNameRule()
@@ -110,7 +109,7 @@ class URLAsResourceNameRuleTest extends DDSpecification {
 
   def "sets the resource name"() {
     setup:
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     when:
     def span = tracer.buildSpan("fakeOperation").start()

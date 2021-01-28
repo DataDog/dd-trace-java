@@ -1,8 +1,11 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.common.metrics.Batch.REPORT;
+import static datadog.trace.common.metrics.ConflatingMetricsAggregator.POISON_PILL;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.core.util.LRUCache;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
@@ -21,9 +24,7 @@ final class Aggregator implements Runnable {
   // buffered by OkHttpSink)
   private final long reportingIntervalNanos;
 
-  private long wallClockTime = -1;
-
-  private long lastReportTime = -1;
+  private boolean dirty;
 
   Aggregator(
       MetricWriter writer,
@@ -50,11 +51,13 @@ final class Aggregator implements Runnable {
     Thread currentThread = Thread.currentThread();
     while (!currentThread.isInterrupted()) {
       try {
-        Batch batch = inbox.poll(100, MILLISECONDS);
-        if (batch == ConflatingMetricsAggregator.POISON_PILL) {
+        Batch batch = inbox.take();
+        if (batch == POISON_PILL) {
           report(wallClockTime());
-          return;
-        } else if (null != batch) {
+          break;
+        } else if (batch == REPORT) {
+          report(wallClockTime());
+        } else {
           MetricKey key = batch.getKey();
           // important that it is still *this* batch pending, must not remove otherwise
           pending.remove(key, batch);
@@ -64,9 +67,9 @@ final class Aggregator implements Runnable {
             aggregates.put(key, aggregate);
           }
           batch.contributeTo(aggregate);
+          dirty = true;
           // return the batch for reuse
           batchPool.offer(batch);
-          reportIfNecessary();
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -74,29 +77,32 @@ final class Aggregator implements Runnable {
     }
   }
 
-  private void reportIfNecessary() {
-    if (lastReportTime == -1) {
-      lastReportTime = System.nanoTime();
-      wallClockTime = wallClockTime();
-    } else if (!aggregates.isEmpty()) {
-      long now = System.nanoTime();
-      long delta = now - lastReportTime;
-      if (delta > reportingIntervalNanos) {
-        report(wallClockTime + delta);
-        lastReportTime = now;
-        wallClockTime = wallClockTime();
+  private void report(long when) {
+    if (dirty) {
+      expungeStaleAggregates();
+      if (!aggregates.isEmpty()) {
+        writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
+        for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
+          if (aggregate.getValue().getHitCount() > 0) {
+            writer.add(aggregate.getKey(), aggregate.getValue());
+            aggregate.getValue().clear();
+          }
+        }
+        // note that this may do IO and block
+        writer.finishBucket();
       }
+      dirty = false;
     }
   }
 
-  private void report(long when) {
-    writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
-    for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
-      writer.add(aggregate.getKey(), aggregate.getValue());
-      aggregate.getValue().clear();
+  private void expungeStaleAggregates() {
+    Iterator<Map.Entry<MetricKey, AggregateMetric>> it = aggregates.entrySet().iterator();
+    while (it.hasNext()) {
+      AggregateMetric metric = it.next().getValue();
+      if (metric.getHitCount() == 0) {
+        it.remove();
+      }
     }
-    // note that this may do IO and block
-    writer.finishBucket();
   }
 
   private long wallClockTime() {

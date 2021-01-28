@@ -13,18 +13,20 @@ import spock.lang.Subject
 import spock.lang.Timeout
 
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.core.PendingTraceBuffer.BUFFER_SIZE
 
 @Timeout(5)
 class PendingTraceBufferTest extends DDSpecification {
   @Subject
-  def buffer = new PendingTraceBuffer()
+  def buffer = PendingTraceBuffer.delaying()
   def bufferSpy = Spy(buffer)
 
   def tracer = Mock(CoreTracer)
   def scopeManager = new ContinuableScopeManager(10, new DDNoopScopeEventFactory(), new NoOpStatsDClient(), true, true)
-  def factory = new PendingTrace.Factory(tracer, bufferSpy)
+  def factory = new PendingTrace.Factory(tracer, bufferSpy, false)
   List<TraceScope.Continuation> continuations = []
 
   def cleanup() {
@@ -241,43 +243,39 @@ class PendingTraceBufferTest extends DDSpecification {
 
   def "flush clears the buffer"() {
     setup:
-    // Don't start the buffer thread
-    def trace = factory.create(DDId.ONE)
-    def parent = newSpanOf(trace)
-    def child = newSpanOf(parent)
+    buffer.start()
+    def counter = new AtomicInteger(0)
+    // Create a fake element that newer gets written
+    def element = new PendingTraceBuffer.Element() {
+      @Override
+      long oldestFinishedTime() {
+        return TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis())
+      }
+
+      @Override
+      boolean lastReferencedNanosAgo(long nanos) {
+        return false
+      }
+
+      @Override
+      void write() {
+        counter.incrementAndGet()
+      }
+    }
 
     when:
-    parent.finish() // This should enqueue
+    buffer.enqueue(element)
+    buffer.enqueue(element)
+    buffer.enqueue(element)
 
     then:
-    trace.size() == 1
-    trace.pendingReferenceCount.get() == 1
-    !trace.rootSpanWritten
-    1 * bufferSpy.enqueue(trace)
-    _ * tracer.getPartialFlushMinSpans() >> 10
-    0 * _
+    counter.get() == 0
 
     when:
     buffer.flush()
 
     then:
-    trace.size() == 0
-    trace.pendingReferenceCount.get() == 1
-    trace.rootSpanWritten
-    1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
-    1 * tracer.write({ it.size() == 1 })
-    0 * _
-
-    when:
-    child.finish()
-
-    then:
-    trace.size() == 1
-    trace.pendingReferenceCount.get() == 0
-    trace.rootSpanWritten
-    _ * tracer.getPartialFlushMinSpans() >> 10
-    1 * bufferSpy.enqueue(trace)
-    0 * _
+    counter.get() == 3
   }
 
   def addContinuation(DDSpan span) {

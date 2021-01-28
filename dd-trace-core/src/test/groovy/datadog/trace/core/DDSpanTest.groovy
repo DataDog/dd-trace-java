@@ -8,15 +8,15 @@ import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.propagation.TagContext
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
 import java.util.concurrent.TimeUnit
 
-class DDSpanTest extends DDSpecification {
+class DDSpanTest extends DDCoreSpecification {
 
   def writer = new ListWriter()
   def sampler = new RateByServiceSampler()
-  def tracer = CoreTracer.builder().writer(writer).sampler(sampler).build()
+  def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
   def cleanup() {
     tracer?.close()

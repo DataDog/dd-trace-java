@@ -418,6 +418,7 @@ class DatanucleusTest extends AgentTestRunner {
         "$Tags.DB_TYPE" "h2"
         "$Tags.DB_INSTANCE" "nucleus"
         "$Tags.DB_USER" "sa"
+        "$Tags.DB_OPERATION" queryStart.split(" ")[0]
         defaultTags()
       }
     }
