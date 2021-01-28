@@ -16,6 +16,15 @@ import javax.servlet.http.HttpServletResponse;
 public class TagSettingAsyncListener implements AsyncListener {
   private final AtomicBoolean activated;
   private final AgentSpan span;
+
+  /**
+   * When a servlet is dispatched to another servlet (async, forward, or include), the original
+   * servlet/server span is replaced with the dispatch span in the request attributes. This is done
+   * to prevent the dispatched servlet from modifying the original span (for example with the spring
+   * web instrumentation which renames based on the route). Here we want different behavior when it
+   * is a dispatch span because we don't report things like the http status on the dispatch span
+   * since in case of exception handling, the status reported could be wrong.
+   */
   private final boolean isDispatch;
 
   public TagSettingAsyncListener(
