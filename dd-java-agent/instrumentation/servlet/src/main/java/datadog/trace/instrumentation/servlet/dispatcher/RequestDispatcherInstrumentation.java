@@ -149,7 +149,6 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
         request.setAttribute(DD_SPAN_ATTRIBUTE, requestSpan);
       }
 
-      DECORATE.onResponse(scope.span(), response, throwable);
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();

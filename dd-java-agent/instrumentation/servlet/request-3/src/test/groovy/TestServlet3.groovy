@@ -1,12 +1,14 @@
 import datadog.trace.agent.test.base.HttpServerTest
 import groovy.servlet.AbstractHttpServlet
 
+import javax.servlet.AsyncEvent
 import javax.servlet.AsyncListener
 import javax.servlet.annotation.WebServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 import java.util.concurrent.Phaser
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -51,6 +53,8 @@ class TestServlet3 {
             break
           case EXCEPTION:
             throw new Exception(endpoint.body)
+          case CUSTOM_EXCEPTION:
+            throw new InputMismatchException(endpoint.body)
         }
       }
     }
@@ -63,13 +67,23 @@ class TestServlet3 {
       HttpServerTest.ServerEndpoint endpoint = getEndpoint(req)
       def phaser = new Phaser(2)
       def context = req.startAsync()
-      if (endpoint.name().contains("TIMEOUT")) {
-        context.setTimeout(SERVLET_TIMEOUT)
-        if (resp.class.name.startsWith("org.eclipse.jetty")) {
-          // this line makes Jetty behave like Tomcat and immediately return 500 to the client
-          // otherwise it will continue to repeat the same request until the client times out
-          context.addListener({ resp.status = 500; it.asyncContext.complete() } as AsyncListener)
-        }
+      context.setTimeout(SERVLET_TIMEOUT)
+      if (resp.class.name.startsWith("org.eclipse.jetty")) {
+        // this line makes Jetty behave like Tomcat and immediately return 500 to the client
+        // otherwise it will continue to repeat the same request until the client times out
+        context.addListener(new AsyncListener() {
+          void onComplete(AsyncEvent event) throws IOException {}
+
+          void onError(AsyncEvent event) throws IOException {}
+
+          void onStartAsync(AsyncEvent event) throws IOException {}
+
+          @Override
+          void onTimeout(AsyncEvent event) throws IOException {
+            event.suppliedResponse.status = 500
+            event.asyncContext.complete()
+          }
+        })
       }
       context.start {
         try {
@@ -92,16 +106,13 @@ class TestServlet3 {
                 context.complete()
                 break
               case ERROR:
-                resp.status = endpoint.status
-                resp.writer.print(endpoint.body)
-//                resp.sendError(endpoint.status, endpoint.body)
+                resp.sendError(endpoint.status, endpoint.body)
                 context.complete()
                 break
               case EXCEPTION:
-                resp.status = endpoint.status
-                resp.writer.print(endpoint.body)
-                context.complete()
                 throw new Exception(endpoint.body)
+              case CUSTOM_EXCEPTION:
+                throw new InputMismatchException(endpoint.body)
               case TIMEOUT:
               case TIMEOUT_ERROR:
                 sleep context.getTimeout() + 10
@@ -143,6 +154,8 @@ class TestServlet3 {
               break
             case EXCEPTION:
               throw new Exception(endpoint.body)
+            case CUSTOM_EXCEPTION:
+              throw new InputMismatchException(endpoint.body)
           }
         }
       } finally {
