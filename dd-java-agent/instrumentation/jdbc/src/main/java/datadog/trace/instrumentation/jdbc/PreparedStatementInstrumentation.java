@@ -43,13 +43,13 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
     "com.microsoft.sqlserver.jdbc.SQLServerPreparedStatement",
     "com.microsoft.sqlserver.jdbc.SQLServerCallableStatement",
     // should cover mysql
-    "com.mysql.cj.JdbcPreparedStatement",
     "com.mysql.jdbc.PreparedStatement",
     "com.mysql.jdbc.jdbc1.PreparedStatement",
     "com.mysql.jdbc.jdbc2.PreparedStatement",
     "com.mysql.jdbc.ServerPreparedStatement",
     "com.mysql.cj.jdbc.PreparedStatement",
     "com.mysql.cj.jdbc.ServerPreparedStatement",
+    "com.mysql.cj.jdbc.ClientPreparedStatement",
     "com.mysql.cj.JdbcCallableStatement",
     "com.mysql.jdbc.CallableStatement",
     "com.mysql.jdbc.jdbc1.CallableStatement",
@@ -66,6 +66,7 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
     // hive
     "org.apache.hive.jdbc.HivePreparedStatement",
     "org.apache.hive.jdbc.HiveCallableStatement",
+    "org.apache.phoenix.jdbc.PhoenixPreparedStatement",
     // covers h2
     "org.h2.jdbc.JdbcPreparedStatement",
     "org.h2.jdbc.JdbcCallableStatement",
