@@ -25,6 +25,7 @@ import net.bytebuddy.pool.TypePool;
 /** Matches a set of references against a classloader. */
 @Slf4j
 public final class ReferenceMatcher {
+  private static final Source[] EMPTY_SOURCES = new Source[0];
   private final WeakCache<ClassLoader, Boolean> mismatchCache = AgentTooling.newWeakCache();
   private final Reference[] references;
   private final Set<String> helperClassNames;
@@ -52,7 +53,6 @@ public final class ReferenceMatcher {
     if (loader == BOOTSTRAP_LOADER) {
       loader = Utils.getBootstrapProxy();
     }
-    final ClassLoader cl = loader;
     return mismatchCache.computeIfAbsent(
         loader,
         // Can't use a function reference because of Java7 support
@@ -117,7 +117,7 @@ public final class ReferenceMatcher {
       if (!resolution.isResolved()) {
         mismatches.add(
             new Mismatch.MissingClass(
-                reference.getSources().toArray(new Source[0]), reference.getClassName()));
+                reference.getSources().toArray(EMPTY_SOURCES), reference.getClassName()));
         return false;
       }
       return checkMatch(reference, resolution.resolve(), mismatches);
@@ -127,7 +127,7 @@ public final class ReferenceMatcher {
         // TODO: handle missing type resolutions without catching bytebuddy's exceptions
         final String className = e.getMessage().replace("Cannot resolve type description for ", "");
         mismatches.add(
-            new Mismatch.MissingClass(reference.getSources().toArray(new Source[0]), className));
+            new Mismatch.MissingClass(reference.getSources().toArray(EMPTY_SOURCES), className));
         return false;
       } else {
         // Shouldn't happen. Fail the reference check and add a mismatch for debug logging.
@@ -147,7 +147,7 @@ public final class ReferenceMatcher {
         final String desc = reference.getClassName();
         mismatches.add(
             new Mismatch.MissingFlag(
-                reference.getSources().toArray(new Source[0]),
+                reference.getSources().toArray(EMPTY_SOURCES),
                 desc,
                 flag,
                 typeOnClasspath.getModifiers()));
@@ -183,7 +183,7 @@ public final class ReferenceMatcher {
     for (Reference.Field missingField : indexedFields.values()) {
       mismatches.add(
           new Reference.Mismatch.MissingField(
-              missingField.getSources().toArray(new Reference.Source[0]),
+              missingField.getSources().toArray(EMPTY_SOURCES),
               reference.getClassName(),
               missingField.getName(),
               missingField.getType().getInternalName()));
@@ -191,7 +191,7 @@ public final class ReferenceMatcher {
     for (Reference.Method missingMethod : indexedMethods.values()) {
       mismatches.add(
           new Reference.Mismatch.MissingMethod(
-              missingMethod.getSources().toArray(new Reference.Source[0]),
+              missingMethod.getSources().toArray(EMPTY_SOURCES),
               missingMethod.getName(),
               missingMethod.getDescriptor()));
     }
@@ -254,7 +254,7 @@ public final class ReferenceMatcher {
                       + found.getType().getInternalName();
               flagMismatches.add(
                   new Mismatch.MissingFlag(
-                      found.getSources().toArray(new Source[0]),
+                      found.getSources().toArray(EMPTY_SOURCES),
                       desc,
                       flag,
                       fieldType.getModifiers()));
@@ -309,7 +309,7 @@ public final class ReferenceMatcher {
                   reference.getClassName() + "#" + found.getName() + found.getDescriptor();
               flagMismatches.add(
                   new Mismatch.MissingFlag(
-                      found.getSources().toArray(new Source[0]),
+                      found.getSources().toArray(EMPTY_SOURCES),
                       desc,
                       flag,
                       methodDescription.getModifiers()));

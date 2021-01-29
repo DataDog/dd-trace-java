@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -33,8 +32,10 @@ import net.bytebuddy.utility.JavaModule;
 
 @Slf4j
 public class AgentInstaller {
-  private static final ConcurrentHashMap<String, List<Runnable>> CLASS_LOAD_CALLBACKS =
-      new ConcurrentHashMap<>();
+  private static final boolean DEBUG = log.isDebugEnabled();
+
+  private static final List<Runnable> LOG_MANAGER_CALLBACKS = new CopyOnWriteArrayList<>();
+  private static final List<Runnable> MBEAN_SERVER_BUILDER_CALLBACKS = new CopyOnWriteArrayList<>();
   private static volatile Instrumentation INSTRUMENTATION;
 
   public static Instrumentation getInstrumentation() {
@@ -54,8 +55,10 @@ public class AgentInstaller {
      */
     if (Config.get().isTraceEnabled() || Config.get().isProfilingEnabled()) {
       installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
-      log.debug("Class instrumentation installed");
-    } else {
+      if (DEBUG) {
+        log.debug("Class instrumentation installed");
+      }
+    } else if (DEBUG) {
       log.debug("Tracing is disabled, not installing instrumentations.");
     }
   }
@@ -101,7 +104,7 @@ public class AgentInstaller {
     ignoredAgentBuilder = ignoredAgentBuilder.or(matchesConfiguredExcludes());
 
     AgentBuilder agentBuilder = ignoredAgentBuilder;
-    if (log.isDebugEnabled()) {
+    if (DEBUG) {
       agentBuilder =
           agentBuilder
               .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
@@ -124,18 +127,24 @@ public class AgentInstaller {
       if (instrumenter instanceof ExcludeFilterProvider) {
         ExcludeFilterProvider provider = (ExcludeFilterProvider) instrumenter;
         ExcludeFilter.add(provider.excludedClasses());
-        log.debug(
-            "Adding filtered classes from instrumentation {}", instrumenter.getClass().getName());
+        if (DEBUG) {
+          log.debug(
+              "Adding filtered classes from instrumentation {}", instrumenter.getClass().getName());
+        }
       }
     }
 
     Set<Instrumenter.TargetSystem> enabledSystems = getEnabledSystems();
     for (final Instrumenter instrumenter : loader) {
       if (!instrumenter.isApplicable(enabledSystems)) {
-        log.debug("Instrumentation {} is not applicable", instrumenter.getClass().getName());
+        if (DEBUG) {
+          log.debug("Instrumentation {} is not applicable", instrumenter.getClass().getName());
+        }
         continue;
       }
-      log.debug("Loading instrumentation {}", instrumenter.getClass().getName());
+      if (DEBUG) {
+        log.debug("Loading instrumentation {}", instrumenter.getClass().getName());
+      }
 
       try {
         agentBuilder = instrumenter.instrument(agentBuilder);
@@ -144,7 +153,9 @@ public class AgentInstaller {
         log.error("Unable to load instrumentation {}", instrumenter.getClass().getName(), e);
       }
     }
-    log.debug("Installed {} instrumenter(s)", numInstrumenters);
+    if (DEBUG) {
+      log.debug("Installed {} instrumenter(s)", numInstrumenters);
+    }
 
     return agentBuilder.installOn(inst);
   }
@@ -167,7 +178,7 @@ public class AgentInstaller {
     try {
       System.setProperty(TypeDefinition.RAW_TYPES_PROPERTY, "true");
       final boolean rawTypes = TypeDescription.AbstractBase.RAW_TYPES;
-      if (!rawTypes) {
+      if (!rawTypes && DEBUG) {
         log.debug("Too late to enable {}", TypeDefinition.RAW_TYPES_PROPERTY);
       }
     } finally {
@@ -182,25 +193,27 @@ public class AgentInstaller {
   private static ElementMatcher.Junction<Object> matchesConfiguredExcludes() {
     final List<String> excludedClasses = Config.get().getExcludedClasses();
     ElementMatcher.Junction matcher = none();
-    List<String> literals = new ArrayList<>();
-    List<String> prefixes = new ArrayList<>();
-    // first accumulate by operation because a lot of work can be aggregated
-    for (String excludedClass : excludedClasses) {
-      excludedClass = excludedClass.trim();
-      if (excludedClass.endsWith("*")) {
-        // remove the trailing *
-        prefixes.add(excludedClass.substring(0, excludedClass.length() - 1));
-      } else {
-        literals.add(excludedClass);
+    if (!excludedClasses.isEmpty()) {
+      List<String> literals = new ArrayList<>();
+      List<String> prefixes = new ArrayList<>();
+      // first accumulate by operation because a lot of work can be aggregated
+      for (String excludedClass : excludedClasses) {
+        excludedClass = excludedClass.trim();
+        if (excludedClass.endsWith("*")) {
+          // remove the trailing *
+          prefixes.add(excludedClass.substring(0, excludedClass.length() - 1));
+        } else {
+          literals.add(excludedClass);
+        }
       }
-    }
-    if (!literals.isEmpty()) {
-      matcher = matcher.or(namedOneOf(literals));
-    }
-    for (String prefix : prefixes) {
-      // TODO - with a prefix tree this matching logic can be handled by a
-      // single longest common prefix query
-      matcher = matcher.or(nameStartsWith(prefix));
+      if (!literals.isEmpty()) {
+        matcher = matcher.or(namedOneOf(literals));
+      }
+      for (String prefix : prefixes) {
+        // TODO - with a prefix tree this matching logic can be handled by a
+        // single longest common prefix query
+        matcher = matcher.or(nameStartsWith(prefix));
+      }
     }
     return matcher;
   }
@@ -217,7 +230,7 @@ public class AgentInstaller {
         final List<Class<?>> batch,
         final Throwable throwable,
         final List<Class<?>> types) {
-      if (log.isDebugEnabled()) {
+      if (DEBUG) {
         log.debug(
             "Exception while retransforming " + batch.size() + " classes: " + batch, throwable);
       }
@@ -241,7 +254,7 @@ public class AgentInstaller {
         final JavaModule module,
         final boolean loaded,
         final Throwable throwable) {
-      if (log.isDebugEnabled()) {
+      if (DEBUG) {
         log.debug(
             "Failed to handle {} for transformation on classloader {}: {}",
             typeName,
@@ -257,7 +270,9 @@ public class AgentInstaller {
         final JavaModule module,
         final boolean loaded,
         final DynamicType dynamicType) {
-      log.debug("Transformed {} -- {}", typeDescription.getName(), classLoader);
+      if (DEBUG) {
+        log.debug("Transformed {} -- {}", typeDescription.getName(), classLoader);
+      }
     }
 
     @Override
@@ -302,8 +317,13 @@ public class AgentInstaller {
    * @param callback runnable to invoke when class name matches
    */
   public static void registerClassLoadCallback(final String className, final Runnable callback) {
-    CLASS_LOAD_CALLBACKS.putIfAbsent(className, new CopyOnWriteArrayList<Runnable>());
-    CLASS_LOAD_CALLBACKS.get(className).add(callback);
+    if ("java.util.logging.LogManager".equals(className)) {
+      LOG_MANAGER_CALLBACKS.add(callback);
+    } else if ("javax.management.MBeanServerBuilder".equals(className)) {
+      MBEAN_SERVER_BUILDER_CALLBACKS.add(callback);
+    } else if (DEBUG) {
+      log.debug("Callback not registered for unexpecte class {}", className);
+    }
   }
 
   private static class ClassLoadListener implements AgentBuilder.Listener {
@@ -343,7 +363,14 @@ public class AgentInstaller {
         final ClassLoader classLoader,
         final JavaModule javaModule,
         final boolean b) {
-      final List<Runnable> callbacks = CLASS_LOAD_CALLBACKS.get(typeName);
+      final List<Runnable> callbacks;
+      if ("java.util.logging.LogManager".equals(typeName)) {
+        callbacks = LOG_MANAGER_CALLBACKS;
+      } else if ("javax.management.MBeanServerBuilder".equals(typeName)) {
+        callbacks = MBEAN_SERVER_BUILDER_CALLBACKS;
+      } else {
+        callbacks = null;
+      }
       if (callbacks != null) {
         for (final Runnable callback : callbacks) {
           callback.run();
