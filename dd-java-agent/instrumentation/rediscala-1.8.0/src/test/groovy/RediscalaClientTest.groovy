@@ -86,6 +86,7 @@ class RediscalaClientTest extends AgentTestRunner {
           operationName "redis.query"
           resourceName "Set"
           spanType DDSpanTypes.REDIS
+          topLevel true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

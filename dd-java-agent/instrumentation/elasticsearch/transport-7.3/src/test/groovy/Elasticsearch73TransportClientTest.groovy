@@ -91,6 +91,7 @@ class Elasticsearch73TransportClientTest extends AgentTestRunner {
           resourceName "ClusterHealthAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
+          topLevel true
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -123,6 +124,7 @@ class Elasticsearch73TransportClientTest extends AgentTestRunner {
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
           errored true
+          topLevel true
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -188,6 +190,7 @@ class Elasticsearch73TransportClientTest extends AgentTestRunner {
           resourceName "CreateIndexAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
+          topLevel true
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -208,6 +211,7 @@ class Elasticsearch73TransportClientTest extends AgentTestRunner {
           resourceName "GetAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
+          topLevel true
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -231,6 +235,7 @@ class Elasticsearch73TransportClientTest extends AgentTestRunner {
           resourceName "IndexAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
+          topLevel true
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -257,6 +262,7 @@ class Elasticsearch73TransportClientTest extends AgentTestRunner {
           resourceName "PutMappingAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
+          topLevel true
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -273,6 +279,7 @@ class Elasticsearch73TransportClientTest extends AgentTestRunner {
           resourceName "GetAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
+          topLevel true
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
