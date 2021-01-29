@@ -143,6 +143,16 @@ class SpanAssert {
     checked.errored = true
   }
 
+  def topLevel(boolean topLevel) {
+    assert span.isTopLevel() == topLevel
+    checked.topLevel = true
+  }
+
+  def measured(boolean measured) {
+    assert span.measured == measured
+    checked.measured = true
+  }
+
   void assertDefaults() {
     if (!checked.spanType) {
       spanType(null)

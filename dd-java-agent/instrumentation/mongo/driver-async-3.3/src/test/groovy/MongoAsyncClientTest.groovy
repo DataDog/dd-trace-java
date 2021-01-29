@@ -283,6 +283,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
       } else {
         childOf((DDSpan) parentSpan)
       }
+      topLevel true
       tags {
         "$Tags.COMPONENT" "java-mongo"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

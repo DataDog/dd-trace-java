@@ -185,6 +185,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
+          topLevel true
           tags {
             "$Tags.COMPONENT" "java-jdbc-statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -245,6 +246,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
+          topLevel true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -297,6 +299,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
+          topLevel true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -349,6 +352,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
+          topLevel true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -456,6 +460,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
+          topLevel true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -523,6 +528,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
+          topLevel true
           tags {
             if (prepareStatement) {
               "$Tags.COMPONENT" "java-jdbc-prepared_statement"
@@ -640,6 +646,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
+          topLevel true
           tags {
             "$Tags.COMPONENT" "java-jdbc-statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -704,6 +711,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
           resourceName query
           spanType DDSpanTypes.SQL
           errored false
+          topLevel true
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

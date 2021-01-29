@@ -64,6 +64,7 @@ class Jedis30ClientTest extends AgentTestRunner {
           operationName "redis.query"
           resourceName "SET"
           spanType DDSpanTypes.REDIS
+          topLevel true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -104,6 +105,7 @@ class Jedis30ClientTest extends AgentTestRunner {
           operationName "redis.query"
           resourceName "GET"
           spanType DDSpanTypes.REDIS
+          topLevel true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -130,6 +132,7 @@ class Jedis30ClientTest extends AgentTestRunner {
           operationName "redis.query"
           resourceName "SET"
           spanType DDSpanTypes.REDIS
+          topLevel true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -144,6 +147,7 @@ class Jedis30ClientTest extends AgentTestRunner {
           operationName "redis.query"
           resourceName "RANDOMKEY"
           spanType DDSpanTypes.REDIS
+          topLevel true
           tags {
             "$Tags.COMPONENT" "redis-command"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

@@ -61,6 +61,7 @@ class SpringJpaTest extends AgentTestRunner {
             serviceName "hsqldb"
             resourceName "call next value for hibernate_sequence"
             spanType "sql"
+            topLevel true
             tags {
               "$Tags.COMPONENT" "java-jdbc-prepared_statement"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
