@@ -5,7 +5,7 @@ import datadog.trace.api.GlobalTracer
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Timeout
 
 import java.util.concurrent.CountDownLatch
@@ -13,11 +13,15 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Timeout(10)
-class TraceInterceptorTest extends DDSpecification {
+class TraceInterceptorTest extends DDCoreSpecification {
 
   def writer = new ListWriter()
-  def tracer = CoreTracer.builder().writer(writer).build()
+  def tracer = tracerBuilder().writer(writer).build()
 
+  def cleanup() {
+    tracer?.close()
+  }
+  
   def "interceptor is registered as a service"() {
     expect:
     tracer.interceptors.iterator().hasNext()

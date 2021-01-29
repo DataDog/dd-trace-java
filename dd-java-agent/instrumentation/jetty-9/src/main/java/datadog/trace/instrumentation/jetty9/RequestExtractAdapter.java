@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.jetty9;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import java.util.Enumeration;
+import org.eclipse.jetty.http.HttpField;
+import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.server.Request;
 
 public class RequestExtractAdapter implements AgentPropagation.ContextVisitor<Request> {
@@ -10,10 +11,10 @@ public class RequestExtractAdapter implements AgentPropagation.ContextVisitor<Re
 
   @Override
   public void forEachKey(Request carrier, AgentPropagation.KeyClassifier classifier) {
-    Enumeration<String> headerNames = carrier.getHeaderNames();
-    while (headerNames.hasMoreElements()) {
-      String header = headerNames.nextElement();
-      if (!classifier.accept(header, carrier.getHeader(header))) {
+    HttpFields headers = carrier.getHttpFields();
+    for (int i = 0; i < headers.size(); ++i) {
+      HttpField field = headers.getField(i);
+      if (!classifier.accept(field.getName(), field.getValue())) {
         return;
       }
     }

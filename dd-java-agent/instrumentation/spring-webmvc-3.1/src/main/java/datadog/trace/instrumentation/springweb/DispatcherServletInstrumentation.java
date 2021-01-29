@@ -121,10 +121,13 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Tracing
     public static void nameResource(@Advice.Argument(3) final Exception exception) {
       final AgentSpan span = activeSpan();
       if (span != null && exception != null) {
+        boolean alreadyError = span.isError();
         DECORATE.onError(span, exception);
         // We want to capture the stacktrace, but that doesn't mean it should be an error.
         // We rely on a decorator to set the error state based on response code. (5xx -> error)
-        span.setError(false);
+        // Status code might not be set though if the span isn't the server span.
+        // Meaning the error won't be set by the status code. (Probably ok since not measured.)
+        span.setError(alreadyError);
       }
     }
   }

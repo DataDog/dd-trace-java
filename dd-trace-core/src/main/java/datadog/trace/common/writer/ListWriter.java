@@ -40,15 +40,20 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     structureWriter.write(trace);
   }
 
-  public void waitForTraces(final int number) throws InterruptedException, TimeoutException {
+  public boolean waitForTracesMax(final int number, int seconds)
+      throws InterruptedException, TimeoutException {
     final CountDownLatch latch = new CountDownLatch(number);
     synchronized (latches) {
       if (size() >= number) {
-        return;
+        return true;
       }
       latches.add(latch);
     }
-    if (!latch.await(20, TimeUnit.SECONDS)) {
+    return latch.await(seconds, TimeUnit.SECONDS);
+  }
+
+  public void waitForTraces(final int number) throws InterruptedException, TimeoutException {
+    if (!waitForTracesMax(number, 20)) {
       String msg = "Timeout waiting for " + number + " trace(s). ListWriter.size() == " + size();
       log.warn(msg);
       throw new TimeoutException(msg);

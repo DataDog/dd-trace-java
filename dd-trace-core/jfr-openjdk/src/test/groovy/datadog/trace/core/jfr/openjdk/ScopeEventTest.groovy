@@ -1,5 +1,6 @@
 package datadog.trace.core.jfr.openjdk
 
+import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.ProfilingConfig
@@ -23,7 +24,8 @@ class ScopeEventTest extends DDSpecification {
   private static final Duration SLEEP_DURATION = Duration.ofSeconds(1)
 
   def writer = new ListWriter()
-  def tracer = CoreTracer.builder().serviceName(DEFAULT_SERVICE_NAME).writer(writer).build()
+  def tracer = CoreTracer.builder().statsDClient(new NoOpStatsDClient()).serviceName(DEFAULT_SERVICE_NAME)
+    .writer(writer).build()
 
   def parentContext =
     new DDSpanContext(
@@ -45,6 +47,10 @@ class ScopeEventTest extends DDSpecification {
     .asChildOf(parentContext)
     .withServiceName("test service")
     .withResourceName("test resource")
+
+  def cleanup() {
+    tracer?.close()
+  }
 
   def "Scope event is written with thread CPU time"() {
     setup:

@@ -1,0 +1,21 @@
+muzzle {
+  // old coordinates
+  pass {
+    group = 'org.osgi'
+    module = 'org.osgi.core'
+    versions = '[4.3,]'
+  }
+
+  // new coordinates
+  pass {
+    group = 'org.osgi'
+    module = 'osgi.core'
+    versions = '[4.3.1,]'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.osgi', name: 'org.osgi.core', version: '4.3.0'
+}

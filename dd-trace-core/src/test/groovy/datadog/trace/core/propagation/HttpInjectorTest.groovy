@@ -4,14 +4,13 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpanContext
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.PropagationStyle.B3
 import static datadog.trace.api.PropagationStyle.DATADOG
 
-class HttpInjectorTest extends DDSpecification {
+class HttpInjectorTest extends DDCoreSpecification {
 
   def "inject http headers"() {
     setup:
@@ -24,7 +23,7 @@ class HttpInjectorTest extends DDSpecification {
     def spanId = DDId.from(2)
 
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
         traceId,
@@ -74,6 +73,9 @@ class HttpInjectorTest extends DDSpecification {
     }
     0 * _
 
+    cleanup:
+    tracer.close()
+    
     where:
     styles        | samplingPriority              | origin
     [DATADOG, B3] | PrioritySampling.UNSET        | null

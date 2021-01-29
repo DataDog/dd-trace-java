@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.propagation.TagContext
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
@@ -17,10 +17,14 @@ import static datadog.trace.api.DDTags.THREAD_NAME
 import static datadog.trace.core.DDSpanContext.ORIGIN_KEY
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
-class CoreSpanBuilderTest extends DDSpecification {
+class CoreSpanBuilderTest extends DDCoreSpecification {
 
   def writer = new ListWriter()
-  def tracer = CoreTracer.builder().writer(writer).build()
+  def tracer = tracerBuilder().writer(writer).build()
+
+  def cleanup() {
+    tracer.close()
+  }
 
   def "build simple span"() {
     setup:
@@ -202,11 +206,11 @@ class CoreSpanBuilderTest extends DDSpecification {
     parent.close()
 
     where:
-    noopParent  | serviceName         | expectTopLevel
-    false       |  "service"          | false
-    true        |  "service"          | true
-    false       |  "another service"  | true
-    true        |  "another service"  | true
+    noopParent | serviceName       | expectTopLevel
+    false      | "service"         | false
+    true       | "service"         | true
+    false      | "another service" | true
+    true       | "another service" | true
   }
 
   def "should inherit the DD parent attributes"() {
@@ -341,8 +345,8 @@ class CoreSpanBuilderTest extends DDSpecification {
   def "global span tags populated on each span"() {
     setup:
     injectSysConfig("dd.trace.span.tags", tagString)
-    tracer = CoreTracer.builder().writer(writer).build()
-    def span = tracer.buildSpan("op name").withServiceName("foo").start()
+    def customTracer = tracerBuilder().writer(writer).build()
+    def span = customTracer.buildSpan("op name").withServiceName("foo").start()
 
     expect:
     span.tags == tags + [
@@ -351,6 +355,9 @@ class CoreSpanBuilderTest extends DDSpecification {
       (RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
       (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
     ]
+
+    cleanup:
+    customTracer.close()
 
     where:
     tagString     | tags

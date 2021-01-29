@@ -16,7 +16,7 @@ import okio.Okio;
 public class PrintingWriter implements Writer {
   private final TraceProcessor processor = new TraceProcessor();
   private final BufferedSink sink;
-  private final JsonAdapter<Map<String, List<DDSpan>>> jsonAdapter;
+  private final JsonAdapter<Map<String, List<List<DDSpan>>>> jsonAdapter;
 
   public PrintingWriter(final OutputStream outputStream, final boolean hexIds) {
     sink = Okio.buffer(Okio.sink(outputStream));
@@ -27,15 +27,19 @@ public class PrintingWriter implements Writer {
             .build()
             .adapter(
                 Types.newParameterizedType(
-                    Map.class, String.class, Types.newParameterizedType(List.class, DDSpan.class)));
+                    Map.class,
+                    String.class,
+                    Types.newParameterizedType(
+                        List.class, Types.newParameterizedType(List.class, DDSpan.class))));
   }
 
   @Override
   public void write(final List<DDSpan> trace) {
     final List<DDSpan> processedTrace = processor.onTraceComplete(trace);
+    final List<List<DDSpan>> tracesList = Collections.singletonList(processedTrace);
     try {
       synchronized (sink) {
-        jsonAdapter.toJson(sink, Collections.singletonMap("traces", processedTrace));
+        jsonAdapter.toJson(sink, Collections.singletonMap("traces", tracesList));
         sink.flush();
       }
     } catch (final IOException e) {

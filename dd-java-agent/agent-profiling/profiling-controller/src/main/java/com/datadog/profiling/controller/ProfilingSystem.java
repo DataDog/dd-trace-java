@@ -141,8 +141,12 @@ public final class ProfilingSystem {
           TimeUnit.MILLISECONDS);
       started = true;
     } catch (final Throwable t) {
-      log.error("Fatal exception during profiling startup", t);
-      throw t;
+      if (t instanceof IllegalStateException && "Shutdown in progress".equals(t.getMessage())) {
+        log.debug("Shutdown in progress, cannot start profiling");
+      } else {
+        log.error("Fatal exception during profiling startup", t);
+        throw t;
+      }
     }
   }
 

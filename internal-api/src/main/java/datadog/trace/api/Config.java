@@ -16,12 +16,14 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LEGACY_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITIZATION_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_AGENTLESS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
@@ -59,11 +61,16 @@ import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
 
@@ -247,6 +254,8 @@ public class Config {
       ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
   public static final String PROFILING_EXCLUDE_AGENT_THREADS =
       ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
+  // Not intended for production use
+  public static final String PROFILING_AGENTLESS = ProfilingConfig.PROFILING_AGENTLESS;
 
   public static final String KAFKA_CLIENT_PROPAGATION_ENABLED =
       TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
@@ -324,7 +333,9 @@ public class Config {
   @Getter private final boolean scopeStrictMode;
   @Getter private final boolean scopeInheritAsyncPropagation;
   @Getter private final int partialFlushMinSpans;
+  @Getter private final boolean traceStrictWritesEnabled;
   @Getter private final boolean runtimeContextFieldInjection;
+  @Getter private final boolean legacyContextFieldInjection;
   @Getter private final boolean serialVersionUIDFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
   @Getter private final Set<PropagationStyle> propagationStylesToInject;
@@ -345,6 +356,7 @@ public class Config {
   @Getter private final boolean perfMetricsEnabled;
 
   @Getter private final boolean tracerMetricsEnabled;
+  @Getter private final boolean tracerMetricsBufferingEnabled;
   @Getter private final int tracerMetricsMaxAggregates;
   @Getter private final int tracerMetricsMaxPending;
 
@@ -367,6 +379,7 @@ public class Config {
   @Getter private final int traceRateLimit;
 
   @Getter private final boolean profilingEnabled;
+  @Getter private final boolean profilingAgentless;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   @Getter private final int profilingStartDelay;
@@ -388,6 +401,9 @@ public class Config {
   @Getter private final boolean kafkaClientBase64DecodingEnabled;
 
   @Getter private final boolean hystrixTagsEnabled;
+
+  @Getter private final int osgiSearchDepth;
+
   @Getter private final boolean servletPrincipalEnabled;
   @Getter private final boolean servletAsyncTimeoutError;
 
@@ -403,6 +419,9 @@ public class Config {
   @Getter private final boolean internalExitOnFailure;
 
   @Getter private final boolean resolverUseLoadClassEnabled;
+
+  @Getter private final String jdbcPreparedStatementClassName;
+  @Getter private final String jdbcConnectionClassName;
 
   private final ConfigProvider configProvider;
 
@@ -587,9 +606,15 @@ public class Config {
     partialFlushMinSpans =
         configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
 
+    traceStrictWritesEnabled =
+        configProvider.getBoolean(TracerConfig.TRACE_STRICT_WRITES_ENABLED, false);
+
     runtimeContextFieldInjection =
         configProvider.getBoolean(
             RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
+    legacyContextFieldInjection =
+        configProvider.getBoolean(
+            LEGACY_CONTEXT_FIELD_INJECTION, DEFAULT_LEGACY_CONTEXT_FIELD_INJECTION);
     serialVersionUIDFieldInjection =
         configProvider.getBoolean(
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
@@ -627,6 +652,8 @@ public class Config {
 
     tracerMetricsEnabled =
         isJavaVersionAtLeast(8) && configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+    tracerMetricsBufferingEnabled =
+        configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 1000);
     tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
 
@@ -656,6 +683,8 @@ public class Config {
     traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
+    profilingAgentless =
+        configProvider.getBoolean(PROFILING_AGENTLESS, DEFAULT_PROFILING_AGENTLESS);
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -722,6 +751,11 @@ public class Config {
 
     profilingExcludeAgentThreads = configProvider.getBoolean(PROFILING_EXCLUDE_AGENT_THREADS, true);
 
+    jdbcPreparedStatementClassName =
+        configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
+
+    jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
+
     kafkaClientPropagationEnabled =
         configProvider.getBoolean(
             KAFKA_CLIENT_PROPAGATION_ENABLED, DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED);
@@ -730,6 +764,8 @@ public class Config {
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
+
+    osgiSearchDepth = configProvider.getInteger(OSGI_SEARCH_DEPTH, 1);
 
     servletPrincipalEnabled =
         configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED, false);
@@ -751,6 +787,11 @@ public class Config {
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
+
+    if (profilingAgentless && apiKey == null) {
+      log.warn(
+          "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
+    }
 
     log.debug("New instance: {}", this);
   }
@@ -861,24 +902,24 @@ public class Config {
 
   public String getFinalProfilingUrl() {
     if (profilingUrl != null) {
-      // when profilingUrl is set we use it regardless of apiKey
+      // when profilingUrl is set we use it regardless of apiKey/agentless config
       return profilingUrl;
-    } else if (apiKey != null) {
-      // when profilingUrl is not set and apiKey is set we send directly to our intake
+    } else if (profilingAgentless) {
+      // when agentless profiling is turned on we send directly to our intake
       return String.format(PROFILING_REMOTE_URL_TEMPLATE, site);
     } else {
-      // when profilingUrl and apiKey are not set we send to the dd trace agent running locally
+      // when profilingUrl and agentless are not set we send to the dd trace agent running locally
       return String.format(PROFILING_LOCAL_URL_TEMPLATE, agentHost, agentPort);
     }
   }
 
   public boolean isIntegrationEnabled(
-      final SortedSet<String> integrationNames, final boolean defaultEnabled) {
+      final Iterable<String> integrationNames, final boolean defaultEnabled) {
     return isEnabled(integrationNames, "integration.", ".enabled", defaultEnabled);
   }
 
   public boolean isJmxFetchIntegrationEnabled(
-      final SortedSet<String> integrationNames, final boolean defaultEnabled) {
+      final Iterable<String> integrationNames, final boolean defaultEnabled) {
     return isEnabled(integrationNames, "jmxfetch.", ".enabled", defaultEnabled);
   }
 

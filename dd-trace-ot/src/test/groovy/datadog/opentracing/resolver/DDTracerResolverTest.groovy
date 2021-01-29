@@ -16,6 +16,9 @@ class DDTracerResolverTest extends DDSpecification {
 
     then:
     tracer instanceof DDTracer
+
+    cleanup:
+    tracer.close()
   }
 
   def "test disable DDTracerResolver"() {

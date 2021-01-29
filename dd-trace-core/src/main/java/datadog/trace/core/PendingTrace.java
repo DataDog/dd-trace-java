@@ -32,25 +32,28 @@ import lombok.extern.slf4j.Slf4j;
  * Delayed write is handled by PendingTraceBuffer. <br>
  */
 @Slf4j
-public class PendingTrace implements AgentTrace {
+public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
 
   static class Factory {
     private final CoreTracer tracer;
     private final PendingTraceBuffer pendingTraceBuffer;
+    private final boolean strictTraceWrites;
 
-    Factory(CoreTracer tracer, PendingTraceBuffer pendingTraceBuffer) {
+    Factory(CoreTracer tracer, PendingTraceBuffer pendingTraceBuffer, boolean strictTraceWrites) {
       this.tracer = tracer;
       this.pendingTraceBuffer = pendingTraceBuffer;
+      this.strictTraceWrites = strictTraceWrites;
     }
 
     PendingTrace create(@Nonnull DDId traceId) {
-      return new PendingTrace(tracer, traceId, pendingTraceBuffer);
+      return new PendingTrace(tracer, traceId, pendingTraceBuffer, strictTraceWrites);
     }
   }
 
   private final CoreTracer tracer;
   private final DDId traceId;
   private final PendingTraceBuffer pendingTraceBuffer;
+  private final boolean strictTraceWrites;
 
   // TODO: consider moving these time fields into DDTracer to ensure that traces have precise
   // relative time
@@ -83,10 +86,12 @@ public class PendingTrace implements AgentTrace {
   private PendingTrace(
       @Nonnull CoreTracer tracer,
       @Nonnull DDId traceId,
-      @Nonnull PendingTraceBuffer pendingTraceBuffer) {
+      @Nonnull PendingTraceBuffer pendingTraceBuffer,
+      boolean strictTraceWrites) {
     this.tracer = tracer;
     this.traceId = traceId;
     this.pendingTraceBuffer = pendingTraceBuffer;
+    this.strictTraceWrites = strictTraceWrites;
 
     startTimeNano = Clock.currentNanoTime();
     startNanoTicks = Clock.currentNanoTicks();
@@ -131,10 +136,7 @@ public class PendingTrace implements AgentTrace {
       }
     }
 
-    final int count = pendingReferenceCount.incrementAndGet();
-    if (log.isDebugEnabled()) {
-      log.debug("t_id={} -> registered span {}. count = {}", traceId, span, count);
-    }
+    pendingReferenceCount.incrementAndGet();
   }
 
   void addFinishedSpan(final DDSpan span) {
@@ -151,7 +153,7 @@ public class PendingTrace implements AgentTrace {
   }
 
   /** @return Long.MAX_VALUE if no spans finished. */
-  long oldestFinishedTime() {
+  public long oldestFinishedTime() {
     long oldest = Long.MAX_VALUE;
     for (DDSpan span : finishedSpans) {
       oldest = Math.min(oldest, span.getStartTime() + span.getDurationNano());
@@ -165,11 +167,7 @@ public class PendingTrace implements AgentTrace {
    */
   @Override
   public void registerContinuation(final AgentScope.Continuation continuation) {
-    final int count = pendingReferenceCount.incrementAndGet();
-    if (log.isDebugEnabled()) {
-      log.debug(
-          "t_id={} -> registered continuation {} -- count = {}", traceId, continuation, count);
-    }
+    pendingReferenceCount.incrementAndGet();
   }
 
   @Override
@@ -179,9 +177,12 @@ public class PendingTrace implements AgentTrace {
 
   private void decrementRefAndMaybeWrite(boolean isRootSpan) {
     final int count = pendingReferenceCount.decrementAndGet();
+    if (strictTraceWrites && count < 0) {
+      throw new IllegalStateException("Pending reference count " + count + " is negative");
+    }
     int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
 
-    if (count == 0 && !rootSpanWritten) {
+    if (count == 0 && (strictTraceWrites || !rootSpanWritten)) {
       // Finished with no pending work ... write immediately
       write();
     } else if (isRootSpan) {
@@ -194,11 +195,6 @@ public class PendingTrace implements AgentTrace {
       // Late arrival span ... delay write
       pendingTraceBuffer.enqueue(this);
     }
-
-    if (log.isDebugEnabled()) {
-      log.debug(
-          "t_id={} -> expired reference. root={} pending count={}", traceId, isRootSpan, count);
-    }
   }
 
   /** Important to note: may be called multiple times. */
@@ -210,11 +206,8 @@ public class PendingTrace implements AgentTrace {
   }
 
   /** Important to note: may be called multiple times. */
-  void write() {
-    int size = write(false);
-    if (log.isDebugEnabled()) {
-      log.debug("t_id={} -> wrote {} spans to {}.", traceId, size, tracer.writer);
-    }
+  public void write() {
+    write(false);
   }
 
   private int write(boolean isPartial) {

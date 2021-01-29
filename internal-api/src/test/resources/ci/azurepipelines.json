@@ -23,7 +23,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -51,7 +50,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -80,7 +78,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample2"
     }
   ],
@@ -108,7 +105,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -136,7 +132,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -164,7 +159,6 @@
       "ci.workspace_path": "foo/bar",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -194,7 +188,6 @@
       "ci.workspace_path": "/foo/bar~",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -224,7 +217,6 @@
       "ci.workspace_path": "/foo/~/bar",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -254,7 +246,6 @@
       "ci.workspace_path": "/not-my-home/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -284,7 +275,6 @@
       "ci.workspace_path": "~foo/bar",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -314,7 +304,6 @@
       "ci.workspace_path": "/not-my-home",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -342,7 +331,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -370,7 +358,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "master",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -398,7 +385,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "feature/one",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample"
     }
   ],
@@ -425,7 +411,6 @@
       "ci.provider.name": "azurepipelines",
       "ci.workspace_path": "/foo/bar",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample",
       "git.tag": "0.1.0"
     }
@@ -453,7 +438,6 @@
       "ci.provider.name": "azurepipelines",
       "ci.workspace_path": "/foo/bar",
       "git.commit.sha": "commit",
-      "git.commit_sha": "commit",
       "git.repository_url": "sample",
       "git.tag": "0.1.0"
     }
@@ -484,7 +468,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "pr",
       "git.commit.sha": "commitPR",
-      "git.commit_sha": "commitPR",
       "git.repository_url": "sample"
     }
   ],
@@ -514,7 +497,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "pr",
       "git.commit.sha": "commitPR",
-      "git.commit_sha": "commitPR",
       "git.repository_url": "sample"
     }
   ],
@@ -544,7 +526,6 @@
       "ci.workspace_path": "/foo/bar",
       "git.branch": "pr",
       "git.commit.sha": "commitPR",
-      "git.commit_sha": "commitPR",
       "git.repository_url": "sample"
     }
   ]

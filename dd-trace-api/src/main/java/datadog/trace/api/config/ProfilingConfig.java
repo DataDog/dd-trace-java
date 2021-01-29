@@ -42,5 +42,8 @@ public final class ProfilingConfig {
       "profiling.exception.histogram.max-collection-size";
   public static final String PROFILING_EXCLUDE_AGENT_THREADS = "profiling.exclude.agent-threads";
 
+  // Not intended for production use
+  public static final String PROFILING_AGENTLESS = "profiling.agentless";
+
   private ProfilingConfig() {}
 }

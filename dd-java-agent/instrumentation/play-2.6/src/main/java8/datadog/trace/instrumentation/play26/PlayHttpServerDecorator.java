@@ -25,7 +25,6 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   public static final CharSequence PLAY_ACTION = UTF8BytesString.createConstant("play-action");
   public static final PlayHttpServerDecorator DECORATE = new PlayHttpServerDecorator();
 
-  private static final Integer ERROR_CODE = 500;
   private static final MethodHandle TYPED_KEY_GET_UNDERLYING;
 
   static {
@@ -114,7 +113,7 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
 
   @Override
   public AgentSpan onError(final AgentSpan span, Throwable throwable) {
-    span.setTag(Tags.HTTP_STATUS, ERROR_CODE);
+    span.setTag(Tags.HTTP_STATUS, _500);
     if (throwable instanceof CompletionException && throwable.getCause() != null) {
       throwable = throwable.getCause();
     }

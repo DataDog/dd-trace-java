@@ -638,7 +638,7 @@ class SpymemcachedTest extends AgentTestRunner {
       resourceName operation
       spanType DDSpanTypes.MEMCACHED
       errored(error != null && error != "canceled")
-
+      topLevel true
       tags {
         "$Tags.COMPONENT" COMPONENT_NAME
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

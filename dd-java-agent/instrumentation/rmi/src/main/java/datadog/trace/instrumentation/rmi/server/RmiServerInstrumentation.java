@@ -4,9 +4,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.rmi.RmiServerDecorator.DECORATE;
+import static datadog.trace.bootstrap.instrumentation.rmi.RmiServerDecorator.RMI_REQUEST;
 import static datadog.trace.bootstrap.instrumentation.rmi.ThreadLocalContext.THREAD_LOCAL_CONTEXT;
-import static datadog.trace.instrumentation.rmi.server.RmiServerDecorator.DECORATE;
-import static datadog.trace.instrumentation.rmi.server.RmiServerDecorator.RMI_REQUEST;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -29,11 +29,6 @@ public final class RmiServerInstrumentation extends Instrumenter.Tracing {
 
   public RmiServerInstrumentation() {
     super("rmi", "rmi-server");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".RmiServerDecorator"};
   }
 
   @Override

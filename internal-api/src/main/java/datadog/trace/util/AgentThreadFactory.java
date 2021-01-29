@@ -6,6 +6,8 @@ import java.util.concurrent.ThreadFactory;
 public final class AgentThreadFactory implements ThreadFactory {
   public static final ThreadGroup AGENT_THREAD_GROUP = new ThreadGroup("dd-trace-java");
 
+  public static final long THREAD_JOIN_TIMOUT_MS = 800;
+
   // known agent threads
   public enum AgentThread {
     TASK_SCHEDULER("dd-task-scheduler"),

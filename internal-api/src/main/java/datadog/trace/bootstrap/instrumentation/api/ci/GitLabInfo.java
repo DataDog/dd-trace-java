@@ -9,6 +9,8 @@ class GitLabInfo extends CIProviderInfo {
   public static final String GITLAB_PIPELINE_NAME = "CI_PROJECT_PATH";
   public static final String GITLAB_PIPELINE_NUMBER = "CI_PIPELINE_IID";
   public static final String GITLAB_PIPELINE_URL = "CI_PIPELINE_URL";
+  public static final String GITLAB_STAGE_NAME = "CI_JOB_STAGE";
+  public static final String GITLAB_JOB_NAME = "CI_JOB_NAME";
   public static final String GITLAB_JOB_URL = "CI_JOB_URL";
   public static final String GITLAB_WORKSPACE_PATH = "CI_PROJECT_DIR";
   public static final String GITLAB_GIT_REPOSITORY_URL = "CI_REPOSITORY_URL";
@@ -24,6 +26,8 @@ class GitLabInfo extends CIProviderInfo {
             .withCiPipelineName(System.getenv(GITLAB_PIPELINE_NAME))
             .withCiPipelineNumber(System.getenv(GITLAB_PIPELINE_NUMBER))
             .withCiPipelineUrl(buildPipelineUrl())
+            .withCiStageName(System.getenv(GITLAB_STAGE_NAME))
+            .withCiJobName(System.getenv(GITLAB_JOB_NAME))
             .withCiJorUrl(System.getenv(GITLAB_JOB_URL))
             .withCiWorkspacePath(expandTilde(System.getenv(GITLAB_WORKSPACE_PATH)))
             .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(GITLAB_GIT_REPOSITORY_URL)))

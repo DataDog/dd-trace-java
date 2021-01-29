@@ -5,14 +5,12 @@ import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Subject
 
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.core.SpanFactory.newSpanOf
-
-class DDAgentWriterTest extends DDSpecification {
+class DDAgentWriterTest extends DDCoreSpecification {
 
   def api = Mock(DDAgentApi)
   def monitor = Mock(HealthMetrics)
@@ -21,6 +19,14 @@ class DDAgentWriterTest extends DDSpecification {
 
   @Subject
   def writer = new DDAgentWriter(api, monitor, monitoring, worker)
+
+  // Only used to create spans
+  def dummyTracer = tracerBuilder().writer(new ListWriter()).build()
+
+  def cleanup() {
+    writer.close()
+    dummyTracer.close()
+  }
 
   def "test writer builder"() {
     when:
@@ -84,6 +90,9 @@ class DDAgentWriterTest extends DDSpecification {
   }
 
   def "test writer.write"() {
+    setup:
+    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
+
     when: "publish succeeds"
     writer.write(trace)
 
@@ -99,9 +108,6 @@ class DDAgentWriterTest extends DDSpecification {
     1 * worker.publish(_, trace) >> false
     1 * monitor.onFailedPublish(_)
     0 * _
-
-    where:
-    trace = [newSpanOf(0, "fixed-thread-name")]
   }
 
   def "empty traces should be reported as failures"() {
@@ -116,6 +122,7 @@ class DDAgentWriterTest extends DDSpecification {
   def "test writer.write closed"() {
     setup:
     writer.close()
+    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
 
     when:
     writer.write(trace)
@@ -123,8 +130,5 @@ class DDAgentWriterTest extends DDSpecification {
     then:
     1 * monitor.onFailedPublish(_)
     0 * _
-
-    where:
-    trace = [newSpanOf(0, "fixed-thread-name")]
   }
 }

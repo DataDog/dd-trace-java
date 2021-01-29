@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling;
 
+import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
+
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
@@ -93,11 +95,11 @@ public final class ClassLoaderMatcher {
     private static boolean delegatesToBootstrap(final ClassLoader loader) {
       boolean delegates = true;
       if (!loadsExpectedClass(loader, Tracer.class)) {
-        log.debug("loader {} failed to delegate bootstrap opentracing class", loader);
+        log.debug("Loader {} failed to delegate to bootstrap dd-trace-api class", loader);
         delegates = false;
       }
       if (!loadsExpectedClass(loader, PatchLogger.class)) {
-        log.debug("loader {} failed to delegate bootstrap datadog class", loader);
+        log.debug("Loader {} failed to delegate to bootstrap agent-bootstrap class", loader);
         delegates = false;
       }
       return delegates;
@@ -140,12 +142,17 @@ public final class ClassLoaderMatcher {
     }
 
     private boolean hasResources(final ClassLoader cl) {
-      for (final String resource : resources) {
-        if (cl.getResource(resource) == null) {
-          return false;
+      PROBING_CLASSLOADER.begin();
+      try {
+        for (final String resource : resources) {
+          if (cl.getResource(resource) == null) {
+            return false;
+          }
         }
+        return true;
+      } finally {
+        PROBING_CLASSLOADER.end();
       }
-      return true;
     }
 
     @Override

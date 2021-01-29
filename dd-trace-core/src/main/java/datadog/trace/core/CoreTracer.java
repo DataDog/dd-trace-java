@@ -75,12 +75,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
   private static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
 
-  // FIXME: This is static instead of instance because we don't reliably close the tracer in tests.
-  private static final PendingTraceBuffer PENDING_TRACE_BUFFER = new PendingTraceBuffer();
-
-  static {
-    PENDING_TRACE_BUFFER.start();
-  }
+  private final PendingTraceBuffer pendingTraceBuffer;
 
   /** Default service name if none provided on the trace or span */
   final String serviceName;
@@ -166,6 +161,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       serviceNameMappings(config.getServiceMapping());
       taggedHeaders(config.getHeaderTags());
       partialFlushMinSpans(config.getPartialFlushMinSpans());
+      strictTraceWrites(config.isTraceStrictWritesEnabled());
 
       return this;
     }
@@ -188,7 +184,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> taggedHeaders,
       final int partialFlushMinSpans,
       final StatsDClient statsDClient,
-      final TagInterceptor tagInterceptor) {
+      final TagInterceptor tagInterceptor,
+      final boolean strictTraceWrites) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -240,7 +237,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
-    pendingTraceFactory = new PendingTrace.Factory(this, PENDING_TRACE_BUFFER);
+    this.pendingTraceBuffer =
+        strictTraceWrites ? PendingTraceBuffer.mute() : PendingTraceBuffer.delaying();
+    pendingTraceFactory = new PendingTrace.Factory(this, pendingTraceBuffer, strictTraceWrites);
+    pendingTraceBuffer.start();
+
     this.writer.start();
 
     metricsAggregator = createMetricsAggregator(config);
@@ -358,6 +359,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
     return scopeManager.activate(span, source, isAsyncPropagating);
+  }
+
+  @Override
+  public TraceScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
+    return scopeManager.captureSpan(span, source);
   }
 
   public TagInterceptor getTagInterceptor() {
@@ -506,14 +512,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void close() {
-    // FIXME: can't close PENDING_TRACE_BUFFER since it is a static/shared instance.
-    // PENDING_TRACE_BUFFER.close();
+    pendingTraceBuffer.close();
     writer.close();
+    statsDClient.close();
   }
 
   @Override
   public void flush() {
-    PENDING_TRACE_BUFFER.flush();
+    pendingTraceBuffer.flush();
     writer.flush();
   }
 
@@ -809,19 +815,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       context.setAllTags(coreTags);
       context.setAllTags(rootSpanTags);
       return context;
-    }
-
-    private Number getOrTryParse(Object value) {
-      if (value instanceof Number) {
-        return (Number) value;
-      } else if (value instanceof String) {
-        try {
-          return Double.parseDouble((String) value);
-        } catch (NumberFormatException ignore) {
-
-        }
-      }
-      return null;
     }
   }
 

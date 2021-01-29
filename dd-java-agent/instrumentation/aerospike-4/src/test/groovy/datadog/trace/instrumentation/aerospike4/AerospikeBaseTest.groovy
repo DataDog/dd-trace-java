@@ -63,6 +63,7 @@ abstract class AerospikeBaseTest extends AgentTestRunner {
       } else {
         childOf((DDSpan) parentSpan)
       }
+      topLevel parentSpan == null
       tags {
         "$Tags.COMPONENT" "java-aerospike"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

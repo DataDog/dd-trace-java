@@ -4,18 +4,21 @@ import datadog.trace.api.time.TimeSource
 import datadog.trace.test.util.DDSpecification
 import org.slf4j.Logger
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import static java.util.concurrent.TimeUnit.MINUTES
 
 class RateLimitedLoggerTest extends DDSpecification {
   final delay = 5
   final exception = new RuntimeException("bad thing")
 
-  Logger log = Mock(Logger)
-  TimeSource timeSource = Mock(TimeSource)
-  RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
+
 
   def "Debug level"() {
     setup:
+    Logger log = Mock(Logger)
+    TimeSource timeSource = Mock(TimeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     log.isDebugEnabled() >> true
 
     when:
@@ -28,8 +31,10 @@ class RateLimitedLoggerTest extends DDSpecification {
 
   def "default warning once"() {
     setup:
+    Logger log = Mock(Logger)
     def defaultRateLimitedLog = new RatelimitedLogger(log, MINUTES.toNanos(5))
     log.isWarnEnabled() >> true
+    log.isDebugEnabled() >> false
 
     when:
     def firstLog = defaultRateLimitedLog.warn("test {} {}", "message", exception)
@@ -44,7 +49,11 @@ class RateLimitedLoggerTest extends DDSpecification {
 
   def "warning once"() {
     setup:
+    Logger log = Mock(Logger)
+    TimeSource timeSource = Mock(TimeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     log.isWarnEnabled() >> true
+    log.isDebugEnabled() >> false
     timeSource.getNanoTime() >> delay
 
     when:
@@ -57,9 +66,41 @@ class RateLimitedLoggerTest extends DDSpecification {
     !secondLog
   }
 
+
+  def "warning once negative time"() {
+    setup:
+    AtomicInteger counter = new AtomicInteger(0)
+    Logger log = Mock(Logger)
+    TimeSource timeSource = Mock(TimeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
+    log.isWarnEnabled() >> true
+    log.isDebugEnabled() >> false
+    timeSource.getNanoTime() >> {
+      int invocation = counter.getAndIncrement()
+      if (invocation == 0) {
+        return Long.MIN_VALUE
+      }
+      return Long.MIN_VALUE + delay - 1
+    }
+
+    when:
+    def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
+    def secondLog = rateLimitedLog.warn("test {} {}", "message", exception)
+
+    then:
+    counter.get() == 2
+    1 * log.warn("test {} {} (Will not log errors for 5 minutes)", "message", exception)
+    firstLog
+    !secondLog
+  }
+
   def "warning twice"() {
     setup:
+    Logger log = Mock(Logger)
+    TimeSource timeSource = Mock(TimeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     log.isWarnEnabled() >> true
+    log.isDebugEnabled() >> false
     timeSource.getNanoTime() >>> [delay, delay * 2]
 
     when:
@@ -73,6 +114,10 @@ class RateLimitedLoggerTest extends DDSpecification {
   }
 
   def "no logs"() {
+    setup:
+    Logger log = Mock(Logger)
+    TimeSource timeSource = Mock(TimeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     when:
     rateLimitedLog.warn("test {} {}", "message", exception)
 
@@ -82,7 +127,11 @@ class RateLimitedLoggerTest extends DDSpecification {
 
   def "no args"() {
     setup:
+    Logger log = Mock(Logger)
+    TimeSource timeSource = Mock(TimeSource)
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
     log.isWarnEnabled() >> true
+    log.isDebugEnabled() >> false
     timeSource.getNanoTime() >> delay
 
     when:

@@ -7,6 +7,10 @@ dependencies {
   compile project(':dd-java-agent:testing')
 }
 
+def smokeTestLimit = gradle.sharedServices.registerIfAbsent("smokeTestLimit", BuildService) {
+  maxParallelUsages = 1
+}
+
 subprojects { subProject ->
   subProject.tasks.withType(Test).configureEach {
     dependsOn project(':dd-java-agent').shadowJar
@@ -14,5 +18,8 @@ subprojects { subProject ->
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
     jvmArgs "-Ddatadog.smoketest.agent.shadowJar.path=${project(':dd-java-agent').tasks.shadowJar.archivePath}"
+
+    // Only one smoke test at a time
+    usesService(smokeTestLimit)
   }
 }

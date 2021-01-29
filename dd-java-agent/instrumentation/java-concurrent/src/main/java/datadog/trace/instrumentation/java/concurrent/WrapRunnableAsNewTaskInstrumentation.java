@@ -46,7 +46,6 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
         "java.util.concurrent.AbstractExecutorService",
         "java.util.concurrent.CompletableFuture$ThreadPerTaskExecutor",
         "java.util.concurrent.SubmissionPublisher$ThreadPerTaskExecutor",
-        "java.util.concurrent.ThreadPoolExecutor",
         "org.glassfish.grizzly.threadpool.GrizzlyExecutorService");
   }
 
@@ -86,11 +85,7 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
     public static void execute(
         @Advice.This Executor executor,
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
-      // TODO write a slick instrumentation and instrument these types directly
-      if (task instanceof RunnableFuture
-          || null == task
-          || exclude(RUNNABLE, task)
-          || task.getClass().getName().startsWith("slick.")) {
+      if (task instanceof RunnableFuture || null == task || exclude(RUNNABLE, task)) {
         // no wrapping required
       } else if (task instanceof Comparable) {
         task = new ComparableRunnable(task);
@@ -114,11 +109,7 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
     public static void execute(
         @Advice.This Executor executor,
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
-      // TODO write a slick instrumentation and instrument these types directly
-      if (task instanceof RunnableFuture
-          || null == task
-          || exclude(RUNNABLE, task)
-          || task.getClass().getName().startsWith("slick.")) {
+      if (task instanceof RunnableFuture || null == task || exclude(RUNNABLE, task)) {
         // no wrapping required
       } else if (task instanceof Comparable) {
         task = new ComparableRunnable(task);

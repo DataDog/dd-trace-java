@@ -24,8 +24,15 @@ public final class TraceInstrumentationConfig {
   public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN = "trace.http.client.split-by-domain";
   public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE = "trace.db.client.split-by-instance";
 
+  public static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
+      "trace.jdbc.prepared.statement.class.name";
+
+  public static final String JDBC_CONNECTION_CLASS_NAME = "trace.jdbc.connection.class.name";
+
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
+  public static final String LEGACY_CONTEXT_FIELD_INJECTION =
+      "trace.legacy.context.field.injection";
   public static final String SERIALVERSIONUID_FIELD_INJECTION =
       "trace.serialversionuid.field.injection";
 
@@ -37,6 +44,9 @@ public final class TraceInstrumentationConfig {
       "kafka.client.base64.decoding.enabled";
 
   public static final String HYSTRIX_TAGS_ENABLED = "hystrix.tags.enabled";
+
+  public static final String OSGI_SEARCH_DEPTH = "osgi.search.depth";
+
   public static final String SERVLET_PRINCIPAL_ENABLED = "trace.servlet.principal.enabled";
   public static final String SERVLET_ASYNC_TIMEOUT_ERROR = "trace.servlet.async-timeout.error";
 

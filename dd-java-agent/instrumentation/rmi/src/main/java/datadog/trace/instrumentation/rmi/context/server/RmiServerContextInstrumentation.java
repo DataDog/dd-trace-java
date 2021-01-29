@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.rmi.context.server;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.rmi.context.ContextPropagator.DD_CONTEXT_CALL_ID;
+import static datadog.trace.bootstrap.instrumentation.rmi.ContextPropagator.DD_CONTEXT_CALL_ID;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.rmi.ContextDispatcher;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -27,17 +28,6 @@ public class RmiServerContextInstrumentation extends Instrumenter.Tracing {
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return extendsClass(named("sun.rmi.transport.ObjectTable"));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.rmi.context.ContextPayload$InjectAdapter",
-      "datadog.trace.instrumentation.rmi.context.ContextPayload",
-      "datadog.trace.instrumentation.rmi.context.ContextPropagator",
-      packageName + ".ContextDispatcher",
-      packageName + ".ContextDispatcher$NoopRemote"
-    };
   }
 
   @Override

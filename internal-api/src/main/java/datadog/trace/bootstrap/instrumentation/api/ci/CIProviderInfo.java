@@ -108,16 +108,6 @@ public abstract class CIProviderInfo {
   public static class CITagsBuilder {
 
     private final Map<String, String> ciTags = new HashMap<>();
-    private String ciPipelineId;
-    private String ciPipelineName;
-    private String ciPipelineNumber;
-    private String ciPipelineUrl;
-    private String ciJobUrl;
-    private String ciWorkspacePath;
-    private String gitRepositoryUrl;
-    private String gitCommit;
-    private String gitBranch;
-    private String gitTag;
 
     public CITagsBuilder withCiProviderName(final String ciProviderName) {
       if (ciProviderName != null) {
@@ -154,6 +144,20 @@ public abstract class CIProviderInfo {
       return this;
     }
 
+    public CITagsBuilder withCiStageName(final String ciStageName) {
+      if (ciStageName != null) {
+        ciTags.put(Tags.CI_STAGE_NAME, ciStageName);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withCiJobName(final String ciJobName) {
+      if (ciJobName != null) {
+        ciTags.put(Tags.CI_JOB_NAME, ciJobName);
+      }
+      return this;
+    }
+
     public CITagsBuilder withCiJorUrl(final String ciJobUrl) {
       if (ciJobUrl != null) {
         ciTags.put(Tags.CI_JOB_URL, ciJobUrl);
@@ -178,7 +182,6 @@ public abstract class CIProviderInfo {
     public CITagsBuilder withGitCommit(final String gitCommit) {
       if (gitCommit != null) {
         ciTags.put(Tags.GIT_COMMIT_SHA, gitCommit);
-        ciTags.put(Tags._GIT_COMMIT_SHA, gitCommit);
       }
       return this;
     }

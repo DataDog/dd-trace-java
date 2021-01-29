@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.netty40.server;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator._500;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -29,7 +30,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         ctx.write(msg, prm);
       } catch (final Throwable throwable) {
         DECORATE.onError(span, throwable);
-        span.setTag(Tags.HTTP_STATUS, 500);
+        span.setTag(Tags.HTTP_STATUS, _500);
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         throw throwable;
       }

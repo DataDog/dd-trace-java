@@ -7,13 +7,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.CoreTracer
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
-class ScopeManagerDepthTest extends DDSpecification {
+class ScopeManagerDepthTest extends DDCoreSpecification {
   def "scopemanager returns noop scope if depth exceeded"() {
     given:
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
     def scopeManager = tracer.scopeManager
 
     when: "fill up the scope stack"
@@ -45,6 +44,7 @@ class ScopeManagerDepthTest extends DDSpecification {
 
     cleanup:
     scopeManager.scopeStack().clear()
+    tracer.close()
 
     where:
     depth = 100  // Using ConfigDefaults here causes classloading issues
@@ -53,7 +53,7 @@ class ScopeManagerDepthTest extends DDSpecification {
   def "scopemanager ignores depth limit when 0"() {
     given:
     injectSysConfig(TracerConfig.SCOPE_DEPTH_LIMIT, "0")
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
     def scopeManager = tracer.scopeManager
 
     when: "fill up the scope stack"
@@ -86,6 +86,7 @@ class ScopeManagerDepthTest extends DDSpecification {
 
     cleanup:
     scopeManager.scopeStack().clear()
+    tracer.close()
 
     where:
     defaultLimit = 100 // Using ConfigDefaults here causes classloading issues
@@ -96,7 +97,7 @@ class ScopeManagerDepthTest extends DDSpecification {
     // Closed scopes that are not on top still count for depth
 
     given:
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
     def scopeManager = tracer.scopeManager
 
     when:
@@ -122,5 +123,8 @@ class ScopeManagerDepthTest extends DDSpecification {
 
     then:
     scopeManager.scopeStack().depth() == 0
+
+    cleanup:
+    tracer.close()
   }
 }

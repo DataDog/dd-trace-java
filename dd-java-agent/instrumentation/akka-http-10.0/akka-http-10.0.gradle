@@ -4,19 +4,22 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/test-with-scala.gradle"
+apply plugin: 'scala'
 
 apply plugin: 'org.unbroken-dome.test-sets'
 testSets {
-  lagomTest
+  // Since we are using different scala versions for different test sets,
+  // we put the test classes in the baseTest test set so that the scala
+  // version is not inherited
+  baseTest
 
   version101Test {
-    dirName = 'test'
+    dirName = 'baseTest'
   }
 
-  latestDepTest {
-    dirName = 'test'
-  }
+  latestDepTest
+
+  lagomTest
 }
 
 compileLagomTestJava {
@@ -28,7 +31,6 @@ compileLagomTestGroovy {
   sourceCompatibility = 1.8
   targetCompatibility = 1.8
 }
-
 
 muzzle {
   pass {
@@ -75,13 +77,19 @@ configurations {
 
 // Create test artifacts so play-2.6 can reuse the akka-http test instrumentation
 artifacts {
-  testArtifacts testJar
+  testArtifacts baseTestJar
+}
+
+sourceSets {
+  latestDepTest.groovy.srcDir sourceSets.baseTest.groovy
+  latestDepTest.scala.srcDir sourceSets.baseTest.scala
 }
 
 dependencies {
+  main_java8CompileOnly deps.scala211
   main_java8CompileOnly group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.0'
 
-  testCompile group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.0'
+  // These are the common dependencies that are inherited by the other test sets
   testCompile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
   testCompile project(':dd-java-agent:instrumentation:trace-annotation')
   testCompile project(':dd-java-agent:instrumentation:akka-concurrent')
@@ -89,24 +97,36 @@ dependencies {
   testCompile project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
   testCompile project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
 
-  lagomTestCompile project(':dd-java-agent:instrumentation:akka-http-10.0')
-  lagomTestCompile project(':dd-java-agent:instrumentation:akka-concurrent')
-  lagomTestCompile project(':dd-java-agent:instrumentation:akka-init')
-  lagomTestCompile project(':dd-java-agent:instrumentation:scala-concurrent')
-  lagomTestCompile project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
-  lagomTestCompile project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
-  lagomTestCompile group: 'com.lightbend.lagom', name: 'lagom-javadsl-testkit_2.11', version: '1.4.0'
+  baseTestCompile deps.scala211
+  // First 10.0.x version with a convenient way to test http2 support
+  baseTestCompile group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.10'
+  baseTestCompile group: 'com.typesafe.akka', name: 'akka-http2-support_2.11', version: '10.0.10'
 
   // There are some internal API changes in 10.1 that we would like to test separately for
-  version101TestCompile group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.1.0'
-  version101TestCompile group: 'com.typesafe.akka', name: 'akka-stream_2.11', version: '2.5.11'
+  version101TestCompile deps.scala212
+  version101TestCompile group: 'com.typesafe.akka', name: 'akka-http_2.12', version: '10.1.+'
+  version101TestCompile group: 'com.typesafe.akka', name: 'akka-http2-support_2.12', version: '10.1.+'
+  version101TestCompile group: 'com.typesafe.akka', name: 'akka-stream_2.12', version: '2.5.+'
 
-  latestDepTestCompile group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '+'
-  latestDepTestCompile group: 'com.typesafe.akka', name: 'akka-stream_2.11', version: '+'
+  latestDepTestCompile deps.scala213
+  latestDepTestCompile group: 'com.typesafe.akka', name: 'akka-http_2.13', version: '10.2.+'
+  // http2 support is included in akka-http since 10.2.x
+  latestDepTestCompile group: 'com.typesafe.akka', name: 'akka-stream_2.13', version: '2.6.+'
+
+  lagomTestCompile deps.scala211
+  lagomTestCompile group: 'com.typesafe.akka', name: 'akka-http_2.11', version: '10.0.0'
+  lagomTestCompile project(':dd-java-agent:instrumentation:akka-init')
+  lagomTestCompile group: 'com.lightbend.lagom', name: 'lagom-javadsl-testkit_2.11', version: '1.4.0'
 }
 
-test.dependsOn lagomTest
+test.dependsOn baseTest
 test.dependsOn version101Test
+test.dependsOn lagomTest
+
+compileBaseTestGroovy {
+  classpath = classpath.plus(files(compileBaseTestScala.destinationDir))
+  dependsOn compileBaseTestScala
+}
 
 compileVersion101TestGroovy {
   classpath = classpath.plus(files(compileVersion101TestScala.destinationDir))

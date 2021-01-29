@@ -15,9 +15,10 @@ import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.FlushingBuffer
 import datadog.trace.core.serialization.Mapper
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Retry
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
@@ -31,14 +32,16 @@ import java.util.concurrent.atomic.AtomicInteger
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.common.writer.DDAgentWriter.BUFFER_SIZE
 import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
-import static datadog.trace.core.SpanFactory.newSpanOf
 
 @Timeout(10)
-class DDAgentWriterCombinedTest extends DDSpecification {
+class DDAgentWriterCombinedTest extends DDCoreSpecification {
 
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
   def monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
   def phaser = new Phaser()
+
+  // Only used to create spans
+  def dummyTracer = tracerBuilder().writer(new ListWriter()).build()
 
   def apiWithVersion(String version) {
     def api = Mock(DDAgentApi)
@@ -46,12 +49,15 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     api.selectTraceMapper() >> { callRealMethod() }
     return api
   }
-  def healthMetrics = Mock(HealthMetrics)
 
   def setup() {
     // Register for two threads.
     phaser.register()
     phaser.register()
+  }
+
+  def cleanup() {
+    dummyTracer?.close()
   }
 
   def "no interactions because of initial flush"() {
@@ -71,6 +77,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     then:
     0 * _
 
+    cleanup:
+    writer.close()
+
     where:
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
@@ -85,6 +94,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       .flushFrequencySeconds(-1)
       .build()
     writer.start()
+    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
 
     when:
     writer.write(trace)
@@ -101,7 +111,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.close()
 
     where:
-    trace = [newSpanOf(0, "fixed-thread-name")]
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
@@ -115,6 +124,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       .flushFrequencySeconds(-1)
       .build()
     writer.start()
+    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
 
     when:
     (1..traceCount).each {
@@ -132,7 +142,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.close()
 
     where:
-    trace = [newSpanOf(0, "fixed-thread-name")]
     bufferSize = 1024
     traceCount = 100 // Shouldn't trigger payload, but bigger than the disruptor size.
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
@@ -140,6 +149,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
   def "test flush by time"() {
     setup:
+    def healthMetrics = Mock(HealthMetrics)
     def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
@@ -148,6 +158,8 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       .flushFrequencySeconds(1)
       .build()
     writer.start()
+    def span = dummyTracer.buildSpan("fakeOperation").start()
+    def trace = (1..10).collect { span }
 
     when:
     (1..5).each {
@@ -170,8 +182,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.close()
 
     where:
-    span = newSpanOf(0, "fixed-thread-name")
-    trace = (1..10).collect { span }
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
@@ -191,7 +201,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     when:
     def mapper = agentVersion.equals("v0.5/traces") ? new TraceMapperV0_5() : new TraceMapperV0_4()
     int traceSize = calculateSize(minimalTrace, mapper)
-    int maxedPayloadTraceCount = ((int) ((mapper.messageBufferSize() - 5) / traceSize))
+    int maxedPayloadTraceCount = ((int) ((mapper.messageBufferSize()) / traceSize))
     (0..maxedPayloadTraceCount).each {
       writer.write(minimalTrace)
     }
@@ -208,14 +218,13 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.close()
 
     where:
-    minimalContext = createMinimalContext()
-    minimalSpan = new DDSpan(0, minimalContext)
-    minimalTrace = [minimalSpan]
+    minimalTrace = createMinimalTrace()
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
   def "check that there are no interactions after close"() {
     setup:
+    def healthMetrics = Mock(HealthMetrics)
     def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
@@ -235,6 +244,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     1 * healthMetrics.onFlush(_)
     1 * healthMetrics.onShutdown(_)
     0 * _
+
+    cleanup:
+    writer.close()
 
     where:
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
@@ -263,7 +275,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
   }
 
   def createMinimalTrace() {
-    def minimalSpan = new DDSpan(0, createMinimalContext())
+    def context = createMinimalContext()
+    def minimalSpan = new DDSpan(0, context)
+    context.getTrace().getRootSpan() >> minimalSpan
     def minimalTrace = [minimalSpan]
 
     return minimalTrace
@@ -271,6 +285,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
   def "monitor happy path"() {
     setup:
+    def healthMetrics = Mock(HealthMetrics)
     def minimalTrace = createMinimalTrace()
 
     // DQH -- need to set-up a dummy agent for the final send callback to work
@@ -318,6 +333,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
   def "monitor agent returns error"() {
     setup:
+    def healthMetrics = Mock(HealthMetrics)
     def minimalTrace = createMinimalTrace()
 
     // DQH -- need to set-up a dummy agent for the final send callback to work
@@ -372,6 +388,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
   def "unreachable agent test"() {
     setup:
+    def healthMetrics = Mock(HealthMetrics)
     def minimalTrace = createMinimalTrace()
     def version = agentVersion
 
@@ -704,14 +721,13 @@ class DDAgentWriterCombinedTest extends DDSpecification {
   }
 
   static int calculateSize(List<DDSpan> trace, Mapper<List<DDSpan>> mapper) {
-    ByteBuffer buffer = ByteBuffer.allocate(1024)
     AtomicInteger size = new AtomicInteger()
-    def packer = new MsgPackWriter(new ByteBufferConsumer() {
+    def packer = new MsgPackWriter(new FlushingBuffer(1024, new ByteBufferConsumer() {
       @Override
-      void accept(int messageCount, ByteBuffer buffy) {
-        size.set(buffy.limit() - buffy.position() - 1)
+      void accept(int messageCount, ByteBuffer buffer) {
+        size.set(buffer.limit() - buffer.position())
       }
-    }, buffer)
+    }))
     packer.format(trace, mapper)
     packer.flush()
     return size.get()

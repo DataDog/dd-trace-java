@@ -131,17 +131,16 @@ class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> 
       operationName "servlet.forward"
       resourceName endpoint.resource("GET", address, testPathParam())
       spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint.errored
+      errored false // never errored since we don't set the http status.
       childOfPrevious()
       tags {
         "$Tags.COMPONENT" "java-web-servlet-dispatcher"
         "servlet.path" endpoint.path
 
-        if (endpoint.errored) {
-          "$Tags.HTTP_STATUS" endpoint.status
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
-          "error.stack" { it == null || it instanceof String }
+        if (endpoint.throwsException) {
+          "error.msg" EXCEPTION.body
+          "error.type" Exception.name
+          "error.stack" String
         }
         defaultTags()
       }

@@ -10,6 +10,8 @@ import java.nio.ByteBuffer;
  */
 public final class UTF8BytesString implements CharSequence {
 
+  public static final UTF8BytesString EMPTY = UTF8BytesString.create("");
+
   @Deprecated
   public static UTF8BytesString createConstant(CharSequence string) {
     return create(string);
@@ -49,6 +51,12 @@ public final class UTF8BytesString implements CharSequence {
   public void transferTo(ByteBuffer buffer) {
     encodeIfNecessary();
     buffer.put(utf8Bytes);
+  }
+
+  /** Writes the UTF8 encoding of the wrapped {@code String}. */
+  public byte[] getUtf8Bytes() {
+    encodeIfNecessary();
+    return utf8Bytes;
   }
 
   public int encodedLength() {

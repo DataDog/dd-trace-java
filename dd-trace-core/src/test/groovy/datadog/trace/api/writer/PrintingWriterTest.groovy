@@ -4,20 +4,34 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.PrintingWriter
-import datadog.trace.core.CoreTracer
-import datadog.trace.core.SpanFactory
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import okio.Buffer
 
 import java.nio.charset.StandardCharsets
 
-class PrintingWriterTest extends DDSpecification {
+class PrintingWriterTest extends DDCoreSpecification {
 
-  def tracer = CoreTracer.builder().writer(new ListWriter()).build()
-  def sampleTrace = [SpanFactory.newSpanOf(tracer), SpanFactory.newSpanOf(tracer)]
-  def secondTrace = [SpanFactory.newSpanOf(tracer)]
+  def tracer = tracerBuilder().writer(new ListWriter()).build()
+  def sampleTrace
+  def secondTrace
 
-  def adapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(Map, String, Types.newParameterizedType(List, Map)))
+  def adapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(Map, String,
+    Types.newParameterizedType(List,
+    Types.newParameterizedType(List, Map))))
+
+  def setup() {
+    def builder = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanType("fakeType")
+
+    sampleTrace = [builder.start(), builder.start()]
+    secondTrace = [builder.start()]
+  }
+
+  def cleanup() {
+    tracer?.close()
+  }
 
   def "test printing regular ids"() {
     given:
@@ -26,11 +40,11 @@ class PrintingWriterTest extends DDSpecification {
 
     when:
     writer.write(sampleTrace)
-    Map<String, List<Map>> result = adapter.fromJson(buffer.readString(StandardCharsets.UTF_8))
+    Map<String, List<List<Map>>> result = adapter.fromJson(buffer.readString(StandardCharsets.UTF_8))
 
     then:
-    result["traces"].size() == sampleTrace.size()
-    result["traces"].each {
+    result["traces"][0].size() == sampleTrace.size()
+    result["traces"][0].each {
       assert it["service"] == "fakeService"
       assert it["name"] == "fakeOperation"
       assert it["resource"] == "fakeResource"
@@ -50,8 +64,8 @@ class PrintingWriterTest extends DDSpecification {
     result = adapter.fromJson(buffer.readString(StandardCharsets.UTF_8))
 
     then:
-    result["traces"].size() == secondTrace.size()
-    result["traces"].each {
+    result["traces"][0].size() == secondTrace.size()
+    result["traces"][0].each {
       assert it["service"] == "fakeService"
       assert it["name"] == "fakeOperation"
       assert it["resource"] == "fakeResource"
@@ -75,11 +89,11 @@ class PrintingWriterTest extends DDSpecification {
 
     when:
     writer.write(sampleTrace)
-    Map<String, List<Map>> result = adapter.fromJson(buffer.readString(StandardCharsets.UTF_8))
+    Map<String, List<List<Map>>> result = adapter.fromJson(buffer.readString(StandardCharsets.UTF_8))
 
     then:
-    result["traces"].size() == sampleTrace.size()
-    result["traces"].each {
+    result["traces"][0].size() == sampleTrace.size()
+    result["traces"][0].each {
       assert it["service"] == "fakeService"
       assert it["name"] == "fakeOperation"
       assert it["resource"] == "fakeResource"

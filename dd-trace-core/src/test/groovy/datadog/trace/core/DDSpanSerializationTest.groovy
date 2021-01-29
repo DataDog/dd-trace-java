@@ -1,14 +1,14 @@
 package datadog.trace.core
 
-
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.FlushingBuffer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferInput
@@ -16,21 +16,20 @@ import org.msgpack.value.ValueType
 
 import java.nio.ByteBuffer
 
-class DDSpanSerializationTest extends DDSpecification {
+class DDSpanSerializationTest extends DDCoreSpecification {
 
   def "serialize trace with id #value as int"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     def context = createContext(spanType, tracer, value)
     def span = DDSpan.create(0, context)
-    def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
-    def packer = new MsgPackWriter(capture, buffer)
+    def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
     packer.format(Collections.singletonList(span), new TraceMapperV0_4())
     packer.flush()
     def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
-    int traceCount = unpacker.unpackArrayHeader()
+    int traceCount = capture.messageCount
     int spanCount = unpacker.unpackArrayHeader()
     int size = unpacker.unpackMapHeader()
 
@@ -57,6 +56,9 @@ class DDSpanSerializationTest extends DDSpecification {
       }
     }
 
+    cleanup:
+    tracer.close()
+
     where:
     value                                                           | spanType
     DDId.ZERO                                                       | null
@@ -70,22 +72,21 @@ class DDSpanSerializationTest extends DDSpecification {
   def "serialize trace with id #value as int v0.5"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     def context = createContext(spanType, tracer, value)
     def span = DDSpan.create(0, context)
-    def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
-    def packer = new MsgPackWriter(capture, buffer)
+    def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
     def traceMapper = new TraceMapperV0_5()
     packer.format(Collections.singletonList(span), traceMapper)
     packer.flush()
-    def dictionaryUnpacker = MessagePack.newDefaultUnpacker(traceMapper.getDictionary())
-    String[] dictionary = new String[dictionaryUnpacker.unpackArrayHeader()]
+    def dictionaryUnpacker = MessagePack.newDefaultUnpacker(traceMapper.dictionary.slice())
+    String[] dictionary = new String[traceMapper.encoding.size()]
     for (int i = 0; i < dictionary.length; ++i) {
       dictionary[i] = dictionaryUnpacker.unpackString()
     }
     def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
-    int traceCount = unpacker.unpackArrayHeader()
+    int traceCount = capture.messageCount
 
     int spanCount = unpacker.unpackArrayHeader()
     int size = unpacker.unpackArrayHeader()
@@ -111,6 +112,9 @@ class DDSpanSerializationTest extends DDSpecification {
       }
     }
 
+    cleanup:
+    tracer.close()
+
     where:
     value                                                           | spanType
     DDId.ZERO                                                       | null
@@ -124,7 +128,7 @@ class DDSpanSerializationTest extends DDSpecification {
   def "serialize trace with baggage and tags correctly v0.4"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     def context = new DDSpanContext(
       DDId.ONE,
       DDId.ONE,
@@ -142,13 +146,12 @@ class DDSpanSerializationTest extends DDSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE))
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
-    def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
-    def packer = new MsgPackWriter(capture, buffer)
+    def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
     packer.format(Collections.singletonList(span), new TraceMapperV0_4())
     packer.flush()
     def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
-    int traceCount = unpacker.unpackArrayHeader()
+    int traceCount = capture.messageCount
     int spanCount = unpacker.unpackArrayHeader()
     int size = unpacker.unpackMapHeader()
 
@@ -180,6 +183,9 @@ class DDSpanSerializationTest extends DDSpecification {
       }
     }
 
+    cleanup:
+    tracer.close()
+
     where:
     baggage       | tags          | expected
     [:]           | [:]           | [:]
@@ -188,11 +194,10 @@ class DDSpanSerializationTest extends DDSpecification {
     [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]
   }
 
-
   def "serialize trace with baggage and tags correctly v0.5"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     def context = new DDSpanContext(
       DDId.ONE,
       DDId.ONE,
@@ -210,18 +215,17 @@ class DDSpanSerializationTest extends DDSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE))
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
-    def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
-    def packer = new MsgPackWriter(capture, buffer)
+    def packer = new MsgPackWriter(new FlushingBuffer(1024, capture))
     def mapper = new TraceMapperV0_5()
     packer.format(Collections.singletonList(span), mapper)
     packer.flush()
     def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
-    int traceCount = unpacker.unpackArrayHeader()
+    int traceCount = capture.messageCount
     int spanCount = unpacker.unpackArrayHeader()
     int size = unpacker.unpackArrayHeader()
-    def dictionaryUnpacker = MessagePack.newDefaultUnpacker(mapper.getDictionary())
-    String[] dictionary = new String[dictionaryUnpacker.unpackArrayHeader()]
+    def dictionaryUnpacker = MessagePack.newDefaultUnpacker(mapper.dictionary.slice())
+    String[] dictionary = new String[mapper.encoding.size()]
     for (int i = 0; i < dictionary.length; ++i) {
       dictionary[i] = dictionaryUnpacker.unpackString()
     }
@@ -248,6 +252,9 @@ class DDSpanSerializationTest extends DDSpecification {
     }
     assert unpackedMeta == expected
 
+    cleanup:
+    tracer.close()
+    
     where:
     baggage       | tags          | expected
     [:]           | [:]           | [:]
@@ -259,9 +266,11 @@ class DDSpanSerializationTest extends DDSpecification {
   private class CaptureBuffer implements ByteBufferConsumer {
 
     private byte[] bytes
+    int messageCount
 
     @Override
     void accept(int messageCount, ByteBuffer buffer) {
+      this.messageCount = messageCount
       this.bytes = new byte[buffer.limit() - buffer.position()]
       buffer.get(bytes)
     }

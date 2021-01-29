@@ -15,6 +15,8 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork
+import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork
 
 abstract class AbstractSmokeTest extends Specification {
 
@@ -68,6 +70,14 @@ abstract class AbstractSmokeTest extends Specification {
   }
 
   def setup() {
+    // TODO: once java7 support is dropped use testedProcess.isAlive() instead
+    try {
+      testedProcess.exitValue()
+      assert false: "Process not alive before test"
+    } catch (IllegalThreadStateException ignored) {
+      // expected
+    }
+
     traceRequests.clear()
     traceCount.set(0)
   }
@@ -83,6 +93,8 @@ abstract class AbstractSmokeTest extends Specification {
     System.out.println("Mock agent started at " + server.address)
 
     defaultJavaProperties = [
+      "${getMaxMemoryArgumentForFork()}",
+      "${getMinMemoryArgumentForFork()}",
       "-javaagent:${shadowJarPath}",
       "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
       "-Ddd.trace.agent.port=${server.address.port}",

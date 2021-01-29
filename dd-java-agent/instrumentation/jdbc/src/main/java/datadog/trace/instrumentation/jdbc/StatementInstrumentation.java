@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
-import static datadog.trace.instrumentation.jdbc.JDBCUtils.connectionFromStatement;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -16,9 +15,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -44,9 +46,14 @@ public final class StatementInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("java.sql.Connection", DBInfo.class.getName());
+  }
+
+  @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCUtils", packageName + ".JDBCUtils$1", packageName + ".JDBCDecorator",
+      packageName + ".JDBCDecorator",
     };
   }
 
@@ -62,21 +69,23 @@ public final class StatementInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(0) final String sql, @Advice.This final Statement statement) {
-      final Connection connection = connectionFromStatement(statement);
-      if (connection == null) {
-        return null;
-      }
-
+      // TODO consider matching known non-wrapper implementations to avoid this check
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
       if (callDepth > 0) {
         return null;
       }
-
-      final AgentSpan span = startSpan(DATABASE_QUERY);
-      DECORATE.afterStart(span);
-      DECORATE.onConnection(span, connection);
-      DECORATE.onStatement(span, sql);
-      return activateSpan(span);
+      try {
+        final Connection connection = statement.getConnection();
+        final AgentSpan span = startSpan(DATABASE_QUERY);
+        DECORATE.afterStart(span);
+        DECORATE.onConnection(
+            span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        DECORATE.onStatement(span, sql);
+        return activateSpan(span);
+      } catch (SQLException e) {
+        // if we can't get the connection for any reason
+        return null;
+      }
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

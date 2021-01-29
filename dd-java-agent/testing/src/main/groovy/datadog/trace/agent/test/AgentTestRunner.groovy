@@ -125,6 +125,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
         .writer(TEST_WRITER)
         .idGenerationStrategy(THREAD_PREFIX)
         .statsDClient(STATS_D_CLIENT)
+        .strictTraceWrites(useStrictTraceWrites())
         .build()
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
@@ -140,6 +141,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   def setup() {
     configureLoggingLevels()
 
+    assertThreadsEachCleanup = false
+    
     assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
 
     // Config is reset before each test. Thus, configurePreAgent() has to be called before each test
@@ -147,7 +150,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     configurePreAgent()
 
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
-
     TEST_TRACER.flush()
     TEST_WRITER.start()
 
@@ -176,6 +178,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     assert INSTRUMENTATION_ERROR_COUNT.get() == 0: INSTRUMENTATION_ERROR_COUNT.get() + " Instrumentation errors during test"
 
     assert TRANSFORMED_CLASSES_TYPES.findAll { additionalLibraryIgnoresMatcher().matches(it) }.isEmpty(): "Transformed classes match global libraries ignore matcher"
+  }
+
+  boolean useStrictTraceWrites() {
+    return false
   }
 
   void assertTraces(
@@ -235,7 +241,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     }
 
     // Incorrect* classes assert on incorrect api usage. Error expected.
-    if (typeName.startsWith('context.ContextTestInstrumentation$Incorrect') && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
+    if (typeName.startsWith('context.FieldInjectionTestInstrumentation$Incorrect')
+      && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
       return
     }
 

@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_PROCESSOR;
+import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -78,6 +79,10 @@ public class TraceProcessingWorker implements AutoCloseable {
   @Override
   public void close() {
     serializerThread.interrupt();
+    try {
+      serializerThread.join(THREAD_JOIN_TIMOUT_MS);
+    } catch (InterruptedException ignored) {
+    }
   }
 
   public boolean publish(int samplingPriority, final List<DDSpan> trace) {

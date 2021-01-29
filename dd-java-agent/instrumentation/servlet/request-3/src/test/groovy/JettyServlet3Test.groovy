@@ -3,13 +3,18 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
+import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
 
 import javax.servlet.Servlet
+import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
 
+import static TestServlet3.SERVLET_TIMEOUT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -43,9 +48,34 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
 
     ServletContextHandler servletContext = new ServletContextHandler(null, "/$context")
     servletContext.errorHandler = new ErrorHandler() {
+      @Override
+      void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException {
+        try {
+          // This allows calling response.sendError in async context on a different thread. (Without results in NPE.)
+          def original = org.eclipse.jetty.server.AbstractHttpConnection.currentConnection
+          org.eclipse.jetty.server.AbstractHttpConnection.setCurrentConnection(baseRequest.connection)
+          super.handle(target, baseRequest, request, response)
+          org.eclipse.jetty.server.AbstractHttpConnection.setCurrentConnection(original)
+        } catch (Throwable e) {
+          // latest dep fallback which is missing AbstractHttpConnection and doesn't need the special handling
+          super.handle(target, baseRequest, request, response)
+        }
+      }
+
       protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
-        Throwable th = (Throwable) request.getAttribute("javax.servlet.error.exception")
-        writer.write(th ? th.message : message)
+        Throwable t = (Throwable) request.getAttribute("javax.servlet.error.exception")
+        def response = ((Request) request).response
+        if (t) {
+          if (t instanceof ServletException) {
+            t = t.rootCause
+          }
+          if (t instanceof InputMismatchException) {
+            response.status = CUSTOM_EXCEPTION.status
+          }
+          writer.write(t.message)
+        } else {
+          writer.write(message)
+        }
       }
     }
 //    setupAuthentication(jettyServer, servletContext)
@@ -71,6 +101,14 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   @Override
   String getContext() {
     return "jetty-context"
+  }
+
+  @Override
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    if (IS_LATEST) {
+      return [NOT_FOUND, ERROR, REDIRECT].contains(endpoint)
+    }
+    return [NOT_FOUND, ERROR, EXCEPTION, CUSTOM_EXCEPTION, REDIRECT].contains(endpoint)
   }
 
   @Override
@@ -113,10 +151,10 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
           "servlet.path" endpoint.path
         }
 
-        if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
-          "error.stack" { it == null || it instanceof String }
+        if (endpoint.throwsException) {
+          "error.msg" endpoint.body
+          "error.type" { it == Exception.name || it == InputMismatchException.name }
+          "error.stack" String
         }
         if (endpoint.query) {
           "$DDTags.HTTP_QUERY" endpoint.query
@@ -131,23 +169,21 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
       serviceName expectedServiceName()
       operationName "servlet.dispatch"
       resourceName endpoint.path
-      errored(endpoint.errored && endpoint != TIMEOUT)
+      errored(endpoint.throwsException || endpoint == TIMEOUT_ERROR)
       childOfPrevious()
       tags {
         "$Tags.COMPONENT" AsyncDispatcherDecorator.DECORATE.component()
-        if (endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR) {
-          "$Tags.HTTP_STATUS" endpoint.status
-        } else {
-          "timeout" 1_000
+        if (endpoint == TIMEOUT || endpoint == TIMEOUT_ERROR) {
+          "timeout" SERVLET_TIMEOUT
         }
         if (context) {
           "servlet.context" "/$context"
         }
         "servlet.path" "/dispatch$endpoint.path"
-        if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
-          "error.stack" { it == null || it instanceof String }
+        if (endpoint.throwsException) {
+          "error.msg" endpoint.body
+          "error.type" { it == Exception.name || it == InputMismatchException.name }
+          "error.stack" String
         }
         defaultTags()
       }
@@ -185,10 +221,6 @@ class JettyServlet3TestSync extends JettyServlet3Test {
   Class<Servlet> servlet() {
     TestServlet3.Sync
   }
-
-  boolean hasResponseSpan(ServerEndpoint endpoint) {
-    return endpoint == REDIRECT || endpoint == ERROR || (endpoint == EXCEPTION && !IS_LATEST) || endpoint == NOT_FOUND
-  }
 }
 
 class JettyServlet3TestAsync extends JettyServlet3Test {
@@ -199,13 +231,14 @@ class JettyServlet3TestAsync extends JettyServlet3Test {
   }
 
   @Override
-  boolean testTimeout() {
-    true
+  boolean testException() {
+    // An exception in async dispatch will be logged and retried resulting in an infinite loop
+    false
   }
 
-  boolean hasResponseSpan(ServerEndpoint endpoint) {
-    // No response spans for errors in async
-    return endpoint == REDIRECT || endpoint == NOT_FOUND
+  @Override
+  boolean testTimeout() {
+    true
   }
 }
 
@@ -214,10 +247,6 @@ class JettyServlet3TestFakeAsync extends JettyServlet3Test {
   @Override
   Class<Servlet> servlet() {
     TestServlet3.FakeAsync
-  }
-
-  boolean hasResponseSpan(ServerEndpoint endpoint) {
-    return endpoint == REDIRECT || endpoint == ERROR || (endpoint == EXCEPTION && !IS_LATEST) || endpoint == NOT_FOUND
   }
 }
 
@@ -302,10 +331,6 @@ class JettyServlet3TestDispatchImmediate extends JettyServlet3Test {
     dispatchSpan(trace, endpoint)
   }
 
-  boolean hasResponseSpan(ServerEndpoint endpoint) {
-    return endpoint == REDIRECT || endpoint == ERROR || (endpoint == EXCEPTION && !IS_LATEST) || endpoint == NOT_FOUND
-  }
-
   @Override
   protected void setupServlets(ServletContextHandler context) {
     super.setupServlets(context)
@@ -321,17 +346,19 @@ class JettyServlet3TestDispatchAsync extends JettyServlet3Test {
   }
 
   @Override
+  boolean testException() {
+    // An exception in async dispatch will be logged and retried resulting in an infinite loop
+    false
+  }
+
+  @Override
   boolean testTimeout() {
     return true
   }
 
+  @Override
   boolean isDispatch() {
     return true
-  }
-
-  boolean hasResponseSpan(ServerEndpoint endpoint) {
-    // No response spans for errors in async
-    return endpoint == REDIRECT || endpoint == NOT_FOUND
   }
 
   @Override

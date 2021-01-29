@@ -1,6 +1,9 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
+import static datadog.trace.common.metrics.Batch.REPORT;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
+import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -8,6 +11,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.util.AgentTaskScheduler;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
@@ -30,13 +34,19 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final BlockingQueue<Batch> inbox;
   private final Sink sink;
   private final Aggregator aggregator;
+  private final long reportingInterval;
+  private final TimeUnit reportingIntervalTimeUnit;
 
   private volatile boolean enabled = true;
+  private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
   public ConflatingMetricsAggregator(Config config) {
     this(
         config.getWellKnownTags(),
-        new OkHttpSink(config.getAgentUrl(), config.getAgentTimeout()),
+        new OkHttpSink(
+            config.getAgentUrl(),
+            config.getAgentTimeout(),
+            config.isTracerMetricsBufferingEnabled()),
         config.getTracerMetricsMaxAggregates(),
         config.getTracerMetricsMaxPending());
   }
@@ -77,12 +87,29 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         new Aggregator(
             metricWriter, batchPool, inbox, pending, maxAggregates, reportingInterval, timeUnit);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
+    this.reportingInterval = reportingInterval;
+    this.reportingIntervalTimeUnit = timeUnit;
   }
 
   @Override
   public void start() {
     sink.register(this);
     thread.start();
+    cancellation =
+        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+            new ReportTask(),
+            this,
+            reportingInterval,
+            reportingInterval,
+            reportingIntervalTimeUnit);
+  }
+
+  @Override
+  public void report() {
+    boolean published;
+    do {
+      published = inbox.offer(REPORT);
+    } while (!published);
   }
 
   @Override
@@ -104,21 +131,23 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getOperationName(),
             span.getType(),
             span.getTag(Tags.HTTP_STATUS, ZERO));
-    boolean error = span.getError() > 0;
+    long tag = span.getError() > 0 ? ERROR_TAG : 0L;
     long durationNanos = span.getDurationNano();
     Batch batch = pending.get(key);
     if (null != batch) {
       // there is a pending batch, try to win the race to add to it
       // returning false means that either the batch can't take any
       // more data, or it has already been consumed
-      if (batch.add(error, durationNanos)) {
+      if (batch.add(tag, durationNanos)) {
         // added to a pending batch prior to consumption
         // so skip publishing to the queue
         return;
       }
+      // recycle the older key
+      key = batch.getKey();
     }
     batch = newBatch(key);
-    batch.addExclusive(error, durationNanos);
+    batch.add(tag, durationNanos);
     // overwrite the last one if present, it was already full
     // or had been consumed by the time we tried to add to it
     pending.put(key, batch);
@@ -128,16 +157,26 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private Batch newBatch(MetricKey key) {
     Batch batch = batchPool.poll();
-    return (null == batch ? new Batch() : batch).withKey(key);
+    if (null == batch) {
+      return new Batch(key);
+    }
+    return batch.reset(key);
   }
 
   public void stop() {
+    if (null != cancellation) {
+      cancellation.cancel();
+    }
     inbox.offer(POISON_PILL);
   }
 
   @Override
   public void close() {
     stop();
+    try {
+      thread.join(THREAD_JOIN_TIMOUT_MS);
+    } catch (InterruptedException ignored) {
+    }
   }
 
   @Override
@@ -164,5 +203,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.batchPool.clear();
     this.inbox.clear();
     this.aggregator.clearAggregates();
+  }
+
+  private static final class ReportTask
+      implements AgentTaskScheduler.Task<ConflatingMetricsAggregator> {
+
+    @Override
+    public void run(ConflatingMetricsAggregator target) {
+      target.report();
+    }
   }
 }

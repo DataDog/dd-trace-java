@@ -4,11 +4,18 @@ repositories {
   jcenter()
   maven {
     url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
+    content {
+      includeGroup "org.openjdk.jmc"
+    }
     mavenContent {
       snapshotsOnly()
     }
   }
   maven {
     url "https://repo.typesafe.com/typesafe/releases"
+    content {
+      includeGroup "com.typesafe.play"
+      includeGroup "play"
+    }
   }
 }

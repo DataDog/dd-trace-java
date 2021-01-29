@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.BOOTSTRAP_CLASSLOADER;
+import static datadog.trace.bootstrap.AgentClassLoading.INJECTING_HELPERS;
 
 import datadog.trace.api.Config;
 import java.io.File;
@@ -165,6 +166,7 @@ public class HelperInjector implements Transformer {
 
     // Failures to create a tempDir are propagated as IOException and handled by transform
     final File tempDir = createTempDir();
+    INJECTING_HELPERS.begin();
     try {
       return ClassInjector.UsingInstrumentation.of(
               tempDir,
@@ -172,6 +174,7 @@ public class HelperInjector implements Transformer {
               AgentInstaller.getInstrumentation())
           .injectRaw(classnameToBytes);
     } finally {
+      INJECTING_HELPERS.end();
       // Delete fails silently
       deleteTempDir(tempDir);
     }
@@ -179,7 +182,12 @@ public class HelperInjector implements Transformer {
 
   private Map<String, Class<?>> injectClassLoader(
       final ClassLoader classLoader, final Map<String, byte[]> classnameToBytes) {
-    return new ClassInjector.UsingReflection(classLoader).injectRaw(classnameToBytes);
+    INJECTING_HELPERS.begin();
+    try {
+      return new ClassInjector.UsingReflection(classLoader).injectRaw(classnameToBytes);
+    } finally {
+      INJECTING_HELPERS.end();
+    }
   }
 
   private void ensureModuleCanReadHelperModules(final JavaModule target) {

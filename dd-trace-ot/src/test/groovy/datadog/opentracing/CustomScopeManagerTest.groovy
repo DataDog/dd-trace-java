@@ -16,6 +16,10 @@ class CustomScopeManagerTest extends DDSpecification {
   def scopeManager = new TestScopeManager()
   def tracer = DDTracer.builder().writer(writer).scopeManager(scopeManager).build()
 
+  def cleanup() {
+    tracer?.close()
+  }
+
   def "simple span works"() {
     when:
     Scope scope

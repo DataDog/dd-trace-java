@@ -1,7 +1,7 @@
 import java.util.concurrent.Semaphore
-
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
+import akka.routing.RoundRobinPool
 import akka.util.Timeout
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
@@ -19,12 +19,16 @@ class AkkaActors extends AutoCloseable {
     system.actorOf(Receiver.props, "receiver")
   val forwarder: ActorRef =
     system.actorOf(Forwarder.props(receiver), "forwarder")
+  val router: ActorRef =
+    system.actorOf(RoundRobinPool(5).props(Props[Receiver]()), "router")
   val tellGreeter: ActorRef =
     system.actorOf(Greeter.props("Howdy", receiver), "tell-greeter")
   val askGreeter: ActorRef =
     system.actorOf(Greeter.props("Hi-diddly-ho", receiver), "ask-greeter")
   val forwardGreeter: ActorRef =
     system.actorOf(Greeter.props("Hello", forwarder), "forward-greeter")
+  val routerGreeter: ActorRef =
+    system.actorOf(Greeter.props("How you doin'", router), "router-greeter")
 
   override def close(): Unit = {
     system.terminate()
@@ -35,7 +39,12 @@ class AkkaActors extends AutoCloseable {
   implicit val timeout: Timeout = 10.seconds
 
   private val actors =
-    Map("tell" -> tellGreeter, "ask" -> askGreeter, "forward" -> forwardGreeter)
+    Map(
+      "tell" -> tellGreeter,
+      "ask" -> askGreeter,
+      "forward" -> forwardGreeter,
+      "route" -> routerGreeter
+    )
 
   def block(name: String): Semaphore = {
     val barrier = new Semaphore(0)

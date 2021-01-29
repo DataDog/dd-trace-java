@@ -1,13 +1,12 @@
 package datadog.trace.core.processor
 
 import datadog.trace.bootstrap.instrumentation.api.Tags
-
-import datadog.trace.core.SpanFactory
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.processor.rule.URLAsResourceNameRule
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Subject
 
-class URLAsResourceNameRuleTest extends DDSpecification {
+class URLAsResourceNameRuleTest extends DDCoreSpecification {
 
   @Subject
   def decorator = new URLAsResourceNameRule()
@@ -110,17 +109,20 @@ class URLAsResourceNameRuleTest extends DDSpecification {
 
   def "sets the resource name"() {
     setup:
-    def span = SpanFactory.newSpanOf(0)
-    span.context.resourceName = null
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def span = tracer.buildSpan("fakeOperation").start()
     meta.each {
       span.setTag(it.key, (String) it.value)
     }
-
-    when:
     decorator.processSpan(span.context())
 
     then:
     span.resourceName.toString() == resourceName
+
+    cleanup:
+    tracer.close()
 
     where:
     value                       | resourceName        | meta

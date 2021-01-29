@@ -3,9 +3,8 @@ package datadog.trace.core.propagation
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpanContext
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.HaystackHttpCodec.DD_PARENT_ID_BAGGAGE_KEY
@@ -16,14 +15,14 @@ import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY
 
-class HaystackHttpInjectorTest extends DDSpecification {
+class HaystackHttpInjectorTest extends DDCoreSpecification {
 
   HttpCodec.Injector injector = new HaystackHttpCodec.Injector()
 
   def "inject http headers"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
         DDId.from(traceId),
@@ -61,6 +60,9 @@ class HaystackHttpInjectorTest extends DDSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
     1 * carrier.put(DD_PARENT_ID_BAGGAGE_KEY, "0")
 
+    cleanup:
+    tracer.close()
+
     where:
     traceId               | spanId                | samplingPriority              | origin | traceUuid                              | spanUuid
     "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"
@@ -72,7 +74,7 @@ class HaystackHttpInjectorTest extends DDSpecification {
   def "inject http headers with haystack traceId in baggage"() {
     setup:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
     def haystackUuid = traceUuid
     final DDSpanContext mockedContext =
       new DDSpanContext(
@@ -110,6 +112,9 @@ class HaystackHttpInjectorTest extends DDSpecification {
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
 
+    cleanup:
+    tracer.close()
+    
     where:
     traceId               | spanId                | samplingPriority              | origin | traceUuid                              | spanUuid
     "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"

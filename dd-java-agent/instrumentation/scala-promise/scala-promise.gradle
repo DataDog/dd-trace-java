@@ -2,6 +2,14 @@
  * Classes that are common to all versions of the Scala promise instrumentation.
  */
 
+muzzle {
+  pass {
+    group = 'org.scala-lang'
+    module = "scala-library"
+    versions = "[2.10.2,]"
+  }
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala'
 
@@ -10,5 +18,6 @@ compileTestGroovy {
 }
 
 dependencies {
+  compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.2'
   testCompile group: 'org.scala-lang', name: 'scala-library', version: '2.10.2'
 }

@@ -27,6 +27,7 @@ class CriteriaTest extends AbstractHibernateTest {
           operationName "hibernate.session"
           spanType DDSpanTypes.HIBERNATE
           parent()
+          topLevel true
           tags {
             "$Tags.COMPONENT" "java-hibernate"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -67,6 +68,7 @@ class CriteriaTest extends AbstractHibernateTest {
             "$Tags.DB_TYPE" "h2"
             "$Tags.DB_INSTANCE" "db1"
             "$Tags.DB_USER" "sa"
+            "$Tags.DB_OPERATION" "select"
             defaultTags()
           }
         }

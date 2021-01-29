@@ -14,7 +14,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.propagation.DatadogHttpCodec
 import datadog.trace.core.propagation.HttpCodec
-import datadog.trace.test.util.DDSpecification
+import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Timeout
 
 import static datadog.trace.api.config.GeneralConfig.ENV
@@ -29,7 +29,7 @@ import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
 
 @Timeout(10)
-class CoreTracerTest extends DDSpecification {
+class CoreTracerTest extends DDCoreSpecification {
 
   def "verify defaults on tracer"() {
     when:
@@ -43,6 +43,9 @@ class CoreTracerTest extends DDSpecification {
 
     tracer.injector instanceof HttpCodec.CompoundInjector
     tracer.extractor instanceof HttpCodec.CompoundExtractor
+
+    cleanup:
+    tracer.close()
   }
 
   def "verify disabling health monitor"() {
@@ -54,6 +57,9 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     tracer.statsDClient instanceof NoOpStatsDClient
+
+    cleanup:
+    tracer.close()
   }
 
   def "verify service, env, and version are added as stats tags"() {
@@ -115,10 +121,13 @@ class CoreTracerTest extends DDSpecification {
     injectSysConfig(PRIORITY_SAMPLING, "false")
 
     when:
-    def tracer = CoreTracer.builder().build()
+    def tracer = tracerBuilder().build()
 
     then:
     tracer.sampler instanceof AllSampler
+
+    cleanup:
+    tracer.close()
   }
 
   def "verify overriding writer"() {
@@ -126,10 +135,13 @@ class CoreTracerTest extends DDSpecification {
     injectSysConfig(WRITER_TYPE, "LoggingWriter")
 
     when:
-    def tracer = CoreTracer.builder().build()
+    def tracer = tracerBuilder().build()
 
     then:
     tracer.writer instanceof LoggingWriter
+
+    cleanup:
+    tracer.close()
   }
 
   def "verify uds+windows"() {
@@ -153,7 +165,7 @@ class CoreTracerTest extends DDSpecification {
     injectSysConfig(HEADER_TAGS, mapString)
 
     when:
-    def tracer = CoreTracer.builder().build()
+    def tracer = tracerBuilder().build()
     // Datadog extractor gets placed first
     def taggedHeaders = tracer.extractor.extractors[0].taggedHeaders
 
@@ -161,6 +173,9 @@ class CoreTracerTest extends DDSpecification {
     tracer.defaultSpanTags == map
     tracer.serviceNameMappings == map
     taggedHeaders == map
+
+    cleanup:
+    tracer.close()
 
     where:
     mapString       | map
@@ -196,19 +211,25 @@ class CoreTracerTest extends DDSpecification {
   def "Writer is instance of LoggingWriter when property set"() {
     when:
     injectSysConfig("writer.type", "LoggingWriter")
-    def tracer = CoreTracer.builder().build()
+    def tracer = tracerBuilder().build()
 
     then:
     tracer.writer instanceof LoggingWriter
+
+    cleanup:
+    tracer.close()
   }
 
   def "Shares TraceCount with DDApi with #key = #value"() {
     setup:
     injectSysConfig(key, value)
-    final CoreTracer tracer = CoreTracer.builder().build()
+    final CoreTracer tracer = tracerBuilder().build()
 
     expect:
     tracer.writer instanceof DDAgentWriter
+
+    cleanup:
+    tracer.close()
 
     where:
     key               | value
@@ -218,7 +239,7 @@ class CoreTracerTest extends DDSpecification {
 
   def "root tags are applied only to root spans"() {
     setup:
-    def tracer = CoreTracer.builder().localRootSpanTags(['only_root': 'value']).build()
+    def tracer = tracerBuilder().localRootSpanTags(['only_root': 'value']).build()
     def root = tracer.buildSpan('my_root').start()
     def child = tracer.buildSpan('my_child').asChildOf(root).start()
 
@@ -229,12 +250,13 @@ class CoreTracerTest extends DDSpecification {
     cleanup:
     child.finish()
     root.finish()
+    tracer.close()
   }
 
   def "priority sampling when span finishes"() {
     given:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
 
     when:
     def span = tracer.buildSpan("operation").start()
@@ -243,12 +265,15 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
+
+    cleanup:
+    tracer.close()
   }
 
   def "priority sampling set when child span complete"() {
     given:
     def writer = new ListWriter()
-    def tracer = CoreTracer.builder().writer(writer).build()
+    def tracer = tracerBuilder().writer(writer).build()
 
     when:
     def root = tracer.buildSpan("operation").start()
@@ -265,12 +290,15 @@ class CoreTracerTest extends DDSpecification {
     then:
     root.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
     child.getSamplingPriority() == root.getSamplingPriority()
+
+    cleanup:
+    tracer.close()
   }
 
   def "span priority set when injecting"() {
     given:
     injectSysConfig("writer.type", "LoggingWriter")
-    def tracer = CoreTracer.builder().build()
+    def tracer = tracerBuilder().build()
     def setter = Mock(AgentPropagation.Setter)
     def carrier = new Object()
 
@@ -287,12 +315,13 @@ class CoreTracerTest extends DDSpecification {
     cleanup:
     child.finish()
     root.finish()
+    tracer.close()
   }
 
   def "span priority only set after first injection"() {
     given:
     def sampler = new ControllableSampler()
-    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
     def setter = Mock(AgentPropagation.Setter)
     def carrier = new Object()
 
@@ -321,12 +350,13 @@ class CoreTracerTest extends DDSpecification {
     child.finish()
     child2.finish()
     root.finish()
+    tracer.close()
   }
 
   def "injection doesn't override set priority"() {
     given:
     def sampler = new ControllableSampler()
-    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
     def setter = Mock(AgentPropagation.Setter)
     def carrier = new Object()
 
@@ -344,6 +374,7 @@ class CoreTracerTest extends DDSpecification {
     cleanup:
     child.finish()
     root.finish()
+    tracer.close()
   }
 }
 

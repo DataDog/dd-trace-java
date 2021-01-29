@@ -29,6 +29,7 @@ public final class ConfigDefaults {
   static final String DEFAULT_PRIORITIZATION_TYPE = "FastLane";
 
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
+  static final boolean DEFAULT_LEGACY_CONTEXT_FIELD_INJECTION = false;
   static final boolean DEFAULT_SERIALVERSIONUID_FIELD_INJECTION = true;
 
   static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
@@ -63,6 +64,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT = 10_000;
   static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS = 50;
   static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE = 10000;
+  static final boolean DEFAULT_PROFILING_AGENTLESS = false;
 
   static final boolean DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED = true;
 
