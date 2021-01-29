@@ -11,13 +11,14 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInitializer
 import io.netty.channel.embedded.EmbeddedChannel
 import io.netty.handler.codec.http.HttpClientCodec
+import io.netty.handler.ssl.SslContextBuilder
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.asynchttpclient.AsyncCompletionHandler
 import org.asynchttpclient.AsyncHttpClient
 import org.asynchttpclient.DefaultAsyncHttpClientConfig
 import org.asynchttpclient.Response
 import spock.lang.AutoCleanup
 import spock.lang.Retry
-import spock.lang.Shared
 import spock.lang.Timeout
 
 import java.util.concurrent.ExecutionException
@@ -32,11 +33,12 @@ import static org.asynchttpclient.Dsl.asyncHttpClient
 @Timeout(5)
 class Netty41ClientTest extends HttpClientTest {
 
-  @Shared
   def clientConfig = DefaultAsyncHttpClientConfig.Builder.newInstance()
     .setRequestTimeout(TimeUnit.SECONDS.toMillis(10).toInteger())
+    .setSslContext(SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build())
     .setMaxRequestRetry(0)
-  @Shared
+
+  // Can't be @Shared otherwise field-injected classes get loaded too early.
   @AutoCleanup
   AsyncHttpClient asyncHttpClient = asyncHttpClient(clientConfig)
 
@@ -75,6 +77,11 @@ class Netty41ClientTest extends HttpClientTest {
   @Override
   boolean testConnectionFailure() {
     false
+  }
+
+  @Override
+  boolean testSecure() {
+    true
   }
 
   @Override

@@ -1,6 +1,8 @@
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator
+import io.netty.handler.ssl.SslContextBuilder
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.asynchttpclient.AsyncCompletionHandler
 import org.asynchttpclient.AsyncHttpClient
 import org.asynchttpclient.DefaultAsyncHttpClientConfig
@@ -25,8 +27,10 @@ class Netty40ClientTest extends HttpClientTest {
   @Shared
   def clientConfig = DefaultAsyncHttpClientConfig.Builder.newInstance()
     .setRequestTimeout(TimeUnit.SECONDS.toMillis(10).toInteger())
+    .setSslContext(SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build())
     .setMaxRequestRetry(0)
-  @Shared
+
+  // Can't be @Shared otherwise field-injected classes get loaded too early.
   @AutoCleanup
   AsyncHttpClient asyncHttpClient = asyncHttpClient(clientConfig)
 
@@ -65,6 +69,11 @@ class Netty40ClientTest extends HttpClientTest {
   @Override
   boolean testConnectionFailure() {
     false
+  }
+
+  @Override
+  boolean testSecure() {
+    true
   }
 
   @Override

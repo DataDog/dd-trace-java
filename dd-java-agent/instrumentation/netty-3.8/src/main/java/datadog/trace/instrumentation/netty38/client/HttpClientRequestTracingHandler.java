@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator.DECORATE_SECURE;
 import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator.NETTY_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.netty38.client.NettyResponseInjectAdapter.SETTER;
 
@@ -52,13 +53,15 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
     final HttpRequest request = (HttpRequest) msg.getMessage();
 
     channelTraceContext.setClientParentSpan(activeSpan());
+    boolean isSecure = ctx.getPipeline().get("sslHandler") != null;
+    NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 
     final AgentSpan span = startSpan(NETTY_CLIENT_REQUEST);
     span.setMeasured(true);
     try (final AgentScope scope = activateSpan(span)) {
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request);
-      DECORATE.onPeerConnection(span, (InetSocketAddress) ctx.getChannel().getRemoteAddress());
+      decorate.afterStart(span);
+      decorate.onRequest(span, request);
+      decorate.onPeerConnection(span, (InetSocketAddress) ctx.getChannel().getRemoteAddress());
 
       propagate().inject(span, request.headers(), SETTER);
 
