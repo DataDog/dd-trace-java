@@ -7,10 +7,17 @@ apply from: "$rootDir/gradle/codenarc.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
 
+def forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", BuildService) {
+  maxParallelUsages = 2
+}
+
 // Task for tests that want to run forked in their own separate JVM
 task forkedTest(type: Test) {
   setIncludes(["**/*ForkedTest*"])
+  jvmArgs += ["-Xms256M", "-Xmx256M"]
   forkEvery 1
+  // Limit the number of concurrent forked tests
+  usesService(forkedTestLimit)
 }
 
 test {
