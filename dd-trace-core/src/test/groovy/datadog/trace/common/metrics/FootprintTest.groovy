@@ -4,6 +4,7 @@ import datadog.trace.api.WellKnownTags
 import datadog.trace.test.util.DDSpecification
 import org.openjdk.jol.info.GraphLayout
 import spock.lang.Requires
+import spock.lang.Shared
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ThreadLocalRandom
@@ -15,6 +16,9 @@ import static java.util.concurrent.TimeUnit.SECONDS
 @Requires({ isJavaVersionAtLeast(8) })
 class FootprintTest extends DDSpecification {
 
+  @Shared
+  Random random = new Random(0)
+
   def "footprint less than 5MB"() {
     setup:
     CountDownLatch latch = new CountDownLatch(1)
@@ -24,7 +28,7 @@ class FootprintTest extends DDSpecification {
       sink,
       1000,
       1000,
-      10,
+      100,
       SECONDS)
     aggregator.start()
     AtomicLong size = new AtomicLong(0)
@@ -48,7 +52,7 @@ class FootprintTest extends DDSpecification {
       aggregator.publish([new SimpleSpan(serviceName, operation, resourceName, type, true, true, isError, System.nanoTime(),
       isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01))])
     }
-    aggregator.stop()
+    aggregator.report()
     latch.await(10, SECONDS)
 
     then:
@@ -59,6 +63,9 @@ class FootprintTest extends DDSpecification {
       latch.countDown()
     }
     size.get() <= 5 * 1024 * 1024
+
+    cleanup:
+    aggregator.close()
 
     where:
     operationCardinality | servicePerOperation | resourceNamesPerService | typesPerOperation | errorRate
@@ -97,6 +104,6 @@ class FootprintTest extends DDSpecification {
   }
 
   def expDistributedNanoseconds(double intensity) {
-    return (long)(Math.log(ThreadLocalRandom.current().nextDouble()) / Math.log(1 - intensity) + 1)
+    return (long)(Math.log(random.nextDouble()) / Math.log(1 - intensity) + 1)
   }
 }
