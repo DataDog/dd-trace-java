@@ -125,8 +125,8 @@ abstract class AbstractSmokeTest extends Specification {
 
   def cleanupSpec() {
     int maxAttempts = 10
-    Integer exitValue
-    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+    Integer exitValue = -10
+    for (int attempt = 1; attempt <= maxAttempts && testedProcess != null; attempt++) {
       try {
         exitValue = testedProcess.exitValue()
         break
