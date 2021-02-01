@@ -421,7 +421,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
-  public Boolean isError() {
+  public boolean isError() {
     return context.getErrorFlag();
   }
 

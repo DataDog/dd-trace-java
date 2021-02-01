@@ -217,7 +217,7 @@ public class OtelSpan implements Span, MutableSpan {
   }
 
   @Override
-  public Boolean isError() {
+  public boolean isError() {
     return delegate.isError();
   }
 
