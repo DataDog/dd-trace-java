@@ -9,6 +9,7 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/resource-intensive-test.gradle"
 apply plugin: "idea"
 
 dependencies {

@@ -5,6 +5,7 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/resource-intensive-test.gradle"
 
 dependencies {
   testCompile project(':dd-java-agent:instrumentation:trace-annotation')

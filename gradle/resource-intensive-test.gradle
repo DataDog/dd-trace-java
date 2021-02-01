@@ -1,0 +1,8 @@
+def resourceIntensiveTestLimit = gradle.sharedServices.registerIfAbsent("resourceIntensiveTestLimit", BuildService) {
+  maxParallelUsages = 2
+}
+
+tasks.withType(Test).configureEach {
+  // Limit the number of concurrent resource intesive tests
+  usesService(resourceIntensiveTestLimit)
+}
