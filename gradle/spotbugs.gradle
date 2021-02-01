@@ -1,0 +1,21 @@
+apply plugin: 'com.github.spotbugs'
+
+spotbugs {
+  // list of detectors are of the following:
+  // https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html
+  omitVisitors = [ 'DontUseEnum',
+                   'SwitchFallthrough',
+                   'RuntimeExceptionCapture',
+                   'InvalidJUnitTest',
+                   'LostLoggerDueToWeakReference']
+}
+
+spotbugsMain {
+  reports {
+    html {
+      enabled = true
+      destination = file("$buildDir/reports/spotbugs/main/spotbugs.html")
+      stylesheet = 'fancy-hist.xsl'
+    }
+  }
+}
