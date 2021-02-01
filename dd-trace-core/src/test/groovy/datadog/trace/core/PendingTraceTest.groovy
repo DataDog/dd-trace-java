@@ -7,8 +7,9 @@ import java.util.concurrent.TimeUnit
 class PendingTraceTest extends PendingTraceTestBase {
 
   @Override
-  CoreTracer.CoreTracerBuilder getBuilder() {
-    return tracerBuilder()
+  protected boolean useStrictTraceWrites() {
+    // This tests the behavior of the relaxed pending trace implementation
+    return false
   }
 
   @Timeout(value = 60, unit = TimeUnit.SECONDS)

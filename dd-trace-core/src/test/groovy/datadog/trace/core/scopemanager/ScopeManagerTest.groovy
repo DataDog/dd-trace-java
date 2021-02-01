@@ -28,6 +28,12 @@ import static datadog.trace.test.util.GCUtils.awaitGC
 class ScopeManagerTest extends DDCoreSpecification {
   private static final long TIMEOUT_MS = 10_000
 
+  @Override
+  protected boolean useStrictTraceWrites() {
+    // This tests the behavior of the relaxed pending trace implementation
+    return false
+  }
+
   ListWriter writer
   CoreTracer tracer
   ContinuableScopeManager scopeManager
