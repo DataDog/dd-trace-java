@@ -5,10 +5,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.derby.jdbc.EmbeddedDataSource
-import org.apache.derby.jdbc.EmbeddedDriver
-import org.h2.Driver
 import org.h2.jdbcx.JdbcDataSource
-import org.hsqldb.jdbc.JDBCDriver
 import spock.lang.Shared
 import spock.lang.Unroll
 import test.TestConnection
@@ -16,6 +13,7 @@ import test.TestConnection
 import javax.sql.DataSource
 import java.sql.CallableStatement
 import java.sql.Connection
+import java.sql.Driver
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Statement
@@ -47,6 +45,13 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     "h2"    : null,
     "derby" : "APP",
     "hsqldb": "SA",
+  ]
+
+  @Shared
+  private Map<String, String> jdbcPasswords = [
+    "h2"    : "",
+    "derby" : "",
+    "hsqldb": ""
   ]
 
   @Shared
@@ -87,7 +92,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     if (username != null) {
       ds.setUsername(username)
     }
-    ds.setPassword("")
+    ds.setPassword(jdbcPasswords.get(dbType))
     ds.setMaxActive(1) // to test proper caching, having > 1 max active connection will be hard to
     // determine whether the connection is properly cached
     return ds
@@ -101,7 +106,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     if (username != null) {
       config.setUsername(username)
     }
-    config.setPassword("")
+    config.setPassword(jdbcPasswords.get(dbType))
     config.addDataSourceProperty("cachePrepStmts", "true")
     config.addDataSourceProperty("prepStmtCacheSize", "250")
     config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048")
@@ -119,7 +124,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     if (username != null) {
       ds.setUser(username)
     }
-    ds.setPassword("")
+    ds.setPassword(jdbcPasswords.get(dbType))
     ds.setMaxPoolSize(1)
     return ds
   }
@@ -191,9 +196,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" driver
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
-            if (username != null) {
-              "$Tags.DB_USER" username
-            }
+            "$Tags.DB_USER" jdbcUserNames.get(driver)
             "$Tags.DB_OPERATION" operation
             defaultTags()
           }
@@ -206,22 +209,22 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver   | connection                                                           | username | renameService | query                                           | operation
-    "h2"     | new Driver().connect(jdbcUrls.get("h2"), null)                       | null     | false         | "SELECT 3"                                      | "SELECT"
-    "derby"  | new EmbeddedDriver().connect(jdbcUrls.get("derby"), null)            | "APP"    | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
-    "hsqldb" | new JDBCDriver().connect(jdbcUrls.get("hsqldb"), null)               | "SA"     | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
-    "h2"     | new Driver().connect(jdbcUrls.get("h2"), connectionProps)            | null     | true          | "SELECT 3"                                      | "SELECT"
-    "derby"  | new EmbeddedDriver().connect(jdbcUrls.get("derby"), connectionProps) | "APP"    | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
-    "hsqldb" | new JDBCDriver().connect(jdbcUrls.get("hsqldb"), connectionProps)    | "SA"     | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
-    "h2"     | cpDatasources.get("tomcat").get("h2").getConnection()                | null     | false         | "SELECT 3"                                      | "SELECT"
-    "derby"  | cpDatasources.get("tomcat").get("derby").getConnection()             | "APP"    | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
-    "hsqldb" | cpDatasources.get("tomcat").get("hsqldb").getConnection()            | "SA"     | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
-    "h2"     | cpDatasources.get("hikari").get("h2").getConnection()                | null     | false         | "SELECT 3"                                      | "SELECT"
-    "derby"  | cpDatasources.get("hikari").get("derby").getConnection()             | "APP"    | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
-    "hsqldb" | cpDatasources.get("hikari").get("hsqldb").getConnection()            | "SA"     | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
-    "h2"     | cpDatasources.get("c3p0").get("h2").getConnection()                  | null     | true          | "SELECT 3"                                      | "SELECT"
-    "derby"  | cpDatasources.get("c3p0").get("derby").getConnection()               | "APP"    | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
-    "hsqldb" | cpDatasources.get("c3p0").get("hsqldb").getConnection()              | "SA"     | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
+    driver   | connection                                              | renameService | query                                           | operation
+    "h2"     | connectTo(driver, null)                                 | false         | "SELECT 3"                                      | "SELECT"
+    "derby"  | connectTo(driver, null)                                 | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
+    "hsqldb" | connectTo(driver, null)                                 | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
+    "h2"     | connectTo(driver, connectionProps)                      | true          | "SELECT 3"                                      | "SELECT"
+    "derby"  | connectTo(driver, connectionProps)                      | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
+    "hsqldb" | connectTo(driver, connectionProps)                      | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
+    "h2"     | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"                                      | "SELECT"
+    "derby"  | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
+    "hsqldb" | cpDatasources.get("tomcat").get(driver).getConnection() | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
+    "h2"     | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"                                      | "SELECT"
+    "derby"  | cpDatasources.get("hikari").get(driver).getConnection() | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
+    "hsqldb" | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
+    "h2"     | cpDatasources.get("c3p0").get(driver).getConnection()   | true          | "SELECT 3"                                      | "SELECT"
+    "derby"  | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
+    "hsqldb" | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
   }
 
   @Unroll
@@ -252,9 +255,10 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" driver
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
-            if (username != null) {
-              "$Tags.DB_USER" username
-            }
+            // currently there is a bug in the instrumentation with
+            // postgresql and mysql if the connection event is missed
+            // since Connection.getClientInfo will not provide the username
+            "$Tags.DB_USER" jdbcUserNames.get(driver)
             "$Tags.DB_OPERATION" operation
             defaultTags()
           }
@@ -267,15 +271,15 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver  | connection                                                | username | query                            | operation
-    "h2"    | new Driver().connect(jdbcUrls.get("h2"), null)            | null     | "SELECT 3"                       | "SELECT"
-    "derby" | new EmbeddedDriver().connect(jdbcUrls.get("derby"), null) | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("tomcat").get("h2").getConnection()     | null     | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("tomcat").get("derby").getConnection()  | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("hikari").get("h2").getConnection()     | null     | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("hikari").get("derby").getConnection()  | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("c3p0").get("h2").getConnection()       | null     | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("c3p0").get("derby").getConnection()    | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    driver  | connection                                              | query                            | operation
+    "h2"    | connectTo(driver, null)                                 | "SELECT 3"                       | "SELECT"
+    "derby" | connectTo(driver, null)                                 | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"                       | "SELECT"
+    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"                       | "SELECT"
+    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"                       | "SELECT"
+    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
   }
 
   @Unroll
@@ -305,9 +309,10 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" driver
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
-            if (username != null) {
-              "$Tags.DB_USER" username
-            }
+            // currently there is a bug in the instrumentation with
+            // postgresql and mysql if the connection event is missed
+            // since Connection.getClientInfo will not provide the username
+            "$Tags.DB_USER" jdbcUserNames.get(driver)
             "$Tags.DB_OPERATION" operation
             defaultTags()
           }
@@ -320,15 +325,15 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver  | connection                                                | username | query                            | operation
-    "h2"    | new Driver().connect(jdbcUrls.get("h2"), null)            | null     | "SELECT 3"                       | "SELECT"
-    "derby" | new EmbeddedDriver().connect(jdbcUrls.get("derby"), null) | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("tomcat").get("h2").getConnection()     | null     | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("tomcat").get("derby").getConnection()  | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("hikari").get("h2").getConnection()     | null     | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("hikari").get("derby").getConnection()  | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("c3p0").get("h2").getConnection()       | null     | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("c3p0").get("derby").getConnection()    | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    driver  | connection                                              | query                            | operation
+    "h2"    | connectTo(driver, null)                                 | "SELECT 3"                       | "SELECT"
+    "derby" | connectTo(driver, null)                                 | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"                       | "SELECT"
+    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"                       | "SELECT"
+    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"                       | "SELECT"
+    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
   }
 
   @Unroll
@@ -358,9 +363,10 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" driver
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
-            if (username != null) {
-              "$Tags.DB_USER" username
-            }
+            // currently there is a bug in the instrumentation with
+            // postgresql and mysql if the connection event is missed
+            // since Connection.getClientInfo will not provide the username
+            "$Tags.DB_USER" jdbcUserNames.get(driver)
             "${Tags.DB_OPERATION}" operation
             defaultTags()
           }
@@ -373,15 +379,15 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver  | connection                                                | username | query                            | operation
-    "h2"    | new Driver().connect(jdbcUrls.get("h2"), null)            | null     | "SELECT 3"                       | "SELECT"
-    "derby" | new EmbeddedDriver().connect(jdbcUrls.get("derby"), null) | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("tomcat").get("h2").getConnection()     | null     | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("tomcat").get("derby").getConnection()  | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("hikari").get("h2").getConnection()     | null     | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("hikari").get("derby").getConnection()  | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("c3p0").get("h2").getConnection()       | null     | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("c3p0").get("derby").getConnection()    | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    driver  | connection                                              | query                            | operation
+    "h2"    | connectTo(driver, null)                                 | "SELECT 3"                       | "SELECT"
+    "derby" | connectTo(driver, null)                                 | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"                       | "SELECT"
+    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"                       | "SELECT"
+    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"                       | "SELECT"
+    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
   }
 
   @Unroll
@@ -410,9 +416,10 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" driver
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
-            if (username != null) {
-              "$Tags.DB_USER" username
-            }
+            // currently there is a bug in the instrumentation with
+            // postgresql and mysql if the connection event is missed
+            // since Connection.getClientInfo will not provide the username
+            "$Tags.DB_USER" jdbcUserNames.get(driver)
             "${Tags.DB_OPERATION}" operation
             defaultTags()
           }
@@ -425,19 +432,19 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver   | connection                                                | username | query                                                                           | operation
-    "h2"     | new Driver().connect(jdbcUrls.get("h2"), null)            | null     | "CREATE TABLE S_H2 (id INTEGER not NULL, PRIMARY KEY ( id ))"                   | "CREATE"
-    "derby"  | new EmbeddedDriver().connect(jdbcUrls.get("derby"), null) | "APP"    | "CREATE TABLE S_DERBY (id INTEGER not NULL, PRIMARY KEY ( id ))"                | "CREATE"
-    "hsqldb" | new JDBCDriver().connect(jdbcUrls.get("hsqldb"), null)    | "SA"     | "CREATE TABLE PUBLIC.S_HSQLDB (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
-    "h2"     | cpDatasources.get("tomcat").get("h2").getConnection()     | null     | "CREATE TABLE S_H2_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))"            | "CREATE"
-    "derby"  | cpDatasources.get("tomcat").get("derby").getConnection()  | "APP"    | "CREATE TABLE S_DERBY_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))"         | "CREATE"
-    "hsqldb" | cpDatasources.get("tomcat").get("hsqldb").getConnection() | "SA"     | "CREATE TABLE PUBLIC.S_HSQLDB_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "h2"     | cpDatasources.get("hikari").get("h2").getConnection()     | null     | "CREATE TABLE S_H2_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"            | "CREATE"
-    "derby"  | cpDatasources.get("hikari").get("derby").getConnection()  | "APP"    | "CREATE TABLE S_DERBY_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"         | "CREATE"
-    "hsqldb" | cpDatasources.get("hikari").get("hsqldb").getConnection() | "SA"     | "CREATE TABLE PUBLIC.S_HSQLDB_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "h2"     | cpDatasources.get("c3p0").get("h2").getConnection()       | null     | "CREATE TABLE S_H2_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"              | "CREATE"
-    "derby"  | cpDatasources.get("c3p0").get("derby").getConnection()    | "APP"    | "CREATE TABLE S_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"           | "CREATE"
-    "hsqldb" | cpDatasources.get("c3p0").get("hsqldb").getConnection()   | "SA"     | "CREATE TABLE PUBLIC.S_HSQLDB_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
+    driver   | connection                                              | query                                                                           | operation
+    "h2"     | connectTo(driver, null)                                 | "CREATE TABLE S_H2 (id INTEGER not NULL, PRIMARY KEY ( id ))"                   | "CREATE"
+    "derby"  | connectTo(driver, null)                                 | "CREATE TABLE S_DERBY (id INTEGER not NULL, PRIMARY KEY ( id ))"                | "CREATE"
+    "hsqldb" | connectTo(driver, null)                                 | "CREATE TABLE PUBLIC.S_HSQLDB (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
+    "h2"     | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TABLE S_H2_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))"            | "CREATE"
+    "derby"  | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TABLE S_DERBY_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))"         | "CREATE"
+    "hsqldb" | cpDatasources.get("tomcat").get(driver).getConnection() | "CREATE TABLE PUBLIC.S_HSQLDB_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    "h2"     | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TABLE S_H2_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"            | "CREATE"
+    "derby"  | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TABLE S_DERBY_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"         | "CREATE"
+    "hsqldb" | cpDatasources.get("hikari").get(driver).getConnection() | "CREATE TABLE PUBLIC.S_HSQLDB_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    "h2"     | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TABLE S_H2_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"              | "CREATE"
+    "derby"  | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TABLE S_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"           | "CREATE"
+    "hsqldb" | cpDatasources.get("c3p0").get(driver).getConnection()   | "CREATE TABLE PUBLIC.S_HSQLDB_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
   }
 
   @Unroll
@@ -481,15 +488,15 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver  | connection                                                | username | query                                                                    | operation
-    "h2"    | new Driver().connect(jdbcUrls.get("h2"), null)            | null     | "CREATE TABLE PS_H2 (id INTEGER not NULL, PRIMARY KEY ( id ))"           | "CREATE"
-    "derby" | new EmbeddedDriver().connect(jdbcUrls.get("derby"), null) | "APP"    | "CREATE TABLE PS_DERBY (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
-    "h2"    | cpDatasources.get("tomcat").get("h2").getConnection()     | null     | "CREATE TABLE PS_H2_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))"    | "CREATE"
-    "derby" | cpDatasources.get("tomcat").get("derby").getConnection()  | "APP"    | "CREATE TABLE PS_DERBY_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "h2"    | cpDatasources.get("hikari").get("h2").getConnection()     | null     | "CREATE TABLE PS_H2_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"    | "CREATE"
-    "derby" | cpDatasources.get("hikari").get("derby").getConnection()  | "APP"    | "CREATE TABLE PS_DERBY_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
-    "h2"    | cpDatasources.get("c3p0").get("h2").getConnection()       | null     | "CREATE TABLE PS_H2_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"      | "CREATE"
-    "derby" | cpDatasources.get("c3p0").get("derby").getConnection()    | "APP"    | "CREATE TABLE PS_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
+    driver  | connection                                              | username | query                                                                    | operation
+    "h2"    | connectTo(driver, null)                                 | null     | "CREATE TABLE PS_H2 (id INTEGER not NULL, PRIMARY KEY ( id ))"           | "CREATE"
+    "derby" | connectTo(driver, null)                                 | "APP"    | "CREATE TABLE PS_DERBY (id INTEGER not NULL, PRIMARY KEY ( id ))"        | "CREATE"
+    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | null     | "CREATE TABLE PS_H2_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))"    | "CREATE"
+    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "APP"    | "CREATE TABLE PS_DERBY_TOMCAT (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | null     | "CREATE TABLE PS_H2_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"    | "CREATE"
+    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "APP"    | "CREATE TABLE PS_DERBY_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))" | "CREATE"
+    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | null     | "CREATE TABLE PS_H2_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"      | "CREATE"
+    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "APP"    | "CREATE TABLE PS_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"   | "CREATE"
   }
 
   @Unroll
@@ -501,7 +508,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     try {
       connection = new TestConnection(true)
     } catch (Exception e) {
-      connection = driverClass.connect(url, null)
+      connection = connectTo(driver, null)
     }
 
     Statement statement = null
@@ -557,11 +564,11 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     }
 
     where:
-    prepareStatement | driver  | driverClass          | url                                            | username | query                            | operation
-    true             | "h2"    | new Driver()         | "jdbc:h2:mem:" + dbName                        | null     | "SELECT 3;"                      | "SELECT"
-    true             | "derby" | new EmbeddedDriver() | "jdbc:derby:memory:" + dbName + ";create=true" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    false            | "h2"    | new Driver()         | "jdbc:h2:mem:" + dbName                        | null     | "SELECT 3;"                      | "SELECT"
-    false            | "derby" | new EmbeddedDriver() | "jdbc:derby:memory:" + dbName + ";create=true" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    prepareStatement | driver  | url                                            | username | query                            | operation
+    true             | "h2"    | "jdbc:h2:mem:" + dbName                        | null     | "SELECT 3;"                      | "SELECT"
+    true             | "derby" | "jdbc:derby:memory:" + dbName + ";create=true" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    false            | "h2"    | "jdbc:h2:mem:" + dbName                        | null     | "SELECT 3;"                      | "SELECT"
+    false            | "derby" | "jdbc:derby:memory:" + dbName + ";create=true" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
   }
 
   def "calling #datasource.class.simpleName getConnection generates a span when under existing trace"() {
@@ -755,5 +762,23 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     "hikari"           | _
     "tomcat"           | _
     "c3p0"             | _
+  }
+
+  Driver driverFor(String db) {
+    return newDriver(jdbcDriverClassNames.get(db))
+  }
+
+  Connection connectTo(String db, Properties properties) {
+    return connect(jdbcDriverClassNames.get(db), jdbcUrls.get(db), properties)
+  }
+
+  Driver newDriver(String driverClass) {
+    return ((Driver) Class.forName(driverClass)
+      .getDeclaredConstructor().newInstance())
+  }
+
+  Connection connect(String driverClass, String url, Properties properties) {
+    return newDriver(driverClass)
+      .connect(url, properties)
   }
 }
