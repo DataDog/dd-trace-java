@@ -105,11 +105,6 @@ public class ClasspathUtils {
     return tmpJar.toURI().toURL();
   }
 
-  public static URL createJarWithClasses() {
-
-    return null;
-  }
-
   private static void addToJar(
       final String resourceName, final byte[] bytes, final JarOutputStream jarOutputStream)
       throws IOException {
