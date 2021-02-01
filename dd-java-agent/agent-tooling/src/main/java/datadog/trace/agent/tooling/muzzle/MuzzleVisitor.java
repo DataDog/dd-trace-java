@@ -127,6 +127,8 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
 
       for (String adviceClass : instrumenter.transformers().values()) {
         if (referenceSources.add(adviceClass)) {
+          System.err.println(
+              "? createReferencesFrom " + adviceClass + " - visited " + referenceSources);
           for (Map.Entry<String, Reference> entry :
               ReferenceCreator.createReferencesFrom(
                       adviceClass, ReferenceMatcher.class.getClassLoader())

@@ -53,7 +53,10 @@ public class ReferenceCreator extends ClassVisitor {
     final Queue<String> instrumentationQueue = new ArrayDeque<>();
     instrumentationQueue.add(entryPointClassName);
 
+    System.err.println("> createReferencesFrom " + entryPointClassName);
     while (!instrumentationQueue.isEmpty()) {
+      System.err.println(
+          "| createReferencesFrom " + entryPointClassName + " - queue " + instrumentationQueue);
       final String className = instrumentationQueue.remove();
       visitedSources.add(className);
       String resourceName = Utils.getResourceName(className);
@@ -62,6 +65,8 @@ public class ReferenceCreator extends ClassVisitor {
           System.err.println(resourceName + " not found, skipping");
           continue;
         }
+        System.err.println(
+            "> createReferencesFrom " + entryPointClassName + " (" + className + ")");
         final ReferenceCreator cv = new ReferenceCreator(null);
         final ClassReader reader = new ClassReader(in);
         reader.accept(cv, ClassReader.SKIP_FRAMES);
@@ -80,11 +85,15 @@ public class ReferenceCreator extends ClassVisitor {
             references.put(entry.getKey(), toMerge.merge(entry.getValue()));
           }
         }
-
+        System.err.println(
+            "< createReferencesFrom " + entryPointClassName + " (" + className + ")");
       } catch (final IOException e) {
+        System.err.println(
+            "! createReferencesFrom " + entryPointClassName + " (" + className + " " + e + ")");
         throw new IllegalStateException("Error reading class " + className, e);
       }
     }
+    System.err.println("< createReferencesFrom " + entryPointClassName);
     return references;
   }
 
