@@ -1,15 +1,6 @@
 package datadog.trace.core
 
-import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED
-
 class PendingTraceStrictWriteTest extends PendingTraceTestBase {
-
-  @Override
-  CoreTracer.CoreTracerBuilder getBuilder() {
-    def props = new Properties()
-    props.setProperty(TRACE_STRICT_WRITES_ENABLED, "true")
-    return tracerBuilder().withProperties(props)
-  }
 
   def "trace is not reported until unfinished continuation is closed"() {
     when:

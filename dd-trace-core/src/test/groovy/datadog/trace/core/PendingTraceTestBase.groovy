@@ -3,7 +3,6 @@ package datadog.trace.core
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.CoreTracer.CoreTracerBuilder
 import datadog.trace.core.test.DDCoreSpecification
 import org.slf4j.LoggerFactory
 
@@ -14,10 +13,8 @@ import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS
 
 abstract class PendingTraceTestBase extends DDCoreSpecification {
 
-  abstract CoreTracerBuilder getBuilder()
-
   def writer = new ListWriter()
-  def tracer = getBuilder().writer(writer).build()
+  def tracer = tracerBuilder().writer(writer).build()
 
   DDSpan rootSpan = tracer.buildSpan("fakeOperation").start()
   PendingTrace trace = rootSpan.context().trace
@@ -120,7 +117,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
   def "partial flush"() {
     when:
     injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "1")
-    def quickTracer = getBuilder().writer(writer).build()
+    def quickTracer = tracerBuilder().writer(writer).build()
     def rootSpan = quickTracer.buildSpan("root").start()
     def trace = rootSpan.context().trace
     def child1 = quickTracer.buildSpan("child1").asChildOf(rootSpan).start()
@@ -165,7 +162,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
   def "partial flush with root span closed last"() {
     when:
     injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "1")
-    def quickTracer = getBuilder().writer(writer).build()
+    def quickTracer = tracerBuilder().writer(writer).build()
     def rootSpan = quickTracer.buildSpan("root").start()
     def trace = rootSpan.context().trace
     def child1 = quickTracer.buildSpan("child1").asChildOf(rootSpan).start()

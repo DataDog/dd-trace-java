@@ -13,7 +13,6 @@ import java.util.concurrent.atomic.AtomicReference
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class OkHttp3AsyncTest extends OkHttp3Test {
-
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
     def body = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), "") : null

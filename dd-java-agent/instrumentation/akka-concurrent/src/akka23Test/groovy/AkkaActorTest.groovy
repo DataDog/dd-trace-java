@@ -3,11 +3,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import spock.lang.Shared
 
 class AkkaActorTest extends AgentTestRunner {
-  @Override
-  boolean useStrictTraceWrites() {
-    return true
-  }
-
   @Shared
   def akkaTester = new AkkaActors()
 

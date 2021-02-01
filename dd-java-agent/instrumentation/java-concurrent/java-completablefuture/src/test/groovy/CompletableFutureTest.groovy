@@ -19,11 +19,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
  */
 class CompletableFutureTest extends AgentTestRunner {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    return true
-  }
-
   def "CompletableFuture test"() {
     setup:
     def pool = new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
