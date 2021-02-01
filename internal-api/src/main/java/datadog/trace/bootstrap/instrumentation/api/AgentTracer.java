@@ -269,7 +269,7 @@ public class AgentTracer {
     }
 
     @Override
-    public Boolean isError() {
+    public boolean isError() {
       return false;
     }
 
