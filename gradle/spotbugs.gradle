@@ -1,7 +1,7 @@
 apply plugin: 'com.github.spotbugs'
 
 spotbugs {
-  // list of detectors are of the following:
+  // detector documentation is in the following link:
   // https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html
   omitVisitors = [ 'DontUseEnum',
                    'SwitchFallthrough',
