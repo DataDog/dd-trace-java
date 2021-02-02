@@ -1,11 +1,10 @@
-package muzzle
+package datadog.trace.agent.tooling.muzzle
 
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.ClasspathUtils
-import datadog.trace.agent.tooling.muzzle.Reference
+import datadog.trace.agent.tooling.muzzle.Reference.Flag
 import datadog.trace.agent.tooling.muzzle.Reference.Source
-import datadog.trace.agent.tooling.muzzle.ReferenceCreator
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher
+import datadog.trace.agent.tooling.muzzle.TestAdviceClasses.MethodBodyAdvice
+import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.jar.asm.Type
 import spock.lang.Shared
 
@@ -19,9 +18,8 @@ import static datadog.trace.agent.tooling.muzzle.Reference.Mismatch.MissingClass
 import static datadog.trace.agent.tooling.muzzle.Reference.Mismatch.MissingField
 import static datadog.trace.agent.tooling.muzzle.Reference.Mismatch.MissingFlag
 import static datadog.trace.agent.tooling.muzzle.Reference.Mismatch.MissingMethod
-import static muzzle.TestClasses.MethodBodyAdvice
 
-class ReferenceMatcherTest extends AgentTestRunner {
+class ReferenceMatcherTest extends DDSpecification {
 
   @Shared
   ClassLoader safeClasspath = new URLClassLoader([ClasspathUtils.createJarWithClasses(MethodBodyAdvice.A,
@@ -92,7 +90,7 @@ class ReferenceMatcherTest extends AgentTestRunner {
   def "matching ref #referenceName #referenceFlags against #classToCheck produces #expectedMismatches"() {
     setup:
     Reference.Builder builder = new Reference.Builder(referenceName)
-    for (Reference.Flag refFlag : referenceFlags) {
+    for (Flag refFlag : referenceFlags) {
       builder = builder.withFlag(refFlag)
     }
     Reference ref = builder.build()
@@ -114,7 +112,7 @@ class ReferenceMatcherTest extends AgentTestRunner {
     setup:
     Type methodType = Type.getMethodType(methodDesc)
     Reference reference = new Reference.Builder(classToCheck.getName())
-      .withMethod(new Source[0], methodFlags as Reference.Flag[], methodName, methodType.getReturnType(), methodType.getArgumentTypes())
+      .withMethod(new Source[0], methodFlags as Flag[], methodName, methodType.getReturnType(), methodType.getArgumentTypes())
       .build()
     List<Reference.Mismatch> mismatches = new ArrayList<>()
 
@@ -139,7 +137,7 @@ class ReferenceMatcherTest extends AgentTestRunner {
   def "field match #fieldTestDesc"() {
     setup:
     Reference reference = new Reference.Builder(classToCheck.getName())
-      .withField(new Source[0], fieldFlags as Reference.Flag[], fieldName, Type.getType(fieldType))
+      .withField(new Source[0], fieldFlags as Flag[], fieldName, Type.getType(fieldType))
       .build()
     List<Reference.Mismatch> mismatches = new ArrayList<>()
 

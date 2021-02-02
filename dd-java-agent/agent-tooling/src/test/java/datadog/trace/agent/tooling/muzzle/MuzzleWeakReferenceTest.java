@@ -1,8 +1,5 @@
-package muzzle;
+package datadog.trace.agent.tooling.muzzle;
 
-import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.agent.tooling.muzzle.ReferenceCreator;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.test.util.GCUtils;
 import java.lang.ref.WeakReference;
 import java.net.URL;
@@ -19,7 +16,7 @@ public class MuzzleWeakReferenceTest {
     final WeakReference<ClassLoader> clRef = new WeakReference<>(loader);
     final Reference[] refs =
         ReferenceCreator.createReferencesFrom(
-                TestClasses.MethodBodyAdvice.class.getName(),
+                TestAdviceClasses.MethodBodyAdvice.class.getName(),
                 MuzzleWeakReferenceTest.class.getClassLoader())
             .values()
             .toArray(new Reference[0]);
