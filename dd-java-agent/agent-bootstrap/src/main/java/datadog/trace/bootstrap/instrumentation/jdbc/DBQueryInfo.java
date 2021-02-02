@@ -1,9 +1,35 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
+import datadog.trace.api.Function;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.normalize.SQLNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public final class DBQueryInfo {
+
+  // expect statements to be of much higher cardinality than prepared statements in typical
+  // applications
+  private static final DDCache<String, DBQueryInfo> CACHED_STATEMENTS =
+      DDCaches.newFixedSizeCache(8192);
+  private static final DDCache<String, DBQueryInfo> CACHED_PREPARED_STATEMENTS =
+      DDCaches.newFixedSizeCache(512);
+  private static final Function<String, DBQueryInfo> NORMALIZE =
+      new Function<String, DBQueryInfo>() {
+
+        @Override
+        public DBQueryInfo apply(String sql) {
+          return new DBQueryInfo(sql);
+        }
+      };
+
+  public static DBQueryInfo ofStatement(String sql) {
+    return CACHED_STATEMENTS.computeIfAbsent(sql, NORMALIZE);
+  }
+
+  public static DBQueryInfo ofPreparedStatement(String sql) {
+    return CACHED_PREPARED_STATEMENTS.computeIfAbsent(sql, NORMALIZE);
+  }
 
   private final UTF8BytesString operation;
   private final UTF8BytesString sql;

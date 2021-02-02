@@ -117,9 +117,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
       ContextStore<PreparedStatement, DBQueryInfo> contextStore =
           InstrumentationContext.get(PreparedStatement.class, DBQueryInfo.class);
       if (null == contextStore.get(statement)) {
-        // Sometimes the prepared statement is not reused, but the underlying String is reused, so
-        // check if we have seen this String before
-        contextStore.putIfAbsent(statement, new DBQueryInfo(sql));
+        contextStore.putIfAbsent(statement, DBQueryInfo.ofPreparedStatement(sql));
       }
     }
   }
