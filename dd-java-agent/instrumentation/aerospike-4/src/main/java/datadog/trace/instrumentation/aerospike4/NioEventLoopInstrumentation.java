@@ -45,11 +45,6 @@ public final class NioEventLoopInstrumentation extends Instrumenter.Tracing {
       if (task == null || task instanceof RunnableFuture || exclude(RUNNABLE, task)) {
         return;
       }
-      // don't wrap Runnables belonging to NioEventLoop(s) as they want to propagate CloseException
-      // outside of the event loop on close() and wrapping them in FutureTask interferes with that
-      if (task.getClass().getName().startsWith("com.aerospike.client.async.NioEventLoop")) {
-        return;
-      }
       task = new FutureTask<Void>(task, null);
     }
   }

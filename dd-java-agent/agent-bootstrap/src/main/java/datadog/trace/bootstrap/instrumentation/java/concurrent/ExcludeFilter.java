@@ -86,6 +86,14 @@ public class ExcludeFilter {
     }
     // TODO generic prefix registration
     SKIP_TYPE_PREFIXES.get(ExcludeType.RUNNABLE).add("slick.");
+    // Don't instrument the executor's own runnables. These runnables may never return until
+    // netty shuts down.
+    SKIP_TYPE_PREFIXES
+        .get(ExcludeType.EXECUTOR)
+        .add("io.netty.util.concurrent.SingleThreadEventExecutor.");
+    // Don't wrap Runnables belonging to NioEventLoop(s) as they want to propagate CloseException
+    // outside of the event loop on close() and wrapping them in FutureTask interferes with that
+    SKIP_TYPE_PREFIXES.get(ExcludeType.RUNNABLE).add("com.aerospike.client.async.NioEventLoop");
   }
 
   /**
