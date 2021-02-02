@@ -100,8 +100,6 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
             // https://github.com/raphw/byte-buddy/issues/558 is fixed
             return !name.equals(
                     "datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper")
-                && !name.equals(
-                    "datadog.trace.bootstrap.instrumentation.java.concurrent.CallableWrapper")
                 && !name.equals("datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper");
           }
         }
