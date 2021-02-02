@@ -9,7 +9,17 @@
     </encoder>
   </appender>
 
-  <root>
+  <appender name="JSONFILE" class="ch.qos.logback.core.FileAppender">
+    <file>${dd.test.jsonlogfile}</file>
+    <append>false</append>
+    <immediateFlush>true</immediateFlush>
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <customFields>{"backend":"Logback"}</customFields>
+    </encoder>
+  </appender>
+
+  <root level="INFO">
     <appender-ref ref="FILE"/>
+    <appender-ref ref="JSONFILE"/>
   </root>
 </configuration>

@@ -61,6 +61,10 @@ dependencies {
   log4j1 'log4j:log4j:1.2.17'
 
   log4j2 'org.apache.logging.log4j:log4j-core:2.14.0'
+  log4j2 'org.jctools:jctools-core:1.2.1'
+  log4j2 'com.fasterxml.jackson.core:jackson-core:2.8.3'
+  log4j2 'com.fasterxml.jackson.core:jackson-databind:2.8.3'
+  log4j2 'com.fasterxml.jackson.core:jackson-annotations:2.8.3'
   julLog4j2Bridge 'org.apache.logging.log4j:log4j-jul:2.14.0'
   jclLog4j2Bridge 'org.apache.logging.log4j:log4j-jcl:2.14.0'
   log4j1Log4j2Bridge 'org.apache.logging.log4j:log4j-1.2-api:2.14.0'
@@ -79,10 +83,7 @@ dependencies {
   slf4jSimpleBackend "org.slf4j:slf4j-simple:${versions.slf4j}"
 
   logbackBackend 'ch.qos.logback:logback-classic:1.2.3'
-  logbackBackend 'ch.qos.logback.contrib:logback-json-classic:0.1.5'
-  logbackBackend 'ch.qos.logback.contrib:logback-jackson:0.1.5'
-  logbackBackend 'com.fasterxml.jackson.core:jackson-databind:2.9.5'
-  logbackBackend 'org.codehaus.janino:janino:3.0.8'
+  logbackBackend 'net.logstash.logback:logstash-logback-encoder:6.6'
 
   jbossInterface 'org.jboss.logging:jboss-logging:3.4.1.Final'
   jbossBackend 'org.jboss.logmanager:jboss-logmanager:2.1.17.Final'
