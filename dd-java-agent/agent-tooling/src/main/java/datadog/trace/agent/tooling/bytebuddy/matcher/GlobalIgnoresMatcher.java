@@ -101,7 +101,8 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
             return !name.equals(
                     "datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper")
                 && !name.equals(
-                    "datadog.trace.bootstrap.instrumentation.java.concurrent.CallableWrapper");
+                    "datadog.trace.bootstrap.instrumentation.java.concurrent.CallableWrapper")
+                && !name.equals("datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper");
           }
         }
         break;
