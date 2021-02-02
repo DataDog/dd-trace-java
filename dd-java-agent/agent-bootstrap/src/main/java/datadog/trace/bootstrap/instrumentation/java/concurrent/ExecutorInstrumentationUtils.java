@@ -29,18 +29,8 @@ public final class ExecutorInstrumentationUtils {
     }
 
     final TraceScope scope = activeScope();
-    final Class enclosingClass = task.getClass().getEnclosingClass();
 
-    return scope != null
-        && scope.isAsyncPropagating()
-
-        // Don't instrument the executor's own runnables.  These runnables may never return until
-        // netty shuts down.  Any created continuations will be open until that time preventing
-        // traces from being reported
-        && (enclosingClass == null
-            || !enclosingClass
-                .getName()
-                .equals("io.netty.util.concurrent.SingleThreadEventExecutor"));
+    return scope != null && scope.isAsyncPropagating();
   }
 
   /**
