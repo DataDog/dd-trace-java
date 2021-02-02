@@ -10,13 +10,12 @@ import static org.mockito.Mockito.doNothing;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Task;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Supplier;
+import java.util.function.IntSupplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.distribution.PoissonDistribution;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
@@ -45,7 +44,7 @@ class StreamingSamplerTest {
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
 
   /** Generates windows with numbers of events according to Poisson distribution */
-  private static final class PoissonWindowEventsSupplier implements Supplier<Integer> {
+  private static final class PoissonWindowEventsSupplier implements IntSupplier {
     private final PoissonDistribution distribution;
 
     /** @param eventsPerWindowMean the average number of events per window */
@@ -55,7 +54,7 @@ class StreamingSamplerTest {
     }
 
     @Override
-    public Integer get() {
+    public int getAsInt() {
       return distribution.sample();
     }
 
@@ -74,7 +73,7 @@ class StreamingSamplerTest {
    * Generates bursty windows - some of the windows have extremely low number of events while the
    * others have very hight number of events.
    */
-  private static final class BurstingWindowsEventsSupplier implements Supplier<Integer> {
+  private static final class BurstingWindowsEventsSupplier implements IntSupplier {
     private final Random rnd = new Random(176431);
 
     private final double burstProbability;
@@ -94,7 +93,7 @@ class StreamingSamplerTest {
     }
 
     @Override
-    public Integer get() {
+    public int getAsInt() {
       if (rnd.nextDouble() <= burstProbability) {
         return maxEvents;
       } else {
@@ -116,7 +115,7 @@ class StreamingSamplerTest {
   }
 
   /** Generates windows with constant number of events. */
-  private static final class ConstantWindowsEventsSupplier implements Supplier<Integer> {
+  private static final class ConstantWindowsEventsSupplier implements IntSupplier {
     private final int events;
 
     /** @param events number of events per window */
@@ -125,7 +124,7 @@ class StreamingSamplerTest {
     }
 
     @Override
-    public Integer get() {
+    public int getAsInt() {
       return events;
     }
 
@@ -136,7 +135,7 @@ class StreamingSamplerTest {
   }
 
   /** Generates a pre-configured repeating sequence of window events */
-  private static final class RepeatingWindowsEventsSupplier implements Supplier<Integer> {
+  private static final class RepeatingWindowsEventsSupplier implements IntSupplier {
     private final int[] eventsCounts;
     private int pointer = 0;
 
@@ -146,7 +145,7 @@ class StreamingSamplerTest {
     }
 
     @Override
-    public Integer get() {
+    public int getAsInt() {
       try {
         return eventsCounts[pointer];
       } finally {
@@ -173,7 +172,6 @@ class StreamingSamplerTest {
   }
 
   private static final StandardDeviation STANDARD_DEVIATION = new StandardDeviation();
-  private static final Mean MEAN = new Mean();
   private static final int WINDOWS = 120;
   private static final int SAMPLES_PER_WINDOW = 100;
   private static final int LOOKBACK = 30;
@@ -256,7 +254,7 @@ class StreamingSamplerTest {
     testSampler(new RepeatingWindowsEventsSupplier(0, 1000, 0, 1000, 0, 1000), 15);
   }
 
-  private void testSampler(final Supplier<Integer> windowEventsSupplier, final int maxErrorPercent)
+  private void testSampler(final IntSupplier windowEventsSupplier, final int maxErrorPercent)
       throws Exception {
     int iterations =
         Integer.parseInt(
@@ -270,7 +268,7 @@ class StreamingSamplerTest {
   }
 
   private void testSamplerInline(
-      final Supplier<Integer> windowEventsSupplier, final int maxErrorPercent) {
+      final IntSupplier windowEventsSupplier, final int maxErrorPercent) {
     log.info(
         "> mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}%",
         windowEventsSupplier, WINDOWS, SAMPLES_PER_WINDOW, LOOKBACK, maxErrorPercent);
@@ -285,9 +283,11 @@ class StreamingSamplerTest {
 
     final double[] samplesPerWindow = new double[WINDOWS];
     final double[] sampleIndexSkewPerWindow = new double[WINDOWS];
+    final Mean mean = new Mean();
     for (int w = 0; w < WINDOWS; w++) {
       final long samplesBase = 0L;
-      WindowSamplingResult result = generateWindowEventsAndSample(windowEventsSupplier, sampler);
+      WindowSamplingResult result =
+          generateWindowEventsAndSample(windowEventsSupplier, sampler, mean);
       samplesPerWindow[w] =
           (1 - abs((result.samples - samplesBase - expectedSamples) / (double) expectedSamples));
       sampleIndexSkewPerWindow[w] = result.sampleIndexSkew;
@@ -325,7 +325,7 @@ class StreamingSamplerTest {
 
   private void reportSampleStatistics(
       double[] samplesPerWindow, double targetSamples, double percentualError) {
-    final double samplesPerWindowMean = MEAN.evaluate(samplesPerWindow);
+    final double samplesPerWindowMean = new Mean().evaluate(samplesPerWindow);
     final double samplesPerWindowStdev =
         STANDARD_DEVIATION.evaluate(samplesPerWindow, samplesPerWindowMean);
 
@@ -351,21 +351,22 @@ class StreamingSamplerTest {
    *
    * @param windowEventsSupplier events generator implementation
    * @param sampler sampler instance
+   * @param mean a {@code Mean} instance for calculations
    * @return a {@linkplain WindowSamplingResult} instance capturing the number of observed events,
    *     samples and the sample index skew
    */
   private WindowSamplingResult generateWindowEventsAndSample(
-      Supplier<Integer> windowEventsSupplier, StreamingSampler sampler) {
-    List<Integer> sampleIndices = new ArrayList<>();
+      IntSupplier windowEventsSupplier, StreamingSampler sampler, Mean mean) {
     int samples = 0;
-    int events = windowEventsSupplier.get();
+    int events = windowEventsSupplier.getAsInt();
+    mean.clear();
     for (int i = 0; i < events; i++) {
       if (sampler.sample()) {
-        sampleIndices.add(i);
+        mean.increment(i);
         samples++;
       }
     }
-    double sampleIndexMean = MEAN.evaluate(toDoubleArray(sampleIndices));
+    double sampleIndexMean = mean.getResult();
     double sampleIndexSkew = events != 0 ? sampleIndexMean / events : 0;
     return new WindowSamplingResult(events, samples, sampleIndexSkew);
   }
@@ -406,14 +407,8 @@ class StreamingSamplerTest {
     return new Pair<>(skewNegativeAvg, skewPositiveAvg);
   }
 
-  private static double[] toDoubleArray(final List<? extends Number> data) {
-    return data.stream().mapToDouble(Number::doubleValue).toArray();
-  }
-
   private void testSamplerConcurrently(
-      final int threadCount,
-      final Supplier<Integer> windowEventsSupplier,
-      final int maxErrorPercent)
+      final int threadCount, final IntSupplier windowEventsSupplier, final int maxErrorPercent)
       throws Exception {
     log.info(
         "> threads: {}, mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}",
@@ -434,27 +429,32 @@ class StreamingSamplerTest {
 
     final StreamingSampler sampler =
         new StreamingSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
-
-    for (int w = 0; w < WINDOWS; w++) {
-      final Thread[] threads = new Thread[threadCount];
-      for (int i = 0; i < threadCount; i++) {
-        threads[i] =
-            new Thread(
-                () -> {
-                  WindowSamplingResult samplingResult =
-                      generateWindowEventsAndSample(windowEventsSupplier, sampler);
-                  allSamples.addAndGet(samplingResult.samples);
-                  receivedEvents.addAndGet(samplingResult.events);
-                });
-      }
-
-      for (final Thread t : threads) {
-        t.start();
-      }
-      for (final Thread t : threads) {
-        t.join();
-      }
-      rollWindow();
+    final CyclicBarrier startBarrier = new CyclicBarrier(threadCount);
+    final CyclicBarrier endBarrier = new CyclicBarrier(threadCount, this::rollWindow);
+    final Mean[] means = new Mean[threadCount];
+    final Thread[] threads = new Thread[threadCount];
+    for (int i = 0; i < threadCount; i++) {
+      means[i] = new Mean();
+      final Mean mean = means[i];
+      threads[i] =
+          new Thread(
+              () -> {
+                try {
+                  for (int w = 0; w < WINDOWS; w++) {
+                    startBarrier.await(10, TimeUnit.SECONDS);
+                    WindowSamplingResult samplingResult =
+                        generateWindowEventsAndSample(windowEventsSupplier, sampler, mean);
+                    allSamples.addAndGet(samplingResult.samples);
+                    receivedEvents.addAndGet(samplingResult.events);
+                    endBarrier.await(10, TimeUnit.SECONDS);
+                  }
+                } catch (Throwable ignored) {
+                }
+              });
+      threads[i].start();
+    }
+    for (final Thread t : threads) {
+      t.join();
     }
 
     final long samples = allSamples.get();
