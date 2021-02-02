@@ -16,7 +16,15 @@ public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
   public static final CharSequence NETTY_CLIENT_REQUEST =
       UTF8BytesString.createConstant("netty.client.request");
 
-  public static final NettyHttpClientDecorator DECORATE = new NettyHttpClientDecorator();
+  public static final NettyHttpClientDecorator DECORATE = new NettyHttpClientDecorator("http://");
+  public static final NettyHttpClientDecorator DECORATE_SECURE =
+      new NettyHttpClientDecorator("https://");
+
+  private final String uriPrefix;
+
+  public NettyHttpClientDecorator(String uriPrefix) {
+    this.uriPrefix = uriPrefix;
+  }
 
   @Override
   protected String[] instrumentationNames() {
@@ -37,7 +45,7 @@ public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
   protected URI url(final HttpRequest request) throws URISyntaxException {
     final URI uri = new URI(request.getUri());
     if ((uri.getHost() == null || uri.getHost().equals("")) && request.headers().contains(HOST)) {
-      return new URI("http://" + request.headers().get(HOST) + request.getUri());
+      return new URI(uriPrefix + request.headers().get(HOST) + request.getUri());
     } else {
       return uri;
     }

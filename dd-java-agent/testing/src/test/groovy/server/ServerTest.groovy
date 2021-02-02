@@ -68,7 +68,7 @@ class ServerTest extends AgentTestRunner {
 
     then:
     response.code() == 404
-    response.body().string().contains("<title>Error 404 Not Found</title>")
+    response.body().string().contains("<title>Error 404 </title>")
 
     cleanup:
     server.stop()
@@ -408,7 +408,7 @@ class ServerTest extends AgentTestRunner {
 
     then:
     response.code() == 500
-    response.message().startsWith("Server Error")
+    response.message().startsWith("assert !req.handled")
 
     cleanup:
     server.stop()
@@ -434,7 +434,7 @@ class ServerTest extends AgentTestRunner {
 
     then:
     response.code() == 500
-    response.message().startsWith("Server Error")
+    response.message().startsWith("assert body != null?")
 
     cleanup:
     server.stop()

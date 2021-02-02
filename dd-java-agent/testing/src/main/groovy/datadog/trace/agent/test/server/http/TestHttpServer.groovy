@@ -4,12 +4,19 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import org.eclipse.jetty.http.HttpMethods
+import org.eclipse.jetty.http.HttpMethod
+import org.eclipse.jetty.http.HttpVersion
 import org.eclipse.jetty.server.Handler
+import org.eclipse.jetty.server.HttpConfiguration
+import org.eclipse.jetty.server.HttpConnectionFactory
 import org.eclipse.jetty.server.Request
+import org.eclipse.jetty.server.SecureRequestCustomizer
 import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.server.ServerConnector
+import org.eclipse.jetty.server.SslConnectionFactory
 import org.eclipse.jetty.server.handler.AbstractHandler
 import org.eclipse.jetty.server.handler.HandlerList
+import org.eclipse.jetty.util.ssl.SslContextFactory
 
 import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
@@ -21,11 +28,14 @@ import java.util.concurrent.atomic.AtomicReference
 import static datadog.trace.agent.test.server.http.HttpServletRequestExtractAdapter.GETTER
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
+import static org.eclipse.jetty.http.HttpMethod.CONNECT
+import static org.eclipse.jetty.http.HttpMethod.GET
+import static org.eclipse.jetty.http.HttpMethod.POST
+import static org.eclipse.jetty.http.HttpMethod.PUT
 
 class TestHttpServer implements AutoCloseable {
 
   static TestHttpServer httpServer(@DelegatesTo(value = TestHttpServer, strategy = Closure.DELEGATE_FIRST) Closure spec) {
-
     def server = new TestHttpServer()
     def clone = (Closure) spec.clone()
     clone.delegate = server
@@ -38,15 +48,13 @@ class TestHttpServer implements AutoCloseable {
   private final Server internalServer
   private HandlersSpec handlers
 
-
+  public String keystorePath
   private URI address
+  private URI secureAddress
   private final AtomicReference<HandlerApi.RequestApi> last = new AtomicReference<>()
 
   private TestHttpServer() {
-    internalServer = new Server(0)
-    internalServer.connectors.each {
-      it.setHost('localhost')
-    }
+    internalServer = new Server()
   }
 
   TestHttpServer start() {
@@ -59,10 +67,36 @@ class TestHttpServer implements AutoCloseable {
         def handlerList = new HandlerList()
         handlerList.handlers = handlers.configured
         internalServer.handler = handlerList
+
+        final HttpConfiguration httpConfiguration = new HttpConfiguration()
+
+        // HTTP
+        final ServerConnector http = new ServerConnector(internalServer,
+          new HttpConnectionFactory(httpConfiguration))
+        http.setHost('localhost')
+        http.setPort(0)
+        internalServer.addConnector(http)
+
+        // HTTPS
+        final SslContextFactory sslContextFactory = new SslContextFactory()
+        keystorePath = extractKeystoreToDisk(TestHttpServer.getResource("datadog.jks")).path
+        sslContextFactory.keyStorePath = keystorePath
+        sslContextFactory.keyStorePassword = "datadog"
+        final HttpConfiguration httpsConfiguration = new HttpConfiguration(httpConfiguration)
+        httpsConfiguration.addCustomizer(new SecureRequestCustomizer())
+        final ServerConnector https = new ServerConnector(internalServer,
+          new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
+          new HttpConnectionFactory(httpsConfiguration))
+        https.setHost('localhost')
+        https.setPort(0)
+        internalServer.addConnector(https)
+
         internalServer.start()
         // set after starting, otherwise two callbacks get added.
         internalServer.stopAtShutdown = true
-        address = new URI("http://localhost:${internalServer.connectors[0].localPort}")
+
+        address = new URI("http://localhost:${http.localPort}")
+        secureAddress = new URI("https://localhost:${https.localPort}")
       }
       long startTime = System.nanoTime()
       long rem = TimeUnit.SECONDS.toMillis(5)
@@ -75,13 +109,33 @@ class TestHttpServer implements AutoCloseable {
         rem -= TimeUnit.NANOSECONDS.toMillis(endTime - startTime)
         startTime = endTime
       }
-      System.out.println("Started server $this on port ${address.port}")
+      System.out.println("Started server $this on ${address} and  ${secureAddress}")
     }
     return this
   }
 
+  private File extractKeystoreToDisk(URL internalFile) {
+    InputStream inputStream = internalFile.openStream()
+    File tempFile = File.createTempFile("datadog", ".jks")
+    tempFile.deleteOnExit()
+
+    OutputStream out = new FileOutputStream(tempFile)
+
+    byte[] buffer = new byte[1024]
+    int len = inputStream.read(buffer)
+    while (len != -1) {
+      out.write(buffer, 0, len)
+      len = inputStream.read(buffer)
+    }
+
+    inputStream.close()
+    out.close()
+
+    return tempFile
+  }
+
   def stop() {
-    System.out.println("Stopping server $this on port ${address.port}")
+    System.out.println("Stopping server $this on ${address} and  ${secureAddress}")
     internalServer.stop()
     return this
   }
@@ -92,6 +146,10 @@ class TestHttpServer implements AutoCloseable {
 
   URI getAddress() {
     return address
+  }
+
+  URI getSecureAddress() {
+    return secureAddress
   }
 
   def getLastRequest() {
@@ -136,17 +194,21 @@ class TestHttpServer implements AutoCloseable {
 
     void get(String path, @DelegatesTo(value = HandlerApi, strategy = Closure.DELEGATE_FIRST) Closure<Void> spec) {
       assert path != null
-      configured << new HandlerSpec(HttpMethods.GET, path, spec)
+      configured << new HandlerSpec(GET, path, spec)
     }
 
     void post(String path, @DelegatesTo(value = HandlerApi, strategy = Closure.DELEGATE_FIRST) Closure<Void> spec) {
       assert path != null
-      configured << new HandlerSpec(HttpMethods.POST, path, spec)
+      configured << new HandlerSpec(POST, path, spec)
     }
 
     void put(String path, @DelegatesTo(value = HandlerApi, strategy = Closure.DELEGATE_FIRST) Closure<Void> spec) {
       assert path != null
-      configured << new HandlerSpec(HttpMethods.PUT, path, spec)
+      configured << new HandlerSpec(PUT, path, spec)
+    }
+
+    void connect(@DelegatesTo(value = HandlerApi, strategy = Closure.DELEGATE_FIRST) Closure<Void> spec) {
+      configured << new MethodSpec(CONNECT, spec)
     }
 
     void prefix(String path, @DelegatesTo(value = HandlerApi, strategy = Closure.DELEGATE_FIRST) Closure<Void> spec) {
@@ -158,21 +220,36 @@ class TestHttpServer implements AutoCloseable {
     }
   }
 
-  private class HandlerSpec extends AllHandlerSpec {
+  private class MethodSpec extends AllHandlerSpec {
 
     private final String method
+
+    protected MethodSpec(HttpMethod method, Closure<Void> spec) {
+      super(spec)
+      this.method = method.name()
+    }
+
+    @Override
+    void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+      if (request.method == method) {
+        super.handle(target, baseRequest, request, response)
+      }
+    }
+  }
+
+  private class HandlerSpec extends MethodSpec {
+
     private final String path
 
-    private HandlerSpec(String method, String path, Closure<Void> spec) {
-      super(spec)
-      this.method = method
+    protected HandlerSpec(HttpMethod method, String path, Closure<Void> spec) {
+      super(method, spec)
       this.path = path.startsWith("/") ? path : "/" + path
     }
 
     @Override
     void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-      if (request.method == method && target == path) {
-        send(baseRequest, response)
+      if (target == path) {
+        super.handle(target, baseRequest, request, response)
       }
     }
   }
@@ -181,7 +258,7 @@ class TestHttpServer implements AutoCloseable {
 
     private final String prefix
 
-    private PrefixHandlerSpec(String prefix, Closure<Void> spec) {
+    protected PrefixHandlerSpec(String prefix, Closure<Void> spec) {
       super(spec)
       this.prefix = prefix.startsWith("/") ? prefix : "/" + prefix
     }
@@ -189,7 +266,7 @@ class TestHttpServer implements AutoCloseable {
     @Override
     void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
       if (target.startsWith(prefix)) {
-        send(baseRequest, response)
+        super.handle(target, baseRequest, request, response)
       }
     }
   }
@@ -218,6 +295,7 @@ class TestHttpServer implements AutoCloseable {
         clone(api)
       } catch (Exception e) {
         api.response.status(500).send(e.getMessage())
+        e.printStackTrace()
       }
     }
   }

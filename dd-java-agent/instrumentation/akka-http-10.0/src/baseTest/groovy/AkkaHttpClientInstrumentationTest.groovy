@@ -19,11 +19,6 @@ import spock.lang.Timeout
 
 @Timeout(5)
 abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
-  @Override
-  boolean useStrictTraceWrites() {
-    return true
-  }
-
   @Shared
   ActorSystem system = ActorSystem.create()
   @Shared

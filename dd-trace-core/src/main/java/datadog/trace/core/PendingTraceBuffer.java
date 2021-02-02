@@ -53,20 +53,32 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
+    private void yieldOrSleep(final int loop) {
+      if (loop <= 3) {
+        Thread.yield();
+      } else {
+        try {
+          Thread.sleep(10);
+        } catch (Throwable ignored) {
+        }
+      }
+    }
+
     // Only used from within tests
     public void flush() {
       if (worker.isAlive()) {
         int count = flushCounter.get();
-        boolean signaled;
-        do {
+        int loop = 1;
+        boolean signaled = queue.offer(FlushElement.FLUSH_ELEMENT);
+        while (!closed && !signaled) {
+          yieldOrSleep(loop++);
           signaled = queue.offer(FlushElement.FLUSH_ELEMENT);
-          Thread.yield();
-        } while (!closed && !signaled);
-        int newCount;
-        do {
+        }
+        int newCount = flushCounter.get();
+        while (!closed && count >= newCount) {
+          yieldOrSleep(loop++);
           newCount = flushCounter.get();
-          Thread.yield();
-        } while (!closed && count >= newCount);
+        }
       }
     }
 

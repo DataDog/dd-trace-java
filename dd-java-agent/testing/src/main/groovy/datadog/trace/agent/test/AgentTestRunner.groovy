@@ -181,7 +181,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   }
 
   boolean useStrictTraceWrites() {
-    return false
+    return true
   }
 
   void assertTraces(

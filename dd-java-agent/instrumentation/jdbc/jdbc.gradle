@@ -35,6 +35,12 @@ dependencies {
     force = true
   }
 
+  testCompile group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
+  testCompile group: 'org.postgresql', name: 'postgresql', version: '42.2.18'
+
+  testCompile "org.testcontainers:mysql:1.15.1"
+  testCompile "org.testcontainers:postgresql:1.15.1"
+
   latestDepTestCompile group: 'com.h2database', name: 'h2', version: '+'
   latestDepTestCompile group: 'org.apache.derby', name: 'derby', version: '10.14.+'
   latestDepTestCompile group: 'org.hsqldb', name: 'hsqldb', version: '+'

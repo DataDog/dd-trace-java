@@ -133,6 +133,19 @@ jobs:
       - image: aerospike
         # This is used by mongodb smoke tests
       - image: mongo
+        # This is used by jdbc tests
+      - image: mysql
+        environment:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_USER: sa
+          MYSQL_PASSWORD: sa
+          MYSQL_DATABASE: jdbcUnitTest
+        # This is used by jdbc tests
+      - image: postgres
+        environment:
+          POSTGRES_USER: sa
+          POSTGRES_PASSWORD: sa
+          POSTGRES_DB: jdbcUnitTest
 
     parameters:
       testTask:

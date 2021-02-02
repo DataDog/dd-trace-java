@@ -11,6 +11,10 @@ import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Unroll
 
+import javax.net.ssl.TrustManager
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
+import java.security.cert.X509Certificate
 import java.util.concurrent.ExecutionException
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -26,7 +30,7 @@ abstract class HttpClientTest extends AgentTestRunner {
   protected static final BODY_METHODS = ["POST", "PUT"]
   protected static final CONNECT_TIMEOUT_MS = 1000
   protected static final READ_TIMEOUT_MS = 2000
-  protected static final BASIC_AUTH_KEY = "custom authorization header"
+  protected static final BASIC_AUTH_KEY = "custom_authorization_header"
   protected static final BASIC_AUTH_VAL = "plain text auth token"
 
   @AutoCleanup
@@ -80,6 +84,34 @@ abstract class HttpClientTest extends AgentTestRunner {
    */
   abstract int doRequest(String method, URI uri, Map<String, String> headers = [:], Closure callback = null)
 
+  String keyStorePath() {
+    server.keystorePath
+  }
+
+  static String keyStorePassword() {
+    "datadog"
+  }
+
+  static TrustManager nonValidatingTrustManager() {
+    return new X509TrustManager() {
+      @Override
+      X509Certificate[] getAcceptedIssuers() {
+        return new X509Certificate[0]
+      }
+
+      @Override
+      void checkClientTrusted(X509Certificate[] certificate, String str) {}
+
+      @Override
+      void checkServerTrusted(X509Certificate[] certificate, String str) {}
+    }
+  }
+
+  static TrustManagerFactory nonValidatingTrustManagerFactory() {
+    return new TrustManagerFactory() {
+    }
+  }
+
   abstract CharSequence component()
 
   Integer statusOnRedirectError() {
@@ -111,6 +143,33 @@ abstract class HttpClientTest extends AgentTestRunner {
 
     method = "GET"
     url = server.address.resolve(path)
+  }
+
+  // IBM JVM has different protocol support for TLS
+  @Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
+  def "basic secure #method request"() {
+    given:
+    assumeTrue(testSecure())
+
+    when:
+    def status = doRequest(method, url)
+
+    then:
+    status == 200
+    assertTraces(2) {
+      trace(size(1)) {
+        clientSpan(it, null, method, false, false, url)
+      }
+      server.distributedRequestTrace(it, trace(0).last())
+    }
+
+    where:
+    method | _
+    "GET"  | _
+    "POST" | _
+
+    path = "/success"
+    url = server.secureAddress.resolve(path)
   }
 
   def "basic #method request with parent"() {
@@ -494,6 +553,13 @@ abstract class HttpClientTest extends AgentTestRunner {
 
   boolean testConnectionFailure() {
     true
+  }
+
+  /**
+   * Uses a local self-signed cert, so the client must be configured to ignore cert errors.
+   */
+  boolean testSecure() {
+    false
   }
 
   boolean testRemoteConnection() {

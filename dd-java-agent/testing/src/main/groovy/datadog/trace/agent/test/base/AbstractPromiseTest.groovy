@@ -19,11 +19,6 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
 
   abstract boolean get(P promise)
 
-  @Override
-  boolean useStrictTraceWrites() {
-    return true
-  }
-
   // Does this instrumentation pick up the completing scope?
   // That is e.g. not how it was decided that CompletableFuture should work
   boolean picksUpCompletingScope() {

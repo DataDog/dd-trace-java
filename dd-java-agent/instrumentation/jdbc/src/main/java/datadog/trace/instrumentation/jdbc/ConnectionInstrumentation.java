@@ -45,6 +45,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
     "org.apache.derby.impl.jdbc.EmbedConnection",
     "org.apache.hive.jdbc.HiveConnection",
     "org.apache.phoenix.jdbc.PhoenixConnection",
+    "org.apache.pinot.client.PinotConnection",
     // complete
     "org.h2.jdbc.JdbcConnection",
     // complete

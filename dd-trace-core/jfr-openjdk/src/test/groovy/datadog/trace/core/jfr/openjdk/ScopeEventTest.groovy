@@ -23,38 +23,11 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 class ScopeEventTest extends DDSpecification {
   private static final Duration SLEEP_DURATION = Duration.ofSeconds(1)
 
-  def writer = new ListWriter()
-  def tracer = CoreTracer.builder().statsDClient(new NoOpStatsDClient()).serviceName(DEFAULT_SERVICE_NAME)
-    .writer(writer).build()
-
-  def parentContext =
-    new DDSpanContext(
-      DDId.from(123),
-      DDId.from(432),
-      DDId.from(222),
-      null,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      PrioritySampling.UNSET,
-      null,
-      [:],
-      false,
-      "fakeType",
-      0,
-      tracer.pendingTraceFactory.create(DDId.from(123)))
-  def builder = tracer.buildSpan("test operation")
-    .asChildOf(parentContext)
-    .withServiceName("test service")
-    .withResourceName("test resource")
-
-  def cleanup() {
-    tracer?.close()
-  }
-
   def "Scope event is written with thread CPU time"() {
     setup:
     injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
+    def tracer = newTracer()
+    def builder = newBuilder(tracer)
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -77,11 +50,14 @@ class ScopeEventTest extends DDSpecification {
 
     cleanup:
     SystemAccess.disableJmx()
+    tracer.close()
   }
 
   def "Scope event is written without thread CPU time - profiling enabled"() {
     setup:
     injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
+    def tracer = newTracer()
+    def builder = newBuilder(tracer)
     SystemAccess.disableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -104,12 +80,15 @@ class ScopeEventTest extends DDSpecification {
 
     cleanup:
     SystemAccess.disableJmx()
+    tracer.close()
   }
 
-  def "Scope event is written without thread CPU time - profiling disabled"() {
+  def "No scope event produced when profiling disabled"() {
     setup:
     injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "false")
     injectSysConfig(GeneralConfig.HEALTH_METRICS_ENABLED, "false")
+    def tracer = newTracer()
+    def builder = newBuilder(tracer)
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -122,20 +101,18 @@ class ScopeEventTest extends DDSpecification {
     span.finish()
 
     then:
-    events.size() == 1
-    def event = events[0]
-    event.eventType.name == "datadog.Scope"
-    event.duration >= SLEEP_DURATION
-    event.getLong("traceId") == span.context().traceId.toLong()
-    event.getLong("spanId") == span.context().spanId.toLong()
-    event.getLong("cpuTime") == Long.MIN_VALUE
+    events.isEmpty()
 
     cleanup:
     SystemAccess.disableJmx()
+    tracer.close()
   }
 
   def "Scope event is written after continuation activation"() {
     setup:
+    injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
+    def tracer = newTracer()
+    def builder = newBuilder(tracer)
     AgentSpan span = builder.start()
     AgentScope parentScope = tracer.activateSpan(span)
     parentScope.setAsyncPropagation(true)
@@ -156,5 +133,37 @@ class ScopeEventTest extends DDSpecification {
     event.duration >= SLEEP_DURATION
     event.getLong("traceId") == span.context().traceId.toLong()
     event.getLong("spanId") == span.context().spanId.toLong()
+
+    cleanup:
+    tracer.close()
+  }
+
+  def newTracer() {
+    return CoreTracer.builder().serviceName(DEFAULT_SERVICE_NAME)
+      .statsDClient(new NoOpStatsDClient())
+      .writer(new ListWriter()).build()
+  }
+
+  def newBuilder(CoreTracer tracer) {
+    def parentContext =
+      new DDSpanContext(
+        DDId.from(123),
+        DDId.from(432),
+        DDId.from(222),
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        PrioritySampling.UNSET,
+        null,
+        [:],
+        false,
+        "fakeType",
+        0,
+        tracer.pendingTraceFactory.create(DDId.from(123)))
+    return tracer.buildSpan("test operation")
+      .asChildOf(parentContext)
+      .withServiceName("test service")
+      .withResourceName("test resource")
   }
 }

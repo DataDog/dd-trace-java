@@ -11,11 +11,15 @@ abstract class DDCoreSpecification extends DDSpecification {
     return true
   }
 
+  protected boolean useStrictTraceWrites() {
+    return true
+  }
+
   protected CoreTracerBuilder tracerBuilder() {
     def builder = CoreTracer.builder()
     if (useNoopStatsDClient()) {
-      return builder.statsDClient(new NoOpStatsDClient())
+      builder =  builder.statsDClient(new NoOpStatsDClient())
     }
-    return builder
+    return builder.strictTraceWrites(useStrictTraceWrites())
   }
 }

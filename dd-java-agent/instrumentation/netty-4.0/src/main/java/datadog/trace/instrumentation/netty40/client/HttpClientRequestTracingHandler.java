@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.DECORATE_SECURE;
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.NETTY_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.netty40.client.NettyResponseInjectAdapter.SETTER;
 
@@ -39,13 +40,15 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     final HttpRequest request = (HttpRequest) msg;
 
     ctx.channel().attr(AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY).set(activeSpan());
+    boolean isSecure = ctx.pipeline().get("ssl") != null;
+    NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 
     final AgentSpan span = startSpan(NETTY_CLIENT_REQUEST);
     span.setMeasured(true);
     try (final AgentScope scope = activateSpan(span)) {
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request);
-      DECORATE.onPeerConnection(span, (InetSocketAddress) ctx.channel().remoteAddress());
+      decorate.afterStart(span);
+      decorate.onRequest(span, request);
+      decorate.onPeerConnection(span, (InetSocketAddress) ctx.channel().remoteAddress());
 
       // AWS calls are often signed, so we can't add headers without breaking the signature.
       if (!request.headers().contains("amz-sdk-invocation-id")) {

@@ -224,6 +224,35 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
+  def "should report periodically"() {
+    setup:
+    int maxAggregates = 10
+    MetricWriter writer = Mock(MetricWriter)
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+      Stub(Sink), writer, maxAggregates, queueSize, 1, SECONDS)
+    long duration = 100
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    for (int i = 0; i < 5; ++i) {
+      aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+    }
+    latch.await(2, SECONDS)
+
+    then: "all aggregates should be reported"
+    1 * writer.startBucket(5, _, SECONDS.toNanos(1))
+    for (int i = 0; i < 5; ++i) {
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> {
+        MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getDuration() == duration
+      }
+    }
+    1 * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+  }
+
   def reportAndWaitUntilEmpty(ConflatingMetricsAggregator aggregator) {
     waitUntilEmpty(aggregator)
     aggregator.report()
