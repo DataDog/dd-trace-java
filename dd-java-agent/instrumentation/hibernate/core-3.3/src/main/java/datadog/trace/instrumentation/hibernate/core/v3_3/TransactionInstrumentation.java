@@ -19,6 +19,8 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.Transaction;
+import org.hibernate.classic.Validatable;
+import org.hibernate.transaction.JBossTransactionManagerLookup;
 
 @AutoService(Instrumenter.class)
 public class TransactionInstrumentation extends AbstractHibernateInstrumentation {
@@ -40,7 +42,7 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
         TransactionInstrumentation.class.getName() + "$TransactionCommitAdvice");
   }
 
-  public static class TransactionCommitAdvice extends V3Advice {
+  public static class TransactionCommitAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startCommit(
@@ -60,6 +62,19 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
         @Advice.Thrown final Throwable throwable) {
 
       SessionMethodUtils.closeScope(state, throwable, null, true);
+    }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate between 3.3 and 4.
+     */
+    public static void muzzleCheck(
+        // Not in 4.0
+        final Validatable validatable,
+        // Not before 3.3.0.GA
+        final JBossTransactionManagerLookup lookup) {
+      validatable.validate();
+      lookup.getUserTransactionName();
     }
   }
 }

@@ -87,16 +87,16 @@ class MuzzlePlugin implements Plugin<Project> {
         assertionMethod.invoke(null, instrumentationCL)
       }
     }
-    project.tasks.compileMuzzle.dependsOn(bootstrapProject.tasks.compileJava)
-    project.tasks.compileMuzzle.dependsOn(toolingProject.tasks.compileJava)
+    compileMuzzle.dependsOn(bootstrapProject.tasks.compileJava)
+    compileMuzzle.dependsOn(toolingProject.tasks.compileJava)
     project.afterEvaluate {
-      project.tasks.compileMuzzle.dependsOn(project.tasks.compileJava)
+      compileMuzzle.dependsOn(project.tasks.compileJava)
       if (project.tasks.getNames().contains('compileScala')) {
-        project.tasks.compileMuzzle.dependsOn(project.tasks.compileScala)
+        compileMuzzle.dependsOn(project.tasks.compileScala)
       }
     }
-    project.tasks.muzzle.dependsOn(project.tasks.compileMuzzle)
-    project.tasks.printReferences.dependsOn(project.tasks.compileMuzzle)
+    muzzle.dependsOn(compileMuzzle)
+    printReferences.dependsOn(compileMuzzle)
 
     def hasRelevantTask = project.gradle.startParameter.taskNames.any { taskName ->
       // removing leading ':' if present

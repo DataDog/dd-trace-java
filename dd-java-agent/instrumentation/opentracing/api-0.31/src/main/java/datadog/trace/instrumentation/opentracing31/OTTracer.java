@@ -47,7 +47,7 @@ public class OTTracer implements Tracer {
     if (carrier instanceof TextMap) {
       final AgentSpan.Context context = converter.toContext(spanContext);
 
-      tracer.inject(context, (TextMap) carrier, OTPropagation.TextMapInjectSetter.INSTANCE);
+      tracer.inject(context, (TextMap) carrier, OTTextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }

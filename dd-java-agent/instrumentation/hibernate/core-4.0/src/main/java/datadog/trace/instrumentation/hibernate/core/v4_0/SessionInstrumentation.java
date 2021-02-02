@@ -105,7 +105,7 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     return transformers;
   }
 
-  public static class SessionCloseAdvice extends V4Advice {
+  public static class SessionCloseAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeSession(
@@ -127,9 +127,17 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
       DECORATOR.beforeFinish(span);
       span.finish();
     }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate starting at 4.0.
+     */
+    public static void muzzleCheck(final SharedSessionContract contract) {
+      contract.createCriteria("");
+    }
   }
 
-  public static class SessionMethodAdvice extends V4Advice {
+  public static class SessionMethodAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(
@@ -155,9 +163,17 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
 
       SessionMethodUtils.closeScope(sessionState, throwable, returned, startSpan);
     }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate starting at 4.0.
+     */
+    public static void muzzleCheck(final SharedSessionContract contract) {
+      contract.createCriteria("");
+    }
   }
 
-  public static class GetQueryAdvice extends V4Advice {
+  public static class GetQueryAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getQuery(
@@ -171,9 +187,17 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
       SessionMethodUtils.attachSpanFromStore(
           sessionContextStore, session, queryContextStore, query);
     }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate starting at 4.0.
+     */
+    public static void muzzleCheck(final SharedSessionContract contract) {
+      contract.createCriteria("");
+    }
   }
 
-  public static class GetTransactionAdvice extends V4Advice {
+  public static class GetTransactionAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getTransaction(
@@ -188,9 +212,17 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
       SessionMethodUtils.attachSpanFromStore(
           sessionContextStore, session, transactionContextStore, transaction);
     }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate starting at 4.0.
+     */
+    public static void muzzleCheck(final SharedSessionContract contract) {
+      contract.createCriteria("");
+    }
   }
 
-  public static class GetCriteriaAdvice extends V4Advice {
+  public static class GetCriteriaAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getCriteria(
@@ -203,6 +235,14 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
 
       SessionMethodUtils.attachSpanFromStore(
           sessionContextStore, session, criteriaContextStore, criteria);
+    }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate starting at 4.0.
+     */
+    public static void muzzleCheck(final SharedSessionContract contract) {
+      contract.createCriteria("");
     }
   }
 }

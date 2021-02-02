@@ -1,8 +1,8 @@
-package muzzle;
+package datadog.trace.agent.tooling.muzzle;
 
 import net.bytebuddy.asm.Advice;
 
-public class TestClasses {
+public class TestAdviceClasses {
 
   public static class MethodBodyAdvice {
     @Advice.OnMethodEnter

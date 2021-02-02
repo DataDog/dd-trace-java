@@ -4,10 +4,13 @@ import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import net.bytebuddy.dynamic.ClassFileLocator;
 
 /**
@@ -110,6 +113,7 @@ public class MuzzleVersionScanPlugin {
         } catch (final Exception e) {
           System.err.println(
               "FAILED HELPER INJECTION. Are Helpers being injected in the correct order?");
+          System.err.println(e.getMessage());
           throw e;
         }
       }
@@ -118,9 +122,22 @@ public class MuzzleVersionScanPlugin {
 
   private static Map<String, byte[]> createHelperMap(final Instrumenter.Default instrumenter)
       throws IOException {
-    final Map<String, byte[]> helperMap =
-        new LinkedHashMap<>(instrumenter.helperClassNames().length);
-    for (final String helperName : instrumenter.helperClassNames()) {
+    String[] helperClasses = instrumenter.helperClassNames();
+    final Map<String, byte[]> helperMap = new LinkedHashMap<>(helperClasses.length);
+    Set<String> helperClassNames = new HashSet<>(Arrays.asList(helperClasses));
+    for (final String helperName : helperClasses) {
+      int nestedClassIndex = helperName.lastIndexOf('$');
+      if (nestedClassIndex > 0) {
+        String parent = helperName.substring(0, nestedClassIndex);
+        if (!helperClassNames.contains(parent)) {
+          throw new IllegalArgumentException(
+              "Nested helper "
+                  + helperName
+                  + " must have the parent class "
+                  + parent
+                  + " also defined as a helper");
+        }
+      }
       final ClassFileLocator locator =
           ClassFileLocator.ForClassLoader.of(instrumenter.getClass().getClassLoader());
       final byte[] classBytes = locator.locate(helperName).resolve();

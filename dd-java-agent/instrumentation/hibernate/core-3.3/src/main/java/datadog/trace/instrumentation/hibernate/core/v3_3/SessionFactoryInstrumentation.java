@@ -27,6 +27,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.Session;
 import org.hibernate.StatelessSession;
+import org.hibernate.classic.Validatable;
+import org.hibernate.transaction.JBossTransactionManagerLookup;
 
 @AutoService(Instrumenter.class)
 public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentation {
@@ -58,7 +60,7 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
         SessionFactoryInstrumentation.class.getName() + "$SessionFactoryAdvice");
   }
 
-  public static class SessionFactoryAdvice extends V3Advice {
+  public static class SessionFactoryAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void openSession(@Advice.Return final Object session) {
@@ -76,6 +78,19 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
             InstrumentationContext.get(StatelessSession.class, SessionState.class);
         contextStore.putIfAbsent((StatelessSession) session, new SessionState(span));
       }
+    }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate between 3.3 and 4.
+     */
+    public static void muzzleCheck(
+        // Not in 4.0
+        final Validatable validatable,
+        // Not before 3.3.0.GA
+        final JBossTransactionManagerLookup lookup) {
+      validatable.validate();
+      lookup.getUserTransactionName();
     }
   }
 }

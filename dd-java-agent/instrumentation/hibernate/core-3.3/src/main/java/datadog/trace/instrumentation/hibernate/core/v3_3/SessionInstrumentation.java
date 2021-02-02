@@ -32,6 +32,8 @@ import org.hibernate.Query;
 import org.hibernate.Session;
 import org.hibernate.StatelessSession;
 import org.hibernate.Transaction;
+import org.hibernate.classic.Validatable;
+import org.hibernate.transaction.JBossTransactionManagerLookup;
 
 @AutoService(Instrumenter.class)
 public class SessionInstrumentation extends AbstractHibernateInstrumentation {
@@ -109,7 +111,7 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     return transformers;
   }
 
-  public static class SessionCloseAdvice extends V3Advice {
+  public static class SessionCloseAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeSession(
@@ -138,9 +140,22 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
       DECORATOR.beforeFinish(span);
       span.finish();
     }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate between 3.3 and 4.
+     */
+    public static void muzzleCheck(
+        // Not in 4.0
+        final Validatable validatable,
+        // Not before 3.3.0.GA
+        final JBossTransactionManagerLookup lookup) {
+      validatable.validate();
+      lookup.getUserTransactionName();
+    }
   }
 
-  public static class SessionMethodAdvice extends V3Advice {
+  public static class SessionMethodAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(
@@ -174,9 +189,22 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
 
       SessionMethodUtils.closeScope(sessionState, throwable, returned, startSpan);
     }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate between 3.3 and 4.
+     */
+    public static void muzzleCheck(
+        // Not in 4.0
+        final Validatable validatable,
+        // Not before 3.3.0.GA
+        final JBossTransactionManagerLookup lookup) {
+      validatable.validate();
+      lookup.getUserTransactionName();
+    }
   }
 
-  public static class GetQueryAdvice extends V3Advice {
+  public static class GetQueryAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getQuery(
@@ -196,9 +224,22 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
             sessionContextStore, (StatelessSession) session, queryContextStore, query);
       }
     }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate between 3.3 and 4.
+     */
+    public static void muzzleCheck(
+        // Not in 4.0
+        final Validatable validatable,
+        // Not before 3.3.0.GA
+        final JBossTransactionManagerLookup lookup) {
+      validatable.validate();
+      lookup.getUserTransactionName();
+    }
   }
 
-  public static class GetTransactionAdvice extends V3Advice {
+  public static class GetTransactionAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getTransaction(
@@ -219,9 +260,22 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
             sessionContextStore, (StatelessSession) session, transactionContextStore, transaction);
       }
     }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate between 3.3 and 4.
+     */
+    public static void muzzleCheck(
+        // Not in 4.0
+        final Validatable validatable,
+        // Not before 3.3.0.GA
+        final JBossTransactionManagerLookup lookup) {
+      validatable.validate();
+      lookup.getUserTransactionName();
+    }
   }
 
-  public static class GetCriteriaAdvice extends V3Advice {
+  public static class GetCriteriaAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getCriteria(
@@ -240,6 +294,19 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
         SessionMethodUtils.attachSpanFromStore(
             sessionContextStore, (StatelessSession) session, criteriaContextStore, criteria);
       }
+    }
+
+    /**
+     * Some cases of instrumentation will match more broadly than others, so this unused method
+     * allows all instrumentation to uniformly match versions of Hibernate between 3.3 and 4.
+     */
+    public static void muzzleCheck(
+        // Not in 4.0
+        final Validatable validatable,
+        // Not before 3.3.0.GA
+        final JBossTransactionManagerLookup lookup) {
+      validatable.validate();
+      lookup.getUserTransactionName();
     }
   }
 }

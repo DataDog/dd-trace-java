@@ -1,36 +1,34 @@
-package muzzle
+package datadog.trace.agent.tooling.muzzle
 
-import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.tooling.muzzle.Reference
-import datadog.trace.agent.tooling.muzzle.ReferenceCreator
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Ignore
 
-import static muzzle.TestClasses.InstanceofAdvice
-import static muzzle.TestClasses.LdcAdvice
-import static muzzle.TestClasses.MethodBodyAdvice
+import static TestAdviceClasses.InstanceofAdvice
+import static TestAdviceClasses.LdcAdvice
+import static TestAdviceClasses.MethodBodyAdvice
 
-class ReferenceCreatorTest extends AgentTestRunner {
+class ReferenceCreatorTest extends DDSpecification {
   def "method body creates references"() {
     setup:
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.getName(), this.getClass().getClassLoader())
 
     expect:
-    references.get('muzzle.TestClasses$MethodBodyAdvice$A') != null
-    references.get('muzzle.TestClasses$MethodBodyAdvice$B') != null
-    references.get('muzzle.TestClasses$MethodBodyAdvice$SomeInterface') != null
-    references.get('muzzle.TestClasses$MethodBodyAdvice$SomeImplementation') != null
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A') != null
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B') != null
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$SomeInterface') != null
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$SomeImplementation') != null
     references.keySet().size() == 4
 
     // interface flags
-    references.get('muzzle.TestClasses$MethodBodyAdvice$B').getFlags().contains(Reference.Flag.NON_INTERFACE)
-    references.get('muzzle.TestClasses$MethodBodyAdvice$SomeInterface').getFlags().contains(Reference.Flag.INTERFACE)
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').getFlags().contains(Reference.Flag.NON_INTERFACE)
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$SomeInterface').getFlags().contains(Reference.Flag.INTERFACE)
 
     // class access flags
-    references.get('muzzle.TestClasses$MethodBodyAdvice$A').getFlags().contains(Reference.Flag.PACKAGE_OR_HIGHER)
-    references.get('muzzle.TestClasses$MethodBodyAdvice$B').getFlags().contains(Reference.Flag.PACKAGE_OR_HIGHER)
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A').getFlags().contains(Reference.Flag.PACKAGE_OR_HIGHER)
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').getFlags().contains(Reference.Flag.PACKAGE_OR_HIGHER)
 
     // method refs
-    Set<Reference.Method> bMethods = references.get('muzzle.TestClasses$MethodBodyAdvice$B').getMethods()
+    Set<Reference.Method> bMethods = references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').getMethods()
     findMethod(bMethods, "aMethod", "(Ljava/lang/String;)Ljava/lang/String;") != null
     findMethod(bMethods, "aMethodWithPrimitives", "(Z)V") != null
     findMethod(bMethods, "aStaticMethod", "()V") != null
@@ -40,8 +38,8 @@ class ReferenceCreatorTest extends AgentTestRunner {
     findMethod(bMethods, "aStaticMethod", "()V").getFlags().contains(Reference.Flag.STATIC)
 
     // field refs
-    references.get('muzzle.TestClasses$MethodBodyAdvice$B').getFields().isEmpty()
-    Set<Reference.Field> aFieldRefs = references.get('muzzle.TestClasses$MethodBodyAdvice$A').getFields()
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').getFields().isEmpty()
+    Set<Reference.Field> aFieldRefs = references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A').getFields()
     findField(aFieldRefs, "b").getFlags().contains(Reference.Flag.PACKAGE_OR_HIGHER)
     findField(aFieldRefs, "b").getFlags().contains(Reference.Flag.NON_STATIC)
     findField(aFieldRefs, "staticB").getFlags().contains(Reference.Flag.PACKAGE_OR_HIGHER)
@@ -54,7 +52,7 @@ class ReferenceCreatorTest extends AgentTestRunner {
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.B2.getName(), this.getClass().getClassLoader())
 
     expect:
-    Set<Reference.Method> bMethods = references.get('muzzle.TestClasses$MethodBodyAdvice$B').getMethods()
+    Set<Reference.Method> bMethods = references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B').getMethods()
     findMethod(bMethods, "protectedMethod", "()V") != null
     findMethod(bMethods, "protectedMethod", "()V").getFlags().contains(Reference.Flag.PROTECTED_OR_HIGHER)
   }
@@ -64,7 +62,7 @@ class ReferenceCreatorTest extends AgentTestRunner {
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(LdcAdvice.getName(), this.getClass().getClassLoader())
 
     expect:
-    references.get('muzzle.TestClasses$MethodBodyAdvice$A') != null
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A') != null
   }
 
   def "interface impl creates references"() {
@@ -72,7 +70,7 @@ class ReferenceCreatorTest extends AgentTestRunner {
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.SomeImplementation.getName(), this.getClass().getClassLoader())
 
     expect:
-    references.get('muzzle.TestClasses$MethodBodyAdvice$SomeInterface') != null
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$SomeInterface') != null
     references.size() == 1
   }
 
@@ -81,7 +79,7 @@ class ReferenceCreatorTest extends AgentTestRunner {
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.A2.getName(), this.getClass().getClassLoader())
 
     expect:
-    references.get('muzzle.TestClasses$MethodBodyAdvice$A') != null
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A') != null
     references.size() == 1
   }
 
@@ -90,18 +88,18 @@ class ReferenceCreatorTest extends AgentTestRunner {
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(InstanceofAdvice.getName(), this.getClass().getClassLoader())
 
     expect:
-    references.get('muzzle.TestClasses$MethodBodyAdvice$A') != null
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A') != null
   }
 
   // TODO: remove ignore when we drop java 7 support.
   @Ignore
   def "invokedynamic creates references"() {
     setup:
-    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(TestClasses.InDyAdvice.getName(), this.getClass().getClassLoader())
+    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(TestAdviceClasses.InDyAdvice.getName(), this.getClass().getClassLoader())
 
     expect:
-    references.get('muzzle.TestClasses$MethodBodyAdvice$HasMethod') != null
-    references.get('muzzle.TestClasses$MethodBodyAdvice$B') != null
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$HasMethod') != null
+    references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$B') != null
   }
 
   private static Reference.Method findMethod(Set<Reference.Method> methods, String methodName, String methodDesc) {
