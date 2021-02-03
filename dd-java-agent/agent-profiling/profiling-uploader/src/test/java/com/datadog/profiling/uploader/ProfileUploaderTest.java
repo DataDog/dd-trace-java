@@ -390,7 +390,7 @@ public class ProfileUploaderTest {
 
   @Test
   public void testNoReplyFromServer() throws IOException, InterruptedException {
-    server.enqueue(new MockResponse().setBodyDelay(10, TimeUnit.SECONDS));
+    server.enqueue(new MockResponse().setBodyDelay(30, TimeUnit.SECONDS));
     final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
     uploader.upload(RECORDING_TYPE, recording);
 
