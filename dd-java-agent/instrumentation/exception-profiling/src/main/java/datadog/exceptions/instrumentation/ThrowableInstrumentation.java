@@ -30,28 +30,6 @@ public final class ThrowableInstrumentation extends Instrumenter.Profiling {
   }
 
   @Override
-  public String[] helperClassNames() {
-    /*
-     * Since the only instrumentation target is java.lang.Exception which is loaded by bootstrap classloader
-     * it is ok to use helper classes instead of hacking around a Java 8 specific bootstrap.
-     */
-    return hasJfr
-        ? new String[] {
-          "com.datadog.profiling.exceptions.StreamingSampler",
-          "com.datadog.profiling.exceptions.StreamingSampler$Counts",
-          "com.datadog.profiling.exceptions.StreamingSampler$RollWindowTask",
-          "com.datadog.profiling.exceptions.ExceptionCountEvent",
-          "com.datadog.profiling.exceptions.ExceptionHistogram",
-          "com.datadog.profiling.exceptions.ExceptionHistogram$Pair",
-          "com.datadog.profiling.exceptions.ExceptionProfiling",
-          "com.datadog.profiling.exceptions.ExceptionSampleEvent",
-          "com.datadog.profiling.exceptions.ExceptionSampler",
-          "datadog.exceptions.instrumentation.ThrowableInstanceAdviceHelper"
-        }
-        : new String[0];
-  }
-
-  @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     if (hasJfr) {
       return is(Throwable.class);

@@ -1,4 +1,4 @@
-package com.datadog.profiling.exceptions;
+package datadog.trace.bootstrap.instrumentation.exceptions;
 
 import datadog.trace.api.Config;
 import java.util.Map;
