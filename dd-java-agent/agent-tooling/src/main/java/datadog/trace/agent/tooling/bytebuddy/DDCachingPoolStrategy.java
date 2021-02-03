@@ -109,6 +109,13 @@ public class DDCachingPoolStrategy implements PoolStrategy {
     return createCachingTypePool(loaderHash, loaderRef, classFileLocator);
   }
 
+  public final TypePool typePool(
+      final ClassFileLocator classFileLocator, final ClassLoader classLoader, final String name) {
+    // FIXME satisfy interface constraint that the currently instrumented type is not used in the
+    // cache
+    return typePool(classFileLocator, classLoader);
+  }
+
   private TypePool.CacheProvider createCacheProvider(
       final int loaderHash, final WeakReference<ClassLoader> loaderRef) {
     return new SharedResolutionCacheAdapter(
