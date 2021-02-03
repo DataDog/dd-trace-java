@@ -44,6 +44,7 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
       .put("cluster.name", clusterName)
       .put("node.name", "test-node")
       .put("transport.type", "netty4")
+      .put("discovery.type", "local")
       .build()
     testNode = new Node(InternalSettingsPreparer.prepareEnvironment(
         settings, [:], null, null), [Netty4Plugin], false) {}

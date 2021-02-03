@@ -53,6 +53,7 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
       // Since we use listeners to close spans this should make our span closing deterministic which is good for tests
         .put("thread_pool.listener.size", 1)
         .put(CLUSTER_NAME_SETTING.getKey(), clusterName)
+        .put("discovery.type", "single-node")
         .build()
     )
     client.addTransportAddress(tcpPublishAddress)

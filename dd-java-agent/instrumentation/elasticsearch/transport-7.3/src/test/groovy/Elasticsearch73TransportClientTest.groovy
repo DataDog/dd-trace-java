@@ -44,6 +44,7 @@ class Elasticsearch73TransportClientTest extends AgentTestRunner {
       .put("path.home", esWorkingDir.path)
       .put(CLUSTER_NAME_SETTING.getKey(), clusterName)
       .put("node.name", "test-node")
+      .put("discovery.type", "single-node")
       .put("transport.type", "netty4")
       .build()
     testNode = new Node(InternalSettingsPreparer.prepareEnvironment(

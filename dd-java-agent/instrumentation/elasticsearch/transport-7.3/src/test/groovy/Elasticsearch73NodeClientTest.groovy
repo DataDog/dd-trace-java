@@ -39,6 +39,7 @@ class Elasticsearch73NodeClientTest extends AgentTestRunner {
       .put("thread_pool.listener.size", 1)
       .put(CLUSTER_NAME_SETTING.getKey(), clusterName)
       .put("node.name", "test-node")
+      .put("discovery.type", "single-node")
       .put("transport.type", "netty4")
       .build()
     testNode = new Node(InternalSettingsPreparer.prepareEnvironment(

@@ -45,6 +45,7 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
       .put("path.home", esWorkingDir.path)
       .put("transport.type", "netty3")
       .put("http.type", "netty3")
+      .put("discovery.type", "local")
       .put(CLUSTER_NAME_SETTING.getKey(), clusterName)
       .build()
     testNode = new Node(new Environment(InternalSettingsPreparer.prepareSettings(settings)), [Netty3Plugin])

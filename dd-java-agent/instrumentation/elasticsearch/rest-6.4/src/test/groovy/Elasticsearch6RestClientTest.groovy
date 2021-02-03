@@ -41,6 +41,7 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
     def settings = Settings.builder()
       .put("path.home", esWorkingDir.path)
       .put("cluster.name", clusterName)
+      .put("discovery.type", "local")
       .build()
     testNode = new Node(InternalSettingsPreparer.prepareEnvironment(settings, null), [Netty4Plugin])
     testNode.start()
