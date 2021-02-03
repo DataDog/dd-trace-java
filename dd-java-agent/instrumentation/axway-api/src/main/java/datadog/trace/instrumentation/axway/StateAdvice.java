@@ -17,43 +17,20 @@ public class StateAdvice {
     final AgentSpan span = startSpan("axway.trytransaction");
     final AgentScope scope = activateSpan(span);
     span.setMeasured(true);
+    // manually DECORATE.onRequest(span, stateInstance) :
     setTag(span, Tags.HTTP_METHOD, stateInstance, "verb");
     setTag(span, Tags.HTTP_URL, stateInstance, "uri");
     setTag(span, Tags.PEER_HOSTNAME, stateInstance, "host");
     setTag(span, Tags.PEER_PORT, stateInstance, "port");
-
-    // to propagate host and port to transaction:
-    //    try {
-    //      Object headers = getField(stateInstance, "headers");
-    //
-    //      String hostVal = (String) getField(stateInstance, "host");
-    //      String portVal = (String) getField(stateInstance, "port");
-    //
-    //      Object uriVal = getField(stateInstance, "uri").toString();
-    //      String verb = (String) getField(stateInstance, "verb");
-    //
-    //      // to propogate inside
-    //      Method m = headers.getClass().getDeclaredMethod("setHeader", String.class,
-    // Object.class);
-    //      m.setAccessible(true);
-    //      m.invoke(headers, AxwayHTTPPluginDecorator.CORRELATION_HOST, hostVal);
-    //      m.invoke(headers, AxwayHTTPPluginDecorator.CORRELATION_PORT, portVal);
-    //      log.debug("StateAdvice headers after:{}}", headers);
-    //    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-    //      log.debug("", e);
-    //    }
-
-    // DECORATE.afterStart(span);
-    // DECORATE.onRequest(span, stateInstance);
-
+    DECORATE.afterStart(span);
     return scope;
   }
 
   public static void setTag(AgentSpan span, String tag, Object obj, String field) {
-    span.setTag(tag, getField(obj, field).toString());
+    span.setTag(tag, getFieldValue(obj, field).toString());
   }
 
-  public static Object getField(Object obj, String fieldName) {
+  public static Object getFieldValue(Object obj, String fieldName) {
     try {
       Field field = obj.getClass().getDeclaredField(fieldName);
       field.setAccessible(true);

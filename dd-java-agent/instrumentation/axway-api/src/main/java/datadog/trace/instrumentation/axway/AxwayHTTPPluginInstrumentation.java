@@ -38,10 +38,9 @@ public final class AxwayHTTPPluginInstrumentation extends Instrumenter.Tracing {
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
     transformers.put(
-        isMethod().and(isPublic()).and(named("invoke")), packageName + ".HTTPPluginAdvice");
+        isMethod().and(isPublic()).and(named("invokeDispose")), packageName + ".HTTPPluginAdvice");
     transformers.put(
         isMethod().and(isPublic()).and(named("tryTransaction")), packageName + ".StateAdvice");
-    System.out.println("AxwayHTTPPluginInstrumentation : " + transformers);
     return transformers;
   }
 }

@@ -2,16 +2,16 @@ package datadog.trace.instrumentation.axway;
 
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URI;
+import org.slf4j.Logger;
 
 // request == is com.vordel.circuit.net.State,  response == com.vordel.dwe.http.ServerTransaction
 public class AxwayHTTPPluginDecorator extends HttpClientDecorator<Object, Object> {
-  public static final String CORRELATION_HOST = "CORRELATION_HOST";
-  public static final String CORRELATION_PORT = "CORRELATION_PORT";
-  public static final String AXWAY_REQUEST = "axway.request";
-  public static final String AXWAY_TRY_TRANSACTION = "axway.trytransaction";
-
   public static final AxwayHTTPPluginDecorator DECORATE = new AxwayHTTPPluginDecorator();
+  public static final Logger log =
+      org.slf4j.LoggerFactory.getLogger(AxwayHTTPPluginDecorator.class);
 
   @Override
   protected String[] instrumentationNames() {
@@ -24,14 +24,16 @@ public class AxwayHTTPPluginDecorator extends HttpClientDecorator<Object, Object
   }
 
   @Override
-  protected String method(final Object state) {
+  protected String method(final Object serverTransaction) {
     try {
-      Field f = state.getClass().getDeclaredField("verb");
-      f.setAccessible(true);
-      return (String) f.get(state);
-    } catch (IllegalAccessException | NoSuchFieldException | ClassCastException e) {
-      System.out.println("AxwayHTTPPluginDecorator: " + e);
-      e.printStackTrace();
+      Method m = serverTransaction.getClass().getDeclaredMethod("getMethod");
+      m.setAccessible(true);
+      return (String) m.invoke(serverTransaction);
+    } catch (IllegalAccessException
+        | InvocationTargetException
+        | NoSuchMethodException
+        | ClassCastException e) {
+      log.debug("Can't find method 'getMethod' in instance of '" + serverTransaction + "'", e);
     }
     return "GET";
   }
@@ -44,15 +46,14 @@ public class AxwayHTTPPluginDecorator extends HttpClientDecorator<Object, Object
       URI uri = (URI) f.get(axwayTransactionState);
       return uri;
     } catch (NoSuchFieldException | IllegalAccessException | ClassCastException e) {
-      System.out.println("AxwayHTTPPluginDecorator: " + e);
-      e.printStackTrace();
+      log.debug("Can't find field 'uri' in instance: " + axwayTransactionState, e);
     }
     return null;
   }
 
   @Override
-  protected int status(final Object clientResponse) {
-
+  protected int status(final Object serverTransaction) {
+    // done manually
     return 0;
   }
 }
