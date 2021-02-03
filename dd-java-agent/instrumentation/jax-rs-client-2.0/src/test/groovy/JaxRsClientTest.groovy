@@ -19,14 +19,14 @@ import java.util.concurrent.TimeUnit
 abstract class JaxRsClientTest extends HttpClientTest {
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
 
     Client client = builder().build()
     WebTarget service = client.target(uri)
     Invocation.Builder request = service.request(MediaType.TEXT_PLAIN)
     headers.each { request.header(it.key, it.value) }
-    def body = BODY_METHODS.contains(method) ? Entity.text("") : null
-    Response response = request.method(method, (Entity) body)
+    def reqBody = BODY_METHODS.contains(method) ? Entity.text(body) : null
+    Response response = request.method(method, (Entity) reqBody)
     callback?.call()
 
     return response.status

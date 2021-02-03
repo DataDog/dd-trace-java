@@ -18,7 +18,7 @@ class PlayWSClientTest extends HttpClientTest {
   def client = WS.newClient(-1)
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
     def request = client.url(uri.toString())
     headers.entrySet().each {
       request.setHeader(it.key, it.value)

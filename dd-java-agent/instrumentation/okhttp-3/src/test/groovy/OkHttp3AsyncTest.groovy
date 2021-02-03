@@ -14,11 +14,11 @@ import static java.util.concurrent.TimeUnit.SECONDS
 
 class OkHttp3AsyncTest extends OkHttp3Test {
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
-    def body = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), "") : null
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
+    def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
     def request = new Request.Builder()
       .url(uri.toURL())
-      .method(method, body)
+      .method(method, reqBody)
       .headers(Headers.of(headers))
       .build()
 

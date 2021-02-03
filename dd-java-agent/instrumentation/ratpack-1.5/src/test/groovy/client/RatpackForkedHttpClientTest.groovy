@@ -6,7 +6,7 @@ import ratpack.exec.ExecResult
 class RatpackForkedHttpClientTest extends RatpackHttpClientTest {
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
     ExecResult<Integer> result = exec.yield {
       def resp = client.request(uri) { spec ->
         spec.method(method)

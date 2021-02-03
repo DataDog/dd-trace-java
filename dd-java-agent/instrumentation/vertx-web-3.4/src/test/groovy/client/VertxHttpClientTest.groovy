@@ -23,7 +23,7 @@ class VertxHttpClientTest extends HttpClientTest {
   def httpClient = vertx.createHttpClient(clientOptions)
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
     CompletableFuture<HttpClientResponse> future = new CompletableFuture<>()
     def request = httpClient.request(HttpMethod.valueOf(method), uri.port, uri.host, "$uri")
     headers.each { request.putHeader(it.key, it.value) }

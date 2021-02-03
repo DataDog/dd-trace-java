@@ -15,7 +15,7 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
   def requestFactory = new NetHttpTransport().createRequestFactory()
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
     doRequest(method, uri, headers, callback, false)
   }
 

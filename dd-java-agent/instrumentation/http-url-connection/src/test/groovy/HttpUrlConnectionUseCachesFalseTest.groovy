@@ -8,7 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 class HttpUrlConnectionUseCachesFalseTest extends HttpClientTest {
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
     HttpURLConnection connection = uri.toURL().openConnection()
     try {
       connection.setRequestMethod(method)

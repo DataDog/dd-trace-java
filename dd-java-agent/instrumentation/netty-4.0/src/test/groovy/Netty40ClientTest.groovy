@@ -35,7 +35,7 @@ class Netty40ClientTest extends HttpClientTest {
   AsyncHttpClient asyncHttpClient = asyncHttpClient(clientConfig)
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
     def methodName = "prepare" + method.toLowerCase().capitalize()
     def requestBuilder = asyncHttpClient."$methodName"(uri.toString())
     headers.each { requestBuilder.setHeader(it.key, it.value) }

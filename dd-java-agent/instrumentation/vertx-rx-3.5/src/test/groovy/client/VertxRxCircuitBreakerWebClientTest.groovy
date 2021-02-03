@@ -30,7 +30,7 @@ class VertxRxCircuitBreakerWebClientTest extends HttpClientTest {
   )
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
     def request = client.request(HttpMethod.valueOf(method), uri.port, uri.host, "$uri")
     headers.each { request.putHeader(it.key, it.value) }
 

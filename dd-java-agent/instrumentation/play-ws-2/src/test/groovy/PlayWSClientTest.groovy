@@ -16,7 +16,7 @@ class PlayJavaWSClientTest extends PlayWSClientTestBase {
   StandaloneWSClient wsClient
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
     StandaloneWSRequest wsRequest = wsClient.url(uri.toURL().toString()).setFollowRedirects(true)
 
     headers.entrySet().each { entry -> wsRequest.addHeader(entry.getKey(), entry.getValue()) }
@@ -42,7 +42,7 @@ class PlayJavaStreamedWSClientTest extends PlayWSClientTestBase {
   StandaloneWSClient wsClient
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
     StandaloneWSRequest wsRequest = wsClient.url(uri.toURL().toString()).setFollowRedirects(true)
 
     headers.entrySet().each { entry -> wsRequest.addHeader(entry.getKey(), entry.getValue()) }
@@ -71,7 +71,7 @@ class PlayScalaWSClientTest extends PlayWSClientTestBase {
   play.api.libs.ws.StandaloneWSClient wsClient
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
     Future<play.api.libs.ws.StandaloneWSResponse> futureResponse = wsClient.url(uri.toURL().toString())
       .withMethod(method)
       .withFollowRedirects(true)
@@ -101,7 +101,7 @@ class PlayScalaStreamedWSClientTest extends PlayWSClientTestBase {
   play.api.libs.ws.StandaloneWSClient wsClient
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
     Future<play.api.libs.ws.StandaloneWSResponse> futureResponse = wsClient.url(uri.toURL().toString())
       .withMethod(method)
       .withFollowRedirects(true)

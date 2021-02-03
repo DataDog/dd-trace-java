@@ -82,7 +82,7 @@ abstract class HttpClientTest extends AgentTestRunner {
    * @param method
    * @return
    */
-  abstract int doRequest(String method, URI uri, Map<String, String> headers = [:], Closure callback = null)
+  abstract int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null)
 
   String keyStorePath() {
     server.keystorePath
@@ -175,7 +175,7 @@ abstract class HttpClientTest extends AgentTestRunner {
   def "basic #method request with parent"() {
     when:
     def status = runUnderTrace("parent") {
-      doRequest(method, server.address.resolve("/success"))
+      doRequest(method, server.address.resolve("/success"), [:], body)
     }
 
     then:
@@ -190,6 +190,7 @@ abstract class HttpClientTest extends AgentTestRunner {
 
     where:
     method << BODY_METHODS
+    body = (1..10000).join(" ")
   }
 
   //FIXME: add tests for POST with large/chunked data
@@ -240,7 +241,7 @@ abstract class HttpClientTest extends AgentTestRunner {
 
     when:
     def status = runUnderTrace("parent") {
-      doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"]) {
+      doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"], "") {
         runUnderTrace("child") {
           blockUntilChildSpansFinished(1)
         }
@@ -265,7 +266,7 @@ abstract class HttpClientTest extends AgentTestRunner {
 
   def "trace request with callback and no parent"() {
     when:
-    def status = doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"]) {
+    def status = doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"], "") {
       runUnderTrace("callback") {
         // FIXME: since in async we may not have the other trace report until the callback is done
         //  we should add a test method to detect that the other trace is finished but waiting for

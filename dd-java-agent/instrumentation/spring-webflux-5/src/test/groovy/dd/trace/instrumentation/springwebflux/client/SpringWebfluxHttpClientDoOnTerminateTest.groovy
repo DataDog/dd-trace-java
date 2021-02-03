@@ -11,7 +11,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 class SpringWebfluxHttpClientDoOnTerminateTest extends SpringWebfluxHttpClientBase {
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
     def hasParent = activeSpan() != null
     def client = createClient(component())
     ClientResponse response = client.method(HttpMethod.resolve(method))
