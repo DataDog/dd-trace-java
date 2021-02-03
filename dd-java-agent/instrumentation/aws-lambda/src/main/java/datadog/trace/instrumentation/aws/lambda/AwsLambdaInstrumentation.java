@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import com.amazonaws.services.lambda.runtime.events.APIGatewayV2ProxyRequestEvent;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -90,8 +91,17 @@ public class AwsLambdaInstrumentation extends Instrumenter.Default {
 
   public static class LambdaHandlerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope startMethod() {
-      final AgentSpan span = startSpan("aws.lambda");
+    public static AgentScope startMethod(@Advice.Argument(0) Object firstArgument) {
+      final AgentSpan span;
+
+      if (firstArgument instanceof APIGatewayV2ProxyRequestEvent) {
+        APIGatewayV2ProxyRequestEvent event = (APIGatewayV2ProxyRequestEvent) firstArgument;
+
+        AgentSpan.Context parent = null; // TODO extract parent context from event
+        span = startSpan("aws.lambda", parent);
+      } else {
+        span = startSpan("aws.lambda");
+      }
 
       DECORATE.afterStart(span);
 

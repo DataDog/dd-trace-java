@@ -20,6 +20,7 @@ testSets {
 
 dependencies {
   compileOnly group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.1'
+  compileOnly group: 'com.amazonaws', name: 'aws-lambda-java-events', version: '2.2.9'
 
   testCompile group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.1'
 
