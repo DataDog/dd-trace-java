@@ -10,9 +10,13 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,7 +27,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracing {
+public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracing
+    implements ExcludeFilterProvider {
 
   public ThreadPoolExecutorInstrumentation() {
     super(EXEC_NAME);
@@ -52,6 +57,15 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
         named("remove").and(isMethod()).and(returns(Runnable.class)),
         getClass().getName() + "$Remove");
     return Collections.unmodifiableMap(transformers);
+  }
+
+  @Override
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+    return Collections.singletonMap(
+        RUNNABLE,
+        Arrays.asList(
+            "datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper",
+            "datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable"));
   }
 
   public static final class Execute {
