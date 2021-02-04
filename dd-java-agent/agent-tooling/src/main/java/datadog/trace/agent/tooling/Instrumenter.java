@@ -75,6 +75,7 @@ public interface Instrumenter {
   boolean isApplicable(Set<TargetSystem> enabledSystems);
 
   @Slf4j
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
   abstract class Default implements Instrumenter {
     private static final ElementMatcher<ClassLoader> ANY_CLASS_LOADER = any();
 

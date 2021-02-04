@@ -33,6 +33,7 @@ import static org.eclipse.jetty.http.HttpMethod.GET
 import static org.eclipse.jetty.http.HttpMethod.POST
 import static org.eclipse.jetty.http.HttpMethod.PUT
 
+@edu.umd.cs.findbugs.annotations.SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 class TestHttpServer implements AutoCloseable {
 
   static TestHttpServer httpServer(@DelegatesTo(value = TestHttpServer, strategy = Closure.DELEGATE_FIRST) Closure spec) {

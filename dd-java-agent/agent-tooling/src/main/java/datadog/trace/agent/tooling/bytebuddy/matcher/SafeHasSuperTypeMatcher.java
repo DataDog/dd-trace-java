@@ -169,6 +169,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     }
 
     @Override
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("IT_NO_SUCH_ELEMENT")
     public TypeDefinition next() {
       return next;
     }

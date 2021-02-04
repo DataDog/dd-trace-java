@@ -56,6 +56,7 @@ public final class MetricKey {
 
   @Override
   public boolean equals(Object o) {
+    if (o == null) return false;
     try {
       MetricKey metricKey = (MetricKey) o;
       return hash == metricKey.hash

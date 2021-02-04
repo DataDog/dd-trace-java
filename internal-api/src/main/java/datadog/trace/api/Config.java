@@ -1117,6 +1117,7 @@ public class Config {
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
   private static final Config INSTANCE = new Config();
 
   public static Config get() {

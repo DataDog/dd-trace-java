@@ -2,6 +2,7 @@ package datadog.trace.test.util;
 
 import java.lang.ref.WeakReference;
 
+@edu.umd.cs.findbugs.annotations.SuppressFBWarnings("DM_GC")
 public abstract class GCUtils {
 
   public static void awaitGC() throws InterruptedException {

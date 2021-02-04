@@ -28,6 +28,7 @@ public class ProfilingTestApplication {
   }
 
   @Trace
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("DM_GC")
   private static void tracedMethod() throws InterruptedException {
     System.out.println("Tracing");
     tracedBusyMethod();

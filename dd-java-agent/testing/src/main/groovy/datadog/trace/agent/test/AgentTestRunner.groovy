@@ -265,6 +265,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 }
 
 /** Used to signal that a transformation was intentionally aborted and is not an error. */
+@edu.umd.cs.findbugs.annotations.SuppressFBWarnings("RANGE_ARRAY_INDEX")
 class AbortTransformationException extends RuntimeException {
   AbortTransformationException(final String message) {
     super(message)

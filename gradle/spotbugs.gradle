@@ -3,11 +3,29 @@ apply plugin: 'com.github.spotbugs'
 spotbugs {
   // detector documentation is in the following link:
   // https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html
-  omitVisitors = [ 'DontUseEnum',
-                   'SwitchFallthrough',
-                   'RuntimeExceptionCapture',
-                   'InvalidJUnitTest',
-                   'LostLoggerDueToWeakReference']
+  omitVisitors = [
+    'DefaultEncodingDetector',
+    'DoInsideDoPrivileged',
+    'DontUseEnum',
+    'DroppedException',
+    'FindDeadLocalStores',
+    'FindHEmismatch',
+    'FindNullDeref',
+    'FindReturnRef',
+    'FindRunInvocations',
+    'InitializationChain',
+    'InvalidJUnitTest',
+    'LazyInit',
+    'LoadOfKnownNullValue',
+    'LostLoggerDueToWeakReference',
+    'MethodReturnCheck',
+    'MutableStaticFields',
+    'Naming',
+    'RuntimeExceptionCapture',
+    'SerializableIdiom',
+    'UnreadFields',
+  ]
+  excludeFilter = file("$rootDir/gradle/spotbugFilters/exclude.xml")
 }
 
 spotbugsMain {
@@ -18,4 +36,9 @@ spotbugsMain {
       stylesheet = 'fancy-hist.xsl'
     }
   }
+}
+
+dependencies {
+  compileOnly 'net.jcip:jcip-annotations:1.0'
+  compileOnly 'com.github.spotbugs:spotbugs-annotations:4.2.0'
 }

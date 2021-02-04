@@ -88,6 +88,7 @@ public final class FieldBackedContextStores {
   private static final ConcurrentHashMap<String, FieldBackedContextStore> STORES_BY_NAME =
       new ConcurrentHashMap<>();
 
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
   public static int getContextStoreId(final String keyClassName, final String contextClassName) {
     final String storeName = storeName(keyClassName, contextClassName);
     FieldBackedContextStore existingStore = STORES_BY_NAME.get(storeName);

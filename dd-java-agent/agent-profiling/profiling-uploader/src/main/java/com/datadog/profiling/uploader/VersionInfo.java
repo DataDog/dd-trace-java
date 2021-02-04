@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@edu.umd.cs.findbugs.annotations.SuppressFBWarnings("OS_OPEN_STREAM")
 public class VersionInfo {
 
   static final String PROFILER_VERSION_TAG = "profiler_version";
