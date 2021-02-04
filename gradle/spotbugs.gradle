@@ -1,6 +1,7 @@
 apply plugin: 'com.github.spotbugs'
 
 spotbugs {
+  ignoreFailures = true
   // detector documentation is in the following link:
   // https://spotbugs-in-kengo-toda.readthedocs.io/en/lqc-list-detectors/detectors.html
   omitVisitors = [
@@ -30,6 +31,7 @@ spotbugs {
 }
 
 spotbugsMain {
+  ignoreFailures = false
   reports {
     html {
       enabled = true
