@@ -13,6 +13,7 @@ spotbugs {
     'FindNullDeref',
     'FindReturnRef',
     'FindRunInvocations',
+    'FindUselessControlFlow',
     'InitializationChain',
     'InvalidJUnitTest',
     'LazyInit',
@@ -36,10 +37,6 @@ spotbugsMain {
       stylesheet = 'fancy-hist.xsl'
     }
   }
-}
-
-spotbugsMain_java8 {
-  enabled = false
 }
 
 spotbugsTest {
