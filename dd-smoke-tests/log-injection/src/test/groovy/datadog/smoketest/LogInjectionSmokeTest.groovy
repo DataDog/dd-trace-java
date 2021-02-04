@@ -134,6 +134,18 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return logEvent[key]
   }
 
+  def parseTraceFromStdOut( String line ) {
+    if (line == null) {
+      throw new IllegalArgumentException("Line is null")
+    }
+    // there's a race with stdout where lines get combined
+    // this fixes that
+    def startOfMangle = line.indexOf("[")
+    def unmangled = startOfMangle != -1 ? line.substring(0, startOfMangle) : line
+
+    return unmangled.split(" ")[1..2]
+  }
+
   // TODO: once java7 support is dropped use waitFor(timeout)
   @Timeout(value = TIMEOUT_SECS, unit = TimeUnit.SECONDS)
   def "check raw file injection"() {
@@ -148,8 +160,8 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     println "json log lines: " + jsonLogLines
 
     def stdOutLines = new File(logFilePath).readLines()
-    def (_1, String firstTraceId, String firstSpanId) = stdOutLines.find { it.startsWith("FIRSTTRACEID")}?.split(" ")
-    def (_2, String secondTraceId, String secondSpanId) = stdOutLines.find { it.startsWith("SECONDTRACEID")}?.split(" ")
+    def (String firstTraceId, String firstSpanId) = parseTraceFromStdOut(stdOutLines.find { it.startsWith("FIRSTTRACEID")})
+    def (String secondTraceId, String secondSpanId) = parseTraceFromStdOut(stdOutLines.find { it.startsWith("SECONDTRACEID")})
 
     then:
     exitValue == 0
