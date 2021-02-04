@@ -1,14 +1,11 @@
-muzzle {
-  pass {
-    coreJdk()
-  }
-}
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
 dependencies {
-  //// Can't split jars from axway apigateway monolith:
+  // Can't split jars from axway apigateway monolith:
+  // Jars are are mostly frontend to native code and this native code doesn't run separately without licence.
+  // Moreover, there is no component which you can run `java -jar ...` nor add it to classpath.
+  // Attempt to load any Axway class it results in segmentation fault.
+
   //compileOnly group: 'com.axway.apigw', name: 'com.axway.apigw', version: '7.5'
   //latestDepTestCompile group: 'com.axway.apigw', name: 'com.axway.apigw', version: '+'
 

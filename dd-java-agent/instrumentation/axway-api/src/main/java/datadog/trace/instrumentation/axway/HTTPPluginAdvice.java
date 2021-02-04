@@ -29,6 +29,7 @@ public class HTTPPluginAdvice {
       @Advice.Enter final AgentScope scope,
       @Advice.Argument(value = 2) final Object serverTransaction,
       @Advice.This final Object httpPlugin,
+      // TODO getting local variable by name doens't work for axway
       // @Advice.Local("responseCode") Integer responseCode,
       @Advice.Thrown final Throwable throwable) {
     if (scope == null) {
@@ -38,7 +39,9 @@ public class HTTPPluginAdvice {
     try {
       // manual DECORATE.onResponse(span, serverTransaction):
       // span.setTag(Tags.HTTP_STATUS, responseCode); //TODO
-      DECORATE.onError(span, throwable);
+      if (throwable != null) {
+        DECORATE.onError(span, throwable);
+      }
       DECORATE.beforeFinish(span);
     } finally {
       scope.close();
