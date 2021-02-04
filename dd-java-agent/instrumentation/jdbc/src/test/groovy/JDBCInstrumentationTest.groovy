@@ -186,7 +186,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
         span {
           serviceName renameService ? dbName.toLowerCase() : driver
           operationName "${driver}.query"
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
@@ -209,22 +209,22 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver   | connection                                              | renameService | query                                           | operation
-    "h2"     | connectTo(driver, null)                                 | false         | "SELECT 3"                                      | "SELECT"
-    "derby"  | connectTo(driver, null)                                 | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
-    "hsqldb" | connectTo(driver, null)                                 | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
-    "h2"     | connectTo(driver, connectionProps)                      | true          | "SELECT 3"                                      | "SELECT"
-    "derby"  | connectTo(driver, connectionProps)                      | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
-    "hsqldb" | connectTo(driver, connectionProps)                      | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
-    "h2"     | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"                                      | "SELECT"
-    "derby"  | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
-    "hsqldb" | cpDatasources.get("tomcat").get(driver).getConnection() | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
-    "h2"     | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"                                      | "SELECT"
-    "derby"  | cpDatasources.get("hikari").get(driver).getConnection() | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
-    "hsqldb" | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
-    "h2"     | cpDatasources.get("c3p0").get(driver).getConnection()   | true          | "SELECT 3"                                      | "SELECT"
-    "derby"  | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"
-    "hsqldb" | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"
+    driver   | connection                                              | renameService | query                                           | operation | obfuscatedQuery
+    "h2"     | connectTo(driver, null)                                 | false         | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | connectTo(driver, null)                                 | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | connectTo(driver, null)                                 | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    "h2"     | connectTo(driver, connectionProps)                      | true          | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | connectTo(driver, connectionProps)                      | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | connectTo(driver, connectionProps)                      | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    "h2"     | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | cpDatasources.get("tomcat").get(driver).getConnection() | true          | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    "h2"     | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | cpDatasources.get("hikari").get(driver).getConnection() | true          | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    "h2"     | cpDatasources.get("c3p0").get(driver).getConnection()   | true          | "SELECT 3"                                      | "SELECT"  | "SELECT ?"
+    "derby"  | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM SYSIBM.SYSDUMMY1"                | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "hsqldb" | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS" | "SELECT"  | "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
   }
 
   @Unroll
@@ -245,7 +245,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
         span {
           operationName "${driver}.query"
           serviceName driver
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
@@ -271,15 +271,15 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver  | connection                                              | query                            | operation
-    "h2"    | connectTo(driver, null)                                 | "SELECT 3"                       | "SELECT"
-    "derby" | connectTo(driver, null)                                 | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    driver  | connection                                              | query                            | operation | obfuscatedQuery
+    "h2"    | connectTo(driver, null)                                 | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | connectTo(driver, null)                                 | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
   @Unroll
@@ -299,7 +299,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
         span {
           operationName "${driver}.query"
           serviceName driver
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
@@ -325,15 +325,15 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver  | connection                                              | query                            | operation
-    "h2"    | connectTo(driver, null)                                 | "SELECT 3"                       | "SELECT"
-    "derby" | connectTo(driver, null)                                 | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    driver  | connection                                              | query                            | operation | obfuscatedQuery
+    "h2"    | connectTo(driver, null)                                 | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | connectTo(driver, null)                                 | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
   @Unroll
@@ -353,7 +353,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
         span {
           operationName "${driver}.query"
           serviceName driver
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
@@ -379,15 +379,15 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver  | connection                                              | query                            | operation
-    "h2"    | connectTo(driver, null)                                 | "SELECT 3"                       | "SELECT"
-    "derby" | connectTo(driver, null)                                 | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"                       | "SELECT"
-    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    driver  | connection                                              | query                            | operation | obfuscatedQuery
+    "h2"    | connectTo(driver, null)                                 | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | connectTo(driver, null)                                 | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    "h2"    | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"                       | "SELECT"  | "SELECT ?"
+    "derby" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
   @Unroll
@@ -531,7 +531,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
         span {
           operationName "${driver}.query"
           serviceName driver
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
@@ -564,11 +564,11 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     }
 
     where:
-    prepareStatement | driver  | url                                            | username | query                            | operation
-    true             | "h2"    | "jdbc:h2:mem:" + dbName                        | null     | "SELECT 3;"                      | "SELECT"
-    true             | "derby" | "jdbc:derby:memory:" + dbName + ";create=true" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
-    false            | "h2"    | "jdbc:h2:mem:" + dbName                        | null     | "SELECT 3;"                      | "SELECT"
-    false            | "derby" | "jdbc:derby:memory:" + dbName + ";create=true" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"
+    prepareStatement | driver  | url                                            | username | query                            | operation | obfuscatedQuery
+    true             | "h2"    | "jdbc:h2:mem:" + dbName                        | null     | "SELECT 3;"                      | "SELECT"  | "SELECT ?"
+    true             | "derby" | "jdbc:derby:memory:" + dbName + ";create=true" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
+    false            | "h2"    | "jdbc:h2:mem:" + dbName                        | null     | "SELECT 3;"                      | "SELECT"  | "SELECT ?"
+    false            | "derby" | "jdbc:derby:memory:" + dbName + ";create=true" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT"  | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 
   def "calling #datasource.class.simpleName getConnection generates a span when under existing trace"() {
@@ -649,7 +649,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
         span {
           operationName "${database}.query"
           serviceName database
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
@@ -676,6 +676,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     where:
     database = "testdb"
     query = "testing 123"
+    obfuscatedQuery = "testing ?"
   }
 
   @Unroll
@@ -684,6 +685,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     String dbType = "hsqldb"
     DataSource ds = createDS(connectionPoolName, dbType, jdbcUrls.get(dbType))
     String query = "SELECT 3 FROM INFORMATION_SCHEMA.SYSTEM_USERS"
+    String obfuscatedQuery = "SELECT ? FROM INFORMATION_SCHEMA.SYSTEM_USERS"
     int numQueries = 5
     Connection connection = null
     Statement statement = null
@@ -715,7 +717,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
         span {
           operationName "${dbType}.query"
           serviceName dbType
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           errored false
           topLevel true
@@ -735,7 +737,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
           span {
             operationName "${dbType}.query"
             serviceName dbType
-            resourceName query
+            resourceName obfuscatedQuery
             spanType DDSpanTypes.SQL
             errored false
             tags {

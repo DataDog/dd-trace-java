@@ -63,6 +63,7 @@ object SlickUtils {
   val Url = s"jdbc:${Driver}:mem:${Db}"
   val TestValue = 3
   val TestQuery = "SELECT 3"
+  val ObfuscatedTestQuery = "SELECT ?"
 
   val SleepQuery = "CALL SLEEP(3000)"
 

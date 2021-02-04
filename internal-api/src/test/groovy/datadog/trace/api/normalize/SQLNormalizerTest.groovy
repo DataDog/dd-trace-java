@@ -52,5 +52,6 @@ class SQLNormalizerTest extends DDSpecification {
     "SELECT COUNT(*) FROM TABLE_1 JOIN table_2 ON TABLE_1.foo = table_2.bar where col1 > -0.9999"                                    | "SELECT COUNT(*) FROM TABLE_1 JOIN table_2 ON TABLE_1.foo = table_2.bar where col1 > ?"
     "SELECT COUNT(*) FROM TABLE_1 JOIN table_2 ON TABLE_1.foo = table_2.bar where col1 <> \'\'"                                      | "SELECT COUNT(*) FROM TABLE_1 JOIN table_2 ON TABLE_1.foo = table_2.bar where col1 <> ?"
     "CREATE TABLE S_H2 (id INTEGER not NULL, PRIMARY KEY ( id ))"                                                                    | "CREATE TABLE S_H2 (id INTEGER not NULL, PRIMARY KEY ( id ))"
+    "CREATE TABLE S_H2 ( id INTEGER not NULL, PRIMARY KEY ( id ) )"                                                                  | "CREATE TABLE S_H2 ( id INTEGER not NULL, PRIMARY KEY ( id ) )"
   }
 }
