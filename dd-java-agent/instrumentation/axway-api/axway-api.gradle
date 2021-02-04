@@ -1,8 +1,8 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  // Can't split jars from axway apigateway monolith:
-  // Jars are are mostly frontend to native code and this native code doesn't run separately without licence.
+  // It's difficult to split jars from axway apigateway monolith:
+  // Jars are mostly frontend to native code and this native code doesn't run separately without licence.
   // Moreover, there is no component which you can run `java -jar ...` nor add it to classpath.
   // Attempt to load any Axway class it results in segmentation fault.
 
