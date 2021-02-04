@@ -61,6 +61,7 @@ import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
+import okhttp3.mockwebserver.SocketPolicy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -112,6 +113,10 @@ public class ProfileUploaderTest {
   private final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
   private final Duration REQUEST_IO_OPERATION_TIMEOUT = Duration.ofSeconds(5);
 
+  // Termination timeout has to be longer than request timeout to make sure that all callbacks are
+  // called before the termination.
+  private final Duration TERMINATION_TIMEOUT = REQUEST_TIMEOUT.plus(Duration.ofSeconds(5));
+
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
 
   @Mock private Config config;
@@ -133,7 +138,9 @@ public class ProfileUploaderTest {
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
 
-    uploader = new ProfileUploader(config, ioLogger, "containerId");
+    uploader =
+        new ProfileUploader(
+            config, ioLogger, "containerId", (int) TERMINATION_TIMEOUT.getSeconds());
   }
 
   @AfterEach
@@ -202,7 +209,9 @@ public class ProfileUploaderTest {
 
   @Test
   public void testRequestWithContainerId() throws IOException, InterruptedException {
-    uploader = new ProfileUploader(config, ioLogger, "container-id");
+    uploader =
+        new ProfileUploader(
+            config, ioLogger, "container-id", (int) TERMINATION_TIMEOUT.getSeconds());
 
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
@@ -390,9 +399,12 @@ public class ProfileUploaderTest {
 
   @Test
   public void testNoReplyFromServer() throws IOException, InterruptedException {
-    server.enqueue(new MockResponse().setBodyDelay(10, TimeUnit.SECONDS));
+    server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));
     final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
     uploader.upload(RECORDING_TYPE, recording);
+
+    // Wait longer than request timeout
+    assertNotNull(server.takeRequest(REQUEST_TIMEOUT.getSeconds() + 1, TimeUnit.SECONDS));
 
     // Shutting down uploader ensures all callbacks are called on http client
     uploader.shutdown();
@@ -412,10 +424,17 @@ public class ProfileUploaderTest {
     final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
     uploader.upload(RECORDING_TYPE, recording);
 
-    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
+    // Wait longer than request timeout
+    assertNotNull(
+        server.takeRequest(REQUEST_IO_OPERATION_TIMEOUT.getSeconds() + 2, TimeUnit.SECONDS));
 
+    // Shutting down uploader ensures all callbacks are called on http client
+    uploader.shutdown();
     verify(recording.getStream()).close();
     verify(recording).release();
+    // This seems to be a weird behaviour on okHttp side: it considers request to be a success even
+    // if it didn't get headers before the timeout
+    verify(ioLogger).success(eq("Upload done"));
   }
 
   @Test

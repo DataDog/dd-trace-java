@@ -127,21 +127,23 @@ public final class ProfileUploader {
 
         ioLogger.error("Failed to upload profile", getLoggerResponse(response));
       }
+      // Note: this whole callback never touches body and would be perfectly happy even if server
+      // never sends it.
       response.close();
     }
 
-    private static IOLogger.Response getLoggerResponse(okhttp3.Response response) {
+    private static IOLogger.Response getLoggerResponse(final okhttp3.Response response) {
       if (response != null) {
         try {
           return new IOLogger.Response(
               response.code(), response.message(), response.body().string().trim());
-        } catch (NullPointerException | IOException ignored) {
+        } catch (final NullPointerException | IOException ignored) {
         }
       }
       return null;
     }
 
-    private static boolean isEmptyReplyFromServer(IOException e) {
+    private static boolean isEmptyReplyFromServer(final IOException e) {
       // The server in datadog-agent triggers 'unexpected end of stream' caused by EOFException.
       // The MockWebServer in tests triggers an InterruptedIOException with SocketPolicy
       // NO_RESPONSE. This is because in tests we can't cleanly terminate the connection on the
@@ -162,24 +164,30 @@ public final class ProfileUploader {
   private final String apiKey;
   private final String url;
   private final String containerId;
+  private final int terminationTimeout;
   private final List<String> tags;
   private final Compression compression;
   private final Deque<Integer> requestSizeHistory;
 
   public ProfileUploader(final Config config) {
-    this(config, new IOLogger(log), ContainerInfo.get().getContainerId());
+    this(config, new IOLogger(log), ContainerInfo.get().getContainerId(), TERMINATION_TIMEOUT);
   }
 
   /**
    * Note that this method is only visible for testing and should not be used from outside this
    * class.
    */
-  ProfileUploader(final Config config, final IOLogger ioLogger, final String containerId) {
+  ProfileUploader(
+      final Config config,
+      final IOLogger ioLogger,
+      final String containerId,
+      final int terminationTimeout) {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
     agentless = config.isProfilingAgentless();
     responseCallback = new ResponseCallback(ioLogger);
     this.containerId = containerId;
+    this.terminationTimeout = terminationTimeout;
 
     log.debug("Started ProfileUploader with target url {}", url);
     /*
@@ -287,13 +295,12 @@ public final class ProfileUploader {
   public void shutdown() {
     okHttpExecutorService.shutdownNow();
     try {
-      okHttpExecutorService.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
+      okHttpExecutorService.awaitTermination(terminationTimeout, TimeUnit.SECONDS);
     } catch (final InterruptedException e) {
       // Note: this should only happen in main thread right before exiting, so eating up interrupted
       // state should be fine.
       log.warn("Wait for executor shutdown interrupted");
     }
-
     client.connectionPool().evictAll();
   }
 
