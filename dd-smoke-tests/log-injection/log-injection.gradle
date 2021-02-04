@@ -4,6 +4,10 @@ plugins {
   id "com.github.johnrengelman.shadow" version "5.2.0"
 }
 
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 description = 'Log injection Smoke Tests.'
 
