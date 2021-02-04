@@ -7,21 +7,25 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.BitSet;
 
+/**
+ * This class removes numbers and SQL literals from strings on a best-effort basis, producing UTF-8
+ * encoded bytes. The aim is to remove as much information as possible, but only when it's cheap to
+ * do so. It makes no context-sensitive decisions, which works well for ANSI SQL, but, for example,
+ * will not remove literals in MySQL which are indistinguishable from object names. This is not an
+ * obfuscator, and the strings produced by this class must be passed through obfuscation in the
+ * trace agent.
+ */
 public final class SQLNormalizer {
 
-  private static final long[] OBFUSCATE = new long[4];
+  private static final long[] OBFUSCATE_SEQUENCES_STARTING_WITH = new long[4];
+  private static final long[] NON_WHITESPACE_SPLITTERS = new long[4];
 
   static {
     for (byte symbol :
         new byte[] {'\'', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '+', '.'}) {
       int unsigned = symbol & 0xFF;
-      OBFUSCATE[unsigned >>> 6] |= (1L << unsigned);
+      OBFUSCATE_SEQUENCES_STARTING_WITH[unsigned >>> 6] |= (1L << unsigned);
     }
-  }
-
-  private static final long[] NON_WHITESPACE_SPLITTERS = new long[4];
-
-  static {
     for (byte symbol : new byte[] {',', '(', ')'}) {
       int unsigned = symbol & 0xFF;
       NON_WHITESPACE_SPLITTERS[unsigned >>> 6] |= (1L << unsigned);
@@ -45,26 +49,45 @@ public final class SQLNormalizer {
     int outputLength = utf8.length;
     int end = outputLength - 1;
     int start = splitters.previousSetBit(end - 1);
-    while (start > 0) {
-      if (start == end - 1) {
-        // avoid an unnecessary array copy
+    // strip out anything ending with a quote (covers string and hex literals)
+    // or anything starting with a number, a quote, a decimal point, or a sign
+    while (end > 0) {
+      if (start == end - 1 && utf8[end] != '\'') {
+        // avoid an unnecessary array copy for one digit numbers
         if (utf8[end] >= '0' && utf8[end] <= '9') {
           utf8[end] = (byte) '?';
         }
-      } else if (start < end - 1
-          && (utf8[end] == '\''
-              || utf8[end] == ')'
-              || shouldReplaceSequenceStartingWith(utf8[start + 1]))) {
-        // strip out anything ending with a quote (covers string and hex literals)
-        // or anything starting with a number, a quote, a decimal point, or a sign
-        int first = start + 1;
+      } else {
+        int first = -1;
         int last = isNonWhitespaceSplitter(utf8[end]) ? end - 1 : end;
-        System.arraycopy(utf8, last, utf8, first, outputLength - last);
-        utf8[first] = (byte) '?';
-        outputLength -= (last - first);
+        // quote literals may span several splits
+        if (utf8[end] == '\'') {
+          while (start > -1) {
+            // found the start of a string or hex literal
+            if (start + 1 < end
+                && (utf8[start + 1] == '\''
+                    || (start + 1 < end - 1
+                        && utf8[start + 1] != '\\'
+                        && utf8[start + 2] == '\''))) {
+              first = start + 1;
+              break;
+            }
+            start = splitters.previousSetBit(start - 1);
+          }
+        } else if (start < end - 1
+            && (utf8[end] == ')' || shouldReplaceSequenceStartingWith(utf8[start + 1]))) {
+          first = start + 1;
+        }
+        // found something to remove, shift the suffix of the string backwards
+        // and add the obfuscated character
+        if (first > -1) {
+          System.arraycopy(utf8, last, utf8, first, outputLength - last);
+          utf8[first] = (byte) '?';
+          outputLength -= (last - first);
+        }
       }
       end = start - 1;
-      start = splitters.previousSetBit(end);
+      start = end > 0 ? splitters.previousSetBit(end) : -1;
     }
     return UTF8BytesString.create(Arrays.copyOf(utf8, outputLength));
   }
@@ -104,7 +127,8 @@ public final class SQLNormalizer {
   }
 
   private static boolean shouldReplaceSequenceStartingWith(byte symbol) {
-    return (OBFUSCATE[(symbol & 0xFF) >>> 6] & (1L << (symbol & 0xFF))) != 0;
+    return (OBFUSCATE_SEQUENCES_STARTING_WITH[(symbol & 0xFF) >>> 6] & (1L << (symbol & 0xFF)))
+        != 0;
   }
 
   private static boolean isNonWhitespaceSplitter(byte symbol) {
