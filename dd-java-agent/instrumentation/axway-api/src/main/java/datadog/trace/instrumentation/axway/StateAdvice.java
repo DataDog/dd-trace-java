@@ -4,15 +4,12 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.DECORATE;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.HOST;
-import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.METHOD;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.PORT;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 
@@ -30,24 +27,6 @@ public class StateAdvice {
     setTag(span, Tags.PEER_HOSTNAME, stateInstance, HOST);
     setTag(span, Tags.PEER_PORT, stateInstance, PORT);
     DECORATE.afterStart(span);
-
-    // to propagate host and port to com.vordel.dwe.http.ServerTransaction:
-    try {
-      Object headers = getFieldValue(stateInstance, "headers");
-
-      String hostVal = (String) getFieldValue(stateInstance, HOST);
-      String portVal = (String) getFieldValue(stateInstance, PORT);
-      String verb = (String) getFieldValue(stateInstance, "verb");
-
-      Method m = headers.getClass().getDeclaredMethod("setHeader", String.class, Object.class);
-      m.setAccessible(true);
-      m.invoke(headers, HOST, hostVal);
-      m.invoke(headers, PORT, portVal);
-      m.invoke(headers, METHOD, verb);
-      log.debug("StateAdvice headers after:{}}", headers);
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-      log.debug("Can't set header", e);
-    }
     return scope;
   }
 
