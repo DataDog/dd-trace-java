@@ -124,14 +124,17 @@ def generateTestingJar(String interfaceName, String backend, List<Configuration>
 
     archiveBaseName.set(name)
 
-    configurations = [project.configurations.compile] + configurationsList
+    configurations = [project.configurations.compile]+ configurationsList
   }
 }
 
 generateTestingJar('JUL', 'JUL', [])
 
 generateTestingJar('JUL', 'Log4j2',
-  [configurations.julLog4j2Bridge, configurations.log4j2])
+  [
+    configurations.julLog4j2Bridge,
+    configurations.log4j2
+  ])
 
 generateTestingJar('JUL', 'JBoss', [configurations.jbossBackend])
 
@@ -141,85 +144,135 @@ generateTestingJar('JCL', 'Log4j1',
   [configurations.jcl, configurations.log4j1])
 
 generateTestingJar('JCL', 'Log4j2',
-  [configurations.jcl,
-   configurations.jclLog4j2Bridge,
-   configurations.log4j2])
+  [
+    configurations.jcl,
+    configurations.jclLog4j2Bridge,
+    configurations.log4j2
+  ])
 
 generateTestingJar('Log4j1', 'Log4j1', [configurations.log4j1])
 
 generateTestingJar('Log4j1', 'Log4j2',
-  [configurations.log4j1Log4j2Bridge, configurations.log4j2])
+  [
+    configurations.log4j1Log4j2Bridge,
+    configurations.log4j2
+  ])
 
 generateTestingJar('Log4j2', 'Log4j2',
   [configurations.log4j2])
 
 generateTestingJar('Slf4j', 'Logback',
-  [configurations.slf4jInterface, configurations.logbackBackend])
+  [
+    configurations.slf4jInterface,
+    configurations.logbackBackend
+  ])
 
 generateTestingJar('Slf4j', 'Log4j1',
-  [configurations.slf4jInterface,
-   configurations.slf4jLog4j1Bridge,
-   configurations.log4j1])
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jLog4j1Bridge,
+    configurations.log4j1
+  ])
 
 generateTestingJar('Slf4j', 'Log4j2',
-  [configurations.slf4jInterface,
-   configurations.slf4jLog4j2Bridge,
-   configurations.log4j2])
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jLog4j2Bridge,
+    configurations.log4j2
+  ])
 
 generateTestingJar('Slf4j', 'Slf4jSimple',
-  [configurations.slf4jInterface, configurations.slf4jSimpleBackend])
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jSimpleBackend
+  ])
 
 generateTestingJar('Slf4j', 'JUL',
-  [configurations.slf4jInterface, configurations.slf4jJULBridge])
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jJULBridge
+  ])
 
 generateTestingJar('Slf4j', 'JCLToLog4j1',
-  [configurations.slf4jInterface,
-   configurations.slf4jJCLBridge,
-   configurations.jcl,
-   configurations.log4j1])
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jJCLBridge,
+    configurations.jcl,
+    configurations.log4j1
+  ])
 
 generateTestingJar('Slf4j', 'JCLToLog4j2',
-  [configurations.slf4jInterface,
-   configurations.slf4jJCLBridge,
-   configurations.jcl,
-   configurations.jclLog4j2Bridge,
-   configurations.log4j2])
+  [
+    configurations.slf4jInterface,
+    configurations.slf4jJCLBridge,
+    configurations.jcl,
+    configurations.jclLog4j2Bridge,
+    configurations.log4j2
+  ])
 
 generateTestingJar('JUL', 'Slf4jToLogback',
-  [configurations.julSlf4jBridge, configurations.logbackBackend])
+  [
+    configurations.julSlf4jBridge,
+    configurations.logbackBackend
+  ])
 
 generateTestingJar('JCL', 'Slf4jToLogback',
-  [configurations.jclSlf4jBridge, configurations.logbackBackend])
+  [
+    configurations.jclSlf4jBridge,
+    configurations.logbackBackend
+  ])
 
 generateTestingJar('Log4j1', 'Slf4jToLogback',
-  [configurations.log4j1Slf4jBridge, configurations.logbackBackend])
+  [
+    configurations.log4j1Slf4jBridge,
+    configurations.logbackBackend
+  ])
 
 generateTestingJar('Log4j2', 'Slf4jToLogback',
-  [configurations.log4j2Slf4jBridge, configurations.logbackBackend])
+  [
+    configurations.log4j2Slf4jBridge,
+    configurations.logbackBackend
+  ])
 
 generateTestingJar('JBoss', 'JBoss',
-  [configurations.jbossInterface, configurations.jbossBackend])
+  [
+    configurations.jbossInterface,
+    configurations.jbossBackend
+  ])
 
 generateTestingJar('JBoss', 'Log4j1',
-  [configurations.jbossInterface, configurations.log4j1])
+  [
+    configurations.jbossInterface,
+    configurations.log4j1
+  ])
 
 generateTestingJar('JBoss', 'Log4j2',
-  [configurations.jbossInterface, configurations.log4j2])
+  [
+    configurations.jbossInterface,
+    configurations.log4j2
+  ])
 
 generateTestingJar('JBoss', 'Slf4jToLogback',
-  [configurations.jbossInterface,
-   configurations.slf4jInterface,
-   configurations.logbackBackend])
+  [
+    configurations.jbossInterface,
+    configurations.slf4jInterface,
+    configurations.logbackBackend
+  ])
 
 generateTestingJar('JBoss', 'JUL', [configurations.jbossInterface])
 
 generateTestingJar('Flogger', 'JUL',
-  [configurations.floggerInterface, configurations.floggerJULBackend])
+  [
+    configurations.floggerInterface,
+    configurations.floggerJULBackend
+  ])
 
 generateTestingJar('Flogger', 'Slf4jToLogback',
-  [configurations.floggerInterface,
-   configurations.floggerSlf4jBackend,
-   configurations.logbackBackend])
+  [
+    configurations.floggerInterface,
+    configurations.floggerSlf4jBackend,
+    configurations.logbackBackend
+  ])
 
 tasks.withType(Test).configureEach {
   dependsOn tasks.withType(ShadowJar)
