@@ -36,7 +36,7 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.AdditionalLibraryIgnoresMatcher.additionalLibraryIgnoresMatcher
-import static datadog.trace.api.IdGenerationStrategy.THREAD_PREFIX
+import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
 
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
@@ -123,7 +123,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     TEST_TRACER =
       CoreTracer.builder()
         .writer(TEST_WRITER)
-        .idGenerationStrategy(THREAD_PREFIX)
+        .idGenerationStrategy(SEQUENTIAL)
         .statsDClient(STATS_D_CLIENT)
         .strictTraceWrites(useStrictTraceWrites())
         .build()
