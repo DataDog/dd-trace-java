@@ -13,6 +13,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
 
+/**
+ * Axway apigateway server gathers responses from 1 or more services, aggregates them and sends
+ * response(s) to client(s). Apigateway is just reverse proxy. com.vordel.circuit.net.State class
+ * represents connection(s) and "state" of communication to one or more of the services from which
+ * axway apigateway needs to get reply to prepare aggregates response to customer. This
+ * instrumentation intends to see to which services apigateway goes to prepare it response.
+ */
 public class StateAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.This final Object stateInstance) {
@@ -36,7 +43,9 @@ public class StateAdvice {
     }
     final AgentSpan span = scope.span();
     try {
-      DECORATE.onError(span, throwable);
+      if (throwable != null) {
+        DECORATE.onError(span, throwable);
+      }
       DECORATE.beforeFinish(span);
     } finally {
       scope.close();

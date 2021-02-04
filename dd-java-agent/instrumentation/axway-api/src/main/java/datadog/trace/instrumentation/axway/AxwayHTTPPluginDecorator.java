@@ -29,7 +29,7 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
   private static final MethodHandles.Lookup lookup = MethodHandles.lookup();
   private static MethodHandle getRemoteAddr_mh;
   private static MethodHandle getMethod_mh;
-  private static MethodHandle getURI_mh; // private
+  private static MethodHandle getURI_mh;
 
   static {
     try {
@@ -40,7 +40,7 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
       getMethod_mh =
           lookup.findVirtual(classServerTransaction, "getMethod", methodType(String.class));
 
-      Method m = classServerTransaction.getDeclaredMethod("getURI");
+      Method m = classServerTransaction.getDeclaredMethod("getURI"); // private method
       m.setAccessible(true);
       getURI_mh = lookup.unreflect(m);
     } catch (Throwable e) {

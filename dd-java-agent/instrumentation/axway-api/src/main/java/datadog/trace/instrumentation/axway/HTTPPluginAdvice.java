@@ -12,9 +12,7 @@ import net.bytebuddy.asm.Advice;
 public class HTTPPluginAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(
-      @Advice.This final Object stateInstance,
-      @Advice.Argument(value = 2) final Object serverTransaction) {
+  public static AgentScope onEnter(@Advice.Argument(value = 2) final Object serverTransaction) {
     final AgentSpan span = startSpan(AXWAY_REQUEST);
     final AgentScope scope = activateSpan(span);
     span.setMeasured(true);
@@ -27,8 +25,6 @@ public class HTTPPluginAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void onExit(
       @Advice.Enter final AgentScope scope,
-      @Advice.Argument(value = 2) final Object serverTransaction,
-      @Advice.This final Object httpPlugin,
       // TODO getting local variable by name doens't work for axway
       // @Advice.Local("responseCode") Integer responseCode,
       @Advice.Thrown final Throwable throwable) {
