@@ -38,6 +38,10 @@ spotbugsMain {
   }
 }
 
+spotbugsMain_java8 {
+  enabled = false
+}
+
 spotbugsTest {
   enabled = false
 }
