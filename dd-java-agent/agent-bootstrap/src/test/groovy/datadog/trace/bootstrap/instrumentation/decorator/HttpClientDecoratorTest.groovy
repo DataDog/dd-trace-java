@@ -1,10 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-import datadog.trace.api.Config
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
+
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING
 
 class HttpClientDecoratorTest extends ClientDecoratorTest {
 
@@ -15,7 +17,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
 
   def "test onRequest"() {
     setup:
-    injectSysConfig(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
+    injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
     def decorator = newDecorator()
 
     when:
@@ -43,7 +45,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
 
   def "test url handling for #url"() {
     setup:
-    injectSysConfig(Config.HTTP_CLIENT_TAG_QUERY_STRING, "$tagQueryString")
+    injectSysConfig(HTTP_CLIENT_TAG_QUERY_STRING, "$tagQueryString")
     def decorator = newDecorator()
 
     when:

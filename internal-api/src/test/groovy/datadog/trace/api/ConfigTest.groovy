@@ -6,70 +6,6 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import org.junit.Rule
 
-import static datadog.trace.api.Config.AGENT_HOST
-import static datadog.trace.api.Config.AGENT_PORT_LEGACY
-import static datadog.trace.api.Config.AGENT_UNIX_DOMAIN_SOCKET
-import static datadog.trace.api.Config.API_KEY
-import static datadog.trace.api.Config.API_KEY_FILE
-import static datadog.trace.api.Config.CONFIGURATION_FILE
-import static datadog.trace.api.Config.GLOBAL_TAGS
-import static datadog.trace.api.Config.HEADER_TAGS
-import static datadog.trace.api.Config.HEALTH_METRICS_ENABLED
-import static datadog.trace.api.Config.HEALTH_METRICS_STATSD_HOST
-import static datadog.trace.api.Config.HEALTH_METRICS_STATSD_PORT
-import static datadog.trace.api.Config.HTTP_CLIENT_ERROR_STATUSES
-import static datadog.trace.api.Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
-import static datadog.trace.api.Config.HTTP_SERVER_ERROR_STATUSES
-import static datadog.trace.api.Config.ID_GENERATION_STRATEGY
-import static datadog.trace.api.Config.JMX_FETCH_CHECK_PERIOD
-import static datadog.trace.api.Config.JMX_FETCH_ENABLED
-import static datadog.trace.api.Config.JMX_FETCH_METRICS_CONFIGS
-import static datadog.trace.api.Config.JMX_FETCH_REFRESH_BEANS_PERIOD
-import static datadog.trace.api.Config.JMX_FETCH_STATSD_HOST
-import static datadog.trace.api.Config.JMX_FETCH_STATSD_PORT
-import static datadog.trace.api.Config.JMX_TAGS
-import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
-import static datadog.trace.api.Config.PERF_METRICS_ENABLED
-import static datadog.trace.api.Config.PRIORITIZATION_TYPE
-import static datadog.trace.api.Config.PRIORITY_SAMPLING
-import static datadog.trace.api.Config.PROFILING_AGENTLESS
-import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_OLD
-import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_VERY_OLD
-import static datadog.trace.api.Config.PROFILING_ENABLED
-import static datadog.trace.api.Config.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
-import static datadog.trace.api.Config.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
-import static datadog.trace.api.Config.PROFILING_EXCEPTION_SAMPLE_LIMIT
-import static datadog.trace.api.Config.PROFILING_PROXY_HOST
-import static datadog.trace.api.Config.PROFILING_PROXY_PASSWORD
-import static datadog.trace.api.Config.PROFILING_PROXY_PORT
-import static datadog.trace.api.Config.PROFILING_PROXY_USERNAME
-import static datadog.trace.api.Config.PROFILING_START_DELAY
-import static datadog.trace.api.Config.PROFILING_START_FORCE_FIRST
-import static datadog.trace.api.Config.PROFILING_TAGS
-import static datadog.trace.api.Config.PROFILING_TEMPLATE_OVERRIDE_FILE
-import static datadog.trace.api.Config.PROFILING_UPLOAD_COMPRESSION
-import static datadog.trace.api.Config.PROFILING_UPLOAD_PERIOD
-import static datadog.trace.api.Config.PROFILING_UPLOAD_TIMEOUT
-import static datadog.trace.api.Config.PROFILING_URL
-import static datadog.trace.api.Config.PROPAGATION_STYLE_EXTRACT
-import static datadog.trace.api.Config.PROPAGATION_STYLE_INJECT
-import static datadog.trace.api.Config.RUNTIME_CONTEXT_FIELD_INJECTION
-import static datadog.trace.api.Config.SERVICE_MAPPING
-import static datadog.trace.api.Config.SERVICE_NAME
-import static datadog.trace.api.Config.SITE
-import static datadog.trace.api.Config.SPAN_TAGS
-import static datadog.trace.api.Config.SPLIT_BY_TAGS
-import static datadog.trace.api.Config.TAGS
-import static datadog.trace.api.Config.TRACE_AGENT_PORT
-import static datadog.trace.api.Config.TRACE_AGENT_URL
-import static datadog.trace.api.Config.TRACE_ENABLED
-import static datadog.trace.api.Config.TRACE_RATE_LIMIT
-import static datadog.trace.api.Config.TRACE_REPORT_HOSTNAME
-import static datadog.trace.api.Config.TRACE_RESOLVER_ENABLED
-import static datadog.trace.api.Config.TRACE_SAMPLE_RATE
-import static datadog.trace.api.Config.TRACE_SAMPLING_OPERATION_RULES
-import static datadog.trace.api.Config.TRACE_SAMPLING_SERVICE_RULES
-import static datadog.trace.api.Config.WRITER_TYPE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
@@ -81,7 +17,73 @@ import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
 import static datadog.trace.api.IdGenerationStrategy.RANDOM
 import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
+import static datadog.trace.api.config.GeneralConfig.API_KEY
+import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE
+import static datadog.trace.api.config.GeneralConfig.ENV
+import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE
+import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS
+import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
+import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST
+import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT
+import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED
+import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
+import static datadog.trace.api.config.GeneralConfig.SITE
+import static datadog.trace.api.config.GeneralConfig.TAGS
+import static datadog.trace.api.config.GeneralConfig.VERSION
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_REFRESH_BEANS_PERIOD
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT
+import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_TAGS
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
+import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
+import static datadog.trace.api.config.TracerConfig.AGENT_HOST
+import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY
+import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
+import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES
+import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES
+import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY
+import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS
+import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
+import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
+import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT
+import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT
+import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING
+import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
+import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL
+import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
+import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME
+import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
+import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
 import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 
 class ConfigTest extends DDSpecification {
@@ -1217,19 +1219,19 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(JMX_TAGS, "d:4")
     prop.setProperty(HEADER_TAGS, "e:5")
     prop.setProperty(PROFILING_TAGS, "f:6")
-    prop.setProperty(Config.ENV, "eu-east")
-    prop.setProperty(Config.VERSION, "43")
+    prop.setProperty(ENV, "eu-east")
+    prop.setProperty(VERSION, "43")
 
     when:
     Config config = Config.get(prop)
 
     then:
-    config.mergedSpanTags == [a: "1", b: "2", c: "3", (Config.ENV): "eu-east", (Config.VERSION): "43"]
-    config.mergedJmxTags == [a               : "1", b: "2", d: "4", (Config.ENV): "eu-east", (Config.VERSION): "43",
+    config.mergedSpanTags == [a: "1", b: "2", c: "3", (ENV): "eu-east", (VERSION): "43"]
+    config.mergedJmxTags == [a               : "1", b: "2", d: "4", (ENV): "eu-east", (VERSION): "43",
                              (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
 
-    config.mergedProfilingTags == [a            : "1", b: "2", f: "6", (Config.ENV): "eu-east", (Config.VERSION): "43",
+    config.mergedProfilingTags == [a            : "1", b: "2", f: "6", (ENV): "eu-east", (VERSION): "43",
                                    (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(),
                                    (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
@@ -1475,7 +1477,7 @@ class ConfigTest extends DDSpecification {
     System.getenv(DD_ENV_ENV) == null
     System.getenv(DD_VERSION_ENV) == null
     //actual guard:
-    config.mergedSpanTags == [(Config.VERSION): "42"]
+    config.mergedSpanTags == [(VERSION): "42"]
   }
 
   def "set of version exclusively by DD_VERSION and without DD_ENV "() {
@@ -1488,7 +1490,7 @@ class ConfigTest extends DDSpecification {
     then:
     System.getenv(DD_ENV_ENV) == null
     config.mergedSpanTags.get("env") == null
-    config.mergedSpanTags == [(Config.VERSION): "3.2.1"]
+    config.mergedSpanTags == [(VERSION): "3.2.1"]
   }
 
   // service name precedence checks
