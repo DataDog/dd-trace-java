@@ -126,9 +126,9 @@ abstract class AbstractSmokeTest extends Specification {
   def cleanupSpec() {
     int maxAttempts = 10
     Integer exitValue
-    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+    for (int attempt = 1; attempt <= maxAttempts != null; attempt++) {
       try {
-        exitValue = testedProcess.exitValue()
+        exitValue = testedProcess?.exitValue()
         break
       }
       catch (Throwable e) {
@@ -148,7 +148,7 @@ abstract class AbstractSmokeTest extends Specification {
 
     if (exitValue != null) {
       System.out.println("Instrumented process exited with " + exitValue)
-    } else {
+    } else if (testedProcess != null) {
       throw new TimeoutException("Instrumented process failed to exit")
     }
   }
