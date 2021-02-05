@@ -108,12 +108,12 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"axway-api"};
+    return new String[] {"axway-http"};
   }
 
   @Override
   protected String component() {
-    return "axway-api";
+    return "axway-http";
   }
 
   @Override
@@ -183,7 +183,6 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
    * public class ServerTransaction extends HTTPTransaction {
    *
    * }
-   *
    * </code>
    * </pre>
    *
