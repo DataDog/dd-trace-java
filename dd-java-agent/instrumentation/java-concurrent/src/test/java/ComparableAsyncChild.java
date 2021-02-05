@@ -14,6 +14,21 @@ public class ComparableAsyncChild implements Runnable, Comparable<ComparableAsyn
   }
 
   @Override
+  public boolean equals(Object o) {
+    try {
+      return this.compareTo((ComparableAsyncChild) o) == 0;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  @Override
+  public int hashCode() {
+    assert false : "hashCode not designed";
+    return 0;
+  }
+
+  @Override
   public void run() {
     task.run();
   }

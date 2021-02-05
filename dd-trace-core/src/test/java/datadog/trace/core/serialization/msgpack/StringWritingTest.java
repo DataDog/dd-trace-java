@@ -42,7 +42,7 @@ public class StringWritingTest {
       };
 
   private final List<Map<String, String>> maps;
-  private final int TEN_KB = 10 << 10;
+  private static final int TEN_KB = 10 << 10;
 
   public StringWritingTest(List<Map<String, String>> maps) {
     this.maps = maps;

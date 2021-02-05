@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <FindBugsFilter>
-<!-- For now, match all classes with non-omitted detectors -->
+<!-- ignore any generated files -->
+  <Match>
+    <Package name="example" />
+  </Match>
 </FindBugsFilter>

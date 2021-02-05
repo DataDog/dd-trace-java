@@ -5,6 +5,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
  * anonymous class, so use a Java class instead.
  */
 public class SampleJavaClass {
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("DM_NEW_FOR_GETCLASS")
   public static Class anonymousClass =
       new Runnable() {
 

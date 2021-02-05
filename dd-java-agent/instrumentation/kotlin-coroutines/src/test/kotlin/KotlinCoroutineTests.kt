@@ -18,6 +18,7 @@ import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 
+@edu.umd.cs.findbugs.annotations.SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
 class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
   @Trace
