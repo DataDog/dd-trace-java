@@ -18,6 +18,11 @@ import java.util.concurrent.atomic.AtomicReference
 
 class GrpcStreamingTest extends AgentTestRunner {
 
+  @Override
+  boolean useStrictTraceWrites() {
+    return false
+  }
+
   def "test conversation #name"() {
     setup:
     def msgCount = serverMessageCount

@@ -8,9 +8,9 @@ import io.grpc.Status;
 
 public class GrpcServerDecorator extends ServerDecorator {
 
-  public static final CharSequence GRPC_SERVER = UTF8BytesString.createConstant("grpc.server");
-  public static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("grpc-server");
-  public static final CharSequence GRPC_MESSAGE = UTF8BytesString.createConstant("grpc.message");
+  public static final CharSequence GRPC_SERVER = UTF8BytesString.create("grpc.server");
+  public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("grpc-server");
+  public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
   public static final GrpcServerDecorator DECORATE = new GrpcServerDecorator();
 
   @Override

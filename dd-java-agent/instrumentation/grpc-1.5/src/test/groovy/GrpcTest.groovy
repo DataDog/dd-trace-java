@@ -24,6 +24,11 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class GrpcTest extends AgentTestRunner {
 
+  @Override
+  boolean useStrictTraceWrites() {
+    return false
+  }
+
   def "test request-response"() {
     setup:
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
