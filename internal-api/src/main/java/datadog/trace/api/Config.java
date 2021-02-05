@@ -60,24 +60,117 @@ import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.trace.api.config.GeneralConfig.API_KEY;
+import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
+import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
+import static datadog.trace.api.config.GeneralConfig.ENV;
+import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
+import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
+import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
+import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
+import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
+import static datadog.trace.api.config.GeneralConfig.SITE;
+import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
+import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_REFRESH_BEANS_PERIOD;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_USERNAME;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_DELAY;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_TAGS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_FIELD_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
+import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
+import static datadog.trace.api.config.TracerConfig.AGENT_PORT_LEGACY;
+import static datadog.trace.api.config.TracerConfig.AGENT_TIMEOUT;
+import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
+import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
+import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
+import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES;
+import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY;
+import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
+import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE;
+import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING;
+import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
+import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT;
+import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
+import static datadog.trace.api.config.TracerConfig.PROXY_NO_PROXY;
+import static datadog.trace.api.config.TracerConfig.SCOPE_DEPTH_LIMIT;
+import static datadog.trace.api.config.TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGATION;
+import static datadog.trace.api.config.TracerConfig.SCOPE_STRICT_MODE;
+import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING;
+import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
+import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
+import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
+import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
+import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
+import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
+import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 
 import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.api.config.JmxFetchConfig;
-import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -125,143 +218,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @ToString(includeFieldNames = true)
 public class Config {
-
-  /** Config keys below */
-  public static final String CONFIGURATION_FILE = GeneralConfig.CONFIGURATION_FILE;
-
-  public static final String API_KEY = GeneralConfig.API_KEY;
-  public static final String API_KEY_FILE = GeneralConfig.API_KEY_FILE;
-  public static final String SITE = GeneralConfig.SITE;
-  public static final String SERVICE_NAME = GeneralConfig.SERVICE_NAME;
-  public static final String TRACE_ENABLED = TraceInstrumentationConfig.TRACE_ENABLED;
-  public static final String INTEGRATIONS_ENABLED = TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
-  public static final String ID_GENERATION_STRATEGY = TracerConfig.ID_GENERATION_STRATEGY;
-  public static final String WRITER_TYPE = TracerConfig.WRITER_TYPE;
-  public static final String PRIORITIZATION_TYPE = TracerConfig.PRIORITIZATION_TYPE;
-  public static final String TRACE_AGENT_URL = TracerConfig.TRACE_AGENT_URL;
-  public static final String AGENT_HOST = TracerConfig.AGENT_HOST;
-  public static final String TRACE_AGENT_PORT = TracerConfig.TRACE_AGENT_PORT;
-  public static final String AGENT_PORT_LEGACY = TracerConfig.AGENT_PORT_LEGACY;
-  public static final String AGENT_UNIX_DOMAIN_SOCKET = TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
-  public static final String AGENT_TIMEOUT = TracerConfig.AGENT_TIMEOUT;
-  public static final String PRIORITY_SAMPLING = TracerConfig.PRIORITY_SAMPLING;
-  public static final String PRIORITY_SAMPLING_FORCE = TracerConfig.PRIORITY_SAMPLING_FORCE;
-
-  @Deprecated
-  public static final String TRACE_RESOLVER_ENABLED = TracerConfig.TRACE_RESOLVER_ENABLED;
-
-  public static final String SERVICE_MAPPING = TracerConfig.SERVICE_MAPPING;
-
-  private static final String ENV = GeneralConfig.ENV;
-  private static final String VERSION = GeneralConfig.VERSION;
-  public static final String TAGS = GeneralConfig.TAGS;
-  @Deprecated // Use dd.tags instead
-  public static final String GLOBAL_TAGS = GeneralConfig.GLOBAL_TAGS;
-  public static final String SPAN_TAGS = TracerConfig.SPAN_TAGS;
-  public static final String JMX_TAGS = JmxFetchConfig.JMX_TAGS;
-  public static final String TRACE_ANALYTICS_ENABLED = TracerConfig.TRACE_ANALYTICS_ENABLED;
-  public static final String TRACE_ANNOTATIONS = TraceInstrumentationConfig.TRACE_ANNOTATIONS;
-  public static final String TRACE_EXECUTORS_ALL = TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
-  public static final String TRACE_EXECUTORS = TraceInstrumentationConfig.TRACE_EXECUTORS;
-  public static final String TRACE_METHODS = TraceInstrumentationConfig.TRACE_METHODS;
-  public static final String TRACE_CLASSES_EXCLUDE =
-      TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
-  public static final String TRACE_SAMPLING_SERVICE_RULES =
-      TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
-  public static final String TRACE_SAMPLING_OPERATION_RULES =
-      TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
-  public static final String TRACE_SAMPLE_RATE = TracerConfig.TRACE_SAMPLE_RATE;
-  public static final String TRACE_RATE_LIMIT = TracerConfig.TRACE_RATE_LIMIT;
-  public static final String TRACE_REPORT_HOSTNAME = TracerConfig.TRACE_REPORT_HOSTNAME;
-  public static final String HEADER_TAGS = TracerConfig.HEADER_TAGS;
-  public static final String HTTP_SERVER_ERROR_STATUSES = TracerConfig.HTTP_SERVER_ERROR_STATUSES;
-  public static final String HTTP_CLIENT_ERROR_STATUSES = TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
-  public static final String HTTP_SERVER_TAG_QUERY_STRING =
-      TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
-  public static final String HTTP_CLIENT_TAG_QUERY_STRING =
-      TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
-  public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN =
-      TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
-  public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE =
-      TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
-  public static final String SPLIT_BY_TAGS = TracerConfig.SPLIT_BY_TAGS;
-  public static final String SCOPE_DEPTH_LIMIT = TracerConfig.SCOPE_DEPTH_LIMIT;
-  public static final String SCOPE_STRICT_MODE = TracerConfig.SCOPE_STRICT_MODE;
-  public static final String SCOPE_INHERIT_ASYNC_PROPAGATION =
-      TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGATION;
-  public static final String PARTIAL_FLUSH_MIN_SPANS = TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
-  public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
-      TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
-  public static final String PROPAGATION_STYLE_EXTRACT = TracerConfig.PROPAGATION_STYLE_EXTRACT;
-  public static final String PROPAGATION_STYLE_INJECT = TracerConfig.PROPAGATION_STYLE_INJECT;
-
-  public static final String JMX_FETCH_ENABLED = JmxFetchConfig.JMX_FETCH_ENABLED;
-  public static final String JMX_FETCH_CONFIG_DIR = JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
-  public static final String JMX_FETCH_CONFIG = JmxFetchConfig.JMX_FETCH_CONFIG;
-
-  @Deprecated
-  public static final String JMX_FETCH_METRICS_CONFIGS = JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS;
-
-  public static final String JMX_FETCH_CHECK_PERIOD = JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
-  public static final String JMX_FETCH_REFRESH_BEANS_PERIOD =
-      JmxFetchConfig.JMX_FETCH_REFRESH_BEANS_PERIOD;
-  public static final String JMX_FETCH_STATSD_HOST = JmxFetchConfig.JMX_FETCH_STATSD_HOST;
-  public static final String JMX_FETCH_STATSD_PORT = JmxFetchConfig.JMX_FETCH_STATSD_PORT;
-
-  public static final String HEALTH_METRICS_ENABLED = GeneralConfig.HEALTH_METRICS_ENABLED;
-  public static final String HEALTH_METRICS_STATSD_HOST = GeneralConfig.HEALTH_METRICS_STATSD_HOST;
-  public static final String HEALTH_METRICS_STATSD_PORT = GeneralConfig.HEALTH_METRICS_STATSD_PORT;
-  public static final String PERF_METRICS_ENABLED = GeneralConfig.PERF_METRICS_ENABLED;
-
-  public static final String LOGS_INJECTION_ENABLED =
-      TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
-
-  public static final String PROFILING_ENABLED = ProfilingConfig.PROFILING_ENABLED;
-  @Deprecated // Use dd.site instead
-  public static final String PROFILING_URL = ProfilingConfig.PROFILING_URL;
-  @Deprecated // Use dd.api-key instead
-  public static final String PROFILING_API_KEY_OLD = ProfilingConfig.PROFILING_API_KEY_OLD;
-  @Deprecated // Use dd.api-key-file instead
-  public static final String PROFILING_API_KEY_FILE_OLD =
-      ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
-  @Deprecated // Use dd.api-key instead
-  public static final String PROFILING_API_KEY_VERY_OLD =
-      ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
-  @Deprecated // Use dd.api-key-file instead
-  public static final String PROFILING_API_KEY_FILE_VERY_OLD =
-      ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
-  public static final String PROFILING_TAGS = ProfilingConfig.PROFILING_TAGS;
-  public static final String PROFILING_START_DELAY = ProfilingConfig.PROFILING_START_DELAY;
-  // DANGEROUS! May lead on sigsegv on JVMs before 14
-  // Not intended for production use
-  public static final String PROFILING_START_FORCE_FIRST =
-      ProfilingConfig.PROFILING_START_FORCE_FIRST;
-  public static final String PROFILING_UPLOAD_PERIOD = ProfilingConfig.PROFILING_UPLOAD_PERIOD;
-  public static final String PROFILING_TEMPLATE_OVERRIDE_FILE =
-      ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
-  public static final String PROFILING_UPLOAD_TIMEOUT = ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
-  public static final String PROFILING_UPLOAD_COMPRESSION =
-      ProfilingConfig.PROFILING_UPLOAD_COMPRESSION;
-  public static final String PROFILING_PROXY_HOST = ProfilingConfig.PROFILING_PROXY_HOST;
-  public static final String PROFILING_PROXY_PORT = ProfilingConfig.PROFILING_PROXY_PORT;
-  public static final String PROFILING_PROXY_USERNAME = ProfilingConfig.PROFILING_PROXY_USERNAME;
-  public static final String PROFILING_PROXY_PASSWORD = ProfilingConfig.PROFILING_PROXY_PASSWORD;
-  public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT =
-      ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
-  public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
-      ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
-  public static final String PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE =
-      ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
-  public static final String PROFILING_EXCLUDE_AGENT_THREADS =
-      ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
-  // Not intended for production use
-  public static final String PROFILING_AGENTLESS = ProfilingConfig.PROFILING_AGENTLESS;
-
-  public static final String KAFKA_CLIENT_PROPAGATION_ENABLED =
-      TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
-
-  public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
-      TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 
   private static final String TRACE_AGENT_URL_TEMPLATE = "http://%s:%d";
 
@@ -547,7 +503,7 @@ public class Config {
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
 
     // DD_PROXY_NO_PROXY is specified as a space-separated list of hosts
-    noProxyHosts = new HashSet<>(configProvider.getSpacedList(TracerConfig.PROXY_NO_PROXY));
+    noProxyHosts = new HashSet<>(configProvider.getSpacedList(PROXY_NO_PROXY));
 
     prioritySamplingEnabled =
         configProvider.getBoolean(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
@@ -606,8 +562,7 @@ public class Config {
     partialFlushMinSpans =
         configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
 
-    traceStrictWritesEnabled =
-        configProvider.getBoolean(TracerConfig.TRACE_STRICT_WRITES_ENABLED, false);
+    traceStrictWritesEnabled = configProvider.getBoolean(TRACE_STRICT_WRITES_ENABLED, false);
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(
@@ -767,23 +722,18 @@ public class Config {
 
     osgiSearchDepth = configProvider.getInteger(OSGI_SEARCH_DEPTH, 1);
 
-    servletPrincipalEnabled =
-        configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED, false);
+    servletPrincipalEnabled = configProvider.getBoolean(SERVLET_PRINCIPAL_ENABLED, false);
 
-    servletAsyncTimeoutError =
-        configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR, true);
+    servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
     tempJarsCleanOnBoot =
-        configProvider.getBoolean(TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT, false)
-            && isWindowsOS();
+        configProvider.getBoolean(TEMP_JARS_CLEAN_ON_BOOT, false) && isWindowsOS();
 
     debugEnabled = isDebugMode();
 
-    internalExitOnFailure =
-        configProvider.getBoolean(GeneralConfig.INTERNAL_EXIT_ON_FAILURE, false);
+    internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
-    resolverUseLoadClassEnabled =
-        configProvider.getBoolean(TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS, true);
+    resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;

@@ -1,5 +1,7 @@
 package com.datadog.profiling.exceptions;
 
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -63,8 +65,7 @@ public class ExceptionHistogramTest {
     recording.start();
 
     final Properties properties = new Properties();
-    properties.setProperty(
-        Config.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS, Integer.toString(MAX_ITEMS));
+    properties.setProperty(PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS, Integer.toString(MAX_ITEMS));
 
     instance = new ExceptionHistogram(Config.get(properties));
   }
@@ -183,7 +184,7 @@ public class ExceptionHistogramTest {
     instance.deregister();
     final Properties properties = new Properties();
     properties.setProperty(
-        Config.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, Integer.toString(MAX_SIZE));
+        PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, Integer.toString(MAX_SIZE));
 
     instance = new ExceptionHistogram(Config.get(properties));
 
