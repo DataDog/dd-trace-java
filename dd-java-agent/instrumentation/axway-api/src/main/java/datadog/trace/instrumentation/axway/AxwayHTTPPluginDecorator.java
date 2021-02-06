@@ -86,16 +86,18 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
   }
 
   private static MethodHandle initStateFieldGetter(String fieldName) {
+    Field field = null;
     MethodHandle mh = null;
     try {
-      Field field = classState.getDeclaredField(fieldName);
+      field = classState.getDeclaredField(fieldName);
       field.setAccessible(true);
       mh = lookup.unreflectGetter(field);
       log.debug(
           "Initialized field '{}' of class '{}' unreflected to {}", fieldName, classState, mh);
     } catch (NoSuchFieldException | IllegalAccessException e) {
       log.debug(
-          "Can't find and unreflect declared field '{}' for class '{}' to mh: '{}'",
+          "Can't find and unreflect declared field '{}' with name '{}' for class '{}' to mh: '{}'",
+          field,
           fieldName,
           classState,
           mh,
@@ -103,8 +105,6 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
     }
     return mh;
   }
-
-  //
 
   @Override
   protected String[] instrumentationNames() {
@@ -170,10 +170,10 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
   }
 
   /**
+   * class hierarchy in package com.vordel.dwe.http :
    *
-   *
-   * <pre>
-   * <code>public class Transaction implements IMetricsTransaction {
+   * <pre><code>
+   * public class Transaction implements IMetricsTransaction {
    *    public native InetSocketAddress getLocalAddr();
    *    public native InetSocketAddress getRemoteAddr();
    * }
@@ -183,11 +183,10 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
    * public class ServerTransaction extends HTTPTransaction {
    *
    * }
-   * </code>
-   * </pre>
+   * </code></pre>
    *
    * @param obj instance of {@value #SERVERTRANSACTION_CLASSNAME}
-   * @return result of com.vordel.dwe.http.ServerTransaction::getRemoteAddr()
+   * @return result of {@value #SERVERTRANSACTION_CLASSNAME}::getRemoteAddr()
    */
   private static InetSocketAddress getRemoteAddr(Object obj) {
     try {
