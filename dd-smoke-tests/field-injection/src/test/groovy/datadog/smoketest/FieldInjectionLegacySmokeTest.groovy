@@ -6,6 +6,7 @@ import spock.lang.Timeout
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.concurrent.ForkJoinTask
 import java.util.concurrent.FutureTask
 import java.util.concurrent.RecursiveTask
@@ -26,6 +27,8 @@ class FieldInjectionLegacySmokeTest extends Specification {
   protected String buildDirectory = System.getProperty("datadog.smoketest.builddir")
   @Shared
   protected String shadowJarPath = System.getProperty("datadog.smoketest.agent.shadowJar.path")
+  @Shared
+  protected String logFilePath = "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.log"
 
   @Timeout(value = 20, unit = TimeUnit.SECONDS)
   def "types are injected with expected fields"() {
@@ -59,8 +62,9 @@ class FieldInjectionLegacySmokeTest extends Specification {
     processBuilder.directory(new File(buildDirectory))
     processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
 
-    Path testOutput = Files.createTempFile("output", "tmp")
-    processBuilder.redirectError(testOutput.toFile())
+    Path testOutput = Paths.get(logFilePath)
+    processBuilder.redirectErrorStream(true)
+    processBuilder.redirectOutput(testOutput.toFile())
     Process testedProcess = processBuilder.start()
 
     expect:
