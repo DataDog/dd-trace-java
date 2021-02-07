@@ -39,10 +39,14 @@ class AgentTestRunnerTest extends AgentTestRunner {
 
   def "classpath setup"() {
     setup:
+    boolean jfrSupported = isJFRSupported()
     final List<String> bootstrapClassesIncorrectlyLoaded = []
     for (ClassPath.ClassInfo info : ClasspathUtils.getTestClasspath().getAllClasses()) {
       for (int i = 0; i < Constants.BOOTSTRAP_PACKAGE_PREFIXES.length; ++i) {
         if (info.getName().startsWith(Constants.BOOTSTRAP_PACKAGE_PREFIXES[i])) {
+          if (!jfrSupported && info.getName().startsWith("datadog.trace.bootstrap.instrumentation.exceptions.")) {
+            continue; // skip exception-profiling classes - they won't load if JFR is not available
+          }
           Class<?> bootstrapClass = Class.forName(info.getName())
           if (bootstrapClass.getClassLoader() != BOOTSTRAP_CLASSLOADER) {
             bootstrapClassesIncorrectlyLoaded.add(bootstrapClass)
@@ -136,6 +140,15 @@ class AgentTestRunnerTest extends AgentTestRunner {
           childOf(span(0))
         }
       }
+    }
+  }
+
+  boolean isJFRSupported() {
+    try {
+      Class.forName("jdk.jfr.Recording")
+      return true
+    } catch (Throwable e) {
+      return false
     }
   }
 }

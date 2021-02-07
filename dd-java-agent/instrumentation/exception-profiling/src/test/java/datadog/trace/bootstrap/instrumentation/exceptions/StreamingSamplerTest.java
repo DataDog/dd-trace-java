@@ -1,4 +1,4 @@
-package com.datadog.profiling.exceptions;
+package datadog.trace.bootstrap.instrumentation.exceptions;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.round;
