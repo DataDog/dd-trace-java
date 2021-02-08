@@ -17,12 +17,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 class HystrixObservableTest extends AgentTestRunner {
 
   @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
-  @Override
   void configurePreAgent() {
     super.configurePreAgent()
 
