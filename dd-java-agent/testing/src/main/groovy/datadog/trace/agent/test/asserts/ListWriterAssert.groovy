@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import static TraceAssert.assertTrace
 
 class ListWriterAssert {
-  private final List<List<DDSpan>> traces
+  private List<List<DDSpan>> traces
   private final int size
   private final Set<Integer> assertedIndexes = new HashSet<>()
   private final AtomicInteger traceAssertCount = new AtomicInteger(0)
@@ -80,15 +80,15 @@ class ListWriterAssert {
   }
 
   void sortSpansByStart() {
-    traces.each {
-      it.sort { a, b ->
+    traces = traces.collect {
+      return new ArrayList<DDSpan>(it).sort { a, b ->
         return a.startTimeNano <=> b.startTimeNano
       }
     }
   }
 
   List<DDSpan> trace(int index) {
-    return traces.get(index)
+    return Collections.unmodifiableList(traces.get(index))
   }
 
   void trace(int expectedSize,
