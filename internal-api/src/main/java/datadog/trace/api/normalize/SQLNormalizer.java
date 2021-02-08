@@ -41,8 +41,8 @@ public final class SQLNormalizer {
 
   public static UTF8BytesString normalize(String sql) {
     byte[] utf8 = sql.getBytes(UTF_8);
-    BitSet splitters = findTokenPositions(utf8);
-    // no whitespace
+    BitSet splitters = findSplitterPositions(utf8);
+    // no splitters
     if (null == splitters) {
       return UTF8BytesString.create(sql, utf8);
     }
@@ -52,38 +52,40 @@ public final class SQLNormalizer {
     // strip out anything ending with a quote (covers string and hex literals)
     // or anything starting with a number, a quote, a decimal point, or a sign
     while (end > 0) {
-      if (start == end - 1 && utf8[end] != '\'') {
+      if (start + 1 == end && utf8[end] != '\'') {
         // avoid an unnecessary array copy for one digit numbers
         if (utf8[end] >= '0' && utf8[end] <= '9') {
           utf8[end] = (byte) '?';
         }
       } else {
-        int first = -1;
-        int last = isNonWhitespaceSplitter(utf8[end]) ? end - 1 : end;
+        int sequenceStart = start + 1;
+        boolean removeSequence = false;
         // quote literals may span several splits
         if (utf8[end] == '\'') {
-          while (start > -1) {
+          while (sequenceStart > 0) {
             // found the start of a string or hex literal
-            if (start + 1 < end
-                && (utf8[start + 1] == '\''
-                    || (start + 1 < end - 1
-                        && utf8[start + 1] != '\\'
-                        && utf8[start + 2] == '\''))) {
-              first = start + 1;
+            if (sequenceStart < end
+                && (utf8[sequenceStart] == '\''
+                    || (sequenceStart < end - 1
+                        && utf8[sequenceStart] != '\\'
+                        && utf8[sequenceStart + 1] == '\''))) {
+              removeSequence = true;
               break;
             }
             start = splitters.previousSetBit(start - 1);
+            sequenceStart = start + 1;
           }
-        } else if (start < end - 1
-            && (utf8[end] == ')' || shouldReplaceSequenceStartingWith(utf8[start + 1]))) {
-          first = start + 1;
+        } else if (sequenceStart < end
+            && (utf8[end] == ')' || shouldReplaceSequenceStartingWith(utf8[sequenceStart]))) {
+          removeSequence = true;
         }
         // found something to remove, shift the suffix of the string backwards
         // and add the obfuscated character
-        if (first > -1) {
-          System.arraycopy(utf8, last, utf8, first, outputLength - last);
-          utf8[first] = (byte) '?';
-          outputLength -= (last - first);
+        if (removeSequence) {
+          int last = isNonWhitespaceSplitter(utf8[end]) ? end - 1 : end;
+          System.arraycopy(utf8, last, utf8, sequenceStart, outputLength - last);
+          utf8[sequenceStart] = (byte) '?';
+          outputLength -= (last - sequenceStart);
         }
       }
       end = start - 1;
@@ -92,38 +94,38 @@ public final class SQLNormalizer {
     return UTF8BytesString.create(Arrays.copyOf(utf8, outputLength));
   }
 
-  private static BitSet findTokenPositions(byte[] utf8) {
+  private static BitSet findSplitterPositions(byte[] utf8) {
     int capacity = (utf8.length + 7) & -8;
-    BitSet whitespace = new BitSet(capacity);
+    BitSet positions = new BitSet(capacity);
     int tokensFound = 0;
     int pos = 0;
     ByteBuffer buffer = ByteBuffer.wrap(utf8);
     for (; pos < (utf8.length & -8); pos += 8) {
       long word = buffer.getLong(pos);
-      long tokens = findTokens(word);
+      long tokens = findSplitters(word);
       tokensFound += Long.bitCount(tokens);
       while (tokens != 0) {
-        whitespace.set(pos + 7 - (Long.numberOfTrailingZeros(tokens) >>> 3));
+        positions.set(pos + 7 - (Long.numberOfTrailingZeros(tokens) >>> 3));
         tokens &= (tokens - 1);
       }
     }
     if (pos < utf8.length && utf8.length >= 8) {
       long word = buffer.getLong(utf8.length - 8);
       word <<= ((8 - (utf8.length - pos)) << 3);
-      long tokens = findTokens(word);
+      long tokens = findSplitters(word);
       tokensFound += Long.bitCount(tokens);
       while (tokens != 0) {
-        whitespace.set(pos + 7 - (Long.numberOfTrailingZeros(tokens) >>> 3));
+        positions.set(pos + 7 - (Long.numberOfTrailingZeros(tokens) >>> 3));
         tokens &= (tokens - 1);
       }
     } else if (pos < utf8.length) {
       for (int i = pos; i < utf8.length; ++i) {
         if (Character.isWhitespace((char) (utf8[i] & 0xFF)) || isNonWhitespaceSplitter(utf8[i])) {
-          whitespace.set(i);
+          positions.set(i);
         }
       }
     }
-    return tokensFound == 0 ? null : whitespace;
+    return tokensFound == 0 ? null : positions;
   }
 
   private static boolean shouldReplaceSequenceStartingWith(byte symbol) {
@@ -135,7 +137,7 @@ public final class SQLNormalizer {
     return (NON_WHITESPACE_SPLITTERS[(symbol & 0xFF) >>> 6] & (1L << (symbol & 0xFF))) != 0;
   }
 
-  private static long findTokens(long word) {
+  private static long findSplitters(long word) {
     return tag(word, SPACES)
         | tag(word, TABS)
         | tag(word, NEW_LINES)
