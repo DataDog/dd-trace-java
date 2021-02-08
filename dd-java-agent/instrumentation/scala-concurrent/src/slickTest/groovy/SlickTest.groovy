@@ -30,7 +30,7 @@ class SlickTest extends AgentTestRunner {
         span {
           operationName "${SlickUtils.Driver()}.query"
           serviceName SlickUtils.Driver()
-          resourceName SlickUtils.TestQuery()
+          resourceName SlickUtils.ObfuscatedTestQuery()
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false

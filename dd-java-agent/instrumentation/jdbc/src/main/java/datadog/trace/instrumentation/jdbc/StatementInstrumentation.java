@@ -19,6 +19,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
+import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -80,7 +81,7 @@ public final class StatementInstrumentation extends Instrumenter.Tracing {
         DECORATE.afterStart(span);
         DECORATE.onConnection(
             span, connection, InstrumentationContext.get(Connection.class, DBInfo.class));
-        DECORATE.onStatement(span, sql);
+        DECORATE.onStatement(span, DBQueryInfo.ofStatement(sql));
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason

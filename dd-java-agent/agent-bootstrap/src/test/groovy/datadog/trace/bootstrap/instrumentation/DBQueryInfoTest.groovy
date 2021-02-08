@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation
 
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo
 import datadog.trace.test.util.DDSpecification
 
@@ -8,7 +7,7 @@ class DBQueryInfoTest extends DDSpecification {
   
   def "extract operation name" () {
     when:
-    DBQueryInfo info = new DBQueryInfo(UTF8BytesString.create(sql))
+    DBQueryInfo info = new DBQueryInfo(sql)
     then:
     info.getOperation() as String == operation
 

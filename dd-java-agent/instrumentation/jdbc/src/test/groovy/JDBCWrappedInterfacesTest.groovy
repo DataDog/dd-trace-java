@@ -25,6 +25,7 @@ class JDBCWrappedInterfacesTest extends AgentTestRunner {
   }
 
   static query = "SELECT 1"
+  static obfuscatedQuery = "SELECT ?"
 
   def "prepare on unwrapped conn, execute unwrapped stmt"() {
     setup:
@@ -249,7 +250,7 @@ class JDBCWrappedInterfacesTest extends AgentTestRunner {
         span {
           operationName "${database}.query"
           serviceName "${database}"
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOfPrevious()
           errored false

@@ -1,10 +1,7 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
-import static datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo.extractOperation;
 
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -19,10 +16,6 @@ import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
-
-  // use a fixed size cache to avoid creating background cleanup work
-  public static final DDCache<String, UTF8BytesString> PREPARED_STATEMENTS_SQL =
-      DDCaches.newFixedSizeCache(256);
 
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
   public static final CharSequence JAVA_JDBC = UTF8BytesString.create("java-jdbc");
@@ -117,23 +110,21 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return super.onConnection(span, dbInfo);
   }
 
-  @Override
-  public AgentSpan onStatement(final AgentSpan span, final CharSequence statement) {
-    final CharSequence resourceName = statement == null ? DB_QUERY : statement;
-    span.setTag(DB_OPERATION, extractOperation(statement));
-    span.setResourceName(resourceName);
-    span.setTag(Tags.COMPONENT, JDBC_STATEMENT);
-    return span;
+  public AgentSpan onStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
+    return withQueryInfo(span, dbQueryInfo, JDBC_STATEMENT);
   }
 
-  public AgentSpan onPreparedStatement(final AgentSpan span, DBQueryInfo dbQueryInfo) {
-    if (null != dbQueryInfo) {
-      span.setResourceName(dbQueryInfo.getSql());
-      span.setTag(DB_OPERATION, dbQueryInfo.getOperation());
+  public AgentSpan onPreparedStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
+    return withQueryInfo(span, dbQueryInfo, JDBC_PREPARED_STATEMENT);
+  }
+
+  private AgentSpan withQueryInfo(AgentSpan span, DBQueryInfo info, CharSequence component) {
+    if (null != info) {
+      span.setResourceName(info.getSql());
+      span.setTag(DB_OPERATION, info.getOperation());
     } else {
       span.setResourceName(DB_QUERY);
     }
-    span.setTag(Tags.COMPONENT, JDBC_PREPARED_STATEMENT);
-    return span;
+    return span.setTag(Tags.COMPONENT, component);
   }
 }

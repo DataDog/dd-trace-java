@@ -151,7 +151,7 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
         span {
           operationName "${driver}.query"
           serviceName driver
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
@@ -183,8 +183,8 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
     }
 
     where:
-    driver  | username | query
-    "h2"    | null     | "SELECT 3"
-    "derby" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1"
+    driver  | username | query                            | obfuscatedQuery
+    "h2"    | null     | "SELECT 3"                       | "SELECT ?"
+    "derby" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1" | "SELECT ? FROM SYSIBM.SYSDUMMY1"
   }
 }

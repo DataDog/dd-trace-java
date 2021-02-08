@@ -197,7 +197,7 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         span {
           serviceName renameService ? dbName.toLowerCase() : driver
           operationName "${driver}.query"
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
@@ -224,15 +224,15 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver       | connection                                              | renameService | query                   | operation
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | false         | "SELECT 3"              | "SELECT"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | false         | "SELECT 3 FROM pg_user" | "SELECT"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"
-    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3"              | "SELECT"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM pg_user" | "SELECT"
+    driver       | connection                                              | renameService | query                   | operation | obfuscatedQuery
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | connectTo(driver, peerConnectionProps)                  | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
+    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | false         | "SELECT 3 FROM pg_user" | "SELECT"  | "SELECT ? FROM pg_user"
   }
 
   @Unroll
@@ -253,7 +253,7 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         span {
           operationName "${driver}.query"
           serviceName driver
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
@@ -281,15 +281,15 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver       | connection                                              | query                   | operation
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | "SELECT 3"              | "SELECT"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | "SELECT 3 from pg_user" | "SELECT"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"
-    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"
+    driver       | connection                                              | query                   | operation | obfuscatedQuery
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | connectTo(driver, peerConnectionProps)                  | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
 
   @Unroll
@@ -309,7 +309,7 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         span {
           operationName "${driver}.query"
           serviceName driver
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
@@ -337,15 +337,15 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver       | connection                                              | query                   | operation
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | "SELECT 3"              | "SELECT"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | "SELECT 3 from pg_user" | "SELECT"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"
-    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"
+    driver       | connection                                              | query                   | operation | obfuscatedQuery
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | connectTo(driver, peerConnectionProps)                  | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
 
   @Unroll
@@ -365,7 +365,7 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         span {
           operationName "${driver}.query"
           serviceName driver
-          resourceName query
+          resourceName obfuscatedQuery
           spanType DDSpanTypes.SQL
           childOf span(0)
           errored false
@@ -393,15 +393,15 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     connection.close()
 
     where:
-    driver       | connection                                              | query                   | operation
-    "mysql"      | connectTo(driver, peerConnectionProps)                  | "SELECT 3"              | "SELECT"
-    "postgresql" | connectTo(driver, peerConnectionProps)                  | "SELECT 3 from pg_user" | "SELECT"
-    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"
-    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"
-    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"
-    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"
-    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"
-    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"
+    driver       | connection                                              | query                   | operation | obfuscatedQuery
+    "mysql"      | connectTo(driver, peerConnectionProps)                  | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | connectTo(driver, peerConnectionProps)                  | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    "mysql"      | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("tomcat").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    "mysql"      | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("hikari").get(driver).getConnection() | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
+    "mysql"      | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3"              | "SELECT"  | "SELECT ?"
+    "postgresql" | cpDatasources.get("c3p0").get(driver).getConnection()   | "SELECT 3 from pg_user" | "SELECT"  | "SELECT ? from pg_user"
   }
 
   @Unroll
