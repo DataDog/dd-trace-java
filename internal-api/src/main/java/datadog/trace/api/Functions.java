@@ -170,4 +170,12 @@ public final class Functions {
       return key.toString();
     }
   }
+
+  public static final class ToUTF8String<T> implements Function<T, UTF8BytesString> {
+
+    @Override
+    public UTF8BytesString apply(T key) {
+      return UTF8BytesString.create(key.toString());
+    }
+  }
 }

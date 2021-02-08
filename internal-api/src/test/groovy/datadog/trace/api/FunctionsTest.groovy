@@ -9,11 +9,12 @@ class FunctionsTest extends DDSpecification {
     when:
     CharSequence output = fn.apply(input)
     then:
-    output == expected
+    output as String == expected
     where:
-    fn                               | input | expected
-    Functions.LowerCase.INSTANCE     | "xYz" | "xyz"
-    new Functions.ToString<String>() | "xYz" | "xYz"
+    fn                                   | input | expected
+    Functions.LowerCase.INSTANCE         | "xYz" | "xyz"
+    new Functions.ToString<String>()     | "xYz" | "xYz"
+    new Functions.ToUTF8String<String>() | "xYz" | "xYz"
   }
 
 
@@ -30,7 +31,7 @@ class FunctionsTest extends DDSpecification {
     Functions.SuffixJoin.of("~")                   | "x"  | "y"   | "x~y"
   }
 
-  def "test encode UTF8" () {
+  def "test encode UTF8"() {
     when:
     UTF8BytesString utf8 = Functions.UTF8_ENCODE.apply("foo")
     then:

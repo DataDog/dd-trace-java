@@ -12,7 +12,6 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import java.util.Objects;
 
 public class HystrixDecorator extends BaseDecorator {
   public static HystrixDecorator DECORATE = new HystrixDecorator();
@@ -29,11 +28,11 @@ public class HystrixDecorator extends BaseDecorator {
 
   public static final CharSequence HYSTRIX = UTF8BytesString.create("hystrix");
 
-  private static final DDCache<ResourceNameCacheKey, String> RESOURCE_NAME_CACHE =
+  private static final DDCache<ResourceNameCacheKey, UTF8BytesString> RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(64);
 
-  private static final Functions.ToString<ResourceNameCacheKey> TO_STRING =
-      new Functions.ToString<>();
+  private static final Functions.ToUTF8String<ResourceNameCacheKey> TO_STRING =
+      new Functions.ToUTF8String<>();
 
   private static final class ResourceNameCacheKey {
     private final String group;
@@ -52,8 +51,7 @@ public class HystrixDecorator extends BaseDecorator {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (!(o instanceof ResourceNameCacheKey)) return false;
       ResourceNameCacheKey cacheKey = (ResourceNameCacheKey) o;
       return group.equals(cacheKey.group)
           && command.equals(cacheKey.command)
@@ -62,7 +60,7 @@ public class HystrixDecorator extends BaseDecorator {
 
     @Override
     public int hashCode() {
-      return Objects.hash(group, command, methodName);
+      return 961 * group.hashCode() + 31 * command.hashCode() + methodName.hashCode();
     }
   }
 
