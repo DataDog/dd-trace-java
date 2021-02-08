@@ -1,6 +1,8 @@
 package datadog.trace.bootstrap;
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.trace.bootstrap.Library.WILDFLY;
+import static datadog.trace.bootstrap.Library.detectLibraries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
@@ -13,6 +15,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.EnumSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,9 +66,10 @@ public class Agent {
 
     startDatadogAgent(inst, bootstrapURL);
 
-    final boolean appUsingCustomLogManager = isAppUsingCustomLogManager();
+    final EnumSet<Library> libraries = detectLibraries(log);
 
-    final boolean appUsingCustomJMXBuilder = isAppUsingCustomJMXBuilder();
+    final boolean appUsingCustomLogManager = isAppUsingCustomLogManager(libraries);
+    final boolean appUsingCustomJMXBuilder = isAppUsingCustomJMXBuilder(libraries);
 
     /*
      * java.util.logging.LogManager maintains a final static LogManager, which is created during class initialization.
@@ -464,8 +468,7 @@ public class Agent {
       return Boolean.parseBoolean(tracerDebugLevelProp);
     }
 
-    final String tracerDebugLevelEnv =
-        System.getenv(tracerDebugLevelSysprop.replace('.', '_').toUpperCase());
+    final String tracerDebugLevelEnv = ddGetEnv(tracerDebugLevelSysprop);
 
     if (tracerDebugLevelEnv != null) {
       return Boolean.parseBoolean(tracerDebugLevelEnv);
@@ -482,7 +485,7 @@ public class Agent {
     final String startupLogsSysprop = "dd.trace.startup.logs";
     String startupLogsEnabled = System.getProperty(startupLogsSysprop);
     if (startupLogsEnabled == null) {
-      startupLogsEnabled = System.getenv(startupLogsSysprop.replace('.', '_').toUpperCase());
+      startupLogsEnabled = ddGetEnv(startupLogsSysprop);
     }
     // assume true unless it's explicitly set to "false"
     return !"false".equalsIgnoreCase(startupLogsEnabled);
@@ -494,11 +497,10 @@ public class Agent {
    *
    * @return true if we detect a custom log manager being used.
    */
-  private static boolean isAppUsingCustomLogManager() {
+  private static boolean isAppUsingCustomLogManager(final EnumSet<Library> libraries) {
     final String tracerCustomLogManSysprop = "dd.app.customlogmanager";
     final String customLogManagerProp = System.getProperty(tracerCustomLogManSysprop);
-    final String customLogManagerEnv =
-        System.getenv(tracerCustomLogManSysprop.replace('.', '_').toUpperCase());
+    final String customLogManagerEnv = ddGetEnv(tracerCustomLogManSysprop);
 
     if (customLogManagerProp != null || customLogManagerEnv != null) {
       log.debug("Prop - customlogmanager: " + customLogManagerProp);
@@ -508,21 +510,14 @@ public class Agent {
           || Boolean.parseBoolean(customLogManagerEnv);
     }
 
-    final String jbossHome = System.getenv("JBOSS_HOME");
-    if (jbossHome != null) {
-      log.debug("Env - jboss: " + jbossHome);
-      // JBoss/Wildfly is known to set a custom log manager after startup.
-      // Originally we were checking for the presence of a jboss class,
-      // but it seems some non-jboss applications have jboss classes on the classpath.
-      // This would cause jmxfetch initialization to be delayed indefinitely.
-      // Checking for an environment variable required by jboss instead.
-      return true;
+    if (libraries.contains(WILDFLY)) {
+      return true; // Wildfly is known to set a custom log manager after startup.
     }
 
     final String logManagerProp = System.getProperty("java.util.logging.manager");
     if (logManagerProp != null) {
       final boolean onSysClasspath =
-          ClassLoader.getSystemResource(logManagerProp.replaceAll("\\.", "/") + ".class") != null;
+          ClassLoader.getSystemResource(logManagerProp.replace('.', '/') + ".class") != null;
       log.debug("Prop - logging.manager: " + logManagerProp);
       log.debug("logging.manager on system classpath: " + onSysClasspath);
       // Some applications set java.util.logging.manager but never actually initialize the logger.
@@ -540,11 +535,10 @@ public class Agent {
    *
    * @return true if we detect a custom JMX builder being used.
    */
-  private static boolean isAppUsingCustomJMXBuilder() {
+  private static boolean isAppUsingCustomJMXBuilder(final EnumSet<Library> libraries) {
     final String tracerCustomJMXBuilderSysprop = "dd.app.customjmxbuilder";
     final String customJMXBuilderProp = System.getProperty(tracerCustomJMXBuilderSysprop);
-    final String customJMXBuilderEnv =
-        System.getenv(tracerCustomJMXBuilderSysprop.replace('.', '_').toUpperCase());
+    final String customJMXBuilderEnv = ddGetEnv(tracerCustomJMXBuilderSysprop);
 
     if (customJMXBuilderProp != null || customJMXBuilderEnv != null) {
       log.debug("Prop - customjmxbuilder: " + customJMXBuilderProp);
@@ -554,10 +548,15 @@ public class Agent {
           || Boolean.parseBoolean(customJMXBuilderEnv);
     }
 
+    // FIXME: uncomment this when we add delayed JMX startup
+    // if (libraries.contains(WILDFLY)) {
+    //   return true; // Wildfly is known to set a custom JMX builder after startup.
+    // }
+
     final String jmxBuilderProp = System.getProperty("javax.management.builder.initial");
     if (jmxBuilderProp != null) {
       final boolean onSysClasspath =
-          ClassLoader.getSystemResource(jmxBuilderProp.replaceAll("\\.", "/") + ".class") != null;
+          ClassLoader.getSystemResource(jmxBuilderProp.replace('.', '/') + ".class") != null;
       log.debug("Prop - javax.management.builder.initial: " + jmxBuilderProp);
       log.debug("javax.management.builder.initial on system classpath: " + onSysClasspath);
       // Some applications set javax.management.builder.initial but never actually initialize JMX.
@@ -567,6 +566,11 @@ public class Agent {
     }
 
     return false;
+  }
+
+  /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */
+  private static String ddGetEnv(final String sysProp) {
+    return System.getenv(sysProp.replace('.', '_').toUpperCase());
   }
 
   private static boolean isJavaBefore9WithJFR() {
