@@ -42,7 +42,6 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("dd.logs.injection", "true")
     injectSysConfig("dd.logs.mdc.tags.injection", "true")
     injectSysConfig(TAGS, "env:${TEST_ENV},version:${TEST_VERSION}")
   }

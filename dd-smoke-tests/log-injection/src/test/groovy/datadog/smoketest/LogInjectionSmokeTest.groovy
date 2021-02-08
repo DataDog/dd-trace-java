@@ -44,7 +44,6 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     command.addAll(defaultJavaProperties)
     command.add("-Ddd.test.logfile=${outputLogFile.absolutePath}" as String)
     command.add("-Ddd.test.jsonlogfile=${outputJsonLogFile.absolutePath}" as String)
-    command.add("-Ddd.logs.injection=true")
     command.addAll(additionalArguments())
     command.addAll((String[]) ["-jar", loggingJar])
 

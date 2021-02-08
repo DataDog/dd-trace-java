@@ -18,7 +18,6 @@ abstract class QuarkusSmokeTest extends AbstractServerSmokeTest {
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) [
       "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter",
-      "-Ddd.logs.injection=true",
       "-Ddd.app.customlogmanager=true",
       "-Dquarkus.http.port=${httpPort}",
       "-jar",
