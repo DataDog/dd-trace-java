@@ -9,13 +9,13 @@ import java.util.concurrent.atomic.AtomicInteger
 import static SpanAssert.assertSpan
 
 class TraceAssert {
-  private final List<DDSpan> trace
+  private List<DDSpan> trace
   private final int size
   private final Set<Integer> assertedIndexes = new HashSet<>()
   private final AtomicInteger spanAssertCount = new AtomicInteger(0)
 
   private TraceAssert(trace) {
-    this.trace = trace
+    this.trace = Collections.unmodifiableList(trace)
     size = trace.size()
   }
 
@@ -35,11 +35,12 @@ class TraceAssert {
   static void assertTrace(List<DDSpan> trace, int expectedSize, boolean sortByName,
                           @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
                           @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    // Some tests do their own sorting of the spans which can happen concurrently with other code doing
+    // iterations, so we make a copy of the list here to not cause a ConcurrentModificationException
+    trace = new ArrayList<DDSpan>(trace)
     assert trace.size() == expectedSize
     if (sortByName) {
-      def sorted = new ArrayList<DDSpan>(trace)
-      Collections.sort(sorted, NAME_COMPARATOR)
-      trace = sorted
+      Collections.sort(trace, NAME_COMPARATOR)
     }
     def asserter = new TraceAssert(trace)
     def clone = (Closure) spec.clone()
@@ -79,5 +80,11 @@ class TraceAssert {
 
   void assertSpansAllVerified() {
     assert assertedIndexes.size() == size
+  }
+
+  void sortSpansByStart() {
+    trace = Collections.unmodifiableList(new ArrayList(trace).sort { a, b ->
+      return a.startTimeNano <=> b.startTimeNano
+    })
   }
 }
