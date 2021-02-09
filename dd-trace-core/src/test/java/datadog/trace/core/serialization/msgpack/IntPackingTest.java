@@ -3,7 +3,6 @@ package datadog.trace.core.serialization.msgpack;
 import static org.junit.Assert.assertEquals;
 
 import datadog.trace.core.serialization.ByteBufferConsumer;
-import datadog.trace.core.serialization.EncodingCachingStrategies;
 import datadog.trace.core.serialization.FlushingBuffer;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.MessageFormatter;
@@ -124,7 +123,7 @@ public class IntPackingTest {
         new Mapper<long[]>() {
           @Override
           public void map(long[] x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -161,7 +160,7 @@ public class IntPackingTest {
         new Mapper<int[]>() {
           @Override
           public void map(int[] x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();

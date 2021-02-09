@@ -5,7 +5,6 @@ import static org.junit.Assert.assertNotNull;
 
 import datadog.trace.core.serialization.ByteBufferConsumer;
 import datadog.trace.core.serialization.EncodingCache;
-import datadog.trace.core.serialization.EncodingCachingStrategies;
 import datadog.trace.core.serialization.FlushingBuffer;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.Writable;
@@ -26,7 +25,7 @@ import org.msgpack.core.MessageUnpacker;
 @RunWith(Parameterized.class)
 public class StringWritingTest {
 
-  private static final EncodingCache NO_CACHE = EncodingCachingStrategies.NO_CACHING;
+  private static final EncodingCache NO_CACHE = null;
 
   private static final Map<CharSequence, byte[]> MEMOISATION = new HashMap<>();
   private static final EncodingCache CACHE =

@@ -5,7 +5,6 @@ import static org.junit.Assert.assertNotNull;
 
 import datadog.trace.core.serialization.ByteBufferConsumer;
 import datadog.trace.core.serialization.EncodingCache;
-import datadog.trace.core.serialization.EncodingCachingStrategies;
 import datadog.trace.core.serialization.FlushingBuffer;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.Writable;
@@ -53,7 +52,7 @@ public class SmokeTest {
           put("id1", "id1".getBytes(StandardCharsets.UTF_8));
         }
       };
-  EncodingCache encodingCache = EncodingCachingStrategies.NO_CACHING;
+  EncodingCache encodingCache = null;
 
   @Test
   public void testWriteMessage() {

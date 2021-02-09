@@ -264,7 +264,7 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
 
     @Override
     public void write(char[] value, Writable packer, EncodingCache encodingCache) {
-      packer.writeString(CharBuffer.wrap(value), EncodingCachingStrategies.NO_CACHING);
+      packer.writeString(CharBuffer.wrap(value), null);
     }
   }
 
@@ -274,8 +274,7 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
 
     @Override
     public void write(Object value, Writable packer, EncodingCache encodingCache) {
-      CharSequenceWriter.INSTANCE.write(
-          String.valueOf(value), packer, EncodingCachingStrategies.NO_CACHING);
+      CharSequenceWriter.INSTANCE.write(String.valueOf(value), packer, null);
     }
   }
 }
