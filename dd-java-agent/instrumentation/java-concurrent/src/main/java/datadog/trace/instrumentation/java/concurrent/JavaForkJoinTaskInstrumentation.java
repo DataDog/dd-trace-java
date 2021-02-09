@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -47,14 +48,15 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return extendsClass(
-        named("java.util.concurrent.ForkJoinTask")
-            .and(
-                new ElementMatcher.Junction.AbstractBase<TypeDescription>() {
-                  @Override
-                  public boolean matches(TypeDescription target) {
-                    return !ExcludeFilter.exclude(ExcludeType.FORK_JOIN_TASK, target.getName());
-                  }
-                }));
+            named("java.util.concurrent.ForkJoinTask")
+                .and(
+                    new ElementMatcher.Junction.AbstractBase<TypeDescription>() {
+                      @Override
+                      public boolean matches(TypeDescription target) {
+                        return !ExcludeFilter.exclude(ExcludeType.FORK_JOIN_TASK, target.getName());
+                      }
+                    }))
+        .and(declaresMethod(namedOneOf("doExec", "exec", "fork", "cancel")));
   }
 
   @Override

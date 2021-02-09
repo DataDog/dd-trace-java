@@ -94,6 +94,10 @@ public class ExcludeFilter {
     // Don't wrap Runnables belonging to NioEventLoop(s) as they want to propagate CloseException
     // outside of the event loop on close() and wrapping them in FutureTask interferes with that
     SKIP_TYPE_PREFIXES.get(ExcludeType.RUNNABLE).add("com.aerospike.client.async.NioEventLoop");
+    // exclude various ForkJoinTasks internal to CHM
+    SKIP_TYPE_PREFIXES
+        .get(ExcludeType.FORK_JOIN_TASK)
+        .add("java.util.concurrent.ConcurrentHashMap");
   }
 
   /**
