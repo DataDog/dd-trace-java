@@ -16,8 +16,7 @@ import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -402,7 +401,9 @@ public class ContinuableScopeManager implements AgentScopeManager {
    * references (using too much memory).
    */
   private static final class SingleContinuation extends Continuation {
-    private final AtomicBoolean used = new AtomicBoolean(false);
+    private static final AtomicIntegerFieldUpdater<SingleContinuation> USED =
+        AtomicIntegerFieldUpdater.newUpdater(SingleContinuation.class, "used");
+    private volatile int used = 0;
 
     private SingleContinuation(
         final ContinuableScopeManager scopeManager,
@@ -413,7 +414,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public AgentScope activate() {
-      if (used.compareAndSet(false, true)) {
+      if (USED.compareAndSet(this, 0, 1)) {
         return scopeManager.handleSpan(this, spanUnderScope, source);
       } else {
         log.debug(
@@ -424,7 +425,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public void cancel() {
-      if (used.compareAndSet(false, true)) {
+      if (USED.compareAndSet(this, 0, 1)) {
         trace.cancelContinuation(this);
       } else {
         log.debug("Failed to close continuation {}. Already used.", this);
@@ -460,7 +461,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
     private static final int CLOSED = Integer.MIN_VALUE >> 1;
     private static final int BARRIER = Integer.MIN_VALUE >> 2;
 
-    private final AtomicInteger count = new AtomicInteger(START);
+    private volatile int count = START;
+
+    private static final AtomicIntegerFieldUpdater<ConcurrentContinuation> COUNT =
+        AtomicIntegerFieldUpdater.newUpdater(ConcurrentContinuation.class, "count");
 
     private ConcurrentContinuation(
         final ContinuableScopeManager scopeManager,
@@ -470,26 +474,26 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     private boolean tryActivate() {
-      int current = count.incrementAndGet();
+      int current = COUNT.incrementAndGet(this);
       if (current < START) {
-        count.decrementAndGet();
+        COUNT.decrementAndGet(this);
       }
       return current > START;
     }
 
     private boolean tryClose() {
-      int current = count.get();
+      int current = COUNT.get(this);
       if (current < BARRIER) {
         return false;
       }
       // Now decrement the counter
-      current = count.decrementAndGet();
+      current = COUNT.decrementAndGet(this);
       // Try to close this if we are between START and BARRIER
       while (current < START && current > BARRIER) {
-        if (count.compareAndSet(current, CLOSED)) {
+        if (COUNT.compareAndSet(this, current, CLOSED)) {
           return true;
         }
-        current = count.get();
+        current = COUNT.get(this);
       }
       return false;
     }
@@ -518,7 +522,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public String toString() {
-      int c = count.get();
+      int c = COUNT.get(this);
       String s = c < BARRIER ? "CANCELED" : String.valueOf(c);
       return getClass().getSimpleName()
           + "@"

@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.context.TraceScope;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -29,31 +29,34 @@ public final class State {
         }
       };
 
+  private static final AtomicReferenceFieldUpdater<State, TraceScope.Continuation> CONTINUATION =
+      AtomicReferenceFieldUpdater.newUpdater(
+          State.class, TraceScope.Continuation.class, "continuation");
+
   private static final TraceScope.Continuation CLAIMED = new ContinuationClaim();
 
-  private final AtomicReference<TraceScope.Continuation> continuationRef =
-      new AtomicReference<>(null);
+  private volatile TraceScope.Continuation continuation = null;
 
   private State() {}
 
   public boolean captureAndSetContinuation(final TraceScope scope) {
-    if (continuationRef.compareAndSet(null, CLAIMED)) {
+    if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
       // it's a real pain to do this twice, and this can actually
       // happen systematically - WITHOUT RACES - because of broken
       // instrumentation, e.g. SetExecuteRunnableStateAdvice
       // "double instruments" calls to ScheduledExecutorService.submit/schedule
       //
       // lazy write is guaranteed to be seen by getAndSet
-      continuationRef.lazySet(scope.capture());
+      CONTINUATION.lazySet(this, scope.capture());
       return true;
     }
     return false;
   }
 
   public boolean setOrCancelContinuation(final TraceScope.Continuation continuation) {
-    if (continuationRef.compareAndSet(null, CLAIMED)) {
+    if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
       // lazy write is guaranteed to be seen by getAndSet
-      continuationRef.lazySet(continuation);
+      CONTINUATION.lazySet(this, continuation);
       return true;
     } else {
       continuation.cancel();
@@ -69,11 +72,11 @@ public final class State {
   }
 
   public TraceScope.Continuation getAndResetContinuation() {
-    TraceScope.Continuation continuation = continuationRef.get();
+    TraceScope.Continuation continuation = CONTINUATION.get(this);
     if (null == continuation || CLAIMED == continuation) {
       return null;
     }
-    continuationRef.compareAndSet(continuation, null);
+    CONTINUATION.compareAndSet(this, continuation, null);
     return continuation;
   }
 }
