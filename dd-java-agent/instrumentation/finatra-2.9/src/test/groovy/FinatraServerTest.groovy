@@ -7,8 +7,7 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.finatra.FinatraDecorator
-
-import java.util.concurrent.TimeoutException
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -16,7 +15,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 
 class FinatraServerTest extends HttpServerTest<HttpServer> {
   private static final Duration TIMEOUT = Duration.fromSeconds(5)
-  private static final long STARTUP_TIMEOUT = 20 * 1000
+  private static final long STARTUP_TIMEOUT = 20 // SECONDS
 
   static closeAndWait(Closable closable) {
     if (closable != null) {
@@ -26,7 +25,7 @@ class FinatraServerTest extends HttpServerTest<HttpServer> {
 
   @Override
   HttpServer startServer(int port) {
-    HttpServer testServer = new FinatraServer()
+    def testServer = new FinatraServer()
 
     // Starting the server is blocking so start it in a separate thread
     Thread startupThread = new Thread({
@@ -34,13 +33,7 @@ class FinatraServerTest extends HttpServerTest<HttpServer> {
     })
     startupThread.setDaemon(true)
     startupThread.start()
-
-    long startupDeadline = System.currentTimeMillis() + STARTUP_TIMEOUT
-    while (!testServer.started()) {
-      if (System.currentTimeMillis() > startupDeadline) {
-        throw new TimeoutException("Timed out waiting for server startup")
-      }
-    }
+    testServer.awaitStart(STARTUP_TIMEOUT, TimeUnit.SECONDS)
 
     return testServer
   }
