@@ -41,7 +41,6 @@ public class TracingServerInterceptor implements ServerInterceptor {
       // Wrap the server call so that we can decorate the span
       // with the resulting status
       final TracingServerCall<ReqT, RespT> tracingServerCall = new TracingServerCall<>(span, call);
-
       // call other interceptors
       result = next.startCall(tracingServerCall, headers);
     } catch (final Throwable e) {
@@ -72,6 +71,9 @@ public class TracingServerInterceptor implements ServerInterceptor {
       } catch (final Throwable e) {
         DECORATE.onError(span, e);
         throw e;
+      } finally {
+        DECORATE.beforeFinish(span);
+        span.finish();
       }
     }
   }

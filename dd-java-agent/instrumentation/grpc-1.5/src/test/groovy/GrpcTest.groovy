@@ -24,11 +24,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class GrpcTest extends AgentTestRunner {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    return false
-  }
-
   def "test request-response"() {
     setup:
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
@@ -55,7 +50,6 @@ class GrpcTest extends AgentTestRunner {
     when:
     def response = runUnderTrace("parent") {
       def resp = client.sayHello(Helloworld.Request.newBuilder().setName(name).build())
-      TEST_WRITER.waitForTraces(1) // Wait for the server span to be reported.
       return resp
     }
 

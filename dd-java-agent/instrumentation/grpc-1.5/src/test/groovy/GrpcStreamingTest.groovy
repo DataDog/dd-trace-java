@@ -18,11 +18,6 @@ import java.util.concurrent.atomic.AtomicReference
 
 class GrpcStreamingTest extends AgentTestRunner {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    return false
-  }
-
   def "test conversation #name"() {
     setup:
     def msgCount = serverMessageCount
@@ -98,9 +93,7 @@ class GrpcStreamingTest extends AgentTestRunner {
 
       @Override
       void onCompleted() {
-        if (TEST_TRACER.activeScope().isAsyncPropagating()) {
-          TEST_WRITER.waitForTraces(1)
-        } else {
+        if (!TEST_TRACER.activeScope().isAsyncPropagating()) {
           error.set(new IllegalStateException("not async propagating!"))
         }
       }
