@@ -22,7 +22,6 @@ import spock.lang.Retry
 import spock.lang.Timeout
 
 import java.util.concurrent.ExecutionException
-import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -34,7 +33,9 @@ import static org.asynchttpclient.Dsl.asyncHttpClient
 class Netty41ClientTest extends HttpClientTest {
 
   def clientConfig = DefaultAsyncHttpClientConfig.Builder.newInstance()
-    .setRequestTimeout(TimeUnit.SECONDS.toMillis(10).toInteger())
+    .setConnectTimeout(CONNECT_TIMEOUT_MS as int)
+    .setRequestTimeout(READ_TIMEOUT_MS as int)
+    .setReadTimeout(READ_TIMEOUT_MS as int)
     .setSslContext(SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build())
     .setMaxRequestRetry(0)
 

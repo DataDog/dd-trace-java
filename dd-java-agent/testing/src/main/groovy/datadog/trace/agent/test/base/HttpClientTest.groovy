@@ -2,6 +2,7 @@ package datadog.trace.agent.test.base
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.server.http.HttpProxy
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -11,11 +12,8 @@ import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Unroll
 
-import javax.net.ssl.TrustManager
-import javax.net.ssl.TrustManagerFactory
-import javax.net.ssl.X509TrustManager
-import java.security.cert.X509Certificate
 import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
@@ -28,8 +26,8 @@ import static org.junit.Assume.assumeTrue
 @Unroll
 abstract class HttpClientTest extends AgentTestRunner {
   protected static final BODY_METHODS = ["POST", "PUT"]
-  protected static final CONNECT_TIMEOUT_MS = 3000
-  protected static final READ_TIMEOUT_MS = 5000
+  protected static final CONNECT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(3)
+  protected static final READ_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5)
   protected static final BASIC_AUTH_KEY = "custom_authorization_header"
   protected static final BASIC_AUTH_VAL = "plain text auth token"
 
@@ -74,8 +72,34 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
   }
 
+  @AutoCleanup
+  @Shared
+  def proxy = new HttpProxy()
+
+  @Shared
+  ProxySelector proxySelector
+
   @Shared
   String component = component()
+
+  def setupSpec() {
+    List<Proxy> proxyList = Collections.singletonList(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxy.port)))
+    proxySelector = new ProxySelector() {
+      @Override
+      List<Proxy> select(URI uri) {
+        if (uri.fragment == "proxy") {
+          return proxyList
+        } else {
+          return getDefault().select(uri)
+        }
+      }
+
+      @Override
+      void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+        getDefault().connectFailed(uri, sa, ioe);
+      }
+    }
+  }
 
   /**
    * Make the request and return the status code response
@@ -90,26 +114,6 @@ abstract class HttpClientTest extends AgentTestRunner {
 
   static String keyStorePassword() {
     "datadog"
-  }
-
-  static TrustManager nonValidatingTrustManager() {
-    return new X509TrustManager() {
-      @Override
-      X509Certificate[] getAcceptedIssuers() {
-        return new X509Certificate[0]
-      }
-
-      @Override
-      void checkClientTrusted(X509Certificate[] certificate, String str) {}
-
-      @Override
-      void checkServerTrusted(X509Certificate[] certificate, String str) {}
-    }
-  }
-
-  static TrustManagerFactory nonValidatingTrustManagerFactory() {
-    return new TrustManagerFactory() {
-    }
   }
 
   abstract CharSequence component()
@@ -170,6 +174,39 @@ abstract class HttpClientTest extends AgentTestRunner {
 
     path = "/success"
     url = server.secureAddress.resolve(path)
+  }
+
+  // IBM JVM has different protocol support for TLS
+  @Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
+  def "secure #method proxied request"() {
+    given:
+    assumeTrue(testSecure() && testProxy())
+
+    when:
+    def status = runUnderTrace("parent") {
+      doRequest(method, url, [:], body)
+    }
+    println("RESPONSE: $status")
+
+    then:
+    status == 200
+    TEST_WRITER
+    assertTraces(2) {
+      def remoteParentSpan = null
+      trace(size(3)) {
+        sortSpansByStart()
+        remoteParentSpan = span(2)
+        basicSpan(it, "parent")
+        clientSpan(it, span(0), "CONNECT", false, false, new URI("http://localhost:$server.secureAddress.port/"))
+        clientSpan(it, span(0), method, false, false, url)
+      }
+      server.distributedRequestTrace(it, remoteParentSpan)
+    }
+
+    where:
+    method << BODY_METHODS
+    url = server.secureAddress.resolve("/success#proxy") // fragment indicates the request should be proxied.
+    body = (1..10000).join(" ")
   }
 
   def "basic #method request with parent"() {
@@ -490,8 +527,8 @@ abstract class HttpClientTest extends AgentTestRunner {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.PEER_HOSTNAME" uri.host
         "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
-        "$Tags.PEER_PORT" uri.port > 0 ? uri.port : { it == null || it == 443 } // Optional
-        "$Tags.HTTP_URL" "${uri.resolve(uri.path)}"
+        "$Tags.PEER_PORT" { it == uri.port || it == proxy.port || it == 443 }
+        "$Tags.HTTP_URL" "${uri.resolve(uri.path)}" // remove fragment
         "$Tags.HTTP_METHOD" method
         if (status) {
           "$Tags.HTTP_STATUS" status
@@ -535,6 +572,13 @@ abstract class HttpClientTest extends AgentTestRunner {
    * Uses a local self-signed cert, so the client must be configured to ignore cert errors.
    */
   boolean testSecure() {
+    false
+  }
+
+  /**
+   * Client must be configured to use proxy iff url fragment is "proxy".
+   */
+  boolean testProxy() {
     false
   }
 

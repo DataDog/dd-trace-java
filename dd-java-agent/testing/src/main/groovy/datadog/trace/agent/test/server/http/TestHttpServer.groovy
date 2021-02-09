@@ -19,9 +19,13 @@ import org.eclipse.jetty.server.handler.AbstractHandler
 import org.eclipse.jetty.server.handler.HandlerList
 import org.eclipse.jetty.util.ssl.SslContextFactory
 
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
+import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
@@ -55,8 +59,22 @@ class TestHttpServer implements AutoCloseable {
   private URI secureAddress
   private final AtomicReference<HandlerApi.RequestApi> last = new AtomicReference<>()
 
+  public final SSLContext sslContext = SSLContext.getInstance("TLSv1.2")
+
   private TestHttpServer() {
     internalServer = new Server()
+
+    TrustManager[] trustManager = new TrustManager[1]
+    trustManager[0] = new X509TrustManager() {
+      X509Certificate[] getAcceptedIssuers() {
+        return new X509Certificate[0]
+      }
+
+      void checkClientTrusted(X509Certificate[] certificate, String str) {}
+
+      void checkServerTrusted(X509Certificate[] certificate, String str) {}
+    }
+    sslContext.init(null, trustManager, null)
   }
 
   TestHttpServer start() {
@@ -303,16 +321,16 @@ class TestHttpServer implements AutoCloseable {
   }
 
   class HandlerApi {
-    private final Request req
+    private final RequestApi req
     private final HttpServletResponse resp
 
     private HandlerApi(Request request, HttpServletResponse response) {
-      this.req = request
+      this.req = new RequestApi(request)
       this.resp = response
     }
 
     def getRequest() {
-      return new RequestApi()
+      return req
     }
 
 
@@ -322,7 +340,7 @@ class TestHttpServer implements AutoCloseable {
 
     void redirect(String uri) {
       resp.sendRedirect(uri)
-      req.handled = true
+      req.orig.handled = true
     }
 
     void handleDistributedRequest() {
@@ -331,7 +349,7 @@ class TestHttpServer implements AutoCloseable {
         isDDServer = Boolean.parseBoolean(request.getHeader("is-dd-server"))
       }
       if (isDDServer) {
-        final AgentSpan.Context extractedContext = propagate().extract(req, GETTER)
+        final AgentSpan.Context extractedContext = propagate().extract(req.orig, GETTER)
         if (extractedContext != null) {
           startSpan("test-http-server", extractedContext)
             .setTag("path", request.path)
@@ -344,13 +362,22 @@ class TestHttpServer implements AutoCloseable {
       }
     }
 
-    class RequestApi {
-      def path = req.pathInfo
-      def headers = new Headers(req)
-      def contentLength = req.contentLength
-      def contentType = req.contentType?.split(";")
+    static class RequestApi {
+      final orig
+      final path
+      final Headers headers
+      final contentLength
+      final contentType
+      final byte[] body
 
-      def body = req.inputStream.bytes
+      RequestApi(Request req) {
+        this.orig = req
+        this.path = req.pathInfo
+        this.headers = new Headers(req)
+        this.contentLength = req.contentLength
+        this.contentType = req.contentType?.split(";")
+        this.body = req.inputStream.bytes
+      }
 
       def getPath() {
         return path
@@ -390,10 +417,10 @@ class TestHttpServer implements AutoCloseable {
       }
 
       void send() {
-        assert !req.handled
-        req.contentType = "text/plain;charset=utf-8"
+        assert !req.orig.handled
+        req.orig.contentType = "text/plain;charset=utf-8"
         resp.status = status
-        req.handled = true
+        req.orig.handled = true
       }
 
       void send(String body) {
