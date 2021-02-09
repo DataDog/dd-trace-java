@@ -4,11 +4,17 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import com.netflix.hystrix.HystrixInvokableInfo;
+import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -18,7 +24,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import rx.Observable;
 
 @AutoService(Instrumenter.class)
-public class HystrixInstrumentation extends Instrumenter.Tracing {
+public class HystrixInstrumentation extends Instrumenter.Tracing implements ExcludeFilterProvider {
 
   public HystrixInstrumentation() {
     super("hystrix");
@@ -61,6 +67,18 @@ public class HystrixInstrumentation extends Instrumenter.Tracing {
         named("getFallbackObservable").and(returns(named("rx.Observable"))),
         HystrixInstrumentation.class.getName() + "$FallbackAdvice");
     return transformers;
+  }
+
+  @Override
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+    return Collections.singletonMap(
+        RUNNABLE,
+        Arrays.asList(
+            "com.netflix.config.PropertyWrapper$1",
+            "com.netflix.hystrix.strategy.properties.HystrixPropertiesChainedArchaiusProperty$BooleanProperty$1",
+            "com.netflix.hystrix.strategy.properties.HystrixPropertiesChainedArchaiusProperty$IntegerProperty$1",
+            "com.netflix.hystrix.strategy.properties.HystrixPropertiesChainedArchaiusProperty$StringProperty$1",
+            "com.netflix.hystrix.HystrixCommandProperties$ExecutionIsolationStrategyHystrixProperty$1"));
   }
 
   public static class ExecuteAdvice {
