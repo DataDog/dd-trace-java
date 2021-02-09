@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.grpc.client;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -23,7 +25,8 @@ public class GrpcClientBuilderInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.grpc.internal.AbstractManagedChannelImplBuilder");
+    return extendsClass(named("io.grpc.ManagedChannelBuilder"))
+        .and(declaresField(named("interceptors")));
   }
 
   @Override
@@ -40,8 +43,7 @@ public class GrpcClientBuilderInstrumentation extends Instrumenter.Tracing {
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        isMethod().and(named("build")),
-        GrpcClientBuilderInstrumentation.class.getName() + "$AddInterceptorAdvice");
+        isMethod().and(named("build")), getClass().getName() + "$AddInterceptorAdvice");
   }
 
   public static class AddInterceptorAdvice {
@@ -57,7 +59,7 @@ public class GrpcClientBuilderInstrumentation extends Instrumenter.Tracing {
         }
       }
       if (shouldRegister) {
-        interceptors.add(0, TracingClientInterceptor.INSTANCE);
+        interceptors.add(TracingClientInterceptor.INSTANCE);
       }
     }
   }

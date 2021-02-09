@@ -50,7 +50,6 @@ class GrpcTest extends AgentTestRunner {
     when:
     def response = runUnderTrace("parent") {
       def resp = client.sayHello(Helloworld.Request.newBuilder().setName(name).build())
-      TEST_WRITER.waitForTraces(1) // Wait for the server span to be reported.
       return resp
     }
 

@@ -1,13 +1,16 @@
 package datadog.trace.instrumentation.grpc.server;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import io.grpc.ServerInterceptor;
-import java.util.List;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import io.grpc.ServerBuilder;
+import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -23,7 +26,7 @@ public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.grpc.internal.AbstractServerImplBuilder");
+    return safeHasSuperType(named("io.grpc.ServerBuilder"));
   }
 
   @Override
@@ -39,26 +42,24 @@ public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
-        isMethod().and(named("build")),
-        GrpcServerBuilderInstrumentation.class.getName() + "$AddInterceptorAdvice");
+    return Collections.singletonMap(
+        isMethod().and(isPublic()).and(named("build")).and(takesArguments(0)),
+        GrpcServerBuilderInstrumentation.class.getName() + "$BuildAdvice");
   }
 
-  public static class AddInterceptorAdvice {
+  public static class BuildAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void addInterceptor(
-        @Advice.FieldValue("interceptors") final List<ServerInterceptor> interceptors) {
-      boolean shouldRegister = true;
-      for (final ServerInterceptor interceptor : interceptors) {
-        if (interceptor instanceof TracingServerInterceptor) {
-          shouldRegister = false;
-          break;
-        }
+    public static void onEnter(@Advice.This ServerBuilder<?> serverBuilder) {
+      int callDepth = CallDepthThreadLocalMap.incrementCallDepth(ServerBuilder.class);
+      if (callDepth == 0) {
+        serverBuilder.intercept(TracingServerInterceptor.INSTANCE);
       }
-      if (shouldRegister) {
-        interceptors.add(0, TracingServerInterceptor.INSTANCE);
-      }
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit() {
+      CallDepthThreadLocalMap.decrementCallDepth(ServerBuilder.class);
     }
   }
 }

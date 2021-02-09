@@ -20,6 +20,10 @@ public class CallDepthThreadLocalMap {
     return TLS.get(k).get().increment();
   }
 
+  public static int decrementCallDepth(final Class<?> k) {
+    return TLS.get(k).get().decrement();
+  }
+
   public static void reset(final Class<?> k) {
     TLS.get(k).get().depth = 0;
   }
@@ -33,6 +37,10 @@ public class CallDepthThreadLocalMap {
 
     private int increment() {
       return this.depth++;
+    }
+
+    private int decrement() {
+      return --this.depth;
     }
   }
 

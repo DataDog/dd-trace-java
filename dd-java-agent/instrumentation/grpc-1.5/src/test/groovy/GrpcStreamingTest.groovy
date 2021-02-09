@@ -93,9 +93,7 @@ class GrpcStreamingTest extends AgentTestRunner {
 
       @Override
       void onCompleted() {
-        if (TEST_TRACER.activeScope().isAsyncPropagating()) {
-          TEST_WRITER.waitForTraces(1)
-        } else {
+        if (!TEST_TRACER.activeScope().isAsyncPropagating()) {
           error.set(new IllegalStateException("not async propagating!"))
         }
       }
