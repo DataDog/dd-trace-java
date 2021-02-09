@@ -62,7 +62,13 @@ public class Agent {
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
   private static ClassLoader PROFILING_CLASSLOADER = null;
 
+  private static boolean jmxFetchEnabled;
+  private static boolean profilingEnabled;
+
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
+    jmxFetchEnabled = isJmxFetchEnabled();
+    profilingEnabled = isProfilingEnabled();
+
     createParentClassloader(bootstrapURL);
 
     // Profiling agent startup code is written in a way to allow `startProfilingAgent` be called
@@ -346,6 +352,9 @@ public class Agent {
   }
 
   private static synchronized void registerDeadlockDetectionEvent(URL bootstrapUrl) {
+    if (!profilingEnabled) {
+      return;
+    }
     log.debug("Initializing JMX thread deadlock detector");
     try {
       final ClassLoader classLoader = getProfilingClassloader(bootstrapUrl);
@@ -378,6 +387,9 @@ public class Agent {
   }
 
   private static synchronized void startJmxFetch(final URL bootstrapURL) {
+    if (!jmxFetchEnabled) {
+      return;
+    }
     if (JMXFETCH_CLASSLOADER == null) {
       final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
       try {
@@ -399,6 +411,9 @@ public class Agent {
 
   private static synchronized void startProfilingAgent(
       final URL bootstrapURL, final boolean isStartingFirst) {
+    if (!profilingEnabled) {
+      return;
+    }
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       final ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
@@ -493,6 +508,28 @@ public class Agent {
     */
     final Method method = ClassLoader.class.getDeclaredMethod("getPlatformClassLoader");
     return (ClassLoader) method.invoke(null);
+  }
+
+  /** @return {@code true} if JMXFetch is enabled */
+  private static boolean isJmxFetchEnabled() {
+    final String jmxFetchEnabledSysprop = "dd.jmxfetch.enabled";
+    String jmxFetchEnabled = System.getProperty(jmxFetchEnabledSysprop);
+    if (jmxFetchEnabled == null) {
+      jmxFetchEnabled = ddGetEnv(jmxFetchEnabledSysprop);
+    }
+    // assume true unless it's explicitly set to "false"
+    return !"false".equalsIgnoreCase(jmxFetchEnabled);
+  }
+
+  /** @return {@code true} if profiling is enabled */
+  private static boolean isProfilingEnabled() {
+    final String profilingEnabledSysprop = "dd.profiling.enabled";
+    String profilingEnabled = System.getProperty(profilingEnabledSysprop);
+    if (profilingEnabled == null) {
+      profilingEnabled = ddGetEnv(profilingEnabledSysprop);
+    }
+    // assume false unless it's explicitly set to "true"
+    return "true".equalsIgnoreCase(profilingEnabled);
   }
 
   /**
