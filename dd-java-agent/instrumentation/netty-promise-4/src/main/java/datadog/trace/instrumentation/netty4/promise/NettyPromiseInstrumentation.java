@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.netty4.promise;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -29,14 +30,16 @@ public class NettyPromiseInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".GenericFutureListenerWrapper",
+      packageName + ".ListenerWrapper",
+      packageName + ".ListenerWrapper$GenericWrapper",
+      packageName + ".ListenerWrapper$GenericProgressiveWrapper",
     };
   }
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        named("addListener")
+        namedOneOf("addListener", "addListener0")
             .and(takesArgument(0, named("io.netty.util.concurrent.GenericFutureListener"))),
         NettyPromiseInstrumentation.class.getName() + "$WrapListenerAdvice");
   }
@@ -46,7 +49,7 @@ public class NettyPromiseInstrumentation extends Instrumenter.Tracing {
     public static void wrapListener(
         @Advice.Argument(value = 0, readOnly = false)
             GenericFutureListener<? extends Future<?>> listener) {
-      listener = GenericFutureListenerWrapper.wrapIfNeeded(listener);
+      listener = ListenerWrapper.wrapIfNeeded(listener);
     }
   }
 }
