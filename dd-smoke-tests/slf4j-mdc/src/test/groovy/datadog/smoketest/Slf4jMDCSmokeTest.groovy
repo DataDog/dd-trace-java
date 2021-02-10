@@ -34,7 +34,6 @@ class Slf4jMDCSmokeTest extends Specification {
     command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log")
     command.add("-Ddd.writer.type=TraceStructureWriter")
     command.add("-Ddd.trace.debug=true")
-    command.add("-Ddd.logs.injection=true")
     command.add("-Dorg.slf4j.simpleLogger.defaultLogLevel=DEBUG")
     command.add("-Dorg.slf4j.simpleLogger.showThreadName=false")
     command.add("-jar")
