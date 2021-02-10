@@ -51,32 +51,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       try {
         final URIDataAdapter url = url(request);
         if (url != null) {
-          final StringBuilder urlNoParams = new StringBuilder();
-          String scheme = url.scheme();
-          if (scheme != null) {
-            urlNoParams.append(scheme);
-            urlNoParams.append("://");
-          }
-          String host = url.host();
-          if (host != null) {
-            urlNoParams.append(host);
-            int port = url.port();
-            if (port > 0 && port != 80 && port != 443) {
-              urlNoParams.append(":");
-              urlNoParams.append(port);
-            }
-          }
-          final String path = url.path();
-          if (null == path || path.isEmpty()) {
-            urlNoParams.append("/");
-          } else {
-            if (!path.startsWith("/")) {
-              urlNoParams.append("/");
-            }
-            urlNoParams.append(path);
-          }
-
-          span.setTag(Tags.HTTP_URL, urlNoParams.toString());
+          span.setTag(Tags.HTTP_URL, buildURL(url));
 
           if (Config.get().isHttpServerTagQueryString()) {
             span.setTag(DDTags.HTTP_QUERY, url.query());
@@ -118,6 +93,52 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       }
     }
     return span;
+  }
+
+  private static String buildURL(URIDataAdapter uri) {
+    String scheme = uri.scheme();
+    String host = uri.host();
+    String path = uri.path();
+    int port = uri.port();
+    int length = 0;
+    length += null == scheme ? 0 : scheme.length() + 3;
+    if (null != host) {
+      length += host.length();
+      if (port > 0 && port != 80 && port != 443) {
+        length += 6;
+      }
+    }
+    if (null == path || path.isEmpty()) {
+      ++length;
+    } else {
+      if (path.charAt(0) != '/') {
+        ++length;
+      }
+      length += path.length();
+    }
+    final StringBuilder urlNoParams = new StringBuilder(length);
+    if (scheme != null) {
+      urlNoParams.append(scheme);
+      urlNoParams.append("://");
+    }
+
+    if (host != null) {
+      urlNoParams.append(host);
+      if (port > 0 && port != 80 && port != 443) {
+        urlNoParams.append(':');
+        urlNoParams.append(port);
+      }
+    }
+
+    if (null == path || path.isEmpty()) {
+      urlNoParams.append('/');
+    } else {
+      if (path.charAt(0) != '/') {
+        urlNoParams.append('/');
+      }
+      urlNoParams.append(path);
+    }
+    return urlNoParams.toString();
   }
 
   //  @Override
