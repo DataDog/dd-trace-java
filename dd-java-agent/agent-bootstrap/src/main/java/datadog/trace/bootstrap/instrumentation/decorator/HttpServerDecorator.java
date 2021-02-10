@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.BitSet;
-import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -18,11 +17,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
-
-  // Source: https://www.regextester.com/22
-  private static final Pattern VALID_IPV4_ADDRESS =
-      Pattern.compile(
-          "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
 
@@ -101,10 +95,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     if (connection != null) {
       final String ip = peerHostIP(connection);
       if (ip != null) {
-        if (VALID_IPV4_ADDRESS.matcher(ip).matches()) {
-          span.setTag(Tags.PEER_HOST_IPV4, ip);
-        } else if (ip.contains(":")) {
+        if (ip.indexOf(':') > 0) {
           span.setTag(Tags.PEER_HOST_IPV6, ip);
+        } else {
+          span.setTag(Tags.PEER_HOST_IPV4, ip);
         }
       }
 
