@@ -1,7 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.core.http.OkHttpUtils.msgpackRequestBodyOf;
-import static datadog.trace.core.serialization.EncodingCachingStrategies.NO_CACHING;
 import static datadog.trace.core.serialization.Util.integerToStringBuffer;
 import static datadog.trace.core.serialization.Util.writeLongAsString;
 
@@ -10,7 +9,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
-import datadog.trace.core.StringTables;
 import datadog.trace.core.serialization.GrowableBuffer;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.Writable;
@@ -102,7 +100,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
     for (Map.Entry<CharSequence, Number> metric : metrics.entrySet()) {
       writeDictionaryEncoded(writable, metric.getKey());
-      writable.writeObject(metric.getValue(), NO_CACHING);
+      writable.writeObject(metric.getValue(), null);
     }
   }
 
@@ -149,18 +147,12 @@ public final class TraceMapperV0_5 implements TraceMapper {
     @Override
     public void map(final Object data, final Writable packer) {
       if (data instanceof UTF8BytesString) {
-        packer.writeObject(data, NO_CACHING);
+        packer.writeObject(data, null);
       } else if (data instanceof Long || data instanceof Integer) {
         writeLongAsString(((Number) data).longValue(), packer, numberByteArray);
       } else {
         assert null != data : "enclosing mapper should not provide null values";
-        final String string = String.valueOf(data);
-        final byte[] utf8 = StringTables.getKeyBytesUTF8(string);
-        if (null == utf8) {
-          packer.writeString(string, NO_CACHING);
-          return;
-        }
-        packer.writeUTF8(utf8);
+        packer.writeString(String.valueOf(data), null);
       }
     }
   }

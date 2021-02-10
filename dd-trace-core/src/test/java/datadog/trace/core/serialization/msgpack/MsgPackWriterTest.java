@@ -5,7 +5,6 @@ import static org.junit.Assert.*;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.serialization.ByteBufferConsumer;
 import datadog.trace.core.serialization.Codec;
-import datadog.trace.core.serialization.EncodingCachingStrategies;
 import datadog.trace.core.serialization.FlushingBuffer;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.MessageFormatter;
@@ -44,7 +43,7 @@ public class MsgPackWriterTest {
 
               @Override
               public void map(Map<String, String> data, Writable writable) {
-                writable.writeObject(data, EncodingCachingStrategies.NO_CACHING);
+                writable.writeObject(data, null);
               }
             }));
   }
@@ -72,7 +71,7 @@ public class MsgPackWriterTest {
         new Mapper<Object>() {
           @Override
           public void map(Object data, Writable writable) {
-            writable.writeObject(data, EncodingCachingStrategies.NO_CACHING);
+            writable.writeObject(data, null);
           }
         };
     packer.format(map, mapper);
@@ -138,7 +137,7 @@ public class MsgPackWriterTest {
         new Mapper<byte[]>() {
           @Override
           public void map(byte[] ba, Writable writable) {
-            writable.writeObject(ba, EncodingCachingStrategies.NO_CACHING);
+            writable.writeObject(ba, null);
           }
         });
     messageFormatter.flush();
@@ -200,7 +199,7 @@ public class MsgPackWriterTest {
         new Mapper<ByteBuffer>() {
           @Override
           public void map(ByteBuffer bb, Writable writable) {
-            writable.writeObject(bb, EncodingCachingStrategies.NO_CACHING);
+            writable.writeObject(bb, null);
           }
         });
     messageFormatter.flush();
@@ -228,7 +227,7 @@ public class MsgPackWriterTest {
         new Mapper<Object>() {
           @Override
           public void map(Object x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -256,7 +255,7 @@ public class MsgPackWriterTest {
         new Mapper<Boolean>() {
           @Override
           public void map(Boolean x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -313,7 +312,7 @@ public class MsgPackWriterTest {
         new Mapper<char[]>() {
           @Override
           public void map(char[] x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -342,7 +341,7 @@ public class MsgPackWriterTest {
         new Mapper<UTF8BytesString>() {
           @Override
           public void map(UTF8BytesString x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -374,7 +373,7 @@ public class MsgPackWriterTest {
         new Mapper<boolean[]>() {
           @Override
           public void map(boolean[] x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -406,7 +405,7 @@ public class MsgPackWriterTest {
         new Mapper<float[]>() {
           @Override
           public void map(float[] x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -438,7 +437,7 @@ public class MsgPackWriterTest {
         new Mapper<double[]>() {
           @Override
           public void map(double[] x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -470,7 +469,7 @@ public class MsgPackWriterTest {
         new Mapper<long[]>() {
           @Override
           public void map(long[] x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -502,7 +501,7 @@ public class MsgPackWriterTest {
         new Mapper<int[]>() {
           @Override
           public void map(int[] x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -534,7 +533,7 @@ public class MsgPackWriterTest {
         new Mapper<short[]>() {
           @Override
           public void map(short[] x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -563,7 +562,7 @@ public class MsgPackWriterTest {
         new Mapper<Long>() {
           @Override
           public void map(Long x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -621,7 +620,7 @@ public class MsgPackWriterTest {
         new Mapper<Integer>() {
           @Override
           public void map(Integer x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -679,7 +678,7 @@ public class MsgPackWriterTest {
         new Mapper<Short>() {
           @Override
           public void map(Short x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -708,7 +707,7 @@ public class MsgPackWriterTest {
         new Mapper<Object>() {
           @Override
           public void map(Object x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
@@ -739,7 +738,7 @@ public class MsgPackWriterTest {
         new Mapper<Object[]>() {
           @Override
           public void map(Object[] x, Writable w) {
-            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+            w.writeObject(x, null);
           }
         });
     messageFormatter.flush();
