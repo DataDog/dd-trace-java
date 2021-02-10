@@ -9,12 +9,14 @@ muzzle {
     module = "rest"
     versions = "[5.0,6.4)"
     assertInverse = true
+    skipVersions = ["7.11.0"]
   }
 
   pass {
     group = "org.elasticsearch.client"
     module = "elasticsearch-rest-client"
     versions = "[5.0,6.4)"
+    skipVersions = ["7.11.0"]
   }
 }
 

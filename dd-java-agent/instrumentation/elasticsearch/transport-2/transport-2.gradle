@@ -10,6 +10,7 @@ muzzle {
     module = "elasticsearch"
     versions = "[2.0,3)"
     assertInverse = true
+    skipVersions = ["7.11.0"]
   }
 }
 
