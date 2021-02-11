@@ -6,8 +6,10 @@ import io.netty.handler.ssl.SslContextBuilder
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.asynchttpclient.AsyncCompletionHandler
 import org.asynchttpclient.AsyncHttpClient
+import org.asynchttpclient.BoundRequestBuilder
 import org.asynchttpclient.DefaultAsyncHttpClientConfig
 import org.asynchttpclient.Response
+import org.asynchttpclient.proxy.ProxyServer
 import spock.lang.AutoCleanup
 import spock.lang.Retry
 import spock.lang.Timeout
@@ -23,6 +25,12 @@ import static org.asynchttpclient.Dsl.asyncHttpClient
 @Timeout(5)
 class Netty41ClientTest extends HttpClientTest {
 
+  @Override
+  boolean useStrictTraceWrites() {
+    // NettyPromiseInstrumentation results in unfinished continuations.
+    return false
+  }
+
   def clientConfig = DefaultAsyncHttpClientConfig.Builder.newInstance()
     .setConnectTimeout(CONNECT_TIMEOUT_MS as int)
     .setRequestTimeout(READ_TIMEOUT_MS as int)
@@ -34,11 +42,19 @@ class Netty41ClientTest extends HttpClientTest {
   @AutoCleanup
   AsyncHttpClient asyncHttpClient = asyncHttpClient(clientConfig)
 
+  // Can't be @Shared otherwise field-injected classes get loaded too early.
+  @AutoCleanup
+  AsyncHttpClient proxiedAsyncHttpClient = asyncHttpClient(clientConfig
+    .setProxyServer(new ProxyServer.Builder("localhost", proxy.port).build()))
+
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
+    def proxy = uri.fragment != null && uri.fragment.equals("proxy")
+    def client = proxy ? proxiedAsyncHttpClient : asyncHttpClient
     def methodName = "prepare" + method.toLowerCase().capitalize()
-    def requestBuilder = asyncHttpClient."$methodName"(uri.toString())
+    BoundRequestBuilder requestBuilder = client."$methodName"(uri.toString())
     headers.each { requestBuilder.setHeader(it.key, it.value) }
+    requestBuilder.setBody(body)
     def response = requestBuilder.execute(new AsyncCompletionHandler() {
       @Override
       Object onCompleted(Response response) throws Exception {
@@ -46,7 +62,7 @@ class Netty41ClientTest extends HttpClientTest {
         return response
       }
     }).get()
-    blockUntilChildSpansFinished(1)
+    blockUntilChildSpansFinished(proxy ? 2 : 1)
     return response.statusCode
   }
 
@@ -73,6 +89,11 @@ class Netty41ClientTest extends HttpClientTest {
 
   @Override
   boolean testSecure() {
+    true
+  }
+
+  @Override
+  boolean testProxy() {
     true
   }
 
