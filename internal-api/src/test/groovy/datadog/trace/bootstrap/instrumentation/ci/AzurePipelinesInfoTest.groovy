@@ -1,4 +1,5 @@
-package datadog.trace.bootstrap.instrumentation.api.ci
+package datadog.trace.bootstrap.instrumentation.ci
+
 
 class AzurePipelinesInfoTest extends CIProviderInfoTest {
 

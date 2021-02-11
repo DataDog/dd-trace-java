@@ -1,21 +1,21 @@
-package datadog.trace.bootstrap.instrumentation.api.ci
+package datadog.trace.bootstrap.instrumentation.ci
 
 import datadog.trace.test.util.DDSpecification
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
 
-import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR
-import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE
-import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET
-import static datadog.trace.bootstrap.instrumentation.api.ci.BitriseInfo.BITRISE
-import static datadog.trace.bootstrap.instrumentation.api.ci.BuildkiteInfo.BUILDKITE
-import static datadog.trace.bootstrap.instrumentation.api.ci.CIProviderInfo.selectCI
-import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI
-import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB
-import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS
-import static datadog.trace.bootstrap.instrumentation.api.ci.JenkinsInfo.JENKINS
-import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS
+import static AppVeyorInfo.APPVEYOR
+import static AzurePipelinesInfo.AZURE
+import static BitBucketInfo.BITBUCKET
+import static BitriseInfo.BITRISE
+import static BuildkiteInfo.BUILDKITE
+import static CIProviderInfo.selectCI
+import static CircleCIInfo.CIRCLECI
+import static GitLabInfo.GITLAB
+import static GithubActionsInfo.GHACTIONS
+import static JenkinsInfo.JENKINS
+import static TravisInfo.TRAVIS
 
 abstract class CIProviderInfoTest extends DDSpecification {
 

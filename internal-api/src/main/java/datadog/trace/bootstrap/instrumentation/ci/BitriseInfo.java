@@ -1,6 +1,6 @@
-package datadog.trace.bootstrap.instrumentation.api.ci;
+package datadog.trace.bootstrap.instrumentation.ci;
 
-public class BitriseInfo extends CIProviderInfo {
+class BitriseInfo extends CIProviderInfo {
 
   public static final String BITRISE = "BITRISE_BUILD_SLUG";
   public static final String BITRISE_PROVIDER_NAME = "bitrise";

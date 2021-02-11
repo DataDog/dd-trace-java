@@ -1,15 +1,15 @@
-package datadog.trace.bootstrap.instrumentation.api.ci;
+package datadog.trace.bootstrap.instrumentation.ci;
 
-import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR;
-import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE;
-import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET;
-import static datadog.trace.bootstrap.instrumentation.api.ci.BitriseInfo.BITRISE;
-import static datadog.trace.bootstrap.instrumentation.api.ci.BuildkiteInfo.BUILDKITE;
-import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI;
-import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB;
-import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS;
-import static datadog.trace.bootstrap.instrumentation.api.ci.JenkinsInfo.JENKINS;
-import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS;
+import static datadog.trace.bootstrap.instrumentation.ci.AppVeyorInfo.APPVEYOR;
+import static datadog.trace.bootstrap.instrumentation.ci.AzurePipelinesInfo.AZURE;
+import static datadog.trace.bootstrap.instrumentation.ci.BitBucketInfo.BITBUCKET;
+import static datadog.trace.bootstrap.instrumentation.ci.BitriseInfo.BITRISE;
+import static datadog.trace.bootstrap.instrumentation.ci.BuildkiteInfo.BUILDKITE;
+import static datadog.trace.bootstrap.instrumentation.ci.CircleCIInfo.CIRCLECI;
+import static datadog.trace.bootstrap.instrumentation.ci.GitLabInfo.GITLAB;
+import static datadog.trace.bootstrap.instrumentation.ci.GithubActionsInfo.GHACTIONS;
+import static datadog.trace.bootstrap.instrumentation.ci.JenkinsInfo.JENKINS;
+import static datadog.trace.bootstrap.instrumentation.ci.TravisInfo.TRAVIS;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URI;

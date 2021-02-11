@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.api.ci
+package datadog.trace.bootstrap.instrumentation.ci
 
 import groovy.json.JsonSlurper
 
