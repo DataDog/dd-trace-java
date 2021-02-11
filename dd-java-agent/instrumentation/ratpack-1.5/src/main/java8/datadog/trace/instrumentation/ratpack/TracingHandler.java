@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.ratpack.RatpackServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.ratpack.RatpackServerDecorator.RATPACK_HANDLER;
 
@@ -16,13 +17,9 @@ import ratpack.http.Request;
 public final class TracingHandler implements Handler {
   public static Handler INSTANCE = new TracingHandler();
 
-  /**
-   * This constant is copied over from datadog.trace.instrumentation.netty41.AttributeKeys. The key
-   * string must be kept consistent.
-   */
+  /** This constant must stay in sync with datadog.trace.instrumentation.netty41.AttributeKeys. */
   public static final AttributeKey<AgentSpan> SERVER_ATTRIBUTE_KEY =
-      AttributeKey.valueOf(
-          "datadog.trace.instrumentation.netty41.server.HttpServerTracingHandler.span");
+      AttributeKey.valueOf(DD_SPAN_ATTRIBUTE);
 
   @Override
   public void handle(final Context ctx) {

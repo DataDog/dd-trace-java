@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.netty40;
 
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+
 import datadog.trace.api.Function;
 import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
-import datadog.trace.instrumentation.netty40.client.HttpClientTracingHandler;
-import datadog.trace.instrumentation.netty40.server.HttpServerTracingHandler;
 import io.netty.util.AttributeKey;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -21,18 +21,14 @@ public class AttributeKeys {
         }
       };
 
-  public static final AttributeKey<TraceScope.Continuation>
-      PARENT_CONNECT_CONTINUATION_ATTRIBUTE_KEY =
-          attributeKey("datadog.trace.instrumentation.netty40.parent.connect.continuation");
-
-  public static final AttributeKey<AgentSpan> SERVER_ATTRIBUTE_KEY =
-      attributeKey(HttpServerTracingHandler.class.getName() + ".span");
-
-  public static final AttributeKey<AgentSpan> CLIENT_ATTRIBUTE_KEY =
-      attributeKey(HttpClientTracingHandler.class.getName() + ".span");
+  public static final AttributeKey<AgentSpan> SPAN_ATTRIBUTE_KEY = attributeKey(DD_SPAN_ATTRIBUTE);
 
   public static final AttributeKey<AgentSpan> CLIENT_PARENT_ATTRIBUTE_KEY =
-      attributeKey(HttpClientTracingHandler.class.getName() + ".parent");
+      attributeKey("datadog.client.parent.span");
+
+  public static final AttributeKey<TraceScope.Continuation>
+      CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY =
+          attributeKey("datadog.connect.parent.continuation");
 
   /**
    * Generate an attribute key or reuse the one existing in the global app map. This implementation

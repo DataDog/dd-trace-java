@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.netty40.server;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.SPAN_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.NETTY_REQUEST;
 
@@ -10,7 +11,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
-import datadog.trace.instrumentation.netty40.AttributeKeys;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -24,7 +24,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
   public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
 
     if (!(msg instanceof HttpRequest)) {
-      final AgentSpan span = ctx.channel().attr(AttributeKeys.SERVER_ATTRIBUTE_KEY).get();
+      final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).get();
       if (span == null) {
         ctx.fireChannelRead(msg); // superclass does not throw
       } else {
@@ -38,10 +38,10 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
     final HttpRequest request = (HttpRequest) msg;
 
-    final Context context =
+    final Context extractedContext =
         propagate().extract(request.headers(), ContextVisitors.stringValuesEntrySet());
 
-    final AgentSpan span = startSpan(NETTY_REQUEST, context);
+    final AgentSpan span = startSpan(NETTY_REQUEST, extractedContext);
     span.setMeasured(true);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
@@ -50,7 +50,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
       scope.setAsyncPropagation(true);
 
-      ctx.channel().attr(AttributeKeys.SERVER_ATTRIBUTE_KEY).set(span);
+      ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);
 
       try {
         ctx.fireChannelRead(msg);

@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.instrumentation.netty41.client.HttpClientTracingHandler
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandler
@@ -6,7 +7,7 @@ import io.netty.channel.ChannelInitializer
 import io.netty.channel.embedded.EmbeddedChannel
 import io.netty.handler.codec.http.HttpClientCodec
 
-class Netty41PipelineTest {
+class Netty41PipelineTest extends AgentTestRunner {
 
   def "when a handler is added to the netty pipeline we add our tracing handler"() {
     setup:
@@ -14,7 +15,7 @@ class Netty41PipelineTest {
     def pipeline = channel.pipeline()
 
     when:
-    pipeline.addLast("name", new HttpClientCodec())
+    pipeline.addFirst("name", new HttpClientCodec())
 
     then:
     pipeline.get(HttpClientTracingHandler) != null
@@ -22,15 +23,17 @@ class Netty41PipelineTest {
     when:
     pipeline.remove("name")
 
-    then:
-    // We leave it around to avoid disrupting in-flight processing.
-    pipeline.get(HttpClientTracingHandler) != null
+    then: "We leave it around to avoid disrupting in-flight processing"
+    def tracingHandler = pipeline.get(HttpClientTracingHandler)
+    tracingHandler != null
 
     when:
-    pipeline.addLast("name", new HttpClientCodec())
+    pipeline.addLast(new HttpClientCodec())
 
-    then:
+    then: "we remove the previous handler and add a new one"
     pipeline.get(HttpClientTracingHandler) != null
+    pipeline.get(HttpClientTracingHandler) != tracingHandler
+    pipeline.names() == ["HttpClientCodec#0", "HttpClientTracingHandler#0", "DefaultChannelPipeline\$TailContext#0"]
   }
 
   def "when a handler is added to the netty pipeline we add ONLY ONE tracing handler"() {
@@ -63,6 +66,19 @@ class Netty41PipelineTest {
     null != pipeline.remove(HttpClientTracingHandler)
     null != pipeline.remove("some_handler")
     null != pipeline.remove("a_traced_handler")
+  }
+
+  def "tracing handlers added in the correct position in the pipeline"() {
+    setup:
+    def channel = new EmbeddedChannel()
+    def pipeline = channel.pipeline()
+
+    when:
+    pipeline.addLast(new SimpleHandler(), new OtherSimpleHandler())
+    pipeline.addAfter("$SimpleHandler.name#0", "http", new HttpClientCodec())
+
+    then:
+    pipeline.names() == ["$SimpleHandler.name#0", "http", "HttpClientTracingHandler#0", "$OtherSimpleHandler.name#0", "DefaultChannelPipeline\$TailContext#0"]
   }
 
   def "calling pipeline.addLast methods that use overloaded methods does not cause infinite loop"() {

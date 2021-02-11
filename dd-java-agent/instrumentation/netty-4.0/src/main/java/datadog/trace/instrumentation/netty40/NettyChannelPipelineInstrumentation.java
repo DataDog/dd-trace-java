@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -20,6 +21,7 @@ import datadog.trace.instrumentation.netty40.server.HttpServerRequestTracingHand
 import datadog.trace.instrumentation.netty40.server.HttpServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty40.server.HttpServerTracingHandler;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpRequestDecoder;
@@ -82,15 +84,15 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
         isMethod()
             .and(namedOneOf("addFirst", "addLast"))
             .and(takesArgument(2, named("io.netty.channel.ChannelHandler"))),
-        NettyChannelPipelineInstrumentation.class.getName() + "$ChannelPipelineAddAdvice");
+        NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
     transformers.put(
         isMethod()
             .and(namedOneOf("addBefore", "addAfter"))
             .and(takesArgument(3, named("io.netty.channel.ChannelHandler"))),
-        NettyChannelPipelineInstrumentation.class.getName() + "$ChannelPipelineAddAdvice");
+        NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
     transformers.put(
         isMethod().and(named("connect")).and(returns(named("io.netty.channel.ChannelFuture"))),
-        NettyChannelPipelineInstrumentation.class.getName() + "$ChannelPipelineConnectAdvice");
+        NettyChannelPipelineInstrumentation.class.getName() + "$ConnectAdvice");
     return transformers;
   }
 
@@ -99,8 +101,8 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
    * handlers. If those handlers are later removed, we may want to remove our handlers. That is not
    * currently implemented.
    */
-  public static class ChannelPipelineAddAdvice {
-    @Advice.OnMethodEnter
+  public static class AddHandlerAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static int checkDepth(
         @Advice.Argument(value = 2, optional = true) final Object handler2,
         @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3) {
@@ -151,16 +153,13 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
           toAdd = HttpClientResponseTracingHandler.INSTANCE;
         }
         if (toAdd != null) {
-          String handlerName = null;
-          for (String name : pipeline.names()) {
-            if (pipeline.get(name).equals(handler)) {
-              handlerName = name;
-              break;
-            }
-          }
-          if (handlerName != null) {
-            if (pipeline.get(toAdd.getClass()) != null) {
-              pipeline.remove(toAdd.getClass());
+          // Get the name so we can add immediately following
+          ChannelHandlerContext handlerContext = pipeline.context(handler);
+          if (handlerContext != null) {
+            String handlerName = handlerContext.name();
+            ChannelHandler existing = pipeline.get(toAdd.getClass());
+            if (existing != null) {
+              pipeline.remove(existing);
             }
             pipeline.addAfter(handlerName, toAdd.getClass().getName(), toAdd);
           }
@@ -173,15 +172,15 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
     }
   }
 
-  public static class ChannelPipelineConnectAdvice {
-    @Advice.OnMethodEnter
+  public static class ConnectAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addParentSpan(@Advice.This final ChannelPipeline pipeline) {
       final TraceScope scope = activeScope();
       if (scope != null) {
         final TraceScope.Continuation continuation = scope.capture();
         if (null != continuation) {
           final Attribute<TraceScope.Continuation> attribute =
-              pipeline.channel().attr(AttributeKeys.PARENT_CONNECT_CONTINUATION_ATTRIBUTE_KEY);
+              pipeline.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY);
           if (!attribute.compareAndSet(null, continuation)) {
             continuation.cancel();
           }
