@@ -1,0 +1,34 @@
+muzzle {
+  pass {
+    group = "org.apache.synapse"
+    module = "synapse-nhttp-transport"
+    versions = "[3,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+configurations.all {
+  // the version used by Synapse isn't available in a public repository - we don't need it, so exclude it
+  exclude group: 'org.snmp4j', module: 'snmp4j'
+  exclude group: 'org.snmp4j', module: 'snmp4j-agent'
+  exclude group: 'org.wso2.caching', module: 'wso2caching-core'
+  exclude group: 'org.wso2.eventing', module: 'wso2eventing-api'
+  exclude group: 'org.wso2.uri.template', module: 'wso2-uri-templates'
+}
+
+dependencies {
+  compileOnly group: 'org.apache.synapse', name: 'synapse-nhttp-transport', version: '3.0.0'
+
+  testCompile group: 'org.apache.synapse', name: 'synapse-core', version: '3.0.0'
+
+  latestDepTestCompile group: 'org.apache.synapse', name: 'synapse-core', version: '+'
+}

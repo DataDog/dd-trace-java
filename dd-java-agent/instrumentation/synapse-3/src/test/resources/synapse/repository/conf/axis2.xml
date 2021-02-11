@@ -1,0 +1,154 @@
+<axisconfig name="AxisJava2.0">
+    <!-- ================================================= -->
+    <!-- Parameters -->
+    <!-- ================================================= -->
+    <parameter name="hotdeployment">true</parameter>
+    <parameter name="hotupdate">false</parameter>
+    <parameter name="enableMTOM">false</parameter>
+    <parameter name="enableSwA">false</parameter>
+    <parameter name="ConfigContextTimeoutInterval">30000</parameter>
+    <parameter name="sendStacktraceDetailsWithFaults">false</parameter>
+    <parameter name="DrillDownToRootCauseForFaultReason">false</parameter>
+    <parameter name="userName">admin</parameter>
+    <parameter name="password">axis2</parameter>
+    <parameter name="contextRoot">/</parameter>
+    <parameter name="servicePath">services</parameter>
+    <parameter name="restPath">rest</parameter>
+    <parameter name="disableREST" locked="true">false</parameter>
+
+    <deployer extension=".aar" directory="services" class="org.apache.axis2.deployment.ServiceDeployer">
+        <serviceBuilderExtension name ="jwsbuilderExt" class="org.apache.axis2.jaxws.framework.JAXWSServiceBuilderExtension"/>
+        <serviceBuilderExtension name ="wsdlbuilderExt" class="org.apache.axis2.deployment.WSDLServiceBuilderExtension"/>
+    </deployer>
+
+    <!-- ================================================= -->
+    <!-- Message Receivers -->
+    <!-- ================================================= -->
+    <messageReceivers>
+        <messageReceiver mep="http://www.w3.org/ns/wsdl/in-only"
+                         class="org.apache.axis2.receivers.RawXMLINOnlyMessageReceiver"/>
+        <messageReceiver mep="http://www.w3.org/ns/wsdl/in-out"
+                         class="org.apache.axis2.receivers.RawXMLINOutMessageReceiver"/>
+    </messageReceivers>
+
+    <!-- ================================================= -->
+    <!-- Message Formatter -->
+    <!-- ================================================= -->
+    <messageFormatters>
+        <messageFormatter contentType="application/x-www-form-urlencoded"
+                         class="org.apache.axis2.transport.http.XFormURLEncodedFormatter"/>
+        <messageFormatter contentType="multipart/form-data"
+                         class="org.apache.axis2.transport.http.MultipartFormDataFormatter"/>
+        <messageFormatter contentType="application/xml"
+                         class="org.apache.axis2.transport.http.ApplicationXMLFormatter"/>
+    </messageFormatters>
+
+    <!-- ================================================= -->
+    <!-- Message Builders -->
+    <!-- ================================================= -->
+    <messageBuilders>
+        <messageBuilder contentType="application/xml"
+                         class="org.apache.axis2.builder.ApplicationXMLBuilder"/>
+        <messageBuilder contentType="application/x-www-form-urlencoded"
+                         class="org.apache.axis2.builder.XFormURLEncodedBuilder"/>
+        <messageBuilder contentType="multipart/form-data"
+                         class="org.apache.axis2.builder.MultipartFormDataBuilder"/>
+    </messageBuilders>
+
+    <!-- ================================================= -->
+    <!-- Transport Ins -->
+    <!-- ================================================= -->
+    <transportReceiver name="http" class="datadog.trace.instrumentation.synapse3.TestPassThroughHttpListener">
+        <parameter name="port">-1</parameter>
+        <parameter name="httpGetProcessor" locked="false">org.apache.synapse.transport.passthru.api.PassThroughNHttpGetProcessor</parameter>
+    </transportReceiver>
+
+    <!-- ================================================= -->
+    <!-- Transport Outs -->
+    <!-- ================================================= -->
+    <transportSender name="http"  class="org.apache.synapse.transport.passthru.PassThroughHttpSender">
+    </transportSender>
+
+    <!-- ================================================= -->
+    <!-- Phases  -->
+    <!-- ================================================= -->
+    <phaseOrder type="InFlow">
+        <phase name="Transport">
+            <handler name="RequestURIBasedDispatcher"
+                     class="org.apache.axis2.dispatchers.RequestURIBasedDispatcher">
+                <order phase="Transport"/>
+            </handler>
+            <handler name="SOAPActionBasedDispatcher"
+                     class="org.apache.axis2.dispatchers.SOAPActionBasedDispatcher">
+                <order phase="Transport"/>
+            </handler>
+            <handler name="EarlyBuilder" class="org.apache.synapse.core.relay.ServiceRequestEarlyBuilder"/>
+        </phase>
+        <phase name="Addressing">
+            <handler name="AddressingBasedDispatcher"
+                     class="org.apache.axis2.dispatchers.AddressingBasedDispatcher">
+                <order phase="Addressing"/>
+            </handler>
+        </phase>
+        <phase name="Security"/>
+        <phase name="PreDispatch"/>
+        <phase name="Dispatch" class="org.apache.axis2.engine.DispatchPhase">
+            <handler name="CustomURIBasedDispatcher"
+                     class="org.apache.synapse.core.axis2.CustomURIBasedDispatcher"/>
+            <handler name="RequestURIBasedDispatcher"
+                     class="org.apache.axis2.dispatchers.RequestURIBasedDispatcher"/>
+            <handler name="SOAPActionBasedDispatcher"
+                     class="org.apache.axis2.dispatchers.SOAPActionBasedDispatcher"/>
+            <handler name="RequestURIOperationDispatcher"
+                     class="org.apache.axis2.dispatchers.RequestURIOperationDispatcher"/>
+            <handler name="SOAPMessageBodyBasedDispatcher"
+                     class="org.apache.axis2.dispatchers.SOAPMessageBodyBasedDispatcher"/>
+            <handler name="HTTPLocationBasedDispatcher"
+                     class="org.apache.axis2.dispatchers.HTTPLocationBasedDispatcher"/>
+        </phase>
+        <phase name="RMPhase"/>
+        <phase name="OperationInPhase"/>
+        <phase name="soapmonitorPhase"/>
+    </phaseOrder>
+    <phaseOrder type="OutFlow">
+        <phase name="soapmonitorPhase"/>
+        <phase name="OperationOutPhase"/>
+        <phase name="RMPhase"/>
+        <phase name="PolicyDetermination"/>
+        <phase name="MessageOut"/>
+        <phase name="Security"/>
+    </phaseOrder>
+    <phaseOrder type="InFaultFlow">
+        <phase name="Addressing">
+            <handler name="AddressingBasedDispatcher"
+                     class="org.apache.axis2.dispatchers.AddressingBasedDispatcher">
+                <order phase="Addressing"/>
+            </handler>
+        </phase>
+        <phase name="Security"/>
+        <phase name="PreDispatch"/>
+        <phase name="Dispatch" class="org.apache.axis2.engine.DispatchPhase">
+            <handler name="RequestURIBasedDispatcher"
+                     class="org.apache.axis2.dispatchers.RequestURIBasedDispatcher"/>
+            <handler name="SOAPActionBasedDispatcher"
+                     class="org.apache.axis2.dispatchers.SOAPActionBasedDispatcher"/>
+            <handler name="RequestURIOperationDispatcher"
+                     class="org.apache.axis2.dispatchers.RequestURIOperationDispatcher"/>
+            <handler name="SOAPMessageBodyBasedDispatcher"
+                     class="org.apache.axis2.dispatchers.SOAPMessageBodyBasedDispatcher"/>
+            <handler name="HTTPLocationBasedDispatcher"
+                     class="org.apache.axis2.dispatchers.HTTPLocationBasedDispatcher"/>
+        </phase>
+        <phase name="RMPhase"/>
+        <phase name="OperationInFaultPhase"/>
+        <phase name="soapmonitorPhase"/>
+    </phaseOrder>
+    <phaseOrder type="OutFaultFlow">
+        <phase name="soapmonitorPhase"/>
+        <phase name="OperationOutFaultPhase"/>
+        <phase name="RMPhase"/>
+        <phase name="PolicyDetermination"/>
+        <phase name="MessageOut"/>
+        <phase name="Security"/>
+    </phaseOrder>
+</axisconfig>
