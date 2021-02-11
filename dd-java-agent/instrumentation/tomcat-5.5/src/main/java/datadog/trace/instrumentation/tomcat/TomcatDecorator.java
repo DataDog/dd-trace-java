@@ -53,13 +53,16 @@ public class TomcatDecorator extends HttpServerDecorator<Request, Request, Respo
 
   @Override
   public AgentSpan onRequest(final AgentSpan span, final Request request) {
-    assert span != null;
     if (request != null) {
       String contextPath = request.getContextPath();
       String servletPath = request.getServletPath();
 
-      span.setTag("servlet.context", contextPath);
-      span.setTag("servlet.path", servletPath);
+      if (null != contextPath && !contextPath.isEmpty()) {
+        span.setTag("servlet.context", contextPath);
+      }
+      if (null != servletPath && !servletPath.isEmpty()) {
+        span.setTag("servlet.path", servletPath);
+      }
 
       // Used by AsyncContextInstrumentation because the context path may be reset
       // by the time the async context is dispatched.

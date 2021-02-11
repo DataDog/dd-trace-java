@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.BitSet;
-import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -18,11 +17,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
-
-  // Source: https://www.regextester.com/22
-  private static final Pattern VALID_IPV4_ADDRESS =
-      Pattern.compile(
-          "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
 
@@ -57,32 +51,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       try {
         final URIDataAdapter url = url(request);
         if (url != null) {
-          final StringBuilder urlNoParams = new StringBuilder();
-          String scheme = url.scheme();
-          if (scheme != null) {
-            urlNoParams.append(scheme);
-            urlNoParams.append("://");
-          }
-          String host = url.host();
-          if (host != null) {
-            urlNoParams.append(host);
-            int port = url.port();
-            if (port > 0 && port != 80 && port != 443) {
-              urlNoParams.append(":");
-              urlNoParams.append(port);
-            }
-          }
-          final String path = url.path();
-          if (null == path || path.isEmpty()) {
-            urlNoParams.append("/");
-          } else {
-            if (!path.startsWith("/")) {
-              urlNoParams.append("/");
-            }
-            urlNoParams.append(path);
-          }
-
-          span.setTag(Tags.HTTP_URL, urlNoParams.toString());
+          span.setTag(Tags.HTTP_URL, buildURL(url));
 
           if (Config.get().isHttpServerTagQueryString()) {
             span.setTag(DDTags.HTTP_QUERY, url.query());
@@ -101,10 +70,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     if (connection != null) {
       final String ip = peerHostIP(connection);
       if (ip != null) {
-        if (VALID_IPV4_ADDRESS.matcher(ip).matches()) {
-          span.setTag(Tags.PEER_HOST_IPV4, ip);
-        } else if (ip.contains(":")) {
+        if (ip.indexOf(':') > 0) {
           span.setTag(Tags.PEER_HOST_IPV6, ip);
+        } else {
+          span.setTag(Tags.PEER_HOST_IPV4, ip);
         }
       }
 
@@ -124,6 +93,52 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       }
     }
     return span;
+  }
+
+  private static String buildURL(URIDataAdapter uri) {
+    String scheme = uri.scheme();
+    String host = uri.host();
+    String path = uri.path();
+    int port = uri.port();
+    int length = 0;
+    length += null == scheme ? 0 : scheme.length() + 3;
+    if (null != host) {
+      length += host.length();
+      if (port > 0 && port != 80 && port != 443) {
+        length += 6;
+      }
+    }
+    if (null == path || path.isEmpty()) {
+      ++length;
+    } else {
+      if (path.charAt(0) != '/') {
+        ++length;
+      }
+      length += path.length();
+    }
+    final StringBuilder urlNoParams = new StringBuilder(length);
+    if (scheme != null) {
+      urlNoParams.append(scheme);
+      urlNoParams.append("://");
+    }
+
+    if (host != null) {
+      urlNoParams.append(host);
+      if (port > 0 && port != 80 && port != 443) {
+        urlNoParams.append(':');
+        urlNoParams.append(port);
+      }
+    }
+
+    if (null == path || path.isEmpty()) {
+      urlNoParams.append('/');
+    } else {
+      if (path.charAt(0) != '/') {
+        urlNoParams.append('/');
+      }
+      urlNoParams.append(path);
+    }
+    return urlNoParams.toString();
   }
 
   //  @Override
