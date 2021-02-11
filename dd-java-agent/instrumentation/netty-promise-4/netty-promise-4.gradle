@@ -1,0 +1,32 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = "io.netty"
+    module = "netty-common"
+    versions = "[4.0.0.Final,)"
+    assertInverse = true
+  }
+}
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDep4Test {
+    dirName = 'test'
+  }
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'
+
+  testCompile group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'
+
+  latestDep4TestCompile group: 'io.netty', name: 'netty-common', version: '4.+'
+  latestDepTestCompile group: 'io.netty', name: 'netty-common', version: '+'
+}
+
+tasks.latestDepTest.dependsOn tasks.latestDep4Test
