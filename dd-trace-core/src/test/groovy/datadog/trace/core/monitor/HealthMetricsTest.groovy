@@ -9,6 +9,7 @@ import spock.lang.Ignore
 import spock.lang.Subject
 
 import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.TimeUnit
 
 class HealthMetricsTest extends DDSpecification {
   def statsD = Mock(StatsDClient)
@@ -42,14 +43,21 @@ class HealthMetricsTest extends DDSpecification {
   }
 
   def "test onPublish"() {
+    setup:
+    def statsD = Mock(StatsDClient)
+    def healthMetrics = new HealthMetrics(statsD, 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+
     when:
     healthMetrics.onPublish(trace, samplingPriority)
+    Thread.sleep(110)
 
     then:
-    // verify the tags syntax
-    1 * statsD.incrementCounter('queue.enqueued.traces', "priority:" + priorityName)
-    1 * statsD.count('queue.enqueued.spans', trace.size())
+    1 * statsD.count('queue.enqueued.traces', 1, "priority:" + priorityName)
+    (trace.isEmpty() ? 0 : 1) * statsD.count('queue.enqueued.spans', trace.size())
     0 * _
+    cleanup:
+    healthMetrics.close()
 
     where:
     trace        | samplingPriority              | priorityName
@@ -60,12 +68,21 @@ class HealthMetricsTest extends DDSpecification {
   }
 
   def "test onFailedPublish"() {
+    setup:
+    def statsD = Mock(StatsDClient)
+    def healthMetrics = new HealthMetrics(statsD, 100, TimeUnit.MILLISECONDS)
+    healthMetrics.start()
+
     when:
     healthMetrics.onFailedPublish(samplingPriority)
+    Thread.sleep(110)
 
     then:
-    1 * statsD.incrementCounter('queue.dropped.traces', { it.startsWith("priority:") })
+    1 * statsD.count('queue.dropped.traces', 1, _)
     0 * _
+
+    cleanup:
+    healthMetrics.close()
 
     where:
     samplingPriority << [PrioritySampling.SAMPLER_KEEP, PrioritySampling.USER_KEEP, PrioritySampling.USER_DROP, PrioritySampling.SAMPLER_DROP, PrioritySampling.UNSET]

@@ -41,6 +41,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     writer.start()
 
     then:
+    1 * monitor.start()
     1 * worker.start()
     1 * worker.getCapacity() >> capacity
     1 * monitor.onStart(capacity)

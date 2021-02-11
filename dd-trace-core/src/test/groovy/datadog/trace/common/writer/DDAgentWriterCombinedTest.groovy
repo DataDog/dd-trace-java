@@ -243,6 +243,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     1 * healthMetrics.onFailedPublish(_)
     1 * healthMetrics.onFlush(_)
     1 * healthMetrics.onShutdown(_)
+    1 * healthMetrics.close()
     0 * _
 
     cleanup:
@@ -639,18 +640,14 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       }
     }
 
-    def statsd = Stub(StatsDClient)
-    statsd.incrementCounter("queue.enqueued.traces", _) >> { stat ->
+    def healthMetrics = Stub(HealthMetrics)
+    healthMetrics.onPublish(_, _) >> {
       numTracesAccepted.incrementAndGet()
     }
-    statsd.incrementCounter("api.requests.total") >> { stat ->
+    healthMetrics.onSend(_, _, _) >> {
       numRequests.incrementAndGet()
-    }
-    statsd.incrementCounter("api.responses.total", _) >> { stat, tags ->
       numResponses.incrementAndGet()
     }
-
-    def healthMetrics = new HealthMetrics(statsd)
     def writer = DDAgentWriter.builder()
       .traceAgentV05Enabled(true)
       .traceAgentPort(agent.address.port)
