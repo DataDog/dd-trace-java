@@ -9,6 +9,7 @@ muzzle {
     module = "elasticsearch-rest-client"
     versions = "[6.4,)"
     assertInverse = true
+    skipVersions = ["7.11.0"]
   }
 
   fail {
