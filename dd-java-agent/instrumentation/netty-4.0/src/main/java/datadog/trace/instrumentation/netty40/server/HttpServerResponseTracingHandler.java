@@ -8,12 +8,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.instrumentation.netty40.AttributeKeys;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpResponse;
 
+@ChannelHandler.Sharable
 public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdapter {
+  public static HttpServerResponseTracingHandler INSTANCE = new HttpServerResponseTracingHandler();
 
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {

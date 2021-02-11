@@ -7,6 +7,6 @@ public class HttpClientTracingHandler
         HttpClientResponseTracingHandler, HttpClientRequestTracingHandler> {
 
   public HttpClientTracingHandler() {
-    super(new HttpClientResponseTracingHandler(), new HttpClientRequestTracingHandler());
+    super(HttpClientResponseTracingHandler.INSTANCE, HttpClientRequestTracingHandler.INSTANCE);
   }
 }

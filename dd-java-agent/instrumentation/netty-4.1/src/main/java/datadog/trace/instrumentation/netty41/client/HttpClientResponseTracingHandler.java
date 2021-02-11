@@ -7,12 +7,15 @@ import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecora
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.netty41.AttributeKeys;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.Attribute;
 
+@ChannelHandler.Sharable
 public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapter {
+  public static HttpClientResponseTracingHandler INSTANCE = new HttpClientResponseTracingHandler();
 
   @Override
   public void channelRead(final ChannelHandlerContext ctx, final Object msg) {

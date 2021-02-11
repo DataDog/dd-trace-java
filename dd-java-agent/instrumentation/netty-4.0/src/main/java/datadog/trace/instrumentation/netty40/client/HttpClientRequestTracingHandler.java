@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.netty40.AttributeKeys;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
@@ -21,7 +22,9 @@ import java.net.InetSocketAddress;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@ChannelHandler.Sharable
 public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapter {
+  public static HttpClientRequestTracingHandler INSTANCE = new HttpClientRequestTracingHandler();
 
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {

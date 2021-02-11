@@ -11,11 +11,14 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.instrumentation.netty41.AttributeKeys;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.HttpRequest;
 
+@ChannelHandler.Sharable
 public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
+  public static HttpServerRequestTracingHandler INSTANCE = new HttpServerRequestTracingHandler();
 
   @Override
   public void channelRead(final ChannelHandlerContext ctx, final Object msg) {

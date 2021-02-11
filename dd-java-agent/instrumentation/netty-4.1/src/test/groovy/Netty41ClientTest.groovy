@@ -1,7 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.netty41.client.HttpClientTracingHandler
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.netty.channel.AbstractChannel
@@ -137,7 +135,7 @@ class Netty41ClientTest extends HttpClientTest {
 
     then:
     // The first one returns the removed tracing handler
-    pipeline.remove(HttpClientTracingHandler.getName()) != null
+    pipeline.remove(HttpClientTracingHandler) != null
   }
 
   def "when a handler is added to the netty pipeline we add ONLY ONE tracing handler"() {
@@ -148,9 +146,9 @@ class Netty41ClientTest extends HttpClientTest {
     when:
     pipeline.addLast("name", new HttpClientCodec())
     // The first one returns the removed tracing handler
-    pipeline.remove(HttpClientTracingHandler.getName())
+    pipeline.remove(HttpClientTracingHandler)
     // There is only one
-    pipeline.remove(HttpClientTracingHandler.getName()) == null
+    pipeline.remove(HttpClientTracingHandler) == null
 
     then:
     thrown NoSuchElementException
@@ -167,7 +165,7 @@ class Netty41ClientTest extends HttpClientTest {
 
     then:
     // The first one returns the removed tracing handler
-    null != pipeline.remove(HttpClientTracingHandler.getName())
+    null != pipeline.remove(HttpClientTracingHandler)
     null != pipeline.remove("some_handler")
     null != pipeline.remove("a_traced_handler")
   }
@@ -196,47 +194,7 @@ class Netty41ClientTest extends HttpClientTest {
 
     then:
     null != channel.pipeline().remove("added_in_initializer")
-    null != channel.pipeline().remove(HttpClientTracingHandler.getName())
-  }
-
-  def "request with trace annotated method"() {
-    given:
-    def annotatedClass = new AnnotatedClass()
-
-    when:
-    def status = runUnderTrace("parent") {
-      annotatedClass.makeRequestUnderTrace(method)
-    }
-
-    then:
-    status == 200
-    assertTraces(2) {
-      trace(size(3)) {
-        basicSpan(it, "parent")
-        span {
-          childOf((DDSpan) span(0))
-          operationName "trace.annotation"
-          resourceName "AnnotatedClass.makeRequestUnderTrace"
-          errored false
-          tags {
-            "$Tags.COMPONENT" "trace"
-            defaultTags()
-          }
-        }
-        clientSpan(it, span(1), method)
-      }
-      server.distributedRequestTrace(it, trace(0).last())
-    }
-
-    where:
-    method << BODY_METHODS
-  }
-
-  class AnnotatedClass {
-    @Trace
-    int makeRequestUnderTrace(String method) {
-      return doRequest(method, server.address.resolve("/success"))
-    }
+    null != channel.pipeline().remove(HttpClientTracingHandler)
   }
 
   class SimpleHandler implements ChannelHandler {
