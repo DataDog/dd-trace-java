@@ -12,6 +12,7 @@ import java.lang.ref.WeakReference;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +82,29 @@ public final class AgentTaskScheduler implements Executor {
     final Scheduled<T> scheduled = new Scheduled<>(target);
     scheduleTarget(task, scheduled, initialDelay, 0, unit);
     return scheduled;
+  }
+
+  /**
+   * Adds a random jitter of up to 10 seconds to the delay. This avoids a fleet of traced
+   * applications starting at the same time and scheduling the same publishing task in sync
+   */
+  public <T> Scheduled<T> scheduleWithJitter(
+      final Task<T> task, final T target, final long initialDelay, final TimeUnit unit) {
+
+    // schedule to start after geometrically distributed number of seconds expressed in
+    // milliseconds, with p = 0.25, meaning the probability that the aggregator will not
+    // have started by the nth second is 0.25(0.75)^n-1 (or a 1% chance of not having
+    // started within 10 seconds, where a cap is applied)
+    long randomMillis =
+        unit.toMillis(initialDelay)
+            + Math.min(
+                (long)
+                    (1000D
+                        * Math.log(ThreadLocalRandom.current().nextDouble())
+                        / Math.log(1 - 0.25)),
+                10_000);
+
+    return schedule(task, target, randomMillis, MILLISECONDS);
   }
 
   public <T> Scheduled<T> scheduleAtFixedRate(

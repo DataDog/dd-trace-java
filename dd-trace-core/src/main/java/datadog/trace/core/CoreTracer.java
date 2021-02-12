@@ -53,7 +53,6 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -245,19 +244,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.writer.start();
 
     metricsAggregator = createMetricsAggregator(config);
-    // schedule to start after geometrically distributed number of seconds expressed in
-    // milliseconds, with p = 0.25, meaning the probability that the aggregator will not
-    // have started by the nth second is 0.25(0.75)^n-1 (or a 1% chance of not having
-    // started within 10 seconds, where a cap is applied) This avoids a fleet of traced
-    // applications starting at the same time and sending metrics in sync
-    long delayMillis =
-        Math.min(
-            (long)
-                (1000D
-                    * (Math.log(ThreadLocalRandom.current().nextDouble()) / Math.log(1 - 0.25)
-                        + 1)),
-            10_000);
-    AgentTaskScheduler.INSTANCE.schedule(
+    // Schedule the metrics aggregator to begin reporting after a random delay of 1 to 10 seconds
+    // (using milliseconds granularity.) This avoids a fleet of traced applications starting at the
+    // same time from sending metrics in sync.
+    AgentTaskScheduler.INSTANCE.scheduleWithJitter(
         new AgentTaskScheduler.Task<MetricsAggregator>() {
           @Override
           public void run(MetricsAggregator target) {
@@ -265,8 +255,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           }
         },
         metricsAggregator,
-        delayMillis,
-        TimeUnit.MILLISECONDS);
+        1,
+        TimeUnit.SECONDS);
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
