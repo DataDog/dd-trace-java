@@ -4,6 +4,7 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.eclipse.jetty.http.HttpMethod
 import org.eclipse.jetty.http.HttpVersion
 import org.eclipse.jetty.server.Handler
@@ -33,7 +34,7 @@ import static org.eclipse.jetty.http.HttpMethod.GET
 import static org.eclipse.jetty.http.HttpMethod.POST
 import static org.eclipse.jetty.http.HttpMethod.PUT
 
-@edu.umd.cs.findbugs.annotations.SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
+@SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
 class TestHttpServer implements AutoCloseable {
 
   static TestHttpServer httpServer(@DelegatesTo(value = TestHttpServer, strategy = Closure.DELEGATE_FIRST) Closure spec) {

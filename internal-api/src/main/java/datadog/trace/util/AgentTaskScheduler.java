@@ -15,6 +15,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -127,7 +129,7 @@ public final class AgentTaskScheduler implements Executor {
     scheduleTarget(task, new WeakTarget<>(target), initialDelay, period, unit);
   }
 
-  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
+  @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
   private <T> void scheduleTarget(
       final Task<T> task,
       final Target<T> target,

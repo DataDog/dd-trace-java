@@ -6,6 +6,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeErasureMatcher.s
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
@@ -169,7 +171,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     }
 
     @Override
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("IT_NO_SUCH_ELEMENT")
+    @SuppressFBWarnings("IT_NO_SUCH_ELEMENT")
     public TypeDefinition next() {
       return next;
     }

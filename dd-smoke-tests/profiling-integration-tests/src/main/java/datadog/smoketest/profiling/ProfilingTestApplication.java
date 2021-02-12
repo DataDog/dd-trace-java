@@ -1,6 +1,8 @@
 package datadog.smoketest.profiling;
 
 import datadog.trace.api.Trace;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.util.Random;
@@ -28,7 +30,7 @@ public class ProfilingTestApplication {
   }
 
   @Trace
-  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("DM_GC")
+  @SuppressFBWarnings("DM_GC")
   private static void tracedMethod() throws InterruptedException {
     System.out.println("Tracing");
     tracedBusyMethod();

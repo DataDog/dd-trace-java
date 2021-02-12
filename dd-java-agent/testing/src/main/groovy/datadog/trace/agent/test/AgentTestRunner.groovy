@@ -17,6 +17,7 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.PendingTrace
 import datadog.trace.test.util.DDSpecification
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import net.bytebuddy.agent.ByteBuddyAgent
@@ -265,7 +266,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 }
 
 /** Used to signal that a transformation was intentionally aborted and is not an error. */
-@edu.umd.cs.findbugs.annotations.SuppressFBWarnings("RANGE_ARRAY_INDEX")
+@SuppressFBWarnings("RANGE_ARRAY_INDEX")
 class AbortTransformationException extends RuntimeException {
   AbortTransformationException(final String message) {
     super(message)

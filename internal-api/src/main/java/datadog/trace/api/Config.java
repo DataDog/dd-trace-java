@@ -199,6 +199,8 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
@@ -1117,7 +1119,7 @@ public class Config {
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize
-  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
+  @SuppressFBWarnings("SI_INSTANCE_BEFORE_FINALS_ASSIGNED")
   private static final Config INSTANCE = new Config();
 
   public static Config get() {

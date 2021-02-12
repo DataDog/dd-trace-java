@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.annotation.AnnotationSource;
@@ -75,7 +77,7 @@ public interface Instrumenter {
   boolean isApplicable(Set<TargetSystem> enabledSystems);
 
   @Slf4j
-  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
+  @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
   abstract class Default implements Instrumenter {
     private static final ElementMatcher<ClassLoader> ANY_CLASS_LOADER = any();
 
