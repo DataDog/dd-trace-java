@@ -104,7 +104,6 @@ public class DDSpanContext implements AgentSpan.Context {
       final Map<String, String> baggageItems,
       final boolean errorFlag,
       final CharSequence spanType,
-      final int tagsSize,
       final PendingTrace trace) {
 
     assert trace != null;
@@ -124,10 +123,7 @@ public class DDSpanContext implements AgentSpan.Context {
       this.baggageItems = new ConcurrentHashMap<>(baggageItems);
     }
 
-    // The +1 is the magic number from the tags below that we set at the end,
-    // and "* 4 / 3" is to make sure that we don't resize immediately
-    final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
-    this.unsafeTags = new HashMap<>(capacity);
+    this.unsafeTags = new TreeMap<>();
 
     setServiceName(serviceName);
     this.operationName = operationName;

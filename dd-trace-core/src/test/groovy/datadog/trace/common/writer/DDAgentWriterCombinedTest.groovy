@@ -271,7 +271,6 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       [:],
       false,
       "",
-      0,
       trace)
   }
 

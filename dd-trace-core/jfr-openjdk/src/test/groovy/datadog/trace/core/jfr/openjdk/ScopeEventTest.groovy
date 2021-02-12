@@ -159,7 +159,6 @@ class ScopeEventTest extends DDSpecification {
         [:],
         false,
         "fakeType",
-        0,
         tracer.pendingTraceFactory.create(DDId.from(123)))
     return tracer.buildSpan("test operation")
       .asChildOf(parentContext)

@@ -299,7 +299,6 @@ class PendingTraceBufferTest extends DDSpecification {
       Collections.emptyMap(),
       false,
       "fakeType",
-      0,
       trace)
     return DDSpan.create(0, context)
   }
@@ -319,7 +318,6 @@ class PendingTraceBufferTest extends DDSpecification {
       Collections.emptyMap(),
       false,
       "fakeType",
-      0,
       trace)
     return DDSpan.create(0, context)
   }

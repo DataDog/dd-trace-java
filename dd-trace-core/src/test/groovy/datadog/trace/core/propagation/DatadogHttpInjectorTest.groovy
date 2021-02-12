@@ -40,7 +40,6 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
         },
         false,
         "fakeType",
-        0,
         tracer.pendingTraceFactory.create(DDId.ONE))
 
     final Map<String, String> carrier = Mock()

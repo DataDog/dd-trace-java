@@ -142,7 +142,6 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       baggage,
       false,
       null,
-      tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE))
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
@@ -211,7 +210,6 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       baggage,
       false,
       null,
-      tags.size(),
       tracer.pendingTraceFactory.create(DDId.ONE))
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
@@ -290,7 +288,6 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       ["a-baggage": "value"],
       false,
       spanType,
-      1,
       tracer.pendingTraceFactory.create(DDId.ONE))
     ctx.setAllTags(["k1": "v1"])
     return ctx

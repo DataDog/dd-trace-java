@@ -796,7 +796,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               baggage,
               errorFlag,
               spanType,
-              tagsSize,
               parentTrace);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via

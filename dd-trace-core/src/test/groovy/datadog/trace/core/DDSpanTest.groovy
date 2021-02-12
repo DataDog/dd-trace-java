@@ -255,7 +255,6 @@ class DDSpanTest extends DDCoreSpecification {
         Collections.<String, String> emptyMap(),
         false,
         "fakeType",
-        0,
         tracer.pendingTraceFactory.create(DDId.ONE))
     then:
     context.isTopLevel() == expectTopLevel

@@ -436,7 +436,6 @@ class DDAgentApiTest extends DDCoreSpecification {
       [:],
       false,
       "fakeType",
-      0,
       tracer.pendingTraceFactory.create(DDId.from(1)))
 
     def span = DDSpan.create(timestamp, context)
