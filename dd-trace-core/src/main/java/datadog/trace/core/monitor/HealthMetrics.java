@@ -4,13 +4,19 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.IntFunction;
 import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.DDSpan;
+import datadog.trace.util.AgentTaskScheduler;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.jctools.counters.CountersFactory;
+import org.jctools.counters.FixedSizeStripedLongCounter;
 
 /**
  * Callback for monitoring the health of the DDAgentWriter. Provides hooks for major lifecycle
@@ -24,7 +30,7 @@ import java.util.List;
  *   <li>sending to agent
  * </ul>
  */
-public class HealthMetrics {
+public class HealthMetrics implements AutoCloseable {
 
   private static final IntFunction<String[]> STATUS_TAGS =
       new IntFunction<String[]>() {
@@ -38,31 +44,54 @@ public class HealthMetrics {
   private final RadixTreeCache<String[]> statusTagsCache =
       new RadixTreeCache<>(16, 32, STATUS_TAGS, 200, 400);
 
-  private static final String[] USER_DROP_TAG = new String[] {"priority:user_drop"};
-  private static final String[] USER_KEEP_TAG = new String[] {"priority:user_keep"};
-  private static final String[] SAMPLER_DROP_TAG = new String[] {"priority:sampler_drop"};
-  private static final String[] SAMPLER_KEEP_TAG = new String[] {"priority:sampler_keep"};
-  private static final String[] UNSET_TAG = new String[] {"priority:unset"};
+  private final AtomicBoolean started = new AtomicBoolean(false);
+  private volatile AgentTaskScheduler.Scheduled<HealthMetrics> cancellation;
 
-  private static String[] samplingPriorityTag(int samplingPriority) {
-    switch (samplingPriority) {
-      case USER_DROP:
-        return USER_DROP_TAG;
-      case USER_KEEP:
-        return USER_KEEP_TAG;
-      case SAMPLER_DROP:
-        return SAMPLER_DROP_TAG;
-      case SAMPLER_KEEP:
-        return SAMPLER_KEEP_TAG;
-      default:
-        return UNSET_TAG;
+  private final FixedSizeStripedLongCounter userDropEnqueuedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter userKeepEnqueuedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter samplerDropEnqueuedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter samplerKeepEnqueuedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter unsetPriorityEnqueuedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+
+  private final FixedSizeStripedLongCounter userDropDroppedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter userKeepDroppedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter samplerDropDroppedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter samplerKeepDroppedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter unsetPriorityDroppedTraces =
+      CountersFactory.createFixedSizeStripedCounter(8);
+
+  private final FixedSizeStripedLongCounter enqueuedSpans =
+      CountersFactory.createFixedSizeStripedCounter(8);
+
+  private final StatsDClient statsd;
+  private final long interval;
+  private final TimeUnit units;
+
+  public void start() {
+    if (started.compareAndSet(false, true)) {
+      cancellation =
+          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+              new Flush(), this, interval, interval, units);
     }
   }
 
-  private final StatsDClient statsd;
-
   public HealthMetrics(final StatsDClient statsd) {
+    this(statsd, 30, SECONDS);
+  }
+
+  public HealthMetrics(final StatsDClient statsd, long interval, TimeUnit units) {
     this.statsd = statsd;
+    this.interval = interval;
+    this.units = units;
   }
 
   public void onStart(final int queueCapacity) {
@@ -72,12 +101,42 @@ public class HealthMetrics {
   public void onShutdown(final boolean flushSuccess) {}
 
   public void onPublish(final List<DDSpan> trace, final int samplingPriority) {
-    statsd.incrementCounter("queue.enqueued.traces", samplingPriorityTag(samplingPriority));
-    statsd.count("queue.enqueued.spans", trace.size(), NO_TAGS);
+    switch (samplingPriority) {
+      case USER_DROP:
+        userDropEnqueuedTraces.inc();
+        break;
+      case USER_KEEP:
+        userKeepEnqueuedTraces.inc();
+        break;
+      case SAMPLER_DROP:
+        samplerDropEnqueuedTraces.inc();
+        break;
+      case SAMPLER_KEEP:
+        samplerKeepEnqueuedTraces.inc();
+        break;
+      default:
+        unsetPriorityEnqueuedTraces.inc();
+    }
+    enqueuedSpans.inc(trace.size());
   }
 
   public void onFailedPublish(final int samplingPriority) {
-    statsd.incrementCounter("queue.dropped.traces", samplingPriorityTag(samplingPriority));
+    switch (samplingPriority) {
+      case USER_DROP:
+        userDropDroppedTraces.inc();
+        break;
+      case USER_KEEP:
+        userKeepDroppedTraces.inc();
+        break;
+      case SAMPLER_DROP:
+        samplerDropDroppedTraces.inc();
+        break;
+      case SAMPLER_KEEP:
+        samplerKeepDroppedTraces.inc();
+        break;
+      default:
+        unsetPriorityDroppedTraces.inc();
+    }
   }
 
   public void onScheduleFlush(final boolean previousIncomplete) {
@@ -122,6 +181,64 @@ public class HealthMetrics {
 
     if (response.status() != null) {
       statsd.incrementCounter("api.responses.total", statusTagsCache.get(response.status()));
+    }
+  }
+
+  @Override
+  public void close() {
+    if (null != cancellation) {
+      cancellation.cancel();
+    }
+  }
+
+  private static class Flush implements AgentTaskScheduler.Task<HealthMetrics> {
+
+    private static final String[] USER_DROP_TAG = new String[] {"priority:user_drop"};
+    private static final String[] USER_KEEP_TAG = new String[] {"priority:user_keep"};
+    private static final String[] SAMPLER_DROP_TAG = new String[] {"priority:sampler_drop"};
+    private static final String[] SAMPLER_KEEP_TAG = new String[] {"priority:sampler_keep"};
+    private static final String[] UNSET_TAG = new String[] {"priority:unset"};
+
+    @Override
+    public void run(HealthMetrics target) {
+      reportIfChanged(
+          target.statsd, "queue.enqueued.traces", target.userDropEnqueuedTraces, USER_DROP_TAG);
+      reportIfChanged(
+          target.statsd, "queue.enqueued.traces", target.userKeepEnqueuedTraces, USER_KEEP_TAG);
+      reportIfChanged(
+          target.statsd,
+          "queue.enqueued.traces",
+          target.samplerDropEnqueuedTraces,
+          SAMPLER_DROP_TAG);
+      reportIfChanged(
+          target.statsd,
+          "queue.enqueued.traces",
+          target.samplerKeepEnqueuedTraces,
+          SAMPLER_KEEP_TAG);
+      reportIfChanged(
+          target.statsd, "queue.enqueued.traces", target.unsetPriorityEnqueuedTraces, UNSET_TAG);
+      reportIfChanged(
+          target.statsd, "queue.dropped.traces", target.userDropDroppedTraces, USER_DROP_TAG);
+      reportIfChanged(
+          target.statsd, "queue.dropped.traces", target.userKeepDroppedTraces, USER_KEEP_TAG);
+      reportIfChanged(
+          target.statsd, "queue.dropped.traces", target.samplerDropDroppedTraces, SAMPLER_DROP_TAG);
+      reportIfChanged(
+          target.statsd, "queue.dropped.traces", target.samplerKeepDroppedTraces, SAMPLER_KEEP_TAG);
+      reportIfChanged(
+          target.statsd, "queue.dropped.traces", target.unsetPriorityDroppedTraces, UNSET_TAG);
+      reportIfChanged(target.statsd, "queue.enqueued.spans", target.enqueuedSpans, NO_TAGS);
+    }
+
+    private void reportIfChanged(
+        StatsDClient statsDClient,
+        String aspect,
+        FixedSizeStripedLongCounter counter,
+        String[] tags) {
+      long count = counter.getAndReset();
+      if (count > 0) {
+        statsDClient.count(aspect, count, tags);
+      }
     }
   }
 }

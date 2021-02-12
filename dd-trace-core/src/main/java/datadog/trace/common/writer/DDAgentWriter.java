@@ -171,6 +171,7 @@ public class DDAgentWriter implements Writer {
   public void start() {
     if (!closed) {
       traceProcessingWorker.start();
+      healthMetrics.start();
       healthMetrics.onStart((int) getCapacity());
     }
   }
@@ -180,6 +181,7 @@ public class DDAgentWriter implements Writer {
     final boolean flushed = flush();
     closed = true;
     traceProcessingWorker.close();
+    healthMetrics.close();
     healthMetrics.onShutdown(flushed);
   }
 
