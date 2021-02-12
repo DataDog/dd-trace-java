@@ -1,0 +1,15 @@
+This is a commit message
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# Author:    John Doe <john@doe.com>
+# Date:      Fri Feb 12 14:47:48 2021 +0100
+#
+# On branch master
+#
+# Initial commit
+#
+# Changes to be committed:
+#	new file:   dummy.txt
+#

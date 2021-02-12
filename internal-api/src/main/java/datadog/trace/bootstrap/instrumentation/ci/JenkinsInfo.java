@@ -1,6 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,19 +28,33 @@ class JenkinsInfo extends CIProviderInfo {
   JenkinsInfo() {
     final String gitBranch = buildGitBranch();
 
+    final String workspace = expandTilde(System.getenv(JENKINS_WORKSPACE_PATH));
+    final GitInfo gitInfo =
+      this.gitInfoExtractor.headCommit(Paths.get(workspace, ".git").toFile().getAbsolutePath());
+    final CommitInfo commitInfo = gitInfo.getCommit();
+    final PersonInfo author = commitInfo.getAuthor();
+    final PersonInfo committer = commitInfo.getCommitter();
+
     this.ciTags =
-        new CITagsBuilder()
-            .withCiProviderName(JENKINS_PROVIDER_NAME)
-            .withCiPipelineId(System.getenv(JENKINS_PIPELINE_ID))
-            .withCiPipelineName(buildCiPipelineName(gitBranch))
-            .withCiPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
-            .withCiPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
-            .withCiWorkspacePath(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL)))
-            .withGitCommit(System.getenv(JENKINS_GIT_COMMIT))
-            .withGitBranch(gitBranch)
-            .withGitTag(buildGitTag())
-            .build();
+      new CITagsBuilder()
+        .withCiProviderName(JENKINS_PROVIDER_NAME)
+        .withCiPipelineId(System.getenv(JENKINS_PIPELINE_ID))
+        .withCiPipelineName(buildCiPipelineName(gitBranch))
+        .withCiPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
+        .withCiPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
+        .withCiWorkspacePath(workspace)
+        .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL)))
+        .withGitCommit(System.getenv(JENKINS_GIT_COMMIT))
+        .withGitBranch(gitBranch)
+        .withGitTag(buildGitTag())
+        .withGitCommitAuthorName(author.getName())
+        .withGitCommitAuthorEmail(author.getEmail())
+        .withGitCommitAuthorDate(author.getISO8601Date())
+        .withGitCommitCommitterName(committer.getName())
+        .withGitCommitCommitterEmail(committer.getEmail())
+        .withGitCommitCommitterDate(committer.getISO8601Date())
+        .withGitCommitMessage(commitInfo.getFullMessage())
+        .build();
   }
 
   private String buildGitBranch() {

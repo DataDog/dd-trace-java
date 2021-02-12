@@ -12,7 +12,10 @@ import static datadog.trace.bootstrap.instrumentation.ci.JenkinsInfo.JENKINS;
 import static datadog.trace.bootstrap.instrumentation.ci.TravisInfo.TRAVIS;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfoExtractor;
+import datadog.trace.bootstrap.instrumentation.ci.git.LocalFSGitInfoExtractor;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
@@ -22,6 +25,7 @@ import java.util.Map;
 public abstract class CIProviderInfo {
 
   protected Map<String, String> ciTags = new HashMap<>();
+  protected GitInfoExtractor gitInfoExtractor = new LocalFSGitInfoExtractor();
 
   public boolean isCI() {
     return true;
@@ -198,6 +202,55 @@ public abstract class CIProviderInfo {
     public CITagsBuilder withGitTag(final String gitTag) {
       if (gitTag != null) {
         ciTags.put(Tags.GIT_TAG, gitTag);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitCommitAuthorName(final String gitCommitAuthorName) {
+      if (gitCommitAuthorName != null) {
+        ciTags.put(Tags.GIT_COMMIT_AUTHOR_NAME, gitCommitAuthorName);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitCommitAuthorEmail(final String gitCommitAuthorEmail) {
+      if (gitCommitAuthorEmail != null) {
+        ciTags.put(Tags.GIT_COMMIT_AUTHOR_EMAIL, gitCommitAuthorEmail);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitCommitAuthorDate(final String gitCommitAuthorDate) {
+      if (gitCommitAuthorDate != null) {
+        ciTags.put(Tags.GIT_COMMIT_AUTHOR_DATE, gitCommitAuthorDate);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitCommitCommitterName(final String gitCommitCommitterName) {
+      if (gitCommitCommitterName != null) {
+        ciTags.put(Tags.GIT_COMMIT_COMMITTER_NAME, gitCommitCommitterName);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitCommitCommitterEmail(final String gitCommitCommitterEmail) {
+      if (gitCommitCommitterEmail != null) {
+        ciTags.put(Tags.GIT_COMMIT_COMMITTER_EMAIL, gitCommitCommitterEmail);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitCommitCommitterDate(final String gitCommitCommitterDate) {
+      if (gitCommitCommitterDate != null) {
+        ciTags.put(Tags.GIT_COMMIT_COMMITTER_DATE, gitCommitCommitterDate);
+      }
+      return this;
+    }
+
+    public CITagsBuilder withGitCommitMessage(final String gitCommitMessage) {
+      if (gitCommitMessage != null) {
+        ciTags.put(Tags.GIT_COMMIT_MESSAGE, gitCommitMessage);
       }
       return this;
     }
