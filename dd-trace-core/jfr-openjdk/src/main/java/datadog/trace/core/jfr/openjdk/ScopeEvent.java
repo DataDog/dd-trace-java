@@ -25,27 +25,49 @@ public final class ScopeEvent extends Event {
   @Label("Thread CPU Time")
   @Timespan
   // does not need to be volatile since the event is created and committed from the same thread
-  private long cpuTime = 0L;
+  private long cpuTime = Long.MIN_VALUE;
+
+  private transient long cpuTimeStart;
 
   ScopeEvent(DDId traceId, DDId spanId) {
     this.traceId = traceId.toLong();
     this.spanId = spanId.toLong();
-  }
 
-  public void start() {
     if (isEnabled()) {
-      cpuTime = SystemAccess.getCurrentThreadCpuTime();
+      resume();
       begin();
     }
   }
 
+  public void pause() {
+    if (cpuTimeStart > 0) {
+      if (cpuTime == Long.MIN_VALUE) {
+        cpuTime = SystemAccess.getCurrentThreadCpuTime() - cpuTimeStart;
+      } else {
+        cpuTime += SystemAccess.getCurrentThreadCpuTime() - cpuTimeStart;
+      }
+
+      cpuTimeStart = 0;
+    }
+  }
+
+  public void resume() {
+    cpuTimeStart = SystemAccess.getCurrentThreadCpuTime();
+  }
+
   public void finish() {
+    pause();
     end();
     if (shouldCommit()) {
-      if (cpuTime > 0) {
-        cpuTime = SystemAccess.getCurrentThreadCpuTime() - cpuTime;
-      }
       commit();
     }
+  }
+
+  public long getTraceId() {
+    return traceId;
+  }
+
+  public long getSpanId() {
+    return spanId;
   }
 }

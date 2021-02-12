@@ -2,44 +2,48 @@ package datadog.trace.core.jfr.openjdk;
 
 import datadog.trace.api.DDId;
 import datadog.trace.context.ScopeListener;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import jdk.jfr.EventType;
 
 /** Event factory for {@link ScopeEvent} */
 public class ScopeEventFactory implements ScopeListener {
-  private final ThreadLocal<ScopeEvent> scopeEventThreadLocal = new ThreadLocal<>();
-  private final EventType eventType;
+  private final ThreadLocal<Deque<ScopeEvent>> scopeEventStack =
+      ThreadLocal.withInitial(ArrayDeque::new);
 
-  public ScopeEventFactory() throws ClassNotFoundException {
+  public ScopeEventFactory() {
     ExcludedVersions.checkVersionExclusion();
     // Note: Loading ScopeEvent when ScopeEventFactory is loaded is important because it also loads
     // JFR classes - which may not be present on some JVMs
-    eventType = EventType.getEventType(ScopeEvent.class);
+    EventType.getEventType(ScopeEvent.class);
   }
 
   @Override
   public void afterScopeActivated(DDId traceId, DDId spanId) {
-    ScopeEvent scopeEvent = scopeEventThreadLocal.get();
+    Deque<ScopeEvent> stack = scopeEventStack.get();
 
-    if (scopeEvent != null) {
-      scopeEvent.finish();
-    }
+    ScopeEvent scopeEvent = stack.peek();
 
-    if (eventType.isEnabled()) {
-      ScopeEvent nextScopeEvent = new ScopeEvent(traceId, spanId);
-      nextScopeEvent.start();
-      scopeEventThreadLocal.set(nextScopeEvent);
+    if (scopeEvent == null) {
+      // Empty stack
+      stack.push(new ScopeEvent(traceId, spanId));
+    } else if (scopeEvent.getTraceId() == traceId.toLong()
+        && scopeEvent.getSpanId() == spanId.toLong()) {
+
+      // Reactivation
+      scopeEvent.resume();
     } else {
-      scopeEventThreadLocal.remove();
+      // Top being pushed down
+      scopeEvent.pause();
+      stack.push(new ScopeEvent(traceId, spanId));
     }
   }
 
   @Override
   public void afterScopeClosed() {
-    ScopeEvent scopeEvent = scopeEventThreadLocal.get();
+    Deque<ScopeEvent> stack = scopeEventStack.get();
 
-    if (scopeEvent != null) {
-      scopeEvent.finish();
-      scopeEventThreadLocal.remove();
-    }
+    ScopeEvent scopeEvent = stack.pop();
+    scopeEvent.finish();
   }
 }

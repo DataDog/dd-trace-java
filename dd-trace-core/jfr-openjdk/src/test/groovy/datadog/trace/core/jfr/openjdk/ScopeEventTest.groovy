@@ -17,7 +17,7 @@ import java.time.Duration
   jvm.java11Compatible
 })
 class ScopeEventTest extends DDSpecification {
-  private static final Duration SLEEP_DURATION = Duration.ofSeconds(1)
+  private static final Duration SLEEP_DURATION = Duration.ofMillis(200)
 
   def tracer
 
@@ -30,6 +30,7 @@ class ScopeEventTest extends DDSpecification {
     tracer?.close()
   }
 
+  // TODO more tests around CPU time (mocking out the SystemAccess class)
   def "Scope event is written with thread CPU time"() {
     setup:
     SystemAccess.enableJmx()
@@ -50,11 +51,7 @@ class ScopeEventTest extends DDSpecification {
     event.duration >= SLEEP_DURATION
     event.getLong("traceId") == span.context().traceId.toLong()
     event.getLong("spanId") == span.context().spanId.toLong()
-    event.getLong("cpuTime") != Long.MIN_VALUE
-
-    cleanup:
-    SystemAccess.disableJmx()
-    tracer.close()
+    event.getLong("cpuTime") > 0
   }
 
   def "Scope event is written without thread CPU time"() {
@@ -78,19 +75,16 @@ class ScopeEventTest extends DDSpecification {
     event.getLong("traceId") == span.context().traceId.toLong()
     event.getLong("spanId") == span.context().spanId.toLong()
     event.getLong("cpuTime") == Long.MIN_VALUE
-
-    cleanup:
-    SystemAccess.disableJmx()
-    tracer.close()
   }
 
   def "Scope event is written after continuation activation"() {
     setup:
+    def recording = JfrHelper.startRecording()
+
     AgentSpan span = tracer.buildSpan("test").start()
     AgentScope parentScope = tracer.activateSpan(span)
     parentScope.setAsyncPropagation(true)
     TraceScope.Continuation continuation = ((TraceScope) parentScope).capture()
-    def recording = JfrHelper.startRecording()
 
     when:
     TraceScope scope = continuation.activate()
@@ -108,8 +102,9 @@ class ScopeEventTest extends DDSpecification {
     event.getLong("spanId") == span.context().spanId.toLong()
   }
 
-  def "Scope event is written at each scope transition"() {
+  def "Scope events are written - two deep"() {
     setup:
+    SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
     when:
@@ -130,25 +125,94 @@ class ScopeEventTest extends DDSpecification {
     def events = JfrHelper.stopRecording(recording)
 
     then:
-    events.size() == 3
+    events.size() == 2
     events.each {
       assert it.eventType.name == "datadog.Scope"
-      assert it.duration >= SLEEP_DURATION
     }
 
     with(events[0]) {
-      getLong("traceId") == span.context().traceId.toLong()
-      getLong("spanId") == span.context().spanId.toLong()
+      getLong("traceId") == span2.context().traceId.toLong()
+      getLong("spanId") == span2.context().spanId.toLong()
+      duration >= SLEEP_DURATION
+      duration < SLEEP_DURATION * 2
     }
 
     with(events[1]) {
+      getLong("traceId") == span.context().traceId.toLong()
+      getLong("spanId") == span.context().spanId.toLong()
+      duration >= SLEEP_DURATION * 3
+      getLong("cpuTime") > events[0].getLong("cpuTime")
+    }
+  }
+
+  def "Scope events are written - two deep, two wide"() {
+    setup:
+    SystemAccess.enableJmx()
+    def recording = JfrHelper.startRecording()
+
+    when:
+    AgentSpan span = tracer.buildSpan("test").start()
+    AgentScope scope = tracer.activateSpan(span)
+    sleep(SLEEP_DURATION.toMillis())
+
+    AgentSpan span2 = tracer.buildSpan("test").start()
+    AgentScope scope2 = tracer.activateSpan(span2)
+    sleep(SLEEP_DURATION.toMillis())
+    scope2.close()
+    span2.finish()
+
+    sleep(SLEEP_DURATION.toMillis())
+    scope.close()
+    span.finish()
+
+    AgentSpan span3 = tracer.buildSpan("test").start()
+    AgentScope scope3 = tracer.activateSpan(span3)
+    sleep(SLEEP_DURATION.toMillis())
+
+    AgentSpan span4 = tracer.buildSpan("test").start()
+    AgentScope scope4 = tracer.activateSpan(span4)
+    sleep(SLEEP_DURATION.toMillis())
+    scope4.close()
+    span4.finish()
+
+    sleep(SLEEP_DURATION.toMillis())
+    scope3.close()
+    span3.finish()
+
+    def events = JfrHelper.stopRecording(recording)
+
+    then:
+    events.size() == 4
+    events.each {
+      assert it.eventType.name == "datadog.Scope"
+    }
+
+    with(events[0]) {
       getLong("traceId") == span2.context().traceId.toLong()
       getLong("spanId") == span2.context().spanId.toLong()
+      duration >= SLEEP_DURATION
+      duration < SLEEP_DURATION * 2
+    }
+
+    with(events[1]) {
+      getLong("traceId") == span.context().traceId.toLong()
+      getLong("spanId") == span.context().spanId.toLong()
+      duration >= SLEEP_DURATION * 3
+      getLong("cpuTime") > events[0].getLong("cpuTime")
     }
 
     with(events[2]) {
-      getLong("traceId") == span.context().traceId.toLong()
-      getLong("spanId") == span.context().spanId.toLong()
+      getLong("traceId") == span4.context().traceId.toLong()
+      getLong("spanId") == span4.context().spanId.toLong()
+      duration >= SLEEP_DURATION
+      duration < SLEEP_DURATION * 2
+    }
+
+    with(events[3]) {
+      getLong("traceId") == span3.context().traceId.toLong()
+      getLong("spanId") == span3.context().spanId.toLong()
+      duration >= SLEEP_DURATION * 3
+      getLong("cpuTime") > events[2].getLong("cpuTime")
     }
   }
 
@@ -171,117 +235,6 @@ class ScopeEventTest extends DDSpecification {
 
     scope2.close()
     span2.finish()
-
-    def events = JfrHelper.stopRecording(recording)
-
-    then:
-    events.size() == 2
-    events.each {
-      assert it.eventType.name == "datadog.Scope"
-      assert it.duration >= SLEEP_DURATION
-    }
-
-    with(events[0]) {
-      getLong("traceId") == span.context().traceId.toLong()
-      getLong("spanId") == span.context().spanId.toLong()
-    }
-
-    with(events[1]) {
-      getLong("traceId") == span2.context().traceId.toLong()
-      getLong("spanId") == span2.context().spanId.toLong()
-    }
-  }
-
-  def "Events are not created when not recording - linear activation"() {
-    when:
-    AgentSpan span = tracer.buildSpan("test").start()
-    AgentScope scope = tracer.activateSpan(span)
-    sleep(SLEEP_DURATION.toMillis())
-
-    scope.close()
-    span.finish()
-
-    def recording = JfrHelper.startRecording()
-
-    AgentSpan span2 = tracer.buildSpan("test").start()
-    AgentScope scope2 = tracer.activateSpan(span2)
-    sleep(SLEEP_DURATION.toMillis())
-
-    scope2.close()
-    span2.finish()
-
-
-    def events = JfrHelper.stopRecording(recording)
-
-    then:
-    events.size() == 1
-    events.each {
-      assert it.eventType.name == "datadog.Scope"
-      assert it.duration >= SLEEP_DURATION
-    }
-
-    with(events[0]) {
-      getLong("traceId") == span2.context().traceId.toLong()
-      getLong("spanId") == span2.context().spanId.toLong()
-    }
-  }
-
-  def "Events are not created when not recording - linear with close outside recording"() {
-    when:
-    def recording = JfrHelper.startRecording()
-    AgentSpan span = tracer.buildSpan("test").start()
-    AgentScope scope = tracer.activateSpan(span)
-    sleep(SLEEP_DURATION.toMillis())
-
-    def events = JfrHelper.stopRecording(recording)
-
-    scope.close()
-    span.finish()
-
-    def recording2 = JfrHelper.startRecording()
-    AgentSpan span2 = tracer.buildSpan("test").start()
-    AgentScope scope2 = tracer.activateSpan(span2)
-    sleep(SLEEP_DURATION.toMillis())
-
-    scope2.close()
-    span2.finish()
-
-
-    def events2 = JfrHelper.stopRecording(recording2)
-
-    then:
-    events.size() == 0
-
-    and:
-    events2.size() == 1
-    events2.each {
-      assert it.eventType.name == "datadog.Scope"
-      assert it.duration >= SLEEP_DURATION
-    }
-    with(events2[0]) {
-      getLong("traceId") == span2.context().traceId.toLong()
-      getLong("spanId") == span2.context().spanId.toLong()
-    }
-  }
-
-  def "Events are not created when not recording - stacked activation"() {
-    when:
-    AgentSpan span = tracer.buildSpan("test").start()
-    AgentScope scope = tracer.activateSpan(span)
-    sleep(SLEEP_DURATION.toMillis())
-
-    def recording = JfrHelper.startRecording()
-
-    AgentSpan span2 = tracer.buildSpan("test").start()
-    AgentScope scope2 = tracer.activateSpan(span2)
-    sleep(SLEEP_DURATION.toMillis())
-
-    scope2.close()
-    span2.finish()
-
-    sleep(SLEEP_DURATION.toMillis())
-    scope.close()
-    span.finish()
 
     def events = JfrHelper.stopRecording(recording)
 
