@@ -67,6 +67,7 @@ class JMXFetchTest extends Specification {
 
   def "test jmxfetch config"() {
     setup:
+    System.setProperty("dd.jmxfetch.start-delay", "0")
     names.each {
       System.setProperty("dd.jmxfetch.${it}.enabled", "$enable")
     }
