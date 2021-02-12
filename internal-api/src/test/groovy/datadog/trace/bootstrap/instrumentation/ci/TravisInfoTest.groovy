@@ -1,7 +1,7 @@
-package datadog.trace.bootstrap.instrumentation.api.ci
+package datadog.trace.bootstrap.instrumentation.ci
 
 class TravisInfoTest extends CIProviderInfoTest {
-  
+
   @Override
   CIProviderInfo instanceProvider() {
     return new TravisInfo()
