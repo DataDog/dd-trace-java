@@ -10,6 +10,7 @@ import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.Writable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.Assert;
