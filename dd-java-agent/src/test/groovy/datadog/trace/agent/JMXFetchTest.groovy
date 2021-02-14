@@ -1,93 +1,94 @@
 package datadog.trace.agent
 
 import datadog.trace.agent.test.IntegrationTestUtils
-import datadog.trace.api.Config
 import jvmbootstraptest.AgentLoadedChecker
-import org.junit.Rule
-import org.junit.contrib.java.lang.system.RestoreSystemProperties
+import jvmbootstraptest.JmxStartedChecker
+import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Timeout
 
-import java.lang.reflect.Method
-
 @Timeout(30)
 class JMXFetchTest extends Specification {
+  @Shared
+  DatagramSocket jmxStatsSocket
 
-  @Rule
-  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
+  def setupSpec() {
+    jmxStatsSocket = new DatagramSocket(0)
+  }
+
+  def cleanupSpec() {
+    jmxStatsSocket.close()
+  }
 
   def "test jmxfetch"() {
     setup:
-    def currentContextLoader = Thread.currentThread().getContextClassLoader()
-    DatagramSocket socket = new DatagramSocket(0)
-
-    System.setProperty("dd.jmxfetch.enabled", "true")
-    System.setProperty("dd.jmxfetch.start-delay", "0")
-    System.setProperty("dd.jmxfetch.statsd.port", Integer.toString(socket.localPort))
-    // Overwrite writer type to disable console jmxfetch reporter
-    System.setProperty("dd.writer.type", "DDAgentWriter")
-
-    def classLoader = IntegrationTestUtils.getJmxFetchClassLoader()
-    // Have to set this so JMXFetch knows where to find resources
-    Thread.currentThread().setContextClassLoader(classLoader)
-    final Class<?> jmxFetchAgentClass =
-      classLoader.loadClass("datadog.trace.agent.jmxfetch.JMXFetch")
-    final Method jmxFetchInstallerMethod = jmxFetchAgentClass.getDeclaredMethod("run", Config)
-    jmxFetchInstallerMethod.setAccessible(true)
-    jmxFetchInstallerMethod.invoke(null, new Config())
+    // verify that JMX starts and reports metrics through the given socket.
+    def returnCode = IntegrationTestUtils.runOnSeparateJvm(JmxStartedChecker.getName()
+      , ["-Ddd.jmxfetch.enabled=true",
+         "-Ddd.jmxfetch.start-delay=0",
+         "-Ddd.jmxfetch.statsd.port=${jmxStatsSocket.localPort}",
+         "-Ddd.writer.type=DDAgentWriter"] as String[]
+      , "" as String[]
+      , [:]
+      , true)
 
     byte[] buf = new byte[1500]
     DatagramPacket packet = new DatagramPacket(buf, buf.length)
-    socket.receive(packet)
+    jmxStatsSocket.receive(packet)
     String received = new String(packet.getData(), 0, packet.getLength())
 
-    Set<String> threads = Thread.getAllStackTraces().keySet().collect { it.name }
-
     expect:
-    threads.contains("dd-jmx-collector")
-    received.contains("jvm.")
-
-    cleanup:
-    jmxFetchInstallerMethod.setAccessible(false)
-    socket.close()
-    Thread.currentThread().setContextClassLoader(currentContextLoader)
+    returnCode == 0
+    received.contains("#service:${JmxStartedChecker.getName()}")
   }
 
   def "Agent loads when JmxFetch is misconfigured"() {
+    setup:
     // verify the agent starts up correctly with a bogus address.
-    expect:
-    IntegrationTestUtils.runOnSeparateJvm(AgentLoadedChecker.getName()
+    def returnCode = IntegrationTestUtils.runOnSeparateJvm(AgentLoadedChecker.getName()
       , ["-Ddd.jmxfetch.enabled=true",
          "-Ddd.jmxfetch.start-delay=0",
-         "-Ddd.jmxfetch.statsd.host=example.local"] as String[]
+         "-Ddd.jmxfetch.statsd.host=example.local",
+         "-Ddd.writer.type=DDAgentWriter"] as String[]
       , "" as String[]
       , [:]
-      , true) == 0
+      , true)
+
+    expect:
+    returnCode == 0
   }
 
   def "test jmxfetch config"() {
     setup:
-    names.each {
-      System.setProperty("dd.jmxfetch.${it}.enabled", "$enable")
+    def configSettings = names.collect {
+      "-Ddd.jmxfetch.${it}.enabled=${enable}"
     }
-    def classLoader = IntegrationTestUtils.getJmxFetchClassLoader()
-    // Have to set this so JMXFetch knows where to find resources
-    Thread.currentThread().setContextClassLoader(classLoader)
-    final Class<?> jmxFetchAgentClass =
-      classLoader.loadClass("datadog.trace.agent.jmxfetch.JMXFetch")
-    final Method jmxFetchInstallerMethod = jmxFetchAgentClass.getDeclaredMethod("getInternalMetricFiles")
-    jmxFetchInstallerMethod.setAccessible(true)
+    def testOutput = new ByteArrayOutputStream()
+    def returnCode = IntegrationTestUtils.runOnSeparateJvm(JmxStartedChecker.getName()
+      , ["-Ddd.jmxfetch.enabled=true",
+         "-Ddd.jmxfetch.start-delay=0",
+         "-Ddd.jmxfetch.statsd.port=${jmxStatsSocket.localPort}",
+         "-Ddd.trace.debug=true",
+         "-Ddd.writer.type=DDAgentWriter"] + configSettings as String[]
+      , "" as String[]
+      , [:]
+      , new PrintStream(testOutput))
+
+    def actualConfig = []
+    new ByteArrayInputStream((testOutput.toByteArray())).eachLine {
+      System.out.println(it)
+      def match = (it =~ 'Reading metric config resource (.*)')
+      if (match) {
+        actualConfig += match[0][1]
+      }
+    }
 
     expect:
-    jmxFetchInstallerMethod.invoke(null).sort() == result.sort()
-
-    cleanup:
-    names.each {
-      System.clearProperty("dd.jmxfetch.${it}.enabled")
-    }
+    returnCode == 0
+    actualConfig as Set == expectedConfig as Set
 
     where:
-    names               | enable | result
+    names               | enable | expectedConfig
     []                  | true   | []
     ["tomcat"]          | false  | []
     ["tomcat"]          | true   | ["datadog/trace/agent/jmxfetch/metricconfigs/tomcat.yaml"]

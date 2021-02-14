@@ -9,6 +9,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
@@ -31,11 +32,6 @@ public class IntegrationTestUtils {
   /** Returns the classloader the core agent is running on. */
   public static ClassLoader getAgentClassLoader() {
     return getAgentFieldClassloader("AGENT_CLASSLOADER");
-  }
-
-  /** Returns the classloader the jmxfetch is running on. */
-  public static ClassLoader getJmxFetchClassLoader() {
-    return getAgentFieldClassloader("JMXFETCH_CLASSLOADER");
   }
 
   private static ClassLoader getAgentFieldClassloader(final String fieldName) {
@@ -157,16 +153,43 @@ public class IntegrationTestUtils {
       final Map<String, String> envVars,
       final boolean printOutputStreams)
       throws Exception {
-    final String classPath = System.getProperty("java.class.path");
     return runOnSeparateJvm(
-        mainClassName, jvmArgs, mainMethodArgs, envVars, classPath, printOutputStreams);
+        mainClassName, jvmArgs, mainMethodArgs, envVars, printOutputStreams ? System.out : null);
+  }
+
+  public static int runOnSeparateJvm(
+      final String mainClassName,
+      final String[] jvmArgs,
+      final String[] mainMethodArgs,
+      final Map<String, String> envVars,
+      final PrintStream out)
+      throws Exception {
+    final String classPath = System.getProperty("java.class.path");
+    return runOnSeparateJvm(mainClassName, jvmArgs, mainMethodArgs, envVars, classPath, out);
+  }
+
+  public static int runOnSeparateJvm(
+      final String mainClassName,
+      final String[] jvmArgs,
+      final String[] mainMethodArgs,
+      final Map<String, String> envVars,
+      final String classpath,
+      final boolean printOutputStreams)
+      throws Exception {
+    return runOnSeparateJvm(
+        mainClassName,
+        jvmArgs,
+        mainMethodArgs,
+        envVars,
+        classpath,
+        printOutputStreams ? System.out : null);
   }
 
   /**
    * On a separate JVM, run the main method for a given class.
    *
    * @param mainClassName The name of the entry point class. Must declare a main method.
-   * @param printOutputStreams if true, print stdout and stderr of the child jvm
+   * @param out Optional stream to print the stdout and stderr of the child jvm
    * @return the return code of the child jvm
    * @throws Exception
    */
@@ -176,7 +199,7 @@ public class IntegrationTestUtils {
       final String[] mainMethodArgs,
       final Map<String, String> envVars,
       final String classpath,
-      final boolean printOutputStreams)
+      final PrintStream out)
       throws Exception {
 
     final String separator = System.getProperty("file.separator");
@@ -201,10 +224,8 @@ public class IntegrationTestUtils {
 
     final Process process = processBuilder.start();
 
-    final StreamGobbler errorGobbler =
-        new StreamGobbler(process.getErrorStream(), "ERROR", printOutputStreams);
-    final StreamGobbler outputGobbler =
-        new StreamGobbler(process.getInputStream(), "OUTPUT", printOutputStreams);
+    final StreamGobbler errorGobbler = new StreamGobbler(process.getErrorStream(), "ERROR", out);
+    final StreamGobbler outputGobbler = new StreamGobbler(process.getInputStream(), "OUTPUT", out);
     outputGobbler.start();
     errorGobbler.start();
 
@@ -238,12 +259,12 @@ public class IntegrationTestUtils {
   private static class StreamGobbler extends Thread {
     InputStream stream;
     String type;
-    boolean print;
+    PrintStream out;
 
-    private StreamGobbler(final InputStream stream, final String type, final boolean print) {
+    private StreamGobbler(final InputStream stream, final String type, final PrintStream out) {
       this.stream = stream;
       this.type = type;
-      this.print = print;
+      this.out = out;
     }
 
     @Override
@@ -252,8 +273,8 @@ public class IntegrationTestUtils {
         final BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
         String line = null;
         while ((line = reader.readLine()) != null) {
-          if (print) {
-            System.out.println(type + "> " + line);
+          if (null != out) {
+            out.println(type + "> " + line);
           }
         }
       } catch (final IOException e) {
