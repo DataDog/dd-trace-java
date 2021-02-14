@@ -8,6 +8,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.util.AgentThreadFactory.AgentThread;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
@@ -15,8 +16,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j

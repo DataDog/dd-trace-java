@@ -3,11 +3,10 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeTypeDefinitionName;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeErasureMatcher.safeAsErasure;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;

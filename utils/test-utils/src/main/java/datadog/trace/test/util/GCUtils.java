@@ -1,7 +1,6 @@
 package datadog.trace.test.util;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
 import java.lang.ref.WeakReference;
 
 @SuppressFBWarnings("DM_GC")

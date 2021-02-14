@@ -175,6 +175,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -199,8 +200,6 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;

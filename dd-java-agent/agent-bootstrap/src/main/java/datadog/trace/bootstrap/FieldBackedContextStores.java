@@ -1,9 +1,8 @@
 package datadog.trace.bootstrap;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.extern.slf4j.Slf4j;
 
 /** Allocates {@link ContextStore} ids and keeps track of allocated stores. */

@@ -17,6 +17,7 @@ import datadog.trace.agent.tooling.context.NoopContextProvider;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.api.Config;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collections;
@@ -26,8 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.annotation.AnnotationSource;
