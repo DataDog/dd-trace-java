@@ -136,7 +136,8 @@ public class LogManagerSetter {
 
   private static void customAssert(
       final Object got, final Object expected, final String assertionMessage) {
-    if ((null == got && got != expected) || !got.equals(expected)) {
+    if (got == expected) return; // null check
+    if (!got.equals(expected)) {
       throw new RuntimeException(
           "Assertion failed. Expected <" + expected + "> got <" + got + "> " + assertionMessage);
     }

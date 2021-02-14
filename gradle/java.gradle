@@ -5,6 +5,7 @@ apply plugin: 'groovy'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
+apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
 
 def forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", BuildService) {

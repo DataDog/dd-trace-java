@@ -95,6 +95,7 @@ class DatadogHttpCodec {
           if (lowerCaseKey.startsWith(OT_BAGGAGE_PREFIX)) {
             classification = OT_BAGGAGE;
           }
+          break;
         default:
       }
       if (!taggedHeaders.isEmpty() && classification == IGNORE) {
@@ -140,6 +141,7 @@ class DatadogHttpCodec {
                       lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), HttpCodec.decode(value));
                 }
                 break;
+              default:
             }
           }
         } catch (RuntimeException e) {

@@ -17,6 +17,7 @@ import datadog.trace.agent.tooling.context.NoopContextProvider;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.api.Config;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collections;
@@ -75,6 +76,7 @@ public interface Instrumenter {
   boolean isApplicable(Set<TargetSystem> enabledSystems);
 
   @Slf4j
+  @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
   abstract class Default implements Instrumenter {
     private static final ElementMatcher<ClassLoader> ANY_CLASS_LOADER = any();
 

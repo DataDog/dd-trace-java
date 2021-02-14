@@ -150,6 +150,7 @@ public class HaystackHttpCodec {
           if (lowerCaseKey.startsWith(BAGGAGE_PREFIX_LC)) {
             classification = BAGGAGE;
           }
+          break;
         default:
       }
       if (!taggedHeaders.isEmpty() && classification == IGNORE) {
@@ -191,6 +192,7 @@ public class HaystackHttpCodec {
                       lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), HttpCodec.decode(value));
                   break;
                 }
+              default:
             }
           }
         } catch (RuntimeException e) {

@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeTypeDefinitionName;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeErasureMatcher.safeAsErasure;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -169,6 +170,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     }
 
     @Override
+    @SuppressFBWarnings("IT_NO_SUCH_ELEMENT")
     public TypeDefinition next() {
       return next;
     }

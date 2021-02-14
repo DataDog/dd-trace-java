@@ -6,7 +6,7 @@ public class LogLevelChecker {
 
     String str = System.getProperty("datadog.slf4j.simpleLogger.defaultLogLevel");
 
-    if ((str == null) || (str != null && !str.equalsIgnoreCase("debug"))) {
+    if ((str == null) || !str.equalsIgnoreCase("debug")) {
       throw new RuntimeException("debug mode not set");
     }
   }

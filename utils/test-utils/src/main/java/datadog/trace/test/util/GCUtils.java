@@ -1,7 +1,9 @@
 package datadog.trace.test.util;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.ref.WeakReference;
 
+@SuppressFBWarnings("DM_GC")
 public abstract class GCUtils {
 
   public static void awaitGC() throws InterruptedException {

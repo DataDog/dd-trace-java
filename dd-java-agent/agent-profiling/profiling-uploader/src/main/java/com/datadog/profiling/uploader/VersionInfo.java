@@ -1,5 +1,6 @@
 package com.datadog.profiling.uploader;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -7,6 +8,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@SuppressFBWarnings("OS_OPEN_STREAM")
 public class VersionInfo {
 
   static final String PROFILER_VERSION_TAG = "profiler_version";
