@@ -35,6 +35,15 @@ public final class TraceMapperV0_4 implements TraceMapper {
   public static final byte[] META = "meta".getBytes(ISO_8859_1);
 
   static final byte[] EMPTY = ByteBuffer.allocate(1).put((byte) 0x90).array();
+  private final int size;
+
+  public TraceMapperV0_4(int size) {
+    this.size = size;
+  }
+
+  public TraceMapperV0_4() {
+    this(5 << 20);
+  }
 
   private static final class MetaWriter extends MetadataConsumer {
 
@@ -173,7 +182,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
   @Override
   public int messageBufferSize() {
-    return 5 << 20; // 5MB
+    return size; // 5MB
   }
 
   @Override

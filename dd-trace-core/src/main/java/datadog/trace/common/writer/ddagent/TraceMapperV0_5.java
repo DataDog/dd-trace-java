@@ -34,17 +34,23 @@ public final class TraceMapperV0_5 implements TraceMapper {
   private final GrowableBuffer dictionary;
 
   private final MetaWriter metaWriter = new MetaWriter();
+  private final int size;
 
   public TraceMapperV0_5() {
     this(2 << 20);
   }
 
-  public TraceMapperV0_5(final int bufferSize) {
+  public TraceMapperV0_5(int dictionarySize, int bufferSize) {
     // growable buffer is implicitly bounded by the fixed size buffer
     // the messages themselves are written into
     this.dictionary = new GrowableBuffer(bufferSize);
     this.dictionaryWriter = new MsgPackWriter(dictionary);
+    this.size = bufferSize;
     reset();
+  }
+
+  public TraceMapperV0_5(final int dictionarySize) {
+    this(dictionarySize, 2 << 20);
   }
 
   @Override
@@ -126,7 +132,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   @Override
   public int messageBufferSize() {
-    return 2 << 20; // 2MB
+    return size; // 2MB
   }
 
   @Override

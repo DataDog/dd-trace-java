@@ -32,5 +32,5 @@ public interface Writer extends Closeable {
   void close();
 
   /** Count that a trace was captured for stats, but without reporting it. */
-  void incrementTraceCount();
+  void incrementDropCounts(int spanCount);
 }

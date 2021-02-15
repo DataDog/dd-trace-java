@@ -42,7 +42,6 @@ class DDAgentApiTest extends DDCoreSpecification {
     httpServer {
       handlers {
         put(latestVersion) {
-          System.out.println(request.getHeader("X-Datadog-Trace-Count"))
           if (request.contentType != "application/msgpack") {
             response.status(400).send("wrong type: $request.contentType")
           } else if (request.contentLength <= 0) {
@@ -139,6 +138,8 @@ class DDAgentApiTest extends DDCoreSpecification {
     agent.lastRequest.headers.get("Datadog-Meta-Lang-Version") == System.getProperty("java.version", "unknown")
     agent.lastRequest.headers.get("Datadog-Meta-Tracer-Version") == "Stubbed-Test-Version"
     agent.lastRequest.headers.get("X-Datadog-Trace-Count") == "${traces.size()}"
+    agent.lastRequest.headers.get("Datadog-Client-Dropped-P0-Traces") == "${payload.droppedTraces()}"
+    agent.lastRequest.headers.get("Datadog-Client-Dropped-P0-Spans") == "${payload.droppedSpans()}"
     convertList(agentVersion, agent.lastRequest.body) == expectedRequestBody
 
     cleanup:
@@ -211,6 +212,8 @@ class DDAgentApiTest extends DDCoreSpecification {
     def client = createAgentApi(agent.address.port)
     client.addResponseListener(responseListener)
     def payload = prepareTraces(agentVersion, [[], [], []])
+    payload.withDroppedTraces(1)
+    payload.withDroppedTraces(3)
 
     when:
     client.sendSerializedTraces(payload)
@@ -220,6 +223,8 @@ class DDAgentApiTest extends DDCoreSpecification {
     agent.lastRequest.headers.get("Datadog-Meta-Lang-Version") == System.getProperty("java.version", "unknown")
     agent.lastRequest.headers.get("Datadog-Meta-Tracer-Version") == "Stubbed-Test-Version"
     agent.lastRequest.headers.get("X-Datadog-Trace-Count") == "3" // false data shows the value provided via traceCounter.
+    agent.lastRequest.headers.get("Datadog-Client-Dropped-P0-Traces") == "${payload.droppedTraces()}"
+    agent.lastRequest.headers.get("Datadog-Client-Dropped-P0-Spans") == "${payload.droppedSpans()}"
 
     cleanup:
     agent.close()

@@ -45,7 +45,7 @@ public class LoggingWriter implements Writer {
   }
 
   @Override
-  public void incrementTraceCount() {}
+  public void incrementDropCounts(int spanCount) {}
 
   @Override
   public String toString() {

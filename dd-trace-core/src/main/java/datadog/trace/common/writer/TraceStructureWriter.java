@@ -139,7 +139,7 @@ public class TraceStructureWriter implements Writer {
   }
 
   @Override
-  public void incrementTraceCount() {}
+  public void incrementDropCounts(int spanCount) {}
 
   private static final class Node {
     private final CharSequence operationName;

@@ -11,6 +11,8 @@ import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 import java.nio.ByteBuffer;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.jctools.counters.CountersFactory;
+import org.jctools.counters.FixedSizeStripedLongCounter;
 
 @Slf4j
 public class PayloadDispatcher implements ByteBufferConsumer {
@@ -23,6 +25,11 @@ public class PayloadDispatcher implements ByteBufferConsumer {
   private TraceMapper traceMapper;
   private WritableFormatter packer;
 
+  private final FixedSizeStripedLongCounter droppedSpanCount =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter droppedTraceCount =
+      CountersFactory.createFixedSizeStripedCounter(8);
+
   public PayloadDispatcher(DDAgentApi api, HealthMetrics healthMetrics, Monitoring monitoring) {
     this.api = api;
     this.healthMetrics = healthMetrics;
@@ -33,6 +40,11 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     if (null != packer) {
       packer.flush();
     }
+  }
+
+  public void onDroppedTrace(int spanCount) {
+    droppedSpanCount.inc(spanCount);
+    droppedTraceCount.inc();
   }
 
   void addTrace(List<? extends CoreSpan<?>> trace) {
@@ -61,13 +73,21 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     }
   }
 
+  Payload newPayload(int messageCount, ByteBuffer buffer) {
+    return traceMapper
+        .newPayload()
+        .withBody(messageCount, buffer)
+        .withDroppedSpans(droppedSpanCount.getAndReset())
+        .withDroppedTraces(droppedTraceCount.getAndReset());
+  }
+
   @Override
   public void accept(int messageCount, ByteBuffer buffer) {
     // the packer calls this when the buffer is full,
     // or when the packer is flushed at a heartbeat
     if (messageCount > 0) {
       batchTimer.reset();
-      Payload payload = traceMapper.newPayload().withBody(messageCount, buffer);
+      Payload payload = newPayload(messageCount, buffer);
       final int sizeInBytes = payload.sizeInBytes();
       healthMetrics.onSerialize(sizeInBytes);
       DDAgentApi.Response response = api.sendSerializedTraces(payload);

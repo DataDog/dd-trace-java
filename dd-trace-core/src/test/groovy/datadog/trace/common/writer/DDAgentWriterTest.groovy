@@ -1,8 +1,15 @@
 package datadog.trace.common.writer
 
 import com.timgroup.statsd.NoOpStatsDClient
+import datadog.trace.api.DDId
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker
+import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDSpan
+import datadog.trace.core.DDSpanContext
+import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.test.DDCoreSpecification
@@ -131,5 +138,48 @@ class DDAgentWriterTest extends DDCoreSpecification {
     then:
     1 * monitor.onFailedPublish(_)
     0 * _
+  }
+
+  def "dropped trace is counted"() {
+    setup:
+    def api = Mock(DDAgentApi)
+    def worker = Mock(TraceProcessingWorker)
+    def monitor = Stub(HealthMetrics)
+    def dispatcher = Mock(PayloadDispatcher)
+    def writer = new DDAgentWriter(api, monitor, dispatcher, worker)
+    def p0 = newSpan()
+    p0.setSamplingPriority(PrioritySampling.SAMPLER_DROP)
+    def trace = [
+      p0, newSpan()
+    ]
+
+    when:
+    writer.write(trace)
+
+    then:
+    1 * worker.publish(PrioritySampling.SAMPLER_DROP, trace) >> false
+    1 * dispatcher.onDroppedTrace(trace.size())
+  }
+
+  def newSpan() {
+    CoreTracer tracer = Mock(CoreTracer)
+    tracer.mapServiceName(_) >> { String serviceName -> serviceName }
+    PendingTrace trace = Mock(PendingTrace)
+    trace.getTracer() >> tracer
+    return new DDSpan(0, new DDSpanContext(
+      DDId.from(1),
+      DDId.from(1),
+      DDId.ZERO,
+      null,
+      "",
+      "",
+      "",
+      PrioritySampling.UNSET,
+      "",
+      [:],
+      false,
+      "",
+      0,
+      trace))
   }
 }

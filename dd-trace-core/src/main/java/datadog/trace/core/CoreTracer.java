@@ -459,7 +459,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         // to track an effective sampling rate instead, however, tests
         // checking that a hard reference on a continuation prevents
         // reporting fail without this, so will need to be fixed first.
-        writer.incrementTraceCount();
+        writer.incrementDropCounts(writtenTrace.size());
       }
     }
   }

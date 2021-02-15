@@ -4,6 +4,7 @@ import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
@@ -17,6 +18,7 @@ import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 import spock.lang.Timeout
 
+import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -47,7 +49,7 @@ class PayloadDispatcherTest extends DDSpecification {
     flushed.get()
 
     where:
-    traceMapper << [new TraceMapperV0_5(), new TraceMapperV0_4()]
+    traceMapper << [new TraceMapperV0_5(), new TraceMapperV0_4(1024)]
   }
 
   def "should flush buffer on demand"() {
@@ -67,13 +69,13 @@ class PayloadDispatcherTest extends DDSpecification {
     1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.success(200)
 
     where:
-    traceMapper           | traceCount
-    new TraceMapperV0_4() | 1
-    new TraceMapperV0_4() | 10
-    new TraceMapperV0_4() | 100
-    new TraceMapperV0_5() | 1
-    new TraceMapperV0_5() | 10
-    new TraceMapperV0_5() | 100
+    traceMapper                          | traceCount
+    new TraceMapperV0_4(1024)            | 1
+    new TraceMapperV0_4(4 * 1024)        | 10
+    new TraceMapperV0_4(20 * 1024)       | 100
+    new TraceMapperV0_5(1024, 1024)      | 1
+    new TraceMapperV0_5(1024, 4096)      | 10
+    new TraceMapperV0_5(1024, 20 * 1024) | 100
   }
 
   def "should report failed request to monitor"() {
@@ -93,13 +95,13 @@ class PayloadDispatcherTest extends DDSpecification {
     1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.failed(400)
 
     where:
-    traceMapper           | traceCount
-    new TraceMapperV0_4() | 1
-    new TraceMapperV0_4() | 10
-    new TraceMapperV0_4() | 100
-    new TraceMapperV0_5() | 1
-    new TraceMapperV0_5() | 10
-    new TraceMapperV0_5() | 100
+    traceMapper                          | traceCount
+    new TraceMapperV0_4(1024)            | 1
+    new TraceMapperV0_4(4096)            | 10
+    new TraceMapperV0_4(20 * 1024)       | 100
+    new TraceMapperV0_5(1024, 1024)      | 1
+    new TraceMapperV0_5(1024, 4096)      | 10
+    new TraceMapperV0_5(1024, 20 * 1024) | 100
   }
 
   def "should drop trace when there is no agent connectivity"() {
@@ -113,6 +115,29 @@ class PayloadDispatcherTest extends DDSpecification {
     dispatcher.addTrace(trace)
     then:
     1 * healthMetrics.onFailedPublish(PrioritySampling.UNSET)
+  }
+
+  def "trace and span counts are reset after access"() {
+    setup:
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    DDAgentApi api = Mock(DDAgentApi) {
+      it.selectTraceMapper() >> new TraceMapperV0_4(0)
+    }
+    PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
+
+    when:
+    dispatcher.addTrace([])
+    dispatcher.onDroppedTrace(20)
+    dispatcher.onDroppedTrace(2)
+    Payload payload = dispatcher.newPayload(1, ByteBuffer.allocate(0))
+    then:
+    payload.droppedSpans() == 22
+    payload.droppedTraces() == 2
+    when:
+    Payload newPayload = dispatcher.newPayload(1, ByteBuffer.allocate(0))
+    then:
+    newPayload.droppedSpans() == 0
+    newPayload.droppedTraces() == 0
   }
 
 

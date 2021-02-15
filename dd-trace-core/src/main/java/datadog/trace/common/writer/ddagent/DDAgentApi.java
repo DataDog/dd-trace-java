@@ -35,6 +35,8 @@ public class DDAgentApi {
   private static final String DATADOG_CLIENT_COMPUTED_TOP_LEVEL =
       "Datadog-Client-Computed-Top-Level";
   private static final String X_DATADOG_TRACE_COUNT = "X-Datadog-Trace-Count";
+  private static final String DATADOG_DROPPED_TRACE_COUNT = "Datadog-Client-Dropped-P0-Traces";
+  private static final String DATADOG_DROPPED_SPAN_COUNT = "Datadog-Client-Dropped-P0-Spans";
   private static final String V3_ENDPOINT = "v0.3/traces";
   private static final String V4_ENDPOINT = "v0.4/traces";
   private static final String V5_ENDPOINT = "v0.5/traces";
@@ -143,6 +145,8 @@ public class DDAgentApi {
               .addHeader(DATADOG_CLIENT_COMPUTED_TOP_LEVEL, "true")
               .addHeader(DATADOG_CLIENT_COMPUTED_STATS, metricsReportingEnabled ? "true" : "")
               .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
+              .addHeader(DATADOG_DROPPED_TRACE_COUNT, Long.toString(payload.droppedTraces()))
+              .addHeader(DATADOG_DROPPED_SPAN_COUNT, Long.toString(payload.droppedSpans()))
               .put(payload.toRequest())
               .build();
       this.totalTraces += payload.traceCount();

@@ -59,11 +59,11 @@ class MultiWriterTest extends DDSpecification {
     0 * _
 
     when:
-    writer.incrementTraceCount()
+    writer.incrementDropCounts(0)
 
     then:
-    1 * mockW1.incrementTraceCount()
-    1 * mockW2.incrementTraceCount()
+    1 * mockW1.incrementDropCounts(0)
+    1 * mockW2.incrementDropCounts(0)
     0 * _
   }
 }

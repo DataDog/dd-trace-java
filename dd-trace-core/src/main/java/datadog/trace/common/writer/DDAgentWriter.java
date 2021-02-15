@@ -107,9 +107,21 @@ public class DDAgentWriter implements Writer {
       final HealthMetrics healthMetrics,
       final Monitoring monitoring,
       final TraceProcessingWorker traceProcessingWorker) {
+    this(
+        agentApi,
+        healthMetrics,
+        new PayloadDispatcher(agentApi, healthMetrics, monitoring),
+        traceProcessingWorker);
+  }
+
+  private DDAgentWriter(
+      DDAgentApi agentApi,
+      HealthMetrics healthMetrics,
+      PayloadDispatcher dispatcher,
+      TraceProcessingWorker traceProcessingWorker) {
     this.api = agentApi;
     this.healthMetrics = healthMetrics;
-    this.dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring);
+    this.dispatcher = dispatcher;
     this.traceProcessingWorker = traceProcessingWorker;
   }
 
@@ -145,12 +157,14 @@ public class DDAgentWriter implements Writer {
   private void handleDroppedTrace(final String reason, final List<DDSpan> trace) {
     log.debug("{}. Counted but dropping trace: {}", reason, trace);
     healthMetrics.onFailedPublish(UNSET);
+    incrementDropCounts(trace.size());
   }
 
   private void handleDroppedTrace(
       final String reason, final List<DDSpan> trace, final int samplingPriority) {
     log.debug("{}. Counted but dropping trace: {}", reason, trace);
     healthMetrics.onFailedPublish(samplingPriority);
+    incrementDropCounts(trace.size());
   }
 
   public boolean flush() {
@@ -186,5 +200,7 @@ public class DDAgentWriter implements Writer {
   }
 
   @Override
-  public void incrementTraceCount() {}
+  public void incrementDropCounts(int spanCount) {
+    dispatcher.onDroppedTrace(spanCount);
+  }
 }
