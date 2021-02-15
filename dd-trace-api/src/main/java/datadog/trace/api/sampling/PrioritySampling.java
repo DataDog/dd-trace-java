@@ -15,6 +15,8 @@ public class PrioritySampling {
   public static final byte USER_DROP = -1;
   /** The user has decided to keep the trace. */
   public static final byte USER_KEEP = 2;
+  /** This trace contains a rare span not seen within the metrics interval */
+  public static final byte METRICS_KEEP = 3;
 
   private PrioritySampling() {}
 }

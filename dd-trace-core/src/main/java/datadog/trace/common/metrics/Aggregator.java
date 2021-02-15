@@ -8,6 +8,7 @@ import datadog.trace.core.util.LRUCache;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -20,6 +21,7 @@ final class Aggregator implements Runnable {
   private final BlockingQueue<Batch> inbox;
   private final LRUCache<MetricKey, AggregateMetric> aggregates;
   private final ConcurrentHashMap<MetricKey, Batch> pending;
+  private final Set<MetricKey> newKeysInInterval;
   private final MetricWriter writer;
   // the reporting interval controls how much history will be buffered
   // when the agent is unresponsive (only 10 pending requests will be
@@ -33,12 +35,14 @@ final class Aggregator implements Runnable {
       Queue<Batch> batchPool,
       BlockingQueue<Batch> inbox,
       ConcurrentHashMap<MetricKey, Batch> pending,
+      Set<MetricKey> newKeysInInterval,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit) {
     this.writer = writer;
     this.batchPool = batchPool;
     this.inbox = inbox;
+    this.newKeysInInterval = newKeysInInterval;
     this.aggregates = new LRUCache<>(maxAggregates * 4 / 3, 0.75f, maxAggregates);
     this.pending = pending;
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);

@@ -12,8 +12,10 @@ import datadog.trace.api.WellKnownTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +32,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private final Queue<Batch> batchPool;
   private final ConcurrentHashMap<MetricKey, Batch> pending;
+  private final Set<MetricKey> newKeysInInterval;
   private final Thread thread;
   private final BlockingQueue<Batch> inbox;
   private final Sink sink;
@@ -82,10 +85,18 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.inbox = new MpscBlockingConsumerArrayQueue<>(queueSize);
     this.batchPool = new MpmcArrayQueue<>(maxAggregates);
     this.pending = new ConcurrentHashMap<>(maxAggregates * 4 / 3, 0.75f);
+    this.newKeysInInterval = Collections.newSetFromMap(new ConcurrentHashMap<MetricKey, Boolean>());
     this.sink = sink;
     this.aggregator =
         new Aggregator(
-            metricWriter, batchPool, inbox, pending, maxAggregates, reportingInterval, timeUnit);
+            metricWriter,
+            batchPool,
+            inbox,
+            pending,
+            newKeysInInterval,
+            maxAggregates,
+            reportingInterval,
+            timeUnit);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
@@ -113,17 +124,19 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   @Override
-  public void publish(List<? extends CoreSpan<?>> trace) {
+  public boolean publish(List<? extends CoreSpan<?>> trace) {
+    boolean forceKeep = false;
     if (enabled) {
       for (CoreSpan<?> span : trace) {
         if (span.isTopLevel() || span.isMeasured()) {
-          publish(span);
+          forceKeep |= publish(span);
         }
       }
     }
+    return forceKeep;
   }
 
-  private void publish(CoreSpan<?> span) {
+  private boolean publish(CoreSpan<?> span) {
     MetricKey key =
         new MetricKey(
             span.getResourceName(),
@@ -140,8 +153,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       // more data, or it has already been consumed
       if (batch.add(tag, durationNanos)) {
         // added to a pending batch prior to consumption
-        // so skip publishing to the queue
-        return;
+        // so skip publishing to the queue (we also know
+        // the key isn't rare enough to override the sampler)
+        return false;
       }
       // recycle the older key
       key = batch.getKey();
@@ -153,6 +167,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     pending.put(key, batch);
     // must offer to the queue after adding to pending
     inbox.offer(batch);
+    // enforce a soft bound on the size of the collection,
+    // which may lead to some false positive sampler overrides
+    // when metric cardinality is high
+    if (newKeysInInterval.size() > 10_000) {
+      newKeysInInterval.remove(newKeysInInterval.iterator().next());
+    }
+    // force keep keys we haven't seen before or errors
+    return newKeysInInterval.add(key) || span.getError() > 0;
   }
 
   private Batch newBatch(MetricKey key) {
