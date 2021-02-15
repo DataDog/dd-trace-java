@@ -89,7 +89,6 @@ class TraceAnnotationsTest extends AgentTestRunner {
           serviceName "testServiceName"
           resourceName "SayTracedHello.sayHelloWithServiceName"
           operationName "trace.annotation"
-          spanType "DB"
           parent()
           errored false
           tags {
