@@ -3,7 +3,7 @@ package datadog.trace.common.writer.ddagent;
 import static datadog.trace.common.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.common.sampling.PrioritySampling.USER_DROP;
 
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.CoreSpan;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
@@ -80,7 +80,7 @@ public enum Prioritization {
     }
 
     @Override
-    public boolean publish(final int priority, final List<DDSpan> trace) {
+    public <T extends CoreSpan<T>> boolean publish(T root, int priority, final List<T> trace) {
       switch (priority) {
         case SAMPLER_DROP:
         case USER_DROP:
@@ -102,7 +102,7 @@ public enum Prioritization {
     }
 
     @Override
-    public boolean publish(final int priority, final List<DDSpan> trace) {
+    public <T extends CoreSpan<T>> boolean publish(T root, int priority, List<T> trace) {
       switch (priority) {
         case SAMPLER_DROP:
         case USER_DROP:
@@ -124,7 +124,7 @@ public enum Prioritization {
     }
 
     @Override
-    public boolean publish(final int priority, final List<DDSpan> trace) {
+    public <T extends CoreSpan<T>> boolean publish(T root, int priority, final List<T> trace) {
       if (!primary.offer(trace)) {
         switch (priority) {
           case SAMPLER_DROP:
@@ -167,13 +167,17 @@ public enum Prioritization {
     }
 
     @Override
-    public boolean publish(final int priority, final List<DDSpan> trace) {
-      switch (priority) {
-        case SAMPLER_DROP:
-        case USER_DROP:
-          return false;
-        default:
-          return primary.offer(trace);
+    public <T extends CoreSpan<T>> boolean publish(T root, int priority, final List<T> trace) {
+      if (root.isForceKeep()) {
+        return primary.offer(trace);
+      } else {
+        switch (priority) {
+          case SAMPLER_DROP:
+          case USER_DROP:
+            return false;
+          default:
+            return primary.offer(trace);
+        }
       }
     }
   }

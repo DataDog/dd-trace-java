@@ -256,6 +256,11 @@ class TraceGenerator {
     }
 
     @Override
+    boolean isForceKeep() {
+      return false
+    }
+
+    @Override
     Map<String, Number> getUnsafeMetrics() {
       return metrics
     }

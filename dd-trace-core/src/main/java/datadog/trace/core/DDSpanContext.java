@@ -1,7 +1,5 @@
 package datadog.trace.core;
 
-import static datadog.trace.api.sampling.PrioritySampling.METRICS_KEEP;
-
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
@@ -249,28 +247,19 @@ public class DDSpanContext implements AgentSpan.Context {
         return rootSpan.context().setSamplingPriority(newPriority);
       }
     }
-
-    // rare traces identified by metrics tracking can override
-    // already propagated priorites, so that we at least capture
-    // the local trace chunk when we see rare spans
-    if (newPriority == METRICS_KEEP) {
-      this.samplingPriorityV1 = (byte) newPriority;
-      return true;
-    } else {
-      // sync with lockSamplingPriority
-      synchronized (this) {
-        if (samplingPriorityLocked) {
-          if (log.isDebugEnabled()) {
-            log.debug(
-                "samplingPriority locked at {}. Refusing to set to {}",
-                samplingPriorityV1,
-                newPriority);
-          }
-          return false;
-        } else {
-          this.samplingPriorityV1 = (byte) newPriority;
-          return true;
+    // sync with lockSamplingPriority
+    synchronized (this) {
+      if (samplingPriorityLocked) {
+        if (log.isDebugEnabled()) {
+          log.debug(
+              "samplingPriority locked at {}. Refusing to set to {}",
+              samplingPriorityV1,
+              newPriority);
         }
+        return false;
+      } else {
+        this.samplingPriorityV1 = (byte) newPriority;
+        return true;
       }
     }
   }

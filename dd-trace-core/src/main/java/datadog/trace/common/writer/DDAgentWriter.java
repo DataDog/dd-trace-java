@@ -143,7 +143,7 @@ public class DDAgentWriter implements Writer {
       } else {
         final DDSpan root = trace.get(0);
         final int samplingPriority = root.context().getSamplingPriority();
-        if (traceProcessingWorker.publish(samplingPriority, trace)) {
+        if (traceProcessingWorker.publish(root, samplingPriority, trace)) {
           healthMetrics.onPublish(trace, samplingPriority);
         } else {
           handleDroppedTrace("Trace written to overfilled buffer", trace, samplingPriority);

@@ -105,7 +105,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     writer.write(trace)
 
     then: "monitor is notified of successful publication"
-    1 * worker.publish(_, trace) >> true
+    1 * worker.publish(_, _, trace) >> true
     1 * monitor.onPublish(trace, _)
     0 * _
 
@@ -113,7 +113,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     writer.write(trace)
 
     then: "monitor is notified of unsuccessful publication"
-    1 * worker.publish(_, trace) >> false
+    1 * worker.publish(_, _, trace) >> false
     1 * monitor.onFailedPublish(_)
     0 * _
   }
@@ -157,7 +157,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     writer.write(trace)
 
     then:
-    1 * worker.publish(PrioritySampling.SAMPLER_DROP, trace) >> false
+    1 * worker.publish(trace[0], PrioritySampling.SAMPLER_DROP, trace) >> false
     1 * dispatcher.onDroppedTrace(trace.size())
   }
 

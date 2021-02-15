@@ -52,6 +52,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
    */
   private final AtomicLong durationNano = new AtomicLong();
 
+  private boolean forceKeep;
+
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
@@ -113,6 +115,16 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   public DDSpan setMeasured(boolean measured) {
     context.setMeasured(measured);
     return this;
+  }
+
+  public DDSpan forceKeep(boolean forceKeep) {
+    this.forceKeep = forceKeep;
+    return this;
+  }
+
+  @Override
+  public boolean isForceKeep() {
+    return forceKeep;
   }
 
   /**

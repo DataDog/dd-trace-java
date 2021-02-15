@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
-import static datadog.trace.api.sampling.PrioritySampling.METRICS_KEEP;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
@@ -441,18 +440,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
-      final DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
-      if (forceKeep) {
-        // the metrics aggregator has reported that the trace contains
-        // a rare measured span, so we keep it regardless of the
-        // previously propagated sampling decision
-        rootSpan.setSamplingPriority(METRICS_KEEP);
-      } else {
-        setSamplingPriorityIfNecessary(rootSpan);
-      }
+      DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
+      setSamplingPriorityIfNecessary(rootSpan);
 
-      final DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
-      if (sampler.sample(spanToSample)) {
+      DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
+      spanToSample.forceKeep(forceKeep);
+      if (forceKeep || sampler.sample(spanToSample)) {
         writer.write(writtenTrace);
       } else {
         // with span streaming this won't work - it needs to be changed

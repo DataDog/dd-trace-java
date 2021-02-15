@@ -3,6 +3,7 @@ package datadog.trace.common.writer
 import datadog.trace.common.writer.ddagent.FlushEvent
 import datadog.trace.common.writer.ddagent.Prioritization
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy
+import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.TimeUnit
@@ -24,7 +25,7 @@ class PrioritizationTest extends DDSpecification {
     PrioritizationStrategy blocking = ENSURE_TRACE.create(primary, secondary)
 
     when:
-    blocking.publish(priority, trace)
+    blocking.publish(Mock(DDSpan), priority, trace)
 
     then:
     primaryOffers * primary.offer(trace) >> !primaryFull >> true
@@ -51,7 +52,7 @@ class PrioritizationTest extends DDSpecification {
     PrioritizationStrategy fastLane = FAST_LANE.create(primary, secondary)
 
     when:
-    fastLane.publish(priority, trace)
+    fastLane.publish(Mock(DDSpan), priority, trace)
 
     then:
     primaryOffers * primary.offer(trace)
@@ -73,7 +74,7 @@ class PrioritizationTest extends DDSpecification {
     PrioritizationStrategy drop = DROP.create(primary, secondary)
 
     when:
-    boolean published = drop.publish(priority, trace)
+    boolean published = drop.publish(Mock(DDSpan), priority, trace)
 
     then:
     published == publish
@@ -111,7 +112,7 @@ class PrioritizationTest extends DDSpecification {
     PrioritizationStrategy fastLane = Prioritization.DEAD_LETTERS.create(primary, secondary)
 
     when:
-    fastLane.publish(priority, trace)
+    fastLane.publish(Mock(DDSpan), priority, trace)
 
     then:
     primaryOffers * primary.offer(trace) >> !primaryFull
@@ -141,5 +142,23 @@ class PrioritizationTest extends DDSpecification {
     then:
     1 * primary.offer({ it instanceof FlushEvent }) >> true
     1 * secondary.offer({ it instanceof FlushEvent }) >> true
+  }
+
+  def "drop strategy respects force keep" () {
+    setup:
+    Queue<Object> primary = Mock(Queue)
+    PrioritizationStrategy drop = DROP.create(primary, null)
+    DDSpan root = Mock(DDSpan)
+    List<DDSpan> trace = [root]
+
+    when:
+    drop.publish(root, SAMPLER_DROP, trace)
+    then:
+    1 * root.isForceKeep() >> forceKeep
+    (forceKeep ? 1 : 0) * primary.offer(trace) >> true
+    0 * _
+
+    where:
+    forceKeep << [true, false]
   }
 }

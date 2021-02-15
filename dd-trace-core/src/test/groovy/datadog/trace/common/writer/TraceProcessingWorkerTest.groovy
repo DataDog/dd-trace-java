@@ -129,7 +129,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     worker.start()
 
     when: "a trace is processed but can't be passed on"
-    worker.publish(priority, [Mock(DDSpan)])
+    worker.publish(Mock(DDSpan), priority, [Mock(DDSpan)])
 
     then: "the error is reported to the monitor"
     conditions.eventually {
@@ -159,7 +159,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     when: "traces are submitted"
     int submitted = 0
     for (int i = 0; i < traceCount; ++i) {
-      submitted += worker.publish(priority, [Mock(DDSpan)]) ? 1 : 0
+      submitted += worker.publish(Mock(DDSpan), priority, [Mock(DDSpan)]) ? 1 : 0
     }
 
     then: "traces are passed through unless rejected on submission"

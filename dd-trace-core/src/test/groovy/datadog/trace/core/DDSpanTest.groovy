@@ -269,32 +269,4 @@ class DDSpanTest extends DDCoreSpecification {
     ""                                    | true
     null                                  | true
   }
-
-  def "metrics keep priority overrides previously locked sampling priority"() {
-    setup:
-    DDSpanContext context =
-      new DDSpanContext(
-        DDId.from(1),
-        DDId.from(1),
-        DDId.ZERO,
-        "",
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        PrioritySampling.UNSET,
-        null,
-        Collections.<String, String> emptyMap(),
-        false,
-        "fakeType",
-        0,
-        tracer.pendingTraceFactory.create(DDId.ONE))
-    when: "setting a sampling priority"
-    context.setSamplingPriority(PrioritySampling.SAMPLER_DROP)
-    then: "locking succeeds"
-    context.lockSamplingPriority()
-    when: "overriding with METRICS_KEEP priority"
-    context.setSamplingPriority(PrioritySampling.METRICS_KEEP)
-    then: "sampling priority is overridden"
-    context.getSamplingPriority() == PrioritySampling.METRICS_KEEP
-  }
 }
