@@ -77,6 +77,30 @@ class TraceAnnotationsTest extends AgentTestRunner {
     }
   }
 
+  def "test simple case with only service name set"() {
+    setup:
+    // Test single span in new trace
+    SayTracedHello.sayHelloWithServiceName()
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName "testServiceName"
+          resourceName "SayTracedHello.sayHello"
+          operationName "trace.annotation"
+          spanType "DB"
+          parent()
+          errored false
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
   def "test simple case with both resource and operation name set"() {
     setup:
     // Test single span in new trace

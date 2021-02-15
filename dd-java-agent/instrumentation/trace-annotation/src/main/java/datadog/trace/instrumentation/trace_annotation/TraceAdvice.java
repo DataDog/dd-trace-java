@@ -28,6 +28,12 @@ public class TraceAdvice {
       resourceName = DECORATE.spanNameForMethod(method);
     }
     span.setResourceName(resourceName);
+
+    String serviceName = traceAnnotation == null ? null : traceAnnotation.serviceName();
+    if (serviceName != null && serviceName.length() > 0) {
+      span.setServiceName(serviceName);
+    }
+
     DECORATE.afterStart(span);
 
     final AgentScope scope = activateSpan(span);

@@ -16,4 +16,7 @@ public @interface Trace {
 
   /** The resource name. By default it uses the same value as the operation name */
   String resourceName() default "";
+
+  /** The service name. By default it will inherit the default service name */
+  String serviceName() default "";
 }

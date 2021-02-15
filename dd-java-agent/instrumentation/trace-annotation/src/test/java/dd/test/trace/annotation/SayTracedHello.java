@@ -34,6 +34,11 @@ public class SayTracedHello {
     return "HA EARTH!!";
   }
 
+  @Trace(serviceName = "testServiceName")
+  public static String sayHelloWithServiceName() {
+    return "hello!";
+  }
+
   @Trace(operationName = "NEW_TRACE")
   public static String sayHELLOsayHA() {
     activeSpan().setTag(DDTags.SERVICE_NAME, "test2");
