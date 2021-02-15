@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.BitSet;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * This class removes numbers and SQL literals from strings on a best-effort basis, producing UTF-8
@@ -15,6 +16,7 @@ import java.util.BitSet;
  * obfuscator, and the strings produced by this class must be passed through obfuscation in the
  * trace agent.
  */
+@Slf4j
 public final class SQLNormalizer {
 
   private static final long[] OBFUSCATE_SEQUENCES_STARTING_WITH = new long[4];
@@ -41,57 +43,65 @@ public final class SQLNormalizer {
 
   public static UTF8BytesString normalize(String sql) {
     byte[] utf8 = sql.getBytes(UTF_8);
-    BitSet splitters = findSplitterPositions(utf8);
-    // no splitters
-    if (null == splitters) {
-      return UTF8BytesString.create(sql, utf8);
-    }
-    int outputLength = utf8.length;
-    int end = outputLength - 1;
-    int start = splitters.previousSetBit(end - 1);
-    // strip out anything ending with a quote (covers string and hex literals)
-    // or anything starting with a number, a quote, a decimal point, or a sign
-    while (end > 0) {
-      if (start + 1 == end && utf8[end] != '\'') {
-        // avoid an unnecessary array copy for one digit numbers
-        if (utf8[end] >= '0' && utf8[end] <= '9') {
-          utf8[end] = (byte) '?';
-        }
-      } else {
-        int sequenceStart = start + 1;
-        boolean removeSequence = false;
-        // quote literals may span several splits
-        if (utf8[end] == '\'') {
-          while (sequenceStart > 0) {
-            // found the start of a string or hex literal
-            if (sequenceStart < end
-                && (utf8[sequenceStart] == '\''
-                    || (sequenceStart < end - 1
-                        && utf8[sequenceStart] != '\\'
-                        && utf8[sequenceStart + 1] == '\''))) {
-              removeSequence = true;
-              break;
+    try {
+      BitSet splitters = findSplitterPositions(utf8);
+      if (null != splitters) {
+        boolean modified = false;
+        int outputLength = utf8.length;
+        int end = outputLength - 1;
+        int start = splitters.previousSetBit(end - 1);
+        // strip out anything ending with a quote (covers string and hex literals)
+        // or anything starting with a number, a quote, a decimal point, or a sign
+        while (end > 0) {
+          if (start + 1 == end && utf8[end] != '\'') {
+            // avoid an unnecessary array copy for one digit numbers
+            if (utf8[end] >= '0' && utf8[end] <= '9') {
+              utf8[end] = (byte) '?';
+              modified = true;
             }
-            start = splitters.previousSetBit(start - 1);
-            sequenceStart = start + 1;
+          } else {
+            int sequenceStart = start + 1;
+            boolean removeSequence = false;
+            // quote literals may span several splits
+            if (utf8[end] == '\'') {
+              while (sequenceStart > 0) {
+                // found the start of a string or hex literal
+                if (sequenceStart < end
+                    && (utf8[sequenceStart] == '\''
+                        || (sequenceStart < end - 1
+                            && utf8[sequenceStart] != '\\'
+                            && utf8[sequenceStart + 1] == '\''))) {
+                  removeSequence = true;
+                  break;
+                }
+                start = splitters.previousSetBit(start - 1);
+                sequenceStart = start + 1;
+              }
+            } else if (sequenceStart < end
+                && (utf8[end] == ')' || shouldReplaceSequenceStartingWith(utf8[sequenceStart]))) {
+              removeSequence = true;
+            }
+            // found something to remove, shift the suffix of the string backwards
+            // and add the obfuscated character
+            if (removeSequence) {
+              int last = isNonWhitespaceSplitter(utf8[end]) ? end - 1 : end;
+              System.arraycopy(utf8, last, utf8, sequenceStart, outputLength - last);
+              utf8[sequenceStart] = (byte) '?';
+              outputLength -= (last - sequenceStart);
+              modified = true;
+            }
           }
-        } else if (sequenceStart < end
-            && (utf8[end] == ')' || shouldReplaceSequenceStartingWith(utf8[sequenceStart]))) {
-          removeSequence = true;
+          end = start - 1;
+          start = end > 0 ? splitters.previousSetBit(end) : -1;
         }
-        // found something to remove, shift the suffix of the string backwards
-        // and add the obfuscated character
-        if (removeSequence) {
-          int last = isNonWhitespaceSplitter(utf8[end]) ? end - 1 : end;
-          System.arraycopy(utf8, last, utf8, sequenceStart, outputLength - last);
-          utf8[sequenceStart] = (byte) '?';
-          outputLength -= (last - sequenceStart);
+        if (modified) {
+          return UTF8BytesString.create(Arrays.copyOf(utf8, outputLength));
         }
       }
-      end = start - 1;
-      start = end > 0 ? splitters.previousSetBit(end) : -1;
+    } catch (Throwable paranoid) {
+      log.debug("Error normalizing sql {}", sql, paranoid);
     }
-    return UTF8BytesString.create(Arrays.copyOf(utf8, outputLength));
+    return UTF8BytesString.create(sql, utf8);
   }
 
   private static BitSet findSplitterPositions(byte[] utf8) {
