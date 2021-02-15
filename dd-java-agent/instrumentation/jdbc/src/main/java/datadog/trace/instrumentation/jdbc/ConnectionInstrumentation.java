@@ -38,6 +38,8 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
     "com.mysql.jdbc.ConnectionImpl",
     "com.mysql.jdbc.JDBC4Connection",
     "com.mysql.cj.jdbc.ConnectionImpl",
+    // should cover Oracle
+    "oracle.jdbc.driver.OracleConnection",
     // should cover derby
     "org.apache.derby.impl.jdbc.EmbedConnection",
     "org.apache.hive.jdbc.HiveConnection",
@@ -74,8 +76,6 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
   private static final String[] ABSTRACT_TYPES = {
     // this should cover DB2
     "com.ibm.db2.jcc.DB2Connection",
-    // this should cover Oracle
-    "oracle.jdbc.OracleConnection",
     // this won't match any class unless the property is set
     Config.get().getJdbcConnectionClassName()
   };

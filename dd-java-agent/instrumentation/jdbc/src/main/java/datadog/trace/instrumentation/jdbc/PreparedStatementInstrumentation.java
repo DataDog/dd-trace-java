@@ -55,6 +55,8 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
     "com.mysql.jdbc.jdbc1.CallableStatement",
     "com.mysql.jdbc.jdbc2.CallableStatement",
     "com.mysql.cj.jdbc.CallableStatement",
+    "oracle.jdbc.driver.OracleCallableStatement",
+    "oracle.jdbc.driver.OraclePreparedStatement",
     // covers hsqldb
     "org.hsqldb.jdbc.JDBCPreparedStatement",
     "org.hsqldb.jdbc.jdbcPreparedStatement",
@@ -112,8 +114,6 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
   private static final String[] ABSTRACT_TYPES = {
     // should cover DB2
     "com.ibm.db2.jcc.DB2PreparedStatement",
-    // should cover Oracle
-    "oracle.jdbc.OraclePreparedStatement",
     // this won't match any classes unless set
     Config.get().getJdbcPreparedStatementClassName()
   };
