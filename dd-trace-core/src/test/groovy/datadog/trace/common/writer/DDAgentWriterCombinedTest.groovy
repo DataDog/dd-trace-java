@@ -253,6 +253,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     1 * healthMetrics.onFlush(_)
     1 * healthMetrics.onShutdown(_)
     1 * healthMetrics.close()
+    1 * discovery.close()
     0 * _
 
     cleanup:

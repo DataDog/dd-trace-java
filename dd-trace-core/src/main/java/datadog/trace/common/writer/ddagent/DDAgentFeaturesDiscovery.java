@@ -6,12 +6,15 @@ import com.squareup.moshi.Types;
 import datadog.trace.core.http.OkHttpUtils;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
+import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -19,7 +22,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 @Slf4j
-public class DDAgentFeaturesDiscovery implements DroppingPolicy {
+public class DDAgentFeaturesDiscovery implements DroppingPolicy, AutoCloseable {
 
   private static final JsonAdapter<Map<String, Object>> RESPONSE_ADAPTER =
       new Moshi.Builder()
@@ -31,6 +34,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public static final String V5_ENDPOINT = "v0.5/traces";
 
   private static final String V5_METRICS_ENDPOINT = "v0.5/stats";
+
+  private volatile AgentTaskScheduler.Scheduled<?> cancellation;
+  private final AtomicBoolean started = new AtomicBoolean(false);
 
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
@@ -54,6 +60,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
   }
 
+  public void start() {
+    if (started.compareAndSet(false, true)) {
+      cancellation =
+          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+              new Discover(), this, 1, 10, TimeUnit.SECONDS);
+    }
+  }
+
   public void discover() {
     // 1. try to fetch info about the agent, if the endpoint is there
     // 2. try to parse the response, if it can be parsed, finish
@@ -73,7 +87,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       if (fallback) {
         log.debug("Falling back to probing, client dropping will be disabled");
         this.metricsEndpoint = probeTracerMetricsEndpoint();
-        this.traceEndpoint = probeTracesEndpoint();
+        // don't want to rewire the traces pipeline
+        if (null == traceEndpoint) {
+          this.traceEndpoint = probeTracesEndpoint();
+        }
       }
     }
   }
@@ -186,5 +203,20 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   @Override
   public boolean active() {
     return supportsDropping;
+  }
+
+  @Override
+  public void close() {
+    if (null != cancellation) {
+      cancellation.cancel();
+    }
+  }
+
+  private static final class Discover implements AgentTaskScheduler.Task<DDAgentFeaturesDiscovery> {
+
+    @Override
+    public void run(DDAgentFeaturesDiscovery target) {
+      target.discover();
+    }
   }
 }

@@ -52,6 +52,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     then:
     1 * monitor.start()
     1 * worker.start()
+    1 * discovery.start()
     1 * worker.getCapacity() >> capacity
     1 * monitor.onStart(capacity)
     0 * _
@@ -144,11 +145,12 @@ class DDAgentWriterTest extends DDCoreSpecification {
 
   def "dropped trace is counted"() {
     setup:
+    def discovery = Mock(DDAgentFeaturesDiscovery)
     def api = Mock(DDAgentApi)
     def worker = Mock(TraceProcessingWorker)
     def monitor = Stub(HealthMetrics)
     def dispatcher = Mock(PayloadDispatcher)
-    def writer = new DDAgentWriter(api, monitor, dispatcher, worker)
+    def writer = new DDAgentWriter(discovery, api, monitor, dispatcher, worker)
     def p0 = newSpan()
     p0.setSamplingPriority(PrioritySampling.SAMPLER_DROP)
     def trace = [

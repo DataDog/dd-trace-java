@@ -47,6 +47,7 @@ public class DDAgentWriter implements Writer {
   private final DDAgentApi api;
   private final TraceProcessingWorker traceProcessingWorker;
   private final PayloadDispatcher dispatcher;
+  private final DDAgentFeaturesDiscovery discovery;
 
   private volatile boolean closed;
 
@@ -97,6 +98,7 @@ public class DDAgentWriter implements Writer {
     } else {
       this.api = agentApi;
     }
+    this.discovery = featureDiscovery;
     this.healthMetrics = healthMetrics;
     this.dispatcher = new PayloadDispatcher(featureDiscovery, api, healthMetrics, monitoring);
     this.traceProcessingWorker =
@@ -118,16 +120,19 @@ public class DDAgentWriter implements Writer {
       Monitoring monitoring,
       TraceProcessingWorker worker) {
     this.api = api;
+    this.discovery = discovery;
     this.healthMetrics = healthMetrics;
     this.traceProcessingWorker = worker;
     this.dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring);
   }
 
   private DDAgentWriter(
+      DDAgentFeaturesDiscovery discovery,
       DDAgentApi api,
       HealthMetrics healthMetrics,
       PayloadDispatcher dispatcher,
       TraceProcessingWorker worker) {
+    this.discovery = discovery;
     this.api = api;
     this.healthMetrics = healthMetrics;
     this.traceProcessingWorker = worker;
@@ -193,6 +198,7 @@ public class DDAgentWriter implements Writer {
   @Override
   public void start() {
     if (!closed) {
+      discovery.start();
       traceProcessingWorker.start();
       healthMetrics.start();
       healthMetrics.onStart((int) getCapacity());
@@ -201,6 +207,7 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void close() {
+    discovery.close();
     final boolean flushed = flush();
     closed = true;
     traceProcessingWorker.close();
