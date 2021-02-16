@@ -2,9 +2,12 @@ package datadog.trace.common.writer.ddagent
 
 import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.core.CoreSpan
+import datadog.trace.core.http.OkHttpUtils
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.test.util.DDSpecification
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
 import spock.lang.Requires
 import spock.lang.Shared
 
@@ -16,16 +19,25 @@ import static datadog.trace.common.writer.ddagent.TraceGenerator.generateRandomT
 class TraceMapperRealAgentTest extends DDSpecification {
 
   @Shared
+  HttpUrl agentUrl = HttpUrl.get("http://localhost:8126")
+  @Shared
+  OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 30_000)
+
+  @Shared
   Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
   @Shared
-  DDAgentApi v05Api = new DDAgentApi("http://localhost:8126", null, 30_000, true, false, monitoring)
+  DDAgentFeaturesDiscovery v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
   @Shared
-  DDAgentApi v04Api = new DDAgentApi("http://localhost:8126", null, 30_000, false, false, monitoring)
+  DDAgentFeaturesDiscovery v04Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false)
+  @Shared
+  DDAgentApi v05Api = new DDAgentApi(client, agentUrl, v05Discovery, monitoring, false)
+  @Shared
+  DDAgentApi v04Api = new DDAgentApi(client, agentUrl, v04Discovery, monitoring, false)
 
   def "send random traces"() {
     setup:
     HealthMetrics healthMetrics = Mock(HealthMetrics)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(v05 ? v05Api : v04Api, healthMetrics, monitoring)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(v05 ? v05Discovery : v04Discovery, v05 ? v05Api : v04Api, healthMetrics, monitoring)
     List<List<CoreSpan>> traces = generateRandomTraces(traceCount, lowCardinality)
     when:
     for (List<CoreSpan> trace : traces) {

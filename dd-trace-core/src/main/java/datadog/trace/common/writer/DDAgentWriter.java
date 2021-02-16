@@ -6,10 +6,12 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
+import static datadog.trace.core.http.OkHttpUtils.buildHttpClient;
 
 import com.timgroup.statsd.NoOpStatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
+import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.PayloadDispatcher;
 import datadog.trace.common.writer.ddagent.Prioritization;
@@ -20,6 +22,8 @@ import datadog.trace.core.monitor.Monitoring;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
 
 /**
  * This writer buffers traces and sends them to the provided DDApi instance. Buffering is done with
@@ -76,21 +80,25 @@ public class DDAgentWriter implements Writer {
       final Prioritization prioritization,
       final Monitoring monitoring,
       final boolean traceAgentV05Enabled,
-      final boolean metricsReportingEnabled) {
-    if (agentApi != null) {
-      api = agentApi;
+      boolean metricsReportingEnabled,
+      DDAgentFeaturesDiscovery featureDiscovery) {
+    HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
+    OkHttpClient client =
+        null == featureDiscovery || null == agentApi
+            ? buildHttpClient(agentUrl, unixDomainSocket, timeoutMillis)
+            : null;
+    if (null == featureDiscovery) {
+      featureDiscovery =
+          new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, traceAgentV05Enabled);
+    }
+    if (null == agentApi) {
+      this.api =
+          new DDAgentApi(client, agentUrl, featureDiscovery, monitoring, metricsReportingEnabled);
     } else {
-      api =
-          new DDAgentApi(
-              String.format("http://%s:%d", agentHost, traceAgentPort),
-              unixDomainSocket,
-              timeoutMillis,
-              traceAgentV05Enabled,
-              metricsReportingEnabled,
-              monitoring);
+      this.api = agentApi;
     }
     this.healthMetrics = healthMetrics;
-    this.dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring);
+    this.dispatcher = new PayloadDispatcher(featureDiscovery, api, healthMetrics, monitoring);
     this.traceProcessingWorker =
         new TraceProcessingWorker(
             traceBufferSize,
@@ -103,26 +111,26 @@ public class DDAgentWriter implements Writer {
   }
 
   private DDAgentWriter(
-      final DDAgentApi agentApi,
-      final HealthMetrics healthMetrics,
-      final Monitoring monitoring,
-      final TraceProcessingWorker traceProcessingWorker) {
-    this(
-        agentApi,
-        healthMetrics,
-        new PayloadDispatcher(agentApi, healthMetrics, monitoring),
-        traceProcessingWorker);
+      DDAgentFeaturesDiscovery discovery,
+      DDAgentApi api,
+      HealthMetrics healthMetrics,
+      Monitoring monitoring,
+      TraceProcessingWorker worker) {
+    this.api = api;
+    this.healthMetrics = healthMetrics;
+    this.traceProcessingWorker = worker;
+    this.dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring);
   }
 
   private DDAgentWriter(
-      DDAgentApi agentApi,
+      DDAgentApi api,
       HealthMetrics healthMetrics,
       PayloadDispatcher dispatcher,
-      TraceProcessingWorker traceProcessingWorker) {
-    this.api = agentApi;
+      TraceProcessingWorker worker) {
+    this.api = api;
     this.healthMetrics = healthMetrics;
+    this.traceProcessingWorker = worker;
     this.dispatcher = dispatcher;
-    this.traceProcessingWorker = traceProcessingWorker;
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {

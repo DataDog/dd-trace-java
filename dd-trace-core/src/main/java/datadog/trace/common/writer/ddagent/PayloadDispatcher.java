@@ -18,6 +18,7 @@ import org.jctools.counters.FixedSizeStripedLongCounter;
 public class PayloadDispatcher implements ByteBufferConsumer {
 
   private final DDAgentApi api;
+  private final DDAgentFeaturesDiscovery featuresDiscovery;
   private final HealthMetrics healthMetrics;
   private final Monitoring monitoring;
 
@@ -30,7 +31,12 @@ public class PayloadDispatcher implements ByteBufferConsumer {
   private final FixedSizeStripedLongCounter droppedTraceCount =
       CountersFactory.createFixedSizeStripedCounter(8);
 
-  public PayloadDispatcher(DDAgentApi api, HealthMetrics healthMetrics, Monitoring monitoring) {
+  public PayloadDispatcher(
+      DDAgentFeaturesDiscovery featuresDiscovery,
+      DDAgentApi api,
+      HealthMetrics healthMetrics,
+      Monitoring monitoring) {
+    this.featuresDiscovery = featuresDiscovery;
     this.api = api;
     this.healthMetrics = healthMetrics;
     this.monitoring = monitoring;
@@ -62,7 +68,13 @@ public class PayloadDispatcher implements ByteBufferConsumer {
 
   private void selectTraceMapper() {
     if (null == traceMapper) {
-      this.traceMapper = api.selectTraceMapper();
+      featuresDiscovery.discover();
+      String tracesUrl = featuresDiscovery.getTraceEndpoint();
+      if (DDAgentFeaturesDiscovery.V5_ENDPOINT.equalsIgnoreCase(tracesUrl)) {
+        this.traceMapper = new TraceMapperV0_5();
+      } else if (null != tracesUrl) {
+        this.traceMapper = new TraceMapperV0_4();
+      }
       if (null != traceMapper && null == packer) {
         this.batchTimer =
             monitoring.newTimer(

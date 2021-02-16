@@ -4,6 +4,7 @@ import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker
 import datadog.trace.core.CoreTracer
@@ -19,13 +20,14 @@ import java.util.concurrent.TimeUnit
 
 class DDAgentWriterTest extends DDCoreSpecification {
 
+  def discovery = Mock(DDAgentFeaturesDiscovery)
   def api = Mock(DDAgentApi)
   def monitor = Mock(HealthMetrics)
   def worker = Mock(TraceProcessingWorker)
   def monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
 
   @Subject
-  def writer = new DDAgentWriter(api, monitor, monitoring, worker)
+  def writer = new DDAgentWriter(discovery, api, monitor, monitoring, worker)
 
   // Only used to create spans
   def dummyTracer = tracerBuilder().writer(new ListWriter()).build()

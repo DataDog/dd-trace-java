@@ -3,7 +3,12 @@ package datadog.trace.common.writer.ddagent;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.trace.core.http.OkHttpUtils;
+import datadog.trace.core.monitor.Monitoring;
+import datadog.trace.core.monitor.Recording;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -21,14 +26,15 @@ public class DDAgentFeaturesDiscovery {
           .build()
           .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
-  private static final String V3_ENDPOINT = "v0.3/traces";
-  private static final String V4_ENDPOINT = "v0.4/traces";
-  private static final String V5_ENDPOINT = "v0.5/traces";
+  public static final String V3_ENDPOINT = "v0.3/traces";
+  public static final String V4_ENDPOINT = "v0.4/traces";
+  public static final String V5_ENDPOINT = "v0.5/traces";
 
   private static final String V5_METRICS_ENDPOINT = "v0.5/stats";
 
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
+  private final Recording discoveryTimer;
 
   private volatile String traceEndpoint;
   private volatile String metricsEndpoint;
@@ -37,34 +43,38 @@ public class DDAgentFeaturesDiscovery {
   private final String[] traceEndpoints;
   private final String[] metricsEndpoints = {V5_METRICS_ENDPOINT};
 
-  public DDAgentFeaturesDiscovery(OkHttpClient client, String agentUrl, boolean enableV05Traces) {
+  public DDAgentFeaturesDiscovery(
+      OkHttpClient client, Monitoring monitoring, HttpUrl agentUrl, boolean enableV05Traces) {
     this.client = client;
-    this.agentBaseUrl = HttpUrl.get(agentUrl);
+    this.agentBaseUrl = agentUrl;
     this.traceEndpoints =
         enableV05Traces
             ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
             : new String[] {V4_ENDPOINT, V3_ENDPOINT};
+    this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
   }
 
   public void discover() {
     // 1. try to fetch info about the agent, if the endpoint is there
     // 2. try to parse the response, if it can be parsed, finish
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
-    boolean fallback = true;
-    try (Response response =
-        client
-            .newCall(new Request.Builder().url(agentBaseUrl.resolve("info").url()).build())
-            .execute()) {
-      if (response.isSuccessful()) {
-        fallback = !processInfoResponse(response.body().string());
+    try (Recording recording = discoveryTimer.start()) {
+      boolean fallback = true;
+      try (Response response =
+          client
+              .newCall(new Request.Builder().url(agentBaseUrl.resolve("info").url()).build())
+              .execute()) {
+        if (response.isSuccessful()) {
+          fallback = !processInfoResponse(response.body().string());
+        }
+      } catch (Throwable error) {
+        errorQueryingEndpoint("info", error);
       }
-    } catch (Throwable error) {
-      errorQueryingEndpoint("info", error);
-    }
-    if (fallback) {
-      log.debug("Falling back to probing, client dropping will be disabled");
-      this.metricsEndpoint = probeTracerMetricsEndpoint();
-      this.traceEndpoint = probeTracesEndpoint();
+      if (fallback) {
+        log.debug("Falling back to probing, client dropping will be disabled");
+        this.metricsEndpoint = probeTracerMetricsEndpoint();
+        this.traceEndpoint = probeTracesEndpoint();
+      }
     }
   }
 
@@ -72,7 +82,11 @@ public class DDAgentFeaturesDiscovery {
     String candidate = "v0.5/stats";
     try (Response response =
         client
-            .newCall(new Request.Builder().url(agentBaseUrl.resolve(candidate).url()).build())
+            .newCall(
+                new Request.Builder()
+                    .put(OkHttpUtils.msgpackRequestBodyOf(Collections.<ByteBuffer>emptyList()))
+                    .url(agentBaseUrl.resolve(candidate).url())
+                    .build())
             .execute()) {
       if (response.code() != 404) {
         return candidate;
@@ -88,7 +102,11 @@ public class DDAgentFeaturesDiscovery {
     for (String candidate : traceEndpoints) {
       try (Response response =
           client
-              .newCall(new Request.Builder().url(agentBaseUrl.resolve(candidate).url()).build())
+              .newCall(
+                  new Request.Builder()
+                      .put(OkHttpUtils.msgpackRequestBodyOf(Collections.<ByteBuffer>emptyList()))
+                      .url(agentBaseUrl.resolve(candidate))
+                      .build())
               .execute()) {
         if (response.code() != 404) {
           return candidate;
@@ -143,6 +161,10 @@ public class DDAgentFeaturesDiscovery {
       log.debug("Error parsing trace agent /info response", error);
     }
     return false;
+  }
+
+  public boolean supportsMetrics() {
+    return null != metricsEndpoint;
   }
 
   public boolean supportsDropping() {

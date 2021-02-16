@@ -1,19 +1,29 @@
 package datadog.trace.common.writer.ddagent
 
-
+import com.timgroup.statsd.NoOpStatsDClient
+import datadog.trace.core.monitor.Monitoring
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Call
+import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody
+import spock.lang.Shared
 
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
 
 class DDAgentFeaturesDiscoveryTest extends DDSpecification {
+
+  @Shared
+  Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
+
+  @Shared
+  HttpUrl agentUrl = HttpUrl.get("http://localhost:8125")
 
   static final String INFO_RESPONSE = loadJsonFile("agent-info.json")
   static final String INFO_WITH_CLIENT_DROPPING_RESPONSE = loadJsonFile("agent-info-with-client-dropping.json")
@@ -21,7 +31,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, "http://localhost:8125", true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring,agentUrl, true)
 
     when: "/info available"
     features.discover()
@@ -29,6 +39,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
     features.getMetricsEndpoint() == "v0.5/stats"
+    features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
   }
@@ -36,7 +47,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response with client dropping"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, "http://localhost:8125", true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
 
     when: "/info available"
     features.discover()
@@ -44,6 +55,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
     features.getMetricsEndpoint() == "v0.5/stats"
+    features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     features.supportsDropping()
   }
@@ -51,7 +63,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info not found" () {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, "http://localhost:8125", true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
 
     when: "/info unavailable"
     features.discover()
@@ -61,6 +73,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> clientError(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> clientError(request) }
     features.getMetricsEndpoint() == "v0.5/stats"
+    features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
   }
@@ -68,7 +81,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info not found and agent returns ok" () {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, "http://localhost:8125", true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
 
     when: "/info unavailable"
     features.discover()
@@ -78,6 +91,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> success(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
     features.getMetricsEndpoint() == "v0.5/stats"
+    features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
   }
@@ -85,7 +99,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info not found and v0.5 disabled" () {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, "http://localhost:8125", false)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false)
 
     when: "/info unavailable"
     features.discover()
@@ -95,6 +109,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> clientError(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> clientError(request) }
     features.getMetricsEndpoint() == "v0.5/stats"
+    features.supportsMetrics()
     features.getTraceEndpoint() == "v0.4/traces"
     !features.supportsDropping()
   }
@@ -102,7 +117,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info not found and v0.5 unavailable agent side" () {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, "http://localhost:8125", true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
 
     when: "/info unavailable"
     features.discover()
@@ -113,6 +128,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> notFound(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> clientError(request) }
     features.getMetricsEndpoint() == "v0.5/stats"
+    features.supportsMetrics()
     features.getTraceEndpoint() == "v0.4/traces"
     !features.supportsDropping()
   }
@@ -120,7 +136,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback on old agent" () {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, "http://localhost:8125", true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring,agentUrl, true)
 
     when: "/info unavailable"
     features.discover()
@@ -131,6 +147,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> notFound(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> clientError(request) }
     features.getMetricsEndpoint() == null
+    !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.4/traces"
     !features.supportsDropping()
   }
@@ -138,7 +155,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback on very old agent" () {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, "http://localhost:8125", true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring,agentUrl, true)
 
     when: "/info unavailable"
     features.discover()
@@ -150,6 +167,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> notFound(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.3/traces" }) >> { Request request -> clientError(request) }
     features.getMetricsEndpoint() == null
+    !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.3/traces"
     !features.supportsDropping()
   }
