@@ -15,7 +15,10 @@ import spock.lang.Shared
 
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+
+import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
@@ -31,7 +34,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring,agentUrl, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
 
     when: "/info available"
     features.discover()
@@ -60,7 +63,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.supportsDropping()
   }
 
-  def "test fallback when /info not found" () {
+  def "test fallback when /info not found"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
     DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
@@ -78,7 +81,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsDropping()
   }
 
-  def "test fallback when /info not found and agent returns ok" () {
+  def "test fallback when /info not found and agent returns ok"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
     DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
@@ -96,7 +99,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsDropping()
   }
 
-  def "test fallback when /info not found and v0.5 disabled" () {
+  def "test fallback when /info not found and v0.5 disabled"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
     DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false)
@@ -114,7 +117,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsDropping()
   }
 
-  def "test fallback when /info not found and v0.5 unavailable agent side" () {
+  def "test fallback when /info not found and v0.5 unavailable agent side"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
     DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
@@ -133,10 +136,10 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsDropping()
   }
 
-  def "test fallback on old agent" () {
+  def "test fallback on old agent"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring,agentUrl, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
 
     when: "/info unavailable"
     features.discover()
@@ -152,10 +155,10 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsDropping()
   }
 
-  def "test fallback on very old agent" () {
+  def "test fallback on very old agent"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring,agentUrl, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
 
     when: "/info unavailable"
     features.discover()
@@ -172,6 +175,90 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsDropping()
   }
 
+  def "started features discovery polls the info endpoint"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, 100, MILLISECONDS)
+    CountDownLatch latch = new CountDownLatch(2)
+
+    when:
+    features.start()
+    latch.await()
+    features.close()
+
+    then:
+    2 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> countingInfoResponse(request, INFO_RESPONSE, latch) }
+    !features.supportsDropping()
+
+    cleanup:
+    features.close()
+  }
+
+  def "agent config change detected by started features discovery"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, 100, MILLISECONDS)
+    CountDownLatch latch = new CountDownLatch(2)
+
+    when:
+    features.start()
+    latch.await()
+
+    then:
+    (2.._) * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> countingInfoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE, latch) }
+    features.supportsDropping()
+
+    when:
+    latch = new CountDownLatch(2)
+    latch.await()
+    features.close()
+
+    then: "after config change dropping disabled"
+    2 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> countingInfoResponse(request, INFO_RESPONSE, latch) }
+    !features.supportsDropping()
+
+    cleanup:
+    features.close()
+  }
+
+  def "agent downgrade detected by started features discovery"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, 100, MILLISECONDS)
+    CountDownLatch latch = new CountDownLatch(2)
+
+    when:
+    features.start()
+    latch.await()
+
+    then:
+    (2.._) * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> countingInfoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE, latch) }
+    features.supportsDropping()
+
+    when:
+    latch = new CountDownLatch(2)
+    latch.await()
+    features.close()
+
+    then: "metrics and dropping disabled after downgrade detected"
+    (1.._) * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
+    2 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> countingNotFound(request, latch) }
+    !features.supportsDropping()
+    !features.supportsMetrics()
+
+    cleanup:
+    features.close()
+  }
+
+  def countingNotFound(Request request, CountDownLatch latch) {
+    latch.countDown()
+    return notFound(request)
+  }
+
+  def countingInfoResponse(Request request, String json, CountDownLatch latch) {
+    latch.countDown()
+    return infoResponse(request, json)
+  }
 
   def infoResponse(Request request, String json) {
     return Mock(Call) {

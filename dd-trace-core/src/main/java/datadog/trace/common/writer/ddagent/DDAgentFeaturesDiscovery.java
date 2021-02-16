@@ -1,5 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -48,9 +50,16 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy, AutoCloseable {
 
   private final String[] traceEndpoints;
   private final String[] metricsEndpoints = {V5_METRICS_ENDPOINT};
+  private final long interval;
+  private final TimeUnit timeUnit;
 
   public DDAgentFeaturesDiscovery(
-      OkHttpClient client, Monitoring monitoring, HttpUrl agentUrl, boolean enableV05Traces) {
+      OkHttpClient client,
+      Monitoring monitoring,
+      HttpUrl agentUrl,
+      boolean enableV05Traces,
+      long interval,
+      TimeUnit timeUnit) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
     this.traceEndpoints =
@@ -58,13 +67,20 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy, AutoCloseable {
             ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
             : new String[] {V4_ENDPOINT, V3_ENDPOINT};
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
+    this.interval = interval;
+    this.timeUnit = timeUnit;
+  }
+
+  public DDAgentFeaturesDiscovery(
+      OkHttpClient client, Monitoring monitoring, HttpUrl agentUrl, boolean enableV05Traces) {
+    this(client, monitoring, agentUrl, enableV05Traces, 30, SECONDS);
   }
 
   public void start() {
     if (started.compareAndSet(false, true)) {
       cancellation =
           AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-              new Discover(), this, 1, 10, TimeUnit.SECONDS);
+              new Discover(), this, interval, interval, timeUnit);
     }
   }
 
@@ -85,6 +101,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy, AutoCloseable {
         errorQueryingEndpoint("info", error);
       }
       if (fallback) {
+        this.supportsDropping = false;
         log.debug("Falling back to probing, client dropping will be disabled");
         this.metricsEndpoint = probeTracerMetricsEndpoint();
         // don't want to rewire the traces pipeline
