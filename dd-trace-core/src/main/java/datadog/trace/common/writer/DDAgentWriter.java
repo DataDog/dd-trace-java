@@ -105,6 +105,7 @@ public class DDAgentWriter implements Writer {
             healthMetrics,
             monitoring,
             dispatcher,
+            featureDiscovery,
             null == prioritization ? FAST_LANE : prioritization,
             flushFrequencySeconds,
             TimeUnit.SECONDS);

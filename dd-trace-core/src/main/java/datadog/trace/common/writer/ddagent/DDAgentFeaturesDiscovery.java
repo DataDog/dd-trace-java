@@ -19,7 +19,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 @Slf4j
-public class DDAgentFeaturesDiscovery {
+public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   private static final JsonAdapter<Map<String, Object>> RESPONSE_ADAPTER =
       new Moshi.Builder()
@@ -181,5 +181,10 @@ public class DDAgentFeaturesDiscovery {
 
   private void errorQueryingEndpoint(String endpoint, Throwable t) {
     log.debug("Error querying {} at {}", endpoint, agentBaseUrl, t);
+  }
+
+  @Override
+  public boolean active() {
+    return supportsDropping;
   }
 }

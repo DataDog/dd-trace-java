@@ -39,13 +39,15 @@ public class TraceProcessingWorker implements AutoCloseable {
       final HealthMetrics healthMetrics,
       final Monitoring monitoring,
       final PayloadDispatcher dispatcher,
+      final DroppingPolicy droppingPolicy,
       final Prioritization prioritization,
       final long flushInterval,
       final TimeUnit timeUnit) {
     this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
-    this.prioritizationStrategy = prioritization.create(primaryQueue, secondaryQueue);
+    this.prioritizationStrategy =
+        prioritization.create(primaryQueue, secondaryQueue, droppingPolicy);
     this.serializingHandler =
         new TraceSerializingHandler(
             primaryQueue,

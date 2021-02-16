@@ -98,8 +98,14 @@ public class DDAgentApi {
                   DATADOG_CLIENT_COMPUTED_STATS,
                   metricsEnabled && featuresDiscovery.supportsMetrics() ? "true" : "")
               .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
-              .addHeader(DATADOG_DROPPED_TRACE_COUNT, featuresDiscovery.supportsDropping() ? Long.toString(payload.droppedTraces()) : "")
-              .addHeader(DATADOG_DROPPED_SPAN_COUNT, featuresDiscovery.supportsDropping() ? Long.toString(payload.droppedSpans()) : "")
+              .addHeader(
+                  DATADOG_DROPPED_TRACE_COUNT,
+                  featuresDiscovery.supportsDropping()
+                      ? Long.toString(payload.droppedTraces())
+                      : "")
+              .addHeader(
+                  DATADOG_DROPPED_SPAN_COUNT,
+                  featuresDiscovery.supportsDropping() ? Long.toString(payload.droppedSpans()) : "")
               .put(payload.toRequest())
               .build();
       this.totalTraces += payload.traceCount();

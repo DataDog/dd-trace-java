@@ -13,32 +13,20 @@ public enum Prioritization {
   ENSURE_TRACE {
     @Override
     public PrioritizationStrategy create(
-        final Queue<Object> primary, final Queue<Object> secondary) {
+        final Queue<Object> primary, final Queue<Object> secondary, DroppingPolicy neverUsed) {
       return new EnsureTraceStrategy(primary, secondary);
     }
   },
   FAST_LANE {
     @Override
     public PrioritizationStrategy create(
-        final Queue<Object> primary, final Queue<Object> secondary) {
-      return new FastLaneStrategy(primary, secondary);
-    }
-  },
-  DEAD_LETTERS {
-    @Override
-    public PrioritizationStrategy create(
-        final Queue<Object> primary, final Queue<Object> secondary) {
-      return new DeadLettersStrategy(primary, secondary);
-    }
-  },
-  DROP {
-    @Override
-    public PrioritizationStrategy create(Queue<Object> primary, Queue<Object> secondary) {
-      return new DropStrategy(primary);
+        final Queue<Object> primary, final Queue<Object> secondary, DroppingPolicy droppingPolicy) {
+      return new FastLaneStrategy(primary, secondary, droppingPolicy);
     }
   };
 
-  public abstract PrioritizationStrategy create(Queue<Object> primary, Queue<Object> secondary);
+  public abstract PrioritizationStrategy create(
+      Queue<Object> primary, Queue<Object> secondary, DroppingPolicy droppingPolicy);
 
   private abstract static class PrioritizationStrategyWithFlush implements PrioritizationStrategy {
 
@@ -95,89 +83,26 @@ public enum Prioritization {
   private static final class FastLaneStrategy extends PrioritizationStrategyWithFlush {
 
     private final Queue<Object> secondary;
+    private final DroppingPolicy droppingPolicy;
 
-    private FastLaneStrategy(final Queue<Object> primary, final Queue<Object> secondary) {
+    private FastLaneStrategy(
+        final Queue<Object> primary, final Queue<Object> secondary, DroppingPolicy droppingPolicy) {
       super(primary);
       this.secondary = secondary;
+      this.droppingPolicy = droppingPolicy;
     }
 
     @Override
     public <T extends CoreSpan<T>> boolean publish(T root, int priority, List<T> trace) {
+      if (root.isForceKeep()) {
+        return primary.offer(trace);
+      }
       switch (priority) {
         case SAMPLER_DROP:
         case USER_DROP:
-          return secondary.offer(trace);
+          return !droppingPolicy.active() && secondary.offer(trace);
         default:
           return primary.offer(trace);
-      }
-    }
-  }
-
-  private static final class DeadLettersStrategy implements PrioritizationStrategy {
-
-    private final Queue<Object> primary;
-    private final Queue<Object> secondary;
-
-    private DeadLettersStrategy(final Queue<Object> primary, final Queue<Object> secondary) {
-      this.primary = primary;
-      this.secondary = secondary;
-    }
-
-    @Override
-    public <T extends CoreSpan<T>> boolean publish(T root, int priority, final List<T> trace) {
-      if (!primary.offer(trace)) {
-        switch (priority) {
-          case SAMPLER_DROP:
-          case USER_DROP:
-            return false;
-          default:
-            return secondary.offer(trace);
-        }
-      }
-      return true;
-    }
-
-    @Override
-    public boolean flush(final long timeout, final TimeUnit timeUnit) {
-      // both queues need to be flushed
-      final CountDownLatch latch = new CountDownLatch(2);
-      final FlushEvent event = new FlushEvent(latch);
-      offer(primary, event);
-      offer(secondary, event);
-      try {
-        return latch.await(timeout, timeUnit);
-      } catch (final InterruptedException e) {
-        Thread.currentThread().interrupt();
-        return false;
-      }
-    }
-
-    private void offer(final Queue<Object> queue, final FlushEvent event) {
-      boolean offered;
-      do {
-        offered = queue.offer(event);
-      } while (!offered);
-    }
-  }
-
-  private static final class DropStrategy extends PrioritizationStrategyWithFlush {
-
-    private DropStrategy(final Queue<Object> primary) {
-      super(primary);
-    }
-
-    @Override
-    public <T extends CoreSpan<T>> boolean publish(T root, int priority, final List<T> trace) {
-      if (root.isForceKeep()) {
-        return primary.offer(trace);
-      } else {
-        switch (priority) {
-          case SAMPLER_DROP:
-          case USER_DROP:
-            return false;
-          default:
-            return primary.offer(trace);
-        }
       }
     }
   }

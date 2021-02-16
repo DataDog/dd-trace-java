@@ -18,7 +18,6 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
-import static datadog.trace.common.writer.ddagent.Prioritization.DEAD_LETTERS
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE
 
 class TraceProcessingWorkerTest extends DDSpecification {
@@ -42,6 +41,9 @@ class TraceProcessingWorkerTest extends DDSpecification {
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(HealthMetrics),
       monitoring,
       flushCountingPayloadDispatcher(flushCount),
+      {
+        false
+      },
       FAST_LANE,
       1,
       TimeUnit.NANOSECONDS) // stop heartbeats from being throttled
@@ -64,6 +66,9 @@ class TraceProcessingWorkerTest extends DDSpecification {
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(HealthMetrics),
       monitoring,
       flushCountingPayloadDispatcher(flushCount),
+      {
+        false
+      },
       FAST_LANE,
       1,
       TimeUnit.NANOSECONDS) // stop heartbeats from being throttled
@@ -87,6 +92,9 @@ class TraceProcessingWorkerTest extends DDSpecification {
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(HealthMetrics),
       monitoring,
       flushCountingPayloadDispatcher(flushCount),
+      {
+        false
+      },
       FAST_LANE,
       100, TimeUnit.SECONDS) // prevent heartbeats from helping the flush happen
 
@@ -124,7 +132,9 @@ class TraceProcessingWorkerTest extends DDSpecification {
       errorReported.incrementAndGet()
     }
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
-      monitoring, throwingDispatcher, FAST_LANE,
+      monitoring, throwingDispatcher, {
+      false
+    }, FAST_LANE,
       100, TimeUnit.SECONDS) // prevent heartbeats from helping the flush happen
     worker.start()
 
@@ -152,7 +162,9 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
-      countingDispatcher, FAST_LANE, 100, TimeUnit.SECONDS)
+      countingDispatcher, {
+      false
+    }, FAST_LANE, 100, TimeUnit.SECONDS)
     // prevent heartbeats from helping the flush happen
     worker.start()
 
@@ -194,35 +206,17 @@ class TraceProcessingWorkerTest extends DDSpecification {
     SAMPLER_KEEP | 100        | FAST_LANE
     USER_KEEP    | 100        | FAST_LANE
     UNSET        | 100        | FAST_LANE
-    SAMPLER_DROP | 1          | DEAD_LETTERS
-    USER_DROP    | 1          | DEAD_LETTERS
-    SAMPLER_KEEP | 1          | DEAD_LETTERS
-    USER_KEEP    | 1          | DEAD_LETTERS
-    UNSET        | 1          | DEAD_LETTERS
-    SAMPLER_DROP | 10         | DEAD_LETTERS
-    USER_DROP    | 10         | DEAD_LETTERS
-    SAMPLER_KEEP | 10         | DEAD_LETTERS
-    USER_KEEP    | 10         | DEAD_LETTERS
-    UNSET        | 10         | DEAD_LETTERS
-    SAMPLER_DROP | 20         | DEAD_LETTERS
-    USER_DROP    | 20         | DEAD_LETTERS
-    SAMPLER_KEEP | 20         | DEAD_LETTERS
-    USER_KEEP    | 20         | DEAD_LETTERS
-    UNSET        | 20         | DEAD_LETTERS
-    SAMPLER_DROP | 100        | DEAD_LETTERS
-    USER_DROP    | 100        | DEAD_LETTERS
-    SAMPLER_KEEP | 100        | DEAD_LETTERS
-    USER_KEEP    | 100        | DEAD_LETTERS
-    UNSET        | 100        | DEAD_LETTERS
 
   }
 
-  def "flush of full queue after worker thread stopped will not flush but will return" () {
+  def "flush of full queue after worker thread stopped will not flush but will return"() {
     setup:
     PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
-      countingDispatcher, FAST_LANE, 100, TimeUnit.SECONDS)
+      countingDispatcher, {
+      false
+    }, FAST_LANE, 100, TimeUnit.SECONDS)
     worker.start()
     worker.close()
     int queueSize = 0
