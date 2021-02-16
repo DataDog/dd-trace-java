@@ -13,6 +13,11 @@ import spock.lang.Timeout
 @Timeout(10)
 class VertxRxWebClientTest extends HttpClientTest {
 
+  @Override
+  boolean useStrictTraceWrites() {
+    return false
+  }
+
   @Shared
   Vertx vertx = Vertx.vertx(new VertxOptions())
   @Shared

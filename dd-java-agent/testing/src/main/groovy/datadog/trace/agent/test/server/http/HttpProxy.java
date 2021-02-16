@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 // Adapted from
 // https://github.com/stefano-lupo/Java-Proxy-Server/blob/master/src/RequestHandler.java
@@ -24,6 +25,7 @@ public final class HttpProxy implements Closeable {
   private final ServerSocket serverSocket;
   private final Collection<Socket> openSockets = new CopyOnWriteArrayList<>();
   public final int port;
+  private final AtomicInteger requestCount = new AtomicInteger();
 
   HttpProxy() throws IOException {
     serverSocket = new ServerSocket(0); // random port
@@ -56,6 +58,10 @@ public final class HttpProxy implements Closeable {
     }
   }
 
+  public int requestCount() {
+    return requestCount.get();
+  }
+
   private final class SocketAcceptor implements Runnable {
     @Override
     public void run() {
@@ -63,6 +69,7 @@ public final class HttpProxy implements Closeable {
         try {
           // Only accepts one request at a time (not multi-threaded).
           Socket clientToProxy = serverSocket.accept();
+          requestCount.incrementAndGet();
           clientToProxy.setSoTimeout(0);
           openSockets.add(clientToProxy);
           executorService.execute(new Handler(clientToProxy));

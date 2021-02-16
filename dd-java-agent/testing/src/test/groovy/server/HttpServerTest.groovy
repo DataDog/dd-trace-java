@@ -12,7 +12,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 /* Don't actually need AgentTestRunner, but it messes up the classloader for AgentTestRunnerTest if this runs first. */
 
-class ServerTest extends AgentTestRunner {
+class HttpServerTest extends AgentTestRunner {
   @Shared
   def client = OkHttpUtils.client()
 
@@ -408,7 +408,7 @@ class ServerTest extends AgentTestRunner {
 
     then:
     response.code() == 500
-    response.message().startsWith("assert !req.handled")
+    response.message().startsWith("assert !req.orig.handled")
 
     cleanup:
     server.stop()

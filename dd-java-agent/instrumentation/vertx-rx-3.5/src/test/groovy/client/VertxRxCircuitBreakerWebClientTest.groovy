@@ -17,6 +17,11 @@ import java.util.concurrent.CompletableFuture
 @Timeout(10)
 class VertxRxCircuitBreakerWebClientTest extends HttpClientTest {
 
+  @Override
+  boolean useStrictTraceWrites() {
+    return false
+  }
+
   @Shared
   Vertx vertx = Vertx.vertx(new VertxOptions())
   @Shared

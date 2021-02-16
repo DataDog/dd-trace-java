@@ -15,6 +15,11 @@ import java.util.concurrent.CompletableFuture
 @Timeout(10)
 class VertxHttpClientTest extends HttpClientTest {
 
+  @Override
+  boolean useStrictTraceWrites() {
+    return false
+  }
+
   @Shared
   def vertx = Vertx.vertx(new VertxOptions())
   @Shared

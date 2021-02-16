@@ -1,5 +1,7 @@
 package datadog.trace.agent.test.utils;
 
+import datadog.trace.agent.test.server.http.TestHttpServer;
+import java.net.ProxySelector;
 import java.util.concurrent.TimeUnit;
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
@@ -47,5 +49,14 @@ public class OkHttpUtils {
 
   public static OkHttpClient client(final boolean followRedirects) {
     return clientBuilder().followRedirects(followRedirects).build();
+  }
+
+  public static OkHttpClient client(
+      final TestHttpServer server, final ProxySelector proxySelector) {
+    return clientBuilder()
+        .sslSocketFactory(server.sslContext.getSocketFactory(), server.getTrustManager())
+        .hostnameVerifier(server.getHostnameVerifier())
+        .proxySelector(proxySelector)
+        .build();
   }
 }

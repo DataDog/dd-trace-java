@@ -19,7 +19,9 @@ import org.eclipse.jetty.server.handler.AbstractHandler
 import org.eclipse.jetty.server.handler.HandlerList
 import org.eclipse.jetty.util.ssl.SslContextFactory
 
+import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSession
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 import javax.servlet.ServletException
@@ -61,20 +63,28 @@ class TestHttpServer implements AutoCloseable {
 
   public final SSLContext sslContext = SSLContext.getInstance("TLSv1.2")
 
+  private final X509TrustManager trustManager = new X509TrustManager() {
+    X509Certificate[] getAcceptedIssuers() {
+      return new X509Certificate[0]
+    }
+
+    void checkClientTrusted(X509Certificate[] certificate, String str) {}
+
+    void checkServerTrusted(X509Certificate[] certificate, String str) {}
+  }
+  private final HostnameVerifier hostnameVerifier = new HostnameVerifier() {
+    @Override
+    boolean verify(String hostname, SSLSession session) {
+      return "localhost" == hostname
+    }
+  }
+
   private TestHttpServer() {
     internalServer = new Server()
 
-    TrustManager[] trustManager = new TrustManager[1]
-    trustManager[0] = new X509TrustManager() {
-      X509Certificate[] getAcceptedIssuers() {
-        return new X509Certificate[0]
-      }
-
-      void checkClientTrusted(X509Certificate[] certificate, String str) {}
-
-      void checkServerTrusted(X509Certificate[] certificate, String str) {}
-    }
-    sslContext.init(null, trustManager, null)
+    TrustManager[] trustManagers = new TrustManager[1]
+    trustManagers[0] = trustManager
+    sslContext.init(null, trustManagers, null)
   }
 
   TestHttpServer start() {
@@ -170,6 +180,14 @@ class TestHttpServer implements AutoCloseable {
 
   URI getSecureAddress() {
     return secureAddress
+  }
+
+  X509TrustManager getTrustManager() {
+    return trustManager
+  }
+
+  HostnameVerifier getHostnameVerifier() {
+    return hostnameVerifier
   }
 
   def getLastRequest() {
@@ -320,7 +338,7 @@ class TestHttpServer implements AutoCloseable {
     }
   }
 
-  class HandlerApi {
+  static class HandlerApi {
     private final RequestApi req
     private final HttpServletResponse resp
 
@@ -431,20 +449,20 @@ class TestHttpServer implements AutoCloseable {
         resp.writer.print(body)
       }
     }
+  }
 
-    static class Headers {
-      private final Map<String, String> headers
+  static class Headers {
+    private final Map<String, String> headers
 
-      private Headers(Request request) {
-        this.headers = [:]
-        request.getHeaderNames().each {
-          headers.put(it, request.getHeader(it))
-        }
+    private Headers(Request request) {
+      this.headers = [:]
+      request.getHeaderNames().each {
+        headers.put(it, request.getHeader(it))
       }
+    }
 
-      def get(String header) {
-        return headers[header]
-      }
+    def get(String header) {
+      return headers[header]
     }
   }
 }

@@ -32,9 +32,9 @@ class Netty41ClientTest extends HttpClientTest {
   }
 
   def clientConfig = DefaultAsyncHttpClientConfig.Builder.newInstance()
-    .setConnectTimeout(CONNECT_TIMEOUT_MS as int)
-    .setRequestTimeout(READ_TIMEOUT_MS as int)
-    .setReadTimeout(READ_TIMEOUT_MS as int)
+    .setConnectTimeout(CONNECT_TIMEOUT_MS)
+    .setRequestTimeout(READ_TIMEOUT_MS)
+    .setReadTimeout(READ_TIMEOUT_MS)
     .setSslContext(SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build())
     .setMaxRequestRetry(0)
 

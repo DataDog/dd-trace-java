@@ -26,8 +26,8 @@ import static org.junit.Assume.assumeTrue
 @Unroll
 abstract class HttpClientTest extends AgentTestRunner {
   protected static final BODY_METHODS = ["POST", "PUT"]
-  protected static final CONNECT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(3)
-  protected static final READ_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5)
+  protected static final int CONNECT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(3) as int
+  protected static final int READ_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5) as int
   protected static final BASIC_AUTH_KEY = "custom_authorization_header"
   protected static final BASIC_AUTH_VAL = "plain text auth token"
 
@@ -89,14 +89,13 @@ abstract class HttpClientTest extends AgentTestRunner {
       List<Proxy> select(URI uri) {
         if (uri.fragment == "proxy") {
           return proxyList
-        } else {
-          return getDefault().select(uri)
         }
+        return getDefault().select(uri)
       }
 
       @Override
       void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
-        getDefault().connectFailed(uri, sa, ioe);
+        getDefault().connectFailed(uri, sa, ioe)
       }
     }
   }
@@ -527,7 +526,7 @@ abstract class HttpClientTest extends AgentTestRunner {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.PEER_HOSTNAME" uri.host
         "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
-        "$Tags.PEER_PORT" { it == uri.port || it == proxy.port || it == 443 }
+        "$Tags.PEER_PORT" { it == uri.port || it == proxy.port || it == 443 || it == null }
         "$Tags.HTTP_URL" "${uri.resolve(uri.path)}" // remove fragment
         "$Tags.HTTP_METHOD" method
         if (status) {
