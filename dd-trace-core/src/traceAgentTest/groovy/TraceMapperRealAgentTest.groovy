@@ -1,6 +1,9 @@
-package datadog.trace.common.writer.ddagent
+
 
 import com.timgroup.statsd.NoOpStatsDClient
+import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.http.OkHttpUtils
 import datadog.trace.core.monitor.HealthMetrics
@@ -13,7 +16,7 @@ import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.common.writer.ddagent.TraceGenerator.generateRandomTraces
+import static TraceGenerator.generateRandomTraces
 
 @Requires({ "true" == System.getenv("CI") })
 class TraceMapperRealAgentTest extends DDSpecification {
