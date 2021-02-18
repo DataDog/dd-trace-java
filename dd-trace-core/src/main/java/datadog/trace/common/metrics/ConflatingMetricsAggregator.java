@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
 import static datadog.trace.common.metrics.Batch.REPORT;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
@@ -9,7 +10,10 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.List;
@@ -23,6 +27,9 @@ import org.jctools.queues.SpmcArrayQueue;
 
 @Slf4j
 public final class ConflatingMetricsAggregator implements MetricsAggregator, EventListener {
+
+  private static final DDCache<String, UTF8BytesString> SERVICE_NAMES =
+      DDCaches.newFixedSizeCache(32);
 
   private static final Integer ZERO = 0;
 
@@ -138,7 +145,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
-            span.getServiceName(),
+            SERVICE_NAMES.computeIfAbsent(span.getServiceName(), UTF8_ENCODE),
             span.getOperationName(),
             span.getType(),
             span.getTag(Tags.HTTP_STATUS, ZERO));
