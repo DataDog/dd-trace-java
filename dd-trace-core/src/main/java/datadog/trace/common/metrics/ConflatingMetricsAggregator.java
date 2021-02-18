@@ -172,12 +172,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     pending.put(key, batch);
     // must offer to the queue after adding to pending
     inbox.offer(batch);
-    // enforce a soft bound on the size of the collection,
-    // which may lead to some false positive sampler overrides
-    // when metric cardinality is high
-    if (keys.size() > 10_000) {
-      keys.remove(keys.keys().nextElement());
-    }
     // force keep keys we haven't seen before or errors
     return isNewKey || span.getError() > 0;
   }

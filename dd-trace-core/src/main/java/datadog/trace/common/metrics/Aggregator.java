@@ -35,7 +35,7 @@ final class Aggregator implements Runnable {
       Queue<Batch> batchPool,
       BlockingQueue<Batch> inbox,
       ConcurrentHashMap<MetricKey, Batch> pending,
-      Set<MetricKey> commonKeys,
+      final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit) {
@@ -43,7 +43,9 @@ final class Aggregator implements Runnable {
     this.batchPool = batchPool;
     this.inbox = inbox;
     this.commonKeys = commonKeys;
-    this.aggregates = new LRUCache<>(maxAggregates * 4 / 3, 0.75f, maxAggregates);
+    this.aggregates =
+        new LRUCache<>(
+            new CommonKeyCleaner(commonKeys), maxAggregates * 4 / 3, 0.75f, maxAggregates);
     this.pending = pending;
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
   }
@@ -118,5 +120,20 @@ final class Aggregator implements Runnable {
 
   private long wallClockTime() {
     return MILLISECONDS.toNanos(System.currentTimeMillis());
+  }
+
+  private static final class CommonKeyCleaner
+      implements LRUCache.ExpiryListener<MetricKey, AggregateMetric> {
+
+    private final Set<MetricKey> commonKeys;
+
+    private CommonKeyCleaner(Set<MetricKey> commonKeys) {
+      this.commonKeys = commonKeys;
+    }
+
+    @Override
+    public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
+      commonKeys.remove(expired.getKey());
+    }
   }
 }
