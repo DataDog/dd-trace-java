@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.exceptions;
+package datadog.trace.api.sampling;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.round;
@@ -39,7 +39,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
  */
 @ExtendWith(MockitoExtension.class)
 @Slf4j
-class StreamingSamplerTest {
+class AdaptiveSamplerTest {
 
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
 
@@ -177,8 +177,8 @@ class StreamingSamplerTest {
   private static final int LOOKBACK = 30;
 
   @Mock AgentTaskScheduler taskScheduler;
-  @Captor ArgumentCaptor<Task<StreamingSampler>> rollWindowTaskCaptor;
-  @Captor ArgumentCaptor<StreamingSampler> rollWindowTargetCaptor;
+  @Captor ArgumentCaptor<Task<AdaptiveSampler>> rollWindowTaskCaptor;
+  @Captor ArgumentCaptor<AdaptiveSampler> rollWindowTargetCaptor;
 
   @BeforeEach
   public void setup() {
@@ -272,8 +272,8 @@ class StreamingSamplerTest {
     log.info(
         "> mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}%",
         windowEventsSupplier, WINDOWS, SAMPLES_PER_WINDOW, LOOKBACK, maxErrorPercent);
-    final StreamingSampler sampler =
-        new StreamingSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
+    final AdaptiveSampler sampler =
+        new AdaptiveSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
 
     // simulate event generation and sampling for the given number of sampling windows
     final long expectedSamples = WINDOWS * SAMPLES_PER_WINDOW;
@@ -356,7 +356,7 @@ class StreamingSamplerTest {
    *     samples and the sample index skew
    */
   private WindowSamplingResult generateWindowEventsAndSample(
-      IntSupplier windowEventsSupplier, StreamingSampler sampler, Mean mean) {
+      IntSupplier windowEventsSupplier, AdaptiveSampler sampler, Mean mean) {
     int samples = 0;
     int events = windowEventsSupplier.getAsInt();
     mean.clear();
@@ -427,8 +427,8 @@ class StreamingSamplerTest {
     final AtomicLong allSamples = new AtomicLong(0);
     final AtomicLong receivedEvents = new AtomicLong(0);
 
-    final StreamingSampler sampler =
-        new StreamingSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
+    final AdaptiveSampler sampler =
+        new AdaptiveSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
     final CyclicBarrier startBarrier = new CyclicBarrier(threadCount);
     final CyclicBarrier endBarrier = new CyclicBarrier(threadCount, this::rollWindow);
     final Mean[] means = new Mean[threadCount];

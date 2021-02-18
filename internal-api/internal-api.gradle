@@ -1,3 +1,7 @@
+ext {
+  enableJunitPlatform = true
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 minimumBranchCoverage = 0.7
@@ -40,11 +44,21 @@ compileJava8Java {
   targetCompatibility = 8
 }
 
+compileTestJava {
+  sourceCompatibility = 8
+  targetCompatibility = 8
+}
+
 dependencies {
   // references TraceScope and Continuation from public api
   compile project(':dd-trace-api')
   java8Compile sourceSets.main.output
 
+  testCompile deps.junit5
+  testCompile deps.jmc
+  testCompile deps.commonsMath
+  testCompile deps.mockito
+  testCompile sourceSets.java8.output
   testCompile project(":utils:test-utils")
 }
 
