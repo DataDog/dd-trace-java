@@ -18,8 +18,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.jctools.queues.MpmcArrayQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
+import org.jctools.queues.SpmcArrayQueue;
 
 @Slf4j
 public final class ConflatingMetricsAggregator implements MetricsAggregator, EventListener {
@@ -81,7 +81,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       long reportingInterval,
       TimeUnit timeUnit) {
     this.inbox = new MpscBlockingConsumerArrayQueue<>(queueSize);
-    this.batchPool = new MpmcArrayQueue<>(maxAggregates);
+    this.batchPool = new SpmcArrayQueue<>(maxAggregates);
     this.pending = new ConcurrentHashMap<>(maxAggregates * 4 / 3, 0.75f);
     this.keys = new ConcurrentHashMap<>();
     this.sink = sink;
