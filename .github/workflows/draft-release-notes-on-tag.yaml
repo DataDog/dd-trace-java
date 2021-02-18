@@ -9,7 +9,7 @@ jobs:
     steps:
       - name: Get milestone title
         id: milestoneTitle
-        uses: actions/github-script@5d03ada4b0a753e9460b312e61cc4f8fdeacf163 # 0.9.0
+        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
         with:
           result-encoding: string
           script: |
@@ -17,7 +17,7 @@ jobs:
             return '${{github.event.ref}}'.startsWith('v') ? '${{github.event.ref}}'.substring(1) : '${{github.event.ref}}';
       - name: Get milestone for tag
         id: milestone
-        uses: actions/github-script@5d03ada4b0a753e9460b312e61cc4f8fdeacf163 # 0.9.0
+        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
@@ -39,7 +39,7 @@ jobs:
       - name: Generate release notes text
         if: fromJSON(steps.milestone.outputs.result)
         id: generate
-        uses: actions/github-script@5d03ada4b0a753e9460b312e61cc4f8fdeacf163 # 0.9.0
+        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           result-encoding: string
@@ -84,7 +84,7 @@ jobs:
       - name: Create release notes
         if: fromJSON(steps.milestone.outputs.result)
         # can't use actions/create-release because it doesn't like the text coming from JS
-        uses: actions/github-script@5d03ada4b0a753e9460b312e61cc4f8fdeacf163 # 0.9.0
+        uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
