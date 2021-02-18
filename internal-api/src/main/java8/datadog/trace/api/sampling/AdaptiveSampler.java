@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.exceptions;
+package datadog.trace.api.sampling;
 
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Task;
@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
- * A streaming (non-remembering) sampler.
+ * An adaptive streaming (non-remembering) sampler.
  *
  * <p>The sampler attempts to generate at most N samples per fixed time window in randomized
  * fashion. For this it divides the timeline into 'sampling windows' of constant duration. Each
@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.LongAdder;
  * compensate for too rapid changes in the incoming events rate and maintain the target average
  * number of samples per window.
  */
-class StreamingSampler {
+public final class AdaptiveSampler {
 
   /*
    * Number of windows to look back when computing carried over budget.
@@ -86,7 +86,7 @@ class StreamingSampler {
    * @param lookback the number of windows to consider in averaging the sampling rate
    * @param taskScheduler agent task scheduler to use for periodic rolls
    */
-  StreamingSampler(
+  public AdaptiveSampler(
       final Duration windowDuration,
       final int samplesPerWindow,
       final int lookback,
@@ -113,7 +113,8 @@ class StreamingSampler {
    * @param samplesPerWindow the maximum number of samples in the sampling window
    * @param lookback the number of windows to consider in averaging the sampling rate
    */
-  StreamingSampler(final Duration windowDuration, final int samplesPerWindow, final int lookback) {
+  public AdaptiveSampler(
+      final Duration windowDuration, final int samplesPerWindow, final int lookback) {
     this(windowDuration, samplesPerWindow, lookback, AgentTaskScheduler.INSTANCE);
   }
 
@@ -122,7 +123,7 @@ class StreamingSampler {
    *
    * @return {@literal true} if the event should be sampled
    */
-  final boolean sample() {
+  public final boolean sample() {
     final Counts counts = countsRef.get();
     counts.addTest();
     if (ThreadLocalRandom.current().nextDouble() < probability) {
@@ -173,12 +174,12 @@ class StreamingSampler {
   /*
    * Important to use explicit class to avoid implicit hard references to StreamingSampler from within scheduler
    */
-  private static class RollWindowTask implements Task<StreamingSampler> {
+  private static class RollWindowTask implements Task<AdaptiveSampler> {
 
     static final RollWindowTask INSTANCE = new RollWindowTask();
 
     @Override
-    public void run(final StreamingSampler target) {
+    public void run(final AdaptiveSampler target) {
       target.rollWindow();
     }
   }

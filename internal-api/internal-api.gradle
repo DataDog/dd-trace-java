@@ -27,9 +27,29 @@ excludedClassesCoverage += [
   "datadog.trace.util.AgentThreadFactory.1",
 ]
 
+sourceSets {
+  java8 {
+    java {
+      srcDirs = ['src/main/java8']
+    }
+  }
+}
+
+compileJava8Java {
+  sourceCompatibility = 8
+  targetCompatibility = 8
+}
+
 dependencies {
   // references TraceScope and Continuation from public api
   compile project(':dd-trace-api')
+  java8Compile sourceSets.main.output
 
   testCompile project(":utils:test-utils")
+}
+
+jar {
+  into('') {
+    from sourceSets.java8.output
+  }
 }

@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.exceptions;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.sampling.AdaptiveSampler;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import jdk.jfr.EventType;
@@ -8,12 +9,12 @@ import jdk.jfr.EventType;
 final class ExceptionSampler {
   /*
    * Fixed 0.5 second sampling window.
-   * Logic in StreamingSampler relies on sampling window being small compared to (in our case) recording duration:
+   * Logic in AdaptiveSampler relies on sampling window being small compared to (in our case) recording duration:
    * sampler may overshoot on one given window but should average to samplesPerWindow in the long run.
    */
   private static final Duration SAMPLING_WINDOW = Duration.of(500, ChronoUnit.MILLIS);
 
-  private final StreamingSampler sampler;
+  private final AdaptiveSampler sampler;
   private final EventType exceptionSampleType;
 
   ExceptionSampler(final Config config) {
@@ -21,7 +22,7 @@ final class ExceptionSampler {
   }
 
   ExceptionSampler(final Duration windowDuration, final int samplesPerWindow, final int lookback) {
-    sampler = new StreamingSampler(windowDuration, samplesPerWindow, lookback);
+    sampler = new AdaptiveSampler(windowDuration, samplesPerWindow, lookback);
     exceptionSampleType = EventType.getEventType(ExceptionSampleEvent.class);
   }
 
