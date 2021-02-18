@@ -9,7 +9,7 @@ jobs:
     steps:
       - name: Get milestone for release
         id: milestone
-        uses: actions/github-script@0.9.0
+        uses: actions/github-script@5d03ada4b0a753e9460b312e61cc4f8fdeacf163 # 0.9.0
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
@@ -24,7 +24,7 @@ jobs:
             return milestones.find( milestone => milestone.title == "${{github.event.release.name}}" ).number
       - name: Get issues for milestone
         id: issues
-        uses: actions/github-script@0.9.0
+        uses: actions/github-script@5d03ada4b0a753e9460b312e61cc4f8fdeacf163 # 0.9.0
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
@@ -40,7 +40,7 @@ jobs:
             // Pull requests are issues so filter them out
             return issues.filter( issue => !issue["pull_request"] ).map( issue => issue.number )
       - name: Comment and close issues
-        uses: actions/github-script@0.9.0
+        uses: actions/github-script@5d03ada4b0a753e9460b312e61cc4f8fdeacf163 # 0.9.0
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
