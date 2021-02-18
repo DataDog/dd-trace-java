@@ -17,7 +17,7 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const list = await github.issues.listMilestonesForRepo({
+            const list = await github.issues.listMilestones({
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open'
