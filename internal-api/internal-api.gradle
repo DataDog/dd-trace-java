@@ -1,7 +1,3 @@
-ext {
-  enableJunitPlatform = true
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 
 minimumBranchCoverage = 0.7
@@ -37,6 +33,14 @@ sourceSets {
       srcDirs = ['src/main/java8']
     }
   }
+  testJava8 {
+    java {
+      srcDirs = ['src/test/java8']
+    }
+    resources {
+      srcDirs = ['src/test/java8resources']
+    }
+  }
 }
 
 compileJava8Java {
@@ -44,7 +48,7 @@ compileJava8Java {
   targetCompatibility = 8
 }
 
-compileTestJava {
+compileTestJava8Java {
   sourceCompatibility = 8
   targetCompatibility = 8
 }
@@ -54,16 +58,34 @@ dependencies {
   compile project(':dd-trace-api')
   java8Compile sourceSets.main.output
 
-  testCompile deps.junit5
-  testCompile deps.jmc
-  testCompile deps.commonsMath
-  testCompile deps.mockito
-  testCompile sourceSets.java8.output
   testCompile project(":utils:test-utils")
+  testJava8Compile deps.junit5
+  testJava8Compile deps.jmc
+  testJava8Compile deps.commonsMath
+  testJava8Compile deps.mockito
+  testJava8Compile deps.slf4j
+  testJava8Compile sourceSets.java8.output
+  testJava8Compile sourceSets.main.compileClasspath
+  testJava8Compile sourceSets.main.runtimeClasspath
+  testJava8Compile project(":utils:test-utils")
 }
 
 jar {
   into('') {
     from sourceSets.java8.output
   }
+}
+
+task junitTests(type: Test) {
+  useJUnitPlatform()
+  testClassesDirs = sourceSets.testJava8.output.classesDirs
+  classpath = sourceSets.testJava8.runtimeClasspath
+  outputs.upToDateWhen {false}
+}
+
+tasks.withType(Test).all {
+  if (it.name.contains("Java8")) {
+    it.dependsOn += tasks.named('junitTests')
+  }
+  it.outputs.upToDateWhen {false}
 }
