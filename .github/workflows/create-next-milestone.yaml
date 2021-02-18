@@ -9,11 +9,11 @@ jobs:
     steps:
       - name: Get next minor version
         id: semvers
-        uses: WyriHaximus/github-action-next-semvers@0.1.0
+        uses: WyriHaximus/github-action-next-semvers@33d116a4c239252582a60a1ba8dbba63ad493ffd # 1.1.0
         with:
           version: ${{ github.event.milestone.title }}
       - name: Create next milestone
-        uses: WyriHaximus/github-action-create-milestone@0.1.0
+        uses: WyriHaximus/github-action-create-milestone@b86699ba7511fa3b61154ac8675d86b01938fc16 # 1.0.0
         with:
           title: ${{ steps.semvers.outputs.minor }}
         env:
