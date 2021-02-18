@@ -103,8 +103,13 @@ shadowJar generalShadowJarConfig >> {
 }
 
 // We don't want bundled dependencies to show up in the pom.
-modifyPom {
-  dependencies.removeAll { true }
+tasks.withType(GenerateMavenPom).configureEach { task ->
+  doFirst {
+    task.pom.withXml { XmlProvider provider ->
+      Node dependencies = provider.asNode().dependencies[0]
+      dependencies.children().clear()
+    }
+  }
 }
 
 dependencies {

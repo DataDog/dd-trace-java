@@ -1,51 +1,113 @@
-/*
- * Copyright 2015 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+/**
+ * Proper publishing requires the following environment variables:
+ * SONATYPE_USERNAME
+ * SONATYPE_PASSWORD
+ * GPG_PRIVATE_KEY
+ * GPG_PASSWORD
  */
 
-// Source: https://github.com/ratpack/ratpack/blob/master/gradle/publish.gradle
+apply from: "$rootDir/gradle/version.gradle"
+apply from: "$rootDir/gradle/maven-pom.gradle"
 
-apply plugin: "maven"
-apply plugin: "com.jfrog.artifactory"
-apply plugin: 'com.jfrog.bintray'
+def isSnapshot = version.endsWith("-SNAPSHOT")
+def isCI = System.getenv("CI") != null
+def circleTag = System.getenv("CIRCLE_TAG")
+def gitlabTag = System.getenv("CI_COMMIT_TAG")
+def isCIandTagged = isCI && (circleTag || gitlabTag)
+assert isSnapshot != isCIandTagged
+
+// define in ~/.gradle/gradle.properties to override for testing
+def forceLocal = project.hasProperty('forceLocal') && forceLocal
+assert !forceLocal || forceLocal != isCI
+
+publishing {
+  publications {
+    maven(MavenPublication) { MavenPublication publication ->
+      if (project.plugins.hasPlugin('com.github.johnrengelman.shadow')) {
+        publication.artifact(project.tasks.shadowJar)
+
+        // Required by Maven Central:
+        publication.artifact sourcesJar
+        publication.artifact javadocJar
+
+        afterEvaluate {
+          /**
+           * Add all the project dependencies, but set as compile instead of runtime
+           * (which is what project.shadow.component(publication) would use).
+           */
+          publication.pom { org.gradle.api.publish.maven.MavenPom pom ->
+            pom.withXml { xml ->
+              def dependenciesNode = xml.asNode().appendNode('dependencies')
+
+              project.configurations.compile.allDependencies.each {
+                if ((it instanceof ProjectDependency) || !(it instanceof SelfResolvingDependency)) {
+                  def dependencyNode = dependenciesNode.appendNode('dependency')
+                  dependencyNode.appendNode('groupId', it.group)
+                  dependencyNode.appendNode('artifactId', it.name)
+                  dependencyNode.appendNode('version', it.version)
+                  dependencyNode.appendNode("scope", "compile")
+                }
+              }
+            }
+          }
+        }
+      } else {
+        publication.from components.java
+      }
+    }
+  }
+}
+
+if (project.plugins.hasPlugin('com.github.johnrengelman.shadow')) {
+  // Disable gradle module metadata to avoid publishing contradictory info.
+  tasks.withType(GenerateModuleMetadata) {
+    enabled = false
+  }
+}
+
+signing {
+  useInMemoryPgpKeys(System.getenv("GPG_PRIVATE_KEY"), System.getenv("GPG_PASSWORD"))
+  sign publishing.publications.maven
+}
+
+tasks.withType(Sign).configureEach {
+  // Only sign in CI
+  onlyIf { isCI || (System.getenv("GPG_PRIVATE_KEY") != null && System.getenv("GPG_PASSWORD") != null) }
+}
+
+/**
+ * State assertions below...
+ */
+
+gradle.taskGraph.whenReady { TaskExecutionGraph taskGraph ->
+  if (taskGraph.hasTask(publish) || taskGraph.hasTask("publishToSonatype")) {
+    assert project.findProperty("removeJarVersionNumbers") != true
+    if (taskGraph.hasTask("publishToSonatype")) {
+      assert System.getenv("SONATYPE_USERNAME") != null
+      assert System.getenv("SONATYPE_PASSWORD") != null
+      if (isCI) {
+        assert System.getenv("GPG_PRIVATE_KEY") != null
+        assert System.getenv("GPG_PASSWORD") != null
+      }
+    }
+  }
+}
 
 afterEvaluate {
   assert description: "Project $project.path is published, must have a description"
 }
 
-tasks.withType(Upload).matching { it.name != "install" }.configureEach {
-  rootProject.subprojects {
-    mustRunAfter tasks.matching { it instanceof VerificationTask }
-  }
-}
-
-def isRoot = project.rootProject == project
-if (!isRoot) {
-  apply from: "$rootDir/gradle/version.gradle"
-  apply from: "$rootDir/gradle/pom.gradle"
-
+configurations {
   configurations {
-    configurations {
-      all {
-        incoming.afterResolve {
-          dependencies.withType(ModuleDependency) { dep ->
-            excludeRules.each {
-              if ([it.group, it.module].any { it == null }) {
-                throw new InvalidUserDataException(
-                "Partial exclude for dependency '$dep.group:$dep.name:$dep.version' of $project: [group: $it.group, module: $it.module]\n\nExcludes must specify both group and module and neither can be '*'."
-                )
-              }
+    all {
+      incoming.afterResolve {
+        dependencies.withType(ModuleDependency) { dep ->
+          excludeRules.each {
+            if ([it.group, it.module].any { it == null }) {
+              throw new InvalidUserDataException("Partial exclude for dependency '$dep.group:$dep.name:$dep.version' of $project: [group: $it.group, module: $it.module]\n\nExcludes must specify both group and module and neither can be '*'.")
             }
           }
         }
@@ -54,96 +116,8 @@ if (!isRoot) {
   }
 }
 
-def isSnapshot = version.endsWith("-SNAPSHOT")
-def isCIandTagged = System.getenv("CIRCLE_TAG") != null || System.getenv("CI_COMMIT_TAG") != null
-// define in ~/.gradle/gradle.properties to override for testing
-def forceLocal = project.hasProperty('forceLocal') && forceLocal
-
-artifactoryPublish { task ->
-  gradle.taskGraph.whenReady { taskGraph ->
-    def startParameter = project.gradle.startParameter
-    if (taskGraph.hasTask(task) && startParameter.parallelProjectExecutionEnabled && startParameter.maxWorkerCount > 1) {
-      throw new IllegalStateException("cannot run " + task + " with --parallel and --max-workers > 1")
-    }
+tasks.withType(AbstractPublishToMaven).matching { !it.name.toLowerCase().contains("install") }.configureEach {
+  rootProject.subprojects {
+    mustRunAfter tasks.matching { it instanceof VerificationTask }
   }
-}
-
-artifactory {
-  gradle.taskGraph.whenReady { taskGraph ->
-    if (taskGraph.hasTask(artifactoryPublish)) {
-      assert !project.hasProperty("removeJarVersionNumbers") || !removeJarVersionNumbers
-      // trigger error if missing
-      bintrayUser
-      bintrayApiKey
-    }
-  }
-
-  publish {
-    contextUrl = forceLocal ? 'http://localhost:8080/artifactory' : 'https://oss.jfrog.org'
-    repository {
-      if (forceLocal)
-        repoKey = isSnapshot ? 'libs-snapshot-local' : 'libs-release-local'
-      else
-        repoKey = isSnapshot ? 'oss-snapshot-local' : 'oss-release-local'
-
-      if (project.hasProperty("bintrayUser") && project.hasProperty("bintrayApiKey")) {
-        username = bintrayUser
-        password = bintrayApiKey
-      }
-    }
-    defaults {
-      if (!isRoot) publishConfigs('archives')
-      publishIvy = false   // This isn't supported by bintray anyway.
-    }
-  }
-}
-
-bintrayUpload { task ->
-  gradle.taskGraph.whenReady { taskGraph ->
-    def startParameter = project.gradle.startParameter
-    if (taskGraph.hasTask(task) && startParameter.parallelProjectExecutionEnabled && startParameter.maxWorkerCount > 1) {
-      throw new IllegalStateException("cannot run " + task + " with --parallel and --max-workers > 1")
-    }
-  }
-}
-
-bintray {
-  gradle.taskGraph.whenReady { taskGraph ->
-    if (taskGraph.hasTask(bintrayUpload)) {
-      assert !project.hasProperty("removeJarVersionNumbers") || !removeJarVersionNumbers
-      // trigger error if missing
-      bintrayUser
-      bintrayApiKey
-    }
-  }
-
-  if (project.hasProperty("bintrayUser") && project.hasProperty("bintrayApiKey")) {
-    user = bintrayUser
-    key = bintrayApiKey
-  }
-
-  if (!isRoot) configurations = ['archives']
-
-  //  dryRun = true //[Default: false] Whether to run this as dry-run, without deploying
-  publish = true //[Default: false] Whether version should be auto published after an upload
-  //  override = true //[Default: false] Whether to override version artifacts already published
-
-  //Package configuration. The plugin will use the repo and name properties to check if the package already exists. In that case, there's no need to configure the other package properties (like userOrg, desc, etc).
-  pkg {
-    repo = 'datadog-maven'
-    name = 'dd-trace-java'
-    userOrg = 'datadog' //An optional organization name when the repo belongs to one of the user's orgs
-    desc = 'Client libraries for Datadog APM'
-    websiteUrl = 'https://github.com/datadog/dd-trace-java'
-    issueTrackerUrl = 'https://github.com/datadog/dd-trace-java/issues'
-    vcsUrl = 'https://github.com/datadog/dd-trace-java.git'
-    licenses = ['Apache-2.0']
-
-    githubRepo = 'datadog/dd-trace-java' //Optional Github repository
-    githubReleaseNotesFile = 'README.md' //Optional Github readme file
-  }
-}
-
-if (!isSnapshot && isCIandTagged) {
-  artifactoryPublish.finalizedBy bintrayUpload
 }

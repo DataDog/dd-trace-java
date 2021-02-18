@@ -8,9 +8,9 @@ jobs:
   dd-java-agent:
     runs-on: ubuntu-latest
     steps:
-      - name: Download from jcenter
+      - name: Download from Maven Central
         run: |
-          wget https://oss.jfrog.org/artifactory/oss-release-local/com/datadoghq/dd-java-agent/$VERSION/dd-java-agent-$VERSION.jar
+          wget https://repo1.maven.org/maven2/com/datadoghq/dd-java-agent/$VERSION/dd-java-agent-$VERSION.jar
       - name: Upload to release
         uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # 1.0.2
         env:
@@ -23,9 +23,9 @@ jobs:
   dd-trace-api:
     runs-on: ubuntu-latest
     steps:
-      - name: Download from jcenter
+      - name: Download from Maven Central
         run: |
-          wget https://oss.jfrog.org/artifactory/oss-release-local/com/datadoghq/dd-trace-api/$VERSION/dd-trace-api-$VERSION.jar
+          wget https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/$VERSION/dd-trace-api-$VERSION.jar
       - name: Upload to release
         uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # 1.0.2
         env:
@@ -38,9 +38,9 @@ jobs:
   dd-trace-ot:
     runs-on: ubuntu-latest
     steps:
-      - name: Download from jcenter
+      - name: Download from Maven Central
         run: |
-          wget https://oss.jfrog.org/artifactory/oss-release-local/com/datadoghq/dd-trace-ot/$VERSION/dd-trace-ot-$VERSION.jar
+          wget https://repo1.maven.org/maven2/com/datadoghq/dd-trace-ot/$VERSION/dd-trace-ot-$VERSION.jar
       - name: Upload to release
         uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # 1.0.2
         env:
