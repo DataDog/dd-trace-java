@@ -198,7 +198,6 @@ public class DDAgentWriter implements Writer {
   @Override
   public void start() {
     if (!closed) {
-      discovery.start();
       traceProcessingWorker.start();
       healthMetrics.start();
       healthMetrics.onStart((int) getCapacity());
@@ -207,7 +206,6 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void close() {
-    discovery.close();
     final boolean flushed = flush();
     closed = true;
     traceProcessingWorker.close();

@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -29,6 +30,7 @@ public class DDAgentApi {
   private static final String X_DATADOG_TRACE_COUNT = "X-Datadog-Trace-Count";
   private static final String DATADOG_DROPPED_TRACE_COUNT = "Datadog-Client-Dropped-P0-Traces";
   private static final String DATADOG_DROPPED_SPAN_COUNT = "Datadog-Client-Dropped-P0-Spans";
+  private static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
   private final List<DDAgentResponseListener> responseListeners = new ArrayList<>();
 
@@ -106,6 +108,7 @@ public class DDAgentApi {
       this.receivedTraces += payload.traceCount();
       try (final Recording recording = sendPayloadTimer.start();
           final okhttp3.Response response = httpClient.newCall(request).execute()) {
+        handleAgentChange(response.header(DATADOG_AGENT_STATE));
         if (response.code() != 200) {
           agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
           countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
@@ -132,6 +135,13 @@ public class DDAgentApi {
     } catch (final IOException e) {
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);
+    }
+  }
+
+  private void handleAgentChange(String state) {
+    String previous = featuresDiscovery.state();
+    if (!Objects.equals(state, previous)) {
+      featuresDiscovery.discover();
     }
   }
 

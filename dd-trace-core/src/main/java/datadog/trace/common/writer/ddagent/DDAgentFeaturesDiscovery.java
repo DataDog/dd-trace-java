@@ -1,7 +1,5 @@
 package datadog.trace.common.writer.ddagent;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -15,8 +13,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -24,7 +20,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 @Slf4j
-public class DDAgentFeaturesDiscovery implements DroppingPolicy, AutoCloseable {
+public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   private static final JsonAdapter<Map<String, Object>> RESPONSE_ADAPTER =
       new Moshi.Builder()
@@ -36,9 +32,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy, AutoCloseable {
   public static final String V5_ENDPOINT = "v0.5/traces";
 
   private static final String V5_METRICS_ENDPOINT = "v0.5/stats";
-
-  private volatile AgentTaskScheduler.Scheduled<?> cancellation;
-  private final AtomicBoolean started = new AtomicBoolean(false);
+  private static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
@@ -47,19 +41,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy, AutoCloseable {
   private volatile String traceEndpoint;
   private volatile String metricsEndpoint;
   private volatile boolean supportsDropping;
+  private volatile String state;
 
   private final String[] traceEndpoints;
   private final String[] metricsEndpoints = {V5_METRICS_ENDPOINT};
-  private final long interval;
-  private final TimeUnit timeUnit;
 
   public DDAgentFeaturesDiscovery(
-      OkHttpClient client,
-      Monitoring monitoring,
-      HttpUrl agentUrl,
-      boolean enableV05Traces,
-      long interval,
-      TimeUnit timeUnit) {
+      OkHttpClient client, Monitoring monitoring, HttpUrl agentUrl, boolean enableV05Traces) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
     this.traceEndpoints =
@@ -67,21 +55,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy, AutoCloseable {
             ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
             : new String[] {V4_ENDPOINT, V3_ENDPOINT};
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
-    this.interval = interval;
-    this.timeUnit = timeUnit;
-  }
-
-  public DDAgentFeaturesDiscovery(
-      OkHttpClient client, Monitoring monitoring, HttpUrl agentUrl, boolean enableV05Traces) {
-    this(client, monitoring, agentUrl, enableV05Traces, 30, SECONDS);
-  }
-
-  public void start() {
-    if (started.compareAndSet(false, true)) {
-      cancellation =
-          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-              new Discover(), this, interval, interval, timeUnit);
-    }
   }
 
   public void discover() {
@@ -123,6 +96,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy, AutoCloseable {
                     .build())
             .execute()) {
       if (response.code() != 404) {
+        this.state = response.header(DATADOG_AGENT_STATE);
         return candidate;
       }
     } catch (IOException e) {
@@ -217,16 +191,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy, AutoCloseable {
     log.debug("Error querying {} at {}", endpoint, agentBaseUrl, t);
   }
 
-  @Override
-  public boolean active() {
-    return supportsDropping;
+  public String state() {
+    return state;
   }
 
   @Override
-  public void close() {
-    if (null != cancellation) {
-      cancellation.cancel();
-    }
+  public boolean active() {
+    return supportsDropping;
   }
 
   private static final class Discover implements AgentTaskScheduler.Task<DDAgentFeaturesDiscovery> {
