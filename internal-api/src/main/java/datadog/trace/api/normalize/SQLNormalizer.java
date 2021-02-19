@@ -63,7 +63,7 @@ public final class SQLNormalizer {
             int sequenceStart = start + 1;
             boolean removeSequence = false;
             // quote literals may span several splits
-            if (utf8[end] == '\'') {
+            if (utf8[end] == '\'' || (utf8[end] == ')' && utf8[end - 1] == '\'')) {
               while (sequenceStart > 0) {
                 // found the start of a string or hex literal
                 if (sequenceStart < end
