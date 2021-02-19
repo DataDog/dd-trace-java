@@ -253,6 +253,32 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
+  def "should be resilient to serialization errors"() {
+    setup:
+    int maxAggregates = 10
+    MetricWriter writer = Mock(MetricWriter)
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+      Stub(Sink), writer, maxAggregates, queueSize, 1, SECONDS)
+    long duration = 100
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    for (int i = 0; i < 5; ++i) {
+      aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+    }
+    latch.await(2, SECONDS)
+
+    then: "writer should be reset if reporting fails"
+    1 * writer.startBucket(_, _, _) >> {
+      throw new IllegalArgumentException("something went wrong")
+    }
+    1 * writer.reset() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+  }
+
   def reportAndWaitUntilEmpty(ConflatingMetricsAggregator aggregator) {
     waitUntilEmpty(aggregator)
     aggregator.report()

@@ -6,4 +6,6 @@ public interface MetricWriter {
   void add(MetricKey key, AggregateMetric aggregate);
 
   void finishBucket();
+
+  void reset();
 }

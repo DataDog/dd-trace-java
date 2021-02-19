@@ -113,4 +113,9 @@ public final class SerializingMetricWriter implements MetricWriter {
     sink.accept(buffer.messageCount(), buffer.slice());
     buffer.reset();
   }
+
+  @Override
+  public void reset() {
+    buffer.reset();
+  }
 }

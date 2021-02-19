@@ -11,7 +11,9 @@ import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 final class Aggregator implements Runnable {
 
   private final Queue<Batch> batchPool;
@@ -72,24 +74,29 @@ final class Aggregator implements Runnable {
           batchPool.offer(batch);
         }
       } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
+        currentThread.interrupt();
       }
     }
   }
 
   private void report(long when) {
     if (dirty) {
-      expungeStaleAggregates();
-      if (!aggregates.isEmpty()) {
-        writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
-        for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
-          if (aggregate.getValue().getHitCount() > 0) {
-            writer.add(aggregate.getKey(), aggregate.getValue());
-            aggregate.getValue().clear();
+      try {
+        expungeStaleAggregates();
+        if (!aggregates.isEmpty()) {
+          writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
+          for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
+            if (aggregate.getValue().getHitCount() > 0) {
+              writer.add(aggregate.getKey(), aggregate.getValue());
+              aggregate.getValue().clear();
+            }
           }
+          // note that this may do IO and block
+          writer.finishBucket();
         }
-        // note that this may do IO and block
-        writer.finishBucket();
+      } catch (Throwable error) {
+        writer.reset();
+        log.debug("Error publishing metrics. Dropping payload", error);
       }
       dirty = false;
     }
