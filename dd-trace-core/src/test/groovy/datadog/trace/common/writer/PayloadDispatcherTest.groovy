@@ -4,9 +4,9 @@ import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
+import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
-import datadog.trace.common.writer.ddagent.TraceMapperV0_4
-import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
@@ -17,6 +17,7 @@ import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 import spock.lang.Timeout
 
+import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -30,13 +31,14 @@ class PayloadDispatcherTest extends DDSpecification {
     setup:
     AtomicBoolean flushed = new AtomicBoolean()
     HealthMetrics healthMetrics = Mock(HealthMetrics)
+    DDAgentFeaturesDiscovery discovery = Mock(DDAgentFeaturesDiscovery)
+    discovery.getTraceEndpoint() >> traceEndpoint
     DDAgentApi api = Mock(DDAgentApi)
-    api.selectTraceMapper() >> traceMapper
     api.sendSerializedTraces(_) >> {
       flushed.set(true)
       return DDAgentApi.Response.success(200)
     }
-    PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
     when:
     while (!flushed.get()) {
@@ -47,14 +49,15 @@ class PayloadDispatcherTest extends DDSpecification {
     flushed.get()
 
     where:
-    traceMapper << [new TraceMapperV0_5(), new TraceMapperV0_4()]
+    traceEndpoint << ["v0.5/traces", "v0.4/traces"]
   }
 
   def "should flush buffer on demand"() {
     setup:
     HealthMetrics healthMetrics = Mock(HealthMetrics)
+    DDAgentFeaturesDiscovery discovery = Mock(DDAgentFeaturesDiscovery)
     DDAgentApi api = Mock(DDAgentApi)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
     when:
     for (int i = 0; i < traceCount; ++i) {
@@ -62,25 +65,26 @@ class PayloadDispatcherTest extends DDSpecification {
     }
     dispatcher.flush()
     then:
+    1 * discovery.getTraceEndpoint() >> traceEndpoint
     1 * healthMetrics.onSerialize({ it > 0 })
-    1 * api.selectTraceMapper() >> traceMapper
     1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.success(200)
 
     where:
-    traceMapper           | traceCount
-    new TraceMapperV0_4() | 1
-    new TraceMapperV0_4() | 10
-    new TraceMapperV0_4() | 100
-    new TraceMapperV0_5() | 1
-    new TraceMapperV0_5() | 10
-    new TraceMapperV0_5() | 100
+    traceEndpoint | traceCount
+    "v0.4/traces" | 1
+    "v0.4/traces" | 10
+    "v0.4/traces" | 100
+    "v0.5/traces" | 1
+    "v0.5/traces" | 10
+    "v0.5/traces" | 100
   }
 
   def "should report failed request to monitor"() {
     setup:
     HealthMetrics healthMetrics = Mock(HealthMetrics)
+    DDAgentFeaturesDiscovery discovery = Mock(DDAgentFeaturesDiscovery)
     DDAgentApi api = Mock(DDAgentApi)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
     when:
     for (int i = 0; i < traceCount; ++i) {
@@ -89,30 +93,55 @@ class PayloadDispatcherTest extends DDSpecification {
     dispatcher.flush()
     then:
     1 * healthMetrics.onSerialize({ it > 0 })
-    1 * api.selectTraceMapper() >> traceMapper
+    1 * discovery.getTraceEndpoint() >> traceEndpoint
     1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.failed(400)
 
     where:
-    traceMapper           | traceCount
-    new TraceMapperV0_4() | 1
-    new TraceMapperV0_4() | 10
-    new TraceMapperV0_4() | 100
-    new TraceMapperV0_5() | 1
-    new TraceMapperV0_5() | 10
-    new TraceMapperV0_5() | 100
+    traceEndpoint | traceCount
+    "v0.4/traces" | 1
+    "v0.4/traces" | 10
+    "v0.4/traces" | 100
+    "v0.5/traces" | 1
+    "v0.5/traces" | 10
+    "v0.5/traces" | 100
   }
 
   def "should drop trace when there is no agent connectivity"() {
     setup:
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     DDAgentApi api = Mock(DDAgentApi)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
+    DDAgentFeaturesDiscovery discovery = Mock(DDAgentFeaturesDiscovery)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
-    api.selectTraceMapper() >> null
+    discovery.getTraceEndpoint() >> null
     when:
     dispatcher.addTrace(trace)
     then:
     1 * healthMetrics.onFailedPublish(PrioritySampling.UNSET)
+  }
+
+  def "trace and span counts are reset after access"() {
+    setup:
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    DDAgentApi api = Mock(DDAgentApi)
+    DDAgentFeaturesDiscovery discovery = Mock(DDAgentFeaturesDiscovery) {
+      it.getTraceEndpoint() >> "v0.4/traces"
+    }
+    PayloadDispatcher dispatcher = new PayloadDispatcher(discovery, api, healthMetrics, monitoring)
+
+    when:
+    dispatcher.addTrace([])
+    dispatcher.onDroppedTrace(20)
+    dispatcher.onDroppedTrace(2)
+    Payload payload = dispatcher.newPayload(1, ByteBuffer.allocate(0))
+    then:
+    payload.droppedSpans() == 22
+    payload.droppedTraces() == 2
+    when:
+    Payload newPayload = dispatcher.newPayload(1, ByteBuffer.allocate(0))
+    then:
+    newPayload.droppedSpans() == 0
+    newPayload.droppedTraces() == 0
   }
 
 

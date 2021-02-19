@@ -11,11 +11,14 @@ import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 import java.nio.ByteBuffer;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.jctools.counters.CountersFactory;
+import org.jctools.counters.FixedSizeStripedLongCounter;
 
 @Slf4j
 public class PayloadDispatcher implements ByteBufferConsumer {
 
   private final DDAgentApi api;
+  private final DDAgentFeaturesDiscovery featuresDiscovery;
   private final HealthMetrics healthMetrics;
   private final Monitoring monitoring;
 
@@ -23,7 +26,17 @@ public class PayloadDispatcher implements ByteBufferConsumer {
   private TraceMapper traceMapper;
   private WritableFormatter packer;
 
-  public PayloadDispatcher(DDAgentApi api, HealthMetrics healthMetrics, Monitoring monitoring) {
+  private final FixedSizeStripedLongCounter droppedSpanCount =
+      CountersFactory.createFixedSizeStripedCounter(8);
+  private final FixedSizeStripedLongCounter droppedTraceCount =
+      CountersFactory.createFixedSizeStripedCounter(8);
+
+  public PayloadDispatcher(
+      DDAgentFeaturesDiscovery featuresDiscovery,
+      DDAgentApi api,
+      HealthMetrics healthMetrics,
+      Monitoring monitoring) {
+    this.featuresDiscovery = featuresDiscovery;
     this.api = api;
     this.healthMetrics = healthMetrics;
     this.monitoring = monitoring;
@@ -33,6 +46,11 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     if (null != packer) {
       packer.flush();
     }
+  }
+
+  public void onDroppedTrace(int spanCount) {
+    droppedSpanCount.inc(spanCount);
+    droppedTraceCount.inc();
   }
 
   void addTrace(List<? extends CoreSpan<?>> trace) {
@@ -50,7 +68,13 @@ public class PayloadDispatcher implements ByteBufferConsumer {
 
   private void selectTraceMapper() {
     if (null == traceMapper) {
-      this.traceMapper = api.selectTraceMapper();
+      featuresDiscovery.discover();
+      String tracesUrl = featuresDiscovery.getTraceEndpoint();
+      if (DDAgentFeaturesDiscovery.V5_ENDPOINT.equalsIgnoreCase(tracesUrl)) {
+        this.traceMapper = new TraceMapperV0_5();
+      } else if (null != tracesUrl) {
+        this.traceMapper = new TraceMapperV0_4();
+      }
       if (null != traceMapper && null == packer) {
         this.batchTimer =
             monitoring.newTimer(
@@ -61,13 +85,21 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     }
   }
 
+  Payload newPayload(int messageCount, ByteBuffer buffer) {
+    return traceMapper
+        .newPayload()
+        .withBody(messageCount, buffer)
+        .withDroppedSpans(droppedSpanCount.getAndReset())
+        .withDroppedTraces(droppedTraceCount.getAndReset());
+  }
+
   @Override
   public void accept(int messageCount, ByteBuffer buffer) {
     // the packer calls this when the buffer is full,
     // or when the packer is flushed at a heartbeat
     if (messageCount > 0) {
       batchTimer.reset();
-      Payload payload = traceMapper.newPayload().withBody(messageCount, buffer);
+      Payload payload = newPayload(messageCount, buffer);
       final int sizeInBytes = payload.sizeInBytes();
       healthMetrics.onSerialize(sizeInBytes);
       DDAgentApi.Response response = api.sendSerializedTraces(payload);

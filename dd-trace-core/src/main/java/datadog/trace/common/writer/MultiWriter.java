@@ -75,10 +75,10 @@ public class MultiWriter implements Writer {
   }
 
   @Override
-  public void incrementTraceCount() {
+  public void incrementDropCounts(int spanCount) {
     for (Writer writer : writers) {
       if (writer != null) {
-        writer.incrementTraceCount();
+        writer.incrementDropCounts(spanCount);
       }
     }
   }

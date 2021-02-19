@@ -14,6 +14,8 @@ public abstract class Payload {
   private static final ByteBuffer EMPTY_ARRAY = ByteBuffer.allocate(1).put(0, (byte) 0x90);
 
   private int traceCount = 0;
+  private long droppedTraces = 0;
+  private long droppedSpans = 0;
   protected ByteBuffer body = EMPTY_ARRAY.duplicate();
 
   public Payload withBody(int traceCount, ByteBuffer body) {
@@ -24,8 +26,26 @@ public abstract class Payload {
     return this;
   }
 
+  public Payload withDroppedTraces(long droppedTraceCount) {
+    this.droppedTraces += droppedTraceCount;
+    return this;
+  }
+
+  public Payload withDroppedSpans(long droppedSpanCount) {
+    this.droppedSpans += droppedSpanCount;
+    return this;
+  }
+
   int traceCount() {
     return traceCount;
+  }
+
+  long droppedTraces() {
+    return droppedTraces;
+  }
+
+  long droppedSpans() {
+    return droppedSpans;
   }
 
   abstract int sizeInBytes();

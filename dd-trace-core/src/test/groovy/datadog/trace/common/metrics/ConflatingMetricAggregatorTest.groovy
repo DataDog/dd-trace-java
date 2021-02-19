@@ -253,6 +253,37 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
+  def "aggregator should force keep the first of each key it sees"() {
+    setup:
+    int maxAggregates = 10
+    MetricWriter writer = Mock(MetricWriter)
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+      Stub(Sink), writer, maxAggregates, queueSize, 1, SECONDS)
+    long duration = 100
+    aggregator.start()
+
+    when:
+    def overrides = new boolean[10]
+    for (int i = 0; i < 5; ++i) {
+      overrides[i] = aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+    }
+    for (int i = 0; i < 5; ++i) {
+      overrides[i + 5] = aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+    }
+
+    then: "override only the first of each point in the interval"
+    for (int i = 0; i < 5; ++i) {
+      assert overrides[i]
+    }
+    // these were all repeats, so should be ignored
+    for (int i = 5; i < 10; ++i) {
+      assert !overrides[i]
+    }
+
+    cleanup:
+    aggregator.close()
+  }
+
   def "should be resilient to serialization errors"() {
     setup:
     int maxAggregates = 10

@@ -5,13 +5,14 @@ import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.trace.common.writer.ddagent.Payload
+import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
+import datadog.trace.core.http.OkHttpUtils
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.ByteBufferConsumer
@@ -19,6 +20,7 @@ import datadog.trace.core.serialization.FlushingBuffer
 import datadog.trace.core.serialization.Mapper
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.core.test.DDCoreSpecification
+import okhttp3.HttpUrl
 import spock.lang.Retry
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
@@ -44,10 +46,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
   def dummyTracer = tracerBuilder().writer(new ListWriter()).build()
 
   def apiWithVersion(String version) {
-    def api = Mock(DDAgentApi)
-    api.detectEndpoint() >> version
-    api.selectTraceMapper() >> { callRealMethod() }
-    return api
+    return Mock(DDAgentApi)
   }
 
   def setup() {
@@ -86,8 +85,10 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
 
   def "test happy path"() {
     setup:
-    def api = apiWithVersion(agentVersion)
+    def api = Mock(DDAgentApi)
+    def discovery = Mock(DDAgentFeaturesDiscovery)
     def writer = DDAgentWriter.builder()
+      .featureDiscovery(discovery)
       .agentApi(api)
       .traceBufferSize(1024)
       .monitoring(monitoring)
@@ -102,8 +103,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.flush()
 
     then:
-    1 * api.detectEndpoint() >> agentVersion
-    1 * api.selectTraceMapper() >> { callRealMethod() }
+    1 * discovery.discover()
+    1 * discovery.getTraceEndpoint() >> agentVersion
     1 * api.sendSerializedTraces({ it.traceCount() == 2 }) >> DDAgentApi.Response.success(200)
     0 * _
 
@@ -116,8 +117,10 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
 
   def "test flood of traces"() {
     setup:
-    def api = apiWithVersion(agentVersion)
+    def api = Mock(DDAgentApi)
+    def discovery = Mock(DDAgentFeaturesDiscovery)
     def writer = DDAgentWriter.builder()
+      .featureDiscovery(discovery)
       .agentApi(api)
       .traceBufferSize(bufferSize)
       .monitoring(monitoring)
@@ -133,8 +136,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.flush()
 
     then:
-    1 * api.detectEndpoint() >> agentVersion
-    1 * api.selectTraceMapper() >> { callRealMethod() }
+    1 * discovery.discover()
+    1 * discovery.getTraceEndpoint() >> agentVersion
     1 * api.sendSerializedTraces({ it.traceCount() <= traceCount }) >> DDAgentApi.Response.success(200)
     0 * _
 
@@ -150,8 +153,10 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
   def "test flush by time"() {
     setup:
     def healthMetrics = Mock(HealthMetrics)
-    def api = apiWithVersion(agentVersion)
+    def api = Mock(DDAgentApi)
+    def discovery = Mock(DDAgentFeaturesDiscovery)
     def writer = DDAgentWriter.builder()
+      .featureDiscovery(discovery)
       .agentApi(api)
       .healthMetrics(healthMetrics)
       .monitoring(monitoring)
@@ -168,8 +173,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     phaser.awaitAdvanceInterruptibly(phaser.arriveAndDeregister())
 
     then:
-    1 * api.detectEndpoint() >> agentVersion
-    1 * api.selectTraceMapper() >> { callRealMethod() }
+    1 * discovery.getTraceEndpoint() >> agentVersion
+    1 * discovery.discover()
     1 * healthMetrics.onSerialize(_)
     1 * api.sendSerializedTraces({ it.traceCount() == 5 }) >> DDAgentApi.Response.success(200)
     _ * healthMetrics.onPublish(_, _)
@@ -188,8 +193,10 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
   @Timeout(30)
   def "test default buffer size for #agentVersion"() {
     setup:
-    def api = apiWithVersion(agentVersion)
+    def api = Mock(DDAgentApi)
+    def discovery = Mock(DDAgentFeaturesDiscovery)
     def writer = DDAgentWriter.builder()
+      .featureDiscovery(discovery)
       .agentApi(api)
       .traceBufferSize(BUFFER_SIZE)
       .prioritization(ENSURE_TRACE)
@@ -208,8 +215,8 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     writer.flush()
 
     then:
-    1 * api.detectEndpoint() >> agentVersion
-    1 * api.selectTraceMapper() >> { callRealMethod() }
+    1 * discovery.getTraceEndpoint() >> agentVersion
+    1 * discovery.discover()
     1 * api.sendSerializedTraces({ it.traceCount() == maxedPayloadTraceCount }) >> DDAgentApi.Response.success(200)
     1 * api.sendSerializedTraces({ it.traceCount() == 1 }) >> DDAgentApi.Response.success(200)
     0 * _
@@ -225,8 +232,10 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
   def "check that there are no interactions after close"() {
     setup:
     def healthMetrics = Mock(HealthMetrics)
-    def api = apiWithVersion(agentVersion)
+    def api = Mock(DDAgentApi)
+    def discovery = Mock(DDAgentFeaturesDiscovery)
     def writer = DDAgentWriter.builder()
+      .featureDiscovery(discovery)
       .agentApi(api)
       .healthMetrics(healthMetrics)
       .monitoring(monitoring)
@@ -297,9 +306,13 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
         }
       }
     }
+    def agentUrl = HttpUrl.get(agent.address)
+    def client = OkHttpUtils.buildHttpClient(agentUrl, null, 1000)
+    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
+    def api = new DDAgentApi(client, agentUrl, discovery, monitoring, true)
     def writer = DDAgentWriter.builder()
-      .traceAgentV05Enabled(true)
-      .traceAgentPort(agent.address.port)
+      .featureDiscovery(discovery)
+      .agentApi(api)
       .monitoring(monitoring)
       .healthMetrics(healthMetrics).build()
 
@@ -352,9 +365,13 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
         }
       }
     }
+    def agentUrl = HttpUrl.get(agent.address)
+    def client = OkHttpUtils.buildHttpClient(agentUrl, null, 1000)
+    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
+    def api = new DDAgentApi(client, agentUrl, discovery, monitoring, true)
     def writer = DDAgentWriter.builder()
-      .traceAgentV05Enabled(true)
-      .traceAgentPort(agent.address.port)
+      .featureDiscovery(discovery)
+      .agentApi(api)
       .monitoring(monitoring)
       .healthMetrics(healthMetrics).build()
 
@@ -392,20 +409,18 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     def healthMetrics = Mock(HealthMetrics)
     def minimalTrace = createMinimalTrace()
     def version = agentVersion
-
-    def api = new DDAgentApi("http://localhost:8192", null, 1000, monitoring) {
-
-      String detectEndpoint() {
-        return version
-      }
-
-      DDAgentApi.Response sendSerializedTraces(Payload payload) {
+    def discovery = Mock(DDAgentFeaturesDiscovery) {
+      it.getTraceEndpoint() >> version
+    }
+    def api = Mock(DDAgentApi) {
+      it.sendSerializedTraces(_) >> {
         // simulating a communication failure to a server
         return DDAgentApi.Response.failed(new IOException("comm error"))
       }
     }
+
     def writer = DDAgentWriter.builder()
-      .traceAgentV05Enabled(true)
+      .featureDiscovery(discovery)
       .agentApi(api)
       .monitoring(monitoring)
       .healthMetrics(healthMetrics).build()
@@ -649,6 +664,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       numResponses.incrementAndGet()
     }
     def writer = DDAgentWriter.builder()
+      .agentHost(agent.address.host)
       .traceAgentV05Enabled(true)
       .traceAgentPort(agent.address.port)
       .monitoring(monitoring)

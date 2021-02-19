@@ -1,4 +1,4 @@
-package datadog.trace.common.writer.ddagent
+
 
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags

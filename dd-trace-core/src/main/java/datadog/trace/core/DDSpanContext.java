@@ -247,7 +247,6 @@ public class DDSpanContext implements AgentSpan.Context {
         return rootSpan.context().setSamplingPriority(newPriority);
       }
     }
-
     // sync with lockSamplingPriority
     synchronized (this) {
       if (samplingPriorityLocked) {

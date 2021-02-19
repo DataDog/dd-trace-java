@@ -1,8 +1,8 @@
 package datadog.trace.common.writer
 
 import datadog.trace.common.writer.ddagent.FlushEvent
-import datadog.trace.common.writer.ddagent.Prioritization
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy
+import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.TimeUnit
@@ -11,6 +11,8 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
+import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
+import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE
 
 class PrioritizationTest extends DDSpecification {
 
@@ -18,10 +20,10 @@ class PrioritizationTest extends DDSpecification {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy blocking = Prioritization.ENSURE_TRACE.create(primary, secondary)
+    PrioritizationStrategy blocking = ENSURE_TRACE.create(primary, secondary, { false })
 
     when:
-    blocking.publish(priority, trace)
+    blocking.publish(Mock(DDSpan), priority, trace)
 
     then:
     primaryOffers * primary.offer(trace) >> !primaryFull >> true
@@ -41,26 +43,14 @@ class PrioritizationTest extends DDSpecification {
     []    | false       | USER_KEEP    | 1             | 0
   }
 
-  def "ensure trace strategy flushes primary queue"() {
-    setup:
-    Queue<Object> primary = Mock(Queue)
-    Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy ensureTrace = Prioritization.ENSURE_TRACE.create(primary, secondary)
-    when:
-    ensureTrace.flush(100, TimeUnit.MILLISECONDS)
-    then:
-    1 * primary.offer({ it instanceof FlushEvent }) >> true
-    0 * secondary.offer(_)
-  }
-
   def "fast lane strategy sends kept and unset priority traces to the primary queue, dropped traces to the secondary queue"() {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy fastLane = Prioritization.FAST_LANE.create(primary, secondary)
+    PrioritizationStrategy fastLane = FAST_LANE.create(primary, secondary, { false })
 
     when:
-    fastLane.publish(priority, trace)
+    fastLane.publish(Mock(DDSpan), priority, trace)
 
     then:
     primaryOffers * primary.offer(trace)
@@ -75,54 +65,63 @@ class PrioritizationTest extends DDSpecification {
     []    | USER_KEEP    | 1             | 0
   }
 
-  def "fast lane strategy flushes primary queue"() {
+  def "FAST_LANE with active dropping policy sends kept and unset priority traces to the primary queue, drops all else"() {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy fastLane = Prioritization.FAST_LANE.create(primary, secondary)
+    PrioritizationStrategy drop = FAST_LANE.create(primary, secondary, { true })
+
+    when:
+    boolean published = drop.publish(Mock(DDSpan), priority, trace)
+
+    then:
+    published == publish
+    primaryOffers * primary.offer(trace) >> true
+    0 * secondary.offer(trace)
+
+    where:
+    trace | priority     | primaryOffers | publish
+    []    | UNSET        | 1             | true
+    []    | SAMPLER_DROP | 0             | false
+    []    | SAMPLER_KEEP | 1             | true
+    []    | SAMPLER_DROP | 0             | false
+    []    | USER_KEEP    | 1             | true
+  }
+
+  def "#strategy strategy flushes primary queue"() {
+    setup:
+    Queue<Object> primary = Mock(Queue)
+    Queue<Object> secondary = Mock(Queue)
+    PrioritizationStrategy fastLane = strategy.create(primary, secondary, { false })
     when:
     fastLane.flush(100, TimeUnit.MILLISECONDS)
     then:
     1 * primary.offer({ it instanceof FlushEvent }) >> true
     0 * secondary.offer(_)
-  }
-
-  def "dead letters strategy drops unkept traces if the primary queue is full"() {
-    setup:
-    Queue<Object> primary = Mock(Queue)
-    Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy fastLane = Prioritization.DEAD_LETTERS.create(primary, secondary)
-
-    when:
-    fastLane.publish(priority, trace)
-
-    then:
-    primaryOffers * primary.offer(trace) >> !primaryFull
-    secondaryOffers * secondary.offer(trace)
 
     where:
-    trace | primaryFull | priority     | primaryOffers | secondaryOffers
-    []    | true        | UNSET        | 1             | 1
-    []    | true        | SAMPLER_DROP | 1             | 0
-    []    | true        | SAMPLER_KEEP | 1             | 1
-    []    | true        | SAMPLER_DROP | 1             | 0
-    []    | true        | USER_KEEP    | 1             | 1
-    []    | false       | UNSET        | 1             | 0
-    []    | false       | SAMPLER_DROP | 1             | 0
-    []    | false       | SAMPLER_KEEP | 1             | 0
-    []    | false       | SAMPLER_DROP | 1             | 0
-    []    | false       | USER_KEEP    | 1             | 0
+    strategy << [FAST_LANE, ENSURE_TRACE]
   }
 
-  def "dead letters strategy flushes both queues"() {
+  def "drop strategy respects force keep" () {
     setup:
     Queue<Object> primary = Mock(Queue)
-    Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy deadLetters = Prioritization.DEAD_LETTERS.create(primary, secondary)
+    PrioritizationStrategy drop = strategy.create(primary, null, {
+      true
+    })
+    DDSpan root = Mock(DDSpan)
+    List<DDSpan> trace = [root]
+
     when:
-    deadLetters.flush(100, TimeUnit.MILLISECONDS)
+    drop.publish(root, SAMPLER_DROP, trace)
     then:
-    1 * primary.offer({ it instanceof FlushEvent }) >> true
-    1 * secondary.offer({ it instanceof FlushEvent }) >> true
+    1 * root.isForceKeep() >> forceKeep
+    (forceKeep ? 1 : 0) * primary.offer(trace) >> true
+    0 * _
+
+    where:
+    strategy | forceKeep
+    FAST_LANE | true
+    FAST_LANE | false
   }
 }

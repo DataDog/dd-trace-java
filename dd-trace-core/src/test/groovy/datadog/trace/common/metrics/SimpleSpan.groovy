@@ -173,6 +173,11 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
+  boolean isForceKeep() {
+    return false
+  }
+
+  @Override
   Map<CharSequence, Number> getUnsafeMetrics() {
     return null
   }

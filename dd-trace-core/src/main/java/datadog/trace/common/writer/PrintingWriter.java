@@ -63,5 +63,5 @@ public class PrintingWriter implements Writer {
   }
 
   @Override
-  public void incrementTraceCount() {}
+  public void incrementDropCounts(int spanCount) {}
 }

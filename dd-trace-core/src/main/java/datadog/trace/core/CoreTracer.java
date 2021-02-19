@@ -438,20 +438,21 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (!writtenTrace.isEmpty()) {
       writtenTrace = traceProcessor.onTraceComplete(writtenTrace);
 
-      metricsAggregator.publish(writtenTrace);
+      boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
-      final DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
+      DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
       setSamplingPriorityIfNecessary(rootSpan);
 
-      final DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
-      if (sampler.sample(spanToSample)) {
+      DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
+      spanToSample.forceKeep(forceKeep);
+      if (forceKeep || sampler.sample(spanToSample)) {
         writer.write(writtenTrace);
       } else {
         // with span streaming this won't work - it needs to be changed
         // to track an effective sampling rate instead, however, tests
         // checking that a hard reference on a continuation prevents
         // reporting fail without this, so will need to be fixed first.
-        writer.incrementTraceCount();
+        writer.incrementDropCounts(writtenTrace.size());
       }
     }
   }

@@ -2,17 +2,22 @@ import com.timgroup.statsd.NonBlockingStatsDClient
 import com.timgroup.statsd.StatsDClient
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
 import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.TraceMapper
+import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
+import datadog.trace.core.http.OkHttpUtils
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.FlushingBuffer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.startupcheck.MinimumDurationRunningStartupCheckStrategy
 import spock.lang.Requires
@@ -51,6 +56,8 @@ class DDApiIntegrationTest extends DDSpecification {
   @Shared
   StatsDClient statsDClient
 
+  def discovery
+  def udsDiscovery
   def api
   def unixDomainSocketApi
   TraceMapper mapper
@@ -120,12 +127,18 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def beforeTest(boolean enableV05) {
     Monitoring monitoring = new Monitoring(statsDClient, 1, TimeUnit.SECONDS)
-    api = new DDAgentApi(String.format("http://%s:%d", agentContainerHost, agentContainerPort), null, 5000, enableV05, false, monitoring)
+    HttpUrl agentUrl = HttpUrl.get(String.format("http://%s:%d", agentContainerHost, agentContainerPort))
+    OkHttpClient httpClient = OkHttpUtils.buildHttpClient(agentUrl, 5000)
+    discovery = new DDAgentFeaturesDiscovery(httpClient, monitoring, agentUrl, enableV05)
+    api = new DDAgentApi(httpClient, agentUrl, discovery, monitoring, false)
     api.addResponseListener(responseListener)
-    mapper = api.selectTraceMapper()
-    version = mapper instanceof TraceMapperV0_5 ? "v0.5" : "v0.4"
-    unixDomainSocketApi = new DDAgentApi(String.format("http://%s:%d", SOMEHOST, SOMEPORT), socketPath.toString(), 5000, enableV05, false, monitoring)
+    HttpUrl udsAgentUrl = HttpUrl.get(String.format("http://%s:%d", SOMEHOST, SOMEPORT))
+    OkHttpClient udsClient = OkHttpUtils.buildHttpClient(udsAgentUrl, socketPath.toString(), 5000)
+    udsDiscovery = new DDAgentFeaturesDiscovery(udsClient, monitoring, agentUrl, enableV05)
+    unixDomainSocketApi = new DDAgentApi(udsClient, udsAgentUrl, udsDiscovery, monitoring, false)
     unixDomainSocketApi.addResponseListener(responseListener)
+    mapper = enableV05 ? new TraceMapperV0_5() : new TraceMapperV0_4()
+    version = enableV05 ? "v0.5" : "v0.4"
   }
 
   def "Sending empty traces succeeds (test #test)"() {
@@ -137,7 +150,7 @@ class DDApiIntegrationTest extends DDSpecification {
     assert null == response.exception()
     assert 200 == response.status()
     assert response.success()
-    assert api.detectedVersion == "${version}/traces"
+    assert discovery.getTraceEndpoint() == "${version}/traces"
     assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/${version}/traces"
     assert agentResponse.get()["rate_by_service"] instanceof Map
 
@@ -158,7 +171,7 @@ class DDApiIntegrationTest extends DDSpecification {
     assert null == response.exception()
     assert 200 == response.status()
     assert response.success()
-    assert api.detectedVersion == "${version}/traces"
+    assert discovery.getTraceEndpoint() == "${version}/traces"
     assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/${version}/traces"
     assert agentResponse.get()["rate_by_service"] instanceof Map
 
@@ -175,7 +188,7 @@ class DDApiIntegrationTest extends DDSpecification {
     assert null == response.exception()
     assert 200 == response.status()
     assert response.success()
-    assert api.detectedVersion == "${version}/traces"
+    assert udsDiscovery.getTraceEndpoint() == "${version}/traces"
     assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/${version}/traces"
     assert agentResponse.get()["rate_by_service"] instanceof Map
 
@@ -194,7 +207,7 @@ class DDApiIntegrationTest extends DDSpecification {
     assert null == response.exception()
     assert 200 == response.status()
     assert response.success()
-    assert api.detectedVersion == "${version}/traces"
+    assert udsDiscovery.getTraceEndpoint() == "${version}/traces"
     assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/${version}/traces"
     assert agentResponse.get()["rate_by_service"] instanceof Map
 

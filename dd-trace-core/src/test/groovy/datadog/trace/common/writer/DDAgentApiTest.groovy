@@ -8,17 +8,21 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
 import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
+import datadog.trace.core.http.OkHttpUtils
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.FlushingBuffer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.core.test.DDCoreSpecification
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Shared
 import spock.lang.Timeout
@@ -42,7 +46,6 @@ class DDAgentApiTest extends DDCoreSpecification {
     httpServer {
       handlers {
         put(latestVersion) {
-          System.out.println(request.getHeader("X-Datadog-Trace-Count"))
           if (request.contentType != "application/msgpack") {
             response.status(400).send("wrong type: $request.contentType")
           } else if (request.contentLength <= 0) {
@@ -59,7 +62,7 @@ class DDAgentApiTest extends DDCoreSpecification {
   def "sending an empty list of traces returns no errors"() {
     setup:
     def agent = newAgent(agentVersion)
-    def client = createAgentApi(agent.address.port)
+    def client = createAgentApi(agent.address.toString())[1]
     def payload = prepareTraces(agentVersion, [])
 
     expect:
@@ -75,25 +78,6 @@ class DDAgentApiTest extends DDCoreSpecification {
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
-  def "get right mapper for latest endpoint"() {
-    setup:
-    def agent = newAgent(version)
-    def client = createAgentApi(agent.address.port)
-    def mapper = client.selectTraceMapper()
-    expect:
-    mapper.getClass().isAssignableFrom(expected)
-    agent.getLastRequest().path == "/" + version
-
-    cleanup:
-    agent.close()
-
-    where:
-    version       | expected
-    "v0.5/traces" | TraceMapperV0_5
-    "v0.4/traces" | TraceMapperV0_4
-    "v0.3/traces" | TraceMapperV0_4
-  }
-
   def "non-200 response"() {
     setup:
     def agent = httpServer {
@@ -107,7 +91,7 @@ class DDAgentApiTest extends DDCoreSpecification {
         }
       }
     }
-    def client = createAgentApi(agent.address.port)
+    def client = createAgentApi(agent.address.toString())[1]
     Payload payload = prepareTraces("v0.3/traces", [])
     expect:
     def response = client.sendSerializedTraces(payload)
@@ -128,7 +112,7 @@ class DDAgentApiTest extends DDCoreSpecification {
         }
       }
     }
-    def client = createAgentApi(agent.address.port)
+    def client = createAgentApi(agent.address.toString())[1]
     def payload = prepareTraces(agentVersion, traces)
 
     expect:
@@ -139,6 +123,8 @@ class DDAgentApiTest extends DDCoreSpecification {
     agent.lastRequest.headers.get("Datadog-Meta-Lang-Version") == System.getProperty("java.version", "unknown")
     agent.lastRequest.headers.get("Datadog-Meta-Tracer-Version") == "Stubbed-Test-Version"
     agent.lastRequest.headers.get("X-Datadog-Trace-Count") == "${traces.size()}"
+    agent.lastRequest.headers.get("Datadog-Client-Dropped-P0-Traces") == "${payload.droppedTraces()}"
+    agent.lastRequest.headers.get("Datadog-Client-Dropped-P0-Spans") == "${payload.droppedSpans()}"
     convertList(agentVersion, agent.lastRequest.body) == expectedRequestBody
 
     cleanup:
@@ -208,9 +194,11 @@ class DDAgentApiTest extends DDCoreSpecification {
         }
       }
     }
-    def client = createAgentApi(agent.address.port)
+    def client = createAgentApi(agent.address.toString())[1]
     client.addResponseListener(responseListener)
     def payload = prepareTraces(agentVersion, [[], [], []])
+    payload.withDroppedTraces(1)
+    payload.withDroppedTraces(3)
 
     when:
     client.sendSerializedTraces(payload)
@@ -220,6 +208,8 @@ class DDAgentApiTest extends DDCoreSpecification {
     agent.lastRequest.headers.get("Datadog-Meta-Lang-Version") == System.getProperty("java.version", "unknown")
     agent.lastRequest.headers.get("Datadog-Meta-Tracer-Version") == "Stubbed-Test-Version"
     agent.lastRequest.headers.get("X-Datadog-Trace-Count") == "3" // false data shows the value provided via traceCounter.
+    agent.lastRequest.headers.get("Datadog-Client-Dropped-P0-Traces") == "${payload.droppedTraces()}"
+    agent.lastRequest.headers.get("Datadog-Client-Dropped-P0-Spans") == "${payload.droppedSpans()}"
 
     cleanup:
     agent.close()
@@ -238,7 +228,7 @@ class DDAgentApiTest extends DDCoreSpecification {
         }
       }
     }
-    def client = createAgentApi(v3Agent.address.port)
+    def client = createAgentApi(v3Agent.address.toString())[1]
     def payload = prepareTraces("v0.4/traces", [])
     expect:
     client.sendSerializedTraces(payload).success()
@@ -265,7 +255,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       }
     }
     def port = badPort ? 999 : agent.address.port
-    def client = createAgentApi(port)
+    def client = createAgentApi("http://" + agent.address.host + ":" + port)[1]
     def payload = prepareTraces("v0.4/traces", [])
     def result = client.sendSerializedTraces(payload)
 
@@ -297,7 +287,7 @@ class DDAgentApiTest extends DDCoreSpecification {
         }
       }
     }
-    def client = createAgentApi(agent.address.port)
+    def client = createAgentApi(agent.address.toString())[1]
     def payload = prepareTraces(agentVersion, traces)
     when:
     def success = client.sendSerializedTraces(payload).success()
@@ -331,8 +321,8 @@ class DDAgentApiTest extends DDCoreSpecification {
   def "Embedded HTTP client rejects async requests"() {
     setup:
     def agent = newAgent("v0.5/traces")
-    def client = createAgentApi(agent.address.port)
-    client.detectEndpoint()
+    def (discovery, client) = createAgentApi(agent.address.toString())
+    discovery.discover()
     def httpExecutorService = client.httpClient.dispatcher().executorService()
     when:
     httpExecutorService.execute({})
@@ -416,8 +406,11 @@ class DDAgentApiTest extends DDCoreSpecification {
     }
   }
 
-  DDAgentApi createAgentApi(int port) {
-    return new DDAgentApi("http://localhost:" + port, null, 1000, monitoring)
+  def createAgentApi(String url) {
+    HttpUrl agentUrl = HttpUrl.get(url)
+    OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, null, 1000)
+    DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
+    return [discovery, new DDAgentApi(client, agentUrl, discovery, monitoring, false)]
   }
 
   DDSpan buildSpan(long timestamp, String tag, String value) {

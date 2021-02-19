@@ -25,7 +25,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
 
   @Override
   public void write(List<DDSpan> trace) {
-    incrementTraceCount();
+    traceCount.incrementAndGet();
     synchronized (latches) {
       trace = processor.onTraceComplete(trace);
       add(trace);
@@ -89,9 +89,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   }
 
   @Override
-  public void incrementTraceCount() {
-    traceCount.incrementAndGet();
-  }
+  public void incrementDropCounts(int spanCount) {}
 
   @Override
   public void start() {
