@@ -27,65 +27,9 @@ excludedClassesCoverage += [
   "datadog.trace.util.AgentThreadFactory.1",
 ]
 
-sourceSets {
-  java8 {
-    java {
-      srcDirs = ['src/main/java8']
-    }
-  }
-  testJava8 {
-    java {
-      srcDirs = ['src/test/java8']
-    }
-    resources {
-      srcDirs = ['src/test/java8resources']
-    }
-  }
-}
-
-compileJava8Java {
-  sourceCompatibility = 8
-  targetCompatibility = 8
-}
-
-compileTestJava8Java {
-  sourceCompatibility = 8
-  targetCompatibility = 8
-}
-
 dependencies {
   // references TraceScope and Continuation from public api
   compile project(':dd-trace-api')
-  java8Compile sourceSets.main.output
 
   testCompile project(":utils:test-utils")
-  testJava8Compile deps.junit5
-  testJava8Compile deps.jmc
-  testJava8Compile deps.commonsMath
-  testJava8Compile deps.mockito
-  testJava8Compile deps.slf4j
-  testJava8Compile sourceSets.java8.output
-  testJava8Compile sourceSets.main.compileClasspath
-  testJava8Compile sourceSets.main.runtimeClasspath
-  testJava8Compile project(":utils:test-utils")
-}
-
-jar {
-  into('') {
-    from sourceSets.java8.output
-  }
-}
-
-task junitTests(type: Test) {
-  useJUnitPlatform()
-  testClassesDirs = sourceSets.testJava8.output.classesDirs
-  classpath = sourceSets.testJava8.runtimeClasspath
-  outputs.upToDateWhen {false}
-}
-
-tasks.withType(Test).all {
-  if (it.name.contains("Java8")) {
-    it.dependsOn += tasks.named('junitTests')
-  }
-  it.outputs.upToDateWhen {false}
 }

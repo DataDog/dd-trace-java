@@ -31,7 +31,7 @@ compileMain_java11Java.options.forkOptions.javaHome = file(System.env.JAVA_11_HO
 compileMain_java11Java.sourceCompatibility = JavaVersion.VERSION_1_8
 compileMain_java11Java.targetCompatibility = JavaVersion.VERSION_1_8
 dependencies {
-  main_java11CompileOnly project(':internal-api')
+  main_java11CompileOnly project(':internal-api:internal-api-8')
   main_java11CompileOnly "org.projectlombok:lombok:${project.lombok.version}" transitive false
   main_java11AnnotationProcessor "org.projectlombok:lombok:${project.lombok.version}" transitive false
 }
