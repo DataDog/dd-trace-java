@@ -2,7 +2,7 @@ package datadog.trace.core.histogram;
 
 import com.datadoghq.sketch.ddsketch.DDSketch;
 import com.datadoghq.sketch.ddsketch.mapping.BitwiseLinearlyInterpolatedMapping;
-import com.datadoghq.sketch.ddsketch.store.PaginatedStore;
+import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore;
 import java.nio.ByteBuffer;
 
 public final class DDSketchHistogram implements Histogram, HistogramFactory {
@@ -10,7 +10,10 @@ public final class DDSketchHistogram implements Histogram, HistogramFactory {
   private final DDSketch sketch;
 
   public DDSketchHistogram() {
-    this(new DDSketch(new BitwiseLinearlyInterpolatedMapping(0.01), PaginatedStore::new));
+    this(
+        new DDSketch(
+            new BitwiseLinearlyInterpolatedMapping(0.01),
+            () -> new CollapsingLowestDenseStore(1024)));
   }
 
   public DDSketchHistogram(DDSketch sketch) {
