@@ -6,7 +6,6 @@ import com.squareup.moshi.Types;
 import datadog.trace.core.http.OkHttpUtils;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
-import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -197,14 +196,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   @Override
   public boolean active() {
-    return supportsDropping;
-  }
-
-  private static final class Discover implements AgentTaskScheduler.Task<DDAgentFeaturesDiscovery> {
-
-    @Override
-    public void run(DDAgentFeaturesDiscovery target) {
-      target.discover();
-    }
+    return supportsMetrics() && supportsDropping;
   }
 }
