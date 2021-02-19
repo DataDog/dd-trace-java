@@ -9,7 +9,7 @@ class SpringWebfluxHttpClientFiltersRemovedTest extends SpringWebfluxHttpClientB
   @Override
   WebClient createClient(CharSequence component) {
     def builder = WebClient.builder()
-    builder.filters({ filters -> filters.clear()})
+    builder.filters({ filters -> filters.clear() })
     return builder.build()
   }
 

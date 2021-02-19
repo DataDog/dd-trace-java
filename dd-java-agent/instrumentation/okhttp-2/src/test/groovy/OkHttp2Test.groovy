@@ -29,7 +29,7 @@ class OkHttp2Test extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
 
     def request = new Request.Builder()

@@ -47,7 +47,7 @@ class Netty40ClientTest extends HttpClientTest {
     .setProxyServer(new ProxyServer.Builder("localhost", proxy.port).build()))
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     def proxy = uri.fragment != null && uri.fragment.equals("proxy")
     def client = proxy ? proxiedAsyncHttpClient : asyncHttpClient
     def methodName = "prepare" + method.toLowerCase().capitalize()

@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 abstract class JaxRsClientAsyncTest extends HttpClientTest {
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     Client client = builder().build()
     WebTarget service = client.target(uri)
     def builder = service.request(MediaType.TEXT_PLAIN)

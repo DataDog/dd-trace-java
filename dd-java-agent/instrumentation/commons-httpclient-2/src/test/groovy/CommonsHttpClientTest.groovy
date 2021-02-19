@@ -23,7 +23,7 @@ class CommonsHttpClientTest extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     HttpMethod httpMethod
 
     switch (method) {

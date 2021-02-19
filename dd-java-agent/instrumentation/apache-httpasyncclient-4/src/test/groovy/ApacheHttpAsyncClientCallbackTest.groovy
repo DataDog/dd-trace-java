@@ -30,7 +30,7 @@ class ApacheHttpAsyncClientCallbackTest extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers = [:], String body = "", Closure callback = null) {
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     def request = new HttpUriRequest(method, uri)
     headers.entrySet().each {
       request.addHeader(new BasicHeader(it.key, it.value))
