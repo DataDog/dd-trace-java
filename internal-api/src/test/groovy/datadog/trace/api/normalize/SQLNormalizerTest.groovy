@@ -73,42 +73,43 @@ class SQLNormalizerTest extends DDSpecification {
     "CREATE TABLE S_H2 (id INTEGER not NULL, PRIMARY KEY ( id ))"                                                                    | "CREATE TABLE S_H2 (id INTEGER not NULL, PRIMARY KEY ( id ))"
     "CREATE TABLE S_H2 ( id INTEGER not NULL, PRIMARY KEY ( id ) )"                                                                  | "CREATE TABLE S_H2 ( id INTEGER not NULL, PRIMARY KEY ( id ) )"
     "SELECT * FROM TABLE WHERE name = 'O''Brady'"                                                                                    | "SELECT * FROM TABLE WHERE name = ?"
-    """SELECT 
+    "INSERT INTO visits VALUES (2, 8, '2013-01-02', 'rabies shot')"                                                                  | "INSERT INTO visits VALUES (?, ?, ?, ?)"
+    """SELECT
 \tcountry.country_name_eng,
 \tSUM(CASE WHEN call.id IS NOT NULL THEN 1 ELSE 0 END) AS calls,
 \tAVG(ISNULL(DATEDIFF(SECOND, call.start_time, call.end_time),0)) AS avg_difference
-FROM country 
+FROM country
 LEFT JOIN city ON city.country_id = country.id
 LEFT JOIN customer ON city.id = customer.city_id
 LEFT JOIN call ON call.customer_id = customer.id
-GROUP BY 
+GROUP BY
 \tcountry.id,
 \tcountry.country_name_eng
 HAVING AVG(ISNULL(DATEDIFF(SECOND, call.start_time, call.end_time),0)) > (SELECT AVG(DATEDIFF(SECOND, call.start_time, call.end_time)) FROM call)
-ORDER BY calls DESC, country.id ASC;"""                                                                                       | """SELECT 
+ORDER BY calls DESC, country.id ASC;"""                                                                          | """SELECT
 \tcountry.country_name_eng,
 \tSUM(CASE WHEN call.id IS NOT NULL THEN ? ELSE ? END) AS calls,
 \tAVG(ISNULL(DATEDIFF(SECOND, call.start_time, call.end_time),?)) AS avg_difference
-FROM country 
+FROM country
 LEFT JOIN city ON city.country_id = country.id
 LEFT JOIN customer ON city.id = customer.city_id
 LEFT JOIN call ON call.customer_id = customer.id
-GROUP BY 
+GROUP BY
 \tcountry.id,
 \tcountry.country_name_eng
 HAVING AVG(ISNULL(DATEDIFF(SECOND, call.start_time, call.end_time),?)) > (SELECT AVG(DATEDIFF(SECOND, call.start_time, call.end_time)) FROM call)
 ORDER BY calls DESC, country.id ASC;"""
-    """DROP VIEW IF EXISTS v_country_all; GO CREATE VIEW v_country_all AS SELECT * FROM country;"""                                  | """DROP VIEW IF EXISTS v_country_all; GO CREATE VIEW v_country_all AS SELECT * FROM country;"""
+    """DROP VIEW IF EXISTS v_country_all; GO CREATE VIEW v_country_all AS SELECT * FROM country;"""              | """DROP VIEW IF EXISTS v_country_all; GO CREATE VIEW v_country_all AS SELECT * FROM country;"""
     """UPDATE v_country_all SET
   country_name = 'Nova1'
-WHERE id = 8;"""                                                                                                              | """UPDATE v_country_all SET
+WHERE id = 8;"""                                                                                          | """UPDATE v_country_all SET
   country_name = ?
 WHERE id = ?"""
     """INSERT INTO country (country_name, country_name_eng, country_code) VALUES ('Deutschland', 'Germany', 'DEU');
 INSERT INTO country (country_name, country_name_eng, country_code) VALUES ('Srbija', 'Serbia', 'SRB');
 INSERT INTO country (country_name, country_name_eng, country_code) VALUES ('Hrvatska', 'Croatia', 'HRV');
 INSERT INTO country (country_name, country_name_eng, country_code) VALUES ('United States of America', 'United States of America', 'USA');
-INSERT INTO country (country_name, country_name_eng, country_code) VALUES ('Polska', 'Poland', 'POL');"""                     | """INSERT INTO country (country_name, country_name_eng, country_code) VALUES (?, ?, ?);
+INSERT INTO country (country_name, country_name_eng, country_code) VALUES ('Polska', 'Poland', 'POL');""" | """INSERT INTO country (country_name, country_name_eng, country_code) VALUES (?, ?, ?);
 INSERT INTO country (country_name, country_name_eng, country_code) VALUES (?, ?, ?);
 INSERT INTO country (country_name, country_name_eng, country_code) VALUES (?, ?, ?);
 INSERT INTO country (country_name, country_name_eng, country_code) VALUES (?, ?, ?);
