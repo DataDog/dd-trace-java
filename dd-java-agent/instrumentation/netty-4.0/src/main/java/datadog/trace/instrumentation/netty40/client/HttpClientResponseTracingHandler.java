@@ -16,7 +16,8 @@ import io.netty.util.Attribute;
 
 @ChannelHandler.Sharable
 public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapter {
-  public static HttpClientResponseTracingHandler INSTANCE = new HttpClientResponseTracingHandler();
+  public static final HttpClientResponseTracingHandler INSTANCE =
+      new HttpClientResponseTracingHandler();
 
   @Override
   public void channelRead(final ChannelHandlerContext ctx, final Object msg) {

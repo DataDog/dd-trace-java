@@ -26,14 +26,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @ChannelHandler.Sharable
 public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapter {
-  public static HttpClientRequestTracingHandler INSTANCE = new HttpClientRequestTracingHandler();
-  private static Class<ChannelHandler> SSL_HANDLER;
+  public static final HttpClientRequestTracingHandler INSTANCE =
+      new HttpClientRequestTracingHandler();
+  private static final Class<ChannelHandler> SSL_HANDLER;
 
   static {
     Class<?> sslHandler;
     try {
       // This class is in "netty-handler", so ignore if not present.
-      sslHandler = Class.forName("io.netty.handler.ssl.SslHandler");
+      ClassLoader cl = HttpClientRequestTracingHandler.class.getClassLoader();
+      sslHandler = Class.forName("io.netty.handler.ssl.SslHandler", false, cl);
     } catch (ClassNotFoundException e) {
       sslHandler = null;
     }
