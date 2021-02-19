@@ -3,15 +3,17 @@ package datadog.trace.core.serialization;
 import java.nio.ByteBuffer;
 
 /**
- * This buffer doesn't have a bounded length, and grows exponentially. Don't use it except when
+ * This buffer doesn't have a bounded length, and grows linearly. Don't use it except when
  * serialising the contents of a bounded data structure.
  */
 public final class GrowableBuffer implements StreamingBuffer {
 
+  private final int initialCapacity;
   private ByteBuffer buffer;
   private int messageCount;
 
   public GrowableBuffer(int initialCapacity) {
+    this.initialCapacity = initialCapacity;
     this.buffer = ByteBuffer.allocate(initialCapacity);
   }
 
@@ -107,14 +109,12 @@ public final class GrowableBuffer implements StreamingBuffer {
 
   private void checkCapacity(int required) {
     if (buffer.remaining() < required) {
-      resize();
+      // round up to next multiple of required
+      int newSize = (buffer.capacity() + required + initialCapacity - 1) & -initialCapacity;
+      ByteBuffer newBuffer = ByteBuffer.allocate(newSize);
+      buffer.flip();
+      newBuffer.put(buffer);
+      buffer = newBuffer;
     }
-  }
-
-  private void resize() {
-    ByteBuffer newBuffer = ByteBuffer.allocate(buffer.capacity() * 2);
-    buffer.flip();
-    newBuffer.put(buffer);
-    buffer = newBuffer;
   }
 }
