@@ -23,7 +23,7 @@ class SerializingMetricWriterTest extends DDSpecification {
     long duration = SECONDS.toNanos(10)
     WellKnownTags wellKnownTags = new WellKnownTags("hostname", "env", "service", "version")
     ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
-    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink)
+    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128)
 
     when:
     writer.startBucket(content.size(), startTime, duration)
@@ -41,7 +41,10 @@ class SerializingMetricWriterTest extends DDSpecification {
       [
         Pair.of(new MetricKey("resource1", "service1", "operation1", "type", 0), new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))),
         Pair.of(new MetricKey("resource2", "service2", "operation2", "type2", 200), new AggregateMetric().recordDurations(9, new AtomicLongArray(1L)))
-      ]
+      ],
+      (0..10000).collect({
+        i -> Pair.of(new MetricKey("resource" + i, "service" + i, "operation" + i, "type", 0), new AggregateMetric().recordDurations(10, new AtomicLongArray(1L)))
+      })
     ]
   }
 

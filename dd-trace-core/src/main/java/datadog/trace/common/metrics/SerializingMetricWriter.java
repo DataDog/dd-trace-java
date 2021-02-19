@@ -33,8 +33,12 @@ public final class SerializingMetricWriter implements MetricWriter {
   private final GrowableBuffer buffer;
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
+    this(wellKnownTags, sink, 512 * 1024);
+  }
+
+  public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink, int initialCapacity) {
     this.wellKnownTags = wellKnownTags;
-    this.buffer = new GrowableBuffer(512 << 10);
+    this.buffer = new GrowableBuffer(initialCapacity);
     this.writer = new MsgPackWriter(buffer);
     this.sink = sink;
   }
