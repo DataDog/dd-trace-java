@@ -11,11 +11,12 @@ import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator
-import java.util.concurrent.CompletionStage
 import scala.compat.java8.FutureConverters
 import scala.concurrent.Future
 import spock.lang.Shared
 import spock.lang.Timeout
+
+import java.util.concurrent.CompletionStage
 
 @Timeout(5)
 abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
@@ -33,7 +34,7 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
   abstract CompletionStage<HttpResponse> doRequest(HttpRequest request)
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     def request = HttpRequest.create(uri.toString())
       .withMethod(HttpMethods.lookup(method).get())
       .addHeaders(headers.collect { RawHeader.create(it.key, it.value) })

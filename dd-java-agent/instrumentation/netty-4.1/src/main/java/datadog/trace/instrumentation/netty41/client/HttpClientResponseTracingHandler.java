@@ -2,25 +2,29 @@ package datadog.trace.instrumentation.netty41.client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.SPAN_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.netty41.AttributeKeys;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.Attribute;
 
+@ChannelHandler.Sharable
 public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapter {
+  public static final HttpClientResponseTracingHandler INSTANCE =
+      new HttpClientResponseTracingHandler();
 
   @Override
   public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
-    final Attribute<AgentSpan> parentAttr =
-        ctx.channel().attr(AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY);
+    final Attribute<AgentSpan> parentAttr = ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY);
     parentAttr.setIfAbsent(noopSpan());
     final AgentSpan parent = parentAttr.get();
-    final AgentSpan span = ctx.channel().attr(AttributeKeys.CLIENT_ATTRIBUTE_KEY).get();
+    final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).getAndSet(parent);
 
     final boolean finishSpan = msg instanceof HttpResponse;
 

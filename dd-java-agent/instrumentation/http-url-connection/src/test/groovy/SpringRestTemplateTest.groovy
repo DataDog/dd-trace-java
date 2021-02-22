@@ -24,7 +24,7 @@ class SpringRestTemplateTest extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     def httpHeaders = new HttpHeaders()
     headers.each { httpHeaders.put(it.key, [it.value]) }
     def request = new HttpEntity<String>(httpHeaders)

@@ -1,16 +1,15 @@
 import com.squareup.okhttp.Headers
 import com.squareup.okhttp.MediaType
+import com.squareup.okhttp.OkHttpClient
 import com.squareup.okhttp.Request
 import com.squareup.okhttp.RequestBody
-import datadog.trace.instrumentation.okhttp2.OkHttpClientDecorator
-import spock.lang.Shared
-
-import java.util.concurrent.TimeUnit
-
-import com.squareup.okhttp.OkHttpClient
 import com.squareup.okhttp.internal.http.HttpMethod
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.instrumentation.okhttp2.OkHttpClientDecorator
+import spock.lang.Shared
 import spock.lang.Timeout
+
+import java.util.concurrent.TimeUnit
 
 @Timeout(5)
 class OkHttp2Test extends HttpClientTest {
@@ -30,12 +29,12 @@ class OkHttp2Test extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
-    def body = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), "") : null
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+    def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
 
     def request = new Request.Builder()
       .url(uri.toURL())
-      .method(method, body)
+      .method(method, reqBody)
       .headers(Headers.of(HeadersUtil.headersToArray(headers)))
       .build()
     def response = client.newCall(request).execute()

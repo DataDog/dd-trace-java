@@ -4,6 +4,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.SPAN_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.DECORATE_SECURE;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.NETTY_CLIENT_REQUEST;
@@ -12,7 +15,7 @@ import static datadog.trace.instrumentation.netty41.client.NettyResponseInjectAd
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
-import datadog.trace.instrumentation.netty41.AttributeKeys;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
@@ -21,7 +24,23 @@ import java.net.InetSocketAddress;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@ChannelHandler.Sharable
 public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapter {
+  public static final HttpClientRequestTracingHandler INSTANCE =
+      new HttpClientRequestTracingHandler();
+  private static final Class<ChannelHandler> SSL_HANDLER;
+
+  static {
+    Class<?> sslHandler;
+    try {
+      // This class is in "netty-handler", so ignore if not present.
+      ClassLoader cl = HttpClientRequestTracingHandler.class.getClassLoader();
+      sslHandler = Class.forName("io.netty.handler.ssl.SslHandler", false, cl);
+    } catch (ClassNotFoundException e) {
+      sslHandler = null;
+    }
+    SSL_HANDLER = (Class<ChannelHandler>) sslHandler;
+  }
 
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {
@@ -32,15 +51,15 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
     TraceScope parentScope = null;
     final TraceScope.Continuation continuation =
-        ctx.channel().attr(AttributeKeys.PARENT_CONNECT_CONTINUATION_ATTRIBUTE_KEY).getAndRemove();
+        ctx.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY).getAndRemove();
     if (continuation != null) {
       parentScope = continuation.activate();
     }
 
     final HttpRequest request = (HttpRequest) msg;
 
-    ctx.channel().attr(AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY).set(activeSpan());
-    boolean isSecure = ctx.pipeline().get("ssl") != null;
+    ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY).set(activeSpan());
+    boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 
     final AgentSpan span = startSpan(NETTY_CLIENT_REQUEST);
@@ -55,7 +74,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         propagate().inject(span, request.headers(), SETTER);
       }
 
-      ctx.channel().attr(AttributeKeys.CLIENT_ATTRIBUTE_KEY).set(span);
+      ctx.channel().attr(SPAN_ATTRIBUTE_KEY).set(span);
 
       try {
         ctx.write(msg, prm);

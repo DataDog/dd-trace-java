@@ -23,7 +23,7 @@ class GrizzlyAsyncHttpClientTest extends HttpClientTest {
   }
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
 
     RequestBuilder requestBuilder = new RequestBuilder(method)
       .setUri(Uri.create(uri.toString()))

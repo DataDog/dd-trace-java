@@ -8,10 +8,6 @@ import datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
-import java.security.cert.X509Certificate
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 
@@ -24,21 +20,7 @@ class Netty38ClientTest extends HttpClientTest {
   @Shared
   def clientConfig = new AsyncHttpClientConfig.Builder()
     .setRequestTimeout(TimeUnit.SECONDS.toMillis(10).toInteger())
-    .setSSLContext({
-      SSLContext context = SSLContext.getInstance("TLSv1.2")
-      TrustManager[] trustManager = new TrustManager[1]
-      trustManager[0] = new X509TrustManager() {
-        X509Certificate[] getAcceptedIssuers() {
-          return new X509Certificate[0]
-        }
-
-        void checkClientTrusted(X509Certificate[] certificate, String str) {}
-
-        void checkServerTrusted(X509Certificate[] certificate, String str) {}
-      }
-      context.init(null, trustManager, null)
-      return context
-    }())
+    .setSSLContext(server.sslContext)
     .build()
 
   @Shared
@@ -46,7 +28,7 @@ class Netty38ClientTest extends HttpClientTest {
   AsyncHttpClient asyncHttpClient = new AsyncHttpClient(clientConfig)
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     def methodName = "prepare" + method.toLowerCase().capitalize()
     def requestBuilder = asyncHttpClient."$methodName"(uri.toString())
     headers.each { requestBuilder.setHeader(it.key, it.value) }

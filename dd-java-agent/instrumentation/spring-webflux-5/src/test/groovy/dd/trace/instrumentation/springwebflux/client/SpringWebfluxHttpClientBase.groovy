@@ -30,7 +30,7 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
   abstract void check()
 
   @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     def hasParent = activeSpan() != null
     def client = createClient(component())
     ClientResponse response = client.method(HttpMethod.resolve(method))
