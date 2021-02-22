@@ -78,6 +78,35 @@ class DDSketchHistogramTest extends DDSpecification {
     normal     |   100000 | [10000D, 100D]
   }
 
+  def "test serialization of empty histogram after clear"() {
+    setup:
+    Histogram histogram = Histograms.newHistogramFactory().newHistogram()
+    when: "add values to sketch and clear"
+    histogram.accept(1)
+    histogram.accept(2)
+    histogram.accept(3)
+    histogram.clear()
+    ByteBuffer serialized = histogram.serialize()
+    then: "serialization succeeds and produces correct histogram"
+    ByteBuffer buffer = new DDSketchHistogram(DDSketchProtoBinding.fromProto({
+      new CollapsingLowestDenseStore(1024)
+    }, DDSketch.parseFrom(serialized.array()))).serialize()
+    buffer == serialized
+
+    when: "add more values to sketch"
+    histogram.accept(1)
+    histogram.accept(2)
+    histogram.accept(3)
+
+    then: "histogram ok after another serialization round trip"
+    def sketch = DDSketchProtoBinding.fromProto({
+      new CollapsingLowestDenseStore(1024)
+    }, DDSketch.parseFrom(histogram.serialize().array()))
+    sketch.getCount() == 3
+    (int)sketch.getMinValue() == 1
+    (int)sketch.getMaxValue() == 3
+  }
+
   def validateQuantiles(Histogram histogram, long[] data) {
     for (double quantile : quantiles) {
       double relativeError = relativeError(histogram.valueAtQuantile(quantile), empiricalQuantile(data, quantile))
