@@ -29,9 +29,9 @@ class TraceMapperRealAgentTest extends DDSpecification {
   @Shared
   Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
   @Shared
-  DDAgentFeaturesDiscovery v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
+  DDAgentFeaturesDiscovery v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
   @Shared
-  DDAgentFeaturesDiscovery v04Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false)
+  DDAgentFeaturesDiscovery v04Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
   @Shared
   DDAgentApi v05Api = new DDAgentApi(client, agentUrl, v05Discovery, monitoring, false)
   @Shared

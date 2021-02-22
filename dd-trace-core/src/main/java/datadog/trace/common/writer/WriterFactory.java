@@ -78,7 +78,11 @@ public class WriterFactory {
 
     DDAgentFeaturesDiscovery featuresDiscovery =
         new DDAgentFeaturesDiscovery(
-            client, monitoring, agentUrl, Config.get().isTraceAgentV05Enabled());
+            client,
+            monitoring,
+            agentUrl,
+            Config.get().isTraceAgentV05Enabled(),
+            Config.get().isTracerMetricsEnabled());
 
     DDAgentApi ddAgentApi =
         new DDAgentApi(
