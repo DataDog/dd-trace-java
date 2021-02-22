@@ -90,7 +90,8 @@ public class DDAgentWriter implements Writer {
             : null;
     if (null == featureDiscovery) {
       featureDiscovery =
-          new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, traceAgentV05Enabled);
+          new DDAgentFeaturesDiscovery(
+              client, monitoring, agentUrl, traceAgentV05Enabled, metricsReportingEnabled);
     }
     if (null == agentApi) {
       this.api =

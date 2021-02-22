@@ -32,7 +32,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
 
     when: "/info available"
     features.discover()
@@ -48,7 +48,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test parse /info response with client dropping"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
 
     when: "/info available"
     features.discover()
@@ -64,7 +64,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info not found"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
 
     when: "/info unavailable"
     features.discover()
@@ -82,7 +82,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info not found and agent returns ok"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
 
     when: "/info unavailable"
     features.discover()
@@ -100,7 +100,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info not found and v0.5 disabled"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
 
     when: "/info unavailable"
     features.discover()
@@ -118,7 +118,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback when /info not found and v0.5 unavailable agent side"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
 
     when: "/info unavailable"
     features.discover()
@@ -137,7 +137,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback on old agent"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
 
     when: "/info unavailable"
     features.discover()
@@ -156,7 +156,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   def "test fallback on very old agent"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
 
     when: "/info unavailable"
     features.discover()
@@ -171,6 +171,41 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.3/traces"
     !features.supportsDropping()
+  }
+
+  def "disabling metrics disables metrics and dropping"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, false)
+
+    when: "/info unavailable"
+    features.discover()
+
+    then: "metrics endpoint not probed, metrics and dropping not supported"
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" })
+    !features.supportsMetrics()
+    !features.supportsDropping()
+    !(features as DroppingPolicy).active()
+
+    when: "/info available and agent allows dropping"
+    features.discover()
+
+    then: "metrics and dropping not supported"
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
+    !features.supportsMetrics()
+    !features.supportsDropping()
+    !(features as DroppingPolicy).active()
+
+    when: "/info available and agent does not allow dropping"
+    features.discover()
+
+    then: "metrics and dropping not supported"
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
+    !features.supportsMetrics()
+    !features.supportsDropping()
+    !(features as DroppingPolicy).active()
   }
 
   def countingNotFound(Request request, CountDownLatch latch) {

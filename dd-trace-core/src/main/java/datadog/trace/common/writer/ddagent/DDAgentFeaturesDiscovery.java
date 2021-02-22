@@ -36,19 +36,24 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
   private final Recording discoveryTimer;
+  private final String[] traceEndpoints;
+  private final String[] metricsEndpoints = {V5_METRICS_ENDPOINT};
+  private final boolean metricsEnabled;
 
   private volatile String traceEndpoint;
   private volatile String metricsEndpoint;
   private volatile boolean supportsDropping;
   private volatile String state;
 
-  private final String[] traceEndpoints;
-  private final String[] metricsEndpoints = {V5_METRICS_ENDPOINT};
-
   public DDAgentFeaturesDiscovery(
-      OkHttpClient client, Monitoring monitoring, HttpUrl agentUrl, boolean enableV05Traces) {
+      OkHttpClient client,
+      Monitoring monitoring,
+      HttpUrl agentUrl,
+      boolean enableV05Traces,
+      boolean metricsEnabled) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
+    this.metricsEnabled = metricsEnabled;
     this.traceEndpoints =
         enableV05Traces
             ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
@@ -75,7 +80,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       if (fallback) {
         this.supportsDropping = false;
         log.debug("Falling back to probing, client dropping will be disabled");
-        this.metricsEndpoint = probeTracerMetricsEndpoint();
+        if (metricsEnabled) {
+          this.metricsEndpoint = probeTracerMetricsEndpoint();
+        }
         // don't want to rewire the traces pipeline
         if (null == traceEndpoint) {
           this.traceEndpoint = probeTracesEndpoint();
@@ -132,7 +139,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       List<String> endpoints = ((List<String>) map.get("endpoints"));
       ListIterator<String> traceAgentSupportedEndpoints = endpoints.listIterator(endpoints.size());
       boolean traceEndpointFound = false;
-      boolean metricsEndpointFound = false;
+      boolean metricsEndpointFound = !metricsEnabled;
       while ((!traceEndpointFound || !metricsEndpointFound)
           && traceAgentSupportedEndpoints.hasPrevious()) {
         String traceAgentSupportedEndpoint = traceAgentSupportedEndpoints.previous();
@@ -159,10 +166,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           }
         }
       }
-      Object canDrop = map.get("client_drop_p0s");
-      this.supportsDropping =
-          null != canDrop
-              && ("true".equalsIgnoreCase(String.valueOf(canDrop)) || Boolean.TRUE.equals(canDrop));
+      if (metricsEnabled) {
+        Object canDrop = map.get("client_drop_p0s");
+        this.supportsDropping =
+            null != canDrop
+                && ("true".equalsIgnoreCase(String.valueOf(canDrop))
+                    || Boolean.TRUE.equals(canDrop));
+      }
       return true;
     } catch (Throwable error) {
       log.debug("Error parsing trace agent /info response", error);
@@ -171,7 +181,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   public boolean supportsMetrics() {
-    return null != metricsEndpoint;
+    return metricsEnabled && null != metricsEndpoint;
   }
 
   public boolean supportsDropping() {
