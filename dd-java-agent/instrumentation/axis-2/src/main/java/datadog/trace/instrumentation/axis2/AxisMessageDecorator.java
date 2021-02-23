@@ -11,9 +11,11 @@ import org.apache.axis2.context.MessageContext;
 
 @Slf4j
 public class AxisMessageDecorator extends BaseDecorator {
-  public static final CharSequence AXIS2 = UTF8BytesString.createConstant("axis2");
-  public static final CharSequence AXIS2_MESSAGE = UTF8BytesString.createConstant("axis2.message");
   public static final AxisMessageDecorator DECORATE = new AxisMessageDecorator();
+
+  public static final CharSequence AXIS2 = UTF8BytesString.create("axis2");
+  public static final CharSequence AXIS2_MESSAGE = UTF8BytesString.create("axis2.message");
+  public static final String AXIS2_CONTINUATION_KEY = "dd.trace.axis2.continuation";
 
   private AxisMessageDecorator() {}
 

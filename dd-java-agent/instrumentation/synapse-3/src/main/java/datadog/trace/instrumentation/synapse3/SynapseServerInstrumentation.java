@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_REQUEST;
+import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_SPAN_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -27,7 +28,6 @@ import org.apache.synapse.transport.passthru.SourceRequest;
 
 @AutoService(Instrumenter.class)
 public final class SynapseServerInstrumentation extends Instrumenter.Tracing {
-  private static final String SYNAPSE_SPAN = "dd.trace.synapse.span";
 
   public SynapseServerInstrumentation() {
     super("synapse3");
@@ -73,7 +73,7 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing {
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, request.getConnection());
       DECORATE.onRequest(span, request);
-      request.getConnection().getContext().setAttribute(SYNAPSE_SPAN, span);
+      request.getConnection().getContext().setAttribute(SYNAPSE_SPAN_KEY, span);
       return activateSpan(span);
     }
 
@@ -95,7 +95,7 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing {
       }
       // if we have a response (or error) then we can finish the request span now
       if ((null != response || null != error)
-          && null != request.getConnection().getContext().removeAttribute(SYNAPSE_SPAN)) {
+          && null != request.getConnection().getContext().removeAttribute(SYNAPSE_SPAN_KEY)) {
         DECORATE.beforeFinish(span);
         scope.close();
         span.finish();
@@ -112,7 +112,7 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing {
         @Advice.Argument(0) final NHttpServerConnection connection,
         @Advice.Thrown final Throwable error) {
       // get back to original span so we can finish it with the async response
-      AgentSpan span = (AgentSpan) connection.getContext().removeAttribute(SYNAPSE_SPAN);
+      AgentSpan span = (AgentSpan) connection.getContext().removeAttribute(SYNAPSE_SPAN_KEY);
       if (null == span) {
         return;
       }

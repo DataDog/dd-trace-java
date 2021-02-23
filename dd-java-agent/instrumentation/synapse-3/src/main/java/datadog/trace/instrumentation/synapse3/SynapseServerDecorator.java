@@ -17,10 +17,11 @@ import org.apache.synapse.transport.passthru.SourceRequest;
 @Slf4j
 public final class SynapseServerDecorator
     extends HttpServerDecorator<SourceRequest, NHttpServerConnection, HttpResponse> {
-  public static final CharSequence SYNAPSE_REQUEST = UTF8BytesString.createConstant("http.request");
-  public static final CharSequence SYNAPSE_SERVER =
-      UTF8BytesString.createConstant("synapse-server");
   public static final SynapseServerDecorator DECORATE = new SynapseServerDecorator();
+
+  public static final CharSequence SYNAPSE_REQUEST = UTF8BytesString.create("http.request");
+  public static final CharSequence SYNAPSE_SERVER = UTF8BytesString.create("synapse-server");
+  public static final String SYNAPSE_SPAN_KEY = "dd.trace.synapse.span";
 
   @Override
   protected String[] instrumentationNames() {

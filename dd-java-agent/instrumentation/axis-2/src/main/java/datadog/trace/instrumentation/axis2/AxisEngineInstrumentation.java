@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_CONTINUATION_KEY;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_MESSAGE;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -27,7 +28,6 @@ import org.apache.axis2.engine.Handler.InvocationResponse;
 
 @AutoService(Instrumenter.class)
 public final class AxisEngineInstrumentation extends Instrumenter.Tracing {
-  private static final String AXIS_CONTINUATION = "dd.trace.axis.continuation";
 
   public AxisEngineInstrumentation() {
     super("axis2");
@@ -102,9 +102,9 @@ public final class AxisEngineInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beginResumingMessage(
         @Advice.Argument(0) final MessageContext message) {
-      Object continuation = message.getSelfManagedData(Tracer.class, AXIS_CONTINUATION);
+      Object continuation = message.getSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY);
       if (null != continuation) {
-        message.removeSelfManagedData(Tracer.class, AXIS_CONTINUATION);
+        message.removeSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY);
         // resuming is a distinct operation, so create a new span under the original request
         try (TraceScope parentScope = ((TraceScope.Continuation) continuation).activate()) {
           AgentSpan span = startSpan(AXIS2_MESSAGE);
@@ -140,14 +140,14 @@ public final class AxisEngineInstrumentation extends Instrumenter.Tracing {
         @Advice.Argument(0) final MessageContext message,
         @Advice.Return final InvocationResponse response) {
       if (InvocationResponse.SUSPEND == response
-          && !message.containsSelfManagedDataKey(Tracer.class, AXIS_CONTINUATION)) {
+          && !message.containsSelfManagedDataKey(Tracer.class, AXIS2_CONTINUATION_KEY)) {
         TraceScope scope = activeScope();
         if (scope instanceof AgentScope) {
           AgentSpan span = ((AgentScope) scope).span();
           if (DECORATE.sameTrace(span, message)) {
             // record continuation in the message so we can re-activate it on resume
             // we use the self-managed area of the message which is private/internal
-            message.setSelfManagedData(Tracer.class, AXIS_CONTINUATION, scope.capture());
+            message.setSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY, scope.capture());
           }
         }
       }
