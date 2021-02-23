@@ -292,7 +292,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         try {
           listener.afterScopeActivated(span.getTraceId(), span.context().getSpanId());
-        } catch (Exception e) {
+        } catch (Throwable e) {
           log.debug("ScopeListener threw exception in afterActivated()", e);
         }
       }
@@ -388,7 +388,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
   private static final class SingleContinuation extends Continuation {
     private static final AtomicIntegerFieldUpdater<SingleContinuation> USED =
         AtomicIntegerFieldUpdater.newUpdater(SingleContinuation.class, "used");
-    private volatile int used = 0;
+    private final int used = 0;
 
     private SingleContinuation(
         final ContinuableScopeManager scopeManager,
@@ -446,7 +446,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     private static final int CLOSED = Integer.MIN_VALUE >> 1;
     private static final int BARRIER = Integer.MIN_VALUE >> 2;
 
-    private volatile int count = START;
+    private final int count = START;
 
     private static final AtomicIntegerFieldUpdater<ConcurrentContinuation> COUNT =
         AtomicIntegerFieldUpdater.newUpdater(ConcurrentContinuation.class, "count");
