@@ -18,20 +18,39 @@ class BitriseInfo extends CIProviderInfo {
 
   BitriseInfo() {
     final String gitTag = normalizeRef(System.getenv(BITRISE_GIT_TAG));
+    final String commit = buildGitCommit();
 
     this.ciTags =
-        new CITagsBuilder()
+        new CITagsBuilder(this.ciTags)
             .withCiProviderName(BITRISE_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(BITRISE_PIPELINE_ID))
             .withCiPipelineName(System.getenv(BITRISE_PIPELINE_NAME))
             .withCiPipelineNumber(System.getenv(BITRISE_PIPELINE_NUMBER))
             .withCiPipelineUrl(System.getenv(BITRISE_PIPELINE_URL))
             .withCiWorkspacePath(expandTilde(System.getenv(BITRISE_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(BITRISE_GIT_REPOSITORY_URL)))
-            .withGitCommit(buildGitCommit())
-            .withGitBranch(buildGitBranch(gitTag))
-            .withGitTag(gitTag)
+            .withGitRepositoryUrl(
+                filterSensitiveInfo(System.getenv(BITRISE_GIT_REPOSITORY_URL)),
+                getLocalGitRepositoryUrl())
+            .withGitCommit(buildGitCommit(), getLocalGitCommitSha())
+            .withGitBranch(buildGitBranch(gitTag), getLocalGitBranch())
+            .withGitTag(gitTag, getLocalGitTag())
+            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
+            .withGitCommitAuthorEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
+            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
+            .withGitCommitCommitterName(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
+            .withGitCommitCommitterEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
+            .withGitCommitCommitterDate(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
+            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildWorkspace() {
+    return System.getenv(BITRISE_WORKSPACE_PATH);
   }
 
   private String buildGitBranch(final String gitTag) {

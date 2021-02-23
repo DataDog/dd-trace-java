@@ -20,9 +20,10 @@ class BitBucketInfo extends CIProviderInfo {
     final String repo = System.getenv(BITBUCKET_REPO_FULL_NAME);
     final String number = System.getenv(BITBUCKET_BUILD_NUMBER);
     final String url = buildPipelineUrl(repo, number);
+    final String commit = System.getenv(BITBUCKET_GIT_COMMIT);
 
     this.ciTags =
-        new CITagsBuilder()
+        new CITagsBuilder(this.ciTags)
             .withCiProviderName(BITBUCKET_PROVIDER_NAME)
             .withCiPipelineId(buildPipelineId())
             .withCiPipelineName(repo)
@@ -30,11 +31,29 @@ class BitBucketInfo extends CIProviderInfo {
             .withCiPipelineUrl(url)
             .withCiJorUrl(url)
             .withCiWorkspacePath(expandTilde(System.getenv(BITBUCKET_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(BITBUCKET_GIT_REPOSITORY_URL)))
-            .withGitCommit(System.getenv(BITBUCKET_GIT_COMMIT))
-            .withGitBranch(normalizeRef(System.getenv(BITBUCKET_GIT_BRANCH)))
-            .withGitTag(normalizeRef(System.getenv(BITBUCKET_GIT_TAG)))
+            .withGitRepositoryUrl(
+                filterSensitiveInfo(System.getenv(BITBUCKET_GIT_REPOSITORY_URL)),
+                getLocalGitRepositoryUrl())
+            .withGitCommit(commit, getLocalGitCommitSha())
+            .withGitBranch(normalizeRef(System.getenv(BITBUCKET_GIT_BRANCH)), getLocalGitBranch())
+            .withGitTag(normalizeRef(System.getenv(BITBUCKET_GIT_TAG)), getLocalGitTag())
+            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
+            .withGitCommitAuthorEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
+            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
+            .withGitCommitCommitterName(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
+            .withGitCommitCommitterEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
+            .withGitCommitCommitterDate(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
+            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildWorkspace() {
+    return System.getenv(BITBUCKET_WORKSPACE_PATH);
   }
 
   private String buildPipelineUrl(final String repo, final String number) {

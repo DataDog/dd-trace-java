@@ -9,7 +9,11 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.util.Arrays;
 
-public class RawParseUtils {
+/**
+ * Contains utility methods to be used in the byte[] content of a certain Git object. This class is
+ * based on the RawParseUtils class which is kept in the JGit library.
+ */
+public final class RawParseUtils {
 
   private RawParseUtils() {}
 
@@ -139,7 +143,7 @@ public class RawParseUtils {
    * @param chrA character to find.
    * @return new position just after the first chrA or LF to be found.
    */
-  public static final int nextLF(final byte[] b, int ptr, final char chrA) {
+  public static int nextLF(final byte[] b, int ptr, final char chrA) {
     final int sz = b.length;
     while (ptr < sz) {
       final byte c = b[ptr++];
@@ -233,7 +237,7 @@ public class RawParseUtils {
   }
 
   /**
-   * Decode a region of the buffer under the specified character set if possible.
+   * Decode a region of the buffer under UTF-8 set if possible.
    *
    * <p>If the byte stream cannot be decoded that way, the platform default is tried and if that too
    * fails, an exception is thrown.
@@ -365,7 +369,7 @@ public class RawParseUtils {
    * @param ptr position within buffer to start parsing digits at.
    * @return the value at this location; 0 if the location is not a valid numeric.
    */
-  public static final int parseBase10(final byte[] b, int ptr) {
+  public static int parseBase10(final byte[] b, int ptr) {
     int r = 0;
     int sign = 0;
     try {
@@ -412,7 +416,7 @@ public class RawParseUtils {
    * @return the timezone at this location, expressed in minutes.
    * @since 4.1
    */
-  public static final int parseTimeZoneOffset(final byte[] b, final int ptr) {
+  public static int parseTimeZoneOffset(final byte[] b, final int ptr) {
     final int v = parseBase10(b, ptr);
     final int tzMins = v % 100;
     final int tzHours = v / 100;

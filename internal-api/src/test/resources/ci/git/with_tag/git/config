@@ -1,0 +1,2 @@
+[remote "origin"]
+  url = https://some-host/some-user/some-repo.git

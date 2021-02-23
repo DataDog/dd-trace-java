@@ -22,21 +22,39 @@ class AppVeyorInfo extends CIProviderInfo {
     final String url = buildPipelineUrl(repoName, buildId);
     final String repoProvider = System.getenv(APPVEYOR_REPO_PROVIDER);
     final String tag = buildGitTag(repoProvider);
+    final String commit = buildGitCommit(repoProvider);
 
     this.ciTags =
-        new CITagsBuilder()
+        new CITagsBuilder(this.ciTags)
             .withCiProviderName(APPVEYOR_PROVIDER_NAME)
             .withCiPipelineId(buildId)
             .withCiPipelineName(repoName)
             .withCiPipelineNumber(System.getenv(APPVEYOR_PIPELINE_NUMBER))
             .withCiPipelineUrl(url)
             .withCiJorUrl(url)
-            .withCiWorkspacePath(expandTilde(System.getenv(APPVEYOR_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(buildGitRepositoryUrl(repoProvider, repoName))
-            .withGitCommit(buildGitCommit(repoProvider))
-            .withGitBranch(buildGitBranch(repoProvider, tag))
-            .withGitTag(tag)
+            .withCiWorkspacePath(getWorkspace())
+            .withGitRepositoryUrl(
+                buildGitRepositoryUrl(repoProvider, repoName), getLocalGitRepositoryUrl())
+            .withGitCommit(commit, getLocalGitCommitSha())
+            .withGitBranch(buildGitBranch(repoProvider, tag), getLocalGitBranch())
+            .withGitTag(tag, getLocalGitTag())
+            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
+            .withGitCommitAuthorEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
+            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
+            .withGitCommitCommitterName(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
+            .withGitCommitCommitterEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
+            .withGitCommitCommitterDate(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
+            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildWorkspace() {
+    return System.getenv(APPVEYOR_WORKSPACE_PATH);
   }
 
   private String buildGitTag(final String repoProvider) {

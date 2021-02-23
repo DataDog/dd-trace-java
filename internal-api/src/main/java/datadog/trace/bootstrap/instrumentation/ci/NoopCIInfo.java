@@ -7,6 +7,11 @@ class NoopCIInfo extends CIProviderInfo {
   NoopCIInfo() {}
 
   @Override
+  protected String buildWorkspace() {
+    return null;
+  }
+
+  @Override
   public boolean isCI() {
     return false;
   }

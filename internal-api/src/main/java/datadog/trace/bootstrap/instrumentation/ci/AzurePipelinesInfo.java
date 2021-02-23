@@ -29,21 +29,38 @@ class AzurePipelinesInfo extends CIProviderInfo {
     final String buildId = System.getenv(AZURE_BUILD_BUILDID);
     final String jobId = System.getenv(AZURE_SYSTEM_JOBID);
     final String taskId = System.getenv(AZURE_SYSTEM_TASKINSTANCEID);
+    final String commit = buildGitCommit();
 
     this.ciTags =
-        new CITagsBuilder()
+        new CITagsBuilder(this.ciTags)
             .withCiProviderName(AZURE_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(AZURE_BUILD_BUILDID))
             .withCiPipelineName(System.getenv(AZURE_PIPELINE_NAME))
             .withCiPipelineNumber(System.getenv(AZURE_BUILD_BUILDID))
             .withCiPipelineUrl(buildCiPipelineUrl(uri, project, buildId))
             .withCiJorUrl(buildCiJobUrl(uri, project, buildId, jobId, taskId))
-            .withCiWorkspacePath(expandTilde(System.getenv(AZURE_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(buildGitRepositoryUrl())
-            .withGitCommit(buildGitCommit())
-            .withGitBranch(buildGitBranch())
-            .withGitTag(buildGitTag())
+            .withCiWorkspacePath(getWorkspace())
+            .withGitRepositoryUrl(buildGitRepositoryUrl(), getLocalGitRepositoryUrl())
+            .withGitCommit(commit, getLocalGitCommitSha())
+            .withGitBranch(buildGitBranch(), getLocalGitBranch())
+            .withGitTag(buildGitTag(), getLocalGitTag())
+            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
+            .withGitCommitAuthorEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
+            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
+            .withGitCommitCommitterName(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
+            .withGitCommitCommitterEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
+            .withGitCommitCommitterDate(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
+            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildWorkspace() {
+    return System.getenv(AZURE_WORKSPACE_PATH);
   }
 
   private String buildGitTag() {

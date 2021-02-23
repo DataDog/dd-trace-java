@@ -17,21 +17,40 @@ class CircleCIInfo extends CIProviderInfo {
 
   CircleCIInfo() {
     final String gitTag = normalizeRef(System.getenv(CIRCLECI_GIT_TAG));
+    final String commit = System.getenv(CIRCLECI_GIT_COMMIT);
 
     this.ciTags =
-        new CITagsBuilder()
+        new CITagsBuilder(this.ciTags)
             .withCiProviderName(CIRCLECI_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(CIRCLECI_PIPELINE_ID))
             .withCiPipelineName(System.getenv(CIRCLECI_PIPELINE_NAME))
             .withCiPipelineNumber(System.getenv(CIRCLECI_PIPELINE_NUMBER))
             .withCiPipelineUrl(System.getenv(CIRCLECI_BUILD_URL))
             .withCiJorUrl(System.getenv(CIRCLECI_BUILD_URL))
-            .withCiWorkspacePath(expandTilde(System.getenv(CIRCLECI_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(CIRCLECI_GIT_REPOSITORY_URL)))
-            .withGitCommit(System.getenv(CIRCLECI_GIT_COMMIT))
-            .withGitBranch(buildGitBranch(gitTag))
-            .withGitTag(gitTag)
+            .withCiWorkspacePath(getWorkspace())
+            .withGitRepositoryUrl(
+                filterSensitiveInfo(System.getenv(CIRCLECI_GIT_REPOSITORY_URL)),
+                getLocalGitRepositoryUrl())
+            .withGitCommit(System.getenv(CIRCLECI_GIT_COMMIT), getLocalGitCommitSha())
+            .withGitBranch(buildGitBranch(gitTag), getLocalGitBranch())
+            .withGitTag(gitTag, getLocalGitTag())
+            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
+            .withGitCommitAuthorEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
+            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
+            .withGitCommitCommitterName(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
+            .withGitCommitCommitterEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
+            .withGitCommitCommitterDate(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
+            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildWorkspace() {
+    return System.getenv(CIRCLECI_WORKSPACE_PATH);
   }
 
   private String buildGitBranch(final String gitTag) {

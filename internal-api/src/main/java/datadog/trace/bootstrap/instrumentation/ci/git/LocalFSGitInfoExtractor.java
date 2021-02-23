@@ -22,6 +22,10 @@ import java.util.Arrays;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
+/**
+ * Extracts git information from the local filesystem. Typically, we will use this extractor using
+ * the local fs .git folder path as starting point.
+ */
 public class LocalFSGitInfoExtractor implements GitInfoExtractor {
 
   private static final int TYPE_INDEX = 0;
@@ -29,29 +33,74 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
 
   private static final int SHA_INDEX = 1;
 
+  /**
+   * Extracts all git information available from the HEAD
+   *
+   * @param gitFolder the git folder path as String.
+   * @return {@code GitInfo} object with all git available info from the HEAD object.
+   */
   @Override
   public GitInfo headCommit(final String gitFolder) {
     try {
       final Path gitFolderPath = Paths.get(gitFolder);
-      final File headFile = gitFolderPath.resolve("HEAD").toFile();
-      if (!headFile.exists()) {
-        return GitInfo.NOOP;
-      }
-
-      final String sha = extractSha(gitFolderPath, headFile);
-      if (sha == null) {
-        return GitInfo.NOOP;
-      }
-
+      final String repositoryURL = extractRepositoryURL(gitFolderPath);
+      final String head = readFile(gitFolderPath.resolve("HEAD"));
+      final String ref = extractRef(head);
+      final String branch = extractBranch(ref);
+      final String tag = extractTag(ref);
+      final String sha = extractSha(gitFolderPath, head);
       final CommitInfo commitInfo = findCommit(gitFolder, sha);
-      return GitInfo.builder().commit(commitInfo).build();
+
+      return GitInfo.builder()
+          .repositoryURL(repositoryURL)
+          .branch(branch)
+          .tag(tag)
+          .commit(commitInfo)
+          .build();
     } catch (final Exception e) {
       return GitInfo.NOOP;
     }
   }
 
+  private String extractRepositoryURL(final Path gitFolderPath) {
+    final File configFile = gitFolderPath.resolve("config").toFile();
+    if (!configFile.exists()) {
+      return null;
+    }
+
+    final GitConfig gitConfig = new GitConfig(configFile.getAbsolutePath());
+    return GitUtils.filterSensitiveInfo(gitConfig.getString("remote \"origin\"", "url"));
+  }
+
+  private String extractTag(final String ref) {
+    if (ref != null && ref.contains("refs/tags")) {
+      return GitUtils.normalizeRef(ref);
+    }
+    return null;
+  }
+
+  private String extractBranch(final String ref) {
+    if (ref != null && (ref.contains("origin") || ref.contains("refs/heads"))) {
+      return GitUtils.normalizeRef(ref);
+    }
+    return null;
+  }
+
+  private String extractRef(final String head) {
+    if (head == null || head.isEmpty() || !head.contains("ref:")) {
+      return null;
+    }
+
+    // The HEAD file contains a reference: e.g: ref: /refs/head/master
+    return head.substring(5); // Remove the ref: prefix
+  }
+
   private CommitInfo findCommit(final String gitFolder, final String sha)
       throws IOException, DataFormatException {
+    if (sha == null || sha.isEmpty()) {
+      return CommitInfo.NOOP;
+    }
+
     // We access to the Git object represented by the commit sha.
     // In Git, the 2 first characters of the sha corresponds with the folder. The rest of the sha,
     // corresponds with the file name.
@@ -67,10 +116,11 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     final byte[] deflatedBytes = Files.readAllBytes(gitObjectFile.toPath());
     // Decompress (inflate) the Git object.
     final GitObject gitObject = inflateGitObject(deflatedBytes);
-    return parseCommit(gitFolder, gitObject);
+    return parseCommit(gitFolder, sha, gitObject);
   }
 
-  private CommitInfo parseCommit(final String gitFolder, final GitObject gitObject)
+  private CommitInfo parseCommit(
+      final String gitFolder, final String sha, final GitObject gitObject)
       throws IOException, DataFormatException {
     if ("tag".equalsIgnoreCase(gitObject.getType())) {
       // If the Git object is a tag, we need to read which sha is being referenced within the tag
@@ -92,8 +142,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
         return CommitInfo.NOOP;
       }
 
-      final String sha = objectShaChunks[SHA_INDEX];
-      return findCommit(gitFolder, sha);
+      final String innerSha = objectShaChunks[SHA_INDEX];
+      return findCommit(gitFolder, innerSha);
 
     } else if (!"commit".equalsIgnoreCase(gitObject.getType())) {
       return CommitInfo.NOOP;
@@ -105,6 +155,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     final String fullMessage = getFullMessage(content);
 
     return CommitInfo.builder()
+        .sha(sha)
         .author(author)
         .committer(committer)
         .fullMessage(fullMessage)
@@ -162,52 +213,71 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     }
   }
 
-  private String extractSha(final Path gitFolder, final File headFile) throws IOException {
-    final String head = new String(Files.readAllBytes(headFile.toPath())).replace("\n", "");
+  private String extractSha(final Path gitFolder, final String head) throws IOException {
+    // HEAD can contain a reference (e.g.: refs/heads/master) or
+    // a SHA (e.g.: 6ba9a670e26a69ae26bafd2409ae200d152afa76)
 
     if (head.contains("ref:")) {
-      // The HEAD file contains a reference: e.g: ref: /refs/head/master
-      final String refStr = head.substring(5).replace("\n", ""); // Remove the ref: prefix
+      final String refStr = extractRef(head);
+      if (refStr == null) {
+        return null;
+      }
+
+      // If the HEAD contains a reference, we need to access to
+      // the content of that reference which will contain the SHA.
       final File ref = gitFolder.resolve(refStr).toFile();
       if (!ref.exists()) {
         return null;
       }
-      return new String(Files.readAllBytes(ref.toPath())).replace("\n", "");
+      return readFile(ref.toPath());
     }
 
     return head;
   }
 
   private PersonInfo getAuthor(final byte[] buffer) {
-    final byte[] raw = buffer;
-    final int nameB = author(raw, 0);
-    if (nameB < 0) {
+    // Locate the index where the author name begins.
+    final int authorNameBeginning = author(buffer, 0);
+    if (authorNameBeginning < 0) {
       return null;
     }
 
-    return parsePersonInfo(raw, nameB);
+    // Starting from the author name beginning index,
+    // we parse the "person" info of the author.
+    return parsePersonInfo(buffer, authorNameBeginning);
   }
 
   private PersonInfo getCommitter(final byte[] buffer) {
-    final byte[] raw = buffer;
-    final int nameB = committer(raw, 0);
+    // Locate the index where the committer name begins.
+    final int nameB = committer(buffer, 0);
     if (nameB < 0) {
       return null;
     }
 
-    return parsePersonInfo(raw, nameB);
+    // Starting from the committer name beginning index,
+    // we parse the "person" info of the author.
+    return parsePersonInfo(buffer, nameB);
   }
 
   private String getFullMessage(final byte[] buffer) {
-    final byte[] raw = buffer;
-    final int msgB = commitMessage(raw, 0);
+    // Locate the index where the commit message begins.
+    final int msgB = commitMessage(buffer, 0);
     if (msgB < 0) {
       return "";
     }
-    return decode(StandardCharsets.UTF_8, raw, msgB, raw.length);
+
+    // Starting from the commit message beginning index,
+    // we parse the "person" info of the author.
+    return decode(StandardCharsets.UTF_8, buffer, msgB, buffer.length);
   }
 
   private PersonInfo parsePersonInfo(final byte[] raw, final int nameB) {
+    // Typically, the line which contains
+    // the person information looks like:
+    // author John Doe <john@doe.com> 1613137668 +0100
+    // committer Jane Doe <jane@doe.com> 1613137724 +0100
+
+    // First, we find the index where the email starts and ends:
     final int emailB = nextLF(raw, nameB, '<');
     final int emailE = nextLF(raw, emailB, '>');
     if (emailB >= raw.length
@@ -216,8 +286,16 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       return null;
     }
 
+    // We need to find which is the index where the name ends,
+    // using the relative position where the email starts.
     final int nameEnd = emailB - 2 >= nameB && raw[emailB - 2] == ' ' ? emailB - 2 : emailB - 1;
+
+    // Once we have the indexes where the name starts and ends
+    // we can extract the name.
     final String name = decode(UTF_8, raw, nameB, nameEnd);
+
+    // Same approach to extract the email, using the indexes
+    // where the email starts and ends.
     final String email = decode(UTF_8, raw, emailB, emailE - 1);
 
     // Start searching from end of line, as after first name-email pair,
@@ -243,5 +321,18 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     final long when = parseLongBase10(raw, whenBegin);
     final int tz = parseTimeZoneOffset(raw, tzBegin);
     return PersonInfo.builder().name(name).email(email).when(when * 1000L).tzOffset(tz).build();
+  }
+
+  private String readFile(final Path filepath) throws IOException {
+    if (filepath == null || !filepath.toFile().exists()) {
+      return null;
+    }
+
+    final String content = new String(Files.readAllBytes(filepath));
+    if (content.endsWith("\n")) {
+      return content.substring(0, content.length() - 1);
+    }
+
+    return content;
   }
 }

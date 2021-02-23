@@ -18,9 +18,10 @@ class BuildkiteInfo extends CIProviderInfo {
 
   BuildkiteInfo() {
     final String ciPipelineUrl = System.getenv(BUILDKITE_BUILD_URL);
+    final String commit = System.getenv(BUILDKITE_GIT_COMMIT);
 
     this.ciTags =
-        new CITagsBuilder()
+        new CITagsBuilder(this.ciTags)
             .withCiProviderName(BUILDKITE_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(BUILDKITE_PIPELINE_ID))
             .withCiPipelineName(System.getenv(BUILDKITE_PIPELINE_NAME))
@@ -28,10 +29,28 @@ class BuildkiteInfo extends CIProviderInfo {
             .withCiPipelineUrl(ciPipelineUrl)
             .withCiJorUrl(String.format("%s#%s", ciPipelineUrl, System.getenv(BUILDKITE_JOB_ID)))
             .withCiWorkspacePath(expandTilde(System.getenv(BUILDKITE_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(BUILDKITE_GIT_REPOSITORY_URL)))
-            .withGitCommit(System.getenv(BUILDKITE_GIT_COMMIT))
-            .withGitBranch(normalizeRef(System.getenv(BUILDKITE_GIT_BRANCH)))
-            .withGitTag(normalizeRef(System.getenv(BUILDKITE_GIT_TAG)))
+            .withGitRepositoryUrl(
+                filterSensitiveInfo(System.getenv(BUILDKITE_GIT_REPOSITORY_URL)),
+                getLocalGitRepositoryUrl())
+            .withGitCommit(commit, getLocalGitCommitSha())
+            .withGitBranch(normalizeRef(System.getenv(BUILDKITE_GIT_BRANCH)), getLocalGitBranch())
+            .withGitTag(normalizeRef(System.getenv(BUILDKITE_GIT_TAG)), getLocalGitTag())
+            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
+            .withGitCommitAuthorEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
+            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
+            .withGitCommitCommitterName(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
+            .withGitCommitCommitterEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
+            .withGitCommitCommitterDate(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
+            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildWorkspace() {
+    return System.getenv(BUILDKITE_WORKSPACE_PATH);
   }
 }

@@ -20,19 +20,35 @@ class GithubActionsInfo extends CIProviderInfo {
     final String url = buildPipelineUrl(repo, commit);
 
     this.ciTags =
-        new CITagsBuilder()
+        new CITagsBuilder(this.ciTags)
             .withCiProviderName(GHACTIONS_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(GHACTIONS_PIPELINE_ID))
             .withCiPipelineName(System.getenv(GHACTIONS_PIPELINE_NAME))
             .withCiPipelineNumber(System.getenv(GHACTIONS_PIPELINE_NUMBER))
             .withCiPipelineUrl(url)
             .withCiJorUrl(url)
-            .withCiWorkspacePath(expandTilde(System.getenv(GHACTIONS_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(buildGitRepositoryUrl(repo))
-            .withGitCommit(commit)
-            .withGitBranch(buildGitBranch())
-            .withGitTag(buildGitTag())
+            .withCiWorkspacePath(getWorkspace())
+            .withGitRepositoryUrl(buildGitRepositoryUrl(repo), getLocalGitRepositoryUrl())
+            .withGitCommit(commit, getLocalGitCommitSha())
+            .withGitBranch(buildGitBranch(), getLocalGitBranch())
+            .withGitTag(buildGitTag(), getLocalGitTag())
+            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
+            .withGitCommitAuthorEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
+            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
+            .withGitCommitCommitterName(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
+            .withGitCommitCommitterEmail(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
+            .withGitCommitCommitterDate(
+                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
+            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildWorkspace() {
+    return System.getenv(GHACTIONS_WORKSPACE_PATH);
   }
 
   private String buildGitTag() {
