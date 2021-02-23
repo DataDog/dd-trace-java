@@ -9,6 +9,14 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class NettyProgressivePromiseTest extends AbstractPromiseTest<ProgressivePromise<Boolean>, ProgressivePromise<String>> {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.integration.netty-promise.enabled", "true")
+  }
+
   @Shared
   def executor = new DefaultEventExecutorGroup(1).next()
 
