@@ -9,6 +9,14 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class NettyPromiseTest extends AbstractPromiseTest<Promise<Boolean>, Promise<String>> {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.integration.netty-promise.enabled", "true")
+  }
+
   @Shared
   def executor = new DefaultEventExecutorGroup(1).next()
 
