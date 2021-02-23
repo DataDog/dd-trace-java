@@ -342,6 +342,8 @@ public final class RawParseUtils {
         case '+':
           ptr++;
           break;
+        default:
+          break;
       }
 
       while (ptr < sz) {
@@ -388,6 +390,8 @@ public final class RawParseUtils {
           break;
         case '+':
           ptr++;
+          break;
+        default:
           break;
       }
 
