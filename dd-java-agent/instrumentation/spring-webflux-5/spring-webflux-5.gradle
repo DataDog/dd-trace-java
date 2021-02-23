@@ -55,6 +55,7 @@ dependencies {
 
   testCompile project(':dd-java-agent:instrumentation:trace-annotation')
   testCompile project(':dd-java-agent:instrumentation:netty-4.1')
+  testCompile project(':dd-java-agent:instrumentation:netty-promise-4')
   testCompile project(':dd-java-agent:instrumentation:reactor-core-3.1')
 
   testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.0.0.RELEASE'

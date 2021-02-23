@@ -18,7 +18,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class NettyPromiseInstrumentation extends Instrumenter.Tracing {
 
   public NettyPromiseInstrumentation() {
-    super("netty");
+    super("netty-promise");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return false;
   }
 
   @Override
