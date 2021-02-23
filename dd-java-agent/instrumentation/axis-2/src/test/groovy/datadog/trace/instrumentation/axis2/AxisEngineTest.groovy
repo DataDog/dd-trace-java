@@ -19,6 +19,8 @@ import org.apache.axis2.engine.AxisEngine
 import org.apache.axis2.engine.Handler.InvocationResponse
 import org.apache.axis2.engine.Phase
 import org.apache.axis2.handlers.AbstractHandler
+import org.apache.axis2.receivers.RawXMLINOnlyMessageReceiver
+import org.apache.axis2.receivers.RawXMLINOutMessageReceiver
 import org.apache.axis2.transport.http.SimpleHTTPServer
 import org.apache.axis2.transport.local.LocalTransportReceiver
 import org.apache.axis2.transport.local.LocalTransportSender
@@ -32,6 +34,9 @@ import static org.apache.axiom.om.OMAbstractFactory.getSOAP11Factory
 import static org.apache.axis2.Constants.SERVICE_CLASS
 import static org.apache.axis2.context.ConfigurationContextFactory.createConfigurationContextFromFileSystem
 import static org.apache.axis2.deployment.util.Utils.fillAxisService
+import static org.apache.axis2.description.WSDL2Constants.MEP_URI_IN_ONLY
+import static org.apache.axis2.description.WSDL2Constants.MEP_URI_IN_OUT
+import static org.apache.axis2.description.WSDL2Constants.MEP_URI_ROBUST_IN_ONLY
 import static org.apache.axis2.engine.Handler.InvocationResponse.CONTINUE
 import static org.apache.axis2.engine.Handler.InvocationResponse.SUSPEND
 import static org.apache.axis2.util.MessageContextBuilder.createFaultMessageContext
@@ -97,6 +102,11 @@ class AxisEngineTest extends AgentTestRunner {
     transportOut = new TransportOutDescription('local')
     transportOut.setSender(new LocalTransportSender())
     serverConfig.addTransportOut(transportOut)
+
+    // add message receivers for some standard flows
+    serverConfig.addMessageReceiver(MEP_URI_IN_ONLY, new RawXMLINOnlyMessageReceiver())
+    serverConfig.addMessageReceiver(MEP_URI_IN_OUT, new RawXMLINOutMessageReceiver())
+    serverConfig.addMessageReceiver(MEP_URI_ROBUST_IN_ONLY, new RawXMLINOutMessageReceiver())
 
     // register our simple test service
     testService = new AxisService('TestService')

@@ -35,7 +35,10 @@ public class AxisMessageDecorator extends BaseDecorator {
   }
 
   public boolean shouldTrace(final MessageContext message) {
-    return !message.isServerSide() && null != activeSpan() && null != soapAction(message);
+    if (message.isServerSide() && null == message.getOperationContext()) {
+      return false; // ignore server messages without an associated operation
+    }
+    return null != activeSpan() && null != soapAction(message);
   }
 
   public boolean sameTrace(final AgentSpan span, final MessageContext message) {
