@@ -26,7 +26,7 @@ class JenkinsInfo extends CIProviderInfo {
     final String commit = System.getenv(JENKINS_GIT_COMMIT);
 
     this.ciTags =
-      new CITagsBuilder(this.ciTags)
+      new CITagsBuilder()
         .withCiProviderName(JENKINS_PROVIDER_NAME)
         .withCiPipelineId(System.getenv(JENKINS_PIPELINE_ID))
         .withCiPipelineName(buildCiPipelineName(gitBranch))

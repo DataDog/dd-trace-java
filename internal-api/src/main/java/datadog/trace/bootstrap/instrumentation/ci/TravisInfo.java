@@ -22,7 +22,7 @@ class TravisInfo extends CIProviderInfo {
     final String commit = System.getenv(TRAVIS_GIT_COMMIT);
 
     this.ciTags =
-        new CITagsBuilder(this.ciTags)
+        new CITagsBuilder()
             .withCiProviderName(TRAVIS_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(TRAVIS_PIPELINE_ID))
             .withCiPipelineName(buildCiPipelineName())

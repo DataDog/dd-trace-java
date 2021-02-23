@@ -20,7 +20,7 @@ class CircleCIInfo extends CIProviderInfo {
     final String commit = System.getenv(CIRCLECI_GIT_COMMIT);
 
     this.ciTags =
-        new CITagsBuilder(this.ciTags)
+        new CITagsBuilder()
             .withCiProviderName(CIRCLECI_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(CIRCLECI_PIPELINE_ID))
             .withCiPipelineName(System.getenv(CIRCLECI_PIPELINE_NAME))

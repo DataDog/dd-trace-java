@@ -23,7 +23,7 @@ class BitBucketInfo extends CIProviderInfo {
     final String commit = System.getenv(BITBUCKET_GIT_COMMIT);
 
     this.ciTags =
-        new CITagsBuilder(this.ciTags)
+        new CITagsBuilder()
             .withCiProviderName(BITBUCKET_PROVIDER_NAME)
             .withCiPipelineId(buildPipelineId())
             .withCiPipelineName(repo)

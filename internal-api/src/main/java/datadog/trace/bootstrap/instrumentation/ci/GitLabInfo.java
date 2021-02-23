@@ -25,7 +25,7 @@ class GitLabInfo extends CIProviderInfo {
     final String commit = System.getenv(GITLAB_GIT_COMMIT);
 
     this.ciTags =
-        new CITagsBuilder(this.ciTags)
+        new CITagsBuilder()
             .withCiProviderName(GITLAB_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(GITLAB_PIPELINE_ID))
             .withCiPipelineName(System.getenv(GITLAB_PIPELINE_NAME))

@@ -21,7 +21,7 @@ class BuildkiteInfo extends CIProviderInfo {
     final String commit = System.getenv(BUILDKITE_GIT_COMMIT);
 
     this.ciTags =
-        new CITagsBuilder(this.ciTags)
+        new CITagsBuilder()
             .withCiProviderName(BUILDKITE_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(BUILDKITE_PIPELINE_ID))
             .withCiPipelineName(System.getenv(BUILDKITE_PIPELINE_NAME))

@@ -20,7 +20,7 @@ class GithubActionsInfo extends CIProviderInfo {
     final String url = buildPipelineUrl(repo, commit);
 
     this.ciTags =
-        new CITagsBuilder(this.ciTags)
+        new CITagsBuilder()
             .withCiProviderName(GHACTIONS_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(GHACTIONS_PIPELINE_ID))
             .withCiPipelineName(System.getenv(GHACTIONS_PIPELINE_NAME))

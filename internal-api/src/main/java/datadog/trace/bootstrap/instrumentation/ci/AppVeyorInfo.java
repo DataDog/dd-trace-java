@@ -25,7 +25,7 @@ class AppVeyorInfo extends CIProviderInfo {
     final String commit = buildGitCommit(repoProvider);
 
     this.ciTags =
-        new CITagsBuilder(this.ciTags)
+        new CITagsBuilder()
             .withCiProviderName(APPVEYOR_PROVIDER_NAME)
             .withCiPipelineId(buildId)
             .withCiPipelineName(repoName)

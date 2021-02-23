@@ -101,18 +101,7 @@ public abstract class CIProviderInfo {
 
   public static class CITagsBuilder {
 
-    private final Map<String, String> ciTags;
-
-    public CITagsBuilder() {
-      this(null);
-    }
-
-    public CITagsBuilder(final Map<String, String> ciTags) {
-      this.ciTags = new HashMap<>();
-      if (ciTags != null) {
-        this.ciTags.putAll(ciTags);
-      }
-    }
+    private final Map<String, String> ciTags = new HashMap<>();
 
     public CITagsBuilder withCiProviderName(final String ciProviderName) {
       return putTagValue(Tags.CI_PROVIDER_NAME, ciProviderName);

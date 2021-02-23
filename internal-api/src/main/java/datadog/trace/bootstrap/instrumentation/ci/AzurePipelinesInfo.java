@@ -32,7 +32,7 @@ class AzurePipelinesInfo extends CIProviderInfo {
     final String commit = buildGitCommit();
 
     this.ciTags =
-        new CITagsBuilder(this.ciTags)
+        new CITagsBuilder()
             .withCiProviderName(AZURE_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(AZURE_BUILD_BUILDID))
             .withCiPipelineName(System.getenv(AZURE_PIPELINE_NAME))

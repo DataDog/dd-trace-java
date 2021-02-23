@@ -21,7 +21,7 @@ class BitriseInfo extends CIProviderInfo {
     final String commit = buildGitCommit();
 
     this.ciTags =
-        new CITagsBuilder(this.ciTags)
+        new CITagsBuilder()
             .withCiProviderName(BITRISE_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(BITRISE_PIPELINE_ID))
             .withCiPipelineName(System.getenv(BITRISE_PIPELINE_NAME))
