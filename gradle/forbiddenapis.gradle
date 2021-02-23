@@ -1,0 +1,26 @@
+buildscript {
+  repositories {
+    maven {
+      url "https://plugins.gradle.org/m2/"
+    }
+  }
+  dependencies {
+    classpath "de.thetaphi:forbiddenapis:3.1"
+  }
+}
+
+apply plugin: "de.thetaphi.forbiddenapis"
+
+def mainFilterFile = files("$rootDir/gradle/forbiddenApiFilters/main.txt")
+def testFilterFile = files("$rootDir/gradle/forbiddenApiFilters/test.txt")
+
+//TODO: edit to correct configs
+forbiddenApisMain {
+//  bundledSignatures = [ 'jdk-non-portable', 'jdk-reflection' ]
+  signaturesFiles = mainFilterFile
+  ignoreFailures = false
+}
+
+forbiddenApisTest {
+  ignoreFailures = true
+}
