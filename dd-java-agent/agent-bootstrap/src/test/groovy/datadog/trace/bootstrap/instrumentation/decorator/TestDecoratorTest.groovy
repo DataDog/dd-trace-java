@@ -82,6 +82,11 @@ class TestDecoratorTest extends BaseDecoratorTest {
   def newMockCiInfo() {
     return new CIProviderInfo() {
       @Override
+      protected String buildWorkspace() {
+        return "dummy-workspace"
+      }
+
+      @Override
       Map<String, String> getCiTags() {
         def mockCiTags = new HashMap()
         mockCiTags.put("sample-ci-key", "sample-ci-value")
