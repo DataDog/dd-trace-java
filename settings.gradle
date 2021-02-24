@@ -53,6 +53,7 @@ include ':dd-java-agent:testing'
 include ':utils:container-utils'
 include ':utils:histograms'
 include ':utils:test-utils'
+include ':utils:static-analysis-utils'
 
 // smoke tests
 include ':dd-smoke-tests:agent-isolation'
