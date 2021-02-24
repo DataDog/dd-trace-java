@@ -4,7 +4,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
-import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.util.Arrays;
@@ -198,18 +197,24 @@ public final class RawParseUtils {
    * <p>If the byte stream cannot be decoded that way, the platform default is tried and if that too
    * fails, the fail-safe ISO-8859-1 encoding is tried.
    *
-   * @param cs character set to use when decoding the buffer.
    * @param buffer buffer to pull raw bytes from.
    * @param start first position within the buffer to take data from.
    * @param end one position past the last location within the buffer to take data from.
    * @return a string representation of the range <code>[start,end)</code>, after decoding the
    *     region through the specified character set.
    */
-  public static String decode(
-      final Charset cs, final byte[] buffer, final int start, final int end) {
+  public static String decode(final byte[] buffer, final int start, final int end) {
+    final ByteBuffer b = ByteBuffer.wrap(buffer, start, end - start);
+    b.mark();
+
     try {
-      return decodeNoFallback(cs, buffer, start, end);
+      final CharsetDecoder d = UTF_8.newDecoder();
+      d.onMalformedInput(CodingErrorAction.REPORT);
+      d.onUnmappableCharacter(CodingErrorAction.REPORT);
+      return d.decode(b).toString();
     } catch (final CharacterCodingException e) {
+      b.reset();
+
       // Fall back to an ISO-8859-1 style encoding. At least all of
       // the bytes will be present in the output.
       //
@@ -234,60 +239,6 @@ public final class RawParseUtils {
       r.append((char) (buffer[i] & 0xff));
     }
     return r.toString();
-  }
-
-  /**
-   * Decode a region of the buffer under UTF-8 set if possible.
-   *
-   * <p>If the byte stream cannot be decoded that way, the platform default is tried and if that too
-   * fails, an exception is thrown.
-   *
-   * @param cs character set to use when decoding the buffer.
-   * @param buffer buffer to pull raw bytes from.
-   * @param start first position within the buffer to take data from.
-   * @param end one position past the last location within the buffer to take data from.
-   * @return a string representation of the range <code>[start,end)</code>, after decoding the
-   *     region through the specified character set.
-   * @throws java.nio.charset.CharacterCodingException the input is not in any of the tested
-   *     character sets.
-   */
-  public static String decodeNoFallback(
-      final Charset cs, final byte[] buffer, final int start, final int end)
-      throws CharacterCodingException {
-    final ByteBuffer b = ByteBuffer.wrap(buffer, start, end - start);
-    b.mark();
-
-    // Try our built-in favorite. The assumption here is that
-    // decoding will fail if the data is not actually encoded
-    // using that encoder.
-    try {
-      return decode(b, UTF_8);
-    } catch (final CharacterCodingException e) {
-      b.reset();
-    }
-
-    if (!cs.equals(UTF_8)) {
-      // Try the suggested encoding, it might be right since it was
-      // provided by the caller.
-      try {
-        return decode(b, cs);
-      } catch (final CharacterCodingException e) {
-        b.reset();
-      }
-    }
-
-    // Try the default character set. A small group of people
-    // might actually use the same (or very similar) locale.
-    final Charset defcs = Charset.defaultCharset();
-    if (!defcs.equals(cs) && !defcs.equals(UTF_8)) {
-      try {
-        return decode(b, defcs);
-      } catch (final CharacterCodingException e) {
-        b.reset();
-      }
-    }
-
-    throw new CharacterCodingException();
   }
 
   /**
@@ -425,14 +376,6 @@ public final class RawParseUtils {
     final int tzMins = v % 100;
     final int tzHours = v / 100;
     return tzHours * 60 + tzMins;
-  }
-
-  private static String decode(final ByteBuffer b, final Charset charset)
-      throws CharacterCodingException {
-    final CharsetDecoder d = charset.newDecoder();
-    d.onMalformedInput(CodingErrorAction.REPORT);
-    d.onUnmappableCharacter(CodingErrorAction.REPORT);
-    return d.decode(b).toString();
   }
 
   public static int findByte(final byte[] bytes, final byte b) {

@@ -7,7 +7,7 @@ class AppVeyorInfoTest extends CIProviderInfoTest {
     return new AppVeyorInfo() {
       @Override
       protected String getGitFolderName() {
-        return GIT_FOLDER_FOR_TESTS;
+        return GIT_FOLDER_FOR_TESTS
       }
     }
   }

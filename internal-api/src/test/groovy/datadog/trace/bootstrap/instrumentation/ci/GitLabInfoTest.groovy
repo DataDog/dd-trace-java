@@ -7,7 +7,7 @@ class GitLabInfoTest extends CIProviderInfoTest {
     return new GitLabInfo() {
       @Override
       protected String getGitFolderName() {
-        return GIT_FOLDER_FOR_TESTS;
+        return GIT_FOLDER_FOR_TESTS
       }
     }
   }

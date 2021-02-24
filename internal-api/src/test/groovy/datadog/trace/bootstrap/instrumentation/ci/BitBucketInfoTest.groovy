@@ -7,7 +7,7 @@ class BitBucketInfoTest extends CIProviderInfoTest {
     return new BitBucketInfo() {
       @Override
       protected String getGitFolderName() {
-        return GIT_FOLDER_FOR_TESTS;
+        return GIT_FOLDER_FOR_TESTS
       }
     }
   }

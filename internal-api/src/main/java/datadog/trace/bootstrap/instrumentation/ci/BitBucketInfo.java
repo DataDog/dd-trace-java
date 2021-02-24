@@ -5,7 +5,7 @@ import datadog.trace.util.Strings;
 class BitBucketInfo extends CIProviderInfo {
 
   // https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/
-  public static final String BITBUCKET = "BITBUCKET_PIPELINE_UUID";
+  public static final String BITBUCKET = "BITBUCKET_BUILD_NUMBER";
   public static final String BITBUCKET_PROVIDER_NAME = "bitbucket";
   public static final String BITBUCKET_PIPELINE_ID = "BITBUCKET_PIPELINE_UUID";
   public static final String BITBUCKET_REPO_FULL_NAME = "BITBUCKET_REPO_FULL_NAME";

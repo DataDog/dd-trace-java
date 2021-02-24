@@ -6,7 +6,7 @@ class BitriseInfoTest extends CIProviderInfoTest {
     return new BitriseInfo() {
       @Override
       protected String getGitFolderName() {
-        return GIT_FOLDER_FOR_TESTS;
+        return GIT_FOLDER_FOR_TESTS
       }
     }
   }

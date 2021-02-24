@@ -69,7 +69,7 @@ abstract class CIProviderInfoTest extends DDSpecification {
     def ciInfo = instanceProvider()
 
     then:
-    if (!ciInfo instanceof NoopCIInfo) {
+    if (ciInfo.class != NoopCIInfo) {
       def tags = ciInfo.ciTags
       tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
       tags.get(Tags.GIT_BRANCH) == "master"
@@ -94,7 +94,7 @@ abstract class CIProviderInfoTest extends DDSpecification {
     def ciInfo = instanceProvider()
 
     then:
-    if (!ciInfo instanceof NoopCIInfo) {
+    if (ciInfo.class != NoopCIInfo) {
       def tags = ciInfo.ciTags
       tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
       tags.get(Tags.GIT_BRANCH) == "master"

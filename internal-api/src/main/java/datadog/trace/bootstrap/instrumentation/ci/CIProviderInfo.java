@@ -235,10 +235,6 @@ public abstract class CIProviderInfo {
 
     private CITagsBuilder putTagValue(
       final String tagKey, final String tagValue, final String fallbackValue) {
-      if (tagKey == null) {
-        return this;
-      }
-
       if (tagValue != null) {
         ciTags.put(tagKey, tagValue);
       } else if (fallbackValue != null) {
@@ -252,10 +248,6 @@ public abstract class CIProviderInfo {
       final String ciGitCommit,
       final String localFSGitCommit,
       final String tagValue) {
-      if (tagKey == null) {
-        return this;
-      }
-
       // As we're calculating the commit from localFS, we want to ensure that
       // ciGitCommit is equals to localFSGitCommit before we put the information in the tag map.
       if (ciGitCommit == null || ciGitCommit.equalsIgnoreCase(localFSGitCommit)) {

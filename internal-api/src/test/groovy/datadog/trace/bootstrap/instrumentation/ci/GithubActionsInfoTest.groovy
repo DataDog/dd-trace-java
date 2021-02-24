@@ -7,7 +7,7 @@ class GithubActionsInfoTest extends CIProviderInfoTest {
     return new GithubActionsInfo() {
       @Override
       protected String getGitFolderName() {
-        return GIT_FOLDER_FOR_TESTS;
+        return GIT_FOLDER_FOR_TESTS
       }
     }
   }

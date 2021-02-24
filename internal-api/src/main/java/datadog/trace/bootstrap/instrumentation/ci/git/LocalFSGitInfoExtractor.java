@@ -9,12 +9,10 @@ import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.lastI
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.nextLF;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.parseLongBase10;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.parseTimeZoneOffset;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -235,11 +233,11 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     return head;
   }
 
-  private PersonInfo getAuthor(final byte[] buffer) {
+  protected PersonInfo getAuthor(final byte[] buffer) {
     // Locate the index where the author name begins.
     final int authorNameBeginning = author(buffer, 0);
     if (authorNameBeginning < 0) {
-      return null;
+      return PersonInfo.NOOP;
     }
 
     // Starting from the author name beginning index,
@@ -247,11 +245,11 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     return parsePersonInfo(buffer, authorNameBeginning);
   }
 
-  private PersonInfo getCommitter(final byte[] buffer) {
+  protected PersonInfo getCommitter(final byte[] buffer) {
     // Locate the index where the committer name begins.
     final int nameB = committer(buffer, 0);
     if (nameB < 0) {
-      return null;
+      return PersonInfo.NOOP;
     }
 
     // Starting from the committer name beginning index,
@@ -259,19 +257,19 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     return parsePersonInfo(buffer, nameB);
   }
 
-  private String getFullMessage(final byte[] buffer) {
+  protected String getFullMessage(final byte[] buffer) {
     // Locate the index where the commit message begins.
     final int msgB = commitMessage(buffer, 0);
     if (msgB < 0) {
-      return "";
+      return null;
     }
 
     // Starting from the commit message beginning index,
     // we parse the "person" info of the author.
-    return decode(StandardCharsets.UTF_8, buffer, msgB, buffer.length);
+    return decode(buffer, msgB, buffer.length);
   }
 
-  private PersonInfo parsePersonInfo(final byte[] raw, final int nameB) {
+  protected PersonInfo parsePersonInfo(final byte[] raw, final int nameB) {
     // Typically, the line which contains
     // the person information looks like:
     // author John Doe <john@doe.com> 1613137668 +0100
@@ -292,11 +290,11 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
 
     // Once we have the indexes where the name starts and ends
     // we can extract the name.
-    final String name = decode(UTF_8, raw, nameB, nameEnd);
+    final String name = decode(raw, nameB, nameEnd);
 
     // Same approach to extract the email, using the indexes
     // where the email starts and ends.
-    final String email = decode(UTF_8, raw, emailB, emailE - 1);
+    final String email = decode(raw, emailB, emailE - 1);
 
     // Start searching from end of line, as after first name-email pair,
     // another name-email pair may occur. We will ignore all kinds of

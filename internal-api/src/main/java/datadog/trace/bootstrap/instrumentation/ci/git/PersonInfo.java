@@ -11,7 +11,7 @@ import lombok.ToString;
 @Getter
 @Builder
 @EqualsAndHashCode
-@ToString(includeFieldNames = true)
+@ToString
 public class PersonInfo {
 
   public static final PersonInfo NOOP = PersonInfo.builder().build();

@@ -3,11 +3,9 @@ package datadog.trace.bootstrap.instrumentation.ci.git;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.ToString;
 
 @Getter
 @Builder
-@ToString(includeFieldNames = true)
 @EqualsAndHashCode
 public class CommitInfo {
 

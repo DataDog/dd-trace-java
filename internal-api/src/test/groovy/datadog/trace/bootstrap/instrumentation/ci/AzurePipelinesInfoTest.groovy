@@ -8,7 +8,7 @@ class AzurePipelinesInfoTest extends CIProviderInfoTest {
     return new AzurePipelinesInfo() {
       @Override
       protected String getGitFolderName() {
-        return GIT_FOLDER_FOR_TESTS;
+        return GIT_FOLDER_FOR_TESTS
       }
     }
   }
