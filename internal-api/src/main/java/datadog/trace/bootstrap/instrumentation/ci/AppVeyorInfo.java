@@ -87,7 +87,7 @@ class AppVeyorInfo extends CIProviderInfo {
   }
 
   private String buildGitRepositoryUrl(final String repoProvider, final String repoName) {
-    if ("github".equals(repoProvider)) {
+    if ("github".equals(repoProvider) && (repoName != null && !repoName.isEmpty())) {
       return String.format("https://github.com/%s.git", repoName);
     }
     return null;

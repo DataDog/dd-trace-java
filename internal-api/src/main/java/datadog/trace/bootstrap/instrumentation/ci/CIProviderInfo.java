@@ -35,7 +35,11 @@ public abstract class CIProviderInfo {
     this.workspace = expandTilde(buildWorkspace());
     this.localGitInfo =
       this.localFSGitInfoExtractor.headCommit(
-        Paths.get(this.workspace, ".git").toFile().getAbsolutePath());
+        Paths.get(this.workspace, getGitFolderName()).toFile().getAbsolutePath());
+  }
+
+  protected String getGitFolderName() {
+    return ".git";
   }
 
   protected abstract String buildWorkspace();

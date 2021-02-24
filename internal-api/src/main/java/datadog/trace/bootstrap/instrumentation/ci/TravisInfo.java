@@ -71,6 +71,10 @@ class TravisInfo extends CIProviderInfo {
     if (repoSlug == null || repoSlug.isEmpty()) {
       repoSlug = System.getenv(TRAVIS_REPOSITORY_SLUG);
     }
+
+    if (repoSlug == null || repoSlug.isEmpty()) {
+      return null;
+    }
     return String.format("https://github.com/%s.git", repoSlug);
   }
 

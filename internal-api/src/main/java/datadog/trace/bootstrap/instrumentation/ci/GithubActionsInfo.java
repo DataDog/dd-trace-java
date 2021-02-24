@@ -78,6 +78,10 @@ class GithubActionsInfo extends CIProviderInfo {
   }
 
   private String buildGitRepositoryUrl(final String repo) {
+    if (repo == null || repo.isEmpty()) {
+      return null;
+    }
+
     return String.format("https://github.com/%s.git", repo);
   }
 
