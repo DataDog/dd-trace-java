@@ -10,7 +10,6 @@ import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
 
-import java.nio.BufferOverflowException
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 import java.util.concurrent.atomic.AtomicInteger
@@ -87,11 +86,8 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     boolean tracesFitInBuffer = true
     for (List<TraceGenerator.PojoSpan> trace : traces) {
       if (!packer.format(trace, traceMapper)) {
-        try {
-          packer.flush()
-        } catch (BufferOverflowException e) {
-          tracesFitInBuffer = false
-        }
+        verifier.skipLargeTrace()
+        tracesFitInBuffer = false
       }
     }
     packer.flush()
@@ -150,6 +146,10 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       this.expectedTraces = traces
       this.mapper = mapper
       this.captured = ByteBuffer.allocate(size)
+    }
+
+    void skipLargeTrace() {
+      ++position
     }
 
     @Override
