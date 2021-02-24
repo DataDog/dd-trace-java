@@ -19,10 +19,9 @@ class TravisInfo extends CIProviderInfo {
 
   TravisInfo() {
     final String gitTag = normalizeRef(System.getenv(TRAVIS_GIT_TAG));
-    final String commit = System.getenv(TRAVIS_GIT_COMMIT);
 
     this.ciTags =
-        new CITagsBuilder()
+        CITagsBuilder.from(this.ciTags)
             .withCiProviderName(TRAVIS_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(TRAVIS_PIPELINE_ID))
             .withCiPipelineName(buildCiPipelineName())
@@ -31,21 +30,15 @@ class TravisInfo extends CIProviderInfo {
             .withCiJorUrl(System.getenv(TRAVIS_JOB_URL))
             .withCiWorkspacePath(getWorkspace())
             .withGitRepositoryUrl(buildGitRepositoryUrl(), getLocalGitRepositoryUrl())
-            .withGitCommit(System.getenv(TRAVIS_GIT_COMMIT), getLocalGitCommitSha())
+            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
             .withGitBranch(buildGitBranch(gitTag), getLocalGitBranch())
             .withGitTag(gitTag, getLocalGitTag())
-            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
-            .withGitCommitAuthorEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
-            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
-            .withGitCommitCommitterName(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
-            .withGitCommitCommitterEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
-            .withGitCommitCommitterDate(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
-            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildGitCommit() {
+    return System.getenv(TRAVIS_GIT_COMMIT);
   }
 
   @Override

@@ -22,10 +22,9 @@ class AppVeyorInfo extends CIProviderInfo {
     final String url = buildPipelineUrl(repoName, buildId);
     final String repoProvider = System.getenv(APPVEYOR_REPO_PROVIDER);
     final String tag = buildGitTag(repoProvider);
-    final String commit = buildGitCommit(repoProvider);
 
     this.ciTags =
-        new CITagsBuilder()
+        CITagsBuilder.from(this.ciTags)
             .withCiProviderName(APPVEYOR_PROVIDER_NAME)
             .withCiPipelineId(buildId)
             .withCiPipelineName(repoName)
@@ -35,20 +34,9 @@ class AppVeyorInfo extends CIProviderInfo {
             .withCiWorkspacePath(getWorkspace())
             .withGitRepositoryUrl(
                 buildGitRepositoryUrl(repoProvider, repoName), getLocalGitRepositoryUrl())
-            .withGitCommit(commit, getLocalGitCommitSha())
+            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
             .withGitBranch(buildGitBranch(repoProvider, tag), getLocalGitBranch())
             .withGitTag(tag, getLocalGitTag())
-            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
-            .withGitCommitAuthorEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
-            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
-            .withGitCommitCommitterName(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
-            .withGitCommitCommitterEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
-            .withGitCommitCommitterDate(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
-            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
   }
 
@@ -79,8 +67,9 @@ class AppVeyorInfo extends CIProviderInfo {
     return null;
   }
 
-  private String buildGitCommit(final String repoProvider) {
-    if ("github".equals(repoProvider)) {
+  @Override
+  protected String buildGitCommit() {
+    if ("github".equals(System.getenv(APPVEYOR_REPO_PROVIDER))) {
       return System.getenv(APPVEYOR_REPO_COMMIT);
     }
     return null;

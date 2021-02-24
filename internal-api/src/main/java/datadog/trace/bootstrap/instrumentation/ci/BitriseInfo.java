@@ -18,10 +18,9 @@ class BitriseInfo extends CIProviderInfo {
 
   BitriseInfo() {
     final String gitTag = normalizeRef(System.getenv(BITRISE_GIT_TAG));
-    final String commit = buildGitCommit();
 
     this.ciTags =
-        new CITagsBuilder()
+        CITagsBuilder.from(this.ciTags)
             .withCiProviderName(BITRISE_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(BITRISE_PIPELINE_ID))
             .withCiPipelineName(System.getenv(BITRISE_PIPELINE_NAME))
@@ -31,20 +30,9 @@ class BitriseInfo extends CIProviderInfo {
             .withGitRepositoryUrl(
                 filterSensitiveInfo(System.getenv(BITRISE_GIT_REPOSITORY_URL)),
                 getLocalGitRepositoryUrl())
-            .withGitCommit(buildGitCommit(), getLocalGitCommitSha())
+            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
             .withGitBranch(buildGitBranch(gitTag), getLocalGitBranch())
             .withGitTag(gitTag, getLocalGitTag())
-            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
-            .withGitCommitAuthorEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
-            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
-            .withGitCommitCommitterName(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
-            .withGitCommitCommitterEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
-            .withGitCommitCommitterDate(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
-            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
   }
 
@@ -66,7 +54,8 @@ class BitriseInfo extends CIProviderInfo {
     }
   }
 
-  private String buildGitCommit() {
+  @Override
+  protected String buildGitCommit() {
     final String fromCommit = System.getenv(BITRISE_GIT_PR_COMMIT);
     if (fromCommit != null && !fromCommit.isEmpty()) {
       return fromCommit;

@@ -16,11 +16,10 @@ class GithubActionsInfo extends CIProviderInfo {
 
   GithubActionsInfo() {
     final String repo = System.getenv(GHACTIONS_REPOSITORY);
-    final String commit = System.getenv(GHACTIONS_SHA);
-    final String url = buildPipelineUrl(repo, commit);
+    final String url = buildPipelineUrl(repo, getGitCommit());
 
     this.ciTags =
-        new CITagsBuilder()
+        CITagsBuilder.from(this.ciTags)
             .withCiProviderName(GHACTIONS_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(GHACTIONS_PIPELINE_ID))
             .withCiPipelineName(System.getenv(GHACTIONS_PIPELINE_NAME))
@@ -29,21 +28,15 @@ class GithubActionsInfo extends CIProviderInfo {
             .withCiJorUrl(url)
             .withCiWorkspacePath(getWorkspace())
             .withGitRepositoryUrl(buildGitRepositoryUrl(repo), getLocalGitRepositoryUrl())
-            .withGitCommit(commit, getLocalGitCommitSha())
+            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
             .withGitBranch(buildGitBranch(), getLocalGitBranch())
             .withGitTag(buildGitTag(), getLocalGitTag())
-            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
-            .withGitCommitAuthorEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
-            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
-            .withGitCommitCommitterName(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
-            .withGitCommitCommitterEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
-            .withGitCommitCommitterDate(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
-            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildGitCommit() {
+    return System.getenv(GHACTIONS_SHA);
   }
 
   @Override

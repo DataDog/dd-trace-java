@@ -23,10 +23,9 @@ class JenkinsInfo extends CIProviderInfo {
 
   JenkinsInfo() {
     final String gitBranch = buildGitBranch();
-    final String commit = System.getenv(JENKINS_GIT_COMMIT);
 
     this.ciTags =
-      new CITagsBuilder()
+      CITagsBuilder.from(this.ciTags)
         .withCiProviderName(JENKINS_PROVIDER_NAME)
         .withCiPipelineId(System.getenv(JENKINS_PIPELINE_ID))
         .withCiPipelineName(buildCiPipelineName(gitBranch))
@@ -36,21 +35,15 @@ class JenkinsInfo extends CIProviderInfo {
         .withGitRepositoryUrl(
           filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL)),
           getLocalGitRepositoryUrl())
-        .withGitCommit(commit, getLocalGitCommitSha())
+        .withGitCommit(getGitCommit(), getLocalGitCommitSha())
         .withGitBranch(gitBranch, getLocalGitBranch())
         .withGitTag(buildGitTag(), getLocalGitTag())
-        .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
-        .withGitCommitAuthorEmail(
-          commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
-        .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
-        .withGitCommitCommitterName(
-          commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
-        .withGitCommitCommitterEmail(
-          commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
-        .withGitCommitCommitterDate(
-          commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
-        .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
         .build();
+  }
+
+  @Override
+  protected String buildGitCommit() {
+    return System.getenv(JENKINS_GIT_COMMIT);
   }
 
   @Override

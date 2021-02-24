@@ -22,10 +22,8 @@ class GitLabInfo extends CIProviderInfo {
   public static final String GITLAB_GIT_TAG = "CI_COMMIT_TAG";
 
   GitLabInfo() {
-    final String commit = System.getenv(GITLAB_GIT_COMMIT);
-
     this.ciTags =
-        new CITagsBuilder()
+        CITagsBuilder.from(this.ciTags)
             .withCiProviderName(GITLAB_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(GITLAB_PIPELINE_ID))
             .withCiPipelineName(System.getenv(GITLAB_PIPELINE_NAME))
@@ -38,21 +36,15 @@ class GitLabInfo extends CIProviderInfo {
             .withGitRepositoryUrl(
                 filterSensitiveInfo(System.getenv(GITLAB_GIT_REPOSITORY_URL)),
                 getLocalGitRepositoryUrl())
-            .withGitCommit(commit, getLocalGitCommitSha())
+            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
             .withGitBranch(normalizeRef(System.getenv(GITLAB_GIT_BRANCH)), getLocalGitBranch())
             .withGitTag(normalizeRef(System.getenv(GITLAB_GIT_TAG)), getLocalGitTag())
-            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
-            .withGitCommitAuthorEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
-            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
-            .withGitCommitCommitterName(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
-            .withGitCommitCommitterEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
-            .withGitCommitCommitterDate(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
-            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildGitCommit() {
+    return System.getenv(GITLAB_GIT_COMMIT);
   }
 
   @Override

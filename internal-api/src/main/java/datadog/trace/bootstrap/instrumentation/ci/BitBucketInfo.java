@@ -20,10 +20,9 @@ class BitBucketInfo extends CIProviderInfo {
     final String repo = System.getenv(BITBUCKET_REPO_FULL_NAME);
     final String number = System.getenv(BITBUCKET_BUILD_NUMBER);
     final String url = buildPipelineUrl(repo, number);
-    final String commit = System.getenv(BITBUCKET_GIT_COMMIT);
 
     this.ciTags =
-        new CITagsBuilder()
+        CITagsBuilder.from(this.ciTags)
             .withCiProviderName(BITBUCKET_PROVIDER_NAME)
             .withCiPipelineId(buildPipelineId())
             .withCiPipelineName(repo)
@@ -34,21 +33,15 @@ class BitBucketInfo extends CIProviderInfo {
             .withGitRepositoryUrl(
                 filterSensitiveInfo(System.getenv(BITBUCKET_GIT_REPOSITORY_URL)),
                 getLocalGitRepositoryUrl())
-            .withGitCommit(commit, getLocalGitCommitSha())
+            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
             .withGitBranch(normalizeRef(System.getenv(BITBUCKET_GIT_BRANCH)), getLocalGitBranch())
             .withGitTag(normalizeRef(System.getenv(BITBUCKET_GIT_TAG)), getLocalGitTag())
-            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
-            .withGitCommitAuthorEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
-            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
-            .withGitCommitCommitterName(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
-            .withGitCommitCommitterEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
-            .withGitCommitCommitterDate(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
-            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildGitCommit() {
+    return System.getenv(BITBUCKET_GIT_COMMIT);
   }
 
   @Override

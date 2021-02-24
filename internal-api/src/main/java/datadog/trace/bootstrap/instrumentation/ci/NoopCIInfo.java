@@ -7,6 +7,11 @@ class NoopCIInfo extends CIProviderInfo {
   NoopCIInfo() {}
 
   @Override
+  protected String buildGitCommit() {
+    return null;
+  }
+
+  @Override
   protected String buildWorkspace() {
     return null;
   }

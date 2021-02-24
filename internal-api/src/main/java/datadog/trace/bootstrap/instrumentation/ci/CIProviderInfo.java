@@ -25,10 +25,11 @@ import java.util.Map;
 @SuppressForbidden
 public abstract class CIProviderInfo {
 
-  protected Map<String, String> ciTags = new HashMap<>();
+  protected Map<String, String> ciTags;
   protected GitInfoExtractor localFSGitInfoExtractor = new LocalFSGitInfoExtractor();
 
   private final String workspace;
+  private final String commit;
   private final GitInfo localGitInfo;
 
   public CIProviderInfo() {
@@ -36,7 +37,28 @@ public abstract class CIProviderInfo {
     this.localGitInfo =
       this.localFSGitInfoExtractor.headCommit(
         Paths.get(this.workspace, getGitFolderName()).toFile().getAbsolutePath());
+    this.commit = buildGitCommit();
+
+    this.ciTags =
+      CITagsBuilder.newBuilder()
+        .withGitCommitAuthorName(
+          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitAuthorName())
+        .withGitCommitAuthorEmail(
+          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
+        .withGitCommitAuthorDate(
+          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
+        .withGitCommitCommitterName(
+          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitCommitterName())
+        .withGitCommitCommitterEmail(
+          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
+        .withGitCommitCommitterDate(
+          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
+        .withGitCommitMessage(
+          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitMessage())
+        .build();
   }
+
+  protected abstract String buildGitCommit();
 
   protected String getGitFolderName() {
     return ".git";
@@ -106,6 +128,18 @@ public abstract class CIProviderInfo {
   public static class CITagsBuilder {
 
     private final Map<String, String> ciTags = new HashMap<>();
+
+    private CITagsBuilder(final Map<String, String> ciTags) {
+      this.ciTags.putAll(ciTags);
+    }
+
+    public static CITagsBuilder newBuilder() {
+      return new CITagsBuilder(new HashMap<String, String>());
+    }
+
+    public static CITagsBuilder from(final Map<String, String> ciTags) {
+      return new CITagsBuilder(ciTags);
+    }
 
     public CITagsBuilder withCiProviderName(final String ciProviderName) {
       return putTagValue(Tags.CI_PROVIDER_NAME, ciProviderName);
@@ -259,6 +293,10 @@ public abstract class CIProviderInfo {
 
   public String getWorkspace() {
     return this.workspace;
+  }
+
+  public String getGitCommit() {
+    return this.commit;
   }
 
   public GitInfo getLocalGitInfo() {

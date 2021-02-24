@@ -18,10 +18,9 @@ class BuildkiteInfo extends CIProviderInfo {
 
   BuildkiteInfo() {
     final String ciPipelineUrl = System.getenv(BUILDKITE_BUILD_URL);
-    final String commit = System.getenv(BUILDKITE_GIT_COMMIT);
 
     this.ciTags =
-        new CITagsBuilder()
+        CITagsBuilder.from(this.ciTags)
             .withCiProviderName(BUILDKITE_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(BUILDKITE_PIPELINE_ID))
             .withCiPipelineName(System.getenv(BUILDKITE_PIPELINE_NAME))
@@ -32,21 +31,15 @@ class BuildkiteInfo extends CIProviderInfo {
             .withGitRepositoryUrl(
                 filterSensitiveInfo(System.getenv(BUILDKITE_GIT_REPOSITORY_URL)),
                 getLocalGitRepositoryUrl())
-            .withGitCommit(commit, getLocalGitCommitSha())
+            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
             .withGitBranch(normalizeRef(System.getenv(BUILDKITE_GIT_BRANCH)), getLocalGitBranch())
             .withGitTag(normalizeRef(System.getenv(BUILDKITE_GIT_TAG)), getLocalGitTag())
-            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
-            .withGitCommitAuthorEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
-            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
-            .withGitCommitCommitterName(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
-            .withGitCommitCommitterEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
-            .withGitCommitCommitterDate(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
-            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildGitCommit() {
+    return System.getenv(BUILDKITE_GIT_COMMIT);
   }
 
   @Override

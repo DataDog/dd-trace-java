@@ -29,10 +29,9 @@ class AzurePipelinesInfo extends CIProviderInfo {
     final String buildId = System.getenv(AZURE_BUILD_BUILDID);
     final String jobId = System.getenv(AZURE_SYSTEM_JOBID);
     final String taskId = System.getenv(AZURE_SYSTEM_TASKINSTANCEID);
-    final String commit = buildGitCommit();
 
     this.ciTags =
-        new CITagsBuilder()
+        CITagsBuilder.from(this.ciTags)
             .withCiProviderName(AZURE_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(AZURE_BUILD_BUILDID))
             .withCiPipelineName(System.getenv(AZURE_PIPELINE_NAME))
@@ -41,20 +40,9 @@ class AzurePipelinesInfo extends CIProviderInfo {
             .withCiJorUrl(buildCiJobUrl(uri, project, buildId, jobId, taskId))
             .withCiWorkspacePath(getWorkspace())
             .withGitRepositoryUrl(buildGitRepositoryUrl(), getLocalGitRepositoryUrl())
-            .withGitCommit(commit, getLocalGitCommitSha())
+            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
             .withGitBranch(buildGitBranch(), getLocalGitBranch())
             .withGitTag(buildGitTag(), getLocalGitTag())
-            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
-            .withGitCommitAuthorEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
-            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
-            .withGitCommitCommitterName(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
-            .withGitCommitCommitterEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
-            .withGitCommitCommitterDate(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
-            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
   }
 
@@ -87,7 +75,8 @@ class AzurePipelinesInfo extends CIProviderInfo {
     }
   }
 
-  private String buildGitCommit() {
+  @Override
+  protected String buildGitCommit() {
     String commit = System.getenv(AZURE_SYSTEM_PULLREQUEST_SOURCECOMMITID);
     if (commit == null || commit.isEmpty()) {
       commit = System.getenv(AZURE_BUILD_SOURCEVERSION);

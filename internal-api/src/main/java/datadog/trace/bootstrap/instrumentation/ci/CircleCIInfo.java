@@ -17,10 +17,9 @@ class CircleCIInfo extends CIProviderInfo {
 
   CircleCIInfo() {
     final String gitTag = normalizeRef(System.getenv(CIRCLECI_GIT_TAG));
-    final String commit = System.getenv(CIRCLECI_GIT_COMMIT);
 
     this.ciTags =
-        new CITagsBuilder()
+        CITagsBuilder.from(this.ciTags)
             .withCiProviderName(CIRCLECI_PROVIDER_NAME)
             .withCiPipelineId(System.getenv(CIRCLECI_PIPELINE_ID))
             .withCiPipelineName(System.getenv(CIRCLECI_PIPELINE_NAME))
@@ -31,21 +30,15 @@ class CircleCIInfo extends CIProviderInfo {
             .withGitRepositoryUrl(
                 filterSensitiveInfo(System.getenv(CIRCLECI_GIT_REPOSITORY_URL)),
                 getLocalGitRepositoryUrl())
-            .withGitCommit(System.getenv(CIRCLECI_GIT_COMMIT), getLocalGitCommitSha())
+            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
             .withGitBranch(buildGitBranch(gitTag), getLocalGitBranch())
             .withGitTag(gitTag, getLocalGitTag())
-            .withGitCommitAuthorName(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorName())
-            .withGitCommitAuthorEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
-            .withGitCommitAuthorDate(commit, getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
-            .withGitCommitCommitterName(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterName())
-            .withGitCommitCommitterEmail(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
-            .withGitCommitCommitterDate(
-                commit, getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
-            .withGitCommitMessage(commit, getLocalGitCommitSha(), getLocalGitCommitMessage())
             .build();
+  }
+
+  @Override
+  protected String buildGitCommit() {
+    return System.getenv(CIRCLECI_GIT_COMMIT);
   }
 
   @Override
