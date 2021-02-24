@@ -90,9 +90,9 @@ public class MsgPackWriter implements WritableFormatter {
           buffer.mark();
           return true;
         } catch (BufferOverflowException fatal) {
-          return false;
         }
       }
+      buffer.reset();
       return false;
     }
   }

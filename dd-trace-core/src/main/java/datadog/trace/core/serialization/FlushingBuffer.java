@@ -89,7 +89,8 @@ public final class FlushingBuffer implements StreamingBuffer {
     this.buffer.put(buffer);
   }
 
-  private void reset() {
+  @Override
+  public void reset() {
     messageCount = 0;
     buffer.position(0);
     buffer.limit(buffer.capacity());

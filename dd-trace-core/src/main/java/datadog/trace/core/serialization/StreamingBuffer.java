@@ -29,4 +29,6 @@ public interface StreamingBuffer {
   void put(byte[] bytes, int offset, int length);
 
   void put(ByteBuffer buffer);
+
+  void reset();
 }
