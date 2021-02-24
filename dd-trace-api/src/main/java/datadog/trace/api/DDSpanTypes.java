@@ -6,6 +6,7 @@ public class DDSpanTypes {
   @Deprecated public static final String WEB_SERVLET = HTTP_SERVER;
   public static final String RPC = "rpc";
   public static final String CACHE = "cache";
+  public static final String SOAP = "soap";
 
   public static final String SQL = "sql";
   public static final String MONGO = "mongodb";

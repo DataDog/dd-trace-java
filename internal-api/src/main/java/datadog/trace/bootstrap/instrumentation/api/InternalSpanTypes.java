@@ -8,6 +8,7 @@ public class InternalSpanTypes {
   public static final CharSequence HTTP_SERVER =
       UTF8BytesString.createConstant(DDSpanTypes.HTTP_SERVER);
   public static final CharSequence RPC = UTF8BytesString.createConstant(DDSpanTypes.RPC);
+  public static final CharSequence SOAP = UTF8BytesString.createConstant(DDSpanTypes.SOAP);
 
   public static final CharSequence SQL = UTF8BytesString.createConstant(DDSpanTypes.SQL);
   public static final CharSequence MONGO = UTF8BytesString.createConstant(DDSpanTypes.MONGO);
