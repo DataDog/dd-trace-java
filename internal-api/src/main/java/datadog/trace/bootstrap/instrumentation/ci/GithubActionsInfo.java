@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+
 class GithubActionsInfo extends CIProviderInfo {
 
   // https://docs.github.com/en/free-pro-team@latest/actions/reference/environment-variables#default-environment-variables
@@ -14,34 +17,30 @@ class GithubActionsInfo extends CIProviderInfo {
   public static final String GHACTIONS_HEAD_REF = "GITHUB_HEAD_REF";
   public static final String GHACTIONS_REF = "GITHUB_REF";
 
-  GithubActionsInfo() {
-    final String repo = System.getenv(GHACTIONS_REPOSITORY);
-    final String url = buildPipelineUrl(repo, getGitCommit());
-
-    this.ciTags =
-        CITagsBuilder.from(this.ciTags)
-            .withCiProviderName(GHACTIONS_PROVIDER_NAME)
-            .withCiPipelineId(System.getenv(GHACTIONS_PIPELINE_ID))
-            .withCiPipelineName(System.getenv(GHACTIONS_PIPELINE_NAME))
-            .withCiPipelineNumber(System.getenv(GHACTIONS_PIPELINE_NUMBER))
-            .withCiPipelineUrl(url)
-            .withCiJorUrl(url)
-            .withCiWorkspacePath(getWorkspace())
-            .withGitRepositoryUrl(buildGitRepositoryUrl(repo), getLocalGitRepositoryUrl())
-            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
-            .withGitBranch(buildGitBranch(), getLocalGitBranch())
-            .withGitTag(buildGitTag(), getLocalGitTag())
-            .build();
+  @Override
+  protected GitInfo buildCIGitInfo() {
+    return GitInfo.builder()
+        .repositoryURL(buildGitRepositoryUrl(System.getenv(GHACTIONS_REPOSITORY)))
+        .branch(buildGitBranch())
+        .tag(buildGitTag())
+        .commit(CommitInfo.builder().sha(System.getenv(GHACTIONS_SHA)).build())
+        .build();
   }
 
   @Override
-  protected String buildGitCommit() {
-    return System.getenv(GHACTIONS_SHA);
-  }
+  protected CIInfo buildCIInfo() {
+    final String url =
+        buildPipelineUrl(System.getenv(GHACTIONS_REPOSITORY), System.getenv(GHACTIONS_SHA));
 
-  @Override
-  protected String buildWorkspace() {
-    return System.getenv(GHACTIONS_WORKSPACE_PATH);
+    return CIInfo.builder()
+        .ciProviderName(GHACTIONS_PROVIDER_NAME)
+        .ciPipelineId(System.getenv(GHACTIONS_PIPELINE_ID))
+        .ciPipelineName(System.getenv(GHACTIONS_PIPELINE_NAME))
+        .ciPipelineNumber(System.getenv(GHACTIONS_PIPELINE_NUMBER))
+        .ciPipelineUrl(url)
+        .ciJobUrl(url)
+        .ciWorkspace(expandTilde(System.getenv(GHACTIONS_WORKSPACE_PATH)))
+        .build();
   }
 
   private String buildGitTag() {

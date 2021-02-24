@@ -13,10 +13,13 @@ import static datadog.trace.bootstrap.instrumentation.ci.TravisInfo.TRAVIS;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
-import datadog.trace.bootstrap.instrumentation.ci.git.GitInfoExtractor;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitUtils;
 import datadog.trace.bootstrap.instrumentation.ci.git.LocalFSGitInfoExtractor;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -26,45 +29,60 @@ import java.util.Map;
 public abstract class CIProviderInfo {
 
   protected Map<String, String> ciTags;
-  protected GitInfoExtractor localFSGitInfoExtractor = new LocalFSGitInfoExtractor();
-
-  private final String workspace;
-  private final String commit;
-  private final GitInfo localGitInfo;
 
   public CIProviderInfo() {
-    this.workspace = expandTilde(buildWorkspace());
-    this.localGitInfo =
-      this.localFSGitInfoExtractor.headCommit(
-        Paths.get(this.workspace, getGitFolderName()).toFile().getAbsolutePath());
-    this.commit = buildGitCommit();
+    final CIInfo ciInfo = buildCIInfo();
+    final GitInfo ciGitInfo = buildCIGitInfo();
+    final GitInfo localGitInfo =
+      new LocalFSGitInfoExtractor()
+        .headCommit(
+          Paths.get(ciInfo.getCiWorkspace(), getGitFolderName()).toFile().getAbsolutePath());
+    final String ciGitCommit = ciGitInfo.getCommit().getSha();
+    final String localFSGitCommit = localGitInfo.getCommit().getSha();
 
     this.ciTags =
-      CITagsBuilder.newBuilder()
+      new CITagsBuilder()
+        .withCiProviderName(ciInfo.getCiProviderName())
+        .withCiPipelineId(ciInfo.getCiPipelineId())
+        .withCiPipelineName(ciInfo.getCiPipelineName())
+        .withCiStageName(ciInfo.getCiStageName())
+        .withCiJobName(ciInfo.getCiJobName())
+        .withCiPipelineNumber(ciInfo.getCiPipelineNumber())
+        .withCiPipelineUrl(ciInfo.getCiPipelineUrl())
+        .withCiJorUrl(ciInfo.getCiJobUrl())
+        .withCiWorkspacePath(ciInfo.getCiWorkspace())
+        .withGitRepositoryUrl(ciGitInfo.getRepositoryURL(), localGitInfo.getRepositoryURL())
+        .withGitCommit(ciGitCommit, localFSGitCommit)
+        .withGitBranch(ciGitInfo.getBranch(), localGitInfo.getBranch())
+        .withGitTag(ciGitInfo.getTag(), localGitInfo.getTag())
         .withGitCommitAuthorName(
-          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitAuthorName())
+          ciGitCommit, localFSGitCommit, localGitInfo.getCommit().getAuthor().getName())
         .withGitCommitAuthorEmail(
-          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitAuthorEmail())
+          ciGitCommit, localFSGitCommit, localGitInfo.getCommit().getAuthor().getEmail())
         .withGitCommitAuthorDate(
-          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitAuthorDate())
+          ciGitCommit,
+          localFSGitCommit,
+          localGitInfo.getCommit().getAuthor().getISO8601Date())
         .withGitCommitCommitterName(
-          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitCommitterName())
+          ciGitCommit, localFSGitCommit, localGitInfo.getCommit().getCommitter().getName())
         .withGitCommitCommitterEmail(
-          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitCommitterEmail())
+          ciGitCommit, localFSGitCommit, localGitInfo.getCommit().getCommitter().getEmail())
         .withGitCommitCommitterDate(
-          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitCommitterDate())
+          ciGitCommit,
+          localFSGitCommit,
+          localGitInfo.getCommit().getCommitter().getISO8601Date())
         .withGitCommitMessage(
-          getGitCommit(), getLocalGitCommitSha(), getLocalGitCommitMessage())
+          ciGitCommit, localFSGitCommit, localGitInfo.getCommit().getFullMessage())
         .build();
   }
 
-  protected abstract String buildGitCommit();
+  protected abstract GitInfo buildCIGitInfo();
+
+  protected abstract CIInfo buildCIInfo();
 
   protected String getGitFolderName() {
     return ".git";
   }
-
-  protected abstract String buildWorkspace();
 
   public boolean isCI() {
     return true;
@@ -128,18 +146,6 @@ public abstract class CIProviderInfo {
   public static class CITagsBuilder {
 
     private final Map<String, String> ciTags = new HashMap<>();
-
-    private CITagsBuilder(final Map<String, String> ciTags) {
-      this.ciTags.putAll(ciTags);
-    }
-
-    public static CITagsBuilder newBuilder() {
-      return new CITagsBuilder(new HashMap<String, String>());
-    }
-
-    public static CITagsBuilder from(final Map<String, String> ciTags) {
-      return new CITagsBuilder(ciTags);
-    }
 
     public CITagsBuilder withCiProviderName(final String ciProviderName) {
       return putTagValue(Tags.CI_PROVIDER_NAME, ciProviderName);
@@ -291,59 +297,21 @@ public abstract class CIProviderInfo {
     }
   }
 
-  public String getWorkspace() {
-    return this.workspace;
-  }
+  @Getter
+  @Builder
+  @EqualsAndHashCode
+  @ToString
+  public static class CIInfo {
+    public static final CIInfo NOOP = CIInfo.builder().build();
 
-  public String getGitCommit() {
-    return this.commit;
-  }
-
-  public GitInfo getLocalGitInfo() {
-    return this.localGitInfo;
-  }
-
-  public String getLocalGitRepositoryUrl() {
-    return this.getLocalGitInfo().getRepositoryURL();
-  }
-
-  public String getLocalGitBranch() {
-    return this.getLocalGitInfo().getBranch();
-  }
-
-  public String getLocalGitTag() {
-    return this.getLocalGitInfo().getTag();
-  }
-
-  public String getLocalGitCommitSha() {
-    return this.getLocalGitInfo().getCommit().getSha();
-  }
-
-  public String getLocalGitCommitAuthorName() {
-    return this.getLocalGitInfo().getCommit().getAuthor().getName();
-  }
-
-  public String getLocalGitCommitAuthorEmail() {
-    return this.getLocalGitInfo().getCommit().getAuthor().getEmail();
-  }
-
-  public String getLocalGitCommitAuthorDate() {
-    return this.getLocalGitInfo().getCommit().getAuthor().getISO8601Date();
-  }
-
-  public String getLocalGitCommitCommitterName() {
-    return this.getLocalGitInfo().getCommit().getCommitter().getName();
-  }
-
-  public String getLocalGitCommitCommitterEmail() {
-    return this.getLocalGitInfo().getCommit().getCommitter().getEmail();
-  }
-
-  public String getLocalGitCommitCommitterDate() {
-    return this.getLocalGitInfo().getCommit().getCommitter().getISO8601Date();
-  }
-
-  public String getLocalGitCommitMessage() {
-    return this.getLocalGitInfo().getCommit().getFullMessage();
+    private final String ciProviderName;
+    private final String ciPipelineId;
+    private final String ciPipelineName;
+    private final String ciStageName;
+    private final String ciJobName;
+    private final String ciPipelineNumber;
+    private final String ciPipelineUrl;
+    private final String ciJobUrl;
+    private final String ciWorkspace;
   }
 }

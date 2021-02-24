@@ -24,7 +24,7 @@ task forkedTest(type: Test) {
 
 test {
   exclude("**/*ForkedTest*")
-  //dependsOn forkedTest
+  dependsOn forkedTest
 }
 
 def applyCodeCoverage = !(

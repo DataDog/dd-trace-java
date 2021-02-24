@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+
 class BitriseInfo extends CIProviderInfo {
 
   public static final String BITRISE = "BITRISE_BUILD_SLUG";
@@ -16,29 +19,27 @@ class BitriseInfo extends CIProviderInfo {
   public static final String BITRISE_GIT_BRANCH = "BITRISE_GIT_BRANCH";
   public static final String BITRISE_GIT_TAG = "BITRISE_GIT_TAG";
 
-  BitriseInfo() {
+  @Override
+  protected GitInfo buildCIGitInfo() {
     final String gitTag = normalizeRef(System.getenv(BITRISE_GIT_TAG));
-
-    this.ciTags =
-        CITagsBuilder.from(this.ciTags)
-            .withCiProviderName(BITRISE_PROVIDER_NAME)
-            .withCiPipelineId(System.getenv(BITRISE_PIPELINE_ID))
-            .withCiPipelineName(System.getenv(BITRISE_PIPELINE_NAME))
-            .withCiPipelineNumber(System.getenv(BITRISE_PIPELINE_NUMBER))
-            .withCiPipelineUrl(System.getenv(BITRISE_PIPELINE_URL))
-            .withCiWorkspacePath(expandTilde(System.getenv(BITRISE_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(
-                filterSensitiveInfo(System.getenv(BITRISE_GIT_REPOSITORY_URL)),
-                getLocalGitRepositoryUrl())
-            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
-            .withGitBranch(buildGitBranch(gitTag), getLocalGitBranch())
-            .withGitTag(gitTag, getLocalGitTag())
-            .build();
+    return GitInfo.builder()
+        .repositoryURL(filterSensitiveInfo(System.getenv(BITRISE_GIT_REPOSITORY_URL)))
+        .branch(buildGitBranch(gitTag))
+        .tag(gitTag)
+        .commit(CommitInfo.builder().sha(buildGitCommit()).build())
+        .build();
   }
 
   @Override
-  protected String buildWorkspace() {
-    return System.getenv(BITRISE_WORKSPACE_PATH);
+  protected CIInfo buildCIInfo() {
+    return CIInfo.builder()
+        .ciProviderName(BITRISE_PROVIDER_NAME)
+        .ciPipelineId(System.getenv(BITRISE_PIPELINE_ID))
+        .ciPipelineName(System.getenv(BITRISE_PIPELINE_NAME))
+        .ciPipelineNumber(System.getenv(BITRISE_PIPELINE_NUMBER))
+        .ciPipelineUrl(System.getenv(BITRISE_PIPELINE_URL))
+        .ciWorkspace(expandTilde(System.getenv(BITRISE_WORKSPACE_PATH)))
+        .build();
   }
 
   private String buildGitBranch(final String gitTag) {
@@ -54,8 +55,7 @@ class BitriseInfo extends CIProviderInfo {
     }
   }
 
-  @Override
-  protected String buildGitCommit() {
+  private String buildGitCommit() {
     final String fromCommit = System.getenv(BITRISE_GIT_PR_COMMIT);
     if (fromCommit != null && !fromCommit.isEmpty()) {
       return fromCommit;

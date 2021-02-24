@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+
 class AzurePipelinesInfo extends CIProviderInfo {
 
   // https://docs.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops
@@ -23,32 +26,33 @@ class AzurePipelinesInfo extends CIProviderInfo {
       "SYSTEM_PULLREQUEST_SOURCEBRANCH";
   public static final String AZURE_BUILD_SOURCEBRANCH = "BUILD_SOURCEBRANCH";
 
-  AzurePipelinesInfo() {
+  @Override
+  protected GitInfo buildCIGitInfo() {
+    return GitInfo.builder()
+        .repositoryURL(buildGitRepositoryUrl())
+        .branch(buildGitBranch())
+        .tag(buildGitTag())
+        .commit(CommitInfo.builder().sha(buildGitCommit()).build())
+        .build();
+  }
+
+  @Override
+  protected CIInfo buildCIInfo() {
     final String uri = System.getenv(AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI);
     final String project = System.getenv(AZURE_SYSTEM_TEAMPROJECTID);
     final String buildId = System.getenv(AZURE_BUILD_BUILDID);
     final String jobId = System.getenv(AZURE_SYSTEM_JOBID);
     final String taskId = System.getenv(AZURE_SYSTEM_TASKINSTANCEID);
 
-    this.ciTags =
-        CITagsBuilder.from(this.ciTags)
-            .withCiProviderName(AZURE_PROVIDER_NAME)
-            .withCiPipelineId(System.getenv(AZURE_BUILD_BUILDID))
-            .withCiPipelineName(System.getenv(AZURE_PIPELINE_NAME))
-            .withCiPipelineNumber(System.getenv(AZURE_BUILD_BUILDID))
-            .withCiPipelineUrl(buildCiPipelineUrl(uri, project, buildId))
-            .withCiJorUrl(buildCiJobUrl(uri, project, buildId, jobId, taskId))
-            .withCiWorkspacePath(getWorkspace())
-            .withGitRepositoryUrl(buildGitRepositoryUrl(), getLocalGitRepositoryUrl())
-            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
-            .withGitBranch(buildGitBranch(), getLocalGitBranch())
-            .withGitTag(buildGitTag(), getLocalGitTag())
-            .build();
-  }
-
-  @Override
-  protected String buildWorkspace() {
-    return System.getenv(AZURE_WORKSPACE_PATH);
+    return CIInfo.builder()
+        .ciProviderName(AZURE_PROVIDER_NAME)
+        .ciPipelineId(System.getenv(AZURE_BUILD_BUILDID))
+        .ciPipelineName(System.getenv(AZURE_PIPELINE_NAME))
+        .ciPipelineNumber(buildId)
+        .ciPipelineUrl(buildCiPipelineUrl(uri, project, buildId))
+        .ciJobUrl(buildCiJobUrl(uri, project, buildId, jobId, taskId))
+        .ciWorkspace(expandTilde(System.getenv(AZURE_WORKSPACE_PATH)))
+        .build();
   }
 
   private String buildGitTag() {
@@ -75,8 +79,7 @@ class AzurePipelinesInfo extends CIProviderInfo {
     }
   }
 
-  @Override
-  protected String buildGitCommit() {
+  private String buildGitCommit() {
     String commit = System.getenv(AZURE_SYSTEM_PULLREQUEST_SOURCECOMMITID);
     if (commit == null || commit.isEmpty()) {
       commit = System.getenv(AZURE_BUILD_SOURCEVERSION);

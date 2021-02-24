@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+
 class NoopCIInfo extends CIProviderInfo {
 
   public static final String NOOP_PROVIDER_NAME = "noop";
@@ -7,13 +9,13 @@ class NoopCIInfo extends CIProviderInfo {
   NoopCIInfo() {}
 
   @Override
-  protected String buildGitCommit() {
-    return null;
+  protected GitInfo buildCIGitInfo() {
+    return GitInfo.NOOP;
   }
 
   @Override
-  protected String buildWorkspace() {
-    return null;
+  protected CIInfo buildCIInfo() {
+    return CIInfo.NOOP;
   }
 
   @Override

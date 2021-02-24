@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+
 class AppVeyorInfo extends CIProviderInfo {
 
   // https://www.appveyor.com/docs/environment-variables/
@@ -16,33 +19,31 @@ class AppVeyorInfo extends CIProviderInfo {
       "APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH";
   public static final String APPVEYOR_REPO_TAG_NAME = "APPVEYOR_REPO_TAG_NAME";
 
-  AppVeyorInfo() {
-    final String buildId = System.getenv(APPVEYOR_BUILD_ID);
-    final String repoName = System.getenv(APPVEYOR_REPO_NAME);
-    final String url = buildPipelineUrl(repoName, buildId);
+  @Override
+  protected GitInfo buildCIGitInfo() {
     final String repoProvider = System.getenv(APPVEYOR_REPO_PROVIDER);
     final String tag = buildGitTag(repoProvider);
-
-    this.ciTags =
-        CITagsBuilder.from(this.ciTags)
-            .withCiProviderName(APPVEYOR_PROVIDER_NAME)
-            .withCiPipelineId(buildId)
-            .withCiPipelineName(repoName)
-            .withCiPipelineNumber(System.getenv(APPVEYOR_PIPELINE_NUMBER))
-            .withCiPipelineUrl(url)
-            .withCiJorUrl(url)
-            .withCiWorkspacePath(getWorkspace())
-            .withGitRepositoryUrl(
-                buildGitRepositoryUrl(repoProvider, repoName), getLocalGitRepositoryUrl())
-            .withGitCommit(getGitCommit(), getLocalGitCommitSha())
-            .withGitBranch(buildGitBranch(repoProvider, tag), getLocalGitBranch())
-            .withGitTag(tag, getLocalGitTag())
-            .build();
+    return GitInfo.builder()
+        .repositoryURL(buildGitRepositoryUrl(repoProvider, System.getenv(APPVEYOR_REPO_NAME)))
+        .branch(buildGitBranch(repoProvider, tag))
+        .tag(tag)
+        .commit(CommitInfo.builder().sha(buildGitCommit()).build())
+        .build();
   }
 
   @Override
-  protected String buildWorkspace() {
-    return System.getenv(APPVEYOR_WORKSPACE_PATH);
+  protected CIInfo buildCIInfo() {
+    final String url =
+        buildPipelineUrl(System.getenv(APPVEYOR_REPO_NAME), System.getenv(APPVEYOR_BUILD_ID));
+    return CIInfo.builder()
+        .ciProviderName(APPVEYOR_PROVIDER_NAME)
+        .ciPipelineId(System.getenv(APPVEYOR_BUILD_ID))
+        .ciPipelineName(System.getenv(APPVEYOR_REPO_NAME))
+        .ciPipelineNumber(System.getenv(APPVEYOR_PIPELINE_NUMBER))
+        .ciPipelineUrl(url)
+        .ciJobUrl(url)
+        .ciWorkspace(expandTilde(System.getenv(APPVEYOR_WORKSPACE_PATH)))
+        .build();
   }
 
   private String buildGitTag(final String repoProvider) {
@@ -67,8 +68,7 @@ class AppVeyorInfo extends CIProviderInfo {
     return null;
   }
 
-  @Override
-  protected String buildGitCommit() {
+  private String buildGitCommit() {
     if ("github".equals(System.getenv(APPVEYOR_REPO_PROVIDER))) {
       return System.getenv(APPVEYOR_REPO_COMMIT);
     }

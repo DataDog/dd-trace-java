@@ -26,6 +26,8 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo.PersonInfoBuilder",
   "datadog.trace.bootstrap.instrumentation.ci.git.GitObject",
   "datadog.trace.bootstrap.instrumentation.ci.git.GitObject.GitObjectBuilder",
+  "datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo.CIInfo",
+  "datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo.CIInfo.CIInfoBuilder",
   "datadog.trace.logging.LoggingSettingsDescription",
   "datadog.trace.util.AgentProxySelector",
   "datadog.trace.util.AgentTaskScheduler",

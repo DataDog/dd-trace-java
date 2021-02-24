@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 
 import java.util.HashMap;
@@ -21,34 +23,28 @@ class JenkinsInfo extends CIProviderInfo {
   public static final String JENKINS_GIT_COMMIT = "GIT_COMMIT";
   public static final String JENKINS_GIT_BRANCH = "GIT_BRANCH";
 
-  JenkinsInfo() {
+  @Override
+  protected GitInfo buildCIGitInfo() {
+    return GitInfo.builder()
+      .repositoryURL(filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL)))
+      .branch(buildGitBranch())
+      .tag(buildGitTag())
+      .commit(CommitInfo.builder().sha(System.getenv(JENKINS_GIT_COMMIT)).build())
+      .build();
+  }
+
+  @Override
+  protected CIInfo buildCIInfo() {
     final String gitBranch = buildGitBranch();
 
-    this.ciTags =
-      CITagsBuilder.from(this.ciTags)
-        .withCiProviderName(JENKINS_PROVIDER_NAME)
-        .withCiPipelineId(System.getenv(JENKINS_PIPELINE_ID))
-        .withCiPipelineName(buildCiPipelineName(gitBranch))
-        .withCiPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
-        .withCiPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
-        .withCiWorkspacePath(getWorkspace())
-        .withGitRepositoryUrl(
-          filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL)),
-          getLocalGitRepositoryUrl())
-        .withGitCommit(getGitCommit(), getLocalGitCommitSha())
-        .withGitBranch(gitBranch, getLocalGitBranch())
-        .withGitTag(buildGitTag(), getLocalGitTag())
-        .build();
-  }
-
-  @Override
-  protected String buildGitCommit() {
-    return System.getenv(JENKINS_GIT_COMMIT);
-  }
-
-  @Override
-  protected String buildWorkspace() {
-    return System.getenv(JENKINS_WORKSPACE_PATH);
+    return CIInfo.builder()
+      .ciProviderName(JENKINS_PROVIDER_NAME)
+      .ciPipelineId(System.getenv(JENKINS_PIPELINE_ID))
+      .ciPipelineName(buildCiPipelineName(gitBranch))
+      .ciPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
+      .ciPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
+      .ciWorkspace(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
+      .build();
   }
 
   private String buildGitBranch() {
