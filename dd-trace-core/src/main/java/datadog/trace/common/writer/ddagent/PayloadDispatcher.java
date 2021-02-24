@@ -59,9 +59,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     // there are alternative approaches to avoid blocking here, such as
     // introducing an unbound queue and another thread to do the IO
     // however, we can't block the application threads from here.
-    if (null != traceMapper) {
-      packer.format(trace, traceMapper);
-    } else {
+    if (null == traceMapper || !packer.format(trace, traceMapper)) {
       healthMetrics.onFailedPublish(trace.get(0).samplingPriority());
     }
   }
