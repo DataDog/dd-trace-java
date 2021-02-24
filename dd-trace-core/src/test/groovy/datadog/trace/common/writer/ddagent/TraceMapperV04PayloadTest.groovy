@@ -40,6 +40,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     boolean tracesFitInBuffer = true
     for (List<TraceGenerator.PojoSpan> trace : traces) {
       if (!packer.format(trace, traceMapper)) {
+        verifier.skipLargeTrace()
         tracesFitInBuffer = false
       }
     }
@@ -83,6 +84,10 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     private PayloadVerifier(List<List<TraceGenerator.PojoSpan>> traces, TraceMapperV0_4 mapper) {
       this.expectedTraces = traces
       this.mapper = mapper
+    }
+
+    void skipLargeTrace() {
+      ++position
     }
 
     @Override

@@ -26,6 +26,7 @@ public final class GrowableBuffer implements StreamingBuffer {
     return messageCount;
   }
 
+  @Override
   public void reset() {
     messageCount = 0;
     buffer.position(0);

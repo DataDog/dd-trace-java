@@ -12,7 +12,9 @@ import datadog.trace.core.serialization.StreamingBuffer;
 import datadog.trace.core.serialization.Writable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
@@ -46,6 +48,67 @@ public class MsgPackWriterTest {
                 writable.writeObject(data, null);
               }
             }));
+  }
+
+  @Test
+  public void testInsertAfterOverflow() {
+    Mapper<String> mapper =
+        new Mapper<String>() {
+          @Override
+          public void map(String data, Writable writable) {
+            writable.writeString(data, null);
+          }
+        };
+    MessageFormatter packer =
+        new MsgPackWriter(
+            newBuffer(
+                2 + 25, // enough space for a 25 element string and its 2 byte header
+                new ByteBufferConsumer() {
+                  @Override
+                  public void accept(int messageCount, ByteBuffer buffer) {}
+                }));
+    assertTrue("data fits in buffer", packer.format("abcdefghijklmnopqrstuvwxy", mapper));
+    assertFalse(
+        "data doesn't fit in finite buffer", packer.format("abcdefghijklmnopqrstuvwxyz", mapper));
+    assertTrue(
+        "data fits in buffer after overflow", packer.format("abcdefghijklmnopqrstuvwxy", mapper));
+  }
+
+  @Test
+  public void testFlushOfOverflow() {
+    final List<String> flushed = new ArrayList<>();
+    Mapper<String> mapper =
+        new Mapper<String>() {
+          @Override
+          public void map(String data, Writable writable) {
+            writable.writeString(data, null);
+          }
+        };
+    MessageFormatter packer =
+        new MsgPackWriter(
+            newBuffer(
+                2 + 25, // enough space for a 25 element string and its 2 byte header
+                new ByteBufferConsumer() {
+                  @Override
+                  public void accept(int messageCount, ByteBuffer buffer) {
+                    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
+                    for (int i = 0; i < messageCount; ++i) {
+                      try {
+                        flushed.add(unpacker.unpackString());
+                      } catch (Exception error) {
+                        Assert.fail(error.getMessage());
+                      }
+                    }
+                  }
+                }));
+    assertTrue("data fits in buffer", packer.format("abcdefghijklm", mapper));
+    assertTrue(
+        "data fits in empty buffer but triggers flush", packer.format("nopqrstuvwxyz", mapper));
+    assertTrue(
+        "data fits in buffer after overflow", packer.format("abcdefghijklmnopqrstuvwxy", mapper));
+    assertEquals(2, flushed.size());
+    assertEquals("abcdefghijklm", flushed.get(0));
+    assertEquals("nopqrstuvwxyz", flushed.get(1));
   }
 
   @Test
