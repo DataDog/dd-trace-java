@@ -2,6 +2,7 @@ import datadog.trace.agent.test.base.TestFrameworkTest
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import datadog.trace.instrumentation.junit5.JUnit5Decorator
+import org.example.TestAssumption
 import org.example.TestError
 import org.example.TestFactory
 import org.example.TestFailed
@@ -203,6 +204,24 @@ class JUnit5Test extends TestFrameworkTest {
 
     where:
     testTags = ["$Tags.TEST_SKIP_REASON": "Ignore reason in class"]
+  }
+
+  def "test with failing assumptions generated spans"() {
+    setup:
+    def launcherReq = LauncherDiscoveryRequestBuilder.request()
+      .selectors(selectClass(TestAssumption)).build()
+    def launcher = LauncherFactory.create()
+    launcher.execute(launcherReq)
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        testSpan(it, 0, "org.example.TestAssumption", "test_fail_assumption", TestDecorator.TEST_SKIP, testTags)
+      }
+    }
+
+    where:
+    testTags = ["$Tags.TEST_SKIP_REASON": "Assumption failed: assumption is not true"]
   }
 
   @Override
