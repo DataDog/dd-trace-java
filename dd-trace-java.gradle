@@ -1,5 +1,5 @@
 plugins {
-  id 'io.franzbecker.gradle-lombok' version '1.14' // Last to support Java 7
+  id 'io.franzbecker.gradle-lombok' version '4.0.0'
 
   id 'com.jfrog.artifactory' version '4.9.8'
   // ^ Last version to not have problems with NoSuchMethodError HttpClientBuilder.setPublicSuffixMatcher...
