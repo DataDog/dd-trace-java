@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ExceptionLogger;
+import datadog.trace.api.sqreen.PassthruAdviceException;
 import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.asm.Advice.ExceptionHandler;
 import net.bytebuddy.implementation.Implementation;
@@ -18,6 +19,8 @@ public class ExceptionHandlers {
   private static final String LOGGER_NAME = Logger.class.getName().replace('.', '/');
   // Bootstrap ExceptionHandler.class will always be resolvable, so we'll use it in the log name
   private static final String HANDLER_NAME = ExceptionLogger.class.getName().replace('.', '/');
+  private static final String THROWABLE_NAME = Throwable.class.getName().replace('.', '/');
+  private static final String PASSTHRU_EXCEPTION_NAME = PassthruAdviceException.class.getName().replace('.', '/');
 
   private static final ExceptionHandler EXCEPTION_STACK_HANDLER =
       new ExceptionHandler.Simple(
@@ -39,6 +42,9 @@ public class ExceptionHandlers {
 
               // Writes the following bytecode if exitOnFailure is false:
               //
+              // if (t instanceof PassthruAdviceException) {
+              //   throw t.getCause();
+              // }
               // try {
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .debug("Failed to handle exception in instrumentation for ...", t);
@@ -47,6 +53,9 @@ public class ExceptionHandlers {
               //
               // And the following bytecode if exitOnFailure is true:
               //
+              // if (t instanceof PassthruAdviceException) {
+              //   throw t.getCause();
+              // }
               // try {
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .error("Failed to handle exception in instrumentation for ...", t);
@@ -54,6 +63,8 @@ public class ExceptionHandlers {
               // } catch (Throwable t2) {
               // }
               //
+              final Label handlePassthruException = new Label();
+              final Label beforeTry = new Label();
               final Label logStart = new Label();
               final Label logEnd = new Label();
               final Label eatException = new Label();
@@ -63,6 +74,27 @@ public class ExceptionHandlers {
               final boolean frames =
                   context.getClassFileVersion().isAtLeast(ClassFileVersion.JAVA_V6);
 
+              mv.visitInsn(Opcodes.DUP); // stack: (top) throwable,throwable
+              mv.visitTypeInsn(Opcodes.INSTANCEOF, PASSTHRU_EXCEPTION_NAME); // stack: (top) int, throwable
+              mv.visitJumpInsn(Opcodes.IFNE, handlePassthruException); // stack: (top) throwable
+              mv.visitJumpInsn(Opcodes.GOTO, beforeTry);
+
+              mv.visitLabel(handlePassthruException);
+              if (frames) {
+                mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] { THROWABLE_NAME });
+              }
+              mv.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                "java/lang/Throwable",
+                "getCause",
+                "()Ljava/lang/Throwable;",
+                false); // stack: (top) cause throwable
+              mv.visitInsn(Opcodes.ATHROW);
+
+              mv.visitLabel(beforeTry);
+              if (frames) {
+                mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] { THROWABLE_NAME });
+              }
               mv.visitTryCatchBlock(logStart, logEnd, eatException, "java/lang/Throwable");
 
               // stack: (top) throwable

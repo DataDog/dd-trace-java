@@ -83,7 +83,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
   final Sampler<DDSpan> sampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
-  final AgentScopeManager scopeManager;
+  public final AgentScopeManager scopeManager;
 
   final MetricsAggregator metricsAggregator;
 

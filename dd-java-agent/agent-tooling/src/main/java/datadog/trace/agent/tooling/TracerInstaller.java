@@ -2,9 +2,17 @@ package datadog.trace.agent.tooling;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.sqreen.Engine;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.CoreTracer;
+import datadog.trace.core.scopemanager.ContinuableScopeManager;
+import datadog.trace.core.sqreen.EngineImpl;
+import datadog.trace.core.sqreen.EngineRule;
+import datadog.trace.core.sqreen.PowerwafCallback;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Collections;
+import java.util.Map;
 
 @Slf4j
 public class TracerInstaller {
@@ -25,6 +33,25 @@ public class TracerInstaller {
     try {
       GlobalTracer.registerIfAbsent(tracer);
       AgentTracer.registerIfAbsent(tracer);
+
+      EngineImpl engine = new EngineImpl((ContinuableScopeManager) tracer.scopeManager);
+      engine.addSubscription(new PowerwafCallback(new EngineRule() {
+        @Override
+        public String getName() {
+          return "pwaf_rule";
+        }
+
+        @Override
+        public Map<String, Object> getData() {
+          return Collections.emptyMap();
+        }
+
+        @Override
+        public boolean isBlock() {
+          return true;
+        }
+      }));
+      Engine.INSTANCE = engine;
 
       log.debug("Global tracer installed");
     } catch (final RuntimeException re) {

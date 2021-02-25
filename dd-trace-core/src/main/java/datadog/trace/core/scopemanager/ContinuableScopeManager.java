@@ -166,11 +166,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
   }
 
-  protected ScopeStack scopeStack() {
+  public ScopeStack scopeStack() {
     return this.tlsScopeStack.get();
   }
 
-  private static final class ContinuableScope implements AgentScope {
+  public static final class ContinuableScope implements AgentScope {
     private final ContinuableScopeManager scopeManager;
 
     /** Continuation that created this scope. May be null. */
@@ -258,7 +258,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     /** Returns true if the scope is still alive (non-zero ref count) */
-    final boolean alive() {
+    public final boolean alive() {
       return referenceCount > 0;
     }
 
@@ -318,8 +318,8 @@ public class ContinuableScopeManager implements AgentScopeManager {
    * The invariant is that the top of a non-empty stack is always active. Anytime a scope is closed,
    * cleanup() is called to ensure the invariant
    */
-  static final class ScopeStack {
-    private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>();
+  public static final class ScopeStack {
+    public final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>();
 
     /** top - accesses the top of the ScopeStack */
     final ContinuableScope top() {
