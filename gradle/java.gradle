@@ -115,12 +115,13 @@ java {
 }
 
 apply plugin: "io.franzbecker.gradle-lombok"
-
 lombok {
-  // optional: values below are the defaults
   version = versions.lombok
   sha256 = ""
 }
+verifyLombok.enabled = false
+installLombok.enabled = false
+
 
 apply plugin: "eclipse"
 eclipse {

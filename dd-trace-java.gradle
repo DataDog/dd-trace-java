@@ -62,6 +62,9 @@ nexusPublishing {
   }
 }
 
+verifyLombok.enabled = false
+installLombok.enabled = false
+
 wrapper {
   distributionType = Wrapper.DistributionType.ALL
 }
