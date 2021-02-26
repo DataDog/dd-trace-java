@@ -2,6 +2,7 @@ package com.datadog.profiling.testing;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import delight.fileupload.FileUpload;
 import java.util.Collection;
 import java.util.Map;
@@ -29,15 +30,10 @@ public final class ProfilingTestUtils {
         .build();
   }
 
+  @SuppressForbidden
   public static Map<String, String> parseTags(final Collection<Object> params) {
     return params.stream()
-        .map(
-            p -> {
-              int delim = ((String) p).indexOf(":");
-              return new String[] {
-                ((String) p).substring(0, delim), ((String) p).substring(delim + 1)
-              };
-            })
+        .map(p -> ((String) p).split(":", 2))
         .collect(Collectors.toMap(p -> p[0], p -> p[1]));
   }
 }

@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.muzzle.Reference.Source;
 import datadog.trace.api.Function;
 import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.bootstrap.instrumentation.api.Pair;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -107,6 +108,7 @@ public final class ReferenceMatcher {
    * @param loader
    * @return A list of mismatched sources. A list of size 0 means the reference matches the class.
    */
+  @SuppressForbidden
   private static boolean checkMatch(
       final Reference reference, final ClassLoader loader, final List<Mismatch> mismatches) {
     final TypePool typePool =
@@ -125,8 +127,7 @@ public final class ReferenceMatcher {
       if (e.getMessage().startsWith("Cannot resolve type description for ")) {
         // bytebuddy throws an illegal state exception with this message if it cannot resolve types
         // TODO: handle missing type resolutions without catching bytebuddy's exceptions
-        final String className =
-            e.getMessage().substring("Cannot resolve type description for ".length());
+        final String className = e.getMessage().replace("Cannot resolve type description for ", "");
         mismatches.add(
             new Mismatch.MissingClass(reference.getSources().toArray(EMPTY_SOURCES), className));
         return false;
