@@ -2,6 +2,10 @@ name: Update issues on release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      milestone:
+        required: true
 
 jobs:
   update_issues:
@@ -13,6 +17,10 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
+            if ("${{github.event_name}}" == "workflow_dispatch") {
+              return "${{github.event.inputs.milestone}}"
+            }
+
             const milestones = await github.issues.paginate(listMilestonesForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
