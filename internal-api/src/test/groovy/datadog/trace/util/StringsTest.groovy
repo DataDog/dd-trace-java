@@ -33,8 +33,8 @@ class StringsTest extends DDSpecification {
 
   def "test replace strings"() {
     when:
-    String replacedAll = Strings.replace(string, delimiter, replacement);
-    String replacedFirst = Strings.replaceFirst(string, delimiter, replacement);
+    String replacedAll = Strings.replace(string, delimiter, replacement)
+    String replacedFirst = Strings.replaceFirst(string, delimiter, replacement)
 
     then:
     replacedAll == expected
