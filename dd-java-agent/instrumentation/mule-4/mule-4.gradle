@@ -2,6 +2,25 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
+muzzle {
+  extraRepository('anypoint-releases', 'https://maven.anypoint.mulesoft.com/api/v2/maven')
+  extraRepository('mulesoft-releases', 'https://repository.mulesoft.org/releases')
+  extraRepository('mulesoft-public', 'https://repository.mulesoft.org/nexus/content/repositories/public')
+
+  pass {
+    group = 'org.mule.runtime'
+    module = 'mule-core'
+    versions = '[,]'
+    assertInverse = true
+  }
+
+  fail {
+    group = 'org.mule'
+    module = 'mule-core'
+    versions = '[3.2.0,)' // First version where muzzle can resolve all dependencies
+  }
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 def muleVersion = '4.2.2'
