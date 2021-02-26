@@ -6,6 +6,7 @@ on:
     inputs:
       milestone:
         required: true
+        default: "0.0.0"
 
 jobs:
   update_issues:
@@ -17,24 +18,23 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            if ("${{github.event_name}}" == "workflow_dispatch") {
-              return "${{github.event.inputs.milestone}}"
-            }
+            const milestone_name = ("${{github.event_name}}" == "workflow_dispatch") ?
+              "${{github.event.inputs.milestone}}" : "${{github.event.release.name}}"
 
-            const milestones = await github.issues.paginate(listMilestonesForRepo, {
+            const milestones = await github.paginate(github.issues.listMilestones, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'all'
             })
 
-            return milestones.find( milestone => milestone.title == "${{github.event.release.name}}" ).number
+            return milestones.find( milestone => milestone.title == milestone_name ).number
       - name: Get issues for milestone
         id: issues
         uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const issues = await github.issues.paginate(listForRepo, {
+            const issues = await github.paginate(github.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'all',
