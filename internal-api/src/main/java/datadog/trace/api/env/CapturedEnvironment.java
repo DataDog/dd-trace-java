@@ -4,6 +4,8 @@ import datadog.trace.api.config.GeneralConfig;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,6 +46,7 @@ public class CapturedEnvironment {
     return extractJarOrClass(System.getProperty("sun.java.command"));
   }
 
+  @SuppressForbidden
   private String extractJarOrClass(final String command) {
     if (command == null || command.equals("")) {
       return null;

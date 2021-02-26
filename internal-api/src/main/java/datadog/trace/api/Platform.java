@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.util.Strings;
+
 public final class Platform {
 
   private static final int JAVA_MAJOR_VERSION = getJavaMajorVersion();
@@ -13,7 +15,7 @@ public final class Platform {
   }
 
   static int parseJavaVersion(String javaVersion) {
-    javaVersion = javaVersion.replace("-ea", "");
+    javaVersion = Strings.replace(javaVersion, "-ea", "");
     try {
       if (javaVersion.startsWith("1.")) {
         int secondDot = javaVersion.indexOf('.', 2);

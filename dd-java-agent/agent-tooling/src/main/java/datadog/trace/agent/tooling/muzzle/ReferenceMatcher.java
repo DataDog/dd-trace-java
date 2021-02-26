@@ -125,7 +125,7 @@ public final class ReferenceMatcher {
       if (e.getMessage().startsWith("Cannot resolve type description for ")) {
         // bytebuddy throws an illegal state exception with this message if it cannot resolve types
         // TODO: handle missing type resolutions without catching bytebuddy's exceptions
-        final String className = e.getMessage().replace("Cannot resolve type description for ", "");
+        final String className = e.getMessage().substring("Cannot resolve type description for ".length());
         mismatches.add(
             new Mismatch.MissingClass(reference.getSources().toArray(EMPTY_SOURCES), className));
         return false;

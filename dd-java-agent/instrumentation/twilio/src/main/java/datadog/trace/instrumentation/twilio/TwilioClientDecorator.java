@@ -46,8 +46,7 @@ public class TwilioClientDecorator extends ClientDecorator {
       final AgentSpan span, final Object serviceExecutor, final String methodName) {
 
     // Drop common package prefix (com.twilio.rest)
-    final String simpleClassName =
-        serviceExecutor.getClass().getCanonicalName().replaceFirst("^com\\.twilio\\.rest\\.", "");
+    final String simpleClassName = serviceExecutor.getClass().getCanonicalName().substring("com.twilio.rest.".length());
 
     span.setResourceName(String.format("%s.%s", simpleClassName, methodName));
 

@@ -7,12 +7,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.launch.Framework;
 import org.osgi.framework.launch.FrameworkFactory;
 import org.osgi.util.tracker.ServiceTracker;
 
+@SuppressForbidden
 public class OSGiApplication {
   public static void main(final String[] args) throws Exception {
     Map<String, String> config = new HashMap(System.getProperties());

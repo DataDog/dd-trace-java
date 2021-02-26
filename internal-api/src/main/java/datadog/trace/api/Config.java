@@ -174,6 +174,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.File;
@@ -1033,6 +1034,7 @@ public class Config {
   }
 
   @NonNull
+  @SuppressForbidden
   private static Set<String> parseStringIntoSetOfNonEmptyStrings(final String str) {
     // Using LinkedHashSet to preserve original string order
     final Set<String> result = new LinkedHashSet<>();
@@ -1061,6 +1063,7 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
+  @SuppressForbidden
   private static String findConfigurationFile() {
     String configurationFilePath =
         System.getProperty(propertyNameToSystemPropertyName(CONFIGURATION_FILE));

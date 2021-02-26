@@ -10,6 +10,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 @Getter
 @Setter
 @Slf4j
+@SuppressForbidden
 public class ContainerInfo {
   private static final Path CGROUP_DEFAULT_PROCFILE = Paths.get("/proc/self/cgroup");
   private static final String UUID_REGEX =

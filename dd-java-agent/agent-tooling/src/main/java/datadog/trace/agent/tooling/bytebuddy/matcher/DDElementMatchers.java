@@ -63,7 +63,7 @@ public class DDElementMatchers {
     } catch (final IllegalStateException ex) {
       final String message = ex.getMessage();
       if (message.startsWith("Cannot resolve type description for ")) {
-        return message.replace("Cannot resolve type description for ", "");
+        return message.substring("Cannot resolve type description for ".length());
       } else {
         return "?";
       }

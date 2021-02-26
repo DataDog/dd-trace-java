@@ -8,6 +8,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.TreeMap;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -227,6 +229,7 @@ public class HaystackHttpCodec {
     return DATADOG + "-" + idHex.substring(0, 4) + "-" + idHex.substring(4);
   }
 
+  @SuppressForbidden
   private static DDId convertUUIDToBigInt(String value) {
     try {
       if (value.contains("-")) {

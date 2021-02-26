@@ -11,6 +11,8 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import datadog.trace.util.Strings;
+
 import java.net.URI;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
@@ -22,7 +24,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
           new Function<Class<?>, CharSequence>() {
             @Override
             public String apply(Class<?> input) {
-              return input.getSimpleName().replace("Request", "");
+                return Strings.replace(input.getSimpleName(), "Request", "");
             }
           },
           Functions.SuffixJoin.of(
@@ -30,7 +32,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
               new Function<CharSequence, CharSequence>() {
                 @Override
                 public CharSequence apply(CharSequence serviceName) {
-                  return String.valueOf(serviceName).replace("Amazon", "").trim();
+                  return Strings.replace(String.valueOf(serviceName), "Amazon", "").trim();
                 }
               }));
 

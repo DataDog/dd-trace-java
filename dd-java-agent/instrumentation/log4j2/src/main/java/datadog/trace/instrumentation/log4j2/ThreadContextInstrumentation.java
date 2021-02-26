@@ -15,6 +15,8 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -53,6 +55,7 @@ public class ThreadContextInstrumentation extends Instrumenter.Tracing {
     };
   }
 
+  @SuppressForbidden
   public static class ThreadContextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void mdcClassInitialized(@Advice.Origin final Class<?> threadContextClass) {

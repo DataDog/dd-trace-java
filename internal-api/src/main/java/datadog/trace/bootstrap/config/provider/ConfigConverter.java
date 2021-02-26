@@ -10,6 +10,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +53,7 @@ final class ConfigConverter {
   }
 
   @NonNull
+  @SuppressForbidden
   static List<String> parseList(final String str, final String separator) {
     if (str == null || str.trim().isEmpty()) {
       return Collections.emptyList();
@@ -88,6 +91,7 @@ final class ConfigConverter {
     return Collections.emptyMap();
   }
 
+  @SuppressForbidden
   private static Map<String, String> parseMap(
       final String str, final String settingName, final String separator) {
     final String[] tokens = str.split(separator);
@@ -114,6 +118,7 @@ final class ConfigConverter {
   }
 
   @NonNull
+  @SuppressForbidden
   static BitSet parseIntegerRangeSet(@NonNull String str, final String settingName)
       throws NumberFormatException {
     str = str.replaceAll("\\s", "");

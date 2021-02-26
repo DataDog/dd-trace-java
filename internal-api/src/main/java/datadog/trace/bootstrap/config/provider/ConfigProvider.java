@@ -11,6 +11,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -190,6 +192,7 @@ public final class ConfigProvider {
    *     exist or if it is in a wrong format.
    * @param configProvider
    */
+  @SuppressForbidden
   private static Properties loadConfigurationFile(ConfigProvider configProvider) {
     final Properties properties = new Properties();
 

@@ -21,6 +21,8 @@ import datadog.trace.api.Config;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import jdk.jfr.Recording;
 
 /**
@@ -41,6 +43,7 @@ public final class OpenJdkController implements Controller {
    *
    * <p>This has to be public because it is created via reflection
    */
+  @SuppressForbidden
   public OpenJdkController(final Config config)
       throws ConfigurationException, ClassNotFoundException {
     // Make sure we can load JFR classes before declaring that we have successfully created

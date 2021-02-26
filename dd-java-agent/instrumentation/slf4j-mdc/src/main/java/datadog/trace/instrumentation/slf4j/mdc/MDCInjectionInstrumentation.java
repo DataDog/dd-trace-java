@@ -16,6 +16,8 @@ import java.security.ProtectionDomain;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -29,6 +31,7 @@ public class MDCInjectionInstrumentation extends Instrumenter.Tracing {
 
   // Intentionally doing the string replace to bypass gradle shadow rename
   // mdcClassName = org.slf4j.MDC
+  @SuppressForbidden
   private static final String mdcClassName = "org.TMP.MDC".replaceFirst("TMP", "slf4j");
 
   private volatile boolean initialized = false;

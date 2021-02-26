@@ -1,9 +1,11 @@
 package datadog.smoketest.fieldinjection;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
+@SuppressForbidden
 public class FieldInjectionApp {
 
   public static void main(String... args) {

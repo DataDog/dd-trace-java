@@ -54,6 +54,8 @@ import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
@@ -514,6 +516,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     writer.flush();
   }
 
+  @SuppressForbidden
   private static DDScopeEventFactory createScopeEventFactory() {
     if (Config.get().isProfilingEnabled()) {
       try {

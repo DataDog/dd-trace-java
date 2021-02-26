@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import datadog.trace.util.Strings;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -36,7 +38,7 @@ public class TraceStructureWriter implements Writer {
       this.out =
           outputFile.isEmpty() || outputFile.equals(":")
               ? System.err
-              : new PrintStream(new FileOutputStream(new File(outputFile.replace(":", ""))));
+              : new PrintStream(new FileOutputStream(new File(Strings.replace(outputFile,":", ""))));
     } catch (IOException e) {
       throw new RuntimeException("Failed to create trace structure writer from " + outputFile, e);
     }

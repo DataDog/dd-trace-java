@@ -16,8 +16,12 @@ public class CouchbaseOnSubscribe extends TracedOnSubscribe {
     super(originalObservable, "couchbase.call", DECORATE);
 
     final Class<?> declaringClass = method.getDeclaringClass();
-    final String className =
-        declaringClass.getSimpleName().replace("CouchbaseAsync", "").replace("DefaultAsync", "");
+    StringBuilder builder = new StringBuilder(declaringClass.getSimpleName());
+    int i;
+    while ((i = builder.indexOf("CouchbaseAsync")) != -1) builder.delete(i, i + "CouchbaseAsync".length());
+    while ((i = builder.indexOf("DefaultAsync")) != -1) builder.delete(i, i + "DefaultAsync".length());
+
+    final String className = builder.toString();
     resourceName = className + "." + method.getName();
     this.bucket = bucket;
   }

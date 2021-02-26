@@ -1,8 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
+
 import java.util.HashMap;
 import java.util.Map;
 
+@SuppressForbidden
 class JenkinsInfo extends CIProviderInfo {
 
   // https://wiki.jenkins.io/display/JENKINS/Building+a+software+project

@@ -17,6 +17,8 @@ package com.datadog.profiling.controller;
 
 import datadog.trace.api.Config;
 import java.lang.reflect.InvocationTargetException;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import lombok.extern.slf4j.Slf4j;
 
 /** Factory used to get a {@link Controller}. */
@@ -31,6 +33,7 @@ public final class ControllerFactory {
    *     running in. See the exception message for specifics.
    * @throws ConfigurationException if profiler cannot start due to configuration problems
    */
+  @SuppressForbidden
   public static Controller createController(final Config config)
       throws UnsupportedEnvironmentException, ConfigurationException {
     try {

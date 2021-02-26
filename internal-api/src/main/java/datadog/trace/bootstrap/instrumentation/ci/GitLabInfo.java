@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
+
+@SuppressForbidden
 class GitLabInfo extends CIProviderInfo {
 
   // https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
