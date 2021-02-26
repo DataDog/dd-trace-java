@@ -5,6 +5,8 @@ spotbugs {
   excludeFilter = file("$rootDir/gradle/spotbugFilters/exclude.xml")
 }
 
+spotbugsTest.enabled = false
+
 spotbugsMain {
   ignoreFailures = false
   // detector documentation is in the following link:
@@ -46,40 +48,4 @@ dependencies {
 
   testCompile 'net.jcip:jcip-annotations:1.0'
   testCompile 'com.github.spotbugs:spotbugs-annotations:4.2.0'
-}
-
-afterEvaluate {
-  tasks.withType(spotbugsTest.class).configureEach {
-    def name = it.name
-    if (name.endsWith("Test")) {
-      omitVisitors = [
-        'DefaultEncodingDetector',
-        'DoInsideDoPrivileged',
-        'DumbMethods',
-        'FindBadCast2',
-        'FindDeadLocalStores',
-        'FindNullDeref',
-        'FindReturnRef',
-        'FindUseOfNonSerializableValue',
-        'InconsistentAnnotations',
-        'InvalidJUnitTest',
-        'LazyInit',
-        'MethodReturnCheck',
-        'MutableStaticFields',
-        'Naming',
-        'OverridingEqualsNotSymmetrical',
-        'SerializableIdiom',
-        'UncallableMethodOfAnonymousClass',
-        'UnreadFields',
-      ]
-      ignoreFailures = false
-      reports {
-        html {
-          enabled = true
-          destination = file("$buildDir/reports/spotbugs/${name}.html")
-          stylesheet = 'fancy-hist.xsl'
-        }
-      }
-    }
-  }
 }
