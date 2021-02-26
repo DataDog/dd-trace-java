@@ -22,4 +22,17 @@ public class GrowableBufferTest {
       assertEquals(i, contentsAfterResize.getInt());
     }
   }
+
+  @Test
+  public void testBufferCapacity() {
+    GrowableBuffer gb = new GrowableBuffer(5);
+    assertEquals(5, gb.capacity());
+    ByteBuffer buffer = ByteBuffer.allocate(20);
+    for (int i = 0; i < 5; ++i) {
+      buffer.putInt(i);
+    }
+    buffer.flip();
+    gb.put(buffer);
+    assertEquals(25, gb.capacity());
+  }
 }

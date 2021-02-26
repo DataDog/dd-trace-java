@@ -16,6 +16,11 @@ public final class FlushingBuffer implements StreamingBuffer {
   }
 
   @Override
+  public int capacity() {
+    return buffer.capacity();
+  }
+
+  @Override
   public boolean isDirty() {
     return mark > 0;
   }

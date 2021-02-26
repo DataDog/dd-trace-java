@@ -12,8 +12,10 @@ import datadog.trace.core.serialization.WritableFormatter;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 /** Not thread-safe (use one per thread). */
+@Slf4j
 public class MsgPackWriter implements WritableFormatter {
 
   // see https://github.com/msgpack/msgpack/blob/master/spec.md
@@ -90,6 +92,9 @@ public class MsgPackWriter implements WritableFormatter {
           buffer.mark();
           return true;
         } catch (BufferOverflowException fatal) {
+          log.debug(
+              "dropping message because its serialized size is too large (> {}MB)",
+              (buffer.capacity() >>> 20));
         }
       }
       buffer.reset();
