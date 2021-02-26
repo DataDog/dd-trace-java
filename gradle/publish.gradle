@@ -13,15 +13,14 @@ apply from: "$rootDir/gradle/version.gradle"
 apply from: "$rootDir/gradle/maven-pom.gradle"
 
 def isSnapshot = version.endsWith("-SNAPSHOT")
-def isCI = System.getenv("CI") != null
-def circleTag = System.getenv("CIRCLE_TAG")
+def isGitlabCI = System.getenv("GITLAB_CI") != null
 def gitlabTag = System.getenv("CI_COMMIT_TAG")
-def isCIandTagged = isCI && (circleTag || gitlabTag)
+def isCIandTagged = isGitlabCI && gitlabTag
 assert isSnapshot != isCIandTagged
 
 // define in ~/.gradle/gradle.properties to override for testing
 def forceLocal = project.hasProperty('forceLocal') && forceLocal
-assert !forceLocal || forceLocal != isCI
+assert !forceLocal || forceLocal != isGitlabCI
 
 publishing {
   publications {
@@ -74,8 +73,8 @@ signing {
 }
 
 tasks.withType(Sign).configureEach {
-  // Only sign in CI
-  onlyIf { isCI || (System.getenv("GPG_PRIVATE_KEY") != null && System.getenv("GPG_PASSWORD") != null) }
+  // Only sign in Gitlab CI
+  onlyIf { isGitlabCI || (System.getenv("GPG_PRIVATE_KEY") != null && System.getenv("GPG_PASSWORD") != null) }
 }
 
 /**
