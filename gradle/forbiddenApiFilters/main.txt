@@ -1,6 +1,6 @@
-# String methods which uses regexes for matching
-
 java.lang.Class#forName(java.lang.String)
+
+# String methods which uses regexes for matching
 java.lang.String#replace(java.lang.CharSequence,java.lang.CharSequence)
 java.lang.String#split(java.lang.String)
 java.lang.String#split(java.lang.String,int)

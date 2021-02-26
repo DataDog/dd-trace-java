@@ -13,7 +13,6 @@ import static datadog.trace.bootstrap.instrumentation.ci.TravisInfo.TRAVIS;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;

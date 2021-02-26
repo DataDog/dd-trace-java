@@ -2,6 +2,7 @@ package datadog.trace.common.writer;
 
 import datadog.trace.api.DDId;
 import datadog.trace.core.DDSpan;
+import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -10,8 +11,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import datadog.trace.util.Strings;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -38,7 +37,8 @@ public class TraceStructureWriter implements Writer {
       this.out =
           outputFile.isEmpty() || outputFile.equals(":")
               ? System.err
-              : new PrintStream(new FileOutputStream(new File(Strings.replace(outputFile,":", ""))));
+              : new PrintStream(
+                  new FileOutputStream(new File(Strings.replace(outputFile, ":", ""))));
     } catch (IOException e) {
       throw new RuntimeException("Failed to create trace structure writer from " + outputFile, e);
     }

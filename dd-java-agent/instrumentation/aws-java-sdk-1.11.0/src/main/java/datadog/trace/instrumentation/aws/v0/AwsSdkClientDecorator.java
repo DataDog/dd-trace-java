@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.util.Strings;
-
 import java.net.URI;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
@@ -24,7 +23,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
           new Function<Class<?>, CharSequence>() {
             @Override
             public String apply(Class<?> input) {
-                return Strings.replace(input.getSimpleName(), "Request", "");
+              return Strings.replace(input.getSimpleName(), "Request", "");
             }
           },
           Functions.SuffixJoin.of(

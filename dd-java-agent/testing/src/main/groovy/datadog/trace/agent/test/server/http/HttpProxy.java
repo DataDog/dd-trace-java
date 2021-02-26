@@ -1,7 +1,6 @@
 package datadog.trace.agent.test.server.http;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;

@@ -1,11 +1,10 @@
 package datadog.trace.api.env;
 
 import datadog.trace.api.config.GeneralConfig;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
-
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

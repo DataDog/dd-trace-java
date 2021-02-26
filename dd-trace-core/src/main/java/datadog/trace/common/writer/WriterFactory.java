@@ -18,9 +18,8 @@ import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.Monitoring;
-import java.util.concurrent.TimeUnit;
-
 import datadog.trace.util.Strings;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -48,7 +47,8 @@ public class WriterFactory {
     } else if (PRINTING_WRITER_TYPE.equals(configuredType)) {
       return new PrintingWriter(System.out, true);
     } else if (configuredType.startsWith(TRACE_STRUCTURE_WRITER_TYPE)) {
-      return new TraceStructureWriter(Strings.replace(configuredType, TRACE_STRUCTURE_WRITER_TYPE, ""));
+      return new TraceStructureWriter(
+          Strings.replace(configuredType, TRACE_STRUCTURE_WRITER_TYPE, ""));
     } else if (configuredType.startsWith(MULTI_WRITER_TYPE)) {
       return new MultiWriter(config, sampler, statsDClient, monitoring, configuredType);
     }

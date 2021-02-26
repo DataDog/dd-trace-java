@@ -16,9 +16,8 @@
 package com.datadog.profiling.controller;
 
 import datadog.trace.api.Config;
-import java.lang.reflect.InvocationTargetException;
-
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.lang.reflect.InvocationTargetException;
 import lombok.extern.slf4j.Slf4j;
 
 /** Factory used to get a {@link Controller}. */

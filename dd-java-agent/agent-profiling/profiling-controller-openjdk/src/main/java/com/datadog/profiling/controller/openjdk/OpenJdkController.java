@@ -18,11 +18,10 @@ package com.datadog.profiling.controller.openjdk;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import datadog.trace.api.Config;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
-
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import jdk.jfr.Recording;
 
 /**

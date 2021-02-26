@@ -18,8 +18,10 @@ public class CouchbaseOnSubscribe extends TracedOnSubscribe {
     final Class<?> declaringClass = method.getDeclaringClass();
     StringBuilder builder = new StringBuilder(declaringClass.getSimpleName());
     int i;
-    while ((i = builder.indexOf("CouchbaseAsync")) != -1) builder.delete(i, i + "CouchbaseAsync".length());
-    while ((i = builder.indexOf("DefaultAsync")) != -1) builder.delete(i, i + "DefaultAsync".length());
+    while ((i = builder.indexOf("CouchbaseAsync")) != -1)
+      builder.delete(i, i + "CouchbaseAsync".length());
+    while ((i = builder.indexOf("DefaultAsync")) != -1)
+      builder.delete(i, i + "DefaultAsync".length());
 
     final String className = builder.toString();
     resourceName = className + "." + method.getName();

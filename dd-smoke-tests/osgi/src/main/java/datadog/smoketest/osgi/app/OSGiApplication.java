@@ -1,5 +1,6 @@
 package datadog.smoketest.osgi.app;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -7,8 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
-
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.launch.Framework;

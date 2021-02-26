@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.jdbc.DBInfo.DEFAULT;
 
 import datadog.trace.bootstrap.ExceptionLogger;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -426,7 +425,8 @@ public enum JDBCConnectionUrlParser {
       final String user;
 
       int atIndex = jdbcUrl.indexOf("@");
-      final String[] atSplit = new String[] { jdbcUrl.substring(0, atIndex), jdbcUrl.substring(atIndex + 1) };
+      final String[] atSplit =
+          new String[] {jdbcUrl.substring(0, atIndex), jdbcUrl.substring(atIndex + 1)};
 
       final int userInfoLoc = atSplit[0].indexOf("/");
       if (userInfoLoc > 0) {
@@ -464,7 +464,8 @@ public enum JDBCConnectionUrlParser {
     @Override
     DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
       int atIndex = jdbcUrl.indexOf("@");
-      final String[] atSplit = new String[] { jdbcUrl.substring(0, atIndex), jdbcUrl.substring(atIndex + 1) };
+      final String[] atSplit =
+          new String[] {jdbcUrl.substring(0, atIndex), jdbcUrl.substring(atIndex + 1)};
 
       final int userInfoLoc = atSplit[0].indexOf("/");
       if (userInfoLoc > 0) {
@@ -615,9 +616,10 @@ public enum JDBCConnectionUrlParser {
 
       final String derbyUrl = jdbcUrl.substring("derby:".length());
       int delimIndex = derbyUrl.indexOf(";");
-      final String[] split = delimIndex >= 0 ?
-        new String[] { derbyUrl.substring(0, delimIndex), derbyUrl.substring(delimIndex + 1) } :
-        new String[] { derbyUrl };
+      final String[] split =
+          delimIndex >= 0
+              ? new String[] {derbyUrl.substring(0, delimIndex), derbyUrl.substring(delimIndex + 1)}
+              : new String[] {derbyUrl};
 
       if (split.length > 1) {
         populateStandardProperties(builder, splitQuery(split[1], ";"));

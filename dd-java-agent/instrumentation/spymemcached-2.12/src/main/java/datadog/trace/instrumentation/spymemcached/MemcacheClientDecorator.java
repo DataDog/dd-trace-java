@@ -54,7 +54,7 @@ public class MemcacheClientDecorator
 
   public AgentSpan onOperation(final AgentSpan span, final String methodName) {
 
-    //optimization over string.replaceFirst()
+    // optimization over string.replaceFirst()
     StringBuilder builder = new StringBuilder(methodName);
     if (builder.indexOf("async") == 0) builder.delete(0, "async".length());
     if (builder.indexOf("CAS") == 0) builder.replace(0, "CAS".length(), "cas");

@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-
 import java.util.HashMap;
 import java.util.Map;
 
