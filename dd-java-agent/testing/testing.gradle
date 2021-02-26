@@ -1,3 +1,8 @@
+ext {
+  // need access to sun.misc package
+  skipSettingCompilerRelease = true
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 minimumBranchCoverage = 0.5
