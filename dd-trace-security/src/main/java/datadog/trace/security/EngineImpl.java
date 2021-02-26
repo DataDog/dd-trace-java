@@ -3,7 +3,6 @@ package datadog.trace.security;
 import datadog.trace.bootstrap.security.Engine;
 import datadog.trace.bootstrap.security.PassthruAdviceException;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.DDSpan;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import lombok.extern.slf4j.Slf4j;
 
@@ -15,7 +14,7 @@ import java.util.TreeSet;
 public class EngineImpl extends Engine {
   private final ContinuableScopeManager scopeManager;
 
-  SortedSet<DataSubscription> subscriptions = new TreeSet();
+  SortedSet<DataSubscription> subscriptions = new TreeSet<>();
 
   public EngineImpl(ContinuableScopeManager scopeManager) {
     this.scopeManager = scopeManager;
@@ -38,7 +37,7 @@ public class EngineImpl extends Engine {
       return;
     }
 
-    DataSource topSpanData = new DataSource.SpanDataSource((DDSpan) activeSpan);
+    DataSource topSpanData = new DataSource.SpanDataSource(activeSpan);
     DataSource allData = createActiveSpansDataSource();
 
     // TODO: needs to be optimized

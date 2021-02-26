@@ -1,7 +1,6 @@
 package datadog.trace.security;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.DDSpan;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 
 import java.util.Collections;
@@ -32,9 +31,9 @@ public interface DataSource {
   }
 
   class SpanDataSource implements DataSource {
-    private final DDSpan span;
+    private final AgentSpan span;
 
-    public SpanDataSource(DDSpan span) {
+    public SpanDataSource(AgentSpan span) {
       this.span = span;
     }
 
@@ -80,7 +79,7 @@ public interface DataSource {
         if (!scope.alive()) {
           continue;
         }
-        DDSpan span = (DDSpan) scope.span();
+        AgentSpan span = scope.span();
         keys.addAll(span.getTags().keySet());
       }
       return keys;
