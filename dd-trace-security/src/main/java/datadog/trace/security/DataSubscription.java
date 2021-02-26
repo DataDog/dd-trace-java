@@ -1,4 +1,4 @@
-package datadog.trace.core.sqreen;
+package datadog.trace.security;
 
 import java.util.Set;
 

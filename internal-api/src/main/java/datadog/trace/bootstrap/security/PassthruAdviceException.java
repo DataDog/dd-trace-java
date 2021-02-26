@@ -1,4 +1,4 @@
-package datadog.trace.api.sqreen;
+package datadog.trace.bootstrap.security;
 
 public class PassthruAdviceException extends RuntimeException {
   public PassthruAdviceException(Throwable cause) {

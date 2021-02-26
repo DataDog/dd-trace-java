@@ -1,7 +1,7 @@
-package datadog.trace.core.sqreen;
+package datadog.trace.security;
 
-import datadog.trace.api.sqreen.Engine;
-import datadog.trace.api.sqreen.PassthruAdviceException;
+import datadog.trace.bootstrap.security.Engine;
+import datadog.trace.bootstrap.security.PassthruAdviceException;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;

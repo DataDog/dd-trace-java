@@ -1,4 +1,4 @@
-package datadog.trace.core.sqreen;
+package datadog.trace.security;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpan;

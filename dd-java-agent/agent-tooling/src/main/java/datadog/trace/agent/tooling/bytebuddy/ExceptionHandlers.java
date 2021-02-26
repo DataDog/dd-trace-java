@@ -2,7 +2,7 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ExceptionLogger;
-import datadog.trace.api.sqreen.PassthruAdviceException;
+import datadog.trace.bootstrap.security.PassthruAdviceException;
 import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.asm.Advice.ExceptionHandler;
 import net.bytebuddy.implementation.Implementation;

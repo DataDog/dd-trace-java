@@ -8,7 +8,6 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
-import datadog.trace.api.sqreen.Engine;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;

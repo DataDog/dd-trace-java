@@ -1,0 +1,12 @@
+description = 'dd-trace-security'
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/publish.gradle"
+
+dependencies {
+  compile deps.slf4j
+
+  //compile project(':dd-trace-api')
+  compile project(':dd-trace-core')
+  //compile project(':internal-api')
+}

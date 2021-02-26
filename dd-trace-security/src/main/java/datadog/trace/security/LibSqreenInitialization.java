@@ -1,4 +1,4 @@
-package datadog.trace.core.sqreen;
+package datadog.trace.security;
 
 import io.sqreen.powerwaf.Powerwaf;
 import lombok.extern.slf4j.Slf4j;

@@ -5,11 +5,15 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.bootstrap.security.Engine;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.BitSet;
+import java.util.HashSet;
+import java.util.Set;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -62,6 +66,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
         log.debug("Error tagging url", e);
       }
       // TODO set resource name from URL.
+
+      Set<String> s = new HashSet<>();
+      s.add(Tags.HTTP_URL);
+      Engine.INSTANCE.deliverNotifications(s);
     }
     return span;
   }

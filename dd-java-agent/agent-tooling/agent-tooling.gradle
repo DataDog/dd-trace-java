@@ -36,6 +36,8 @@ dependencies {
   compile project(':dd-trace-core')
   compile project(':dd-trace-core:jfr-openjdk')
 
+  compile project(':dd-trace-security')
+
   testCompile project(':dd-java-agent:testing')
 
   instrumentationMuzzle sourceSets.main.output

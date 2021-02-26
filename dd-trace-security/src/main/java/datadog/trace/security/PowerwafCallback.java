@@ -1,4 +1,4 @@
-package datadog.trace.core.sqreen;
+package datadog.trace.security;
 
 import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.PowerwafContext;
@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.Closeable;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 public class PowerwafCallback implements Closeable, DataSubscription, DataAvailableListener {

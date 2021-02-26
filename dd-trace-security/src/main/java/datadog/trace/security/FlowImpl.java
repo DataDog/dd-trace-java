@@ -1,6 +1,5 @@
-package datadog.trace.core.sqreen;
+package datadog.trace.security;
 
-import datadog.trace.api.sqreen.Engine;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;

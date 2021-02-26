@@ -1,4 +1,4 @@
-package datadog.trace.core.sqreen;
+package datadog.trace.security;
 
 /**
  * All limits are advisory. Setting limits implies making the result not cacheable.

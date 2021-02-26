@@ -13,11 +13,16 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.bootstrap.security.Engine;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -117,6 +122,10 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing {
         AgentSpan span = (AgentSpan) spanObj;
         DECORATE.onConnection(span, req);
         DECORATE.onRequest(span, req);
+
+        Set<String> s = new HashSet<>();
+        s.add(Tags.HTTP_URL);
+        Engine.INSTANCE.deliverNotifications(s);
       }
     }
   }

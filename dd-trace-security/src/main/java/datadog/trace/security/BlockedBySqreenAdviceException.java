@@ -1,4 +1,4 @@
-package datadog.trace.core.sqreen;
+package datadog.trace.security;
 
 public class BlockedBySqreenAdviceException extends RuntimeException {
     private final String ruleName;

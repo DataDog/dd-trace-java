@@ -2,13 +2,13 @@ package datadog.trace.agent.tooling;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.api.sqreen.Engine;
+import datadog.trace.bootstrap.security.Engine;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
-import datadog.trace.core.sqreen.EngineImpl;
-import datadog.trace.core.sqreen.EngineRule;
-import datadog.trace.core.sqreen.PowerwafCallback;
+import datadog.trace.security.EngineImpl;
+import datadog.trace.security.EngineRule;
+import datadog.trace.security.PowerwafCallback;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;
