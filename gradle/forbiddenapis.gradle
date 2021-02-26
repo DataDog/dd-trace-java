@@ -14,13 +14,16 @@ apply plugin: "de.thetaphi.forbiddenapis"
 def mainFilterFile = files("$rootDir/gradle/forbiddenApiFilters/main.txt")
 def testFilterFile = files("$rootDir/gradle/forbiddenApiFilters/test.txt")
 
-//TODO: edit to correct configs
 forbiddenApisMain {
-//  bundledSignatures = [ 'jdk-non-portable', 'jdk-reflection' ]
   signaturesFiles = mainFilterFile
-  ignoreFailures = false
+  ignoreFailures = true
 }
 
 forbiddenApisTest {
-  ignoreFailures = true
+  signaturesFiles = testFilterFile
+  ignoreFailures = false
+}
+
+dependencies {
+  compileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.1'
 }
