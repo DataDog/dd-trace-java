@@ -21,7 +21,7 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const milestone = await github.issues.paginate(listMilestonesForRepo, {
+            const milestone = await github.paginate(github.issues.listMilestonesForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'all'
