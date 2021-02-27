@@ -19,6 +19,7 @@ forbiddenApisMain {
 }
 
 forbiddenApisTest.enabled = false
+forbiddenApisJmh.enabled = false
 
 dependencies {
   compileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.1'
