@@ -13,11 +13,10 @@ apply plugin: "de.thetaphi.forbiddenapis"
 
 def mainFilterFile = files("$rootDir/gradle/forbiddenApiFilters/main.txt")
 
-forbiddenApisMain {
+forbiddenApis {
   signaturesFiles = mainFilterFile
   ignoreFailures = true
 }
-
 forbiddenApisTest.enabled = false
 
 dependencies {
