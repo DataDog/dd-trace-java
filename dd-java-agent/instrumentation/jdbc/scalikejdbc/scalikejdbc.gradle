@@ -33,7 +33,7 @@ dependencies {
   testCompile group: 'org.scalikejdbc', name: 'scalikejdbc_2.13', version: '3.5.0'
   testCompile deps.scala
 
-  latestDepTestCompile group: 'org.scalikejdbc', name: 'scalikejdbc_2.13', version: '+'
+  latestDepTestCompile group: 'org.scalikejdbc', name: 'scalikejdbc_2.13', version: '3.+'
   latestDepTestCompile group: 'org.scala-lang', name: 'scala-library', version: '+'
 
   // jdbc unit testing
