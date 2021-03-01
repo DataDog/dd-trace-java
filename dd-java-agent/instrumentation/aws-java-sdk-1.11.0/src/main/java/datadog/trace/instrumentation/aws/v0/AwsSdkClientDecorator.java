@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-
 import java.net.URI;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
@@ -33,7 +32,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
               new Function<CharSequence, CharSequence>() {
                 @Override
                 public CharSequence apply(CharSequence serviceName) {
-                  return String.valueOf(serviceName).replace( "Amazon", "").trim();
+                  return String.valueOf(serviceName).replace("Amazon", "").trim();
                 }
               }));
 

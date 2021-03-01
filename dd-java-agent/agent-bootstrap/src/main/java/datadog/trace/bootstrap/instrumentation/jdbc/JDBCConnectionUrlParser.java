@@ -28,7 +28,7 @@ public enum JDBCConnectionUrlParser {
         // Attempt generic parsing
         final URI uri = new URI(jdbcUrl);
 
-        populateStandardProperties(builder, splitQuery(uri.getQuery(), "&"));
+        populateStandardProperties(builder, splitQuery(uri.getQuery(), '&'));
 
         final String user = uri.getUserInfo();
         if (user != null) {
@@ -92,7 +92,7 @@ public enum JDBCConnectionUrlParser {
       }
 
       if (urlPart2 != null) {
-        final Map<String, String> props = splitQuery(urlPart2, ";");
+        final Map<String, String> props = splitQuery(urlPart2, ';');
         populateStandardProperties(builder, props);
         if (props.containsKey("servername")) {
           serverName = props.get("servername");
@@ -186,7 +186,7 @@ public enum JDBCConnectionUrlParser {
       final int paramLoc = jdbcUrl.indexOf('?', dbLoc);
 
       if (paramLoc > 0) {
-        populateStandardProperties(builder, splitQuery(jdbcUrl.substring(paramLoc + 1), "&"));
+        populateStandardProperties(builder, splitQuery(jdbcUrl.substring(paramLoc + 1), '&'));
         builder.db(jdbcUrl.substring(dbLoc + 1, paramLoc));
       } else {
         builder.db(jdbcUrl.substring(dbLoc + 1));
@@ -221,7 +221,7 @@ public enum JDBCConnectionUrlParser {
       final int paramLoc = jdbcUrl.indexOf('?', dbLoc);
 
       if (paramLoc > 0) {
-        populateStandardProperties(builder, splitQuery(jdbcUrl.substring(paramLoc + 1), "&"));
+        populateStandardProperties(builder, splitQuery(jdbcUrl.substring(paramLoc + 1), '&'));
         builder.db(jdbcUrl.substring(dbLoc + 1, paramLoc));
       } else {
         builder.db(jdbcUrl.substring(dbLoc + 1));
@@ -618,7 +618,7 @@ public enum JDBCConnectionUrlParser {
       final String urlPart2 = delimIndex >= 0 ? derbyUrl.substring(delimIndex + 1) : null;
 
       if (urlPart2 != null) {
-        populateStandardProperties(builder, splitQuery(urlPart2, ";"));
+        populateStandardProperties(builder, splitQuery(urlPart2, ';'));
       }
 
       if (details.startsWith("memory:")) {
@@ -738,14 +738,15 @@ public enum JDBCConnectionUrlParser {
 
   // Source: https://stackoverflow.com/a/13592567
   @SuppressForbidden
-  private static Map<String, String> splitQuery(final String query, final String separator) {
+  private static Map<String, String> splitQuery(final String query, final char separator) {
     if (query == null || query.isEmpty()) {
       return Collections.emptyMap();
     }
     final Map<String, String> query_pairs = new LinkedHashMap<>();
-    final String[] pairs = query.split(separator);
-    for (final String pair : pairs) {
+    int start = 0;
+    for (int i = query.indexOf(separator); start != -1; i = query.indexOf(separator, i + 1)) {
       try {
+        final String pair = i >= 0 ? query.substring(start, i) : query.substring(start);
         final int idx = pair.indexOf('=');
         final String key = idx > 0 ? URLDecoder.decode(pair.substring(0, idx), "UTF-8") : pair;
         if (!query_pairs.containsKey(key)) {
@@ -758,6 +759,7 @@ public enum JDBCConnectionUrlParser {
       } catch (final UnsupportedEncodingException e) {
         // Ignore.
       }
+      start = i == -1 ? i : i + 1;
     }
     return query_pairs;
   }

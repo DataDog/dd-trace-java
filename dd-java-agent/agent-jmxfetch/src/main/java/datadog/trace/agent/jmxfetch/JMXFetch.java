@@ -6,6 +6,7 @@ import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -16,8 +17,6 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import lombok.extern.slf4j.Slf4j;
 import org.datadog.jmxfetch.App;
 import org.datadog.jmxfetch.AppConfig;
