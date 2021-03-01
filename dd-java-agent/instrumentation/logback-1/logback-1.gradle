@@ -1,0 +1,13 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'org.slf4j'
+    module = 'slf4j-api'
+    versions = '[,]'
+  }
+}
+
+dependencies {
+  compileOnly group: 'ch.qos.logback', name: 'logback-classic', version: '1.0.0'
+}
