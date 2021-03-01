@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.reactor.core;
 
-import datadog.trace.bootstrap.ContextStore;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,13 +15,8 @@ public class TerminalSubscriberAdvices {
     @Advice.OnMethodEnter
     public static void onSubscribe(@Advice.This final Subscriber thiz) {
       AgentSpan span = AgentTracer.activeSpan();
-      if (span == null) {
-        span = AgentTracer.noopSpan();
-      }
-
-      final ContextStore<Subscriber, AgentSpan> contextStore =
-          InstrumentationContext.get(Subscriber.class, AgentSpan.class);
-      contextStore.put(thiz, span);
+      InstrumentationContext.get(Subscriber.class, AgentSpan.class)
+          .put(thiz, span == null ? noopSpan() : span);
     }
 
     public static void muzzleCheck() {
@@ -31,15 +27,9 @@ public class TerminalSubscriberAdvices {
   public static class OnNextAndCompleteAndErrorAdvice {
     @Advice.OnMethodEnter
     public static AgentScope onMethod(@Advice.This final Subscriber thiz) {
-      final ContextStore<Subscriber, AgentSpan> contextStore =
-          InstrumentationContext.get(Subscriber.class, AgentSpan.class);
-      final AgentSpan span = contextStore.get(thiz);
-
-      if (span == null) {
-        return null;
-      }
-
-      return AgentTracer.activateSpan(span, true);
+      final AgentSpan span =
+          InstrumentationContext.get(Subscriber.class, AgentSpan.class).get(thiz);
+      return span == null ? null : AgentTracer.activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

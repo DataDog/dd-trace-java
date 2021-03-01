@@ -26,10 +26,7 @@ public final class ReactorHooksInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TracingOperator",
-      packageName + ".TracingOperator$Lifter",
-      packageName + ".TracingOperator$LifterFilter",
-      packageName + ".TracingSubscriber",
+      packageName + ".TracingOperator", packageName + ".TracingSubscriber",
     };
   }
 
