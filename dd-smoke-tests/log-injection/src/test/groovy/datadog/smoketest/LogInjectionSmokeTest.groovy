@@ -91,10 +91,10 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     // This avoids tests inadvertantly passing because the incorrect backend is logging
     logLines.every { it.startsWith(backend())}
     assert logLines.size() == 4
-    assert logLines[0].endsWith("-   - BEFORE FIRST SPAN") || logLines[0].endsWith("- 0 0 - BEFORE FIRST SPAN")
-    assert logLines[1].endsWith("- ${firstTraceId} ${firstSpanId} - INSIDE FIRST SPAN")
-    assert logLines[2].endsWith("-   - AFTER FIRST SPAN") || logLines[2].endsWith("- 0 0 - AFTER FIRST SPAN")
-    assert logLines[3].endsWith("- ${secondTraceId} ${secondSpanId} - INSIDE SECOND SPAN")
+    assert logLines[0].endsWith("- ${SERVICE_NAME} ${ENV} ${VERSION}   - BEFORE FIRST SPAN") || logLines[0].endsWith("- ${SERVICE_NAME} ${ENV} ${VERSION} 0 0 - BEFORE FIRST SPAN")
+    assert logLines[1].endsWith("- ${SERVICE_NAME} ${ENV} ${VERSION} ${firstTraceId} ${firstSpanId} - INSIDE FIRST SPAN")
+    assert logLines[2].endsWith("- ${SERVICE_NAME} ${ENV} ${VERSION}   - AFTER FIRST SPAN") || logLines[2].endsWith("- ${SERVICE_NAME} ${ENV} ${VERSION} 0 0 - AFTER FIRST SPAN")
+    assert logLines[3].endsWith("- ${SERVICE_NAME} ${ENV} ${VERSION} ${secondTraceId} ${secondSpanId} - INSIDE SECOND SPAN")
 
     return true
   }
@@ -105,6 +105,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     assert logLines.size() == 4
 
     assert logLines.every { it["backend"] == backend() }
+    assert logLines.every { getFromContext(it, "dd.service") == SERVICE_NAME }
+    assert logLines.every { getFromContext(it,"dd.version") == VERSION }
+    assert logLines.every { getFromContext(it,"dd.env") == ENV }
 
     assert getFromContext(logLines[0],"dd.trace_id") == null
     assert getFromContext(logLines[0],"dd.span_id") == null

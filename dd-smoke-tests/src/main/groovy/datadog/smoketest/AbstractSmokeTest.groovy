@@ -22,6 +22,9 @@ abstract class AbstractSmokeTest extends Specification {
 
   public static final PROFILING_START_DELAY_SECONDS = 1
   public static final int PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS = 5
+  public static final String SERVICE_NAME = "smoke-test-java-app"
+  public static final String ENV = "smoketest"
+  public static final String VERSION = "99"
 
   @Shared
   protected String workingDirectory = System.getProperty("user.dir")
@@ -98,7 +101,9 @@ abstract class AbstractSmokeTest extends Specification {
       "-javaagent:${shadowJarPath}",
       "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
       "-Ddd.trace.agent.port=${server.address.port}",
-      "-Ddd.service.name=smoke-test-java-app",
+      "-Ddd.service.name=${SERVICE_NAME}",
+      "-Ddd.env=${ENV}",
+      "-Ddd.version=${VERSION}",
       "-Ddd.profiling.enabled=true",
       "-Ddd.profiling.start-delay=${PROFILING_START_DELAY_SECONDS}",
       "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
