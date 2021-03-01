@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.SortedSet;
 import java.util.TreeSet;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import lombok.extern.slf4j.Slf4j;
 import org.datadog.jmxfetch.App;
 import org.datadog.jmxfetch.AppConfig;
@@ -138,6 +140,7 @@ public class JMXFetch {
     return "statsd:" + host + ":" + port;
   }
 
+  @SuppressForbidden
   private static List<String> getInternalMetricFiles() {
     try (final InputStream metricConfigsStream =
         JMXFetch.class.getResourceAsStream("metricconfigs.txt")) {
@@ -152,12 +155,7 @@ public class JMXFetch {
       while (scanner.hasNext()) {
         String config = scanner.next();
         integrationName.clear();
-
-        if (config.endsWith(".yaml")) {
-          integrationName.add(config.substring(0, config.length() - ".yaml".length()));
-        } else {
-          integrationName.add(config);
-        }
+        integrationName.add(config.replace(".yaml", ""));
 
         if (Config.get().isJmxFetchIntegrationEnabled(integrationName, false)) {
           final URL resource = JMXFetch.class.getResource("metricconfigs/" + config);

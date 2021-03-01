@@ -11,19 +11,21 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
-import datadog.trace.util.Strings;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
+
 import java.net.URI;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("java-aws-sdk");
 
+  @SuppressForbidden
   private final QualifiedClassNameCache cache =
       new QualifiedClassNameCache(
           new Function<Class<?>, CharSequence>() {
             @Override
             public String apply(Class<?> input) {
-              return Strings.replace(input.getSimpleName(), "Request", "");
+              return input.getSimpleName().replace("Request", "");
             }
           },
           Functions.SuffixJoin.of(
@@ -31,7 +33,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
               new Function<CharSequence, CharSequence>() {
                 @Override
                 public CharSequence apply(CharSequence serviceName) {
-                  return Strings.replace(String.valueOf(serviceName), "Amazon", "").trim();
+                  return String.valueOf(serviceName).replace( "Amazon", "").trim();
                 }
               }));
 
