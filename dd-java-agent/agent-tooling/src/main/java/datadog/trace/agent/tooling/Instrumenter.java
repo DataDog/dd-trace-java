@@ -161,7 +161,6 @@ public interface Instrumenter {
                           + getClass().getName()))
               .and(NOT_DECORATOR_MATCHER)
               .and(new MuzzleMatcher())
-              .and(new PostMatchHook())
               .transform(DDTransformers.defaultTransformers());
       agentBuilder = injectHelperClasses(agentBuilder);
       agentBuilder = contextProvider.instrumentationTransformer(agentBuilder);
@@ -240,19 +239,6 @@ public interface Instrumenter {
       }
     }
 
-    private class PostMatchHook implements AgentBuilder.RawMatcher {
-      @Override
-      public boolean matches(
-          final TypeDescription typeDescription,
-          final ClassLoader classLoader,
-          final JavaModule module,
-          final Class<?> classBeingRedefined,
-          final ProtectionDomain protectionDomain) {
-        postMatch(typeDescription, classLoader, module, classBeingRedefined, protectionDomain);
-        return true;
-      }
-    }
-
     /**
      * This method is implemented dynamically by compile-time bytecode transformations.
      *
@@ -282,25 +268,6 @@ public interface Instrumenter {
 
     /** @return A type matcher used to match the class under transform. */
     public abstract ElementMatcher<? super TypeDescription> typeMatcher();
-
-    /**
-     * A hook invoked after matching has succeeded and before transformers have run.
-     *
-     * <p>Implementation note: This hook runs inside of the bytebuddy matching phase.
-     *
-     * @param typeDescription type description of the matched type
-     * @param classLoader classloader loading the class under transform
-     * @param module java module
-     * @param classBeingRedefined null when the matched class is being loaded for the first time.
-     *     The instance of the active class during retransforms.
-     * @param protectionDomain protection domain of the class under load.
-     */
-    public void postMatch(
-        final TypeDescription typeDescription,
-        final ClassLoader classLoader,
-        final JavaModule module,
-        final Class<?> classBeingRedefined,
-        final ProtectionDomain protectionDomain) {}
 
     /** @return A map of matcher->advice */
     public abstract Map<? extends ElementMatcher<? super MethodDescription>, String> transformers();
