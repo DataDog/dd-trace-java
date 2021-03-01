@@ -163,9 +163,6 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
             // We seem to instrument some classes in runtime
             return !name.startsWith("org.codehaus.groovy.runtime.");
           }
-          if (name.startsWith("org.apache.log4j.")) {
-            return !name.equals("org.apache.log4j.MDC");
-          }
           if (name.startsWith("org.springframework.")) {
             if (springClassLoaderIgnores.matches(target)) {
               return true;

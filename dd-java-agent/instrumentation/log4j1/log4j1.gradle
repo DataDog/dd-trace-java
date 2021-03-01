@@ -23,5 +23,6 @@ configurations {
 }
 
 dependencies {
+  compileOnly group: 'log4j', name: 'log4j', version: log4jVersion
   testCompile group: 'log4j', name: 'log4j', version: log4jVersion
 }

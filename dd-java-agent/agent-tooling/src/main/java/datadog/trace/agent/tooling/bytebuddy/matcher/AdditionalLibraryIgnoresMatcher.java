@@ -206,12 +206,22 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
       if (name.equals("ch.qos.logback.core.AsyncAppenderBase$Worker")) {
         return false;
       }
-      // for inserting service, env, version in MDC of every thread
-      if (name.equals("ch.qos.logback.classic.util.LogbackMDCAdapter")) {
+
+      if (name.startsWith("ch.qos.logback.classic.spi.LoggingEvent")) {
+        return false;
+      }
+
+      if (name.equals("ch.qos.logback.classic.Logger")) {
         return false;
       }
 
       return true;
+    }
+
+    if (name.startsWith("org.apache.log4j.")) {
+      return !name.equals("org.apache.log4j.MDC")
+          && !name.equals("org.apache.log4j.spi.LoggingEvent")
+          && !name.equals("org.apache.log4j.Category");
     }
 
     if (name.startsWith("com.codahale.metrics.")) {

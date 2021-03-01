@@ -31,6 +31,8 @@ testSets {
 }
 
 dependencies {
+  compileOnly group: 'org.jboss.logmanager', name: 'jboss-logmanager', version: '2.0.11.Final'
+  
   // This is the last version to support Java7, so run the tests against that one
   testCompile group: 'org.jboss.logmanager', name: 'jboss-logmanager', version: '2.0.11.Final'
 
