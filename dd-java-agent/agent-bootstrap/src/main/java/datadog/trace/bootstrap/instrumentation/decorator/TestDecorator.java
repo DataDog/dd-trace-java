@@ -74,4 +74,13 @@ public abstract class TestDecorator extends BaseDecorator {
     }
     return testNames;
   }
+
+  public boolean isTestSpan(final AgentSpan activeSpan) {
+    if (activeSpan == null) {
+      return false;
+    }
+
+    return spanKind().equals(activeSpan.getSpanType())
+        && testType().equals(activeSpan.getTag(Tags.TEST_TYPE));
+  }
 }

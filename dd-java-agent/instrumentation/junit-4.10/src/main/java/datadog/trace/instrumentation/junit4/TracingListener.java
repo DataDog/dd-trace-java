@@ -24,6 +24,15 @@ public class TracingListener extends RunListener {
       return;
     }
 
+    // If there is an active span that represents a test
+    // we don't want to generate another child test span.
+    // This can happen when the user executes a certain test
+    // using the different test engines.
+    // (e.g. JUnit 4 tests using JUnit5 engine)
+    if (DECORATE.isTestSpan(AgentTracer.activeSpan())) {
+      return;
+    }
+
     final AgentSpan span = startSpan("junit.test");
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
