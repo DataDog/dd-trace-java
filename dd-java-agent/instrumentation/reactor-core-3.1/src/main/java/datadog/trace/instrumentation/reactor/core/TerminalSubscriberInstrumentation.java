@@ -34,12 +34,12 @@ public class TerminalSubscriberInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>(4);
     transformers.put(
         isMethod().and(named("onSubscribe")),
         packageName + ".TerminalSubscriberAdvices$OnSubscribeAdvice");
     transformers.put(
-        isMethod().and(named("onNext").or(named("onError")).or(named("onComplete"))),
+        isMethod().and(namedOneOf("onNext", "onError", "onComplete")),
         packageName + ".TerminalSubscriberAdvices$OnNextAndCompleteAndErrorAdvice");
     return transformers;
   }
