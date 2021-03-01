@@ -1,3 +1,4 @@
+# loads and instantiates a class which may be inefficient depending on context
 java.lang.Class#forName(java.lang.String)
 
 # String methods which uses regexes for matching
