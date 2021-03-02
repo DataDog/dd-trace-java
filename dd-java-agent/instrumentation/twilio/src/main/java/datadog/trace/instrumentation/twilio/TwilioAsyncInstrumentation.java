@@ -59,7 +59,9 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TwilioClientDecorator", packageName + ".SpanFinishingCallback",
+      packageName + ".TwilioClientDecorator",
+      packageName + ".TwilioClientDecorator$1",
+      packageName + ".SpanFinishingCallback",
     };
   }
 

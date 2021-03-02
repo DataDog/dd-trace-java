@@ -8,6 +8,21 @@ import java.lang.reflect.Method;
 import rx.Observable;
 
 public class CouchbaseOnSubscribe extends TracedOnSubscribe {
+
+  private static final ClassValue<String> CLASS_NAME =
+      new ClassValue<String>() {
+        @Override
+        protected String computeValue(Class<?> declaringClass) {
+          StringBuilder builder = new StringBuilder(declaringClass.getSimpleName());
+          int i;
+          while ((i = builder.indexOf("CouchbaseAsync")) != -1)
+            builder.delete(i, i + "CouchbaseAsync".length());
+          while ((i = builder.indexOf("DefaultAsync")) != -1)
+            builder.delete(i, i + "DefaultAsync".length());
+          return builder.toString();
+        }
+      };
+
   private final String resourceName;
   private final String bucket;
 
@@ -15,16 +30,7 @@ public class CouchbaseOnSubscribe extends TracedOnSubscribe {
       final Observable originalObservable, final Method method, final String bucket) {
     super(originalObservable, "couchbase.call", DECORATE);
 
-    final Class<?> declaringClass = method.getDeclaringClass();
-    StringBuilder builder = new StringBuilder(declaringClass.getSimpleName());
-    int i;
-    while ((i = builder.indexOf("CouchbaseAsync")) != -1)
-      builder.delete(i, i + "CouchbaseAsync".length());
-    while ((i = builder.indexOf("DefaultAsync")) != -1)
-      builder.delete(i, i + "DefaultAsync".length());
-
-    final String className = builder.toString();
-    resourceName = className + "." + method.getName();
+    resourceName = CLASS_NAME.get(method.getDeclaringClass()) + "." + method.getName();
     this.bucket = bucket;
   }
 

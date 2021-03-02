@@ -56,7 +56,7 @@ public class TwilioSyncInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TwilioClientDecorator",
+      packageName + ".TwilioClientDecorator", packageName + ".TwilioClientDecorator$1"
     };
   }
 

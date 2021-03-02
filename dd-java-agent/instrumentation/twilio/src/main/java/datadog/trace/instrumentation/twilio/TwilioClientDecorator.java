@@ -19,6 +19,15 @@ public class TwilioClientDecorator extends ClientDecorator {
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("twilio-sdk");
 
+  public static final ClassValue<String> CLASS_NAME =
+      new ClassValue<String>() {
+        @Override
+        // Drop common package prefix (com.twilio.rest)
+        protected String computeValue(Class<?> type) {
+          return type.getCanonicalName().substring("com.twilio.rest.".length());
+        }
+      };
+
   public static final TwilioClientDecorator DECORATE = new TwilioClientDecorator();
 
   @Override
@@ -46,9 +55,7 @@ public class TwilioClientDecorator extends ClientDecorator {
       final AgentSpan span, final Object serviceExecutor, final String methodName) {
 
     // Drop common package prefix (com.twilio.rest)
-    final String simpleClassName =
-        serviceExecutor.getClass().getCanonicalName().substring("com.twilio.rest.".length());
-
+    final String simpleClassName = CLASS_NAME.get(serviceExecutor.getClass());
     span.setResourceName(String.format("%s.%s", simpleClassName, methodName));
 
     return span;
