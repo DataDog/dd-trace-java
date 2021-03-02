@@ -43,6 +43,26 @@ public abstract class TestDecorator extends BaseDecorator {
     return Tags.SPAN_KIND_TEST;
   }
 
+  protected String runtimeName() {
+    return System.getProperty("java.vendor");
+  }
+
+  protected String runtimeVersion() {
+    return System.getProperty("java.version");
+  }
+
+  protected String osArch() {
+    return System.getProperty("os.arch");
+  }
+
+  protected String osPlatform() {
+    return System.getProperty("os.name");
+  }
+
+  protected String osVersion() {
+    return System.getProperty("os.version");
+  }
+
   @Override
   protected CharSequence spanType() {
     return DDSpanTypes.TEST;
@@ -54,6 +74,11 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(Tags.TEST_FRAMEWORK, testFramework());
     span.setTag(Tags.TEST_TYPE, testType());
     span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
+    span.setTag(Tags.RUNTIME_NAME, runtimeName());
+    span.setTag(Tags.RUNTIME_VERSION, runtimeVersion());
+    span.setTag(Tags.OS_ARCHITECTURE, osArch());
+    span.setTag(Tags.OS_PLATFORM, osPlatform());
+    span.setTag(Tags.OS_VERSION, osVersion());
 
     for (final Map.Entry<String, String> ciTag : ciTags.entrySet()) {
       span.setTag(ciTag.getKey(), ciTag.getValue());
