@@ -3,9 +3,11 @@ package datadog.trace.api.cache;
 import datadog.trace.api.Function;
 import datadog.trace.api.TwoArgFunction;
 
-public final class QualifiedClassNameCache {
+public final class QualifiedClassNameCache extends ClassValue<QualifiedClassNameCache.Leaf> {
 
-  private final Root root;
+  private final Function<Class<?>, CharSequence> formatter;
+  private final TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner;
+  private final int leafSize;
 
   public QualifiedClassNameCache(
       Function<Class<?>, CharSequence> formatter,
@@ -17,31 +19,17 @@ public final class QualifiedClassNameCache {
       Function<Class<?>, CharSequence> formatter,
       TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner,
       int leafSize) {
-    this.root = new Root(formatter, joiner, leafSize);
+    this.formatter = formatter;
+    this.joiner = joiner;
+    this.leafSize = leafSize;
   }
 
-  private static final class Root extends ClassValue<Leaf> {
-
-    private final Function<Class<?>, CharSequence> formatter;
-    private final TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner;
-    private final int leafSize;
-
-    private Root(
-        Function<Class<?>, CharSequence> formatter,
-        TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner,
-        int leafSize) {
-      this.formatter = formatter;
-      this.joiner = joiner;
-      this.leafSize = leafSize;
-    }
-
-    @Override
-    protected Leaf computeValue(Class<?> type) {
-      return new Leaf(formatter.apply(type), joiner, leafSize);
-    }
+  @Override
+  protected Leaf computeValue(Class<?> type) {
+    return new Leaf(formatter.apply(type), joiner, leafSize);
   }
 
-  private static class Leaf {
+  static final class Leaf {
 
     private final CharSequence name;
 
@@ -69,10 +57,10 @@ public final class QualifiedClassNameCache {
   }
 
   public CharSequence getClassName(Class<?> klass) {
-    return root.get(klass).getName();
+    return get(klass).getName();
   }
 
   public CharSequence getQualifiedName(Class<?> klass, String qualifier) {
-    return root.get(klass).get(qualifier);
+    return get(klass).get(qualifier);
   }
 }
