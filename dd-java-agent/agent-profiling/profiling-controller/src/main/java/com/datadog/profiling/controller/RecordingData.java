@@ -18,6 +18,7 @@ package com.datadog.profiling.controller;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
+import lombok.NonNull;
 
 /** Platform agnostic API for operations required when retrieving data using the ProfilingSystem. */
 public interface RecordingData {
@@ -26,12 +27,13 @@ public interface RecordingData {
    * @return the data stream.
    * @throws IOException if another IO-related problem occured.
    */
+  @NonNull
   InputStream getStream() throws IOException;
 
   /**
    * Releases the resources associated with the recording, for example the underlying file.
    *
-   * <p>Forgetting to releasing this when done streaming, will need to one or more of the following:
+   * <p>Forgetting to releasing this when done streaming, will lead to one or more of the following:
    *
    * <ul>
    *   <li>Memory leak
@@ -47,6 +49,7 @@ public interface RecordingData {
    *
    * @return the name of the recording from which the data is originating.
    */
+  @NonNull
   String getName();
 
   /**
@@ -56,6 +59,7 @@ public interface RecordingData {
    *
    * @return the requested start time.
    */
+  @NonNull
   Instant getStart();
 
   /**
@@ -65,5 +69,6 @@ public interface RecordingData {
    *
    * @return the requested end time.
    */
+  @NonNull
   Instant getEnd();
 }

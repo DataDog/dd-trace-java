@@ -15,6 +15,8 @@
  */
 package com.datadog.profiling.controller;
 
+import javax.annotation.Nonnull;
+
 /**
  * Interface for the low lever flight recorder control functionality. Needed since we will likely
  * want to support multiple version later.
@@ -26,5 +28,6 @@ public interface Controller {
    * @param recordingName the name under which the recording will be known.
    * @return the recording object created.
    */
-  OngoingRecording createRecording(String recordingName);
+  @Nonnull
+  OngoingRecording createRecording(@Nonnull String recordingName);
 }

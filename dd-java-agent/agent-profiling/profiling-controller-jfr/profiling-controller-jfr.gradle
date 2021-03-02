@@ -1,0 +1,13 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compile deps.slf4j
+
+  testCompile deps.junit5
+}
+
+
+// Shared JFR implementation. The earliest Java version JFR is working on is Java 8
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8

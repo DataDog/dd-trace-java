@@ -15,6 +15,7 @@
  */
 package com.datadog.profiling.controller.openjdk;
 
+import com.datadog.profiler.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import datadog.trace.api.Config;
@@ -29,8 +30,6 @@ import jdk.jfr.Recording;
  * messier... ;)
  */
 public final class OpenJdkController implements Controller {
-  // Visible for testing
-  static final String JFP = "jfr/dd.jfp";
   static final int RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
   static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
 
@@ -49,7 +48,8 @@ public final class OpenJdkController implements Controller {
     Class.forName("jdk.jfr.FlightRecorder");
     try {
       recordingSettings =
-          JfpUtils.readNamedJfpResource(JFP, config.getProfilingTemplateOverrideFile());
+          JfpUtils.readNamedJfpResource(
+              JfpUtils.DEFAULT_JFP, config.getProfilingTemplateOverrideFile());
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }

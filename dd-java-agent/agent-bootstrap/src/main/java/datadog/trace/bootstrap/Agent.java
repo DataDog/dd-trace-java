@@ -121,12 +121,22 @@ public class Agent {
     }
 
     /*
-     * Similar thing happens with Profiler on (at least) zulu-8 because it uses OkHttp which indirectly loads JFR
-     * events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different
-     * logging facility.
+     * Similar thing happens with Profiler:
+     * a) on zulu-8 because it is using OkHttp which indirectly loads JFR events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different logging facility.
+     * b) on Oracle JDK 8 because we need JMX to communicate with JFR engine and initializing JMX will cause an attempt to load LogManager.
      */
-    if (!isJavaVersionAtLeast(9) && appUsingCustomLogManager) {
-      log.debug("Custom logger detected. Delaying Profiling Agent startup.");
+    boolean shouldDelayProfilerStartup = false;
+    if (!isJavaVersionAtLeast(9)) {
+      if (appUsingCustomLogManager) {
+        log.debug("Custom logger detected. Delaying Profiling Agent startup.");
+        shouldDelayProfilerStartup = true;
+      }
+      if (System.getProperty("java.vendor").contains("Oracle")) {
+        log.debug("Oracle JDK 8 detected. Delaying Profiling Agent startup");
+        shouldDelayProfilerStartup = true;
+      }
+    }
+    if (shouldDelayProfilerStartup) {
       registerLogManagerCallback(new StartProfilingAgentCallback(inst, bootstrapURL));
     } else {
       startProfilingAgent(bootstrapURL, false);

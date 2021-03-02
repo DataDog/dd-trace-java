@@ -17,10 +17,12 @@ dependencies {
   compile deps.slf4j
   compile project(':internal-api')
   compile project(':dd-java-agent:agent-profiling:profiling-controller')
+  compile project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
 
   testCompile deps.junit5
   testCompile deps.mockito
   testCompile group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
+  testCompile files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
 }
 
 /*

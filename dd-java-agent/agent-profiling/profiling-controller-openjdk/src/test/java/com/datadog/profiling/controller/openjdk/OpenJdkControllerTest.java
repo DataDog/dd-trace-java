@@ -1,9 +1,10 @@
 package com.datadog.profiling.controller.openjdk;
 
-import static com.datadog.profiling.controller.openjdk.JfpUtilsTest.OVERRIDES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
+import com.datadog.profiler.controller.jfr.JfpUtils;
+import com.datadog.profiler.controller.jfr.JfpUtilsTest;
 import com.datadog.profiling.controller.ConfigurationException;
 import datadog.trace.api.Config;
 import java.io.IOException;
@@ -24,7 +25,7 @@ public class OpenJdkControllerTest {
 
   @BeforeEach
   public void setup() throws ConfigurationException, ClassNotFoundException {
-    when(config.getProfilingTemplateOverrideFile()).thenReturn(OVERRIDES);
+    when(config.getProfilingTemplateOverrideFile()).thenReturn(JfpUtilsTest.OVERRIDES);
     controller = new OpenJdkController(config);
   }
 
@@ -33,7 +34,8 @@ public class OpenJdkControllerTest {
     final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording();
     assertEquals(TEST_NAME, recording.getName());
     assertEquals(
-        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, OVERRIDES), recording.getSettings());
+        JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP, JfpUtilsTest.OVERRIDES),
+        recording.getSettings());
     assertEquals(OpenJdkController.RECORDING_MAX_SIZE, recording.getMaxSize());
     assertEquals(OpenJdkController.RECORDING_MAX_AGE, recording.getMaxAge());
     recording.close();

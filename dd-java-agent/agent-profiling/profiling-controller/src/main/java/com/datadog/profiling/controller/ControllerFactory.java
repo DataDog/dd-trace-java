@@ -33,29 +33,45 @@ public final class ControllerFactory {
    */
   public static Controller createController(final Config config)
       throws UnsupportedEnvironmentException, ConfigurationException {
+    boolean isOracleJfr = false;
+    boolean isOpenJdkJfr = false;
     try {
       Class.forName("com.oracle.jrockit.jfr.Producer");
-      throw new UnsupportedEnvironmentException(
-          "Not enabling profiling; it requires Oracle Java 11+.");
-    } catch (final ClassNotFoundException e) {
-      // Fall through - until we support Oracle JDK 7 & 8, this is a good thing. ;)
+      isOracleJfr = true;
+    } catch (ClassNotFoundException ignored) {
+      // expected
     }
-    try {
-      final Class<? extends Controller> clazz =
-          Class.forName("com.datadog.profiling.controller.openjdk.OpenJdkController")
-              .asSubclass(Controller.class);
-      return clazz.getDeclaredConstructor(Config.class).newInstance(config);
-    } catch (final ClassNotFoundException
-        | NoSuchMethodException
-        | InstantiationException
-        | IllegalAccessException
-        | InvocationTargetException e) {
-      if (e.getCause() != null && e.getCause() instanceof ConfigurationException) {
-        throw (ConfigurationException) e.getCause();
+    if (!isOracleJfr) {
+      try {
+        Class.forName("jdk.jfr.Event");
+        isOpenJdkJfr = true;
+      } catch (ClassNotFoundException ignored) {
+        // expected
       }
-      final String message = "Not enabling profiling" + getFixProposalMessage();
-      throw new UnsupportedEnvironmentException(message, e);
     }
+    if (isOracleJfr || isOpenJdkJfr) {
+      try {
+
+        final Class<? extends Controller> controller =
+            Class.forName(
+                    isOracleJfr
+                        ? "com.datadog.profiling.controller.oracle.OracleJdkController"
+                        : "com.datadog.profiling.controller.openjdk.OpenJdkController")
+                .asSubclass(Controller.class);
+        return controller.getDeclaredConstructor(Config.class).newInstance(config);
+      } catch (final ClassNotFoundException
+          | NoSuchMethodException
+          | InstantiationException
+          | IllegalAccessException
+          | InvocationTargetException e) {
+        if (e.getCause() != null && e.getCause() instanceof ConfigurationException) {
+          throw (ConfigurationException) e.getCause();
+        }
+        final String message = "Not enabling profiling" + getFixProposalMessage();
+        throw new UnsupportedEnvironmentException(message, e);
+      }
+    }
+    throw new UnsupportedEnvironmentException("Not enabling profiling" + getFixProposalMessage());
   }
 
   private static String getFixProposalMessage() {

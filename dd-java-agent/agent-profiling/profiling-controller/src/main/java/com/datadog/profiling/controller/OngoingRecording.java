@@ -2,6 +2,7 @@ package com.datadog.profiling.controller;
 
 import java.io.Closeable;
 import java.time.Instant;
+import javax.annotation.Nonnull;
 
 /** Interface that represents ongoing recording in profiling system */
 public interface OngoingRecording extends Closeable {
@@ -11,6 +12,7 @@ public interface OngoingRecording extends Closeable {
    *
    * @return {@link RecordingData} with current recording information
    */
+  @Nonnull
   RecordingData stop();
 
   /**
@@ -21,7 +23,8 @@ public interface OngoingRecording extends Closeable {
    * @param end end time of the snapshot
    * @return {@link RecordingData} with snapshot information
    */
-  RecordingData snapshot(final Instant start, final Instant end);
+  @Nonnull
+  RecordingData snapshot(@Nonnull final Instant start, @Nonnull final Instant end);
 
   /** Close recording without capturing any data */
   @Override
