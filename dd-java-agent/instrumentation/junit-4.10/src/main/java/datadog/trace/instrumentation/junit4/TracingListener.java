@@ -77,6 +77,20 @@ public class TracingListener extends RunListener {
   }
 
   @Override
+  public void testAssumptionFailure(final Failure failure) {
+    if (DECORATE.skipTrace(failure.getDescription())) {
+      return;
+    }
+
+    final AgentSpan span = AgentTracer.activeSpan();
+    if (span == null) {
+      return;
+    }
+
+    DECORATE.onTestAssumptionFailure(span, failure);
+  }
+
+  @Override
   public void testIgnored(final Description description) throws Exception {
     if (DECORATE.skipTrace(description)) {
       return;
