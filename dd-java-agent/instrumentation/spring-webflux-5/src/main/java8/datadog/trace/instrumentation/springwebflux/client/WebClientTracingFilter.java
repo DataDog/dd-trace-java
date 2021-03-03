@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springwebflux.client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator.HTTP_REQUEST;
@@ -50,24 +49,15 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
 
     @Override
     public void subscribe(final CoreSubscriber<? super ClientResponse> subscriber) {
-      final AgentSpan span;
-      if (activeSpan() != null) {
-        span = startSpan(HTTP_REQUEST, activeSpan().context());
-      } else {
-        span = startSpan(HTTP_REQUEST);
-      }
+      AgentSpan span = startSpan(HTTP_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       final ClientRequest.Builder builder = ClientRequest.from(request);
       try (final AgentScope scope = activateSpan(span)) {
-        scope.setAsyncPropagation(true);
+        TraceWebClientSubscriber tracingSubscriber = new TraceWebClientSubscriber(subscriber, span);
         next.exchange(builder.build())
-            .doOnCancel(
-                () -> {
-                  DECORATE.onCancel(span);
-                  span.finish();
-                })
-            .subscribe(new TraceWebClientSubscriber(subscriber, span));
+            .doOnCancel(tracingSubscriber::onCancel)
+            .subscribe(tracingSubscriber);
       }
     }
   }
