@@ -2,6 +2,9 @@ package datadog.trace.instrumentation.couchbase.client;
 
 import static datadog.trace.instrumentation.couchbase.client.CouchbaseClientDecorator.DECORATE;
 
+import datadog.trace.api.Function;
+import datadog.trace.api.Functions;
+import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.rxjava.TracedOnSubscribe;
 import java.lang.reflect.Method;
@@ -9,19 +12,18 @@ import rx.Observable;
 
 public class CouchbaseOnSubscribe extends TracedOnSubscribe {
 
-  private static final ClassValue<String> CLASS_NAME =
-      new ClassValue<String>() {
-        @Override
-        protected String computeValue(Class<?> declaringClass) {
-          StringBuilder builder = new StringBuilder(declaringClass.getSimpleName());
-          int i;
-          while ((i = builder.indexOf("CouchbaseAsync")) != -1)
-            builder.delete(i, i + "CouchbaseAsync".length());
-          while ((i = builder.indexOf("DefaultAsync")) != -1)
-            builder.delete(i, i + "DefaultAsync".length());
-          return builder.toString();
-        }
-      };
+  private static final QualifiedClassNameCache NAMES = new QualifiedClassNameCache(new Function<Class<?>, CharSequence>() {
+    @Override
+    public String apply(Class<?> input) {
+      StringBuilder builder = new StringBuilder(input.getSimpleName());
+      int i;
+      while ((i = builder.indexOf("CouchbaseAsync")) != -1)
+        builder.delete(i, i + "CouchbaseAsync".length());
+      while ((i = builder.indexOf("DefaultAsync")) != -1)
+        builder.delete(i, i + "DefaultAsync".length());
+      return builder.toString();
+    }
+  }, Functions.PrefixJoin.of("."));
 
   private final String resourceName;
   private final String bucket;
@@ -29,8 +31,7 @@ public class CouchbaseOnSubscribe extends TracedOnSubscribe {
   public CouchbaseOnSubscribe(
       final Observable originalObservable, final Method method, final String bucket) {
     super(originalObservable, "couchbase.call", DECORATE);
-
-    resourceName = CLASS_NAME.get(method.getDeclaringClass()) + "." + method.getName();
+    resourceName = NAMES.getQualifiedName(method.getDeclaringClass(), method.getName()).toString();
     this.bucket = bucket;
   }
 

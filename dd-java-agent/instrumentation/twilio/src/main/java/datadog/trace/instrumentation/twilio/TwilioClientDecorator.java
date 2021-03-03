@@ -1,8 +1,11 @@
 package datadog.trace.instrumentation.twilio;
 
+import datadog.trace.api.Function;
+import datadog.trace.api.Functions;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.twilio.rest.api.v2010.account.Call;
 import com.twilio.rest.api.v2010.account.Message;
+import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -19,14 +22,16 @@ public class TwilioClientDecorator extends ClientDecorator {
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("twilio-sdk");
 
-  public static final ClassValue<String> CLASS_NAME =
-      new ClassValue<String>() {
+  private static final QualifiedClassNameCache NAMES =
+    new QualifiedClassNameCache(
+      new Function<Class<?>, CharSequence>() {
         @Override
         // Drop common package prefix (com.twilio.rest)
-        protected String computeValue(Class<?> type) {
-          return type.getCanonicalName().substring("com.twilio.rest.".length());
+        public String apply(Class<?> input) {
+          return input.getCanonicalName().substring("com.twilio.rest.".length());
         }
-      };
+      },
+      Functions.PrefixJoin.of("."));
 
   public static final TwilioClientDecorator DECORATE = new TwilioClientDecorator();
 
@@ -53,11 +58,7 @@ public class TwilioClientDecorator extends ClientDecorator {
   /** Decorate trace based on service execution metadata. */
   public AgentSpan onServiceExecution(
       final AgentSpan span, final Object serviceExecutor, final String methodName) {
-
-    // Drop common package prefix (com.twilio.rest)
-    final String simpleClassName = CLASS_NAME.get(serviceExecutor.getClass());
-    span.setResourceName(String.format("%s.%s", simpleClassName, methodName));
-
+      span.setResourceName(NAMES.getQualifiedName(serviceExecutor.getClass(), methodName));
     return span;
   }
 
