@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.twilio;
 
-import datadog.trace.api.Function;
-import datadog.trace.api.Functions;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.twilio.rest.api.v2010.account.Call;
 import com.twilio.rest.api.v2010.account.Message;
+import datadog.trace.api.Function;
+import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -23,15 +23,15 @@ public class TwilioClientDecorator extends ClientDecorator {
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("twilio-sdk");
 
   private static final QualifiedClassNameCache NAMES =
-    new QualifiedClassNameCache(
-      new Function<Class<?>, CharSequence>() {
-        @Override
-        // Drop common package prefix (com.twilio.rest)
-        public String apply(Class<?> input) {
-          return input.getCanonicalName().substring("com.twilio.rest.".length());
-        }
-      },
-      Functions.PrefixJoin.of("."));
+      new QualifiedClassNameCache(
+          new Function<Class<?>, CharSequence>() {
+            @Override
+            // Drop common package prefix (com.twilio.rest)
+            public String apply(Class<?> input) {
+              return input.getCanonicalName().substring("com.twilio.rest.".length());
+            }
+          },
+          Functions.PrefixJoin.of("."));
 
   public static final TwilioClientDecorator DECORATE = new TwilioClientDecorator();
 
@@ -58,7 +58,7 @@ public class TwilioClientDecorator extends ClientDecorator {
   /** Decorate trace based on service execution metadata. */
   public AgentSpan onServiceExecution(
       final AgentSpan span, final Object serviceExecutor, final String methodName) {
-      span.setResourceName(NAMES.getQualifiedName(serviceExecutor.getClass(), methodName));
+    span.setResourceName(NAMES.getQualifiedName(serviceExecutor.getClass(), methodName));
     return span;
   }
 
