@@ -11,11 +11,13 @@ import java.util.concurrent.Phaser
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 
 class TestServlet3 {
 
@@ -40,6 +42,10 @@ class TestServlet3 {
           case SUCCESS:
             resp.status = endpoint.status
             resp.writer.print(endpoint.body)
+            break
+          case FORWARDED:
+            resp.status = endpoint.status
+            resp.writer.print(req.getHeader(FORWARDED_FOR_HEADER))
             break
           case QUERY_PARAM:
             resp.status = endpoint.status
@@ -96,6 +102,11 @@ class TestServlet3 {
                 resp.writer.print(endpoint.body)
                 context.complete()
                 break
+              case FORWARDED:
+                resp.status = endpoint.status
+                resp.writer.print(req.getHeader(FORWARDED_FOR_HEADER))
+                context.complete()
+                break
               case QUERY_PARAM:
                 resp.status = endpoint.status
                 resp.writer.print(req.queryString)
@@ -141,6 +152,10 @@ class TestServlet3 {
             case SUCCESS:
               resp.status = endpoint.status
               resp.writer.print(endpoint.body)
+              break
+            case FORWARDED:
+              resp.status = endpoint.status
+              resp.writer.print(req.getHeader(FORWARDED_FOR_HEADER))
               break
             case QUERY_PARAM:
               resp.status = endpoint.status

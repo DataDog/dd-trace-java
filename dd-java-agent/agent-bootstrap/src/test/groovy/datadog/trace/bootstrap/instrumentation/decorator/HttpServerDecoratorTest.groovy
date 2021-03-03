@@ -17,7 +17,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(span, req)
+    decorator.onRequest(span, null, req)
 
     then:
     if (req) {
@@ -42,7 +42,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(span, req)
+    decorator.onRequest(span, null, req)
 
     then:
     if (expectedUrl) {
@@ -79,7 +79,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onConnection(span, conn)
+    decorator.onRequest(span, conn, null)
 
     then:
     if (conn) {
@@ -117,17 +117,17 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     0 * _
 
     where:
-    status | resp            | error
-    200    | [status: 200]   | false
-    399    | [status: 399]   | false
-    400    | [status: 400]   | false
-    404    | [status: 404]   | false
-    404    | [status: 404]   | false
-    499    | [status: 499]   | false
-    500    | [status: 500]   | true
-    600    | [status: 600]   | false
-    null   | [status: null]  | false
-    null   | null            | false
+    status | resp           | error
+    200    | [status: 200]  | false
+    399    | [status: 399]  | false
+    400    | [status: 400]  | false
+    404    | [status: 404]  | false
+    404    | [status: 404]  | false
+    499    | [status: 499]  | false
+    500    | [status: 500]  | true
+    600    | [status: 600]  | false
+    null   | [status: null] | false
+    null   | null           | false
   }
 
   @Override
@@ -151,6 +151,11 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       @Override
       protected URIDataAdapter url(Map m) {
         return new DefaultURIDataAdapter(m.url)
+      }
+
+      @Override
+      protected String header(Map map, String header) {
+        return map.get(header)
       }
 
       @Override

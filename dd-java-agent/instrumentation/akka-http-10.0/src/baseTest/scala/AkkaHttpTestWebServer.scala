@@ -21,6 +21,7 @@ import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 import groovy.lang.Closure
 
 import scala.concurrent.duration._
@@ -160,6 +161,12 @@ object AkkaHttpTestWebServer {
         complete(
           HttpResponse(status = SUCCESS.getStatus, entity = SUCCESS.getBody)
         )
+      } ~ path(FORWARDED.rawPath) {
+        headerValueByName(FORWARDED_FOR_HEADER) { address =>
+          complete(
+            HttpResponse(status = FORWARDED.getStatus, entity = address)
+          )
+        }
       } ~ path(QUERY_PARAM.rawPath) {
         parameter("some") { query =>
           complete(
@@ -206,6 +213,7 @@ object AkkaHttpTestWebServer {
             val resp = HttpResponse(status = endpoint.getStatus)
             endpoint match {
               case SUCCESS     => resp.withEntity(endpoint.getBody)
+              case FORWARDED   => resp.withEntity(endpoint.getBody) // cheating
               case QUERY_PARAM => resp.withEntity(uri.queryString().orNull)
               case REDIRECT =>
                 resp.withHeaders(headers.Location(endpoint.getBody))

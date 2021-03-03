@@ -75,6 +75,11 @@ public class SpringWebHttpServerDecorator
   }
 
   @Override
+  protected String header(HttpServletRequest request, String header) {
+    return request.getHeader(header);
+  }
+
+  @Override
   protected String peerHostIP(final HttpServletRequest httpServletRequest) {
     return httpServletRequest.getRemoteAddr();
   }
@@ -90,7 +95,8 @@ public class SpringWebHttpServerDecorator
   }
 
   @Override
-  public AgentSpan onRequest(final AgentSpan span, final HttpServletRequest request) {
+  public AgentSpan onRequest(
+      final AgentSpan span, final HttpServletRequest connection, final HttpServletRequest request) {
     if (request != null) {
       final String method = request.getMethod();
       final Object bestMatchingPattern =

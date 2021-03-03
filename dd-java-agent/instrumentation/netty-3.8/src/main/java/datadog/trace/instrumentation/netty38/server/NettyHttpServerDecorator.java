@@ -49,6 +49,11 @@ public class NettyHttpServerDecorator
   }
 
   @Override
+  protected String header(HttpRequest httpRequest, String header) {
+    return httpRequest.headers().get(header);
+  }
+
+  @Override
   protected String peerHostIP(final Channel channel) {
     final SocketAddress socketAddress = channel.getRemoteAddress();
     if (socketAddress instanceof InetSocketAddress) {

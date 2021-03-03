@@ -7,10 +7,12 @@ import spock.lang.Ignore
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 @Ignore("This test isn't different from VertxHttpServerTest. Needs rework to meet intent")
@@ -37,6 +39,11 @@ class VertxRxHttpServerTest extends VertxHttpServerTest {
       router.route(SUCCESS.path).handler { ctx ->
         controller(SUCCESS) {
           ctx.response().setStatusCode(SUCCESS.status).end(SUCCESS.body)
+        }
+      }
+      router.route(FORWARDED.path).handler { ctx ->
+        controller(FORWARDED) {
+          ctx.response().setStatusCode(FORWARDED.status).end(ctx.request().getHeader(FORWARDED_FOR_HEADER))
         }
       }
       router.route(QUERY_PARAM.path).handler { ctx ->

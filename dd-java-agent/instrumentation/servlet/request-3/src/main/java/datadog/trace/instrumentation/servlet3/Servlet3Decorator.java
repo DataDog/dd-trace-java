@@ -41,6 +41,11 @@ public class Servlet3Decorator
   }
 
   @Override
+  protected String header(HttpServletRequest request, String header) {
+    return request.getHeader(header);
+  }
+
+  @Override
   protected String peerHostIP(final HttpServletRequest httpServletRequest) {
     return httpServletRequest.getRemoteAddr();
   }
@@ -56,7 +61,8 @@ public class Servlet3Decorator
   }
 
   @Override
-  public AgentSpan onRequest(final AgentSpan span, final HttpServletRequest request) {
+  public AgentSpan onRequest(
+      final AgentSpan span, final HttpServletRequest connection, final HttpServletRequest request) {
     assert span != null;
     if (request != null) {
       String contextPath = request.getContextPath();
@@ -70,7 +76,7 @@ public class Servlet3Decorator
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    return super.onRequest(span, request);
+    return super.onRequest(span, connection, request);
   }
 
   @Override

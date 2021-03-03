@@ -33,8 +33,7 @@ public final class TracingHandler implements Handler {
     final AgentSpan ratpackSpan = startSpan(RATPACK_HANDLER);
     ratpackSpan.setMeasured(true);
     DECORATE.afterStart(ratpackSpan);
-    DECORATE.onConnection(ratpackSpan, request);
-    DECORATE.onRequest(ratpackSpan, request);
+    DECORATE.onRequest(ratpackSpan, request, request);
     ctx.getExecution().add(ratpackSpan);
 
     try (final AgentScope scope = activateSpan(ratpackSpan)) {

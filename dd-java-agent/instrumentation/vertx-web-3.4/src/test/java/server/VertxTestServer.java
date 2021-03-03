@@ -2,6 +2,7 @@ package server;
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM;
@@ -11,6 +12,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOW
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER;
 
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint;
 import io.vertx.core.AbstractVerticle;
@@ -34,6 +36,16 @@ public class VertxTestServer extends AbstractVerticle {
                     SUCCESS,
                     () ->
                         ctx.response().setStatusCode(SUCCESS.getStatus()).end(SUCCESS.getBody())));
+    router
+        .route(FORWARDED.getPath())
+        .handler(
+            ctx ->
+                controller(
+                    FORWARDED,
+                    () ->
+                        ctx.response()
+                            .setStatusCode(FORWARDED.getStatus())
+                            .end(ctx.request().getHeader(FORWARDED_FOR_HEADER))));
     router
         .route(QUERY_PARAM.getPath())
         .handler(

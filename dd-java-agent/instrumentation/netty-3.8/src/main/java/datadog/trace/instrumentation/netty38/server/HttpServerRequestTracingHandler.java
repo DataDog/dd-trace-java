@@ -55,8 +55,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
     span.setMeasured(true);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
-      DECORATE.onConnection(span, ctx.getChannel());
-      DECORATE.onRequest(span, request);
+      DECORATE.onRequest(span, ctx.getChannel(), request);
 
       scope.setAsyncPropagation(true);
 

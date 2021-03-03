@@ -20,12 +20,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
 
+  public static final String FORWARDED_FOR_HEADER = "x-forwarded-for";
+  private static final String FORWARDED_PORT_HEADER = "x-forwarded-port";
+
   // Assigned here to avoid repeat boxing and cache lookup.
   public static final Integer _500 = HTTP_STATUSES.get(500);
 
   protected abstract String method(REQUEST request);
 
   protected abstract URIDataAdapter url(REQUEST request);
+
+  protected abstract String header(REQUEST request, String header);
 
   protected abstract String peerHostIP(CONNECTION connection);
 
@@ -43,8 +48,16 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     return Config.get().isTraceAnalyticsEnabled();
   }
 
-  public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
+  public AgentSpan onRequest(
+      final AgentSpan span, final CONNECTION connection, final REQUEST request) {
+    String forwarded = null;
+    String forwardedPort = null;
     if (request != null) {
+      if (connection != null) {
+        forwarded = header(request, FORWARDED_FOR_HEADER);
+        forwardedPort = header(request, FORWARDED_PORT_HEADER);
+      }
+
       span.setTag(Tags.HTTP_METHOD, method(request));
 
       // Copy of HttpClientDecorator url handling
@@ -63,12 +76,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       }
       // TODO set resource name from URL.
     }
-    return span;
-  }
 
-  public AgentSpan onConnection(final AgentSpan span, final CONNECTION connection) {
     if (connection != null) {
-      final String ip = peerHostIP(connection);
+      final String ip = forwarded != null ? forwarded : peerHostIP(connection);
       if (ip != null) {
         if (ip.indexOf(':') > 0) {
           span.setTag(Tags.PEER_HOST_IPV6, ip);
@@ -77,7 +87,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
         }
       }
 
-      setPeerPort(span, peerPort(connection));
+      if (forwardedPort != null) {
+        try {
+          setPeerPort(span, Integer.parseInt(forwardedPort));
+        } catch (NumberFormatException ex) {
+          setPeerPort(span, peerPort(connection));
+        }
+      } else {
+        setPeerPort(span, peerPort(connection));
+      }
     }
     return span;
   }

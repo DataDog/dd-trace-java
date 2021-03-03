@@ -14,9 +14,11 @@ import ratpack.test.embed.EmbeddedApp
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 
 class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
@@ -35,6 +37,13 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
           all {
             controller(SUCCESS) {
               context.response.status(SUCCESS.status).send(SUCCESS.body)
+            }
+          }
+        }
+        prefix(FORWARDED.rawPath()) {
+          all {
+            controller(FORWARDED) {
+              context.response.status(FORWARDED.status).send(request.headers.get(FORWARDED_FOR_HEADER))
             }
           }
         }
@@ -118,7 +127,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
       tags {
         "$Tags.COMPONENT" RatpackServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
+        "$Tags.PEER_HOST_IPV4" { endpoint == FORWARDED ? it == endpoint.body : (it == null || it == "127.0.0.1") }
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_METHOD" String

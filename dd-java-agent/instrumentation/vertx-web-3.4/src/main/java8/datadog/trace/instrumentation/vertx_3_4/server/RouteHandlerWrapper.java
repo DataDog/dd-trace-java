@@ -23,7 +23,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     AgentSpan span = routingContext.get(AgentSpan.class.getName());
     if (span == null) {
       final AgentSpan parentSpan = activeSpan();
-      DECORATE.onRequest(parentSpan, routingContext);
+      DECORATE.onRequest(parentSpan, routingContext, routingContext);
 
       span = startSpan(INSTRUMENTATION_NAME);
       routingContext.put(AgentSpan.class.getName(), span);

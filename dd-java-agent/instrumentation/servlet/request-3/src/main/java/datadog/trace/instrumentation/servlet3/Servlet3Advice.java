@@ -59,8 +59,7 @@ public class Servlet3Advice {
     final AgentSpan span = startSpan(SERVLET_REQUEST, extractedContext).setMeasured(true);
 
     DECORATE.afterStart(span);
-    DECORATE.onConnection(span, httpServletRequest);
-    DECORATE.onRequest(span, httpServletRequest);
+    DECORATE.onRequest(span, httpServletRequest, httpServletRequest);
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);

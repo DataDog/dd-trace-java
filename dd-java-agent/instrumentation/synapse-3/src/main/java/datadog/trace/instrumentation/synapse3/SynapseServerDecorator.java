@@ -33,14 +33,22 @@ public final class SynapseServerDecorator
     return SYNAPSE_SERVER;
   }
 
+  @Override
   protected String method(final SourceRequest request) {
     return request.getMethod();
   }
 
+  @Override
   protected URIDataAdapter url(final SourceRequest request) {
     return new DefaultURIDataAdapter(URI.create(request.getUri()));
   }
 
+  @Override
+  protected String header(SourceRequest sourceRequest, String header) {
+    return sourceRequest.getHeaders().get(header);
+  }
+
+  @Override
   protected String peerHostIP(final NHttpServerConnection connection) {
     if (connection instanceof HttpInetConnection) {
       return ((HttpInetConnection) connection).getRemoteAddress().getHostAddress();
@@ -48,6 +56,7 @@ public final class SynapseServerDecorator
     return null;
   }
 
+  @Override
   protected int peerPort(final NHttpServerConnection connection) {
     if (connection instanceof HttpInetConnection) {
       return ((HttpInetConnection) connection).getRemotePort();
@@ -55,6 +64,7 @@ public final class SynapseServerDecorator
     return UNSET_PORT;
   }
 
+  @Override
   protected int status(final HttpResponse response) {
     if (null != response.getStatusLine()) {
       return response.getStatusLine().getStatusCode();

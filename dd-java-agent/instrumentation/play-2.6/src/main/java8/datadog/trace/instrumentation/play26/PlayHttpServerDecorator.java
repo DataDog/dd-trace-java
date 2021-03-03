@@ -71,6 +71,15 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   }
 
   @Override
+  protected String header(Request request, String header) {
+    Option<String> valueOption = request.headers().get(header);
+    if (valueOption.isDefined()) {
+      return valueOption.get();
+    }
+    return null;
+  }
+
+  @Override
   protected String peerHostIP(final Request request) {
     return request.remoteAddress();
   }
@@ -86,8 +95,9 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   }
 
   @Override
-  public AgentSpan onRequest(final AgentSpan span, final Request request) {
-    super.onRequest(span, request);
+  public AgentSpan onRequest(
+      final AgentSpan span, final Request connection, final Request request) {
+    super.onRequest(span, connection, request);
     if (request != null) {
       // more about routes here:
       // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md

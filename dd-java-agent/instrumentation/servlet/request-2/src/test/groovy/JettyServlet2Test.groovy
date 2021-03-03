@@ -9,14 +9,14 @@ import org.eclipse.jetty.servlet.ServletContextHandler
 
 import javax.servlet.http.HttpServletRequest
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 
 class JettyServlet2Test extends HttpServerTest<Server> {
 
@@ -40,12 +40,9 @@ class JettyServlet2Test extends HttpServerTest<Server> {
 //    ConstraintSecurityHandler security = setupAuthentication(jettyServer)
 //    servletContext.setSecurityHandler(security)
 
-    servletContext.addServlet(TestServlet2.Sync, SUCCESS.path)
-    servletContext.addServlet(TestServlet2.Sync, QUERY_PARAM.path)
-    servletContext.addServlet(TestServlet2.Sync, REDIRECT.path)
-    servletContext.addServlet(TestServlet2.Sync, ERROR.path)
-    servletContext.addServlet(TestServlet2.Sync, EXCEPTION.path)
-    servletContext.addServlet(TestServlet2.Sync, AUTH_REQUIRED.path)
+    ServerEndpoint.values().findAll { it != NOT_FOUND && it != UNKNOWN }.each {
+      servletContext.addServlet(TestServlet2.Sync, it.path)
+    }
 
     jettyServer.setHandler(servletContext)
     jettyServer.start()
@@ -135,7 +132,7 @@ class JettyServlet2Test extends HttpServerTest<Server> {
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+        "$Tags.PEER_HOST_IPV4"(endpoint == FORWARDED ? endpoint.body : "127.0.0.1")
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method

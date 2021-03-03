@@ -7,7 +7,9 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
 import okhttp3.Request
 import spock.lang.Shared
+
 import java.util.concurrent.atomic.AtomicInteger
+
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
@@ -52,6 +54,9 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" endpoint.status
+        if (endpoint == ServerEndpoint.FORWARDED) {
+          "$Tags.PEER_HOST_IPV4" endpoint.body
+        }
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }

@@ -20,8 +20,7 @@ public class DatadogWrapperHelper {
     span.setMeasured(true);
 
     DECORATE.afterStart(span);
-    DECORATE.onConnection(span, request);
-    DECORATE.onRequest(span, request);
+    DECORATE.onRequest(span, request, request);
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);

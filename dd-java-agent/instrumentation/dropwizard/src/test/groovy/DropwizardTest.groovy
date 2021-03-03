@@ -13,15 +13,18 @@ import io.dropwizard.testing.DropwizardTestSupport
 import spock.lang.Retry
 
 import javax.ws.rs.GET
+import javax.ws.rs.HeaderParam
 import javax.ws.rs.Path
 import javax.ws.rs.QueryParam
 import javax.ws.rs.core.Response
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 
 // Work around for: address already in use
 @Retry(count = 5, delay = 100)
@@ -109,7 +112,7 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
+        "$Tags.PEER_HOST_IPV4" { endpoint == FORWARDED ? it == endpoint.body : (it == null || it == "127.0.0.1") }
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
@@ -149,6 +152,14 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
     Response success() {
       controller(SUCCESS) {
         Response.status(SUCCESS.status).entity(SUCCESS.body).build()
+      }
+    }
+
+    @GET
+    @Path("forwarded")
+    Response forwarded(@HeaderParam(FORWARDED_FOR_HEADER) String forwarded) {
+      controller(FORWARDED) {
+        Response.status(FORWARDED.status).entity(forwarded).build()
       }
     }
 

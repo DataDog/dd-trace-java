@@ -37,6 +37,11 @@ public class TomcatDecorator extends HttpServerDecorator<Request, Request, Respo
   }
 
   @Override
+  protected String header(Request request, String header) {
+    return request.getHeader(header);
+  }
+
+  @Override
   protected String peerHostIP(final Request request) {
     return request.getRemoteAddr();
   }
@@ -52,7 +57,8 @@ public class TomcatDecorator extends HttpServerDecorator<Request, Request, Respo
   }
 
   @Override
-  public AgentSpan onRequest(final AgentSpan span, final Request request) {
+  public AgentSpan onRequest(
+      final AgentSpan span, final Request connection, final Request request) {
     if (request != null) {
       String contextPath = request.getContextPath();
       String servletPath = request.getServletPath();
@@ -69,7 +75,7 @@ public class TomcatDecorator extends HttpServerDecorator<Request, Request, Respo
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    return super.onRequest(span, request);
+    return super.onRequest(span, connection, request);
   }
 
   @Override

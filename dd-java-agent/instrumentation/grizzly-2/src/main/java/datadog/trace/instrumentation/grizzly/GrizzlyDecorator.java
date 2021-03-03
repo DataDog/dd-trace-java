@@ -23,6 +23,11 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
   }
 
   @Override
+  protected String header(Request request, String header) {
+    return request.getHeader(header);
+  }
+
+  @Override
   protected String peerHostIP(final Request request) {
     return request.getRemoteAddr();
   }

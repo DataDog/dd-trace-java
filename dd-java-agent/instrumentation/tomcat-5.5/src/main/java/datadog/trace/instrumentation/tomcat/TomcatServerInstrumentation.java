@@ -114,9 +114,7 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing {
     public static void afterParse(@Advice.Argument(1) Request req) {
       Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (spanObj instanceof AgentSpan) {
-        AgentSpan span = (AgentSpan) spanObj;
-        DECORATE.onConnection(span, req);
-        DECORATE.onRequest(span, req);
+        DECORATE.onRequest((AgentSpan) spanObj, req, req);
       }
     }
   }

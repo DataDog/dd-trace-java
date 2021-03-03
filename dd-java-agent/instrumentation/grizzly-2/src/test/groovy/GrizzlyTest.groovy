@@ -5,6 +5,7 @@ import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory
 import org.glassfish.jersey.server.ResourceConfig
 
 import javax.ws.rs.GET
+import javax.ws.rs.HeaderParam
 import javax.ws.rs.NotFoundException
 import javax.ws.rs.Path
 import javax.ws.rs.QueryParam
@@ -13,9 +14,11 @@ import javax.ws.rs.ext.ExceptionMapper
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 
 class GrizzlyTest extends HttpServerTest<HttpServer> {
 
@@ -68,6 +71,14 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     Response success() {
       controller(SUCCESS) {
         Response.status(SUCCESS.status).entity(SUCCESS.body).build()
+      }
+    }
+
+    @GET
+    @Path("forwarded")
+    Response forwarded(@HeaderParam(FORWARDED_FOR_HEADER) String forwarded) {
+      controller(FORWARDED) {
+        Response.status(FORWARDED.status).entity(forwarded).build()
       }
     }
 

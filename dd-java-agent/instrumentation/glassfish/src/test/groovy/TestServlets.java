@@ -1,3 +1,5 @@
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER;
+
 import datadog.trace.agent.test.base.HttpServerTest;
 import groovy.lang.Closure;
 import javax.servlet.annotation.WebServlet;
@@ -20,6 +22,25 @@ public class TestServlets {
               resp.setContentType("text/plain");
               resp.setStatus(endpoint.getStatus());
               resp.getWriter().print(endpoint.getBody());
+              return null;
+            }
+          });
+    }
+  }
+
+  @WebServlet("/forwarded")
+  public static class Forwarded extends HttpServlet {
+    @Override
+    protected void service(final HttpServletRequest req, final HttpServletResponse resp) {
+      final HttpServerTest.ServerEndpoint endpoint =
+          HttpServerTest.ServerEndpoint.forPath(req.getServletPath());
+      HttpServerTest.controller(
+          endpoint,
+          new Closure(null) {
+            public Object doCall() throws Exception {
+              resp.setContentType("text/plain");
+              resp.setStatus(endpoint.getStatus());
+              resp.getWriter().print(req.getHeader(FORWARDED_FOR_HEADER));
               return null;
             }
           });

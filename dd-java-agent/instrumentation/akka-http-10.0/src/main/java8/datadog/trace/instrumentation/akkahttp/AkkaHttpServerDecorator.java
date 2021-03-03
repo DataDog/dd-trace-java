@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
+import akka.http.javadsl.model.HttpHeader;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -32,6 +33,11 @@ public class AkkaHttpServerDecorator
   @Override
   protected URIDataAdapter url(final HttpRequest httpRequest) {
     return new UriAdapter(httpRequest.uri());
+  }
+
+  @Override
+  protected String header(HttpRequest httpRequest, String header) {
+    return httpRequest.getHeader(header).map(HttpHeader::value).orElse(null);
   }
 
   @Override

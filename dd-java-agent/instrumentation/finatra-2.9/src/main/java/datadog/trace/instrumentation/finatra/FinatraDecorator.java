@@ -33,6 +33,11 @@ public class FinatraDecorator extends HttpServerDecorator<Request, Request, Resp
   }
 
   @Override
+  protected String header(Request request, String header) {
+    return request.headerMap().getOrNull(header);
+  }
+
+  @Override
   protected String peerHostIP(final Request request) {
     return request.remoteAddress().getHostAddress();
   }

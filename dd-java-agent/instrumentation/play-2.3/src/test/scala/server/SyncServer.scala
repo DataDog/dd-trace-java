@@ -16,6 +16,15 @@ object SyncServer {
           )
         )
       }
+    case ("GET", "/forwarded") =>
+      Action { request =>
+        HttpServerTest.controller(
+          FORWARDED,
+          new ControllerClosureAdapter(
+            Results.Status(FORWARDED.getStatus).apply(request.remoteAddress)
+          )
+        )
+      }
     case ("GET", "/redirect") =>
       Action { request =>
         HttpServerTest.controller(

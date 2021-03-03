@@ -45,8 +45,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     span.setMeasured(true);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
-      DECORATE.onConnection(span, ctx.channel());
-      DECORATE.onRequest(span, request);
+      DECORATE.onRequest(span, ctx.channel(), request);
 
       scope.setAsyncPropagation(true);
 

@@ -22,10 +22,12 @@ import io.netty.util.CharsetUtil
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR
@@ -50,9 +52,10 @@ class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
           def handlers = [new HttpServerCodec()]
           handlers.each { pipeline.addLast(it) }
           pipeline.addLast([
-            channelRead0       : { ctx, msg ->
+            channelRead0       : { ChannelHandlerContext ctx, msg ->
               if (msg instanceof HttpRequest) {
-                def uri = URI.create((msg as HttpRequest).uri)
+                def request = msg as HttpRequest
+                def uri = URI.create(request.uri)
                 ServerEndpoint endpoint = ServerEndpoint.forPath(uri.path)
                 ctx.write controller(endpoint) {
                   ByteBuf content = null
@@ -61,6 +64,10 @@ class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
                     case SUCCESS:
                     case ERROR:
                       content = Unpooled.copiedBuffer(endpoint.body, CharsetUtil.UTF_8)
+                      response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status), content)
+                      break
+                    case FORWARDED:
+                      content = Unpooled.copiedBuffer(request.headers().get(FORWARDED_FOR_HEADER), CharsetUtil.UTF_8)
                       response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status), content)
                       break
                     case QUERY_PARAM:

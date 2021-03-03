@@ -53,7 +53,7 @@ class PlayServerTest extends HttpServerTest<TestServer> {
       tags {
         "$Tags.COMPONENT" PlayHttpServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
+        "$Tags.PEER_HOST_IPV4" { endpoint == ServerEndpoint.FORWARDED ? it == endpoint.body : (it == null || it == "127.0.0.1") }
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_METHOD" String
         "$Tags.HTTP_STATUS" Integer

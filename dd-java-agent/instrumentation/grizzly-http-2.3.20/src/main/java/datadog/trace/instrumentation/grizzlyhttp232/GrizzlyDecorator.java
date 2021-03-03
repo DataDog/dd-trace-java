@@ -36,6 +36,11 @@ public class GrizzlyDecorator
   }
 
   @Override
+  protected String header(HttpRequestPacket httpRequestPacket, String header) {
+    return httpRequestPacket.getHeader(header);
+  }
+
+  @Override
   protected String peerHostIP(final HttpRequestPacket httpRequest) {
     return httpRequest.getRemoteAddress();
   }
@@ -85,8 +90,7 @@ public class GrizzlyDecorator
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
-    DECORATE.onConnection(span, httpRequest);
-    DECORATE.onRequest(span, httpRequest);
+    DECORATE.onRequest(span, httpRequest, httpRequest);
     scope.close();
   }
 
