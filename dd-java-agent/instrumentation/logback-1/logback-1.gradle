@@ -2,9 +2,9 @@ apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
-    group = 'org.slf4j'
-    module = 'slf4j-api'
-    versions = '[,]'
+    group = 'ch.qos.logback'
+    module = 'logback-classic'
+    versions = '[1.0.0,]'
   }
 }
 
