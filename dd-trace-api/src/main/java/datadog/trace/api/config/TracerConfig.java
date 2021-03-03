@@ -51,5 +51,7 @@ public final class TracerConfig {
 
   public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
 
+  public static final String JMS_LEGACY_DASH_REPLACEMENT = "trace.jms.legacy.dash.replacement";
+
   private TracerConfig() {}
 }
