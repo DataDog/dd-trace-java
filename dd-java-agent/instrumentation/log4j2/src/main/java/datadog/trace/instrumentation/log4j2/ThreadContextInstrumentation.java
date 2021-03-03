@@ -54,7 +54,6 @@ public class ThreadContextInstrumentation extends Instrumenter.Tracing {
     };
   }
 
-  @SuppressForbidden
   public static class ThreadContextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void mdcClassInitialized() {
