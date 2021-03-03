@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.axway;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -21,8 +22,16 @@ public final class AxwayHTTPPluginInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("com.vordel.dwe.http.ServerTransaction", int.class.getName());
+  }
+
+  @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return namedOneOf("com.vordel.dwe.http.HTTPPlugin", "com.vordel.circuit.net.State");
+    return namedOneOf(
+        "com.vordel.dwe.http.HTTPPlugin",
+        "com.vordel.dwe.http.ServerTransaction",
+        "com.vordel.circuit.net.State");
   }
 
   @Override
@@ -31,6 +40,7 @@ public final class AxwayHTTPPluginInstrumentation extends Instrumenter.Tracing {
       packageName + ".StateAdvice",
       packageName + ".AxwayHTTPPluginDecorator",
       packageName + ".HTTPPluginAdvice",
+      packageName + ".ServerTransactionAdvice",
     };
   }
 
@@ -41,6 +51,9 @@ public final class AxwayHTTPPluginInstrumentation extends Instrumenter.Tracing {
         isMethod().and(isPublic()).and(named("invokeDispose")), packageName + ".HTTPPluginAdvice");
     transformers.put(
         isMethod().and(isPublic()).and(named("tryTransaction")), packageName + ".StateAdvice");
+    transformers.put(
+        isMethod().and(isPublic()).and(named("sendResponse")),
+        packageName + ".ServerTransactionAdvice");
     return transformers;
   }
 }

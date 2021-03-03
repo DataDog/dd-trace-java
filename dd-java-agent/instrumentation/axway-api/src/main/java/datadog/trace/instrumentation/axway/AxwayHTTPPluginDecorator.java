@@ -19,9 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 // request = is com.vordel.circuit.net.State,  connection = com.vordel.dwe.http.ServerTransaction
 @Slf4j
 public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object, Object> {
-  public static final CharSequence AXWAY_REQUEST = UTF8BytesString.createConstant("axway.request");
+  public static final CharSequence AXWAY_REQUEST = UTF8BytesString.create("axway.request");
   public static final CharSequence AXWAY_TRY_TRANSACTION =
-      UTF8BytesString.createConstant("axway.trytransaction");
+      UTF8BytesString.create("axway.trytransaction");
 
   public static final AxwayHTTPPluginDecorator DECORATE = new AxwayHTTPPluginDecorator();
 
@@ -39,6 +39,18 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
   private static final MethodHandle portField_mh;
   private static final MethodHandle methodField_mh;
   private static final MethodHandle uriField_mh;
+
+  static final String SERVER_TRANSACTION_CLASSNAME = "com.vordel.dwe.http.ServerTransaction";
+  static final Class<Object> SERVER_TRANSACTION_CLASS = getServerTransactionClass();
+
+  private static Class<Object> getServerTransactionClass() {
+    try {
+      return (Class<Object>) Class.forName(SERVER_TRANSACTION_CLASSNAME);
+    } catch (ClassNotFoundException e) {
+      log.debug("Can't get ServerTransaction class name", e);
+    }
+    return null;
+  }
 
   static {
     classServerTransaction = initClass(SERVERTRANSACTION_CLASSNAME);
