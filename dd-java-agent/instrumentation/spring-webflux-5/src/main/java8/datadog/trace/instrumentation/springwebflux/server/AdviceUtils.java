@@ -3,14 +3,17 @@ package datadog.trace.instrumentation.springwebflux.server;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Pair;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;
-import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.CoreSubscriber;
@@ -25,19 +28,32 @@ public class AdviceUtils {
   public static final String PARENT_SPAN_ATTRIBUTE =
       "datadog.trace.instrumentation.springwebflux.ParentSpan";
 
-  public static String parseOperationName(final Object handler) {
-    // TODO standardise this logic (we don't want lambda names in resource names) and make it
-    // cacheable
-    final String className = String.valueOf(DECORATE.className(handler.getClass()));
-    final String operationName;
-    final int lambdaIdx = className.indexOf("$$Lambda$");
+  private static final ClassValue<CharSequence> NAMES =
+      new ClassValue<CharSequence>() {
+        @Override
+        protected CharSequence computeValue(Class<?> type) {
+          String name = type.getName();
+          final int lambdaIdx = name.lastIndexOf("$$Lambda$");
+          if (lambdaIdx > -1) {
+            return UTF8BytesString.create(
+                name.substring(name.lastIndexOf('.') + 1, lambdaIdx) + ".lambda");
+          } else {
+            return DECORATE.spanNameForMethod(type, "handle");
+          }
+        }
+      };
 
-    if (lambdaIdx > -1) {
-      operationName = className.substring(0, lambdaIdx) + ".lambda";
-    } else {
-      operationName = className + ".handle";
-    }
-    return operationName;
+  private static final DDCache<Pair<String, String>, CharSequence> RESOURCE_NAMES =
+      DDCaches.newFixedSizeCache(256);
+
+  public static CharSequence constructResourceName(String method, String pattern) {
+    return RESOURCE_NAMES.computeIfAbsent(
+        Pair.of(method, pattern),
+        pair -> UTF8BytesString.create(pair.getLeft() + " " + pair.getRight()));
+  }
+
+  public static CharSequence constructOperationName(final Object handler) {
+    return NAMES.get(handler.getClass());
   }
 
   public static <T> Mono<T> setPublisherSpan(final Mono<T> mono, final AgentSpan span) {
@@ -66,13 +82,6 @@ public class AdviceUtils {
       final ServerRequest serverRequest, final Throwable throwable) {
     if (serverRequest != null) {
       finishSpanIfPresentInAttributes(serverRequest.attributes(), throwable);
-    }
-  }
-
-  public static void finishSpanIfPresent(
-      final ClientRequest clientRequest, final Throwable throwable) {
-    if (clientRequest != null) {
-      finishSpanIfPresentInAttributes(clientRequest.attributes(), throwable);
     }
   }
 
@@ -109,7 +118,6 @@ public class AdviceUtils {
     @Override
     public void onSubscribe(final Subscription s) {
       try (final AgentScope scope = activateSpan(span)) {
-        scope.setAsyncPropagation(true);
         subscriber.onSubscribe(s);
       }
     }
@@ -117,7 +125,6 @@ public class AdviceUtils {
     @Override
     public void onNext(final T t) {
       try (final AgentScope scope = activateSpan(span)) {
-        scope.setAsyncPropagation(true);
         subscriber.onNext(t);
       }
     }
