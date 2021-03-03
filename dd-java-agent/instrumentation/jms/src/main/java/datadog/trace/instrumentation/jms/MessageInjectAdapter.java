@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jms;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +16,7 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
   public static final MessageInjectAdapter SETTER = new MessageInjectAdapter();
 
   @Override
+  @SuppressForbidden
   public void set(final Message carrier, final String key, final String value) {
     final String propName =
         USE_LEGACY_DASH_REPLACEMENT ? key.replace("-", "__dash__") : key.replace('-', '$');

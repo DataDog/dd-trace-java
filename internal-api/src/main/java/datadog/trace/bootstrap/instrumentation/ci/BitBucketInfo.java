@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import datadog.trace.util.Strings;
+
 class BitBucketInfo extends CIProviderInfo {
 
   // https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/
@@ -43,7 +45,8 @@ class BitBucketInfo extends CIProviderInfo {
   private String buildPipelineId() {
     String id = System.getenv(BITBUCKET_PIPELINE_ID);
     if (id != null) {
-      id = id.replaceAll("}", "").replaceAll("\\{", "");
+      id = Strings.replace(id, "{", "");
+      id = Strings.replace(id, "}", "");
     }
     return id;
   }

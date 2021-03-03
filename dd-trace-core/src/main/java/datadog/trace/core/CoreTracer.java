@@ -40,6 +40,7 @@ import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.util.AgentTaskScheduler;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -514,6 +515,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     writer.flush();
   }
 
+  @SuppressForbidden
   private static DDScopeEventFactory createScopeEventFactory() {
     if (Config.get().isProfilingEnabled()) {
       try {

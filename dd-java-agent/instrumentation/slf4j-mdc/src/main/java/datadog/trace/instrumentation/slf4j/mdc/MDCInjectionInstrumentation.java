@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.log.LogContextScopeListener;
 import datadog.trace.agent.tooling.log.ThreadLocalWithDDTagsInitValue;
 import datadog.trace.api.Config;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -29,6 +30,7 @@ public class MDCInjectionInstrumentation extends Instrumenter.Tracing {
 
   // Intentionally doing the string replace to bypass gradle shadow rename
   // mdcClassName = org.slf4j.MDC
+  @SuppressForbidden
   private static final String mdcClassName = "org.TMP.MDC".replaceFirst("TMP", "slf4j");
 
   private volatile boolean initialized = false;

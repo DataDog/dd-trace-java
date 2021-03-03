@@ -12,6 +12,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.Trace;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -45,6 +46,7 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing 
   private final String[] additionalTraceAnnotations;
   private final ElementMatcher.Junction<NamedElement> methodTraceMatcher;
 
+  @SuppressForbidden
   public TraceAnnotationsInstrumentation() {
     super("trace", "trace-annotation");
 

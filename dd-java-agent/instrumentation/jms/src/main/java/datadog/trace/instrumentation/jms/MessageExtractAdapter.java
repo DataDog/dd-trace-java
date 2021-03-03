@@ -5,6 +5,7 @@ import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Enumeration;
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
 
+  @SuppressForbidden
   private static final boolean USE_LEGACY_DASH_REPLACEMENT =
       Config.get().isJmsLegacyDashReplacement();
 

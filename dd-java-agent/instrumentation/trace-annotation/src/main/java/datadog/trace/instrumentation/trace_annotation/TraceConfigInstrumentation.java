@@ -17,6 +17,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.Trace;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -57,6 +58,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
 
   private final Map<String, Set<String>> classMethodsToTrace;
 
+  @SuppressForbidden
   private boolean validateConfigString(final String configString) {
     for (final String segment : configString.split(";")) {
       if (!segment.trim().matches(CONFIG_FORMAT)) {
@@ -66,6 +68,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
     return true;
   }
 
+  @SuppressForbidden
   public TraceConfigInstrumentation() {
     final String configString = Config.get().getTraceMethods();
     if (configString == null || configString.trim().isEmpty()) {
@@ -79,6 +82,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
 
     } else {
       final String[] classMethods = configString.split(";", -1);
+
       final Map<String, Set<String>> toTrace = new HashMap<>(classMethods.length);
       for (final String classMethod : classMethods) {
         if (classMethod.trim().isEmpty()) {

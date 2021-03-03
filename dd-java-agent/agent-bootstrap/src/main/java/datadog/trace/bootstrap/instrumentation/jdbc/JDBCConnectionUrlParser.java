@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.jdbc;
 import static datadog.trace.bootstrap.instrumentation.jdbc.DBInfo.DEFAULT;
 
 import datadog.trace.bootstrap.ExceptionLogger;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -27,7 +28,7 @@ public enum JDBCConnectionUrlParser {
         // Attempt generic parsing
         final URI uri = new URI(jdbcUrl);
 
-        populateStandardProperties(builder, splitQuery(uri.getQuery(), "&"));
+        populateStandardProperties(builder, splitQuery(uri.getQuery(), '&'));
 
         final String user = uri.getUserInfo();
         if (user != null) {
@@ -60,59 +61,63 @@ public enum JDBCConnectionUrlParser {
   MODIFIED_URL_LIKE() {
     @Override
     DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
-      final String type;
       String serverName = "";
       Integer port = null;
       String instanceName = null;
-      final String user = null;
-
       final int hostIndex = jdbcUrl.indexOf("://");
 
       if (hostIndex <= 0) {
         return builder;
       }
 
-      type = jdbcUrl.substring(0, hostIndex);
+      final String type = jdbcUrl.substring(0, hostIndex);
+      final String urlPart1;
+      final String urlPart2;
+      final int paramLoc;
 
-      final String[] split;
       if (type.equals("db2") || type.equals("as400")) {
         if (jdbcUrl.contains("=")) {
-          final int paramLoc = jdbcUrl.lastIndexOf(":");
-          split = new String[] {jdbcUrl.substring(0, paramLoc), jdbcUrl.substring(paramLoc + 1)};
+          paramLoc = jdbcUrl.lastIndexOf(':');
+          urlPart1 = jdbcUrl.substring(0, paramLoc);
+          urlPart2 = jdbcUrl.substring(paramLoc + 1);
+
         } else {
-          split = new String[] {jdbcUrl};
+          urlPart1 = jdbcUrl;
+          urlPart2 = null;
         }
       } else {
-        split = jdbcUrl.split(";", 2);
+        paramLoc = jdbcUrl.indexOf(';');
+        urlPart1 = paramLoc >= 0 ? jdbcUrl.substring(0, paramLoc) : jdbcUrl;
+        urlPart2 = paramLoc >= 0 ? jdbcUrl.substring(paramLoc + 1) : null;
       }
 
-      if (split.length > 1) {
-        final Map<String, String> props = splitQuery(split[1], ";");
+      if (urlPart2 != null) {
+        final Map<String, String> props = splitQuery(urlPart2, ';');
         populateStandardProperties(builder, props);
         if (props.containsKey("servername")) {
           serverName = props.get("servername");
         }
       }
 
-      final String urlServerName = split[0].substring(hostIndex + 3);
+      final String urlServerName = urlPart1.substring(hostIndex + 3);
       if (!urlServerName.isEmpty()) {
         serverName = urlServerName;
       }
 
-      int instanceLoc = serverName.indexOf("/");
+      int instanceLoc = serverName.indexOf('/');
       if (instanceLoc > 1) {
         instanceName = serverName.substring(instanceLoc + 1);
         serverName = serverName.substring(0, instanceLoc);
       }
 
-      final int portLoc = serverName.indexOf(":");
+      final int portLoc = serverName.indexOf(':');
 
       if (portLoc > 1) {
         port = Integer.parseInt(serverName.substring(portLoc + 1));
         serverName = serverName.substring(0, portLoc);
       }
 
-      instanceLoc = serverName.indexOf("\\");
+      instanceLoc = serverName.indexOf('\\');
       if (instanceLoc > 1) {
         instanceName = serverName.substring(instanceLoc + 1);
         serverName = serverName.substring(0, instanceLoc);
@@ -128,10 +133,6 @@ public enum JDBCConnectionUrlParser {
 
       if (port != null) {
         builder.port(port);
-      }
-
-      if (user != null) {
-        builder.user(user);
       }
 
       return builder.type(type);
@@ -180,12 +181,12 @@ public enum JDBCConnectionUrlParser {
       }
 
       final int hostEndLoc;
-      final int portLoc = jdbcUrl.indexOf(":", typeEndLoc + 1);
-      final int dbLoc = jdbcUrl.indexOf("/", typeEndLoc);
-      final int paramLoc = jdbcUrl.indexOf("?", dbLoc);
+      final int portLoc = jdbcUrl.indexOf(':', typeEndLoc + 1);
+      final int dbLoc = jdbcUrl.indexOf('/', typeEndLoc);
+      final int paramLoc = jdbcUrl.indexOf('?', dbLoc);
 
       if (paramLoc > 0) {
-        populateStandardProperties(builder, splitQuery(jdbcUrl.substring(paramLoc + 1), "&"));
+        populateStandardProperties(builder, splitQuery(jdbcUrl.substring(paramLoc + 1), '&'));
         builder.db(jdbcUrl.substring(dbLoc + 1, paramLoc));
       } else {
         builder.db(jdbcUrl.substring(dbLoc + 1));
@@ -211,16 +212,16 @@ public enum JDBCConnectionUrlParser {
     @Override
     DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
       final int hostEndLoc;
-      final int clusterSepLoc = jdbcUrl.indexOf(",");
-      final int ipv6End = jdbcUrl.startsWith("[") ? jdbcUrl.indexOf("]") : -1;
-      int portLoc = jdbcUrl.indexOf(":", Math.max(0, ipv6End));
+      final int clusterSepLoc = jdbcUrl.indexOf(',');
+      final int ipv6End = jdbcUrl.startsWith("[") ? jdbcUrl.indexOf(']') : -1;
+      int portLoc = jdbcUrl.indexOf(':', Math.max(0, ipv6End));
       portLoc = clusterSepLoc < portLoc ? -1 : portLoc;
-      final int dbLoc = jdbcUrl.indexOf("/", Math.max(portLoc, clusterSepLoc));
+      final int dbLoc = jdbcUrl.indexOf('/', Math.max(portLoc, clusterSepLoc));
 
-      final int paramLoc = jdbcUrl.indexOf("?", dbLoc);
+      final int paramLoc = jdbcUrl.indexOf('?', dbLoc);
 
       if (paramLoc > 0) {
-        populateStandardProperties(builder, splitQuery(jdbcUrl.substring(paramLoc + 1), "&"));
+        populateStandardProperties(builder, splitQuery(jdbcUrl.substring(paramLoc + 1), '&'));
         builder.db(jdbcUrl.substring(dbLoc + 1, paramLoc));
       } else {
         builder.db(jdbcUrl.substring(dbLoc + 1));
@@ -335,7 +336,7 @@ public enum JDBCConnectionUrlParser {
 
     @Override
     DBInfo.Builder doParse(String jdbcUrl, final DBInfo.Builder builder) {
-      final int typeEndIndex = jdbcUrl.indexOf(":", "oracle:".length());
+      final int typeEndIndex = jdbcUrl.indexOf(':', "oracle:".length());
       final String subtype = jdbcUrl.substring("oracle:".length(), typeEndIndex);
       jdbcUrl = jdbcUrl.substring(typeEndIndex + 1);
 
@@ -361,11 +362,11 @@ public enum JDBCConnectionUrlParser {
       final Integer port;
       final String instance;
 
-      final int hostEnd = jdbcUrl.indexOf(":");
-      final int instanceLoc = jdbcUrl.indexOf("/");
+      final int hostEnd = jdbcUrl.indexOf(':');
+      final int instanceLoc = jdbcUrl.indexOf('/');
       if (hostEnd > 0) {
         host = jdbcUrl.substring(0, hostEnd);
-        final int afterHostEnd = jdbcUrl.indexOf(":", hostEnd + 1);
+        final int afterHostEnd = jdbcUrl.indexOf(':', hostEnd + 1);
         if (afterHostEnd > 0) {
           port = Integer.parseInt(jdbcUrl.substring(hostEnd + 1, afterHostEnd));
           instance = jdbcUrl.substring(afterHostEnd + 1);
@@ -422,16 +423,17 @@ public enum JDBCConnectionUrlParser {
       }
       final String user;
 
-      final String[] atSplit = jdbcUrl.split("@", 2);
+      int atIndex = jdbcUrl.indexOf('@');
+      final String urlPart1 = jdbcUrl.substring(0, atIndex);
+      final String connectInfo = jdbcUrl.substring(atIndex + 1);
 
-      final int userInfoLoc = atSplit[0].indexOf("/");
+      final int userInfoLoc = urlPart1.indexOf('/');
       if (userInfoLoc > 0) {
-        user = atSplit[0].substring(0, userInfoLoc);
+        user = urlPart1.substring(0, userInfoLoc);
       } else {
         user = null;
       }
 
-      final String connectInfo = atSplit[1];
       final int hostStart;
       if (connectInfo.startsWith("//")) {
         hostStart = "//".length();
@@ -459,24 +461,26 @@ public enum JDBCConnectionUrlParser {
 
     @Override
     DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
-      final String[] atSplit = jdbcUrl.split("@", 2);
+      int atIndex = jdbcUrl.indexOf('@');
+      final String urlPart1 = jdbcUrl.substring(0, atIndex);
+      final String urlPart2 = jdbcUrl.substring(atIndex + 1);
 
-      final int userInfoLoc = atSplit[0].indexOf("/");
+      final int userInfoLoc = urlPart1.indexOf('/');
       if (userInfoLoc > 0) {
-        builder.user(atSplit[0].substring(0, userInfoLoc));
+        builder.user(urlPart1.substring(0, userInfoLoc));
       }
 
-      final Matcher hostMatcher = HOST_REGEX.matcher(atSplit[1]);
+      final Matcher hostMatcher = HOST_REGEX.matcher(urlPart2);
       if (hostMatcher.find()) {
         builder.host(hostMatcher.group(1));
       }
 
-      final Matcher portMatcher = PORT_REGEX.matcher(atSplit[1]);
+      final Matcher portMatcher = PORT_REGEX.matcher(urlPart2);
       if (portMatcher.find()) {
         builder.port(Integer.parseInt(portMatcher.group(1)));
       }
 
-      final Matcher instanceMatcher = INSTANCE_REGEX.matcher(atSplit[1]);
+      final Matcher instanceMatcher = INSTANCE_REGEX.matcher(urlPart2);
       if (instanceMatcher.find()) {
         builder.instance(instanceMatcher.group(1));
       }
@@ -495,7 +499,7 @@ public enum JDBCConnectionUrlParser {
       final String h2Url = jdbcUrl.substring("h2:".length());
       if (h2Url.startsWith("mem:")) {
         builder.subtype("mem");
-        final int propLoc = h2Url.indexOf(";");
+        final int propLoc = h2Url.indexOf(';');
         if (propLoc >= 0) {
           instance = h2Url.substring("mem:".length(), propLoc);
         } else {
@@ -503,7 +507,7 @@ public enum JDBCConnectionUrlParser {
         }
       } else if (h2Url.startsWith("file:")) {
         builder.subtype("file");
-        final int propLoc = h2Url.indexOf(";");
+        final int propLoc = h2Url.indexOf(';');
         if (propLoc >= 0) {
           instance = h2Url.substring("file:".length(), propLoc);
         } else {
@@ -511,7 +515,7 @@ public enum JDBCConnectionUrlParser {
         }
       } else if (h2Url.startsWith("zip:")) {
         builder.subtype("zip");
-        final int propLoc = h2Url.indexOf(";");
+        final int propLoc = h2Url.indexOf(';');
         if (propLoc >= 0) {
           instance = h2Url.substring("zip:".length(), propLoc);
         } else {
@@ -531,7 +535,7 @@ public enum JDBCConnectionUrlParser {
         return MODIFIED_URL_LIKE.doParse(jdbcUrl, builder).type("h2").subtype("ssl");
       } else {
         builder.subtype("file");
-        final int propLoc = h2Url.indexOf(";");
+        final int propLoc = h2Url.indexOf(';');
         if (propLoc >= 0) {
           instance = h2Url.substring(0, propLoc);
         } else {
@@ -609,13 +613,14 @@ public enum JDBCConnectionUrlParser {
       }
 
       final String derbyUrl = jdbcUrl.substring("derby:".length());
-      final String[] split = derbyUrl.split(";", 2);
+      int delimIndex = derbyUrl.indexOf(';');
+      final String details = delimIndex >= 0 ? derbyUrl.substring(0, delimIndex) : derbyUrl;
+      final String urlPart2 = delimIndex >= 0 ? derbyUrl.substring(delimIndex + 1) : null;
 
-      if (split.length > 1) {
-        populateStandardProperties(builder, splitQuery(split[1], ";"));
+      if (urlPart2 != null) {
+        populateStandardProperties(builder, splitQuery(urlPart2, ';'));
       }
 
-      final String details = split[0];
       if (details.startsWith("memory:")) {
         builder.subtype("memory");
         final String urlInstance = details.substring("memory:".length());
@@ -646,16 +651,16 @@ public enum JDBCConnectionUrlParser {
           builder.port(DEFAULT_PORT);
         }
         String url = details.substring("//".length());
-        final int instanceLoc = url.indexOf("/");
+        final int instanceLoc = url.indexOf('/');
         if (instanceLoc >= 0) {
           instance = url.substring(instanceLoc + 1);
-          final int protoLoc = instance.indexOf(":");
+          final int protoLoc = instance.indexOf(':');
           if (protoLoc >= 0) {
             instance = instance.substring(protoLoc + 1);
           }
           url = url.substring(0, instanceLoc);
         }
-        final int portLoc = url.indexOf(":");
+        final int portLoc = url.indexOf(':');
         if (portLoc > 0) {
           host = url.substring(0, portLoc);
           builder.port(Integer.parseInt(url.substring(portLoc + 1)));
@@ -732,15 +737,17 @@ public enum JDBCConnectionUrlParser {
   }
 
   // Source: https://stackoverflow.com/a/13592567
-  private static Map<String, String> splitQuery(final String query, final String separator) {
+  @SuppressForbidden
+  private static Map<String, String> splitQuery(final String query, final char separator) {
     if (query == null || query.isEmpty()) {
       return Collections.emptyMap();
     }
     final Map<String, String> query_pairs = new LinkedHashMap<>();
-    final String[] pairs = query.split(separator);
-    for (final String pair : pairs) {
+    int start = 0;
+    for (int i = query.indexOf(separator); start != -1; i = query.indexOf(separator, i + 1)) {
       try {
-        final int idx = pair.indexOf("=");
+        final String pair = i >= 0 ? query.substring(start, i) : query.substring(start);
+        final int idx = pair.indexOf('=');
         final String key = idx > 0 ? URLDecoder.decode(pair.substring(0, idx), "UTF-8") : pair;
         if (!query_pairs.containsKey(key)) {
           final String value =
@@ -752,6 +759,7 @@ public enum JDBCConnectionUrlParser {
       } catch (final UnsupportedEncodingException e) {
         // Ignore.
       }
+      start = i == -1 ? i : i + 1;
     }
     return query_pairs;
   }

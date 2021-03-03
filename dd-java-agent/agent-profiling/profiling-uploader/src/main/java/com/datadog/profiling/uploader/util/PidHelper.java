@@ -1,5 +1,6 @@
 package com.datadog.profiling.uploader.util;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import jnr.posix.POSIX;
 import jnr.posix.POSIXFactory;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
  * end up causing packaging problems. We should revisit this later.
  */
 @Slf4j
+@SuppressForbidden
 public class PidHelper {
 
   public static final String PID_TAG = "process_id";

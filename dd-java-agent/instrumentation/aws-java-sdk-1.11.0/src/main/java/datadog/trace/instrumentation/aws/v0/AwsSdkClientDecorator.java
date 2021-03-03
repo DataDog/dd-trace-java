@@ -11,12 +11,14 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.net.URI;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("java-aws-sdk");
 
+  @SuppressForbidden
   private final QualifiedClassNameCache cache =
       new QualifiedClassNameCache(
           new Function<Class<?>, CharSequence>() {

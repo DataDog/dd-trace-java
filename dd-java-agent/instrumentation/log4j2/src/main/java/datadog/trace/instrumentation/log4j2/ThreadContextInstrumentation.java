@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.log.LogContextScopeListener;
 import datadog.trace.agent.tooling.log.ThreadLocalWithDDTagsInitValue;
 import datadog.trace.api.Config;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -53,6 +54,7 @@ public class ThreadContextInstrumentation extends Instrumenter.Tracing {
     };
   }
 
+  @SuppressForbidden
   public static class ThreadContextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void mdcClassInitialized(@Advice.Origin final Class<?> threadContextClass) {

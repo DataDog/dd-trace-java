@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.muzzle.Reference.Source;
 import datadog.trace.api.Function;
 import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.bootstrap.instrumentation.api.Pair;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -107,6 +108,7 @@ public final class ReferenceMatcher {
    * @param loader
    * @return A list of mismatched sources. A list of size 0 means the reference matches the class.
    */
+  @SuppressForbidden
   private static boolean checkMatch(
       final Reference reference, final ClassLoader loader, final List<Mismatch> mismatches) {
     final TypePool typePool =

@@ -25,4 +25,22 @@ public final class Strings {
     }
     return "";
   }
+
+  // reimplementation of string functions without regex
+  public static String replace(String str, String delimiter, String replacement) {
+    StringBuilder sb = new StringBuilder(str);
+    int matchIndex, curIndex = 0;
+    while ((matchIndex = sb.indexOf(delimiter, curIndex)) != -1) {
+      sb.replace(matchIndex, matchIndex + delimiter.length(), replacement);
+      curIndex = matchIndex + replacement.length();
+    }
+    return sb.toString();
+  }
+
+  public static String replaceFirst(String str, String delimiter, String replacement) {
+    StringBuilder sb = new StringBuilder(str);
+    int i = sb.indexOf(delimiter);
+    if (i != -1) sb.replace(i, i + delimiter.length(), replacement);
+    return sb.toString();
+  }
 }

@@ -4,6 +4,7 @@ apply plugin: 'java'
 apply plugin: 'groovy'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
+apply from: "$rootDir/gradle/forbiddenapis.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
 apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"

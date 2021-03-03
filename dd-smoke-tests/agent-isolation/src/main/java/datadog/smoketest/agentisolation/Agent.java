@@ -1,7 +1,9 @@
 package datadog.smoketest.agentisolation;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.instrument.Instrumentation;
 
+@SuppressForbidden
 public class Agent {
 
   public static void premain(String args, Instrumentation instrumentation) {
