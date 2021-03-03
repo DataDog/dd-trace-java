@@ -63,7 +63,6 @@ public class LoggerNodeInstrumentation extends Instrumenter.Tracing {
       if (span != null) {
         InstrumentationContext.get(ExtLogRecord.class, AgentSpan.Context.class)
             .put(record, span.context());
-        System.out.println("Added context for: " + record);
       }
 
       return true;

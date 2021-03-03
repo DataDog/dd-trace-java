@@ -90,13 +90,13 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing {
 
       switch (key) {
         case Tags.DD_SERVICE:
-          value = Config.get().getUnifiedServiceTaggingMap().get(Tags.DD_SERVICE);
+          value = Config.get().getServiceName();
           return;
         case Tags.DD_ENV:
-          value = Config.get().getUnifiedServiceTaggingMap().get(Tags.DD_ENV);
+          value = Config.get().getEnv();
           return;
         case Tags.DD_VERSION:
-          value = Config.get().getUnifiedServiceTaggingMap().get(Tags.DD_VERSION);
+          value = Config.get().getVersion();
           return;
         case "dd.trace_id":
           {
@@ -150,7 +150,9 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing {
       }
 
       if (mdcTagsInjectionEnabled) {
-        correlationValues.putAll(Config.get().getUnifiedServiceTaggingMap());
+        correlationValues.put(Tags.DD_SERVICE, Config.get().getServiceName());
+        correlationValues.put(Tags.DD_ENV, Config.get().getEnv());
+        correlationValues.put(Tags.DD_VERSION, Config.get().getVersion());
       }
 
       if (mdc == null) {

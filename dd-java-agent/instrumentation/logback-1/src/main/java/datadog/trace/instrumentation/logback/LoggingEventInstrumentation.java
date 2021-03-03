@@ -15,6 +15,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -96,7 +97,9 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
       }
 
       if (mdcTagsInjectionEnabled) {
-        correlationValues.putAll(Config.get().getUnifiedServiceTaggingMap());
+        correlationValues.put(Tags.DD_SERVICE, Config.get().getServiceName());
+        correlationValues.put(Tags.DD_ENV, Config.get().getEnv());
+        correlationValues.put(Tags.DD_VERSION, Config.get().getVersion());
       }
 
       if (mdc == null) {
