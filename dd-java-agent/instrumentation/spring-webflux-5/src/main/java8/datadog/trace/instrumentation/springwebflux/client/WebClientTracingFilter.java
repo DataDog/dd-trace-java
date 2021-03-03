@@ -52,12 +52,9 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
       AgentSpan span = startSpan(HTTP_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
-      final ClientRequest.Builder builder = ClientRequest.from(request);
       try (final AgentScope scope = activateSpan(span)) {
         TraceWebClientSubscriber tracingSubscriber = new TraceWebClientSubscriber(subscriber, span);
-        next.exchange(builder.build())
-            .doOnCancel(tracingSubscriber::onCancel)
-            .subscribe(tracingSubscriber);
+        next.exchange(request).doOnCancel(tracingSubscriber::onCancel).subscribe(tracingSubscriber);
       }
     }
   }
