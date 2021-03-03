@@ -146,7 +146,7 @@ def generateTestingJar(String interfaceName, String backend, List<Configuration>
 
     archiveBaseName.set(name)
 
-    configurations = [project.configurations.compile] + configurationsList
+    configurations = [project.configurations.compile]+ configurationsList
   }
 }
 
