@@ -52,6 +52,7 @@ public class Tags {
   public static final String GIT_TAG = "git.tag";
 
   public static final String RUNTIME_NAME = "runtime.name";
+  public static final String RUNTIME_VENDOR = "runtime.vendor";
   public static final String RUNTIME_VERSION = "runtime.version";
   public static final String OS_ARCHITECTURE = "os.architecture";
   public static final String OS_PLATFORM = "os.platform";

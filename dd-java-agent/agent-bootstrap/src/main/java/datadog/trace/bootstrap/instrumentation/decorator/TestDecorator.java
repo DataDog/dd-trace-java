@@ -44,6 +44,10 @@ public abstract class TestDecorator extends BaseDecorator {
   }
 
   protected String runtimeName() {
+    return System.getProperty("java.runtime.name");
+  }
+
+  protected String runtimeVendor() {
     return System.getProperty("java.vendor");
   }
 
@@ -75,6 +79,7 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(Tags.TEST_TYPE, testType());
     span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
     span.setTag(Tags.RUNTIME_NAME, runtimeName());
+    span.setTag(Tags.RUNTIME_VENDOR, runtimeVendor());
     span.setTag(Tags.RUNTIME_VERSION, runtimeVersion());
     span.setTag(Tags.OS_ARCHITECTURE, osArch());
     span.setTag(Tags.OS_PLATFORM, osPlatform());

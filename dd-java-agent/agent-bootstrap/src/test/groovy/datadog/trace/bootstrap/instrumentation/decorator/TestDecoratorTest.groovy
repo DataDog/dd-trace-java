@@ -24,6 +24,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
     1 * span.setTag(Tags.RUNTIME_NAME, decorator.runtimeName())
+    1 * span.setTag(Tags.RUNTIME_VENDOR, decorator.runtimeVendor())
     1 * span.setTag(Tags.RUNTIME_VERSION, decorator.runtimeVersion())
     1 * span.setTag(Tags.OS_ARCHITECTURE, decorator.osArch())
     1 * span.setTag(Tags.OS_PLATFORM, decorator.osPlatform())
