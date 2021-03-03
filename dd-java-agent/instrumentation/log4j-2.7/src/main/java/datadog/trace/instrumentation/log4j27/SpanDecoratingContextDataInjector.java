@@ -11,7 +11,6 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.List;
-import java.util.Map;
 import org.apache.logging.log4j.core.ContextDataInjector;
 import org.apache.logging.log4j.core.config.Property;
 import org.apache.logging.log4j.util.ReadOnlyStringMap;
@@ -33,10 +32,9 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     StringMap newContextData = new SortedArrayStringMap(contextData.size() + 5);
 
     if (Config.get().isLogsMDCTagsInjectionEnabled()) {
-      Map<String, String> unifiedServiceTags = Config.get().getUnifiedServiceTaggingMap();
-      newContextData.putValue(Tags.DD_ENV, unifiedServiceTags.get(Tags.DD_ENV));
-      newContextData.putValue(Tags.DD_SERVICE, unifiedServiceTags.get(Tags.DD_SERVICE));
-      newContextData.putValue(Tags.DD_VERSION, unifiedServiceTags.get(Tags.DD_VERSION));
+      newContextData.putValue(Tags.DD_ENV, Config.get().getEnv());
+      newContextData.putValue(Tags.DD_SERVICE, Config.get().getServiceName());
+      newContextData.putValue(Tags.DD_VERSION, Config.get().getVersion());
     }
 
     AgentSpan span = activeSpan();

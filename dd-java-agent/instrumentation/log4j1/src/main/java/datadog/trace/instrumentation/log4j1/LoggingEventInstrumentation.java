@@ -74,13 +74,13 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
 
       switch (key) {
         case Tags.DD_SERVICE:
-          value = Config.get().getUnifiedServiceTaggingMap().get(Tags.DD_SERVICE);
+          value = Config.get().getServiceName();
           return;
         case Tags.DD_ENV:
-          value = Config.get().getUnifiedServiceTaggingMap().get(Tags.DD_ENV);
+          value = Config.get().getEnv();
           return;
         case Tags.DD_VERSION:
-          value = Config.get().getUnifiedServiceTaggingMap().get(Tags.DD_VERSION);
+          value = Config.get().getVersion();
           return;
         case "dd.trace_id":
           {
@@ -119,7 +119,9 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
         Hashtable mdc = new Hashtable();
 
         if (Config.get().isLogsMDCTagsInjectionEnabled()) {
-          mdc.putAll(Config.get().getUnifiedServiceTaggingMap());
+          mdc.put(Tags.DD_SERVICE, Config.get().getServiceName());
+          mdc.put(Tags.DD_ENV, Config.get().getEnv());
+          mdc.put(Tags.DD_VERSION, Config.get().getVersion());
         }
 
         AgentSpan.Context context =
