@@ -11,7 +11,7 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
     rootSpan.finish()
 
     then:
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     trace.finishedSpans.asList() == [rootSpan]
     writer == []
 
@@ -19,7 +19,7 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
     writer.waitForTracesMax(1, 1)
 
     then:
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     trace.finishedSpans.asList() == [rootSpan]
     writer == []
     writer.traceCount.get() == 0
@@ -28,7 +28,7 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
     continuation.cancel()
 
     then:
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     trace.finishedSpans.isEmpty()
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
@@ -43,7 +43,7 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
     rootSpan.finish()
 
     then:
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     trace.finishedSpans.asList() == [rootSpan]
     writer == []
 
@@ -51,7 +51,7 @@ class PendingTraceStrictWriteTest extends PendingTraceTestBase {
     continuation.cancel()
 
     then:
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     trace.finishedSpans.isEmpty()
     writer == [[rootSpan]]
     writer.traceCount.get() == 1

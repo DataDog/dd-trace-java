@@ -22,7 +22,7 @@ class PendingTraceTest extends PendingTraceTestBase {
     rootSpan.finish()
 
     then:
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     trace.finishedSpans.asList() == [rootSpan]
     writer == []
 
@@ -30,7 +30,7 @@ class PendingTraceTest extends PendingTraceTestBase {
     writer.waitForTraces(1)
 
     then:
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     trace.finishedSpans.isEmpty()
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
