@@ -1,0 +1,100 @@
+package datadog.trace.instrumentation.jaxws1;
+
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasSuperMethod;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.jaxws1.WebServiceDecorator.DECORATE;
+import static datadog.trace.instrumentation.jaxws1.WebServiceDecorator.JAX_WS_REQUEST;
+import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.isStatic;
+import static net.bytebuddy.matcher.ElementMatchers.not;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.Map;
+import javax.jws.WebService;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+
+@AutoService(Instrumenter.class)
+public final class WebServiceInstrumentation extends Instrumenter.Tracing {
+  private static final String WEB_SERVICE_ANNOTATION_NAME = "javax.jws.WebService";
+
+  public WebServiceInstrumentation() {
+    super("jax-ws");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return false;
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> typeMatcher() {
+    return safeHasSuperType(isAnnotatedWith(named(WEB_SERVICE_ANNOTATION_NAME)));
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".WebServiceDecorator",
+    };
+  }
+
+  @Override
+  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
+    return singletonMap(
+        isMethod()
+            .and(isPublic())
+            .and(not(isStatic()))
+            .and(hasSuperMethod(isDeclaredBy(isAnnotatedWith(named(WEB_SERVICE_ANNOTATION_NAME))))),
+        getClass().getName() + "$InvokeAdvice");
+  }
+
+  public static final class InvokeAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentScope beginRequest(
+        @Advice.This Object thiz, @Advice.Origin("#m") String method) {
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(WebService.class);
+      if (callDepth > 0) {
+        return null;
+      }
+
+      AgentSpan span = startSpan(JAX_WS_REQUEST);
+      span.setMeasured(true);
+      DECORATE.onJaxWsSpan(span, thiz.getClass(), method);
+      DECORATE.afterStart(span);
+      return activateSpan(span);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void finishRequest(
+        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable error) {
+      if (null == scope) {
+        return;
+      }
+
+      CallDepthThreadLocalMap.reset(WebService.class);
+
+      AgentSpan span = scope.span();
+      if (null != error) {
+        DECORATE.onError(span, error);
+      }
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+    }
+  }
+}
