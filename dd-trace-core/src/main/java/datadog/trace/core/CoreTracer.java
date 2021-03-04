@@ -286,6 +286,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
   }
 
+  /**
+   * Only visible for benchmarking purposes
+   *
+   * @return a PendingTrace
+   */
+  PendingTrace createTrace(DDId id) {
+    return pendingTraceFactory.create(id);
+  }
+
   public String mapServiceName(String serviceName) {
     String mapped = serviceNameMappings.get(serviceName);
     return null == mapped ? serviceName : mapped;
@@ -769,7 +778,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         rootSpanTags = localRootSpanTags;
 
-        parentTrace = pendingTraceFactory.create(traceId);
+        parentTrace = createTrace(traceId);
       }
 
       if (serviceName == null) {
