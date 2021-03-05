@@ -21,11 +21,11 @@ class BitBucketInfo extends CIProviderInfo {
   @Override
   protected GitInfo buildCIGitInfo() {
     return GitInfo.builder()
-      .repositoryURL(filterSensitiveInfo(System.getenv(BITBUCKET_GIT_REPOSITORY_URL)))
-      .branch(normalizeRef(System.getenv(BITBUCKET_GIT_BRANCH)))
-      .tag(normalizeRef(System.getenv(BITBUCKET_GIT_TAG)))
-      .commit(CommitInfo.builder().sha(System.getenv(BITBUCKET_GIT_COMMIT)).build())
-      .build();
+        .repositoryURL(filterSensitiveInfo(System.getenv(BITBUCKET_GIT_REPOSITORY_URL)))
+        .branch(normalizeRef(System.getenv(BITBUCKET_GIT_BRANCH)))
+        .tag(normalizeRef(System.getenv(BITBUCKET_GIT_TAG)))
+        .commit(CommitInfo.builder().sha(System.getenv(BITBUCKET_GIT_COMMIT)).build())
+        .build();
   }
 
   @Override
@@ -35,19 +35,19 @@ class BitBucketInfo extends CIProviderInfo {
     final String url = buildPipelineUrl(repo, number);
 
     return CIInfo.builder()
-      .ciProviderName(BITBUCKET_PROVIDER_NAME)
-      .ciPipelineId(buildPipelineId())
-      .ciPipelineName(repo)
-      .ciPipelineNumber(number)
-      .ciPipelineUrl(url)
-      .ciJobUrl(url)
-      .ciWorkspace(expandTilde(System.getenv(BITBUCKET_WORKSPACE_PATH)))
-      .build();
+        .ciProviderName(BITBUCKET_PROVIDER_NAME)
+        .ciPipelineId(buildPipelineId())
+        .ciPipelineName(repo)
+        .ciPipelineNumber(number)
+        .ciPipelineUrl(url)
+        .ciJobUrl(url)
+        .ciWorkspace(expandTilde(System.getenv(BITBUCKET_WORKSPACE_PATH)))
+        .build();
   }
 
   private String buildPipelineUrl(final String repo, final String number) {
     return String.format(
-      "https://bitbucket.org/%s/addon/pipelines/home#!/results/%s", repo, number);
+        "https://bitbucket.org/%s/addon/pipelines/home#!/results/%s", repo, number);
   }
 
   private String buildPipelineId() {

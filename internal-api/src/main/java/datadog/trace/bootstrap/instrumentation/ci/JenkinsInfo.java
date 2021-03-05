@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.ci;
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,11 +25,11 @@ class JenkinsInfo extends CIProviderInfo {
   @Override
   protected GitInfo buildCIGitInfo() {
     return GitInfo.builder()
-      .repositoryURL(filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL)))
-      .branch(buildGitBranch())
-      .tag(buildGitTag())
-      .commit(CommitInfo.builder().sha(System.getenv(JENKINS_GIT_COMMIT)).build())
-      .build();
+        .repositoryURL(filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL)))
+        .branch(buildGitBranch())
+        .tag(buildGitTag())
+        .commit(CommitInfo.builder().sha(System.getenv(JENKINS_GIT_COMMIT)).build())
+        .build();
   }
 
   @Override
@@ -38,13 +37,13 @@ class JenkinsInfo extends CIProviderInfo {
     final String gitBranch = buildGitBranch();
 
     return CIInfo.builder()
-      .ciProviderName(JENKINS_PROVIDER_NAME)
-      .ciPipelineId(System.getenv(JENKINS_PIPELINE_ID))
-      .ciPipelineName(buildCiPipelineName(gitBranch))
-      .ciPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
-      .ciPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
-      .ciWorkspace(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
-      .build();
+        .ciProviderName(JENKINS_PROVIDER_NAME)
+        .ciPipelineId(System.getenv(JENKINS_PIPELINE_ID))
+        .ciPipelineName(buildCiPipelineName(gitBranch))
+        .ciPipelineNumber(System.getenv(JENKINS_PIPELINE_NUMBER))
+        .ciPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
+        .ciWorkspace(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
+        .build();
   }
 
   private String buildGitBranch() {

@@ -26,26 +26,26 @@ class GitLabInfo extends CIProviderInfo {
   @Override
   protected GitInfo buildCIGitInfo() {
     return GitInfo.builder()
-      .repositoryURL(filterSensitiveInfo(System.getenv(GITLAB_GIT_REPOSITORY_URL)))
-      .branch(normalizeRef(System.getenv(GITLAB_GIT_BRANCH)))
-      .tag(normalizeRef(System.getenv(GITLAB_GIT_TAG)))
-      .commit(CommitInfo.builder().sha(System.getenv(GITLAB_GIT_COMMIT)).build())
-      .build();
+        .repositoryURL(filterSensitiveInfo(System.getenv(GITLAB_GIT_REPOSITORY_URL)))
+        .branch(normalizeRef(System.getenv(GITLAB_GIT_BRANCH)))
+        .tag(normalizeRef(System.getenv(GITLAB_GIT_TAG)))
+        .commit(CommitInfo.builder().sha(System.getenv(GITLAB_GIT_COMMIT)).build())
+        .build();
   }
 
   @Override
   protected CIInfo buildCIInfo() {
     return CIInfo.builder()
-      .ciProviderName(GITLAB_PROVIDER_NAME)
-      .ciPipelineId(System.getenv(GITLAB_PIPELINE_ID))
-      .ciPipelineName(System.getenv(GITLAB_PIPELINE_NAME))
-      .ciPipelineNumber(System.getenv(GITLAB_PIPELINE_NUMBER))
-      .ciPipelineUrl(buildPipelineUrl())
-      .ciStageName(System.getenv(GITLAB_STAGE_NAME))
-      .ciJobName(System.getenv(GITLAB_JOB_NAME))
-      .ciJobUrl(System.getenv(GITLAB_JOB_URL))
-      .ciWorkspace(expandTilde(System.getenv(GITLAB_WORKSPACE_PATH)))
-      .build();
+        .ciProviderName(GITLAB_PROVIDER_NAME)
+        .ciPipelineId(System.getenv(GITLAB_PIPELINE_ID))
+        .ciPipelineName(System.getenv(GITLAB_PIPELINE_NAME))
+        .ciPipelineNumber(System.getenv(GITLAB_PIPELINE_NUMBER))
+        .ciPipelineUrl(buildPipelineUrl())
+        .ciStageName(System.getenv(GITLAB_STAGE_NAME))
+        .ciJobName(System.getenv(GITLAB_JOB_NAME))
+        .ciJobUrl(System.getenv(GITLAB_JOB_URL))
+        .ciWorkspace(expandTilde(System.getenv(GITLAB_WORKSPACE_PATH)))
+        .build();
   }
 
   private String buildPipelineUrl() {
