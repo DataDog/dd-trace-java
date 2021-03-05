@@ -6,6 +6,10 @@ dependencies {
   testCompile deps.junit5
 }
 
+excludedClassesCoverage += [
+  'com.datadog.profiling.controller.jfr.JdkTypeIDs'
+]
+
 
 // Shared JFR implementation. The earliest Java version JFR is working on is Java 8
 
