@@ -15,7 +15,7 @@ public class JfpUtilsTest {
   private static final String CONFIG_OVERRIDE_ENTRY = "test.continuous.override#value";
 
   public static final String OVERRIDES =
-      JfpUtilsTest.class.getClassLoader().getResource("resources/overrides.jfp").getFile();
+      JfpUtilsTest.class.getClassLoader().getResource("overrides.jfp").getFile();
 
   @Test
   public void testLoadingInvalidOverride() throws IOException {
