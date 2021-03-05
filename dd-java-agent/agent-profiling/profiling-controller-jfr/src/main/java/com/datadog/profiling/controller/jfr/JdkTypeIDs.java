@@ -1,4 +1,4 @@
-package com.datadog.profiler.controller.jfr;
+package com.datadog.profiling.controller.jfr;
 
 /** A list of JDK JFR event type IDs */
 public class JdkTypeIDs {

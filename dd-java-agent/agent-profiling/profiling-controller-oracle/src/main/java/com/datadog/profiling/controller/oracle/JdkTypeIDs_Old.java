@@ -1,6 +1,6 @@
 package com.datadog.profiling.controller.oracle;
 
-import com.datadog.profiler.controller.jfr.JdkTypeIDs;
+import com.datadog.profiling.controller.jfr.JdkTypeIDs;
 
 /** 'Old' (pre JDK-11) JFR event type IDs */
 final class JdkTypeIDs_Old {

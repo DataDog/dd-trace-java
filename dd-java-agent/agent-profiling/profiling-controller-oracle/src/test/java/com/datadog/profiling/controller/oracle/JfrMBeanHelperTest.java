@@ -2,7 +2,7 @@ package com.datadog.profiling.controller.oracle;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.datadog.profiler.controller.jfr.JfpUtils;
+import com.datadog.profiling.controller.jfr.JfpUtils;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;

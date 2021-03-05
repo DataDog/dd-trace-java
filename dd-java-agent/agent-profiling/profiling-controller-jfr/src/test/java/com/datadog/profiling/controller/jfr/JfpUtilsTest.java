@@ -1,4 +1,4 @@
-package com.datadog.profiler.controller.jfr;
+package com.datadog.profiling.controller.jfr;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
