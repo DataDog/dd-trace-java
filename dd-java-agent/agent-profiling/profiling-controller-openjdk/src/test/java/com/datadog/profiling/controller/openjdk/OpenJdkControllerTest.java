@@ -3,9 +3,9 @@ package com.datadog.profiling.controller.openjdk;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
+import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.jfr.JfpUtilsTest;
-import com.datadog.profiling.controller.ConfigurationException;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import jdk.jfr.Recording;
