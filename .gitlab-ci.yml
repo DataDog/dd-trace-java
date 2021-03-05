@@ -6,7 +6,7 @@ stages:
 
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
-  SONATYPE_USERNAME: datadog
+  SONATYPE_USERNAME: robot-sonatype-apm-java
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
@@ -66,8 +66,8 @@ deploy_to_sonatype:
       allow_failure: true
   script:
     - export SONATYPE_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.sonatype_password --with-decryption --query "Parameter.Value" --out text)
-    - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gpg_signing_private_key --with-decryption --query "Parameter.Value" --out text)
-    - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.gpg_signing_password --with-decryption --query "Parameter.Value" --out text)
+    - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
+    - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publish --max-workers=1 --build-cache --stacktrace --no-daemon
 
 create_key:
