@@ -47,11 +47,23 @@ class AgentTestRunnerTest extends AgentTestRunner {
           if (!jfrSupported && info.getName().startsWith("datadog.trace.bootstrap.instrumentation.exceptions.")) {
             continue; // skip exception-profiling classes - they won't load if JFR is not available
           }
-          Class<?> bootstrapClass = Class.forName(info.getName())
-          if (bootstrapClass.getClassLoader() != BOOTSTRAP_CLASSLOADER) {
-            bootstrapClassesIncorrectlyLoaded.add(bootstrapClass)
+          try {
+            Class<?> bootstrapClass = Class.forName(info.getName())
+            if (bootstrapClass.getClassLoader() != BOOTSTRAP_CLASSLOADER) {
+              bootstrapClassesIncorrectlyLoaded.add(bootstrapClass)
+            }
+            break
+          } catch (UnsupportedClassVersionError e) {
+            // A dirty hack to allow passing this test on Java 7
+            if (info.getName().startsWith("datadog.trace.api.sampling.")) {
+              // The rate limiting sampler support is consciously compiled to Java 8 bytecode
+              // The sampler will not be used unless JFR is available -> running on Java 8+
+              // Simply ignore the error as the class will not be even attempted to get loaded on Java 7
+              break
+            }
+            // rethrow the exception otherwise
+            throw e
           }
-          break
         }
       }
     }
