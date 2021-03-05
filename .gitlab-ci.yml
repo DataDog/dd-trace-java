@@ -5,7 +5,7 @@ stages:
 
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
-  SONATYPE_USERNAME: datadog
+  SONATYPE_USERNAME: robot-sonatype-apm-java
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
