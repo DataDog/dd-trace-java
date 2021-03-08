@@ -49,6 +49,13 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           }
         }
 
+        "$Tags.OS_VERSION" String
+        "$Tags.OS_PLATFORM" String
+        "$Tags.OS_ARCHITECTURE" String
+        "$Tags.RUNTIME_VENDOR" String
+        "$Tags.RUNTIME_NAME" String
+        "$Tags.RUNTIME_VERSION" String
+
         defaultTags()
       }
     }
