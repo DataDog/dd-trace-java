@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicLongArray
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG
+import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG
 
 @Requires({ isJavaVersionAtLeast(8) })
 class AggregateMetricTest extends DDSpecification {
@@ -40,18 +41,19 @@ class AggregateMetricTest extends DDSpecification {
   def "clear"() {
     given:
     AggregateMetric aggregate = new AggregateMetric()
-    .recordDurations(3, new AtomicLongArray(5, 6, 7))
+    .recordDurations(3, new AtomicLongArray(5, ERROR_TAG | 6, TOP_LEVEL_TAG | 7))
     when:
     aggregate.clear()
     then:
     aggregate.getDuration() == 0
     aggregate.getErrorCount() == 0
+    aggregate.getTopLevelCount() == 0
     aggregate.getHitCount() == 0
   }
 
   def "contribute batch with key to aggregate"() {
     given:
-    AggregateMetric aggregate = new AggregateMetric().recordDurations(3, new AtomicLongArray(0L, 0L, 0L | ERROR_TAG))
+    AggregateMetric aggregate = new AggregateMetric().recordDurations(3, new AtomicLongArray(0L, 0L, 0L | ERROR_TAG | TOP_LEVEL_TAG))
 
     Batch batch = new Batch().reset(new MetricKey("foo", "bar", "qux", "type", 0))
     batch.add(0L, 10)
@@ -66,12 +68,13 @@ class AggregateMetricTest extends DDSpecification {
     aggregate.getDuration() == 30
     aggregate.getHitCount() == 6
     aggregate.getErrorCount() == 1
+    aggregate.getTopLevelCount() == 1
   }
 
   def "ignore used batches"() {
     given:
     AggregateMetric aggregate = new AggregateMetric().recordDurations(10,
-      new AtomicLongArray(1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L | ERROR_TAG))
+      new AtomicLongArray(1L, 1L, 1L, 1L, 1L, 1L, 1L | TOP_LEVEL_TAG, 1L, 1L, 1L | ERROR_TAG))
 
 
     Batch batch = new Batch()
@@ -86,6 +89,7 @@ class AggregateMetricTest extends DDSpecification {
     aggregate.getDuration() == 10
     aggregate.getHitCount() == 10
     aggregate.getErrorCount() == 1
+    aggregate.getTopLevelCount() == 1
   }
 
   def "ignore trailing zeros"() {

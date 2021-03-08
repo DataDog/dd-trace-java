@@ -2,6 +2,7 @@ package datadog.trace.common.metrics;
 
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
+import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG;
 import static datadog.trace.common.metrics.Batch.REPORT;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
@@ -133,15 +134,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     boolean forceKeep = false;
     if (enabled) {
       for (CoreSpan<?> span : trace) {
-        if (span.isTopLevel() || span.isMeasured()) {
-          forceKeep |= publish(span);
+        boolean isTopLevel = span.isTopLevel();
+        if (isTopLevel || span.isMeasured()) {
+          forceKeep |= publish(span, isTopLevel);
         }
       }
     }
     return forceKeep;
   }
 
-  private boolean publish(CoreSpan<?> span) {
+  private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
@@ -155,7 +157,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       key = newKey;
       isNewKey = true;
     }
-    long tag = span.getError() > 0 ? ERROR_TAG : 0L;
+    long tag = (span.getError() > 0 ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
     long durationNanos = span.getDurationNano();
     Batch batch = pending.get(key);
     if (null != batch) {
