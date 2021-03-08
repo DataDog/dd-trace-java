@@ -17,7 +17,7 @@ class FinatraController extends Controller {
   any(FORWARDED.getPath) { request: Request =>
     controller(FORWARDED, new Closure[Response](null) {
       override def call(): Response = {
-        response.ok(request.remoteAddress.toString)
+        response.ok(request.headerMap.get("x-forwarded-for").get)
       }
     })
   }

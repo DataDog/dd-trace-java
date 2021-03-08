@@ -27,7 +27,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FO
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR
@@ -67,7 +66,7 @@ class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
                       response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status), content)
                       break
                     case FORWARDED:
-                      content = Unpooled.copiedBuffer(request.headers().get(FORWARDED_FOR_HEADER), CharsetUtil.UTF_8)
+                      content = Unpooled.copiedBuffer(request.headers().get("x-forwarded-for"), CharsetUtil.UTF_8)
                       response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status), content)
                       break
                     case QUERY_PARAM:

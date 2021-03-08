@@ -21,7 +21,6 @@ import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 import groovy.lang.Closure
 
 import scala.concurrent.duration._
@@ -162,7 +161,7 @@ object AkkaHttpTestWebServer {
           HttpResponse(status = SUCCESS.getStatus, entity = SUCCESS.getBody)
         )
       } ~ path(FORWARDED.rawPath) {
-        headerValueByName(FORWARDED_FOR_HEADER) { address =>
+        headerValueByName("x-forwarded-for") { address =>
           complete(
             HttpResponse(status = FORWARDED.getStatus, entity = address)
           )

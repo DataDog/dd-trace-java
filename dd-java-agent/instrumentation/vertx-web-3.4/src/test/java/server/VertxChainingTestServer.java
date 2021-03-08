@@ -12,7 +12,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOW
 import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER;
 
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -49,7 +48,7 @@ public class VertxChainingTestServer extends AbstractVerticle {
                     () ->
                         ctx.response()
                             .setStatusCode(FORWARDED.getStatus())
-                            .end(ctx.request().getHeader(FORWARDED_FOR_HEADER))));
+                            .end(ctx.request().getHeader("x-forwarded-for"))));
     router
         .route(QUERY_PARAM.getPath())
         .handler(

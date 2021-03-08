@@ -11,7 +11,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWAR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 
 class TestServlet extends HttpServlet {
 
@@ -35,7 +34,7 @@ class TestServlet extends HttpServlet {
           break
         case FORWARDED:
           resp.status = endpoint.status
-          resp.writer.print(req.getHeader(FORWARDED_FOR_HEADER)) // Earliest version doesn't have RemoteIpValve
+          resp.writer.print(req.getHeader("x-forwarded-for")) // Earliest version doesn't have RemoteIpValve
           break
         case QUERY_PARAM:
           resp.status = endpoint.status

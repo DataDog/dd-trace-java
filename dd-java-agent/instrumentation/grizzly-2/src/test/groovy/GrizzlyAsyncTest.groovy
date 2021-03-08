@@ -18,7 +18,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWAR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 
 class GrizzlyAsyncTest extends GrizzlyTest {
 
@@ -46,7 +45,7 @@ class GrizzlyAsyncTest extends GrizzlyTest {
 
     @GET
     @Path("forwarded")
-    Response forwarded(@Suspended final AsyncResponse asyncResponse, @HeaderParam(FORWARDED_FOR_HEADER) String forwarded) {
+    Response forwarded(@Suspended final AsyncResponse asyncResponse, @HeaderParam("x-forwarded-for") String forwarded) {
       executor.execute {
         controller(FORWARDED) {
           asyncResponse.resume(Response.status(FORWARDED.status).entity(forwarded).build())

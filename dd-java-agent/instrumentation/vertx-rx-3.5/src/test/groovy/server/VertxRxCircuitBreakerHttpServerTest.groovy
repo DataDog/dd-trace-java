@@ -14,7 +14,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_P
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 class VertxRxCircuitBreakerHttpServerTest extends VertxHttpServerTest {
@@ -66,7 +65,7 @@ class VertxRxCircuitBreakerHttpServerTest extends VertxHttpServerTest {
           }
           HttpServerTest.ServerEndpoint endpoint = it.result()
           controller(endpoint) {
-            ctx.response().setStatusCode(FORWARDED.status).end(ctx.request().getHeader(FORWARDED_FOR_HEADER))
+            ctx.response().setStatusCode(FORWARDED.status).end(ctx.request().getHeader("x-forwarded-for"))
           }
         })
       }

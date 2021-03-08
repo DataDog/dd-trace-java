@@ -12,7 +12,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_P
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 @Ignore("This test isn't different from VertxHttpServerTest. Needs rework to meet intent")
@@ -43,7 +42,7 @@ class VertxRxHttpServerTest extends VertxHttpServerTest {
       }
       router.route(FORWARDED.path).handler { ctx ->
         controller(FORWARDED) {
-          ctx.response().setStatusCode(FORWARDED.status).end(ctx.request().getHeader(FORWARDED_FOR_HEADER))
+          ctx.response().setStatusCode(FORWARDED.status).end(ctx.request().getHeader("x-forwarded-for"))
         }
       }
       router.route(QUERY_PARAM.path).handler { ctx ->

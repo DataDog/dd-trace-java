@@ -17,7 +17,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 
 class TestServlet3 {
 
@@ -45,7 +44,7 @@ class TestServlet3 {
             break
           case FORWARDED:
             resp.status = endpoint.status
-            resp.writer.print(req.getHeader(FORWARDED_FOR_HEADER))
+            resp.writer.print(req.getHeader("x-forwarded-for"))
             break
           case QUERY_PARAM:
             resp.status = endpoint.status
@@ -104,7 +103,7 @@ class TestServlet3 {
                 break
               case FORWARDED:
                 resp.status = endpoint.status
-                resp.writer.print(req.getHeader(FORWARDED_FOR_HEADER))
+                resp.writer.print(req.getHeader("x-forwarded-for"))
                 context.complete()
                 break
               case QUERY_PARAM:
@@ -155,7 +154,7 @@ class TestServlet3 {
               break
             case FORWARDED:
               resp.status = endpoint.status
-              resp.writer.print(req.getHeader(FORWARDED_FOR_HEADER))
+              resp.writer.print(req.getHeader("x-forwarded-for"))
               break
             case QUERY_PARAM:
               resp.status = endpoint.status

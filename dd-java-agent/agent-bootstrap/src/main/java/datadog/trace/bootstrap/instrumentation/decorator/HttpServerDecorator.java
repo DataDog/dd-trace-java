@@ -20,9 +20,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
 
-  public static final String FORWARDED_FOR_HEADER = "x-forwarded-for";
-  private static final String FORWARDED_PORT_HEADER = "x-forwarded-port";
-
   // Assigned here to avoid repeat boxing and cache lookup.
   public static final Integer _500 = HTTP_STATUSES.get(500);
 
@@ -54,8 +51,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     String forwardedPort = null;
     if (request != null) {
       if (connection != null) {
-        forwarded = header(request, FORWARDED_FOR_HEADER);
-        forwardedPort = header(request, FORWARDED_PORT_HEADER);
+        forwarded = header(request, "x-forwarded-for");
+        forwardedPort = header(request, "x-forwarded-port");
       }
 
       span.setTag(Tags.HTTP_METHOD, method(request));
@@ -88,11 +85,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       }
 
       if (forwardedPort != null) {
-        try {
-          setPeerPort(span, Integer.parseInt(forwardedPort));
-        } catch (NumberFormatException ex) {
-          setPeerPort(span, peerPort(connection));
-        }
+        setPeerPort(span, forwardedPort);
       } else {
         setPeerPort(span, peerPort(connection));
       }

@@ -20,7 +20,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FO
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 
 class Jetty70Test extends HttpServerTest<Server> {
 
@@ -79,7 +78,7 @@ class Jetty70Test extends HttpServerTest<Server> {
           break
         case FORWARDED:
           response.status = endpoint.status
-          response.writer.print(request.getHeader(FORWARDED_FOR_HEADER))
+          response.writer.print(request.getHeader("x-forwarded-for"))
           break
         case QUERY_PARAM:
           response.status = endpoint.status

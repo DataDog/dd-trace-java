@@ -18,7 +18,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWAR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 
 class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
@@ -43,7 +42,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
         prefix(FORWARDED.rawPath()) {
           all {
             controller(FORWARDED) {
-              context.response.status(FORWARDED.status).send(request.headers.get(FORWARDED_FOR_HEADER))
+              context.response.status(FORWARDED.status).send(request.headers.get("x-forwarded-for"))
             }
           }
         }

@@ -33,7 +33,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TA
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 import static org.junit.Assume.assumeTrue
 
 @Unroll
@@ -232,7 +231,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def "test forwarded request"() {
     setup:
     assumeTrue(testForwarded())
-    def request = request(FORWARDED, method, body).header(FORWARDED_FOR_HEADER, FORWARDED.body).build()
+    def request = request(FORWARDED, method, body).header("x-forwarded-for", FORWARDED.body).build()
     def response = client.newCall(request).execute()
 
     expect:

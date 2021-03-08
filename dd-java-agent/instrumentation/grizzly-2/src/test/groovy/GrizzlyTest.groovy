@@ -18,7 +18,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWAR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 
 class GrizzlyTest extends HttpServerTest<HttpServer> {
 
@@ -76,7 +75,7 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
 
     @GET
     @Path("forwarded")
-    Response forwarded(@HeaderParam(FORWARDED_FOR_HEADER) String forwarded) {
+    Response forwarded(@HeaderParam("x-forwarded-for") String forwarded) {
       controller(FORWARDED) {
         Response.status(FORWARDED.status).entity(forwarded).build()
       }

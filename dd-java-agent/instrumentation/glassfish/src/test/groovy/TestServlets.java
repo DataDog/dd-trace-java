@@ -1,5 +1,3 @@
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER;
-
 import datadog.trace.agent.test.base.HttpServerTest;
 import groovy.lang.Closure;
 import javax.servlet.annotation.WebServlet;
@@ -40,7 +38,7 @@ public class TestServlets {
             public Object doCall() throws Exception {
               resp.setContentType("text/plain");
               resp.setStatus(endpoint.getStatus());
-              resp.getWriter().print(req.getHeader(FORWARDED_FOR_HEADER));
+              resp.getWriter().print(req.getHeader("x-forwarded-for"));
               return null;
             }
           });

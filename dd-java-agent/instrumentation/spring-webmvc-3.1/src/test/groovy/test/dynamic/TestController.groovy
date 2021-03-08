@@ -18,7 +18,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_P
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.FORWARDED_FOR_HEADER
 
 class TestController {
 
@@ -33,7 +32,7 @@ class TestController {
   @ResponseBody
   String forwarded(HttpServletRequest request) {
     HttpServerTest.controller(FORWARDED) {
-      request.getHeader(FORWARDED_FOR_HEADER)
+      request.getHeader("x-forwarded-for")
     }
   }
 
