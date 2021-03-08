@@ -39,15 +39,6 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   }
 
   @Override
-  protected String header(Request request, String header) {
-    Option<String> valueOption = request.headers().get(header);
-    if (valueOption.isDefined()) {
-      return valueOption.get();
-    }
-    return null;
-  }
-
-  @Override
   protected String peerHostIP(final Request request) {
     return request.remoteAddress();
   }

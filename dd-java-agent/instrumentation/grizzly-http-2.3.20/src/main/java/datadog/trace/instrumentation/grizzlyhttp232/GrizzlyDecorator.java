@@ -36,11 +36,6 @@ public class GrizzlyDecorator
   }
 
   @Override
-  protected String header(HttpRequestPacket httpRequestPacket, String header) {
-    return httpRequestPacket.getHeader(header);
-  }
-
-  @Override
   protected String peerHostIP(final HttpRequestPacket httpRequest) {
     return httpRequest.getRemoteAddress();
   }

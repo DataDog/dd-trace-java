@@ -20,6 +20,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected Map<String, String> tags;
   protected Map<String, String> baggage;
   protected String origin;
+  protected String forwardedFor;
+  protected String forwardedPort;
   protected boolean valid;
 
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
@@ -56,6 +58,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     spanId = DDId.ZERO;
     samplingPriority = defaultSamplingPriority();
     origin = null;
+    forwardedFor = null;
+    forwardedPort = null;
     tags = Collections.emptyMap();
     baggage = Collections.emptyMap();
     valid = true;
@@ -66,11 +70,22 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     if (valid) {
       if (!DDId.ZERO.equals(traceId)) {
         final ExtractedContext context =
-            new ExtractedContext(traceId, spanId, samplingPriority, origin, baggage, tags);
+            new ExtractedContext(
+                traceId,
+                spanId,
+                samplingPriority,
+                origin,
+                forwardedFor,
+                forwardedPort,
+                baggage,
+                tags);
         context.lockSamplingPriority();
         return context;
-      } else if (origin != null || !tags.isEmpty()) {
-        return new TagContext(origin, tags);
+      } else if (origin != null
+          || forwardedFor != null
+          || forwardedPort != null
+          || !tags.isEmpty()) {
+        return new TagContext(origin, forwardedFor, forwardedPort, tags);
       }
     }
     return null;

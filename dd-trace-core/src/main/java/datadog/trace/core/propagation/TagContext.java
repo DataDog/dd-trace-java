@@ -13,15 +13,31 @@ import java.util.Map;
  */
 public class TagContext implements AgentSpan.Context {
   private final String origin;
+  private final String forwardedFor;
+  private final String forwardedPort;
   private final Map<String, String> tags;
 
-  public TagContext(final String origin, final Map<String, String> tags) {
+  public TagContext(
+      final String origin,
+      String forwardedFor,
+      String forwardedPort,
+      final Map<String, String> tags) {
     this.origin = origin;
+    this.forwardedFor = forwardedFor;
+    this.forwardedPort = forwardedPort;
     this.tags = tags;
   }
 
   public String getOrigin() {
     return origin;
+  }
+
+  public String getForwardedFor() {
+    return forwardedFor;
+  }
+
+  public String getForwardedPort() {
+    return forwardedPort;
   }
 
   public Map<String, String> getTags() {

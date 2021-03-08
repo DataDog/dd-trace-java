@@ -154,11 +154,6 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       }
 
       @Override
-      protected String header(Map map, String header) {
-        return map.get(header)
-      }
-
-      @Override
       protected String peerHostIP(Map m) {
         return m.ip
       }

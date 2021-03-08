@@ -46,12 +46,6 @@ public class VertxRouterDecorator
   }
 
   @Override
-  protected String header(RoutingContext routingContext, String header) {
-    // generic header access is not exposed in RoutingContext.
-    return null;
-  }
-
-  @Override
   public AgentSpan onRequest(
       final AgentSpan span, final RoutingContext connection, final RoutingContext routingContext) {
     if (routingContext != null) {

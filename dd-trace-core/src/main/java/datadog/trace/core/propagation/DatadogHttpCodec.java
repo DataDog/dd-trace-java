@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.core.propagation.HttpCodec.FORWARDED_FOR_KEY;
+import static datadog.trace.core.propagation.HttpCodec.FORWARDED_PORT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.DDId;
@@ -64,6 +66,8 @@ class DatadogHttpCodec {
     private static final int SAMPLING_PRIORITY = 3;
     private static final int TAGS = 4;
     private static final int OT_BAGGAGE = 5;
+    private static final int FORWARDED_FOR = 6;
+    private static final int FORWARDED_PORT = 7;
     private static final int IGNORE = -1;
 
     private DatadogContextInterpreter(Map<String, String> taggedHeaders) {
@@ -88,6 +92,10 @@ class DatadogHttpCodec {
             classification = SAMPLING_PRIORITY;
           } else if (ORIGIN_KEY.equalsIgnoreCase(key)) {
             classification = ORIGIN;
+          } else if (FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
+            classification = FORWARDED_FOR;
+          } else if (FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
+            classification = FORWARDED_PORT;
           }
           break;
         case 'o':
@@ -117,6 +125,12 @@ class DatadogHttpCodec {
                 break;
               case ORIGIN:
                 origin = firstValue;
+                break;
+              case FORWARDED_FOR:
+                forwardedFor = firstValue;
+                break;
+              case FORWARDED_PORT:
+                forwardedPort = firstValue;
                 break;
               case SAMPLING_PRIORITY:
                 samplingPriority = Integer.parseInt(firstValue);

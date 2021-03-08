@@ -43,11 +43,6 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
   }
 
   @Override
-  protected String header(Request request, String header) {
-    return request.getHeaders().get(header);
-  }
-
-  @Override
   protected String peerHostIP(final Request request) {
     return request.getRemoteAddress().getHost();
   }

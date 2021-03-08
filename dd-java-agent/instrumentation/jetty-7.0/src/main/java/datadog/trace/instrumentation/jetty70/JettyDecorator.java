@@ -39,11 +39,6 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
   }
 
   @Override
-  protected String header(Request request, String header) {
-    return request.getHeader(header);
-  }
-
-  @Override
   protected String peerHostIP(final Request request) {
     return request.getRemoteAddr();
   }

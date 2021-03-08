@@ -44,11 +44,6 @@ public final class SynapseServerDecorator
   }
 
   @Override
-  protected String header(SourceRequest sourceRequest, String header) {
-    return sourceRequest.getHeaders().get(header);
-  }
-
-  @Override
   protected String peerHostIP(final NHttpServerConnection connection) {
     if (connection instanceof HttpInetConnection) {
       return ((HttpInetConnection) connection).getRemoteAddress().getHostAddress();

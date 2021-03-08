@@ -27,8 +27,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
 
   protected abstract URIDataAdapter url(REQUEST request);
 
-  protected abstract String header(REQUEST request, String header);
-
   protected abstract String peerHostIP(CONNECTION connection);
 
   protected abstract int peerPort(CONNECTION connection);
@@ -47,13 +45,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
 
   public AgentSpan onRequest(
       final AgentSpan span, final CONNECTION connection, final REQUEST request) {
-    String forwarded = null;
-    String forwardedPort = null;
     if (request != null) {
-      if (connection != null) {
-        forwarded = header(request, "x-forwarded-for");
-        forwardedPort = header(request, "x-forwarded-port");
-      }
 
       span.setTag(Tags.HTTP_METHOD, method(request));
 
@@ -75,18 +67,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     }
 
     if (connection != null) {
-      final String ip = forwarded != null ? forwarded : peerHostIP(connection);
-      if (ip != null) {
-        if (ip.indexOf(':') > 0) {
-          span.setTag(Tags.PEER_HOST_IPV6, ip);
-        } else {
-          span.setTag(Tags.PEER_HOST_IPV4, ip);
+      if (span.getTag(Tags.PEER_HOST_IPV4) == null && span.getTag(Tags.PEER_HOST_IPV6) == null) {
+        final String ip = peerHostIP(connection);
+        if (ip != null) {
+          if (ip.indexOf(':') > 0) {
+            span.setTag(Tags.PEER_HOST_IPV6, ip);
+          } else {
+            span.setTag(Tags.PEER_HOST_IPV4, ip);
+          }
         }
       }
 
-      if (forwardedPort != null) {
-        setPeerPort(span, forwardedPort);
-      } else {
+      if (span.getTag(Tags.PEER_PORT) == null) {
         setPeerPort(span, peerPort(connection));
       }
     }

@@ -14,6 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class HttpCodec {
+  static final String FORWARDED_FOR_KEY = "x-forwarded-for";
+  static final String FORWARDED_PORT_KEY = "x-forwarded-port";
+
   public interface Injector {
     <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter);

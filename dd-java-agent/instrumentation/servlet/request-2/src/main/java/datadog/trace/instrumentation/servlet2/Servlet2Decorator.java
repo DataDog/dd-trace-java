@@ -35,11 +35,6 @@ public class Servlet2Decorator
   }
 
   @Override
-  protected String header(HttpServletRequest request, String header) {
-    return request.getHeader(header);
-  }
-
-  @Override
   protected String peerHostIP(final HttpServletRequest httpServletRequest) {
     return httpServletRequest.getRemoteAddr();
   }
