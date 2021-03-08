@@ -1,3 +1,7 @@
+plugins {
+  id 'me.champeau.gradle.jmh' version '0.5.0'
+}
+
 description = 'dd-trace-core'
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -53,4 +57,9 @@ dependencies {
 
 
   traceAgentTestCompile deps.testcontainers
+}
+
+jmh {
+  jmhVersion = '1.28'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
