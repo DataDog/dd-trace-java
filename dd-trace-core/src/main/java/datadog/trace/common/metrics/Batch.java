@@ -1,6 +1,6 @@
 package datadog.trace.common.metrics;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 /**
@@ -15,6 +15,10 @@ import java.util.concurrent.atomic.AtomicLongArray;
 public final class Batch {
 
   private static final int MAX_BATCH_SIZE = 64;
+  private static final AtomicIntegerFieldUpdater<Batch> COUNT =
+      AtomicIntegerFieldUpdater.newUpdater(Batch.class, "count");
+  private static final AtomicIntegerFieldUpdater<Batch> COMMITTED =
+      AtomicIntegerFieldUpdater.newUpdater(Batch.class, "committed");
   static final Batch NULL = new Batch((AtomicLongArray) null);
   static final Batch REPORT = new Batch((AtomicLongArray) null);
 
@@ -22,9 +26,9 @@ public final class Batch {
    * This counter has two states 1 - negative - the batch has been used, must not add values 2 -
    * otherwise - the number of values added to the batch
    */
-  private final AtomicInteger count = new AtomicInteger(0);
+  private volatile int count = 0;
   /** incremented when a duration has been added. */
-  private final AtomicInteger committed = new AtomicInteger(0);
+  private volatile int committed = 0;
 
   private MetricKey key;
   private final AtomicLongArray durations;
@@ -48,35 +52,35 @@ public final class Batch {
 
   public Batch reset(MetricKey key) {
     this.key = key;
-    this.count.set(0);
+    COUNT.lazySet(this, 0);
     return this;
   }
 
   public boolean isUsed() {
-    return this.count.get() < 0;
+    return count < 0;
   }
 
   public boolean add(long tag, long durationNanos) {
     // technically this would be wrong if there were 2^31 unsuccessful
     // attempts to add a value, but this an acceptable risk
-    int position = count.getAndIncrement();
+    int position = COUNT.getAndIncrement(this);
     if (position >= 0 && position < durations.length()) {
       durations.set(position, tag | durationNanos);
-      committed.incrementAndGet();
+      COMMITTED.getAndIncrement(this);
       return true;
     }
     return false;
   }
 
   public void contributeTo(AggregateMetric aggregate) {
-    int count = Math.min(this.count.getAndSet(Integer.MIN_VALUE), MAX_BATCH_SIZE);
+    int count = Math.min(COUNT.getAndSet(this, Integer.MIN_VALUE), MAX_BATCH_SIZE);
     if (count >= 0) {
       // wait for the duration to have been set.
       // note this mechanism only supports a single reader
-      while (committed.get() != count) {
+      while (committed != count) {
         Thread.yield();
       }
-      committed.set(0);
+      COMMITTED.lazySet(this, 0);
       aggregate.recordDurations(count, durations);
     }
   }

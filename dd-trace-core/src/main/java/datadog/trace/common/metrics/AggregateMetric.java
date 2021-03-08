@@ -9,12 +9,15 @@ import java.util.concurrent.atomic.AtomicLongArray;
 public final class AggregateMetric {
 
   static final long ERROR_TAG = 0x8000000000000000L;
+  static final long TOP_LEVEL_TAG = 0x4000000000000000L;
+
   private static final HistogramFactory HISTOGRAM_FACTORY = Histograms.newHistogramFactory();
 
   private final Histogram okLatencies;
   private final Histogram errorLatencies;
   private int errorCount;
   private int hitCount;
+  private int topLevelCount;
   private long duration;
 
   public AggregateMetric() {
@@ -26,11 +29,15 @@ public final class AggregateMetric {
     this.hitCount += count;
     for (int i = 0; i < count && i < durations.length(); ++i) {
       long duration = durations.getAndSet(i, 0);
+      if ((duration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
+        duration ^= TOP_LEVEL_TAG;
+        ++topLevelCount;
+      }
       if ((duration & ERROR_TAG) == ERROR_TAG) {
         // then it's an error
         duration ^= ERROR_TAG;
         errorLatencies.accept(duration);
-        ++this.errorCount;
+        ++errorCount;
       } else {
         okLatencies.accept(duration);
       }
@@ -45,6 +52,10 @@ public final class AggregateMetric {
 
   public int getHitCount() {
     return hitCount;
+  }
+
+  public int getTopLevelCount() {
+    return topLevelCount;
   }
 
   public long getDuration() {
@@ -62,6 +73,7 @@ public final class AggregateMetric {
   public void clear() {
     this.errorCount = 0;
     this.hitCount = 0;
+    this.topLevelCount = 0;
     this.duration = 0;
     this.okLatencies.clear();
     this.errorLatencies.clear();

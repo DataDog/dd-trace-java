@@ -60,12 +60,42 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     1 * writer.startBucket(1, _, _)
     1 * writer.add(new MetricKey("resource", "service", "operation", "type", 0), _) >> {
-      MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getDuration() == 100
+      MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
     }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
     aggregator.close()
+  }
+
+  def "measured spans do not contribute to top level count"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+      Stub(Sink), writer, 10, queueSize, reportingInterval, SECONDS)
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    aggregator.publish([new SimpleSpan("service", "operation", "resource", "type", measured, topLevel, false, 0, 100)])
+    aggregator.report()
+    latch.await(2, SECONDS)
+
+    then:
+    1 * writer.startBucket(1, _, _)
+    1 * writer.add(new MetricKey("resource", "service", "operation", "type", 0), _) >> {
+      MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getTopLevelCount() == topLevelCount && value.getDuration() == 100
+    }
+    1 * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+
+    where:
+    measured | topLevel | topLevelCount
+    true     | false    | 0
+    true     | true     | 1
+    false    | true     | 1
   }
 
   def "aggregate repetitive spans"() {
@@ -107,7 +137,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     count << [10, 100]
   }
 
-  def "test least recently written to aggregate flushed when size limit exceeded"(){
+  def "test least recently written to aggregate flushed when size limit exceeded"() {
     setup:
     int maxAggregates = 10
     MetricWriter writer = Mock(MetricWriter)
