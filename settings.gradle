@@ -33,6 +33,7 @@ include ':dd-trace-ot'
 
 // agent projects
 include ':internal-api'
+include ':internal-api:internal-api-8'
 include ':dd-trace-core'
 include ':dd-trace-core:jfr-openjdk'
 include ':dd-java-agent'

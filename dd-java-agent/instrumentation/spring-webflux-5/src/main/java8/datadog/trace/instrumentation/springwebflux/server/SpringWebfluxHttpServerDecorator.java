@@ -8,9 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SpringWebfluxHttpServerDecorator extends ServerDecorator {
   public static final CharSequence DISPATCHER_HANDLE_HANDLER =
-      UTF8BytesString.createConstant("DispatcherHandler.handle");
+      UTF8BytesString.create("DispatcherHandler.handle");
   public static final CharSequence SPRING_WEBFLUX_CONTROLLER =
-      UTF8BytesString.createConstant("spring-webflux-controller");
+      UTF8BytesString.create("spring-webflux-controller");
   public static final SpringWebfluxHttpServerDecorator DECORATE =
       new SpringWebfluxHttpServerDecorator();
 

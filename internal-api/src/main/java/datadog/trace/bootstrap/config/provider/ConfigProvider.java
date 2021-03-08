@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -190,6 +191,7 @@ public final class ConfigProvider {
    *     exist or if it is in a wrong format.
    * @param configProvider
    */
+  @SuppressForbidden
   private static Properties loadConfigurationFile(ConfigProvider configProvider) {
     final Properties properties = new Properties();
 

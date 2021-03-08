@@ -2,6 +2,11 @@ name: Update issues on release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      milestone:
+        required: true
+        default: "0.0.0"
 
 jobs:
   update_issues:
@@ -13,29 +18,28 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const options = github.issues.listMilestonesForRepo.endpoint.merge({
+            const milestone_name = ("${{github.event_name}}" == "workflow_dispatch") ?
+              "${{github.event.inputs.milestone}}" : "${{github.event.release.name}}"
+
+            const milestones = await github.paginate(github.issues.listMilestones, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'all'
             })
 
-            const milestones = await github.paginate(options)
-
-            return milestones.find( milestone => milestone.title == "${{github.event.release.name}}" ).number
+            return milestones.find( milestone => milestone.title == milestone_name ).number
       - name: Get issues for milestone
         id: issues
         uses: actions/github-script@47f7cf65b5ced0830a325f705cad64f2f58dddf7 # 3.1.0
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const options = github.issues.listForRepo.endpoint.merge({
+            const issues = await github.paginate(github.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'all',
               milestone: ${{steps.milestone.outputs.result}}
             })
-
-            const issues = await github.paginate(options)
 
             // Pull requests are issues so filter them out
             return issues.filter( issue => !issue["pull_request"] ).map( issue => issue.number )

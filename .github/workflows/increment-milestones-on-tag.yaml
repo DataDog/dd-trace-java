@@ -21,15 +21,13 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const options = github.issues.listMilestonesForRepo.endpoint.merge({
+            const milestone = await github.paginate(github.issues.listMilestones, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'all'
+            }).then((milestones) => {
+              milestones.find(milestone => milestone.title == '${{steps.milestoneTitle.outputs.result}}')
             })
-
-            const milestones = await github.paginate(options)
-
-            const milestone = milestones.find( milestone => milestone.title == '${{steps.milestoneTitle.outputs.result}}' )
 
             if (milestone) {
               return milestone.number

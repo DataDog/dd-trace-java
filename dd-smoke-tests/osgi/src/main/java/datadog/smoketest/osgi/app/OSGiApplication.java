@@ -1,5 +1,6 @@
 package datadog.smoketest.osgi.app;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import org.osgi.framework.launch.Framework;
 import org.osgi.framework.launch.FrameworkFactory;
 import org.osgi.util.tracker.ServiceTracker;
 
+@SuppressForbidden
 public class OSGiApplication {
   public static void main(final String[] args) throws Exception {
     Map<String, String> config = new HashMap(System.getProperties());

@@ -1,3 +1,7 @@
+plugins {
+  id 'me.champeau.gradle.jmh' version '0.5.0'
+}
+
 description = 'dd-trace-core'
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -36,10 +40,9 @@ dependencies {
   compile deps.slf4j
   compile deps.okhttp
 
-  compile group: 'org.hdrhistogram', name: 'HdrHistogram', version: '2.1.12'
   compile group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'
   compile group: 'com.github.jnr', name: 'jnr-unixsocket', version: "${versions.jnr_unixsocket}"
-  compile group: 'org.jctools', name: 'jctools-core', version: '3.2.0'
+  compile group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
 
   compileOnly group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '4.2.0'
 
@@ -54,4 +57,9 @@ dependencies {
 
 
   traceAgentTestCompile deps.testcontainers
+}
+
+jmh {
+  jmhVersion = '1.28'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }

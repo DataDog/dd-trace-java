@@ -96,7 +96,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         MetricKey key = pair.getLeft()
         AggregateMetric value = pair.getRight()
         int size = unpacker.unpackMapHeader()
-        assert size == 10
+        assert size == 11
         int elementCount = 0
         assert unpacker.unpackString() == "Name"
         assert unpacker.unpackString() == key.getOperationName() as String
@@ -118,6 +118,9 @@ class SerializingMetricWriterTest extends DDSpecification {
         ++elementCount
         assert unpacker.unpackString() == "Errors"
         assert unpacker.unpackInt() == value.getErrorCount()
+        ++elementCount
+        assert unpacker.unpackString() == "TopLevelHits"
+        assert unpacker.unpackInt() == value.getTopLevelCount()
         ++elementCount
         assert unpacker.unpackString() == "Duration"
         assert unpacker.unpackLong() == value.getDuration()

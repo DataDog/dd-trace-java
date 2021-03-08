@@ -75,7 +75,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     continuations.size() == 1
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
     0 * _
@@ -84,7 +84,7 @@ class PendingTraceBufferTest extends DDSpecification {
     continuations[0].cancel()
 
     then:
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     1 * tracer.write({ it.size() == 1 })
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     _ * tracer.getPartialFlushMinSpans() >> 10
@@ -105,7 +105,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     trace.size() == 1
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
     0 * _
@@ -115,7 +115,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     trace.size() == 0
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     1 * tracer.write({ it.size() == 2 })
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     _ * tracer.getPartialFlushMinSpans() >> 10
@@ -166,7 +166,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     trace.size() == 1
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     !trace.rootSpanWritten
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
@@ -178,7 +178,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     trace.size() == 2
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     !trace.rootSpanWritten
 
     when:
@@ -188,7 +188,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     trace.size() == 0
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     trace.rootSpanWritten
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 2 }) >> {
@@ -213,7 +213,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     trace.size() == 0
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     trace.rootSpanWritten
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 1 }) >> {
@@ -229,7 +229,7 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     trace.size() == 0
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     trace.rootSpanWritten
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10

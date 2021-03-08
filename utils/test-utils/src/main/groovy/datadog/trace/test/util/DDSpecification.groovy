@@ -1,5 +1,6 @@
 package datadog.trace.test.util
 
+import de.thetaphi.forbiddenapis.SuppressForbidden
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.dynamic.ClassFileLocator
@@ -19,6 +20,7 @@ import static net.bytebuddy.description.modifier.Visibility.PUBLIC
 import static net.bytebuddy.matcher.ElementMatchers.named
 import static net.bytebuddy.matcher.ElementMatchers.none
 
+@SuppressForbidden
 abstract class DDSpecification extends Specification {
   private static final CHECK_TIMEOUT_MS = 3000
 

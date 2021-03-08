@@ -6,6 +6,7 @@ import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -138,6 +139,7 @@ public class JMXFetch {
     return "statsd:" + host + ":" + port;
   }
 
+  @SuppressForbidden
   private static List<String> getInternalMetricFiles() {
     try (final InputStream metricConfigsStream =
         JMXFetch.class.getResourceAsStream("metricconfigs.txt")) {
@@ -153,6 +155,7 @@ public class JMXFetch {
         String config = scanner.next();
         integrationName.clear();
         integrationName.add(config.replace(".yaml", ""));
+
         if (Config.get().isJmxFetchIntegrationEnabled(integrationName, false)) {
           final URL resource = JMXFetch.class.getResource("metricconfigs/" + config);
 

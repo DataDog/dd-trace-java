@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.reactor.core;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -17,10 +18,6 @@ public class TracingSubscriber<T> implements CoreSubscriber<T> {
   private final Context context;
   private final AgentSpan span;
 
-  public TracingSubscriber(final Subscriber<? super T> subscriber, final Context context) {
-    this(subscriber, context, AgentTracer.activeSpan());
-  }
-
   public TracingSubscriber(
       final Subscriber<? super T> subscriber, final Context context, final AgentSpan span) {
     this.subscriber = subscriber;
@@ -35,32 +32,27 @@ public class TracingSubscriber<T> implements CoreSubscriber<T> {
 
   @Override
   public void onNext(final T o) {
-    withActiveSpan(() -> subscriber.onNext(o));
+    try (TraceScope scope = activateSpan(span)) {
+      subscriber.onNext(o);
+    }
   }
 
   @Override
   public void onError(final Throwable throwable) {
-    withActiveSpan(() -> subscriber.onError(throwable));
+    try (TraceScope scope = activateSpan(span)) {
+      subscriber.onError(throwable);
+    }
   }
 
   @Override
   public void onComplete() {
-    withActiveSpan(subscriber::onComplete);
+    try (TraceScope scope = activateSpan(span)) {
+      subscriber.onComplete();
+    }
   }
 
   @Override
   public Context currentContext() {
     return context;
-  }
-
-  private void withActiveSpan(final Runnable runnable) {
-    if (span != null) {
-      try (final TraceScope scope = AgentTracer.activateSpan(span)) {
-        scope.setAsyncPropagation(true);
-        runnable.run();
-      }
-    } else {
-      runnable.run();
-    }
   }
 }

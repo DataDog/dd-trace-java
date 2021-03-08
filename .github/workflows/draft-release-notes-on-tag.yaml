@@ -21,15 +21,13 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const options = github.issues.listMilestonesForRepo.endpoint.merge({
+            const milestone = await github.paginate(github.issues.listMilestones, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'all'
+            }).then((milestones) => {
+              milestones.find(milestone => milestone.title == '${{steps.milestoneTitle.outputs.result}}')
             })
-
-            const milestones = await github.paginate(options)
-
-            const milestone = milestones.find( milestone => milestone.title == '${{steps.milestoneTitle.outputs.result}}' )
 
             if (milestone) {
               return milestone.number
@@ -44,14 +42,12 @@ jobs:
           github-token: ${{secrets.GITHUB_TOKEN}}
           result-encoding: string
           script: |
-            const options = github.pulls.list.endpoint.merge({
+            const pullRequests = await github.paginate(github.pulls.list, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'closed',
               base: 'master'
             })
-
-            const pullRequests = await github.paginate(options)
 
             var draftText = "# Improvements \n\n# Changes \n\n"
             for (let pull of pullRequests) {

@@ -1,5 +1,7 @@
 package datadog.trace.core.monitor;
 
+import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+
 import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import java.util.concurrent.TimeUnit;
@@ -25,21 +27,21 @@ public final class Monitoring {
   }
 
   public Recording newTimer(final String name) {
-    if (!enabled) {
+    if (!enabled || !isJavaVersionAtLeast(8)) {
       return NoOpRecording.NO_OP;
     }
     return new Timer(name, statsd, flushAfterNanos);
   }
 
   public Recording newTimer(final String name, final String... tags) {
-    if (!enabled) {
+    if (!enabled || !isJavaVersionAtLeast(8)) {
       return NoOpRecording.NO_OP;
     }
     return new Timer(name, tags, statsd, flushAfterNanos);
   }
 
   public Recording newThreadLocalTimer(final String name) {
-    if (!enabled) {
+    if (!enabled || !isJavaVersionAtLeast(8)) {
       return NoOpRecording.NO_OP;
     }
     return new ThreadLocalRecording(
@@ -52,7 +54,7 @@ public final class Monitoring {
   }
 
   public Recording newCPUTimer(final String name) {
-    if (!enabled) {
+    if (!enabled || !isJavaVersionAtLeast(8)) {
       return NoOpRecording.NO_OP;
     }
     return new CPUTimer(name, statsd, flushAfterNanos);

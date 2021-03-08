@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import static net.bytebuddy.matcher.ElementMatchers.isInterface;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDefinition;
@@ -57,6 +58,7 @@ public class DDElementMatchers {
     return new LoggingFailSafeMatcher<>(matcher, false, description);
   }
 
+  @SuppressForbidden
   static String safeTypeDefinitionName(final TypeDefinition td) {
     try {
       return td.getTypeName();

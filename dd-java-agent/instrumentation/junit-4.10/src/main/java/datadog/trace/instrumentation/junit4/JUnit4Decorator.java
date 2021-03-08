@@ -62,6 +62,15 @@ public class JUnit4Decorator extends TestDecorator {
     }
   }
 
+  public void onTestAssumptionFailure(final AgentSpan span, final Failure failure) {
+    // The consensus is to treat "assumptions failure" as skipped tests.
+    span.setTag(Tags.TEST_STATUS, TEST_SKIP);
+    final Throwable throwable = failure.getException();
+    if (throwable != null) {
+      span.setTag(Tags.TEST_SKIP_REASON, throwable.getMessage());
+    }
+  }
+
   public void onTestIgnored(
       final AgentSpan span,
       final Description description,

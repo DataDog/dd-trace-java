@@ -21,7 +21,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
   def setup() {
     assert trace.size() == 0
-    assert trace.pendingReferenceCount.get() == 1
+    assert trace.pendingReferenceCount == 1
     assert trace.rootSpanWritten == false
   }
 
@@ -45,13 +45,13 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     def child = tracer.buildSpan("child").asChildOf(rootSpan).start()
 
     then:
-    trace.pendingReferenceCount.get() == 2
+    trace.pendingReferenceCount == 2
 
     when:
     child.finish()
 
     then:
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     trace.finishedSpans.asList() == [child]
     writer == []
 
@@ -60,7 +60,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(1)
 
     then:
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     trace.finishedSpans.isEmpty()
     writer == [[rootSpan, child]]
     writer.traceCount.get() == 1
@@ -71,13 +71,13 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     def child = tracer.buildSpan("child").asChildOf(rootSpan).start()
 
     then:
-    trace.pendingReferenceCount.get() == 2
+    trace.pendingReferenceCount == 2
 
     when:
     rootSpan.finish()
 
     then:
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     trace.finishedSpans.asList() == [rootSpan]
     writer == []
 
@@ -86,7 +86,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(1)
 
     then:
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     trace.finishedSpans.isEmpty()
     writer == [[child, rootSpan]]
     writer.traceCount.get() == 1
@@ -103,7 +103,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(2)
 
     expect:
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     trace.finishedSpans.isEmpty()
     writer == [[rootSpan], [childSpan]]
   }
@@ -124,13 +124,13 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     def child2 = quickTracer.buildSpan("child2").asChildOf(rootSpan).start()
 
     then:
-    trace.pendingReferenceCount.get() == 3
+    trace.pendingReferenceCount == 3
 
     when:
     child2.finish()
 
     then:
-    trace.pendingReferenceCount.get() == 2
+    trace.pendingReferenceCount == 2
     trace.finishedSpans.asList() == [child2]
     writer == []
     writer.traceCount.get() == 0
@@ -140,7 +140,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(1)
 
     then:
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     trace.finishedSpans.asList() == []
     writer == [[child1, child2]]
     writer.traceCount.get() == 1
@@ -150,7 +150,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(2)
 
     then:
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     trace.finishedSpans.isEmpty()
     writer == [[child1, child2], [rootSpan]]
     writer.traceCount.get() == 2
@@ -169,13 +169,13 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     def child2 = quickTracer.buildSpan("child2").asChildOf(rootSpan).start()
 
     then:
-    trace.pendingReferenceCount.get() == 3
+    trace.pendingReferenceCount == 3
 
     when:
     child1.finish()
 
     then:
-    trace.pendingReferenceCount.get() == 2
+    trace.pendingReferenceCount == 2
     trace.finishedSpans.asList() == [child1]
     writer == []
     writer.traceCount.get() == 0
@@ -185,7 +185,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(1)
 
     then:
-    trace.pendingReferenceCount.get() == 1
+    trace.pendingReferenceCount == 1
     trace.finishedSpans.isEmpty()
     writer == [[child2, child1]]
     writer.traceCount.get() == 1
@@ -195,7 +195,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     writer.waitForTraces(2)
 
     then:
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     trace.finishedSpans.isEmpty()
     writer == [[child2, child1], [rootSpan]]
     writer.traceCount.get() == 2
@@ -248,7 +248,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
     then:
     exceptions.isEmpty()
-    trace.pendingReferenceCount.get() == 0
+    trace.pendingReferenceCount == 0
     writer.sum { it.size() } == threadCount * spanCount + 1
 
     cleanup:

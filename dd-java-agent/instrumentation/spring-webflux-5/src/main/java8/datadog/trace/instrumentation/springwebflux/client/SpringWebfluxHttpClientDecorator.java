@@ -15,12 +15,12 @@ import org.springframework.web.reactive.function.client.ClientResponse;
 public class SpringWebfluxHttpClientDecorator
     extends HttpClientDecorator<ClientRequest, ClientResponse> {
 
-  public static final CharSequence HTTP_REQUEST = UTF8BytesString.createConstant("http.request");
+  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create("http.request");
   public static final CharSequence SPRING_WEBFLUX_CLIENT =
-      UTF8BytesString.createConstant("spring-webflux-client");
-  public static final CharSequence CANCELLED = UTF8BytesString.createConstant("cancelled");
+      UTF8BytesString.create("spring-webflux-client");
+  public static final CharSequence CANCELLED = UTF8BytesString.create("cancelled");
   public static final CharSequence CANCELLED_MESSAGE =
-      UTF8BytesString.createConstant("The subscription was cancelled");
+      UTF8BytesString.create("The subscription was cancelled");
 
   private static final MethodHandle RAW_STATUS_CODE = findRawStatusCode();
 

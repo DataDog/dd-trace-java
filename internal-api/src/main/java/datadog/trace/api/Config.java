@@ -144,6 +144,7 @@ import static datadog.trace.api.config.TracerConfig.HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY;
+import static datadog.trace.api.config.TracerConfig.JMS_LEGACY_DASH_REPLACEMENT;
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
@@ -173,6 +174,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.File;
@@ -371,6 +373,8 @@ public class Config {
   @Getter private final IdGenerationStrategy idGenerationStrategy;
 
   @Getter private final boolean internalExitOnFailure;
+
+  @Getter private final boolean jmsLegacyDashReplacement;
 
   @Getter private final boolean resolverUseLoadClassEnabled;
 
@@ -600,6 +604,7 @@ public class Config {
     healthMetricsStatsdPort = configProvider.getInteger(HEALTH_METRICS_STATSD_PORT);
     perfMetricsEnabled =
         runtimeMetricsEnabled
+            && isJavaVersionAtLeast(8)
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
     tracerMetricsEnabled =
@@ -628,6 +633,8 @@ public class Config {
 
     traceAnalyticsEnabled =
         configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
+
+    jmsLegacyDashReplacement = configProvider.getBoolean(JMS_LEGACY_DASH_REPLACEMENT, false);
 
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
@@ -1027,6 +1034,7 @@ public class Config {
   }
 
   @NonNull
+  @SuppressForbidden
   private static Set<String> parseStringIntoSetOfNonEmptyStrings(final String str) {
     // Using LinkedHashSet to preserve original string order
     final Set<String> result = new LinkedHashSet<>();
@@ -1055,6 +1063,7 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
+  @SuppressForbidden
   private static String findConfigurationFile() {
     String configurationFilePath =
         System.getProperty(propertyNameToSystemPropertyName(CONFIGURATION_FILE));

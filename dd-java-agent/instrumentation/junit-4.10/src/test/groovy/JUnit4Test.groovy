@@ -3,6 +3,7 @@ import datadog.trace.api.DisableTestTrace
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import datadog.trace.instrumentation.junit4.JUnit4Decorator
+import org.example.TestAssumption
 import org.example.TestError
 import org.example.TestFailed
 import org.example.TestInheritance
@@ -108,6 +109,21 @@ class JUnit4Test extends TestFrameworkTest {
 
     where:
     testTags = ["$Tags.TEST_SKIP_REASON": "Ignore reason in class"]
+  }
+
+  def "test with failing assumptions generated spans"() {
+    setup:
+    runner.run(TestAssumption)
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        testSpan(it, 0, "org.example.TestAssumption", "test_fail_assumption", TestDecorator.TEST_SKIP, testTags)
+      }
+    }
+
+    where:
+    testTags = ["$Tags.TEST_SKIP_REASON": "got: <false>, expected: is <true>"]
   }
 
   @Override

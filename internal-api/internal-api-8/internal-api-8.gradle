@@ -1,0 +1,22 @@
+ext {
+  enableJunitPlatform = true
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+minimumBranchCoverage = 0.8
+
+dependencies {
+  compile project(':internal-api')
+
+  testCompile deps.junit5
+  testCompile deps.jmc
+  testCompile deps.commonsMath
+  testCompile deps.mockito
+  testCompile deps.slf4j
+  testCompile project(":utils:test-utils")
+}

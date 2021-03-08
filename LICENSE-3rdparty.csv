@@ -1,12 +1,23 @@
 Component,Origin,License,Copyright
-https://github.com/DataDog/dd-trace-java/blob/dev/dd-trace/src/main/java/com/datadoghq/trace/propagation/Codec.java,Uber,MIT,
-import,io.opentracing,Apache-2.0,Copyright 2016-2017 The OpenTracing Authors
+various,io.opentelemetry,Apache-2.0,Copyright The OpenTracing Authors
+various,io.opentracing,Apache-2.0,Copyright The OpenTracing Authors
+import,org.objectweb.asm,BSD 3-Clause,"Copyright (c) 2000-2011 INRIA, France Telecom"
+import,com.googlecode.concurrentlinkedhashmap,Apache-2.0,Copyright 2010 Google Inc.
+import,com.github.benmanes,Apache-2.0,Copyright 2014 Ben Manes
+import,net.bytebuddy,Apache-2.0,Copyright 2014 - Present Rafael Winterhalter
+import,com.blogspot.mydailyjava.weaklockfree,Apache-2.0,
+import,org.jctools,Apache-2.0,
+import,jnr,Apache-2.0,
+import,com.kenai.constantine,Apache-2.0,
+import,com.google.auto.service,Apache-2.0,Copyright 2013 Google Inc.
+import,okhttp3,Apache-2.0,"Copyright (C) 2014 Square, Inc."
+import,okio,Apache-2.0,"Copyright (C) 2014 Square, Inc."
+import,com.timgroup.statsd,Apache-2.0,"Copyright (C) 2014 youDevise, Ltd."
+import,com.squareup,Apache-2.0,"Copyright (C) 2014 Square, Inc."
 import,org.slf4j,MIT,Copyright (c) 2004-2017 QOS.ch
+import,org.openjdk.jmc,UPL-1.0,"Copyright (c) 2018 Oracle America, Inc"
+import,net.jpountz,Apache-2.0,
 import,com.fasterxml.jackson,Apache-2.0,
-import,com.google.auto.service.AutoService,Apache-2.0,"Copyright 2013 Google, Inc."
-logback.xml,ch.qos.logback,EPL-1.0 OR LGPL-2.1,"Copyright (C) 1999-2015, QOS.ch. All rights reserved."
-logback.xml,net.logstash.logback,Apache-2.0,
-import (test),org.junit,EPL-1.0,Copyright © 2002-2017 JUnit. All Rights Reserved.
-import (test),org.assertj,Apache-2.0,Copyright 2012-2017 the original author or authors.
-import (test),org.mockito,MIT,Copyright (c) 2007 Mockito contributors
-import (test),info.picocli,Apache-2.0,
+import,org.yaml.snakeyaml,Apache-2.0,
+import,com.beust.jcommander,Apache-2.0,
+import,org.owasp.encoder,BSD 3-Clause,Copyright (c) 2012 Jeff Ichnowski

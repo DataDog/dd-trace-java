@@ -40,6 +40,7 @@ import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.util.AgentTaskScheduler;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -285,6 +286,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
   }
 
+  /**
+   * Only visible for benchmarking purposes
+   *
+   * @return a PendingTrace
+   */
+  PendingTrace createTrace(DDId id) {
+    return pendingTraceFactory.create(id);
+  }
+
   public String mapServiceName(String serviceName) {
     String mapped = serviceNameMappings.get(serviceName);
     return null == mapped ? serviceName : mapped;
@@ -514,12 +524,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     writer.flush();
   }
 
+  @SuppressForbidden
   private static DDScopeEventFactory createScopeEventFactory() {
     if (Config.get().isProfilingEnabled()) {
       try {
         return (DDScopeEventFactory)
             Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory").newInstance();
-      } catch (final ClassFormatError | ReflectiveOperationException | NoClassDefFoundError e) {
+      } catch (final Throwable e) {
         log.debug("Profiling of ScopeEvents is not available");
       }
     }
@@ -767,7 +778,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         rootSpanTags = localRootSpanTags;
 
-        parentTrace = pendingTraceFactory.create(traceId);
+        parentTrace = createTrace(traceId);
       }
 
       if (serviceName == null) {

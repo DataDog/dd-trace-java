@@ -34,6 +34,11 @@ public final class GrowableBuffer implements StreamingBuffer {
   }
 
   @Override
+  public int capacity() {
+    return buffer.capacity();
+  }
+
+  @Override
   public boolean isDirty() {
     return messageCount > 0;
   }

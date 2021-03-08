@@ -1,6 +1,7 @@
 package datadog.trace.api.env;
 
 import datadog.trace.api.config.GeneralConfig;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,6 +45,7 @@ public class CapturedEnvironment {
     return extractJarOrClass(System.getProperty("sun.java.command"));
   }
 
+  @SuppressForbidden
   private String extractJarOrClass(final String command) {
     if (command == null || command.equals("")) {
       return null;

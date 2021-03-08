@@ -3,6 +3,11 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
+ext {
+  // need access to sun.* packages
+  skipSettingCompilerRelease = true
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
@@ -14,6 +19,7 @@ dependencies {
   compile project(':dd-java-agent:agent-logging')
   compile project(':dd-trace-api')
   compile project(':internal-api')
+  implementation project(':internal-api:internal-api-8')
   compile deps.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.
 
@@ -26,12 +32,17 @@ sourceSets {
     java.srcDirs "${project.projectDir}/src/main/java11"
   }
 }
-compileMain_java11Java.options.fork = true
-compileMain_java11Java.options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
-compileMain_java11Java.sourceCompatibility = JavaVersion.VERSION_1_8
-compileMain_java11Java.targetCompatibility = JavaVersion.VERSION_1_8
+compileMain_java11Java.doFirst {
+  if (!System.env.JAVA_11_HOME) {
+    throw new GradleException('JAVA_11_HOME must be set to build profiling helpers')
+  }
+  options.fork = true
+  options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
 dependencies {
-  main_java11CompileOnly project(':internal-api')
+  main_java11CompileOnly project(':internal-api:internal-api-8')
   main_java11CompileOnly "org.projectlombok:lombok:${project.lombok.version}" transitive false
   main_java11AnnotationProcessor "org.projectlombok:lombok:${project.lombok.version}" transitive false
 }

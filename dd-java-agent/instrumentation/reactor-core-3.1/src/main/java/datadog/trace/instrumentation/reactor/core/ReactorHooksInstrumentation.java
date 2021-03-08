@@ -15,7 +15,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 public final class ReactorHooksInstrumentation extends Instrumenter.Tracing {
 
   public ReactorHooksInstrumentation() {
-    super("reactor-core");
+    super("reactor-hooks");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return false;
   }
 
   @Override
@@ -26,10 +31,7 @@ public final class ReactorHooksInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TracingOperator",
-      packageName + ".TracingOperator$Lifter",
-      packageName + ".TracingOperator$LifterFilter",
-      packageName + ".TracingSubscriber",
+      packageName + ".TracingOperator", packageName + ".TracingSubscriber",
     };
   }
 

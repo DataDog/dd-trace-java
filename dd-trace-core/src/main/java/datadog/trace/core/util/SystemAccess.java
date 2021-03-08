@@ -1,6 +1,7 @@
 package datadog.trace.core.util;
 
 import datadog.trace.api.Config;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -17,6 +18,7 @@ public final class SystemAccess {
   }
 
   /** Enable JMX accesses */
+  @SuppressForbidden
   public static void enableJmx() {
     if (!Config.get().isProfilingEnabled() && !Config.get().isHealthMetricsEnabled()) {
       log.debug("Will not enable JMX access. Profiling and metrics are both disabled.");

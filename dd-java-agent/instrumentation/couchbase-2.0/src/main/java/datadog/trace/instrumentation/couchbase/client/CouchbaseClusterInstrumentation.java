@@ -43,6 +43,7 @@ public class CouchbaseClusterInstrumentation extends Instrumenter.Tracing {
       "datadog.trace.instrumentation.rxjava.TracedOnSubscribe",
       packageName + ".CouchbaseClientDecorator",
       packageName + ".CouchbaseOnSubscribe",
+      packageName + ".CouchbaseOnSubscribe$1"
     };
   }
 
