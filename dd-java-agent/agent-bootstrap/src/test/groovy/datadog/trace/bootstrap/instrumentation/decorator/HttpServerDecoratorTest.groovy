@@ -83,11 +83,29 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     then:
     if (conn) {
+      1 * span.getTag(Tags.PEER_PORT) >> null
+      1 * span.getTag(Tags.PEER_HOST_IPV4) >> null
+      1 * span.getTag(Tags.PEER_HOST_IPV6) >> null
       1 * span.setTag(Tags.PEER_PORT, 555)
       if (ipv4) {
         1 * span.setTag(Tags.PEER_HOST_IPV4, "10.0.0.1")
       } else if (ipv4 != null) {
         1 * span.setTag(Tags.PEER_HOST_IPV6, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
+      }
+    }
+    0 * _
+
+    when:
+    decorator.onRequest(span, conn, null)
+
+    then:
+    if (conn) {
+      1 * span.getTag(Tags.PEER_PORT) >> conn.port
+      if (ipv4) {
+        1 * span.getTag(Tags.PEER_HOST_IPV4) >> conn.ip
+      } else {
+        1 * span.getTag(Tags.PEER_HOST_IPV4) >> null
+        1 * span.getTag(Tags.PEER_HOST_IPV6) >> conn.ip
       }
     }
     0 * _

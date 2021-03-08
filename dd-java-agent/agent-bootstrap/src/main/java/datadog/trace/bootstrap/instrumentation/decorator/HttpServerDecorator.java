@@ -46,7 +46,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   public AgentSpan onRequest(
       final AgentSpan span, final CONNECTION connection, final REQUEST request) {
     if (request != null) {
-
       span.setTag(Tags.HTTP_METHOD, method(request));
 
       // Copy of HttpClientDecorator url handling
