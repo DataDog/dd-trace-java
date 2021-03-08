@@ -767,39 +767,40 @@ public enum JDBCConnectionUrlParser {
   private static void populateStandardProperties(
       final DBInfo.Builder builder, final Map<? extends Object, ? extends Object> props) {
     if (props != null && !props.isEmpty()) {
-      if (props.containsKey("user")) {
-        builder.user((String) props.get("user"));
+      Object user = props.get("user");
+      if (user != null) {
+        builder.user((String) user);
       }
 
-      if (props.containsKey("databasename")) {
-        builder.db((String) props.get("databasename"));
-      }
-      if (props.containsKey("databaseName")) {
-        builder.db((String) props.get("databaseName"));
-      }
-
-      if (props.containsKey("servername")) {
-        builder.host((String) props.get("servername"));
-      }
-      if (props.containsKey("serverName")) {
-        builder.host((String) props.get("serverName"));
-      }
-
-      if (props.containsKey("portnumber")) {
-        final String portNumber = (String) props.get("portnumber");
-        try {
-          builder.port(Integer.parseInt(portNumber));
-        } catch (final NumberFormatException e) {
-          ExceptionLogger.LOGGER.debug("Error parsing portnumber property: " + portNumber, e);
+      Object databaseName = props.get("databasename");
+      if (databaseName != null) {
+        builder.db((String) databaseName);
+      } else {
+        databaseName = props.get("databaseName");
+        if (databaseName != null) {
+          builder.db((String) databaseName);
         }
       }
 
-      if (props.containsKey("portNumber")) {
-        final String portNumber = (String) props.get("portNumber");
+      Object serverName = props.get("servername");
+      if (serverName != null) {
+        builder.host((String) serverName);
+      } else {
+        serverName = props.get("serverName");
+        if (serverName != null) {
+          builder.host((String) serverName);
+        }
+      }
+
+      Object portNumber = props.get("portnumber");
+      if (portNumber == null) {
+        portNumber = props.get("portNumber");
+      }
+      if (portNumber != null) {
         try {
-          builder.port(Integer.parseInt(portNumber));
+          builder.port(Integer.parseInt((String) portNumber));
         } catch (final NumberFormatException e) {
-          ExceptionLogger.LOGGER.debug("Error parsing portNumber property: " + portNumber, e);
+          ExceptionLogger.LOGGER.debug("Error parsing portnumber property: " + portNumber, e);
         }
       }
     }

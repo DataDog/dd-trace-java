@@ -16,7 +16,13 @@ public class JDBCConnectionUrlParserBenchmark {
     "jdbc:mysql://my.host:22/mydb?user=myuser&password=PW",
     "jdbc:mariadb:failover://mdb.host1:33,mdb.host/mdbdb?characterEncoding=utf8",
     "jdbc:mysql:replication://address=(HOST=mdb.host),"
-        + "address=(host=anotherhost)(port=3306)(user=wrong)(password=PW)/mdbdb?user=mdbuser&password=PW"
+        + "address=(host=anotherhost)(port=3306)(user=wrong)(password=PW)/mdbdb?user=mdbuser&password=PW",
+    "jdbc:microsoft:sqlserver://ss.host:44;DatabaseName=ssdb;user=ssuser;password=pw;user=ssuser2;",
+    "jdbc:oracle:oci:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)( HOST =  orcl.host )"
+        + "( PORT = 55  ))(CONNECT_DATA=(SERVICE_NAME =orclsn  )))",
+    "jdbc:sap://sap.host:88/?databaseName=sapdb&user=sapuser&password=PW",
+    "jdbc:h2:ssl://h2.host:111/path/h2db;user=h2user;password=PW",
+    "jdbc:derby://127.0.0.1:1527/memory:derbydb;create=true;user=derbyuser;password=pw"
   })
   private String connectionString;
 
