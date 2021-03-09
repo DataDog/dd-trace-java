@@ -12,11 +12,6 @@ public final class UTF8BytesString implements CharSequence {
 
   public static final UTF8BytesString EMPTY = UTF8BytesString.create("");
 
-  @Deprecated
-  public static UTF8BytesString createConstant(CharSequence string) {
-    return create(string);
-  }
-
   public static UTF8BytesString create(CharSequence sequence) {
     if (null == sequence) {
       return null;

@@ -9,9 +9,7 @@ import java.nio.charset.StandardCharsets
 class Utf8ByteStringTest extends DDSpecification {
   def "wrap String and produce the right bytes and String"() {
     when:
-    final utf8String = constant
-      ? UTF8BytesString.createConstant((String) str)
-      : UTF8BytesString.create((String) str)
+    final utf8String = UTF8BytesString.create((String) str)
 
     then:
     if (utf8String != null) {
@@ -28,15 +26,11 @@ class Utf8ByteStringTest extends DDSpecification {
     }
 
     where:
-    str                                                           | constant
-    null                                                          | false
-    "foo"                                                         | false
-    "bar"                                                         | false
-    "alongerstring"                                               | false
-    null                                                          | true
-    "foo"                                                         | true
-    "bar"                                                         | true
-    "alongerstring"                                               | true
+    str                                                           | _
+    null                                                          | _
+    "foo"                                                         | _
+    "bar"                                                         | _
+    "alongerstring"                                               | _
   }
 
   def "wrap bytes and produce the right String and bytes"() {
@@ -65,8 +59,7 @@ class Utf8ByteStringTest extends DDSpecification {
 
   def "behave like a proper CharSequence"() {
     when:
-    final utf8String = constant ? UTF8BytesString.createConstant((CharSequence) chars)
-      : UTF8BytesString.create((CharSequence) chars)
+    final utf8String = UTF8BytesString.create((CharSequence) chars)
 
     then:
     if (utf8String != null) {
@@ -79,16 +72,11 @@ class Utf8ByteStringTest extends DDSpecification {
     }
 
     where:
-    chars                                                         | constant
-    null                                                          | true
-    "foo"                                                         | true
-    new StringBuffer("bar")                                       | true
-    new StringBuffer("someotherlongstring")                       | true
-    UTF8BytesString.create("utf8string")                          | true
-    null                                                          | false
-    "foo"                                                         | false
-    new StringBuffer("bar")                                       | false
-    new StringBuffer("someotherlongstring")                       | false
-    UTF8BytesString.create("utf8string")                          | false
+    chars                                                         | _
+    null                                                          | _
+    "foo"                                                         | _
+    new StringBuffer("bar")                                       | _
+    new StringBuffer("someotherlongstring")                       | _
+    UTF8BytesString.create("utf8string")                          | _
   }
 }
