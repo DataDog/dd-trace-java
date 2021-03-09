@@ -5,9 +5,9 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class DataSourceDecorator extends BaseDecorator {
   public static final CharSequence DATABASE_CONNECTION =
-      UTF8BytesString.createConstant("database.connection");
+      UTF8BytesString.create("database.connection");
   public static final CharSequence JAVA_JDBC_CONNECTION =
-      UTF8BytesString.createConstant("java-jdbc-connection");
+      UTF8BytesString.create("java-jdbc-connection");
 
   public static final DataSourceDecorator DECORATE = new DataSourceDecorator();
 

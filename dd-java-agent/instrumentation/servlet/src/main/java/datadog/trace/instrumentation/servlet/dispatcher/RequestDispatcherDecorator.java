@@ -8,7 +8,7 @@ import javax.servlet.ServletException;
 public class RequestDispatcherDecorator extends BaseDecorator {
   public static final RequestDispatcherDecorator DECORATE = new RequestDispatcherDecorator();
   public static final CharSequence JAVA_WEB_SERVLET_DISPATCHER =
-      UTF8BytesString.createConstant("java-web-servlet-dispatcher");
+      UTF8BytesString.create("java-web-servlet-dispatcher");
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
 

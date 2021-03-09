@@ -10,13 +10,12 @@ import org.datanucleus.identity.SingleFieldId;
 public class DatanucleusDecorator extends OrmClientDecorator {
 
   public static final CharSequence DATANUCLEUS_FIND_OBJECT =
-      UTF8BytesString.createConstant("datanucleus.findObject");
+      UTF8BytesString.create("datanucleus.findObject");
   public static final CharSequence DATANUCLEUS_QUERY_EXECUTE =
-      UTF8BytesString.createConstant("datanucleus.query.execute");
+      UTF8BytesString.create("datanucleus.query.execute");
   public static final CharSequence DATANUCLEUS_QUERY_DELETE =
-      UTF8BytesString.createConstant("datanucleus.query.delete");
-  public static final CharSequence JAVA_DATANUCLEUS =
-      UTF8BytesString.createConstant("java-datanucleus");
+      UTF8BytesString.create("datanucleus.query.delete");
+  public static final CharSequence JAVA_DATANUCLEUS = UTF8BytesString.create("java-datanucleus");
 
   public static final DatanucleusDecorator DECORATE = new DatanucleusDecorator();
 

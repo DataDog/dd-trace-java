@@ -8,8 +8,7 @@ import net.spy.memcached.MemcachedConnection;
 
 public class MemcacheClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<MemcachedConnection> {
-  private static final CharSequence JAVA_SPYMEMCACHED =
-      UTF8BytesString.createConstant("java-spymemcached");
+  private static final CharSequence JAVA_SPYMEMCACHED = UTF8BytesString.create("java-spymemcached");
   public static final MemcacheClientDecorator DECORATE = new MemcacheClientDecorator();
 
   @Override

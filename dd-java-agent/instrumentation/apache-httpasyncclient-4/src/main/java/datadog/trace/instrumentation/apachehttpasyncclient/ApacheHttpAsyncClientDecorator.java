@@ -14,9 +14,9 @@ import org.apache.http.protocol.HttpCoreContext;
 
 public class ApacheHttpAsyncClientDecorator extends HttpClientDecorator<HttpRequest, HttpContext> {
 
-  public static final CharSequence HTTP_REQUEST = UTF8BytesString.createConstant("http.request");
+  public static final CharSequence HTTP_REQUEST = UTF8BytesString.create("http.request");
   public static final CharSequence APACHE_HTTPASYNCCLIENT =
-      UTF8BytesString.createConstant("apache-httpasyncclient");
+      UTF8BytesString.create("apache-httpasyncclient");
 
   public static final ApacheHttpAsyncClientDecorator DECORATE =
       new ApacheHttpAsyncClientDecorator();

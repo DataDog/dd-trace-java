@@ -9,7 +9,7 @@ import java.net.URISyntaxException;
 public class HttpUrlConnectionDecorator extends HttpClientDecorator<HttpURLConnection, Integer> {
 
   private static final CharSequence HTTP_URL_CONNECTION =
-      UTF8BytesString.createConstant("http-url-connection");
+      UTF8BytesString.create("http-url-connection");
 
   public static final HttpUrlConnectionDecorator DECORATE = new HttpUrlConnectionDecorator();
 

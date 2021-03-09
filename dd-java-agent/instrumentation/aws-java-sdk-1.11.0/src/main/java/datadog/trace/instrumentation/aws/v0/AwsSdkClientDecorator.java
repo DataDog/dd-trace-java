@@ -16,7 +16,7 @@ import java.net.URI;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
 
-  static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("java-aws-sdk");
+  static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
 
   @SuppressForbidden
   private final QualifiedClassNameCache cache =

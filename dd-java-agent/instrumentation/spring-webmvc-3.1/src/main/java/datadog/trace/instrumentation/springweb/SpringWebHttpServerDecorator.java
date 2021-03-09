@@ -23,10 +23,8 @@ import org.springframework.web.servlet.mvc.Controller;
 public class SpringWebHttpServerDecorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
 
-  public static final CharSequence SPRING_HANDLER =
-      UTF8BytesString.createConstant("spring.handler");
-  public static final CharSequence RESPONSE_RENDER =
-      UTF8BytesString.createConstant("response.render");
+  public static final CharSequence SPRING_HANDLER = UTF8BytesString.create("spring.handler");
+  public static final CharSequence RESPONSE_RENDER = UTF8BytesString.create("response.render");
 
   private static final Function<Pair<String, Object>, CharSequence> RESOURCE_NAME_JOINER =
       new Function<Pair<String, Object>, CharSequence>() {
@@ -41,9 +39,9 @@ public class SpringWebHttpServerDecorator
   private final CharSequence component;
 
   public static final SpringWebHttpServerDecorator DECORATE =
-      new SpringWebHttpServerDecorator(UTF8BytesString.createConstant("spring-web-controller"));
+      new SpringWebHttpServerDecorator(UTF8BytesString.create("spring-web-controller"));
   public static final SpringWebHttpServerDecorator DECORATE_RENDER =
-      new SpringWebHttpServerDecorator(UTF8BytesString.createConstant("spring-webmvc"));
+      new SpringWebHttpServerDecorator(UTF8BytesString.create("spring-webmvc"));
 
   public SpringWebHttpServerDecorator(CharSequence component) {
     this.component = component;

@@ -10,9 +10,9 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 public class ElasticsearchTransportClientDecorator extends DatabaseClientDecorator {
 
   public static final CharSequence ELASTICSEARCH_QUERY =
-      UTF8BytesString.createConstant("elasticsearch.query");
+      UTF8BytesString.create("elasticsearch.query");
   public static final CharSequence ELASTICSEARCH_JAVA =
-      UTF8BytesString.createConstant("elasticsearch-java");
+      UTF8BytesString.create("elasticsearch-java");
 
   public static final ElasticsearchTransportClientDecorator DECORATE =
       new ElasticsearchTransportClientDecorator();

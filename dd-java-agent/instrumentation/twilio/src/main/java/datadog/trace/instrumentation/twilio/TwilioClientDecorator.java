@@ -18,9 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class TwilioClientDecorator extends ClientDecorator {
 
-  public static final CharSequence TWILIO_SDK = UTF8BytesString.createConstant("twilio.sdk");
+  public static final CharSequence TWILIO_SDK = UTF8BytesString.create("twilio.sdk");
 
-  private static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("twilio-sdk");
+  private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("twilio-sdk");
 
   private static final QualifiedClassNameCache NAMES =
       new QualifiedClassNameCache(

@@ -27,7 +27,7 @@ public class HystrixDecorator extends BaseDecorator {
     this(Config.get().isHystrixTagsEnabled());
   }
 
-  public static final CharSequence HYSTRIX = UTF8BytesString.createConstant("hystrix");
+  public static final CharSequence HYSTRIX = UTF8BytesString.create("hystrix");
 
   private static final DDCache<ResourceNameCacheKey, String> RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(64);

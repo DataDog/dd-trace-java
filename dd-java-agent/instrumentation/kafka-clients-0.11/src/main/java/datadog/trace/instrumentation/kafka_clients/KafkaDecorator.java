@@ -22,9 +22,9 @@ import org.apache.kafka.common.record.TimestampType;
 
 public class KafkaDecorator extends ClientDecorator {
 
-  public static final CharSequence JAVA_KAFKA = UTF8BytesString.createConstant("java-kafka");
-  public static final CharSequence KAFKA_CONSUME = UTF8BytesString.createConstant("kafka.consume");
-  public static final CharSequence KAFKA_PRODUCE = UTF8BytesString.createConstant("kafka.produce");
+  public static final CharSequence JAVA_KAFKA = UTF8BytesString.create("java-kafka");
+  public static final CharSequence KAFKA_CONSUME = UTF8BytesString.create("kafka.consume");
+  public static final CharSequence KAFKA_PRODUCE = UTF8BytesString.create("kafka.produce");
 
   private final String spanKind;
   private final String spanType;

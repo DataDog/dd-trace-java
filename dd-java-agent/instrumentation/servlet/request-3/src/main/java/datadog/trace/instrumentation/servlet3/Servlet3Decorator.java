@@ -12,10 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class Servlet3Decorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
-  public static final CharSequence SERVLET_REQUEST =
-      UTF8BytesString.createConstant("servlet.request");
-  public static final CharSequence JAVA_WEB_SERVLET =
-      UTF8BytesString.createConstant("java-web-servlet");
+  public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
+  public static final CharSequence JAVA_WEB_SERVLET = UTF8BytesString.create("java-web-servlet");
   public static final Servlet3Decorator DECORATE = new Servlet3Decorator();
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";

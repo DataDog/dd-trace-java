@@ -8,9 +8,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response> {
-  public static final CharSequence OKHTTP_REQUEST =
-      UTF8BytesString.createConstant("okhttp.request");
-  public static final CharSequence OKHTTP = UTF8BytesString.createConstant("okhttp");
+  public static final CharSequence OKHTTP_REQUEST = UTF8BytesString.create("okhttp.request");
+  public static final CharSequence OKHTTP = UTF8BytesString.create("okhttp");
   public static final OkHttpClientDecorator DECORATE = new OkHttpClientDecorator();
 
   @Override

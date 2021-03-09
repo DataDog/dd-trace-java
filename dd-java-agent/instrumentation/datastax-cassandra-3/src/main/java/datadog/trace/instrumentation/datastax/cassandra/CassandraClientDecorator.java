@@ -10,10 +10,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 
 public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
 
-  public static final CharSequence CASSANDRA_EXECUTE =
-      UTF8BytesString.createConstant("cassandra.execute");
-  public static final CharSequence JAVA_CASSANDRA =
-      UTF8BytesString.createConstant("java-cassandra");
+  public static final CharSequence CASSANDRA_EXECUTE = UTF8BytesString.create("cassandra.execute");
+  public static final CharSequence JAVA_CASSANDRA = UTF8BytesString.create("java-cassandra");
 
   public static final CassandraClientDecorator DECORATE = new CassandraClientDecorator();
 

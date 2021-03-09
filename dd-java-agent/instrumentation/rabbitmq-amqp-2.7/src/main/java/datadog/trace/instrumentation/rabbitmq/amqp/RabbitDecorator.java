@@ -16,8 +16,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 
 public class RabbitDecorator extends ClientDecorator {
 
-  public static final CharSequence AMQP_COMMAND = UTF8BytesString.createConstant("amqp.command");
-  public static final CharSequence RABBITMQ_AMQP = UTF8BytesString.createConstant("rabbitmq-amqp");
+  public static final CharSequence AMQP_COMMAND = UTF8BytesString.create("amqp.command");
+  public static final CharSequence RABBITMQ_AMQP = UTF8BytesString.create("rabbitmq-amqp");
   public static final RabbitDecorator DECORATE =
       new RabbitDecorator(Tags.SPAN_KIND_CLIENT, DDSpanTypes.MESSAGE_CLIENT);
 

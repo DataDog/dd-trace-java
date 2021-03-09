@@ -17,9 +17,9 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 @Slf4j
 public class NettyHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, Channel, HttpResponse> {
-  public static final CharSequence NETTY = UTF8BytesString.createConstant("netty");
-  public static final CharSequence NETTY_CONNECT = UTF8BytesString.createConstant("netty.connect");
-  public static final CharSequence NETTY_REQUEST = UTF8BytesString.createConstant("netty.request");
+  public static final CharSequence NETTY = UTF8BytesString.create("netty");
+  public static final CharSequence NETTY_CONNECT = UTF8BytesString.create("netty.connect");
+  public static final CharSequence NETTY_REQUEST = UTF8BytesString.create("netty.request");
   public static final NettyHttpServerDecorator DECORATE = new NettyHttpServerDecorator();
 
   @Override

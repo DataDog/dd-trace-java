@@ -6,12 +6,11 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 import redis.clients.jedis.commands.ProtocolCommand;
 
 public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<ProtocolCommand> {
-  public static final CharSequence REDIS_COMMAND = UTF8BytesString.createConstant("redis.command");
+  public static final CharSequence REDIS_COMMAND = UTF8BytesString.create("redis.command");
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
 
   private static final String SERVICE_NAME = "redis";
-  private static final CharSequence COMPONENT_NAME =
-      UTF8BytesString.createConstant("redis-command");
+  private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
 
   @Override
   protected String[] instrumentationNames() {

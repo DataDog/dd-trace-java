@@ -5,7 +5,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class OnErrorDecorator extends BaseDecorator {
   public static final OnErrorDecorator DECORATE = new OnErrorDecorator();
-  private static final CharSequence JAVA_AWS_SDK = UTF8BytesString.createConstant("java-aws-sdk");
+  private static final CharSequence JAVA_AWS_SDK = UTF8BytesString.create("java-aws-sdk");
 
   @Override
   protected String[] instrumentationNames() {

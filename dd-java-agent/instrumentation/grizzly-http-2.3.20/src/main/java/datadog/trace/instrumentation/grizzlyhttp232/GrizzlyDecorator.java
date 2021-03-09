@@ -18,10 +18,9 @@ public class GrizzlyDecorator
     extends HttpServerDecorator<HttpRequestPacket, HttpRequestPacket, HttpResponsePacket> {
 
   public static final CharSequence GRIZZLY_FILTER_CHAIN_SERVER =
-      UTF8BytesString.createConstant("grizzly-filterchain-server");
+      UTF8BytesString.create("grizzly-filterchain-server");
 
-  public static final CharSequence GRIZZLY_REQUEST =
-      UTF8BytesString.createConstant("grizzly.request");
+  public static final CharSequence GRIZZLY_REQUEST = UTF8BytesString.create("grizzly.request");
 
   public static final GrizzlyDecorator DECORATE = new GrizzlyDecorator();
 
