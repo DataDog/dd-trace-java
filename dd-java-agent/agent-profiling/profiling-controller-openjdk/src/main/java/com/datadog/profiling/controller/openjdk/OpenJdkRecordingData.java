@@ -19,6 +19,7 @@ import com.datadog.profiling.controller.RecordingData;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
+import javax.annotation.Nonnull;
 import jdk.jfr.Recording;
 
 /** Implementation for profiling recordings. */
@@ -39,6 +40,7 @@ public class OpenJdkRecordingData implements RecordingData {
   }
 
   @Override
+  @Nonnull
   public InputStream getStream() throws IOException {
     return recording.getStream(start, end);
   }
@@ -49,6 +51,7 @@ public class OpenJdkRecordingData implements RecordingData {
   }
 
   @Override
+  @Nonnull
   public String getName() {
     return recording.getName();
   }
@@ -59,11 +62,13 @@ public class OpenJdkRecordingData implements RecordingData {
   }
 
   @Override
+  @Nonnull
   public Instant getStart() {
     return start;
   }
 
   @Override
+  @Nonnull
   public Instant getEnd() {
     return end;
   }

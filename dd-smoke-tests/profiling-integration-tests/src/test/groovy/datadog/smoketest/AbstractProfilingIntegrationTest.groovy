@@ -17,6 +17,7 @@ abstract class AbstractProfilingIntegrationTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
+    command.addAll((String[]) ["-XX:+IgnoreUnrecognizedVMOptions", "-XX:+UnlockCommercialFeatures", "-XX:+FlightRecorder"])
     command.addAll((String[]) ["-Ddd.${ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE}=${templateOverride}"])
     command.addAll((String[]) ["-jar", profilingShadowJar])
     command.add(Integer.toString(exitDelay))

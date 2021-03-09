@@ -1,4 +1,4 @@
-package com.datadog.profiling.controller.openjdk;
+package com.datadog.profiling.controller.jfr;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -14,8 +14,8 @@ public class JfpUtilsTest {
   private static final String CONFIG_ENTRY = "jdk.ThreadAllocationStatistics#enabled";
   private static final String CONFIG_OVERRIDE_ENTRY = "test.continuous.override#value";
 
-  static final String OVERRIDES =
-      OpenJdkControllerTest.class.getClassLoader().getResource("overrides.jfp").getFile();
+  public static final String OVERRIDES =
+      JfpUtilsTest.class.getClassLoader().getResource("overrides.jfp").getFile();
 
   @Test
   public void testLoadingInvalidOverride() throws IOException {
@@ -23,12 +23,12 @@ public class JfpUtilsTest {
 
     assertThrows(
         IOException.class,
-        () -> JfpUtils.readNamedJfpResource(OpenJdkController.JFP, INVALID_OVERRIDE));
+        () -> JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP, INVALID_OVERRIDE));
   }
 
   @Test
   public void testLoadingContinuousConfig() throws IOException {
-    final Map<String, String> config = JfpUtils.readNamedJfpResource(OpenJdkController.JFP, null);
+    final Map<String, String> config = JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP, null);
     assertEquals("true", config.get(CONFIG_ENTRY));
     assertNull(config.get(CONFIG_OVERRIDE_ENTRY));
   }
@@ -36,7 +36,7 @@ public class JfpUtilsTest {
   @Test
   public void testLoadingContinuousConfigWithOverride() throws IOException {
     final Map<String, String> config =
-        JfpUtils.readNamedJfpResource(OpenJdkController.JFP, OVERRIDES);
+        JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP, OVERRIDES);
     assertEquals("true", config.get(CONFIG_ENTRY));
     assertEquals("200", config.get(CONFIG_OVERRIDE_ENTRY));
   }
@@ -44,7 +44,7 @@ public class JfpUtilsTest {
   @ParameterizedTest
   @ValueSource(strings = {"minimal", "minimal.jfp"})
   public void testLoadingConfigMinimal(String override) throws IOException {
-    Map<String, String> config = JfpUtils.readNamedJfpResource(OpenJdkController.JFP, override);
+    Map<String, String> config = JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP, override);
     assertEquals("500 ms", config.get("jdk.ThreadSleep#threshold"));
     assertEquals("false", config.get("jdk.OldObjectSample#enabled"));
     assertEquals("false", config.get("jdk.ObjectAllocationInNewTLAB#enabled"));
@@ -53,7 +53,7 @@ public class JfpUtilsTest {
   @ParameterizedTest
   @ValueSource(strings = {"comprehensive", "comprehensive.jfp"})
   public void testLoadingConfigComprehensive(String override) throws IOException {
-    Map<String, String> config = JfpUtils.readNamedJfpResource(OpenJdkController.JFP, override);
+    Map<String, String> config = JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP, override);
     assertEquals("10 ms", config.get("jdk.ThreadSleep#threshold"));
     assertEquals("true", config.get("jdk.OldObjectSample#enabled"));
     assertEquals("true", config.get("jdk.ObjectAllocationInNewTLAB#enabled"));

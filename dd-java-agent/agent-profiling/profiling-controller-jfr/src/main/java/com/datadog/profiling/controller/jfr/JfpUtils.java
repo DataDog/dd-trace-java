@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datadog.profiling.controller.openjdk;
+package com.datadog.profiling.controller.jfr;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -31,7 +31,8 @@ import java.util.Properties;
  * template, but in a format that is easier to handle in the profiling agent, not requiring us to
  * parse XML.
  */
-final class JfpUtils {
+public final class JfpUtils {
+  public static final String DEFAULT_JFP = "jfr/dd.jfp";
   private static final String OVERRIDES_PATH = "jfr/overrides/";
   public static final String JFP_EXTENSION = ".jfp";
 

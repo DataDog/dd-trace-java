@@ -2,7 +2,6 @@ package datadog.smoketest
 
 import com.datadog.profiling.testing.ProfilingTestUtils
 import com.google.common.collect.Multimap
-import net.jpountz.lz4.LZ4FrameInputStream
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.RecordedRequest
 import org.openjdk.jmc.common.item.Aggregators
@@ -33,7 +32,6 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractProfilingIntegr
 
     then:
     firstRequest.getRequestUrl().toString() == profilingUrl
-    firstRequest.getHeader("DD-API-KEY") == apiKey()
 
     firstRequestParameters.get("format").get(0) == "jfr"
     firstRequestParameters.get("type").get(0) == "jfr-continuous"
@@ -65,7 +63,6 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractProfilingIntegr
     then:
     !logHasErrors
     secondRequest.getRequestUrl().toString() == profilingUrl
-    secondRequest.getHeader("DD-API-KEY") == apiKey()
 
     def secondStartTime = Instant.parse(secondRequestParameters.get("recording-start").get(0))
     def period = secondStartTime.toEpochMilli() - firstStartTime.toEpochMilli()
@@ -74,26 +71,30 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractProfilingIntegr
 
     firstRequestParameters.get("chunk-data").get(0) != null
 
-    IItemCollection events = JfrLoaderToolkit.loadEvents(new LZ4FrameInputStream(new ByteArrayInputStream(secondRequestParameters.get("chunk-data").get(0))))
-    IItemCollection scopeEvents = events.apply(ItemFilters.type("datadog.Scope"))
+    def byteData = secondRequestParameters.get("chunk-data").get(0)
+    IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData))
+    events.size() > 0
 
-    scopeEvents.size() > 0
+    // Only non-Oracle JDK 8+ JVMs support custom DD events
+    if (!System.getProperty("java.vendor").contains("Oracle") || !System.getProperty("java.version").contains("1.8")) {
+      IItemCollection scopeEvents = events.apply(ItemFilters.type("datadog.Scope"))
 
-    def cpuTimeAttr = Attribute.attr("cpuTime", "cpuTime", UnitLookup.TIMESPAN)
+      scopeEvents.size() > 0
+      def cpuTimeAttr = Attribute.attr("cpuTime", "cpuTime", UnitLookup.TIMESPAN)
 
-    // filter out scope events without CPU time data
-    def filteredScopeEvents = scopeEvents.apply(ItemFilters.more(cpuTimeAttr, UnitLookup.NANOSECOND.quantity(Long.MIN_VALUE)))
-    // make sure there is at least one scope event with CPU time data
-    filteredScopeEvents.hasItems()
+      // filter out scope events without CPU time data
+      def filteredScopeEvents = scopeEvents.apply(ItemFilters.more(cpuTimeAttr, UnitLookup.NANOSECOND.quantity(Long.MIN_VALUE)))
+      // make sure there is at least one scope event with CPU time data
+      filteredScopeEvents.hasItems()
+      filteredScopeEvents.getAggregate(Aggregators.min("datadog.Scope", cpuTimeAttr)).longValue() >= 10_000L
 
-    filteredScopeEvents.getAggregate(Aggregators.min("datadog.Scope", cpuTimeAttr)).longValue() >= 10_000L
+      // check exception events
+      events.apply(ItemFilters.type("datadog.ExceptionSample")).hasItems()
+      events.apply(ItemFilters.type("datadog.ExceptionCount")).hasItems()
 
-    // check exception events
-    events.apply(ItemFilters.type("datadog.ExceptionSample")).hasItems()
-    events.apply(ItemFilters.type("datadog.ExceptionCount")).hasItems()
-
-    // check deadlock events
-    events.apply(ItemFilters.type("datadog.Deadlock")).hasItems()
-    events.apply(ItemFilters.type("datadog.DeadlockedThread")).hasItems()
+      // check deadlock events
+      events.apply(ItemFilters.type("datadog.Deadlock")).hasItems()
+      events.apply(ItemFilters.type("datadog.DeadlockedThread")).hasItems()
+    }
   }
 }
