@@ -2,8 +2,8 @@ package datadog.trace.api.normalize;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import datadog.trace.api.parsing.IndexesOfSearch;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.BitSet;
 import lombok.extern.slf4j.Slf4j;
@@ -34,17 +34,13 @@ public final class SQLNormalizer {
     }
   }
 
-  private static final long SPACES = pattern((byte) ' ');
-  private static final long TABS = pattern((byte) '\t');
-  private static final long NEW_LINES = pattern((byte) '\n');
-  private static final long COMMAS = pattern((byte) ',');
-  private static final long L_PAREN = pattern((byte) '(');
-  private static final long R_PAREN = pattern((byte) ')');
+  private static final IndexesOfSearch SPLITTER_INDEXES_SEARCH =
+      new IndexesOfSearch((byte) ' ', (byte) '\t', (byte) '\n', (byte) ',', (byte) '(', (byte) ')');
 
   public static UTF8BytesString normalize(String sql) {
     byte[] utf8 = sql.getBytes(UTF_8);
     try {
-      BitSet splitters = findSplitterPositions(utf8);
+      BitSet splitters = SPLITTER_INDEXES_SEARCH.indexesIn(utf8);
       if (null != splitters) {
         boolean modified = false;
         int outputLength = utf8.length;
@@ -104,40 +100,6 @@ public final class SQLNormalizer {
     return UTF8BytesString.create(sql, utf8);
   }
 
-  private static BitSet findSplitterPositions(byte[] utf8) {
-    int capacity = (utf8.length + 7) & -8;
-    BitSet positions = new BitSet(capacity);
-    int tokensFound = 0;
-    int pos = 0;
-    ByteBuffer buffer = ByteBuffer.wrap(utf8);
-    for (; pos < (utf8.length & -8); pos += 8) {
-      long word = buffer.getLong(pos);
-      long tokens = findSplitters(word);
-      tokensFound += Long.bitCount(tokens);
-      while (tokens != 0) {
-        positions.set(pos + 7 - (Long.numberOfTrailingZeros(tokens) >>> 3));
-        tokens &= (tokens - 1);
-      }
-    }
-    if (pos < utf8.length && utf8.length >= 8) {
-      long word = buffer.getLong(utf8.length - 8);
-      word <<= ((8 - (utf8.length - pos)) << 3);
-      long tokens = findSplitters(word);
-      tokensFound += Long.bitCount(tokens);
-      while (tokens != 0) {
-        positions.set(pos + 7 - (Long.numberOfTrailingZeros(tokens) >>> 3));
-        tokens &= (tokens - 1);
-      }
-    } else if (pos < utf8.length) {
-      for (int i = pos; i < utf8.length; ++i) {
-        if (Character.isWhitespace((char) (utf8[i] & 0xFF)) || isNonWhitespaceSplitter(utf8[i])) {
-          positions.set(i);
-        }
-      }
-    }
-    return tokensFound == 0 ? null : positions;
-  }
-
   private static boolean shouldReplaceSequenceStartingWith(byte symbol) {
     return (OBFUSCATE_SEQUENCES_STARTING_WITH[(symbol & 0xFF) >>> 6] & (1L << (symbol & 0xFF)))
         != 0;
@@ -145,15 +107,6 @@ public final class SQLNormalizer {
 
   private static boolean isNonWhitespaceSplitter(byte symbol) {
     return (NON_WHITESPACE_SPLITTERS[(symbol & 0xFF) >>> 6] & (1L << (symbol & 0xFF))) != 0;
-  }
-
-  private static long findSplitters(long word) {
-    return tag(word, SPACES)
-        | tag(word, TABS)
-        | tag(word, NEW_LINES)
-        | tag(word, L_PAREN)
-        | tag(word, R_PAREN)
-        | tag(word, COMMAS);
   }
 
   private static long tag(long pattern, long word) {
