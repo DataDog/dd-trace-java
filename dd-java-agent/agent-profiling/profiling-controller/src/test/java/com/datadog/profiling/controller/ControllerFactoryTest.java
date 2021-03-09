@@ -37,7 +37,7 @@ public class ControllerFactoryTest {
         && "Oracle Corporation".equals(javaVendor)
         && javaVersion.startsWith("1.8")) {
       // condition for OracleJRE8 (with proprietary JFR inside)
-      expected = "Not enabling profiling; it requires Oracle Java 11+.";
+      expected = "Not enabling profiling; it requires Oracle JRE/JDK 8u40+";
     } else if ("OpenJDK Runtime Environment".equals(javaRuntimeName)) {
       expected =
           "Not enabling profiling; it requires 1.8.0_272+ OpenJDK builds from the following vendors: AdoptOpenJDK, Amazon Corretto, Azul Zulu, BellSoft Liberica";

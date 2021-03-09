@@ -86,9 +86,14 @@ public final class ControllerFactory {
           return "; it requires Zulu Java 8 (1.8.0_212+).";
         }
         final String javaRuntimeName = System.getProperty("java.runtime.name", "");
-        if (javaVendor.startsWith("Oracle") && javaRuntimeName.startsWith("OpenJDK")) {
-          // this is a upstream build from openjdk docker repository for example
-          return "; it requires 1.8.0_272+ OpenJDK builds (upstream)";
+        if (javaVendor.startsWith("Oracle")) {
+          if (javaRuntimeName.startsWith("OpenJDK")) {
+            // this is a upstream build from openjdk docker repository for example
+            return "; it requires 1.8.0_272+ OpenJDK builds (upstream)";
+          } else {
+            // this is a proprietary Oracle JRE/JDK 8
+            return "; it requires Oracle JRE/JDK 8u40+";
+          }
         }
         if (javaRuntimeName.startsWith("OpenJDK")) {
           return "; it requires 1.8.0_272+ OpenJDK builds from the following vendors: AdoptOpenJDK, Amazon Corretto, Azul Zulu, BellSoft Liberica";
