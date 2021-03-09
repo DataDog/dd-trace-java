@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+  xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd">
+  <global-property name="test.sever.host " value="localhost" />
+  <global-property name="test.sever.port" value="8081" />
+  <http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config"
+    doc:id="b2e8081f-c842-4e27-a54a-6816fff8562c">
+    <http:listener-connection host="${test.server.host}" port="${test.server.port}" />
+  </http:listener-config>
+  <flow name="MuleHttpServerTestFlow" doc:id="dd057d61-a178-4e1e-a7e6-1342814d46ab">
+    <http:listener doc:name="HttpListener" doc:id="29f9ad26-4d9d-4d61-89e9-6cedf5518029"
+      config-ref="HTTP_Listener_config" path="/*" outputMimeType="text/plain">
+      <http:response statusCode="#[vars.responseCode]" />
+    </http:listener>
+    <java:new doc:name="Create Handler" doc:id="b6048082-174a-4cd9-9a80-828feb53c47e"
+      class="mule4.HttpServerTestHandler" target="onCallInstance" constructor="HttpServerTestHandler()" />
+    <java:invoke doc:name="Handle Message" doc:id="9e821936-6509-444d-9352-09c13533a941"
+      class="mule4.HttpServerTestHandler" instance="#[vars.onCallInstance]" method="handle(java.lang.String)">
+      <java:args><![CDATA[#[{arg0: attributes.requestPath}]]]></java:args>
+    </java:invoke>
+    <set-variable value="#[payload.code]" doc:name="Set Response Code"
+      doc:id="7b33c79c-5c2a-4ad8-ae51-45ae99384da7" variableName="responseCode" />
+    <set-payload value="#[payload.body]" doc:name="Set Response Body"
+      doc:id="572c5a3f-ace5-4302-b9af-238abba29dc2" />
+  </flow>
+</mule>

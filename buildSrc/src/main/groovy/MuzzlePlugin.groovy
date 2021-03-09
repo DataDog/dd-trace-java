@@ -50,7 +50,7 @@ class MuzzlePlugin implements Plugin<Project> {
     RemoteRepository akka = new RemoteRepository.Builder("akka", "default", "https://dl.bintray.com/akka/maven/").build()
     RemoteRepository atlassian = new RemoteRepository.Builder("atlassian", "default", "https://maven.atlassian.com/content/repositories/atlassian-public/").build()
 //    MUZZLE_REPOS = Arrays.asList(central, sonatype, jcenter, spring, jboss, typesafe, akka, atlassian)
-    MUZZLE_REPOS = Arrays.asList(central, jcenter, typesafe)
+    MUZZLE_REPOS = Collections.unmodifiableList(Arrays.asList(central, jcenter, typesafe))
   }
 
   @Override
@@ -239,7 +239,7 @@ class MuzzlePlugin implements Plugin<Project> {
     final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", muzzleDirective.versions)
 
     final VersionRangeRequest rangeRequest = new VersionRangeRequest()
-    rangeRequest.setRepositories(MUZZLE_REPOS)
+    rangeRequest.setRepositories(muzzleDirective.getRepositories(MUZZLE_REPOS))
     rangeRequest.setArtifact(directiveArtifact)
     final VersionRangeResult rangeResult = system.resolveVersionRange(session, rangeRequest)
     final Set<Version> versions = filterAndLimitVersions(rangeResult, muzzleDirective.skipVersions)
@@ -265,13 +265,14 @@ class MuzzlePlugin implements Plugin<Project> {
     final Artifact allVersionsArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", "[,)")
     final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", muzzleDirective.versions)
 
+    def repos = muzzleDirective.getRepositories(MUZZLE_REPOS)
     final VersionRangeRequest allRangeRequest = new VersionRangeRequest()
-    allRangeRequest.setRepositories(MUZZLE_REPOS)
+    allRangeRequest.setRepositories(repos)
     allRangeRequest.setArtifact(allVersionsArtifact)
     final VersionRangeResult allRangeResult = system.resolveVersionRange(session, allRangeRequest)
 
     final VersionRangeRequest rangeRequest = new VersionRangeRequest()
-    rangeRequest.setRepositories(MUZZLE_REPOS)
+    rangeRequest.setRepositories(repos)
     rangeRequest.setArtifact(directiveArtifact)
     final VersionRangeResult rangeResult = system.resolveVersionRange(session, rangeRequest)
     final Set<Version> versions = rangeResult.versions.toSet()
@@ -422,7 +423,8 @@ class MuzzlePlugin implements Plugin<Project> {
   private static filterVersion(Set<Version> list, Set<String> skipVersions) {
     list.removeIf {
       def version = it.toString().toLowerCase()
-      return version.contains("rc") ||
+      return version.endsWith("-snapshot") ||
+        version.contains("rc") ||
         version.contains(".cr") ||
         version.contains("alpha") ||
         version.contains("beta") ||
@@ -464,6 +466,7 @@ class MuzzleDirective {
   String versions
   Set<String> skipVersions = new HashSet<>()
   List<String> additionalDependencies = new ArrayList<>()
+  List<RemoteRepository> additionalRepositories = new ArrayList<>();
   boolean assertPass
   boolean assertInverse = false
   boolean coreJdk = false
@@ -479,6 +482,34 @@ class MuzzleDirective {
    */
   void extraDependency(String compileString) {
     additionalDependencies.add(compileString)
+  }
+
+  /**
+   * Adds extra repositories to the current muzzle test.
+   *
+   * @param id the repository id
+   * @param url the url of the repository
+   * @param type the type of repository, defaults to "default"
+   */
+  void extraRepository(String id, String url, String type = "default") {
+    additionalRepositories.add(new RemoteRepository.Builder(id, type, url).build())
+  }
+
+  /**
+   * Get the list of repositories to use for this muzzle directive.
+   *
+   * @param defaults the default repositories
+   * @return a list of the default repositories followed by any additional repositories
+   */
+  List<RemoteRepository> getRepositories(List<RemoteRepository> defaults) {
+    if (additionalRepositories.isEmpty()) {
+      return defaults
+    } else {
+      def repositories = new ArrayList<RemoteRepository>(defaults.size() + additionalRepositories.size())
+      repositories.addAll(defaults)
+      repositories.addAll(additionalRepositories)
+      return repositories
+    }
   }
 
   /**
@@ -509,6 +540,7 @@ class MuzzleDirective {
 class MuzzleExtension {
   final List<MuzzleDirective> directives = new ArrayList<>()
   private final ObjectFactory objectFactory
+  private final List<RemoteRepository> additionalRepositories = new ArrayList<>()
 
   @javax.inject.Inject
   MuzzleExtension(final ObjectFactory objectFactory) {
@@ -531,10 +563,25 @@ class MuzzleExtension {
     directives.add(fail)
   }
 
+  /**
+   * Adds extra repositories to the current muzzle section. Repositories will only be added to directives
+   * created after this.
+   *
+   * @param id the repository id
+   * @param url the url of the repository
+   * @param type the type of repository, defaults to "default"
+   */
+  void extraRepository(String id, String url, String type = "default") {
+    additionalRepositories.add(new RemoteRepository.Builder(id, type, url).build())
+  }
+
+
   private postConstruct(MuzzleDirective directive) {
     // Make skipVersions case insensitive.
     directive.skipVersions = directive.skipVersions.collect {
       it.toLowerCase()
     }
+    // Add existing repositories
+    directive.additionalRepositories.addAll(additionalRepositories)
   }
 }

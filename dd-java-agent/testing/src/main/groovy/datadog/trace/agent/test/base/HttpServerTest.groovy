@@ -79,6 +79,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true
   }
 
+  boolean testRedirect() {
+    true
+  }
+
   boolean testExceptionBody() {
     true
   }
@@ -352,6 +356,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def "test redirect"() {
     setup:
+    assumeTrue(testRedirect())
     def request = request(REDIRECT, method, body).build()
     def response = client.newCall(request).execute()
 
