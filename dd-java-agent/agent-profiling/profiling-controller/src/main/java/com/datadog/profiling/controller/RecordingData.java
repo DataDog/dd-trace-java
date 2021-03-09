@@ -18,7 +18,7 @@ package com.datadog.profiling.controller;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
-import lombok.NonNull;
+import javax.annotation.Nonnull;
 
 /** Platform agnostic API for operations required when retrieving data using the ProfilingSystem. */
 public interface RecordingData {
@@ -27,7 +27,7 @@ public interface RecordingData {
    * @return the data stream.
    * @throws IOException if another IO-related problem occured.
    */
-  @NonNull
+  @Nonnull
   InputStream getStream() throws IOException;
 
   /**
@@ -49,7 +49,7 @@ public interface RecordingData {
    *
    * @return the name of the recording from which the data is originating.
    */
-  @NonNull
+  @Nonnull
   String getName();
 
   /**
@@ -59,7 +59,7 @@ public interface RecordingData {
    *
    * @return the requested start time.
    */
-  @NonNull
+  @Nonnull
   Instant getStart();
 
   /**
@@ -69,6 +69,6 @@ public interface RecordingData {
    *
    * @return the requested end time.
    */
-  @NonNull
+  @Nonnull
   Instant getEnd();
 }

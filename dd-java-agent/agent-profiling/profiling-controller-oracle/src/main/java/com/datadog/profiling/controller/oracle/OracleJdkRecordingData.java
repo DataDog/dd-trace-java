@@ -48,6 +48,7 @@ public class OracleJdkRecordingData implements RecordingData {
   }
 
   @Override
+  @Nonnull
   public InputStream getStream() throws IOException {
     return new JfrRecordingStream();
   }
@@ -58,6 +59,7 @@ public class OracleJdkRecordingData implements RecordingData {
   }
 
   @Override
+  @Nonnull
   public String getName() {
     return name;
   }
@@ -68,11 +70,13 @@ public class OracleJdkRecordingData implements RecordingData {
   }
 
   @Override
+  @Nonnull
   public Instant getStart() {
     return start;
   }
 
   @Override
+  @Nonnull
   public Instant getEnd() {
     return end;
   }

@@ -11,9 +11,8 @@ import javax.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * This is the implementation of the controller for OpenJDK. It should work for JDK 11+ today, and
- * unmodified for JDK 8+ once JFR has been back-ported. The Oracle JDK implementation will be far
- * messier... ;)
+ * This is the implementation of the controller for Oracle JDK. It will work only for JDK 8 built
+ * and distributed by Oracle.
  */
 @Slf4j
 public final class OracleJdkController implements Controller {
