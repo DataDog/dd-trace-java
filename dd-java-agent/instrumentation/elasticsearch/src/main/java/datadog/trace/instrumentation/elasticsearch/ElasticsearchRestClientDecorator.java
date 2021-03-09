@@ -12,9 +12,9 @@ import org.elasticsearch.client.Response;
 public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
 
   public static final CharSequence ELASTICSEARCH_REST_QUERY =
-      UTF8BytesString.createConstant("elasticsearch.rest.query");
+      UTF8BytesString.create("elasticsearch.rest.query");
   public static final CharSequence ELASTICSEARCH_JAVA =
-      UTF8BytesString.createConstant("elasticsearch-java");
+      UTF8BytesString.create("elasticsearch-java");
 
   public static final ElasticsearchRestClientDecorator DECORATE =
       new ElasticsearchRestClientDecorator();

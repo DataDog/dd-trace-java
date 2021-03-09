@@ -10,11 +10,10 @@ import java.net.URI;
 
 public class FinatraDecorator extends HttpServerDecorator<Request, Request, Response> {
 
-  public static final CharSequence FINATRA = UTF8BytesString.createConstant("finatra");
+  public static final CharSequence FINATRA = UTF8BytesString.create("finatra");
   public static final CharSequence FINATRA_CONTROLLER =
-      UTF8BytesString.createConstant("finatra.controller");
-  public static final CharSequence FINATRA_REQUEST =
-      UTF8BytesString.createConstant("finatra.request");
+      UTF8BytesString.create("finatra.controller");
+  public static final CharSequence FINATRA_REQUEST = UTF8BytesString.create("finatra.request");
   public static final FinatraDecorator DECORATE = new FinatraDecorator();
 
   @Override

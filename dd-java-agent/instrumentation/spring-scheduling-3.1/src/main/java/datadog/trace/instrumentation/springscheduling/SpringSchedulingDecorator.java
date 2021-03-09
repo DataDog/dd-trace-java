@@ -8,8 +8,7 @@ import org.springframework.scheduling.support.ScheduledMethodRunnable;
 
 @Slf4j
 public class SpringSchedulingDecorator extends BaseDecorator {
-  public static final CharSequence SCHEDULED_CALL =
-      UTF8BytesString.createConstant("scheduled.call");
+  public static final CharSequence SCHEDULED_CALL = UTF8BytesString.create("scheduled.call");
   public static final SpringSchedulingDecorator DECORATE = new SpringSchedulingDecorator();
 
   private SpringSchedulingDecorator() {}

@@ -11,8 +11,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 
 public class KafkaStreamsDecorator extends ClientDecorator {
-  public static final CharSequence JAVA_KAFKA = UTF8BytesString.createConstant("java-kafka");
-  public static final CharSequence KAFKA_CONSUME = UTF8BytesString.createConstant("kafka.consume");
+  public static final CharSequence JAVA_KAFKA = UTF8BytesString.create("java-kafka");
+  public static final CharSequence KAFKA_CONSUME = UTF8BytesString.create("kafka.consume");
   public static final KafkaStreamsDecorator CONSUMER_DECORATE = new KafkaStreamsDecorator();
 
   private static final DDCache<CharSequence, CharSequence> RESOURCE_NAME_CACHE =

@@ -12,9 +12,8 @@ import ratpack.http.Status;
 
 @Slf4j
 public class RatpackServerDecorator extends HttpServerDecorator<Request, Request, Response> {
-  public static final CharSequence RATPACK_HANDLER =
-      UTF8BytesString.createConstant("ratpack.handler");
-  public static final CharSequence RATPACK = UTF8BytesString.createConstant("ratpack");
+  public static final CharSequence RATPACK_HANDLER = UTF8BytesString.create("ratpack.handler");
+  public static final CharSequence RATPACK = UTF8BytesString.create("ratpack");
   public static final RatpackServerDecorator DECORATE = new RatpackServerDecorator();
 
   @Override

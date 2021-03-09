@@ -13,10 +13,9 @@ import org.apache.jasper.JspCompilationContext;
 import org.slf4j.LoggerFactory;
 
 public class JSPDecorator extends BaseDecorator {
-  public static final CharSequence JSP_COMPILE = UTF8BytesString.createConstant("jsp.compile");
-  public static final CharSequence JSP_RENDER = UTF8BytesString.createConstant("jsp.render");
-  public static final CharSequence JSP_HTTP_SERVLET =
-      UTF8BytesString.createConstant("jsp-http-servlet");
+  public static final CharSequence JSP_COMPILE = UTF8BytesString.create("jsp.compile");
+  public static final CharSequence JSP_RENDER = UTF8BytesString.create("jsp.render");
+  public static final CharSequence JSP_HTTP_SERVLET = UTF8BytesString.create("jsp-http-servlet");
   public static JSPDecorator DECORATE = new JSPDecorator();
 
   @Override

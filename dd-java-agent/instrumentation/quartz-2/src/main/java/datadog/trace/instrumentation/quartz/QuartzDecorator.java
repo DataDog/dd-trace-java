@@ -14,8 +14,7 @@ import org.quartz.JobExecutionContext;
 
 @Slf4j
 public class QuartzDecorator extends BaseDecorator {
-  public static final CharSequence SCHEDULED_CALL =
-      UTF8BytesString.createConstant("scheduled.call");
+  public static final CharSequence SCHEDULED_CALL = UTF8BytesString.create("scheduled.call");
   public static final QuartzDecorator DECORATE = new QuartzDecorator();
 
   private QuartzDecorator() {}

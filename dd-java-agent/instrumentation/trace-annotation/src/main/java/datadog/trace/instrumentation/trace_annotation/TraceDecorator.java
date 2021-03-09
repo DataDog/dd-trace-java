@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 public class TraceDecorator extends BaseDecorator {
   public static TraceDecorator DECORATE = new TraceDecorator();
 
-  private static final CharSequence TRACE = UTF8BytesString.createConstant("trace");
+  private static final CharSequence TRACE = UTF8BytesString.create("trace");
 
   @Override
   protected String[] instrumentationNames() {

@@ -9,8 +9,8 @@ import java.lang.reflect.Method;
 
 public final class SpringDataDecorator extends ClientDecorator {
   public static final CharSequence REPOSITORY_OPERATION =
-      UTF8BytesString.createConstant("repository.operation");
-  public static final CharSequence SPRING_DATA = UTF8BytesString.createConstant("spring-data");
+      UTF8BytesString.create("repository.operation");
+  public static final CharSequence SPRING_DATA = UTF8BytesString.create("spring-data");
   public static final SpringDataDecorator DECORATOR = new SpringDataDecorator();
 
   private SpringDataDecorator() {}

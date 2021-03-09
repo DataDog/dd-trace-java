@@ -15,9 +15,9 @@ import software.amazon.awssdk.http.SdkHttpResponse;
 public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, SdkHttpResponse> {
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
 
-  public static final CharSequence AWS_HTTP = UTF8BytesString.createConstant("aws.http");
+  public static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
 
-  static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("java-aws-sdk");
+  static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
 
   public AgentSpan onSdkRequest(final AgentSpan span, final SdkRequest request) {
     // S3

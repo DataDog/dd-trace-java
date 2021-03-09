@@ -9,11 +9,10 @@ import redis.protocol.RedisReply;
 public class RediscalaClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<RedisCommand<? extends RedisReply, ?>> {
 
-  public static final CharSequence REDIS_COMMAND = UTF8BytesString.createConstant("redis.command");
+  public static final CharSequence REDIS_COMMAND = UTF8BytesString.create("redis.command");
 
   private static final String SERVICE_NAME = "redis";
-  private static final CharSequence COMPONENT_NAME =
-      UTF8BytesString.createConstant("redis-command");
+  private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
 
   public static final RediscalaClientDecorator DECORATE = new RediscalaClientDecorator();
 

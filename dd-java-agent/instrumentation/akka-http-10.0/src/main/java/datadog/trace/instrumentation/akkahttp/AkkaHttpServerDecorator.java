@@ -8,10 +8,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 
 public class AkkaHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, HttpRequest, HttpResponse> {
-  public static final CharSequence AKKA_REQUEST =
-      UTF8BytesString.createConstant("akka-http.request");
-  public static final CharSequence AKKA_HTTP_SERVER =
-      UTF8BytesString.createConstant("akka-http-server");
+  public static final CharSequence AKKA_REQUEST = UTF8BytesString.create("akka-http.request");
+  public static final CharSequence AKKA_HTTP_SERVER = UTF8BytesString.create("akka-http-server");
   public static final AkkaHttpServerDecorator DECORATE = new AkkaHttpServerDecorator();
 
   @Override

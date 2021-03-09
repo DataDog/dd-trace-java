@@ -16,7 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 /** Tracing Request Handler */
 public class TracingRequestHandler extends RequestHandler2 {
 
-  private static final CharSequence AWS_HTTP = UTF8BytesString.createConstant("aws.http");
+  private static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
 
   private final AwsSdkClientDecorator decorate;
 

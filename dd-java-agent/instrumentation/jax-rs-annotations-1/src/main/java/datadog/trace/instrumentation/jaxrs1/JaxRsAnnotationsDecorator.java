@@ -23,8 +23,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
           return new ConcurrentHashMap<>();
         }
       };
-  public static final CharSequence JAX_RS_CONTROLLER =
-      UTF8BytesString.createConstant("jax-rs-controller");
+  public static final CharSequence JAX_RS_CONTROLLER = UTF8BytesString.create("jax-rs-controller");
 
   @Override
   protected String[] instrumentationNames() {

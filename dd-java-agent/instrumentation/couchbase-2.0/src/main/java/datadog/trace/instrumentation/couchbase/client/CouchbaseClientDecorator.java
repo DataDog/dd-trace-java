@@ -10,8 +10,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 class CouchbaseClientDecorator extends DatabaseClientDecorator {
   public static final CouchbaseClientDecorator DECORATE = new CouchbaseClientDecorator();
 
-  private static final CharSequence COUCHBASE_CLIENT =
-      UTF8BytesString.createConstant("couchbase-client");
+  private static final CharSequence COUCHBASE_CLIENT = UTF8BytesString.create("couchbase-client");
 
   @Override
   public AgentSpan afterStart(AgentSpan span) {

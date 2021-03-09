@@ -8,9 +8,8 @@ import play.shaded.ahc.org.asynchttpclient.Request;
 import play.shaded.ahc.org.asynchttpclient.Response;
 
 public class PlayWSClientDecorator extends HttpClientDecorator<Request, Response> {
-  public static final CharSequence PLAY_WS_REQUEST =
-      UTF8BytesString.createConstant("play-ws.request");
-  public static final CharSequence PLAY_WS = UTF8BytesString.createConstant("play-ws");
+  public static final CharSequence PLAY_WS_REQUEST = UTF8BytesString.create("play-ws.request");
+  public static final CharSequence PLAY_WS = UTF8BytesString.create("play-ws");
   public static final PlayWSClientDecorator DECORATE = new PlayWSClientDecorator();
 
   @Override

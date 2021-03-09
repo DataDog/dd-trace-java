@@ -5,9 +5,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class FilterDecorator extends BaseDecorator {
   public static final CharSequence JAVA_WEB_SERVLET_FILTER =
-      UTF8BytesString.createConstant("java-web-servlet-filter");
-  public static final CharSequence SERVLET_FILTER =
-      UTF8BytesString.createConstant("servlet.filter");
+      UTF8BytesString.create("java-web-servlet-filter");
+  public static final CharSequence SERVLET_FILTER = UTF8BytesString.create("servlet.filter");
   public static final FilterDecorator DECORATE = new FilterDecorator();
 
   @Override
