@@ -131,7 +131,8 @@ public class Agent {
         log.debug("Custom logger detected. Delaying Profiling Agent startup.");
         shouldDelayProfilerStartup = true;
       }
-      if (System.getProperty("java.vendor").contains("Oracle")) {
+      if (System.getProperty("java.vendor").contains("Oracle")
+          && !System.getProperty("java.runtime.name").contains("OpenJDK")) {
         log.debug("Oracle JDK 8 detected. Delaying Profiling Agent startup");
         shouldDelayProfilerStartup = true;
       }
