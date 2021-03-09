@@ -5,8 +5,6 @@ spotbugs {
   excludeFilter = file("$rootDir/gradle/spotbugFilters/exclude.xml")
 }
 
-spotbugsTest.enabled = false
-
 spotbugsMain {
   ignoreFailures = false
   // detector documentation is in the following link:
@@ -38,6 +36,16 @@ spotbugsMain {
       enabled = true
       destination = file("$buildDir/reports/spotbugs/spotbugsMain.html")
       stylesheet = 'fancy-hist.xsl'
+    }
+  }
+}
+
+// disable spotbugs for all test tasks
+afterEvaluate {
+  tasks.withType(spotbugsTest.class).configureEach {
+    def name = it.name
+    if (name.endsWith("Test")) {
+      it.enabled = false
     }
   }
 }

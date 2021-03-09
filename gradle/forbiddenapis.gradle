@@ -17,7 +17,16 @@ forbiddenApis {
   signaturesFiles = mainFilterFile
   ignoreFailures = true
 }
-forbiddenApisTest.enabled = false
+
+// disable forbiddenApis for all test tasks
+afterEvaluate {
+  tasks.withType(forbiddenApisTest.class).configureEach {
+    def name = it.name
+    if (name.endsWith("Test")) {
+      it.enabled = false
+    }
+  }
+}
 
 dependencies {
   compileOnly group: 'de.thetaphi', name: 'forbiddenapis', version: '3.1'
