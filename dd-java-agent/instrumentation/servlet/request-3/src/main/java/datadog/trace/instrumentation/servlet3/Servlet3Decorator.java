@@ -57,7 +57,10 @@ public class Servlet3Decorator
 
   @Override
   public AgentSpan onRequest(
-      final AgentSpan span, final HttpServletRequest connection, final HttpServletRequest request) {
+      final AgentSpan span,
+      final HttpServletRequest connection,
+      final HttpServletRequest request,
+      AgentSpan.Context.Extracted context) {
     assert span != null;
     if (request != null) {
       String contextPath = request.getContextPath();
@@ -71,7 +74,7 @@ public class Servlet3Decorator
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    return super.onRequest(span, connection, request);
+    return super.onRequest(span, connection, request, context);
   }
 
   @Override

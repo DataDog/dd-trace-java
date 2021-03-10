@@ -11,7 +11,7 @@ import java.util.Map;
  * When calling extract, we allow for grabbing other configured headers as tags. Those tags are
  * returned here even if the rest of the request would have returned null.
  */
-public class TagContext implements AgentSpan.Context {
+public class TagContext implements AgentSpan.Context.Extracted {
   private final String origin;
   private final String forwardedFor;
   private final String forwardedPort;
@@ -32,10 +32,12 @@ public class TagContext implements AgentSpan.Context {
     return origin;
   }
 
+  @Override
   public String getForwardedFor() {
     return forwardedFor;
   }
 
+  @Override
   public String getForwardedPort() {
     return forwardedPort;
   }

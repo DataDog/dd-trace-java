@@ -13,6 +13,7 @@ public class TomcatDecorator extends HttpServerDecorator<Request, Request, Respo
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence TOMCAT_SERVER = UTF8BytesString.create("tomcat-server");
   public static final TomcatDecorator DECORATE = new TomcatDecorator();
+  public static final String DD_EXTRACTED_CONTEXT_ATTRIBUTE = "datadog.extracted-context";
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
 
@@ -53,7 +54,10 @@ public class TomcatDecorator extends HttpServerDecorator<Request, Request, Respo
 
   @Override
   public AgentSpan onRequest(
-      final AgentSpan span, final Request connection, final Request request) {
+      final AgentSpan span,
+      final Request connection,
+      final Request request,
+      AgentSpan.Context.Extracted context) {
     if (request != null) {
       String contextPath = request.getContextPath();
       String servletPath = request.getServletPath();
@@ -70,7 +74,7 @@ public class TomcatDecorator extends HttpServerDecorator<Request, Request, Respo
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    return super.onRequest(span, connection, request);
+    return super.onRequest(span, connection, request, context);
   }
 
   @Override

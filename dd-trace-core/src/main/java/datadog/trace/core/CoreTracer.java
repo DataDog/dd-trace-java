@@ -21,7 +21,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -403,7 +402,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> AgentSpan.Context extract(final C carrier, final ContextVisitor<C> getter) {
+  public <C> AgentSpan.Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
     return extractor.extract(carrier, getter);
   }
 
@@ -763,18 +762,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         if (parentContext instanceof TagContext) {
           coreTags = ((TagContext) parentContext).getTags();
           origin = ((TagContext) parentContext).getOrigin();
-          String forwardedFor = ((TagContext) parentContext).getForwardedFor();
-          if (forwardedFor != null) {
-            if (forwardedFor.contains(":")) {
-              withTag(Tags.PEER_HOST_IPV6, forwardedFor);
-            } else {
-              withTag(Tags.PEER_HOST_IPV4, forwardedFor);
-            }
-          }
-          String forwardedPort = ((TagContext) parentContext).getForwardedPort();
-          if (forwardedPort != null) {
-            withTag(Tags.PEER_PORT, forwardedPort);
-          }
         } else {
           coreTags = null;
           origin = null;

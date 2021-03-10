@@ -71,11 +71,11 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing {
         return null;
       }
 
-      final Context parentContext = propagate().extract(request, GETTER);
+      final Context.Extracted parentContext = propagate().extract(request, GETTER);
       final AgentSpan span = startSpan(GRIZZLY_REQUEST, parentContext);
       span.setMeasured(true);
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request, request);
+      DECORATE.onRequest(span, request, request, parentContext);
 
       final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);

@@ -106,11 +106,11 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final AgentSpan.Context extractedContext = propagate().extract(req, GETTER);
+      final AgentSpan.Context.Extracted extractedContext = propagate().extract(req, GETTER);
 
       final AgentSpan span = startSpan(SERVLET_REQUEST, extractedContext).setMeasured(true);
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, req, req);
+      DECORATE.onRequest(span, req, req, extractedContext);
 
       final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);

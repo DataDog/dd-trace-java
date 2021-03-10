@@ -48,14 +48,14 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
 
     final HttpRequest request = (HttpRequest) msg.getMessage();
 
-    final Context context =
+    final Context.Extracted context =
         propagate().extract(request.headers(), ContextVisitors.stringValuesEntrySet());
 
     final AgentSpan span = startSpan(NETTY_REQUEST, context);
     span.setMeasured(true);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, ctx.getChannel(), request);
+      DECORATE.onRequest(span, ctx.getChannel(), request, context);
 
       scope.setAsyncPropagation(true);
 

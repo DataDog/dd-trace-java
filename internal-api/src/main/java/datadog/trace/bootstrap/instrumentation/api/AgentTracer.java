@@ -245,7 +245,7 @@ public class AgentTracer {
     public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
 
     @Override
-    public <C> Context extract(final C carrier, final ContextVisitor<C> getter) {
+    public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return null;
     }
   }
@@ -505,7 +505,7 @@ public class AgentTracer {
     public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
 
     @Override
-    public <C> Context extract(final C carrier, final ContextVisitor<C> getter) {
+    public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return NoopContext.INSTANCE;
     }
   }
@@ -522,7 +522,7 @@ public class AgentTracer {
     public void cancel() {}
   }
 
-  public static class NoopContext implements Context {
+  public static class NoopContext implements Context.Extracted {
     public static final NoopContext INSTANCE = new NoopContext();
 
     @Override
@@ -543,6 +543,16 @@ public class AgentTracer {
     @Override
     public Iterable<Map.Entry<String, String>> baggageItems() {
       return Collections.emptyList();
+    }
+
+    @Override
+    public String getForwardedFor() {
+      return null;
+    }
+
+    @Override
+    public String getForwardedPort() {
+      return null;
     }
   }
 

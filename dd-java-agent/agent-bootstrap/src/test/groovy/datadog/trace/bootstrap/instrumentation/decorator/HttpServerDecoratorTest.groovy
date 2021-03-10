@@ -17,7 +17,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(span, null, req)
+    decorator.onRequest(span, null, req, null)
 
     then:
     if (req) {
@@ -42,7 +42,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(span, null, req)
+    decorator.onRequest(span, null, req, null)
 
     then:
     if (expectedUrl) {
@@ -76,16 +76,16 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def "test onConnection"() {
     setup:
+    def ctx = Mock(AgentSpan.Context.Extracted)
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(span, conn, null)
+    decorator.onRequest(span, conn, null, ctx)
 
     then:
+    1 * ctx.getForwardedFor() >> null
+    1 * ctx.getForwardedPort() >> null
     if (conn) {
-      1 * span.getTag(Tags.PEER_PORT) >> null
-      1 * span.getTag(Tags.PEER_HOST_IPV4) >> null
-      1 * span.getTag(Tags.PEER_HOST_IPV6) >> null
       1 * span.setTag(Tags.PEER_PORT, 555)
       if (ipv4) {
         1 * span.setTag(Tags.PEER_HOST_IPV4, "10.0.0.1")
@@ -96,18 +96,17 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     0 * _
 
     when:
-    decorator.onRequest(span, conn, null)
+    decorator.onRequest(span, conn, null, ctx)
 
     then:
-    if (conn) {
-      1 * span.getTag(Tags.PEER_PORT) >> conn.port
-      if (ipv4) {
-        1 * span.getTag(Tags.PEER_HOST_IPV4) >> conn.ip
-      } else {
-        1 * span.getTag(Tags.PEER_HOST_IPV4) >> null
-        1 * span.getTag(Tags.PEER_HOST_IPV6) >> conn.ip
-      }
+    1 * ctx.getForwardedFor() >> (ipv4 ? "10.1.1.1" : "0::1")
+    1 * ctx.getForwardedPort() >> "123"
+    if (ipv4) {
+      1 * span.setTag(Tags.PEER_HOST_IPV4, "10.1.1.1")
+    } else {
+      1 * span.setTag(Tags.PEER_HOST_IPV6, "0::1")
     }
+    1 * span.setTag(Tags.PEER_PORT, "123")
     0 * _
 
     where:

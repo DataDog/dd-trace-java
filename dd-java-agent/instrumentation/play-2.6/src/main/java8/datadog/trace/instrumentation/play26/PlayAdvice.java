@@ -61,7 +61,7 @@ public class PlayAdvice {
     final AgentSpan playControllerSpan = playControllerScope.span();
 
     // Call onRequest on return after tags are populated.
-    DECORATE.onRequest(playControllerSpan, req, req);
+    DECORATE.onRequest(playControllerSpan, req, req, null);
 
     if (throwable == null) {
       responseFuture.onComplete(
@@ -78,7 +78,7 @@ public class PlayAdvice {
     final AgentSpan rootSpan = activeSpan();
     // set the resource name on the upstream akka/netty span if there is one
     if (rootSpan != null) {
-      DECORATE.onRequest(rootSpan, req, req);
+      DECORATE.onRequest(rootSpan, req, req, null);
     }
   }
 }
