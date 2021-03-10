@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 
 @SuppressForbidden
@@ -21,23 +23,29 @@ class GitLabInfo extends CIProviderInfo {
   public static final String GITLAB_GIT_BRANCH = "CI_COMMIT_BRANCH";
   public static final String GITLAB_GIT_TAG = "CI_COMMIT_TAG";
 
-  GitLabInfo() {
-    this.ciTags =
-        new CITagsBuilder()
-            .withCiProviderName(GITLAB_PROVIDER_NAME)
-            .withCiPipelineId(System.getenv(GITLAB_PIPELINE_ID))
-            .withCiPipelineName(System.getenv(GITLAB_PIPELINE_NAME))
-            .withCiPipelineNumber(System.getenv(GITLAB_PIPELINE_NUMBER))
-            .withCiPipelineUrl(buildPipelineUrl())
-            .withCiStageName(System.getenv(GITLAB_STAGE_NAME))
-            .withCiJobName(System.getenv(GITLAB_JOB_NAME))
-            .withCiJorUrl(System.getenv(GITLAB_JOB_URL))
-            .withCiWorkspacePath(expandTilde(System.getenv(GITLAB_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(GITLAB_GIT_REPOSITORY_URL)))
-            .withGitCommit(System.getenv(GITLAB_GIT_COMMIT))
-            .withGitBranch(normalizeRef(System.getenv(GITLAB_GIT_BRANCH)))
-            .withGitTag(normalizeRef(System.getenv(GITLAB_GIT_TAG)))
-            .build();
+  @Override
+  protected GitInfo buildCIGitInfo() {
+    return GitInfo.builder()
+        .repositoryURL(filterSensitiveInfo(System.getenv(GITLAB_GIT_REPOSITORY_URL)))
+        .branch(normalizeRef(System.getenv(GITLAB_GIT_BRANCH)))
+        .tag(normalizeRef(System.getenv(GITLAB_GIT_TAG)))
+        .commit(CommitInfo.builder().sha(System.getenv(GITLAB_GIT_COMMIT)).build())
+        .build();
+  }
+
+  @Override
+  protected CIInfo buildCIInfo() {
+    return CIInfo.builder()
+        .ciProviderName(GITLAB_PROVIDER_NAME)
+        .ciPipelineId(System.getenv(GITLAB_PIPELINE_ID))
+        .ciPipelineName(System.getenv(GITLAB_PIPELINE_NAME))
+        .ciPipelineNumber(System.getenv(GITLAB_PIPELINE_NUMBER))
+        .ciPipelineUrl(buildPipelineUrl())
+        .ciStageName(System.getenv(GITLAB_STAGE_NAME))
+        .ciJobName(System.getenv(GITLAB_JOB_NAME))
+        .ciJobUrl(System.getenv(GITLAB_JOB_URL))
+        .ciWorkspace(expandTilde(System.getenv(GITLAB_WORKSPACE_PATH)))
+        .build();
   }
 
   private String buildPipelineUrl() {

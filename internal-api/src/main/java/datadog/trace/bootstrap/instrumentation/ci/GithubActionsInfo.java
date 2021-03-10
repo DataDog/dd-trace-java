@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+
 class GithubActionsInfo extends CIProviderInfo {
 
   // https://docs.github.com/en/free-pro-team@latest/actions/reference/environment-variables#default-environment-variables
@@ -14,25 +17,30 @@ class GithubActionsInfo extends CIProviderInfo {
   public static final String GHACTIONS_HEAD_REF = "GITHUB_HEAD_REF";
   public static final String GHACTIONS_REF = "GITHUB_REF";
 
-  GithubActionsInfo() {
-    final String repo = System.getenv(GHACTIONS_REPOSITORY);
-    final String commit = System.getenv(GHACTIONS_SHA);
-    final String url = buildPipelineUrl(repo, commit);
+  @Override
+  protected GitInfo buildCIGitInfo() {
+    return GitInfo.builder()
+        .repositoryURL(buildGitRepositoryUrl(System.getenv(GHACTIONS_REPOSITORY)))
+        .branch(buildGitBranch())
+        .tag(buildGitTag())
+        .commit(CommitInfo.builder().sha(System.getenv(GHACTIONS_SHA)).build())
+        .build();
+  }
 
-    this.ciTags =
-        new CITagsBuilder()
-            .withCiProviderName(GHACTIONS_PROVIDER_NAME)
-            .withCiPipelineId(System.getenv(GHACTIONS_PIPELINE_ID))
-            .withCiPipelineName(System.getenv(GHACTIONS_PIPELINE_NAME))
-            .withCiPipelineNumber(System.getenv(GHACTIONS_PIPELINE_NUMBER))
-            .withCiPipelineUrl(url)
-            .withCiJorUrl(url)
-            .withCiWorkspacePath(expandTilde(System.getenv(GHACTIONS_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(buildGitRepositoryUrl(repo))
-            .withGitCommit(commit)
-            .withGitBranch(buildGitBranch())
-            .withGitTag(buildGitTag())
-            .build();
+  @Override
+  protected CIInfo buildCIInfo() {
+    final String url =
+        buildPipelineUrl(System.getenv(GHACTIONS_REPOSITORY), System.getenv(GHACTIONS_SHA));
+
+    return CIInfo.builder()
+        .ciProviderName(GHACTIONS_PROVIDER_NAME)
+        .ciPipelineId(System.getenv(GHACTIONS_PIPELINE_ID))
+        .ciPipelineName(System.getenv(GHACTIONS_PIPELINE_NAME))
+        .ciPipelineNumber(System.getenv(GHACTIONS_PIPELINE_NUMBER))
+        .ciPipelineUrl(url)
+        .ciJobUrl(url)
+        .ciWorkspace(expandTilde(System.getenv(GHACTIONS_WORKSPACE_PATH)))
+        .build();
   }
 
   private String buildGitTag() {
@@ -62,6 +70,10 @@ class GithubActionsInfo extends CIProviderInfo {
   }
 
   private String buildGitRepositoryUrl(final String repo) {
+    if (repo == null || repo.isEmpty()) {
+      return null;
+    }
+
     return String.format("https://github.com/%s.git", repo);
   }
 

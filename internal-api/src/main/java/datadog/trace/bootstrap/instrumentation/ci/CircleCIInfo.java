@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+
 class CircleCIInfo extends CIProviderInfo {
 
   // https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
@@ -15,23 +18,28 @@ class CircleCIInfo extends CIProviderInfo {
   public static final String CIRCLECI_GIT_BRANCH = "CIRCLE_BRANCH";
   public static final String CIRCLECI_GIT_TAG = "CIRCLE_TAG";
 
-  CircleCIInfo() {
+  @Override
+  protected GitInfo buildCIGitInfo() {
     final String gitTag = normalizeRef(System.getenv(CIRCLECI_GIT_TAG));
+    return GitInfo.builder()
+        .repositoryURL(filterSensitiveInfo(System.getenv(CIRCLECI_GIT_REPOSITORY_URL)))
+        .branch(buildGitBranch(gitTag))
+        .tag(gitTag)
+        .commit(CommitInfo.builder().sha(System.getenv(CIRCLECI_GIT_COMMIT)).build())
+        .build();
+  }
 
-    this.ciTags =
-        new CITagsBuilder()
-            .withCiProviderName(CIRCLECI_PROVIDER_NAME)
-            .withCiPipelineId(System.getenv(CIRCLECI_PIPELINE_ID))
-            .withCiPipelineName(System.getenv(CIRCLECI_PIPELINE_NAME))
-            .withCiPipelineNumber(System.getenv(CIRCLECI_PIPELINE_NUMBER))
-            .withCiPipelineUrl(System.getenv(CIRCLECI_BUILD_URL))
-            .withCiJorUrl(System.getenv(CIRCLECI_BUILD_URL))
-            .withCiWorkspacePath(expandTilde(System.getenv(CIRCLECI_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(filterSensitiveInfo(System.getenv(CIRCLECI_GIT_REPOSITORY_URL)))
-            .withGitCommit(System.getenv(CIRCLECI_GIT_COMMIT))
-            .withGitBranch(buildGitBranch(gitTag))
-            .withGitTag(gitTag)
-            .build();
+  @Override
+  protected CIInfo buildCIInfo() {
+    return CIInfo.builder()
+        .ciProviderName(CIRCLECI_PROVIDER_NAME)
+        .ciPipelineId(System.getenv(CIRCLECI_PIPELINE_ID))
+        .ciPipelineName(System.getenv(CIRCLECI_PIPELINE_NAME))
+        .ciPipelineNumber(System.getenv(CIRCLECI_PIPELINE_NUMBER))
+        .ciPipelineUrl(System.getenv(CIRCLECI_BUILD_URL))
+        .ciJobUrl(System.getenv(CIRCLECI_BUILD_URL))
+        .ciWorkspace(expandTilde(System.getenv(CIRCLECI_WORKSPACE_PATH)))
+        .build();
   }
 
   private String buildGitBranch(final String gitTag) {

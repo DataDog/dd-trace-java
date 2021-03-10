@@ -4,6 +4,7 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo
 
 class TestDecoratorTest extends BaseDecoratorTest {
 
@@ -81,6 +82,17 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
   def newMockCiInfo() {
     return new CIProviderInfo() {
+
+      @Override
+      protected GitInfo buildCIGitInfo() {
+        return GitInfo.NOOP
+      }
+
+      @Override
+      protected CIProviderInfo.CIInfo buildCIInfo() {
+        return CIProviderInfo.CIInfo.NOOP
+      }
+
       @Override
       Map<String, String> getCiTags() {
         def mockCiTags = new HashMap()

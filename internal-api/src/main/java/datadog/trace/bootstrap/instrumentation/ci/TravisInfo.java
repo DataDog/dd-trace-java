@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.ci;
 
+import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+
 class TravisInfo extends CIProviderInfo {
 
   // https://docs.travis-ci.com/user/environment-variables/#default-environment-variables
@@ -17,23 +20,29 @@ class TravisInfo extends CIProviderInfo {
   public static final String TRAVIS_GIT_BRANCH = "TRAVIS_BRANCH";
   public static final String TRAVIS_GIT_TAG = "TRAVIS_TAG";
 
-  TravisInfo() {
+  @Override
+  protected GitInfo buildCIGitInfo() {
     final String gitTag = normalizeRef(System.getenv(TRAVIS_GIT_TAG));
 
-    this.ciTags =
-        new CITagsBuilder()
-            .withCiProviderName(TRAVIS_PROVIDER_NAME)
-            .withCiPipelineId(System.getenv(TRAVIS_PIPELINE_ID))
-            .withCiPipelineName(buildCiPipelineName())
-            .withCiPipelineNumber(System.getenv(TRAVIS_PIPELINE_NUMBER))
-            .withCiPipelineUrl(System.getenv(TRAVIS_PIPELINE_URL))
-            .withCiJorUrl(System.getenv(TRAVIS_JOB_URL))
-            .withCiWorkspacePath(expandTilde(System.getenv(TRAVIS_WORKSPACE_PATH)))
-            .withGitRepositoryUrl(buildGitRepositoryUrl())
-            .withGitCommit(System.getenv(TRAVIS_GIT_COMMIT))
-            .withGitBranch(buildGitBranch(gitTag))
-            .withGitTag(gitTag)
-            .build();
+    return GitInfo.builder()
+        .repositoryURL(buildGitRepositoryUrl())
+        .branch(buildGitBranch(gitTag))
+        .tag(gitTag)
+        .commit(CommitInfo.builder().sha(System.getenv(TRAVIS_GIT_COMMIT)).build())
+        .build();
+  }
+
+  @Override
+  protected CIInfo buildCIInfo() {
+    return CIInfo.builder()
+        .ciProviderName(TRAVIS_PROVIDER_NAME)
+        .ciPipelineId(System.getenv(TRAVIS_PIPELINE_ID))
+        .ciPipelineName(buildCiPipelineName())
+        .ciPipelineNumber(System.getenv(TRAVIS_PIPELINE_NUMBER))
+        .ciPipelineUrl(System.getenv(TRAVIS_PIPELINE_URL))
+        .ciJobUrl(System.getenv(TRAVIS_JOB_URL))
+        .ciWorkspace(expandTilde(System.getenv(TRAVIS_WORKSPACE_PATH)))
+        .build();
   }
 
   private String buildGitBranch(final String gitTag) {
@@ -53,6 +62,10 @@ class TravisInfo extends CIProviderInfo {
     String repoSlug = System.getenv(TRAVIS_PR_REPOSITORY_SLUG);
     if (repoSlug == null || repoSlug.isEmpty()) {
       repoSlug = System.getenv(TRAVIS_REPOSITORY_SLUG);
+    }
+
+    if (repoSlug == null || repoSlug.isEmpty()) {
+      return null;
     }
     return String.format("https://github.com/%s.git", repoSlug);
   }
