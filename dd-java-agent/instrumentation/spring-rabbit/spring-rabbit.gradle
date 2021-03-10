@@ -1,0 +1,34 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+muzzle {
+  pass {
+    group = 'org.springframework.boot'
+    module = 'spring-boot-starter-amqp'
+    versions = '[1.5.0.RELEASE,]'
+    extraDependency 'com.rabbitmq:amqp-client:2.7.0'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.springframework.amqp', name: 'spring-rabbit', version: '2.0.0.RELEASE'
+  compileOnly group: 'org.springframework.amqp', name: 'spring-amqp', version: '2.0.0.RELEASE'
+
+  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
+  testCompile project(':dd-java-agent:instrumentation:rabbitmq-amqp-2.7')
+  testCompile group: 'org.testcontainers', name: 'rabbitmq', version: '1.15.2'
+  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.4.0'
+
+  latestDepTestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '+'
+}
