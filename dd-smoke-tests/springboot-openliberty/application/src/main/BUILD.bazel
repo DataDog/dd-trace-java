@@ -1,0 +1,9 @@
+load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar")
+
+pkg_tar(
+    name = "srcs",
+    srcs = glob(["**/*"]),
+    package_dir = "src/main",
+    strip_prefix = ".",
+    visibility = ["//visibility:public"],
+)
