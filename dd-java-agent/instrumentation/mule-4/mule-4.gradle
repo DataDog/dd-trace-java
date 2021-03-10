@@ -18,6 +18,7 @@ muzzle {
     group = 'org.mule'
     module = 'mule-core'
     versions = '[3.2.0,)' // First version where muzzle can resolve all dependencies
+    skipVersions += "3.9.5" // bad release
   }
 }
 
@@ -100,7 +101,7 @@ task extractMuleServices(type: Sync) {
 }
 
 // build the mule application via maven
-task mvnPackage(type:Exec) {
+task mvnPackage(type: Exec) {
   workingDir "$appDir"
   commandLine 'mvn', "-Ddatadog.builddir=$buildDir", "-Ddatadog.name=mule-http-test-server", "-Ddatadog.version=$version", 'package'
   outputs.dir("$buildDir/target")
