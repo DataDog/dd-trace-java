@@ -1,0 +1,16 @@
+muzzle {
+  pass {
+    group = "javax.jws"
+    module = "javax.jws-api"
+    versions = "[1.1,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'javax.jws', name: 'javax.jws-api', version: '1.1'
+
+  testCompile group: 'javax.jws', name: 'javax.jws-api', version: '1.1'
+}
+
