@@ -45,12 +45,12 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
   public GitInfo headCommit(final String gitFolder) {
     try {
       final Path gitFolderPath = Paths.get(gitFolder);
-      final String repositoryURL = extractRepositoryURL(gitFolderPath);
       final String head = readFile(gitFolderPath.resolve("HEAD"));
       final String ref = extractRef(head);
       final String branch = extractBranch(ref);
       final String tag = extractTag(ref);
       final String sha = extractSha(gitFolderPath, head);
+      final String repositoryURL = extractRepositoryURL(gitFolderPath, branch);
       final CommitInfo commitInfo = findCommit(gitFolder, sha);
 
       return GitInfo.builder()
@@ -64,14 +64,19 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     }
   }
 
-  private String extractRepositoryURL(final Path gitFolderPath) {
+  private String extractRepositoryURL(final Path gitFolderPath, final String branch) {
     final File configFile = gitFolderPath.resolve("config").toFile();
     if (!configFile.exists()) {
       return null;
     }
 
     final GitConfig gitConfig = new GitConfig(configFile.getAbsolutePath());
-    return GitUtils.filterSensitiveInfo(gitConfig.getString("remote \"origin\"", "url"));
+    final String branchRemote = gitConfig.getString("branch \"" + branch + "\"", "remote");
+    String remoteUrl = gitConfig.getString("remote \"" + branchRemote + "\"", "url");
+    if (remoteUrl == null) {
+      remoteUrl = gitConfig.getString("remote \"origin\"", "url");
+    }
+    return GitUtils.filterSensitiveInfo(remoteUrl);
   }
 
   private String extractTag(final String ref) {
@@ -216,9 +221,12 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
   }
 
   private String extractSha(final Path gitFolder, final String head) throws IOException {
+    if (head == null) {
+      return null;
+    }
+
     // HEAD can contain a reference (e.g.: refs/heads/master) or
     // a SHA (e.g.: 6ba9a670e26a69ae26bafd2409ae200d152afa76)
-
     if (head.contains("ref:")) {
       final String refStr = extractRef(head);
       if (refStr == null) {

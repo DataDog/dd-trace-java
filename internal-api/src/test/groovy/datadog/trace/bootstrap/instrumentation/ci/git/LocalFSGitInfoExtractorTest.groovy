@@ -123,6 +123,22 @@ class LocalFSGitInfoExtractorTest extends DDSpecification {
     fullMessage == null
   }
 
+  def "test repository url with different remotes"() {
+    setup:
+    def sut = new LocalFSGitInfoExtractor()
+
+    when:
+    def gitInfo = sut.headCommit(gitFolder)
+
+    then:
+    gitInfo.repositoryURL == expectedRepositoryURL
+
+    where:
+    gitFolder                                       | expectedRepositoryURL
+    resolve("ci/git/with_repo_config")              | "https://some-host/user/repository.git"
+    resolve("ci/git/with_repo_config_other_origin") | "https://some-host/user/other_repository.git"
+  }
+
   def "resolve"(workspace) {
     def resolvedWS = Paths.get(getClass().getClassLoader().getResource(workspace).toURI()).toFile().getAbsolutePath()
     println(resolvedWS)

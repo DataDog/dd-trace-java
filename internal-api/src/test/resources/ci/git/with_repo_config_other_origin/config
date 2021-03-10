@@ -1,0 +1,16 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+	ignorecase = true
+	precomposeunicode = true
+[remote "origin"]
+	url = https://some-host/user/repository.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[remote "other_origin"]
+	url = https://some-host/user/other_repository.git
+	fetch = +refs/heads/*:refs/remotes/other_origin/*
+[branch "other-branch"]
+  remote = other_origin
+  merge = refs/heads/other-branch
