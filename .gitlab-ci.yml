@@ -1,5 +1,4 @@
 stages:
-  - ci-image
   - build
   - deploy
   - generate-signing-key
@@ -22,15 +21,6 @@ variables:
       - .gradle/wrapper
       - .gradle/caches
 
-ci-image:
-  stage: ci-image
-  when: manual
-  tags: ["runner:docker", "size:large"]
-  image: $REGISTRY/docker:18.03.1
-  script:
-    - docker build --tag $REGISTRY/ci/dd-trace-java:latest -f .gitlab/gitlab.dockerfile .gitlab
-    - docker push $REGISTRY/ci/dd-trace-java:latest
-
 build:
   <<: *gradle_build
   stage: build
@@ -40,19 +30,17 @@ build:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
 
-copy_to_s3:
-  <<: *common
+deploy_to_reliability_env:
   stage: deploy
-  image: $REGISTRY/ci/dd-trace-java:latest
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "master"'
-      when: on_success
-    - when: manual
-      allow_failure: true
-  script:
-    - export AWS_ACCESS_KEY_ID_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_key_id --with-decryption --query "Parameter.Value" --out text)
-    - export AWS_SECRET_ACCESS_KEY_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_sec_key_id --with-decryption --query "Parameter.Value" --out text)
-    - python -u .gitlab/copy_artifact_s3.py
+  when: on_success
+  trigger:
+    project: DataDog/datadog-reliability-env
+    branch: landerson/downstream-trigger
+  variables:
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
+    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
 
 deploy_to_sonatype:
   <<: *gradle_build
