@@ -19,7 +19,7 @@
   </appender>
 
   <root level="INFO">
-    <appender-ref ref="FILE"/>
-    <appender-ref ref="JSONFILE"/>
+    <appender-ref ref="FILE" />
+    <appender-ref ref="JSONFILE" />
   </root>
 </configuration>

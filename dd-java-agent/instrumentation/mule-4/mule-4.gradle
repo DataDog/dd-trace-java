@@ -128,15 +128,6 @@ tasks.test {
 
 spotless {
   java {
-    target fileTree("$appDir/src") {
-      include "**/*.java"
-    }
-  }
-  format 'xml', {
-    target fileTree('.') {
-      include '**/*.xml', '**/*.xsd'
-      exclude '**/build/**', '**/target/**'
-    }
-    eclipseWtp('xml').configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-xml.properties')
+    target "**/*.java"
   }
 }

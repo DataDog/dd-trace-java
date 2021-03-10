@@ -1,3 +1,4 @@
+<!-- spotless:off -->
 <!--
   ~  Licensed to the Apache Software Foundation (ASF) under one
   ~  or more contributor license agreements.  See the NOTICE file
@@ -16,55 +17,56 @@
   ~  specific language governing permissions and limitations
   ~  under the License.
   -->
+<!-- spotless:on -->
 
 <project default="build-service">
 
-    <property name="synapse.home" value="../../../.."/>
-    <property name="temp.dir" value="temp"/>
-    <property name="classes" value="${temp.dir}/classes"/>
-    <property name="src" value="src"/>
-    <property name="services" value="../../repository/services"/>
+  <property name="synapse.home" value="../../../.." />
+  <property name="temp.dir" value="temp" />
+  <property name="classes" value="${temp.dir}/classes" />
+  <property name="src" value="src" />
+  <property name="services" value="../../repository/services" />
 
-    <path id="synapse.class.path">
-        <pathelement path="${java.class.path}"/>
-        <fileset dir="${synapse.home}">
-            <include name="lib/*.jar"/>
-            <include name="webapp/WEB-INF/lib/*.jar"/>
-        </fileset>
-    </path>
+  <path id="synapse.class.path">
+    <pathelement path="${java.class.path}" />
+    <fileset dir="${synapse.home}">
+      <include name="lib/*.jar" />
+      <include name="webapp/WEB-INF/lib/*.jar" />
+    </fileset>
+  </path>
 
-    <target name="init" depends="clean">
-        <mkdir dir="${temp.dir}"/>
-        <mkdir dir="${classes}"/>
-        <mkdir dir="${services}"/>
-    </target>
+  <target name="init" depends="clean">
+    <mkdir dir="${temp.dir}" />
+    <mkdir dir="${classes}" />
+    <mkdir dir="${services}" />
+  </target>
 
-    <target name="clean">
-        <delete dir="${temp.dir}"/>
-    </target>
+  <target name="clean">
+    <delete dir="${temp.dir}" />
+  </target>
 
-    <target name="compile-all" depends="init">
-        <javac debug="on" destdir="${classes}">
-            <src path="${src}"/>
-            <classpath refid="synapse.class.path"/>
-        </javac>
-    </target>
+  <target name="compile-all" depends="init">
+    <javac debug="on" destdir="${classes}">
+      <src path="${src}" />
+      <classpath refid="synapse.class.path" />
+    </javac>
+  </target>
 
-    <target name="build-service" depends="compile-all">
-        <property name="SSQ.dir" value="${temp.dir}/SimpleStockQuote"/>
-        <mkdir dir="${SSQ.dir}"/>
+  <target name="build-service" depends="compile-all">
+    <property name="SSQ.dir" value="${temp.dir}/SimpleStockQuote" />
+    <mkdir dir="${SSQ.dir}" />
 
-        <mkdir dir="${SSQ.dir}/META-INF"/>
-        <copy file="conf/services.xml" tofile="${SSQ.dir}/META-INF/services.xml"/>
-        <copy toDir="${SSQ.dir}">
-            <fileset dir="${classes}">
-                <include name="**/*.class"/>
-            </fileset>
-        </copy>
+    <mkdir dir="${SSQ.dir}/META-INF" />
+    <copy file="conf/services.xml" tofile="${SSQ.dir}/META-INF/services.xml" />
+    <copy toDir="${SSQ.dir}">
+      <fileset dir="${classes}">
+        <include name="**/*.class" />
+      </fileset>
+    </copy>
 
-        <jar destfile="${services}/SimpleStockQuoteService.aar">
-            <fileset dir="${SSQ.dir}"/>
-        </jar>
-    </target>
+    <jar destfile="${services}/SimpleStockQuoteService.aar">
+      <fileset dir="${SSQ.dir}" />
+    </jar>
+  </target>
 
 </project>

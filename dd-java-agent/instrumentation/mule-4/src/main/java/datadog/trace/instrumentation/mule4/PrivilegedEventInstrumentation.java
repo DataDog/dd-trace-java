@@ -11,9 +11,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
- *  The {@code PrivilegedEvent} has a method that is called to set which {@code Event} is
- *  currently being processed on this {@code Thread}. We activate/deactivate the span
- *  associated to that {@code Event} via its {@code EventContext}.
+ * The {@code PrivilegedEvent} has a method that is called to set which {@code Event} is currently
+ * being processed on this {@code Thread}. We activate/deactivate the span associated to that {@code
+ * Event} via its {@code EventContext}.
  */
 @AutoService(Instrumenter.class)
 public final class PrivilegedEventInstrumentation extends Instrumenter.Tracing {

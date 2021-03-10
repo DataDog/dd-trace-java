@@ -3,20 +3,21 @@
 
   <Appenders>
     <File name="FILE" fileName="${sys:dd.test.logfile}" immediateFlush="true" append="false">
-      <PatternLayout pattern="Log4j2 %d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %X{dd.trace_id} %X{dd.span_id} - %m%n"/>
+      <PatternLayout
+        pattern="Log4j2 %d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %X{dd.trace_id} %X{dd.span_id} - %m%n" />
     </File>
 
     <File name="JSONFILE" fileName="${sys:dd.test.jsonlogfile}" immediateFlush="true" append="false">
       <JSONLayout compact="true" eventEol="true" properties="true" stacktraceAsString="true">
-        <KeyValuePair key="backend" value="Log4j2"/>
+        <KeyValuePair key="backend" value="Log4j2" />
       </JSONLayout>
     </File>
   </Appenders>
 
   <Loggers>
     <Root level="INFO">
-      <AppenderRef ref="FILE"/>
-      <AppenderRef ref="JSONFILE"/>
+      <AppenderRef ref="FILE" />
+      <AppenderRef ref="JSONFILE" />
     </Root>
   </Loggers>
 </Configuration>

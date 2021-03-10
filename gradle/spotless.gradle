@@ -1,18 +1,21 @@
-apply plugin: 'com.diffplug.gradle.spotless'
+apply plugin: 'com.diffplug.spotless'
 
 // This definition is needed since the spotless file is used from stand alone projects
 def configPath = rootProject.hasProperty('sharedConfigDirectory') ? sharedConfigDirectory : project.rootProject.rootDir.path + '/gradle'
 
 spotless {
   java {
+    toggleOffOn()
     googleJavaFormat()
   }
   groovyGradle {
+    toggleOffOn()
     // same as groovy, but for .gradle (defaults to '*.gradle')
     target '*.gradle', '**/gradle/*.gradle'
     greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
   }
   kotlinGradle {
+    toggleOffOn()
     // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
     target '*.gradle.kts'
     ktfmt()
@@ -28,19 +31,31 @@ spotless {
   //    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
   //  }
   scala {
+    toggleOffOn()
     scalafmt()
   }
   kotlin {
+    toggleOffOn()
     //    ktfmt() // Requires newer version of java
     ktlint().userData(['indent_size': '2', 'continuation_indent_size': '2'])
   }
 
   format 'misc', {
+    toggleOffOn()
     target '**/.gitignore', '**/*.md', '**/*.sh'
-    targetExclude '**/integrations-core/**' // Exclude git submodule from evaluation.
+    targetExclude '**/build/**', '**/integrations-core/**' // Exclude git submodule from evaluation.
     indentWithSpaces()
     trimTrailingWhitespace()
     endWithNewline()
+  }
+
+  format 'xml', {
+    toggleOffOn()
+    target '**/*.xml', '**/*.xsd'
+    targetExclude '**/build/**', '**/integrations-core/**' // Exclude git submodule from evaluation.
+    trimTrailingWhitespace()
+    endWithNewline()
+    eclipseWtp('xml').configFile(configPath + '/enforcement/spotless-xml.properties')
   }
 }
 

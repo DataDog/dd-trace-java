@@ -9,7 +9,8 @@ import org.mule.runtime.api.event.EventContext;
 import org.mule.runtime.core.privileged.event.PrivilegedEvent;
 
 public class CurrentEventHelper {
-  // Keeps track of the activated scope for the currently processing event, so it can be closed properly
+  // Keeps track of the activated scope for the currently processing event, so it can be closed
+  // properly
   private static final ThreadLocal<TraceScope> currentEventScope = new ThreadLocal<>();
 
   public static void handleEventChange(
