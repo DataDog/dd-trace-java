@@ -77,6 +77,7 @@ include ':dd-smoke-tests:springboot-grpc'
 include ':dd-smoke-tests:springboot-mongo'
 include ':dd-smoke-tests:wildfly'
 include ':dd-smoke-tests:profiling-integration-tests'
+include ':dd-smoke-tests:springboot-openliberty'
 
 // instrumentation:
 include ':dd-java-agent:instrumentation:aerospike-4'
