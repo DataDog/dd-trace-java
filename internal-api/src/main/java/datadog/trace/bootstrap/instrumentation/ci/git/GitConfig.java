@@ -42,20 +42,19 @@ public class GitConfig {
           // Section found: (E.g: remote "origin")
           section = m.group(1).trim();
         } else if (section != null) {
+          // Locate the concrete `section` in the `entries` map
+          // and update it with the found key/value.
+          // E.g: Map({`remote "origin"`: {`url`:`https://some-host/user/repository.git`}}
+          Map<String, String> kv = this.entries.get(section);
+          if (kv == null) {
+            this.entries.put(section, kv = new HashMap<>());
+          }
           // Check if current line is a key/value inside of a certain section.
           m = this.keyValue.matcher(line);
           if (m.matches()) {
             // Key/value found: (E.g: key=url, value=https://some-host/user/repository.git)
             final String key = m.group(1).trim();
             final String value = m.group(2).trim();
-
-            // Locate the concrete `section` in the `entries` map
-            // and update it with the found key/value.
-            // E.g: Map({`remote "origin"`: {`url`:`https://some-host/user/repository.git`}}
-            Map<String, String> kv = this.entries.get(section);
-            if (kv == null) {
-              this.entries.put(section, kv = new HashMap<>());
-            }
             kv.put(key, value);
           }
         }

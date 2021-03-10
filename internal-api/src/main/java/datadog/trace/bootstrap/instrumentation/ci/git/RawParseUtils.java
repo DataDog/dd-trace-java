@@ -11,6 +11,7 @@ import java.util.Arrays;
 /**
  * Contains utility methods to be used in the byte[] content of a certain Git object. This class is
  * based on the RawParseUtils class which is kept in the JGit library.
+ * https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/util/RawParseUtils.java
  */
 public final class RawParseUtils {
 

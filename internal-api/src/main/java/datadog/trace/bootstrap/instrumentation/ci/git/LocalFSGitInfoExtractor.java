@@ -23,6 +23,10 @@ import java.util.zip.Inflater;
 /**
  * Extracts git information from the local filesystem. Typically, we will use this extractor using
  * the local fs .git folder path as starting point.
+ *
+ * <p>Some methods were adapted from
+ * https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/revwalk/RevCommit.java
+ * https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/util/RawParseUtils.java
  */
 public class LocalFSGitInfoExtractor implements GitInfoExtractor {
 
@@ -233,6 +237,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     return head;
   }
 
+  // Adapted from getAuthorIdent()
+  // https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/revwalk/RevCommit.java
   protected PersonInfo getAuthor(final byte[] buffer) {
     // Locate the index where the author name begins.
     final int authorNameBeginning = author(buffer, 0);
@@ -245,6 +251,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     return parsePersonInfo(buffer, authorNameBeginning);
   }
 
+  // Adapted from getCommitterIdent()
+  // https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/revwalk/RevCommit.java
   protected PersonInfo getCommitter(final byte[] buffer) {
     // Locate the index where the committer name begins.
     final int nameB = committer(buffer, 0);
@@ -257,6 +265,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     return parsePersonInfo(buffer, nameB);
   }
 
+  // Adapted from getFullMessage()
+  // https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/revwalk/RevCommit.java
   protected String getFullMessage(final byte[] buffer) {
     // Locate the index where the commit message begins.
     final int msgB = commitMessage(buffer, 0);
@@ -269,6 +279,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     return decode(buffer, msgB, buffer.length);
   }
 
+  // Adapted from parsePersonIdent()
+  // https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/util/RawParseUtils.java
   protected PersonInfo parsePersonInfo(final byte[] raw, final int nameB) {
     // Typically, the line which contains
     // the person information looks like:
