@@ -12,9 +12,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
- * Test instrumentation to make the {@code testHandle} method in {@code HttpServerTestHandler}
- * call the {@code testHandle} method in the {@code HttpServerTestHandlerBridge}, that
- * can interact with the test code in {@code HttpServerTest}.
+ * Test instrumentation to make the {@code testHandle} method in {@code HttpServerTestHandler} call
+ * the {@code testHandle} method in the {@code HttpServerTestHandlerBridge}, that can interact with
+ * the test code in {@code HttpServerTest}.
  */
 @AutoService(Instrumenter.class)
 public class HttpServerTestHandlerInstrumentation extends Instrumenter.Tracing {

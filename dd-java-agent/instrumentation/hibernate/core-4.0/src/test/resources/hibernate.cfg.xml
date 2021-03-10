@@ -11,7 +11,7 @@
     <property name="connection.driver_class">org.h2.Driver</property>
     <property name="connection.url">jdbc:h2:mem:db1;DB_CLOSE_DELAY=-1;MVCC=TRUE</property>
     <property name="connection.username">sa</property>
-    <property name="connection.password"/>
+    <property name="connection.password" />
     <property name="dialect">org.hibernate.dialect.H2Dialect</property>
 
     <property name="connection.pool_size">3</property>
@@ -22,7 +22,7 @@
     <property name="hbm2ddl.auto">create</property>
 
     <!-- Objects -->
-    <mapping class="Value"/>
+    <mapping class="Value" />
 
   </session-factory>
 

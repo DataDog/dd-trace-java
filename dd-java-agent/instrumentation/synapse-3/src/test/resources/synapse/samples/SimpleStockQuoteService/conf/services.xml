@@ -1,3 +1,4 @@
+<!-- spotless:off -->
 <!--
   ~  Licensed to the Apache Software Foundation (ASF) under one
   ~  or more contributor license agreements.  See the NOTICE file
@@ -16,18 +17,19 @@
   ~  specific language governing permissions and limitations
   ~  under the License.
   -->
+<!-- spotless:on -->
 
 <serviceGroup>
-    <service name="SimpleStockQuoteService" scope="application">
-        <schema> 
-            <mapping package="samples.services" namespace="http://services.samples"/> 
-        </schema> 
-        <messageReceivers>
-            <messageReceiver mep="http://www.w3.org/ns/wsdl/in-only" 
-                             class="org.apache.axis2.rpc.receivers.RPCInOnlyMessageReceiver" />
-            <messageReceiver mep="http://www.w3.org/ns/wsdl/in-out"
-                             class="org.apache.axis2.rpc.receivers.RPCMessageReceiver" />
-        </messageReceivers>
-        <parameter locked="false" name="ServiceClass">samples.services.SimpleStockQuoteService</parameter>
-    </service>
+  <service name="SimpleStockQuoteService" scope="application">
+    <schema>
+      <mapping package="samples.services" namespace="http://services.samples" />
+    </schema>
+    <messageReceivers>
+      <messageReceiver mep="http://www.w3.org/ns/wsdl/in-only"
+        class="org.apache.axis2.rpc.receivers.RPCInOnlyMessageReceiver" />
+      <messageReceiver mep="http://www.w3.org/ns/wsdl/in-out"
+        class="org.apache.axis2.rpc.receivers.RPCMessageReceiver" />
+    </messageReceivers>
+    <parameter locked="false" name="ServiceClass">samples.services.SimpleStockQuoteService</parameter>
+  </service>
 </serviceGroup>

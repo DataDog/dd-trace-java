@@ -12,8 +12,8 @@ import org.mule.runtime.module.launcher.MuleContainer;
 /**
  * A Mule test container where it is possible to deploy and undeploy mule applications.
  *
- * This code assumes that the services needed by the mule applications are already present
- * in the mule directory.
+ * <p>This code assumes that the services needed by the mule applications are already present in the
+ * mule directory.
  */
 public class MuleTestContainer {
   final MuleContainer container;

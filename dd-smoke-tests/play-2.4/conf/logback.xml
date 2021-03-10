@@ -1,7 +1,7 @@
 <!-- https://www.playframework.com/documentation/latest/SettingsLogger -->
 <configuration>
 
-  <conversionRule conversionWord="coloredLevel" converterClass="play.api.libs.logback.ColoredLevel"/>
+  <conversionRule conversionWord="coloredLevel" converterClass="play.api.libs.logback.ColoredLevel" />
 
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
@@ -10,20 +10,20 @@
   </appender>
 
   <appender name="ASYNCSTDOUT" class="ch.qos.logback.classic.AsyncAppender">
-    <appender-ref ref="STDOUT"/>
+    <appender-ref ref="STDOUT" />
   </appender>
 
-  <logger name="play" level="TRACE"/>
-  <logger name="application" level="DEBUG"/>
+  <logger name="play" level="TRACE" />
+  <logger name="application" level="DEBUG" />
 
   <!-- Off these ones as they are annoying, and anyway we manage configuration ourselves -->
-  <logger name="com.avaje.ebean.config.PropertyMapLoader" level="OFF"/>
-  <logger name="com.avaje.ebeaninternal.server.core.XmlConfigLoader" level="OFF"/>
-  <logger name="com.avaje.ebeaninternal.server.lib.BackgroundThread" level="OFF"/>
-  <logger name="com.gargoylesoftware.htmlunit.javascript" level="OFF"/>
+  <logger name="com.avaje.ebean.config.PropertyMapLoader" level="OFF" />
+  <logger name="com.avaje.ebeaninternal.server.core.XmlConfigLoader" level="OFF" />
+  <logger name="com.avaje.ebeaninternal.server.lib.BackgroundThread" level="OFF" />
+  <logger name="com.gargoylesoftware.htmlunit.javascript" level="OFF" />
 
   <root level="WARN">
-    <appender-ref ref="ASYNCSTDOUT"/>
+    <appender-ref ref="ASYNCSTDOUT" />
   </root>
 
 </configuration>

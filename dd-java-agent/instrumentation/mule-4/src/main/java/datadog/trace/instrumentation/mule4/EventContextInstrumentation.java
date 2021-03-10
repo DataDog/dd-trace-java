@@ -12,10 +12,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
- * Events in Mule have an {@code EventContext} attached to them, that travels with
- * the event through the system. We attach the active span to the concrete implementation
- * of the {@code EventContext} and activate/deactivate the span when mule changes which
- * event it is processing.
+ * Events in Mule have an {@code EventContext} attached to them, that travels with the event through
+ * the system. We attach the active span to the concrete implementation of the {@code EventContext}
+ * and activate/deactivate the span when mule changes which event it is processing.
  */
 @AutoService(Instrumenter.class)
 public final class EventContextInstrumentation extends Instrumenter.Tracing {
