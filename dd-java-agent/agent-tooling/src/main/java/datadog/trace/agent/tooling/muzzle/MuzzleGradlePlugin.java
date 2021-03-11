@@ -8,8 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.WeakMap;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.WeakHashMap;
 import net.bytebuddy.build.Plugin;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
@@ -23,7 +21,7 @@ public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
         new WeakMap.Implementation() {
           @Override
           public <K, V> WeakMap<K, V> get() {
-            return new WeakMap.MapAdapter<>(Collections.synchronizedMap(new WeakHashMap<K, V>()));
+            return null;
           }
         });
   }
