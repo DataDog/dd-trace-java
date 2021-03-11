@@ -1,5 +1,9 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.core.propagation.HttpCodec.FORWARDED_FOR_KEY;
+import static datadog.trace.core.propagation.HttpCodec.FORWARDED_PORT_KEY;
+import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
+
 import datadog.trace.api.DDId;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
@@ -51,6 +55,24 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       }
       return cleanedMapping;
     }
+  }
+
+  protected final boolean handledForwarding(String key, String value) {
+    if (FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
+      String firstValue = firstHeaderValue(value);
+      if (null != firstValue) {
+        forwardedFor = firstValue;
+      }
+      return true;
+    }
+    if (FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
+      String firstValue = firstHeaderValue(value);
+      if (null != firstValue) {
+        forwardedPort = firstValue;
+      }
+      return true;
+    }
+    return false;
   }
 
   public ContextInterpreter reset() {

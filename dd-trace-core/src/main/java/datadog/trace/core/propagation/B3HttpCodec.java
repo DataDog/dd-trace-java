@@ -1,7 +1,5 @@
 package datadog.trace.core.propagation;
 
-import static datadog.trace.core.propagation.HttpCodec.FORWARDED_FOR_KEY;
-import static datadog.trace.core.propagation.HttpCodec.FORWARDED_PORT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.DDId;
@@ -79,8 +77,6 @@ class B3HttpCodec {
     private static final int SPAN_ID = 1;
     private static final int TAGS = 2;
     private static final int SAMPLING_PRIORITY = 3;
-    private static final int FORWARDED_FOR = 4;
-    private static final int FORWARDED_PORT = 5;
     private static final int IGNORE = -1;
 
     private B3ContextInterpreter(Map<String, String> taggedHeaders) {
@@ -101,10 +97,8 @@ class B3HttpCodec {
           classification = SPAN_ID;
         } else if (SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
           classification = SAMPLING_PRIORITY;
-        } else if (FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
-          classification = FORWARDED_FOR;
-        } else if (FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
-          classification = FORWARDED_PORT;
+        } else if (handledForwarding(key, value)) {
+          return true;
         }
       }
       if (!taggedHeaders.isEmpty() && classification == IGNORE) {
@@ -136,12 +130,6 @@ class B3HttpCodec {
                 }
               case SPAN_ID:
                 spanId = DDId.fromHex(firstValue);
-                break;
-              case FORWARDED_FOR:
-                forwardedFor = firstValue;
-                break;
-              case FORWARDED_PORT:
-                forwardedPort = firstValue;
                 break;
               case SAMPLING_PRIORITY:
                 samplingPriority = convertSamplingPriority(firstValue);
