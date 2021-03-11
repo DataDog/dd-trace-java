@@ -169,11 +169,13 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
    */
   @Override
   public void registerContinuation(final AgentScope.Continuation continuation) {
+    log.debug("registerContinuation {}\n{}", continuation, Thread.currentThread().getStackTrace());
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
   }
 
   @Override
   public void cancelContinuation(final AgentScope.Continuation continuation) {
+    log.debug("cancelContinuation {}\n{}", continuation, Thread.currentThread().getStackTrace());
     decrementRefAndMaybeWrite(false);
   }
 
