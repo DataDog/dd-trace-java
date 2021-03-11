@@ -43,6 +43,7 @@ public final class TraceInstrumentationConfig {
   public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
       "kafka.client.base64.decoding.enabled";
 
+  public static final String GRPC_IGNORED_OUTBOUND_METHODS = "trace.grpc.ignored.outbound.methods";
   public static final String HYSTRIX_TAGS_ENABLED = "hystrix.tags.enabled";
 
   public static final String OSGI_SEARCH_DEPTH = "osgi.search.depth";

@@ -18,6 +18,12 @@ import java.util.concurrent.atomic.AtomicReference
 
 class GrpcStreamingTest extends AgentTestRunner {
 
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.trace.grpc.ignored.outbound.methods", "example.Greeter/Ignore")
+  }
+
   def "test conversation #name"() {
     setup:
     def msgCount = serverMessageCount
