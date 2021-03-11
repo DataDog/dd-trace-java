@@ -2,8 +2,15 @@ import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator
 import spock.lang.Timeout
 
+import javax.net.ssl.HttpsURLConnection
+
 @Timeout(5)
 class HttpUrlConnectionResponseCodeOnlyTest extends HttpClientTest {
+
+  def setupSpec() {
+    HttpsURLConnection.setDefaultHostnameVerifier(server.hostnameVerifier)
+    HttpsURLConnection.setDefaultSSLSocketFactory(server.sslContext.socketFactory)
+  }
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {

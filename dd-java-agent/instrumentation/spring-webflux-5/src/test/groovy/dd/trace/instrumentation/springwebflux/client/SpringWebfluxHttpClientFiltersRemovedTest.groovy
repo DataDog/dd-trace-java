@@ -7,8 +7,8 @@ import spock.lang.Timeout
 class SpringWebfluxHttpClientFiltersRemovedTest extends SpringWebfluxHttpClientBase {
 
   @Override
-  WebClient createClient(CharSequence component) {
-    def builder = WebClient.builder()
+  WebClient createClient(CharSequence component, InetSocketAddress proxy) {
+    def builder = WebClient.builder().clientConnector(new AnyCertConnector(proxy))
     builder.filters({ filters -> filters.clear() })
     return builder.build()
   }

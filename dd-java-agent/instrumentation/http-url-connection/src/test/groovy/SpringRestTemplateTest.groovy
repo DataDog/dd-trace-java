@@ -10,6 +10,8 @@ import org.springframework.web.client.RestTemplate
 import spock.lang.Shared
 import spock.lang.Timeout
 
+import javax.net.ssl.HttpsURLConnection
+
 @Timeout(5)
 class SpringRestTemplateTest extends HttpClientTest {
 
@@ -21,6 +23,9 @@ class SpringRestTemplateTest extends HttpClientTest {
   def setupSpec() {
     factory.connectTimeout = CONNECT_TIMEOUT_MS
     factory.readTimeout = READ_TIMEOUT_MS
+
+    HttpsURLConnection.setDefaultHostnameVerifier(server.hostnameVerifier)
+    HttpsURLConnection.setDefaultSSLSocketFactory(server.sslContext.socketFactory)
   }
 
   @Override

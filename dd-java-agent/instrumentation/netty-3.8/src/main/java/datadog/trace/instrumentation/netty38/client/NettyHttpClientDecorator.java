@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
 import lombok.extern.slf4j.Slf4j;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
@@ -43,6 +44,9 @@ public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
 
   @Override
   protected URI url(final HttpRequest request) throws URISyntaxException {
+    if (request.getMethod().equals(HttpMethod.CONNECT)) {
+      return new URI(uriPrefix + request.getUri());
+    }
     final URI uri = new URI(request.getUri());
     if ((uri.getHost() == null || uri.getHost().equals("")) && request.headers().contains(HOST)) {
       return new URI(uriPrefix + request.headers().get(HOST) + request.getUri());

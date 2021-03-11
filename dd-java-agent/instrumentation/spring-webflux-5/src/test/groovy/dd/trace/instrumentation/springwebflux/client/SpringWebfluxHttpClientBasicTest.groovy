@@ -1,5 +1,6 @@
 package dd.trace.instrumentation.springwebflux.client
 
+
 import org.springframework.web.reactive.function.client.WebClient
 import spock.lang.Timeout
 
@@ -7,8 +8,8 @@ import spock.lang.Timeout
 class SpringWebfluxHttpClientBasicTest extends SpringWebfluxHttpClientBase {
 
   @Override
-  WebClient createClient(CharSequence component) {
-    return WebClient.builder().build()
+  WebClient createClient(CharSequence component, InetSocketAddress proxy) {
+    return WebClient.builder().clientConnector(new AnyCertConnector(proxy)).build()
   }
 
   @Override

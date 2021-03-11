@@ -3,23 +3,42 @@ import datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator
 import org.apache.http.HttpHost
 import org.apache.http.HttpRequest
 import org.apache.http.HttpResponse
+import org.apache.http.client.HttpClient
+import org.apache.http.conn.params.ConnRoutePNames
+import org.apache.http.conn.scheme.PlainSocketFactory
+import org.apache.http.conn.scheme.Scheme
+import org.apache.http.conn.scheme.SchemeRegistry
+import org.apache.http.conn.ssl.SSLSocketFactory
 import org.apache.http.impl.client.DefaultHttpClient
+import org.apache.http.impl.conn.SingleClientConnManager
 import org.apache.http.message.BasicHeader
 import org.apache.http.message.BasicHttpRequest
 import org.apache.http.params.HttpConnectionParams
-import org.apache.http.params.HttpParams
 import org.apache.http.protocol.BasicHttpContext
 import spock.lang.Shared
 import spock.lang.Timeout
 
 abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest {
   @Shared
-  def client = new DefaultHttpClient()
+  HttpClient directClient
+  @Shared
+  HttpClient proxiedClient
 
   def setupSpec() {
-    HttpParams httpParams = client.getParams()
-    HttpConnectionParams.setConnectionTimeout(httpParams, CONNECT_TIMEOUT_MS)
-    HttpConnectionParams.setSoTimeout(httpParams, READ_TIMEOUT_MS)
+    def socketFactory = new SSLSocketFactory(server.sslContext)
+    socketFactory.hostnameVerifier = SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER
+    SchemeRegistry schemeRegistry = new SchemeRegistry()
+    schemeRegistry.register(new Scheme("https", socketFactory, 443))
+    schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80))
+
+    directClient = new DefaultHttpClient(new SingleClientConnManager(null, schemeRegistry), null)
+    HttpConnectionParams.setConnectionTimeout(directClient.getParams(), CONNECT_TIMEOUT_MS)
+    HttpConnectionParams.setSoTimeout(directClient.getParams(), READ_TIMEOUT_MS)
+
+    proxiedClient = new DefaultHttpClient(new SingleClientConnManager(null, schemeRegistry), null)
+    HttpConnectionParams.setConnectionTimeout(proxiedClient.getParams(), CONNECT_TIMEOUT_MS)
+    HttpConnectionParams.setSoTimeout(proxiedClient.getParams(), READ_TIMEOUT_MS)
+    proxiedClient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY, new HttpHost("localhost", proxy.port))
   }
 
   @Override
@@ -34,7 +53,8 @@ abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTes
       request.addHeader(new BasicHeader(it.key, it.value))
     }
 
-    def response = executeRequest(request, uri)
+    def isProxy = uri.fragment != null && uri.fragment.equals("proxy")
+    def response = executeRequest(isProxy ? proxiedClient : directClient, request, uri)
     callback?.call()
     response.entity?.content?.close() // Make sure the connection is closed.
 
@@ -43,7 +63,7 @@ abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTes
 
   abstract T createRequest(String method, URI uri)
 
-  abstract HttpResponse executeRequest(T request, URI uri)
+  abstract HttpResponse executeRequest(HttpClient client, T request, URI uri)
 
   static String fullPathFromURI(URI uri) {
     StringBuilder builder = new StringBuilder()
@@ -72,13 +92,23 @@ class ApacheClientHostRequest extends ApacheHttpClientTest<BasicHttpRequest> {
   }
 
   @Override
-  HttpResponse executeRequest(BasicHttpRequest request, URI uri) {
+  HttpResponse executeRequest(HttpClient client, BasicHttpRequest request, URI uri) {
     return client.execute(new HttpHost(uri.getHost(), uri.getPort()), request)
   }
 
   @Override
   boolean testRemoteConnection() {
     return false
+  }
+
+  @Override
+  boolean testSecure() {
+    return false // org.apache.http.NoHttpResponseException: The target server failed to respond
+  }
+
+  @Override
+  boolean testProxy() {
+    return false // doesn't get proxied correctly
   }
 }
 
@@ -90,13 +120,23 @@ class ApacheClientHostRequestContext extends ApacheHttpClientTest<BasicHttpReque
   }
 
   @Override
-  HttpResponse executeRequest(BasicHttpRequest request, URI uri) {
+  HttpResponse executeRequest(HttpClient client, BasicHttpRequest request, URI uri) {
     return client.execute(new HttpHost(uri.getHost(), uri.getPort()), request, new BasicHttpContext())
   }
 
   @Override
   boolean testRemoteConnection() {
     return false
+  }
+
+  @Override
+  boolean testSecure() {
+    return false // org.apache.http.NoHttpResponseException: The target server failed to respond
+  }
+
+  @Override
+  boolean testProxy() {
+    return false // doesn't get proxied correctly
   }
 }
 
@@ -108,13 +148,23 @@ class ApacheClientHostRequestResponseHandler extends ApacheHttpClientTest<BasicH
   }
 
   @Override
-  HttpResponse executeRequest(BasicHttpRequest request, URI uri) {
+  HttpResponse executeRequest(HttpClient client, BasicHttpRequest request, URI uri) {
     return client.execute(new HttpHost(uri.getHost(), uri.getPort()), request, { response -> response })
   }
 
   @Override
   boolean testRemoteConnection() {
     return false
+  }
+
+  @Override
+  boolean testSecure() {
+    return false // org.apache.http.NoHttpResponseException: The target server failed to respond
+  }
+
+  @Override
+  boolean testProxy() {
+    return false // doesn't get proxied correctly
   }
 }
 
@@ -126,13 +176,23 @@ class ApacheClientHostRequestResponseHandlerContext extends ApacheHttpClientTest
   }
 
   @Override
-  HttpResponse executeRequest(BasicHttpRequest request, URI uri) {
+  HttpResponse executeRequest(HttpClient client, BasicHttpRequest request, URI uri) {
     return client.execute(new HttpHost(uri.getHost(), uri.getPort()), request, { response -> response }, new BasicHttpContext())
   }
 
   @Override
   boolean testRemoteConnection() {
     return false
+  }
+
+  @Override
+  boolean testSecure() {
+    return false // org.apache.http.NoHttpResponseException: The target server failed to respond
+  }
+
+  @Override
+  boolean testProxy() {
+    return false // doesn't get proxied correctly
   }
 }
 
@@ -144,7 +204,7 @@ class ApacheClientUriRequest extends ApacheHttpClientTest<HttpUriRequest> {
   }
 
   @Override
-  HttpResponse executeRequest(HttpUriRequest request, URI uri) {
+  HttpResponse executeRequest(HttpClient client, HttpUriRequest request, URI uri) {
     return client.execute(request)
   }
 }
@@ -157,7 +217,7 @@ class ApacheClientUriRequestContext extends ApacheHttpClientTest<HttpUriRequest>
   }
 
   @Override
-  HttpResponse executeRequest(HttpUriRequest request, URI uri) {
+  HttpResponse executeRequest(HttpClient client, HttpUriRequest request, URI uri) {
     return client.execute(request, new BasicHttpContext())
   }
 }
@@ -170,7 +230,7 @@ class ApacheClientUriRequestResponseHandler extends ApacheHttpClientTest<HttpUri
   }
 
   @Override
-  HttpResponse executeRequest(HttpUriRequest request, URI uri) {
+  HttpResponse executeRequest(HttpClient client, HttpUriRequest request, URI uri) {
     return client.execute(request, { response -> response })
   }
 }
@@ -183,7 +243,7 @@ class ApacheClientUriRequestResponseHandlerContext extends ApacheHttpClientTest<
   }
 
   @Override
-  HttpResponse executeRequest(HttpUriRequest request, URI uri) {
+  HttpResponse executeRequest(HttpClient client, HttpUriRequest request, URI uri) {
     return client.execute(request, { response -> response })
   }
 }

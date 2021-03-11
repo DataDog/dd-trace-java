@@ -9,10 +9,17 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator
 import spock.lang.Shared
 
+import javax.net.ssl.HttpsURLConnection
+
 abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
 
   @Shared
   def requestFactory = new NetHttpTransport().createRequestFactory()
+
+  def setupSpec() {
+    HttpsURLConnection.setDefaultHostnameVerifier(server.hostnameVerifier)
+    HttpsURLConnection.setDefaultSSLSocketFactory(server.sslContext.socketFactory)
+  }
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
