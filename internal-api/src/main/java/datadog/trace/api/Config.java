@@ -110,6 +110,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
@@ -380,6 +381,8 @@ public class Config {
 
   @Getter private final String jdbcPreparedStatementClassName;
   @Getter private final String jdbcConnectionClassName;
+
+  @Getter private final Set<String> grpcIgnoredOutboundMethods;
 
   private final ConfigProvider configProvider;
 
@@ -721,6 +724,9 @@ public class Config {
 
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+
+    grpcIgnoredOutboundMethods =
+        new HashSet<>(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
 

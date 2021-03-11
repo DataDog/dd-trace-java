@@ -8,6 +8,9 @@ service Greeter {
 
   rpc Conversation (stream Response) returns (stream Response) {
   }
+
+  rpc Ignore (Request) returns (Response) {
+  }
 }
 
 message Request {

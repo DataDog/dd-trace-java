@@ -8,6 +8,7 @@ import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.GRPC
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.GRPC_MESSAGE;
 import static datadog.trace.instrumentation.grpc.client.GrpcInjectAdapter.SETTER;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.grpc.CallOptions;
@@ -19,16 +20,21 @@ import io.grpc.ForwardingClientCallListener;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
+import java.util.Set;
 
 public class TracingClientInterceptor implements ClientInterceptor {
 
   public static final TracingClientInterceptor INSTANCE = new TracingClientInterceptor();
+  private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredOutboundMethods();
 
   @Override
   public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
       final MethodDescriptor<ReqT, RespT> method,
       final CallOptions callOptions,
       final Channel next) {
+    if (IGNORED_METHODS.contains(method.getFullMethodName())) {
+      return next.newCall(method, callOptions);
+    }
 
     final AgentSpan span = startSpan(GRPC_CLIENT).setMeasured(true);
     span.setResourceName(method.getFullMethodName());
