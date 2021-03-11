@@ -35,6 +35,8 @@ save_cache_paths: &save_cache_paths
   paths:
     # Cached dependencies and wrappers for gradle
     - ~/.gradle
+    # Cached dependencies for maven
+    - ~/.m2
     # Cached launchers and compilers for sbt
     - ~/.sbt
     # Cached dependencies for sbt handled by ivy
