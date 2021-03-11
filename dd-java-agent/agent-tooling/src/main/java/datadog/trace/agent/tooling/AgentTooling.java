@@ -23,11 +23,8 @@ public class AgentTooling {
     registerWeakMapProvider();
   }
 
-  static void registerWeakMapProvider() {
-    if (!WeakMap.Provider.isProviderRegistered()) {
-      WeakMap.Provider.registerIfAbsent(new WeakMapSuppliers.WeakConcurrent());
-      //    WeakMap.Provider.registerIfAbsent(new WeakMapSuppliers.WeakConcurrent.Inline());
-    }
+  public static void registerWeakMapProvider() {
+    WeakMap.Provider.registerIfAbsent(new WeakMapSuppliers.WeakConcurrent());
   }
 
   private static Provider loadWeakCacheProvider() {
