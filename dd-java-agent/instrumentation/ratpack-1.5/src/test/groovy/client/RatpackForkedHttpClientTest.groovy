@@ -10,6 +10,7 @@ class RatpackForkedHttpClientTest extends RatpackHttpClientTest {
     ExecResult<Integer> result = exec.yield {
       def resp = client.request(uri) { spec ->
         spec.method(method)
+        spec.sslContext(sslContext)
         spec.headers { headersSpec ->
           headers.entrySet().each {
             headersSpec.add(it.key, it.value)

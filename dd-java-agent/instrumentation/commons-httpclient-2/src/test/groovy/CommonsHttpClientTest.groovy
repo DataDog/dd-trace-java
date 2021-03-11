@@ -9,6 +9,8 @@ import org.apache.commons.httpclient.methods.OptionsMethod
 import org.apache.commons.httpclient.methods.PostMethod
 import org.apache.commons.httpclient.methods.PutMethod
 import org.apache.commons.httpclient.methods.TraceMethod
+import org.apache.commons.httpclient.protocol.Protocol
+import org.apache.commons.httpclient.protocol.SecureProtocolSocketFactory
 import spock.lang.Shared
 import spock.lang.Timeout
 
@@ -16,10 +18,31 @@ import spock.lang.Timeout
 class CommonsHttpClientTest extends HttpClientTest {
   @Shared
   HttpClient client = new HttpClient()
+  @Shared
+  HttpClient proxiedClient = new HttpClient()
 
   def setupSpec() {
     client.setConnectionTimeout(CONNECT_TIMEOUT_MS)
     client.setTimeout(READ_TIMEOUT_MS)
+
+    Protocol.registerProtocol("https", new Protocol("https", new SecureProtocolSocketFactory() {
+        @Override
+        Socket createSocket(Socket socket, String host, int port, boolean autoClose) throws IOException, UnknownHostException {
+          return server.sslContext.socketFactory.createSocket(socket, host, port, autoClose)
+        }
+
+        @Override
+        Socket createSocket(String host, int port, InetAddress clientHost, int clientPort) throws IOException, UnknownHostException {
+          return server.sslContext.socketFactory.createSocket(host, port, clientHost, clientPort)
+        }
+
+        @Override
+        Socket createSocket(String host, int port) throws IOException, UnknownHostException {
+          return server.sslContext.socketFactory.createSocket(host, port)
+        }
+      }, 443))
+
+    proxiedClient.hostConfiguration.setProxy("localhost", proxy.port)
   }
 
   @Override
@@ -54,8 +77,9 @@ class CommonsHttpClientTest extends HttpClientTest {
 
     headers.each { httpMethod.setRequestHeader(it.key, it.value) }
 
+    def isProxy = uri.fragment != null && uri.fragment.equals("proxy")
     try {
-      client.executeMethod(httpMethod)
+      (isProxy ? proxiedClient : client).executeMethod(httpMethod)
       callback?.call()
       return httpMethod.getStatusCode()
     } finally {

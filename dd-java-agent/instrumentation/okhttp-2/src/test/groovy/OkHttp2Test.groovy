@@ -26,10 +26,14 @@ class OkHttp2Test extends HttpClientTest {
     client.setConnectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
     client.setReadTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
     client.setWriteTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+    client.setSslSocketFactory(server.sslContext.socketFactory)
   }
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+    def isProxy = uri.fragment != null && uri.fragment.equals("proxy")
+    client.setProxy(isProxy ? proxy.proxyConfig : Proxy.NO_PROXY)
+
     def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
 
     def request = new Request.Builder()

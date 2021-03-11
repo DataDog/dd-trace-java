@@ -45,4 +45,10 @@ class JaxRsClientV1Test extends HttpClientTest {
   boolean testCircularRedirects() {
     false
   }
+
+  @Override
+  boolean testSecure() {
+    // TODO: add ssl and proxy configs.
+    return false
+  }
 }

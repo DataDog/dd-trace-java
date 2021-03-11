@@ -185,18 +185,19 @@ abstract class HttpClientTest extends AgentTestRunner {
     def status = runUnderTrace("parent") {
       doRequest(method, url, [:], body)
     }
-    println("RESPONSE: $status")
 
     then:
+    proxy.requestCount() > 0 // May not increment past one due to keep-alive
     status == 200
-    TEST_WRITER
     assertTraces(2) {
       def remoteParentSpan = null
-      trace(size(3)) {
+      trace(size(proxyHasConnectSpan() ? 3 : 2)) {
         sortSpansByStart()
-        remoteParentSpan = span(2)
+        remoteParentSpan = span(proxyHasConnectSpan() ? 2 : 1)
         basicSpan(it, "parent")
-        clientSpan(it, span(0), "CONNECT", false, false, new URI("http://localhost:$server.secureAddress.port/"))
+        if (proxyHasConnectSpan()) {
+          clientSpan(it, span(0), "CONNECT", false, false, new URI("http://localhost:$server.secureAddress.port/"))
+        }
         clientSpan(it, span(0), method, false, false, url)
       }
       server.distributedRequestTrace(it, remoteParentSpan)
@@ -571,13 +572,17 @@ abstract class HttpClientTest extends AgentTestRunner {
    * Uses a local self-signed cert, so the client must be configured to ignore cert errors.
    */
   boolean testSecure() {
-    false
+    true
   }
 
   /**
    * Client must be configured to use proxy iff url fragment is "proxy".
    */
   boolean testProxy() {
+    true
+  }
+
+  boolean proxyHasConnectSpan() {
     false
   }
 

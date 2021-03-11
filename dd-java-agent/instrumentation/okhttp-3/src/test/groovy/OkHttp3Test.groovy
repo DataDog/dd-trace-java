@@ -27,24 +27,28 @@ class OkHttp3Test extends HttpClientTest {
     return false
   }
 
+  // Can't be @Shared otherwise it's built before the builder instrumentation is applied.
   def client = new OkHttpClient.Builder()
   .connectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
   .readTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
   .writeTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+  .sslSocketFactory(server.sslContext.socketFactory)
   .build()
+
+  def clientProxy = client.newBuilder().proxy(proxy.proxyConfig).build()
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+    def isProxy = uri.fragment != null && uri.fragment.equals("proxy")
     def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
     def request = new Request.Builder()
       .url(uri.toURL())
       .method(method, reqBody)
       .headers(Headers.of(headers)).build()
-    def response = client.newCall(request).execute()
+    def response = (isProxy ? clientProxy : client).newCall(request).execute()
     callback?.call()
     return response.code()
   }
-
 
   @Override
   CharSequence component() {
@@ -55,7 +59,6 @@ class OkHttp3Test extends HttpClientTest {
   String expectedOperationName() {
     return "okhttp.request"
   }
-
 
   boolean testRedirects() {
     false

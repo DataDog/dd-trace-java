@@ -3,6 +3,8 @@ import akka.stream.ActorMaterializer
 import akka.stream.ActorMaterializerSettings
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.instrumentation.playws.PlayWSClientDecorator
+import play.shaded.ahc.io.netty.handler.ssl.SslContextBuilder
+import play.shaded.ahc.io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import play.shaded.ahc.org.asynchttpclient.AsyncHttpClient
 import play.shaded.ahc.org.asynchttpclient.AsyncHttpClientConfig
 import play.shaded.ahc.org.asynchttpclient.DefaultAsyncHttpClient
@@ -30,6 +32,7 @@ abstract class PlayWSClientTestBase extends HttpClientTest {
       .setMaxRequestRetry(0)
       .setShutdownQuietPeriod(0)
       .setShutdownTimeout(0)
+      .setSslContext(SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build())
       .build()
 
     asyncHttpClient = new DefaultAsyncHttpClient(asyncHttpClientConfig)
@@ -56,5 +59,10 @@ abstract class PlayWSClientTestBase extends HttpClientTest {
   @Override
   boolean testCallbackWithParent() {
     return false
+  }
+
+  @Override
+  boolean testProxy() {
+    return false // not easy to configure
   }
 }

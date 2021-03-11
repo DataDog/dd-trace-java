@@ -72,6 +72,12 @@ class PlayWSClientTest extends HttpClientTest {
   }
 
   @Override
+  boolean testSecure() {
+    // TODO: add ssl and proxy configs.
+    return false
+  }
+
+  @Override
   boolean testRemoteConnection() {
     // On connection failures the operation and resource names end up different from expected.
     // This would require a lot of changes to the base client test class to support

@@ -20,8 +20,12 @@ abstract class JaxRsClientTest extends HttpClientTest {
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
-
-    Client client = builder().build()
+    def isProxy = uri.fragment != null && uri.fragment.equals("proxy")
+    def clientBuilder = builder(isProxy)
+    if (uri.scheme.equals("https")) {
+      clientBuilder.sslContext(server.sslContext)
+    }
+    Client client = clientBuilder.build()
     WebTarget service = client.target(uri)
     Invocation.Builder request = service.request(MediaType.TEXT_PLAIN)
     headers.each { request.header(it.key, it.value) }
@@ -42,14 +46,14 @@ abstract class JaxRsClientTest extends HttpClientTest {
     return "jax-rs.client.call"
   }
 
-  abstract ClientBuilder builder()
+  abstract ClientBuilder builder(boolean useProxy)
 }
 
 @Timeout(5)
 class JerseyClientTest extends JaxRsClientTest {
 
   @Override
-  ClientBuilder builder() {
+  ClientBuilder builder(boolean useProxy) {
     ClientConfig config = new ClientConfig()
     config.property(ClientProperties.CONNECT_TIMEOUT, CONNECT_TIMEOUT_MS)
     config.property(ClientProperties.READ_TIMEOUT, READ_TIMEOUT_MS)
@@ -59,16 +63,23 @@ class JerseyClientTest extends JaxRsClientTest {
   boolean testCircularRedirects() {
     false
   }
+
+  @Override
+  boolean testProxy() {
+    // uses HttpUrlConnection under the hood and not easy to configure proxy settings
+    return false
+  }
 }
 
 @Timeout(5)
 class ResteasyClientTest extends JaxRsClientTest {
 
   @Override
-  ClientBuilder builder() {
-    return new ResteasyClientBuilder()
+  ClientBuilder builder(boolean useProxy) {
+    def builder = new ResteasyClientBuilder()
       .establishConnectionTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
       .socketTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+    return useProxy ? builder.defaultProxy("localhost", proxy.port) : builder
   }
 
   boolean testRedirects() {
@@ -80,22 +91,30 @@ class ResteasyClientTest extends JaxRsClientTest {
 class CxfClientTest extends JaxRsClientTest {
 
   @Override
-  ClientBuilder builder() {
+  ClientBuilder builder(boolean useProxy) {
     return new ClientBuilderImpl()
     //      .property(ClientImpl.HTTP_CONNECTION_TIMEOUT_PROP, (long) CONNECT_TIMEOUT_MS)
     //      .property(ClientImpl.HTTP_RECEIVE_TIMEOUT_PROP, (long) READ_TIMEOUT_MS)
   }
 
+  @Override
   boolean testRedirects() {
     false
   }
 
+  @Override
   boolean testConnectionFailure() {
     false
   }
 
+  @Override
   boolean testRemoteConnection() {
     // FIXME: span not reported correctly.
     false
+  }
+
+  @Override
+  boolean testProxy() {
+    return false
   }
 }

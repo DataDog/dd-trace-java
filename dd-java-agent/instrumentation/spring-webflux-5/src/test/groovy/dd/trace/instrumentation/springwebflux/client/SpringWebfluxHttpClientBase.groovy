@@ -25,14 +25,14 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
     return false
   }
 
-  abstract WebClient createClient(CharSequence component)
+  abstract WebClient createClient(CharSequence component, InetSocketAddress proxy)
 
   abstract void check()
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     def hasParent = activeSpan() != null
-    def client = createClient(component())
+    def client = createClient(component(), proxyAddress(uri))
     ClientResponse response = client.method(HttpMethod.resolve(method))
       .uri(uri)
       .headers { h -> headers.forEach({ key, value -> h.add(key, value) }) }
@@ -112,6 +112,18 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
   boolean testRemoteConnection() {
     // FIXME: figure out how to configure timeouts.
     false
+  }
+
+  @Override
+  boolean testProxy() {
+    // FIXME: This is broken and needs to be fixed.
+    // It creates two "post" spans but never finishes one of them and no connect span.
+    false
+  }
+
+  InetSocketAddress proxyAddress(URI uri) {
+    def isProxy = uri.fragment != null && uri.fragment.equals("proxy")
+    return isProxy ? InetSocketAddress.createUnresolved("localhost", proxy.port) : null
   }
 
   static class CollectingFilter implements ExchangeFilterFunction {

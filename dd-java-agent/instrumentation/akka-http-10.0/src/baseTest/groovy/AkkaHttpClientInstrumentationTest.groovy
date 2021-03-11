@@ -1,10 +1,13 @@
 import akka.actor.ActorSystem
 import akka.http.Version
+import akka.http.javadsl.ClientTransport
+import akka.http.javadsl.ConnectionContext
 import akka.http.javadsl.Http
 import akka.http.javadsl.model.HttpMethods
 import akka.http.javadsl.model.HttpRequest
 import akka.http.javadsl.model.HttpResponse
 import akka.http.javadsl.model.headers.RawHeader
+import akka.http.scaladsl.HttpsConnectionContext
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.stream.ActorMaterializer
 import datadog.trace.agent.test.base.HttpClientTest
@@ -32,17 +35,31 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
   @Shared
   ActorMaterializer materializer = callsNeedMaterializer ? ActorMaterializer.create(system) : null
 
-  abstract CompletionStage<HttpResponse> doRequest(HttpRequest request)
+  @Shared
+  ClientTransport proxyTransport = ClientTransport.httpsProxy(InetSocketAddress.createUnresolved("localhost", proxy.port))
+
+  @Shared
+  ConnectionPoolSettings poolSettingsDefault = ConnectionPoolSettings.create(system)
+
+  @Shared
+  ConnectionPoolSettings poolSettingsWithHttpsProxy = poolSettingsDefault.withTransport(proxyTransport)
+
+  @Shared
+  ConnectionContext connectionContext = ConnectionContext.https(server.sslContext)
+
+
+  abstract CompletionStage<HttpResponse> doRequest(HttpRequest request, ConnectionPoolSettings poolSettings)
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+    def isProxy = uri.fragment != null && uri.fragment.equals("proxy")
     def request = HttpRequest.create(uri.toString())
       .withMethod(HttpMethods.lookup(method).get())
       .addHeaders(headers.collect { RawHeader.create(it.key, it.value) })
 
     def response
     try {
-      response = doRequest(request)
+      response = doRequest(request, isProxy ? poolSettingsWithHttpsProxy : poolSettingsDefault)
         .whenComplete { result, error ->
           callback?.call()
         }
@@ -67,6 +84,12 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
 
   @Override
   boolean testRedirects() {
+    false
+  }
+
+  @Override
+  boolean testProxy() {
+    // Can't figure out why it's not using the proxy.
     false
   }
 
@@ -112,24 +135,24 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
 
 class AkkaHttpJavaClientInstrumentationTest extends AkkaHttpClientInstrumentationTest {
   @Override
-  CompletionStage<HttpResponse> doRequest(HttpRequest request) {
+  CompletionStage<HttpResponse> doRequest(HttpRequest request, ConnectionPoolSettings poolSettings) {
     if (callsNeedMaterializer) {
-      return Http.get(system).singleRequest(request, materializer)
+      return Http.get(system).singleRequest(request, connectionContext, poolSettings, system.log(), materializer)
     }
-    return Http.get(system).singleRequest(request)
+    return Http.get(system).singleRequest(request, connectionContext, poolSettings, system.log())
   }
 }
 
 class AkkaHttpScalaClientInstrumentationTest extends AkkaHttpClientInstrumentationTest {
   @Override
-  CompletionStage<HttpResponse> doRequest(HttpRequest request) {
+  CompletionStage<HttpResponse> doRequest(HttpRequest request, ConnectionPoolSettings poolSettings) {
     def http = akka.http.scaladsl.Http.apply(system)
     def sRequest = (akka.http.scaladsl.model.HttpRequest) request
     Future<akka.http.scaladsl.model.HttpResponse> f = null
     if (callsNeedMaterializer) {
-      f = http.singleRequest(sRequest, http.defaultClientHttpsContext(), (ConnectionPoolSettings) ConnectionPoolSettings.apply(system), system.log(), materializer)
+      f = http.singleRequest(sRequest, connectionContext as HttpsConnectionContext, (ConnectionPoolSettings) poolSettings, system.log(), materializer)
     } else {
-      f = http.singleRequest(sRequest, http.defaultClientHttpsContext(), (ConnectionPoolSettings) ConnectionPoolSettings.apply(system), system.log())
+      f = http.singleRequest(sRequest, connectionContext as HttpsConnectionContext, (ConnectionPoolSettings) poolSettings, system.log())
     }
     return FutureConverters.toJava(f)
   }

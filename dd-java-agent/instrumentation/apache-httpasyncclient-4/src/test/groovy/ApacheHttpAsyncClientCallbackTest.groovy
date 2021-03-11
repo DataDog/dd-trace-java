@@ -1,36 +1,17 @@
-import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator
 import org.apache.http.HttpResponse
-import org.apache.http.client.config.RequestConfig
 import org.apache.http.concurrent.FutureCallback
-import org.apache.http.impl.nio.client.HttpAsyncClients
 import org.apache.http.message.BasicHeader
-import spock.lang.AutoCleanup
-import spock.lang.Shared
 import spock.lang.Timeout
 
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
 @Timeout(5)
-class ApacheHttpAsyncClientCallbackTest extends HttpClientTest {
-
-  @Shared
-  RequestConfig requestConfig = RequestConfig.custom()
-  .setConnectTimeout(CONNECT_TIMEOUT_MS)
-  .setSocketTimeout(READ_TIMEOUT_MS)
-  .build()
-
-  @AutoCleanup
-  @Shared
-  def client = HttpAsyncClients.custom().setDefaultRequestConfig(requestConfig).build()
-
-  def setupSpec() {
-    client.start()
-  }
+class ApacheHttpAsyncClientCallbackTest extends ApacheHttpAsyncClientTest {
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+    def isProxy = uri.fragment != null && uri.fragment.equals("proxy")
     def request = new HttpUriRequest(method, uri)
     headers.entrySet().each {
       request.addHeader(new BasicHeader(it.key, it.value))
@@ -38,7 +19,7 @@ class ApacheHttpAsyncClientCallbackTest extends HttpClientTest {
 
     def responseFuture = new CompletableFuture<>()
 
-    client.execute(request, new FutureCallback<HttpResponse>() {
+    (isProxy ? proxiedClient : client).execute(request, new FutureCallback<HttpResponse>() {
 
         @Override
         void completed(HttpResponse result) {
@@ -62,20 +43,5 @@ class ApacheHttpAsyncClientCallbackTest extends HttpClientTest {
       })
 
     return responseFuture.get(10, TimeUnit.SECONDS)
-  }
-
-  @Override
-  CharSequence component() {
-    return ApacheHttpAsyncClientDecorator.DECORATE.component()
-  }
-
-  @Override
-  Integer statusOnRedirectError() {
-    return 302
-  }
-
-  @Override
-  boolean testRemoteConnection() {
-    false // otherwise SocketTimeoutException for https requests
   }
 }

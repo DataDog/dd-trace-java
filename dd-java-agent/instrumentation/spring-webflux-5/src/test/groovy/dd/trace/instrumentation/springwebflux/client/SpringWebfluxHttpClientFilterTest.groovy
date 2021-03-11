@@ -10,10 +10,10 @@ class SpringWebfluxHttpClientFilterTest extends SpringWebfluxHttpClientBase {
   String component = ""
 
   @Override
-  WebClient createClient(CharSequence component) {
+  WebClient createClient(CharSequence component, InetSocketAddress proxy) {
     filter = new CollectingFilter()
     this.component = component
-    return WebClient.builder().filter(filter).build()
+    return WebClient.builder().clientConnector(new AnyCertConnector(proxy)).filter(filter).build()
   }
 
   @Override

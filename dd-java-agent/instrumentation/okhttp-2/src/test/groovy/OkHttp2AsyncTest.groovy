@@ -20,6 +20,9 @@ class OkHttp2AsyncTest extends OkHttp2Test {
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+    def isProxy = uri.fragment != null && uri.fragment.equals("proxy")
+    client.setProxy(isProxy ? proxy.proxyConfig : Proxy.NO_PROXY)
+
     def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
     def request = new Request.Builder()
       .url(uri.toURL())

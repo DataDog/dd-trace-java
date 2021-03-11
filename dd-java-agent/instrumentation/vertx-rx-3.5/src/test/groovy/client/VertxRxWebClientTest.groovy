@@ -62,6 +62,12 @@ class VertxRxWebClientTest extends HttpClientTest {
     false
   }
 
+  @Override
+  boolean testSecure() {
+    // TODO: add ssl and proxy configs.
+    return false
+  }
+
   boolean testRemoteConnection() {
     // FIXME: figure out how to configure timeouts.
     false

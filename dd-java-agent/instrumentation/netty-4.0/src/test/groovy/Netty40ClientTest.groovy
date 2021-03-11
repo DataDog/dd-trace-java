@@ -48,8 +48,8 @@ class Netty40ClientTest extends HttpClientTest {
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
-    def proxy = uri.fragment != null && uri.fragment.equals("proxy")
-    def client = proxy ? proxiedAsyncHttpClient : asyncHttpClient
+    def isProxy = uri.fragment != null && uri.fragment.equals("proxy")
+    def client = isProxy ? proxiedAsyncHttpClient : asyncHttpClient
     def methodName = "prepare" + method.toLowerCase().capitalize()
     BoundRequestBuilder requestBuilder = client."$methodName"(uri.toString())
     headers.each { requestBuilder.setHeader(it.key, it.value) }
@@ -61,7 +61,7 @@ class Netty40ClientTest extends HttpClientTest {
           return response
         }
       }).get()
-    blockUntilChildSpansFinished(proxy ? 2 : 1)
+    blockUntilChildSpansFinished(isProxy ? 2 : 1)
     return response.statusCode
   }
 
@@ -92,7 +92,7 @@ class Netty40ClientTest extends HttpClientTest {
   }
 
   @Override
-  boolean testProxy() {
+  boolean proxyHasConnectSpan() {
     true
   }
 

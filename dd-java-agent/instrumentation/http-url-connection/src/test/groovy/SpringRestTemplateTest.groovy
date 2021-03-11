@@ -49,6 +49,12 @@ class SpringRestTemplateTest extends HttpClientTest {
   }
 
   @Override
+  boolean testSecure() {
+    // TODO: add ssl and proxy configs.
+    return false
+  }
+
+  @Override
   boolean testRemoteConnection() {
     // FIXME: exception wrapped in ResourceAccessException
     return false

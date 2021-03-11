@@ -9,10 +9,17 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator
 import spock.lang.Shared
 
+import javax.net.ssl.HttpsURLConnection
+
 abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
 
   @Shared
   def requestFactory = new NetHttpTransport().createRequestFactory()
+
+  def setupSpec() {
+    HttpsURLConnection.setDefaultHostnameVerifier(server.hostnameVerifier)
+    HttpsURLConnection.setDefaultSSLSocketFactory(server.sslContext.socketFactory)
+  }
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
@@ -51,6 +58,12 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
   @Override
   boolean testCircularRedirects() {
     // Circular redirects don't throw an exception with Google Http Client
+    return false
+  }
+
+  @Override
+  boolean testProxy() {
+    // TODO: add proxy selector to the requestFactory.
     return false
   }
 

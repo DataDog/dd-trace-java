@@ -15,6 +15,7 @@ import static java.util.concurrent.TimeUnit.SECONDS
 class OkHttp3AsyncTest extends OkHttp3Test {
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+    def isProxy = uri.fragment != null && uri.fragment.equals("proxy")
     def reqBody = HttpMethod.requiresRequestBody(method) ? RequestBody.create(MediaType.parse("text/plain"), body) : null
     def request = new Request.Builder()
       .url(uri.toURL())
@@ -26,7 +27,7 @@ class OkHttp3AsyncTest extends OkHttp3Test {
     AtomicReference<Exception> exRef = new AtomicReference()
     def latch = new CountDownLatch(1)
 
-    client.newCall(request).enqueue(new Callback() {
+    (isProxy ? clientProxy : client).newCall(request).enqueue(new Callback() {
         void onResponse(Call call, Response response) {
           responseRef.set(response)
           callback?.call()

@@ -1,5 +1,7 @@
 import com.ning.http.client.AsyncCompletionHandler
 import com.ning.http.client.AsyncHttpClient
+import com.ning.http.client.AsyncHttpClientConfig
+import com.ning.http.client.ProxyServer
 import com.ning.http.client.Request
 import com.ning.http.client.RequestBuilder
 import com.ning.http.client.Response
@@ -13,7 +15,16 @@ class GrizzlyAsyncHttpClientTest extends HttpClientTest {
 
   @AutoCleanup
   @Shared
-  def client = new AsyncHttpClient()
+  def client = new AsyncHttpClient(new AsyncHttpClientConfig.Builder()
+  .setSSLContext(server.sslContext)
+  .build())
+
+  @AutoCleanup
+  @Shared
+  def proxiedClient = new AsyncHttpClient(new AsyncHttpClientConfig.Builder()
+  .setSSLContext(server.sslContext)
+  .setProxyServer(new ProxyServer("localhost", proxy.port))
+  .build())
 
   @Override
   void configurePreAgent() {
@@ -24,7 +35,8 @@ class GrizzlyAsyncHttpClientTest extends HttpClientTest {
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
-
+    def isProxy = uri.fragment != null && uri.fragment.equals("proxy")
+    def client = isProxy ? proxiedClient : client
     RequestBuilder requestBuilder = new RequestBuilder(method)
       .setUri(Uri.create(uri.toString()))
     headers.entrySet().each {
