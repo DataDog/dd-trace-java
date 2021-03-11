@@ -78,10 +78,7 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
       }
 
       if (name.startsWith("org.springframework.amqp.")) {
-        if (name.startsWith("org.springframework.amqp.rabbit.connection.")) {
-          return false;
-        }
-        return true;
+        return false;
       }
 
       if (name.startsWith("org.springframework.beans.")) {
