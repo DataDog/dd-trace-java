@@ -95,6 +95,6 @@ dependencies {
 }
 
 test.dependsOn boot20Test
-test.dependsOn latestBoot20Test
+latestDepTest.dependsOn latestBoot20Test
 test.dependsOn boot24Test
-test.dependsOn latestBoot24Test
+latestDepTest.dependsOn latestBoot24Test
