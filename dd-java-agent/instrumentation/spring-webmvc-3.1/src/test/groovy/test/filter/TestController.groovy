@@ -11,8 +11,11 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
 import org.springframework.web.servlet.view.RedirectView
 
+import javax.servlet.http.HttpServletRequest
+
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
@@ -29,6 +32,14 @@ class TestController {
   @ResponseBody
   String success() {
     HttpServerTest.controller(SUCCESS) {
+      throw new Exception("This should not be called")
+    }
+  }
+
+  @RequestMapping("/forwarded")
+  @ResponseBody
+  String forwarded(HttpServletRequest request) {
+    HttpServerTest.controller(FORWARDED) {
       throw new Exception("This should not be called")
     }
   }

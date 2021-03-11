@@ -9,6 +9,7 @@ import io.vertx.reactivex.ext.web.Router
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
@@ -52,6 +53,19 @@ class VertxRxCircuitBreakerHttpServerTest extends VertxHttpServerTest {
           HttpServerTest.ServerEndpoint endpoint = it.result()
           controller(endpoint) {
             ctx.response().setStatusCode(endpoint.status).end(endpoint.body)
+          }
+        })
+      }
+      router.route(FORWARDED.path).handler { ctx ->
+        breaker.executeCommand({ future ->
+          future.complete(FORWARDED)
+        }, { it ->
+          if (it.failed()) {
+            throw it.cause()
+          }
+          HttpServerTest.ServerEndpoint endpoint = it.result()
+          controller(endpoint) {
+            ctx.response().setStatusCode(FORWARDED.status).end(ctx.request().getHeader("x-forwarded-for"))
           }
         })
       }

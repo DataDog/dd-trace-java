@@ -14,7 +14,7 @@ public interface AgentPropagation {
     void set(C carrier, String key, String value);
   }
 
-  <C> AgentSpan.Context extract(C carrier, ContextVisitor<C> getter);
+  <C> AgentSpan.Context.Extracted extract(C carrier, ContextVisitor<C> getter);
 
   interface KeyClassifier {
 

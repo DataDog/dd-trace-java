@@ -48,13 +48,13 @@ public class Servlet2Advice {
       InstrumentationContext.get(ServletResponse.class, Integer.class).put(response, 200);
     }
 
-    final AgentSpan.Context extractedContext = propagate().extract(httpServletRequest, GETTER);
+    final AgentSpan.Context.Extracted extractedContext =
+        propagate().extract(httpServletRequest, GETTER);
 
     final AgentSpan span = startSpan(SERVLET_REQUEST, extractedContext).setMeasured(true);
 
     DECORATE.afterStart(span);
-    DECORATE.onConnection(span, httpServletRequest);
-    DECORATE.onRequest(span, httpServletRequest);
+    DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);

@@ -411,7 +411,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> AgentSpan.Context extract(final C carrier, final ContextVisitor<C> getter) {
+  public <C> AgentSpan.Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
     return extractor.extract(carrier, getter);
   }
 

@@ -88,7 +88,11 @@ public class SpringWebHttpServerDecorator
   }
 
   @Override
-  public AgentSpan onRequest(final AgentSpan span, final HttpServletRequest request) {
+  public AgentSpan onRequest(
+      final AgentSpan span,
+      final HttpServletRequest connection,
+      final HttpServletRequest request,
+      AgentSpan.Context.Extracted context) {
     if (request != null) {
       final String method = request.getMethod();
       final Object bestMatchingPattern =

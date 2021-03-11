@@ -4,12 +4,16 @@ import datadog.trace.agent.test.base.HttpServerTest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
 import org.springframework.web.servlet.view.RedirectView
 
+import javax.servlet.http.HttpServletRequest
+
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
@@ -21,6 +25,14 @@ class TestController {
   String success() {
     HttpServerTest.controller(SUCCESS) {
       SUCCESS.body
+    }
+  }
+
+  @RequestMapping("/forwarded")
+  @ResponseBody
+  String forwarded(HttpServletRequest request) {
+    HttpServerTest.controller(FORWARDED) {
+      request.getHeader("x-forwarded-for")
     }
   }
 

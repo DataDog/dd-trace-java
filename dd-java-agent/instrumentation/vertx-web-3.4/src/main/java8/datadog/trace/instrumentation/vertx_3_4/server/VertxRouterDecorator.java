@@ -46,7 +46,11 @@ public class VertxRouterDecorator
   }
 
   @Override
-  public AgentSpan onRequest(final AgentSpan span, final RoutingContext routingContext) {
+  public AgentSpan onRequest(
+      final AgentSpan span,
+      final RoutingContext connection,
+      final RoutingContext routingContext,
+      AgentSpan.Context.Extracted context) {
     if (routingContext != null) {
       final String method = routingContext.request().rawMethod();
       final String bestMatchingPattern = routingContext.currentRoute().getPath();

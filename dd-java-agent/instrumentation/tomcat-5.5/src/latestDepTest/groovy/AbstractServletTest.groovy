@@ -2,15 +2,8 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.tomcat.TomcatDecorator
 import jakarta.servlet.Servlet
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 
 abstract class AbstractServletTest<SERVER, CONTEXT> extends HttpServerTest<SERVER> {
   @Override
@@ -53,15 +46,8 @@ abstract class AbstractServletTest<SERVER, CONTEXT> extends HttpServerTest<SERVE
 
   protected void setupServlets(CONTEXT context) {
     def servlet = servlet()
-
-    addServlet(context, SUCCESS.path, servlet)
-    addServlet(context, QUERY_PARAM.path, servlet)
-    addServlet(context, ERROR.path, servlet)
-    addServlet(context, EXCEPTION.path, servlet)
-    addServlet(context, CUSTOM_EXCEPTION.path, servlet)
-    addServlet(context, REDIRECT.path, servlet)
-    addServlet(context, AUTH_REQUIRED.path, servlet)
-    addServlet(context, TIMEOUT.path, servlet)
-    addServlet(context, TIMEOUT_ERROR.path, servlet)
+    ServerEndpoint.values().findAll { it != NOT_FOUND && it != UNKNOWN }.each {
+      addServlet(context, it.path, servlet)
+    }
   }
 }

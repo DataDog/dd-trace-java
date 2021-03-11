@@ -160,6 +160,12 @@ object AkkaHttpTestWebServer {
         complete(
           HttpResponse(status = SUCCESS.getStatus, entity = SUCCESS.getBody)
         )
+      } ~ path(FORWARDED.rawPath) {
+        headerValueByName("x-forwarded-for") { address =>
+          complete(
+            HttpResponse(status = FORWARDED.getStatus, entity = address)
+          )
+        }
       } ~ path(QUERY_PARAM.rawPath) {
         parameter("some") { query =>
           complete(
@@ -206,6 +212,7 @@ object AkkaHttpTestWebServer {
             val resp = HttpResponse(status = endpoint.getStatus)
             endpoint match {
               case SUCCESS     => resp.withEntity(endpoint.getBody)
+              case FORWARDED   => resp.withEntity(endpoint.getBody) // cheating
               case QUERY_PARAM => resp.withEntity(uri.queryString().orNull)
               case REDIRECT =>
                 resp.withHeaders(headers.Location(endpoint.getBody))

@@ -43,7 +43,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     return Config.get().isTraceAnalyticsEnabled();
   }
 
-  public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
+  public AgentSpan onRequest(
+      final AgentSpan span,
+      final CONNECTION connection,
+      final REQUEST request,
+      final AgentSpan.Context.Extracted context) {
+    String forwarded = null;
+    String forwardedPort = null;
+    if (context != null) {
+      forwarded = context.getForwardedFor();
+      forwardedPort = context.getForwardedPort();
+    }
+
     if (request != null) {
       span.setTag(Tags.HTTP_METHOD, method(request));
 
@@ -63,20 +74,19 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       }
       // TODO set resource name from URL.
     }
-    return span;
-  }
 
-  public AgentSpan onConnection(final AgentSpan span, final CONNECTION connection) {
-    if (connection != null) {
-      final String ip = peerHostIP(connection);
-      if (ip != null) {
-        if (ip.indexOf(':') > 0) {
-          span.setTag(Tags.PEER_HOST_IPV6, ip);
-        } else {
-          span.setTag(Tags.PEER_HOST_IPV4, ip);
-        }
+    final String ip = forwarded != null || connection == null ? forwarded : peerHostIP(connection);
+    if (ip != null) {
+      if (ip.indexOf(':') > 0) {
+        span.setTag(Tags.PEER_HOST_IPV6, ip);
+      } else {
+        span.setTag(Tags.PEER_HOST_IPV4, ip);
       }
+    }
 
+    if (forwardedPort != null) {
+      setPeerPort(span, forwardedPort);
+    } else if (connection != null) {
       setPeerPort(span, peerPort(connection));
     }
     return span;

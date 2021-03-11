@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.core.propagation.HttpCodec.FORWARDED_FOR_KEY;
+import static datadog.trace.core.propagation.HttpCodec.FORWARDED_PORT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.DDId;
@@ -116,6 +118,8 @@ public class HaystackHttpCodec {
     private static final int PARENT_ID = 2;
     private static final int TAGS = 3;
     private static final int BAGGAGE = 4;
+    private static final int FORWARDED_FOR = 5;
+    private static final int FORWARDED_PORT = 6;
     private static final int IGNORE = -1;
 
     private HaystackContextInterpreter(Map<String, String> taggedHeaders) {
@@ -144,6 +148,13 @@ public class HaystackHttpCodec {
         case 'p':
           if (PARENT_ID_KEY.equalsIgnoreCase(key)) {
             classification = PARENT_ID;
+          }
+          break;
+        case 'x':
+          if (FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
+            classification = FORWARDED_FOR;
+          } else if (FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
+            classification = FORWARDED_PORT;
           }
           break;
         case 'b':
@@ -175,6 +186,12 @@ public class HaystackHttpCodec {
                 break;
               case PARENT_ID:
                 addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, HttpCodec.decode(value));
+                break;
+              case FORWARDED_FOR:
+                forwardedFor = firstValue;
+                break;
+              case FORWARDED_PORT:
+                forwardedPort = firstValue;
                 break;
               case TAGS:
                 {

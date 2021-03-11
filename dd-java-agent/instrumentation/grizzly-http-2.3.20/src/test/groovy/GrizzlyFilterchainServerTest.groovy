@@ -23,6 +23,7 @@ import java.util.concurrent.Executors
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
@@ -143,6 +144,9 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
       switch (fullPath) {
         case "/success":
           endpoint = SUCCESS
+          break
+        case "/forwarded":
+          endpoint = FORWARDED
           break
         case "/redirect":
           endpoint = REDIRECT

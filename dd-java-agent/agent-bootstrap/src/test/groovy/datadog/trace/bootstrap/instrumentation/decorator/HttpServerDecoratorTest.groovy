@@ -17,7 +17,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(span, req)
+    decorator.onRequest(span, null, req, null)
 
     then:
     if (req) {
@@ -42,7 +42,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    decorator.onRequest(span, req)
+    decorator.onRequest(span, null, req, null)
 
     then:
     if (expectedUrl) {
@@ -76,12 +76,15 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def "test onConnection"() {
     setup:
+    def ctx = Mock(AgentSpan.Context.Extracted)
     def decorator = newDecorator()
 
     when:
-    decorator.onConnection(span, conn)
+    decorator.onRequest(span, conn, null, ctx)
 
     then:
+    1 * ctx.getForwardedFor() >> null
+    1 * ctx.getForwardedPort() >> null
     if (conn) {
       1 * span.setTag(Tags.PEER_PORT, 555)
       if (ipv4) {
@@ -90,6 +93,20 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
         1 * span.setTag(Tags.PEER_HOST_IPV6, "3ffe:1900:4545:3:200:f8ff:fe21:67cf")
       }
     }
+    0 * _
+
+    when:
+    decorator.onRequest(span, conn, null, ctx)
+
+    then:
+    1 * ctx.getForwardedFor() >> (ipv4 ? "10.1.1.1" : "0::1")
+    1 * ctx.getForwardedPort() >> "123"
+    if (ipv4) {
+      1 * span.setTag(Tags.PEER_HOST_IPV4, "10.1.1.1")
+    } else {
+      1 * span.setTag(Tags.PEER_HOST_IPV6, "0::1")
+    }
+    1 * span.setTag(Tags.PEER_PORT, "123")
     0 * _
 
     where:
@@ -117,17 +134,17 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     0 * _
 
     where:
-    status | resp            | error
-    200    | [status: 200]   | false
-    399    | [status: 399]   | false
-    400    | [status: 400]   | false
-    404    | [status: 404]   | false
-    404    | [status: 404]   | false
-    499    | [status: 499]   | false
-    500    | [status: 500]   | true
-    600    | [status: 600]   | false
-    null   | [status: null]  | false
-    null   | null            | false
+    status | resp           | error
+    200    | [status: 200]  | false
+    399    | [status: 399]  | false
+    400    | [status: 400]  | false
+    404    | [status: 404]  | false
+    404    | [status: 404]  | false
+    499    | [status: 499]  | false
+    500    | [status: 500]  | true
+    600    | [status: 600]  | false
+    null   | [status: null] | false
+    null   | null           | false
   }
 
   @Override

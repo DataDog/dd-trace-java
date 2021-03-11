@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletResponse
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -29,6 +30,10 @@ class TestServlet extends HttpServlet {
         case SUCCESS:
           resp.status = endpoint.status
           resp.writer.print(endpoint.body)
+          break
+        case FORWARDED:
+          resp.status = endpoint.status
+          resp.writer.print(req.remoteAddr)
           break
         case QUERY_PARAM:
           resp.status = endpoint.status

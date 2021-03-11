@@ -103,7 +103,6 @@ class VertxHttpServerTest extends HttpServerTest<Vertx> {
       tags {
         "$Tags.COMPONENT" VertxRouterDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
         "$Tags.HTTP_STATUS" Integer
         if (endpoint == EXCEPTION && this.testExceptionTag()) {
           errorTags(Exception, EXCEPTION.body)
@@ -141,7 +140,6 @@ class VertxChainingHttpServerTest extends VertxHttpServerTest {
       tags {
         "$Tags.COMPONENT" VertxRouterDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
         "$Tags.HTTP_STATUS" Integer
         "chain" true
         if (endpoint == EXCEPTION && this.testExceptionTag()) {

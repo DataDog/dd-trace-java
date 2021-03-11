@@ -38,15 +38,14 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
     final HttpRequest request = (HttpRequest) msg;
 
-    final Context extractedContext =
+    final Context.Extracted extractedContext =
         propagate().extract(request.headers(), ContextVisitors.stringValuesEntrySet());
 
     final AgentSpan span = startSpan(NETTY_REQUEST, extractedContext);
     span.setMeasured(true);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
-      DECORATE.onConnection(span, ctx.channel());
-      DECORATE.onRequest(span, request);
+      DECORATE.onRequest(span, ctx.channel(), request, extractedContext);
 
       scope.setAsyncPropagation(true);
 

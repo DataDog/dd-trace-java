@@ -2,6 +2,7 @@ package server;
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM;
@@ -38,6 +39,16 @@ public class VertxChainingTestServer extends AbstractVerticle {
                     SUCCESS,
                     () ->
                         ctx.response().setStatusCode(SUCCESS.getStatus()).end(SUCCESS.getBody())));
+    router
+        .route(FORWARDED.getPath())
+        .handler(
+            ctx ->
+                controller(
+                    FORWARDED,
+                    () ->
+                        ctx.response()
+                            .setStatusCode(FORWARDED.getStatus())
+                            .end(ctx.request().getHeader("x-forwarded-for"))));
     router
         .route(QUERY_PARAM.getPath())
         .handler(

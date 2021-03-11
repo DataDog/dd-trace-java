@@ -15,13 +15,12 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 public class DatadogWrapperHelper {
   public static AgentScope createSpan(final HttpRequest request) {
-    final AgentSpan.Context extractedContext = propagate().extract(request, GETTER);
+    final AgentSpan.Context.Extracted extractedContext = propagate().extract(request, GETTER);
     final AgentSpan span = startSpan(AKKA_REQUEST, extractedContext);
     span.setMeasured(true);
 
     DECORATE.afterStart(span);
-    DECORATE.onConnection(span, request);
-    DECORATE.onRequest(span, request);
+    DECORATE.onRequest(span, request, request, extractedContext);
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);

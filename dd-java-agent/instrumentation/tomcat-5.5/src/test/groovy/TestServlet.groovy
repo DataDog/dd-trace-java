@@ -1,17 +1,18 @@
 import datadog.trace.agent.test.base.HttpServerTest
-import groovy.servlet.AbstractHttpServlet
 
+import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-class TestServlet extends AbstractHttpServlet {
+class TestServlet extends HttpServlet {
 
   static HttpServerTest.ServerEndpoint getEndpoint(HttpServletRequest req) {
     // Most correct would be to get the dispatched path from the request
@@ -30,6 +31,10 @@ class TestServlet extends AbstractHttpServlet {
         case SUCCESS:
           resp.status = endpoint.status
           resp.writer.print(endpoint.body)
+          break
+        case FORWARDED:
+          resp.status = endpoint.status
+          resp.writer.print(req.getHeader("x-forwarded-for")) // Earliest version doesn't have RemoteIpValve
           break
         case QUERY_PARAM:
           resp.status = endpoint.status

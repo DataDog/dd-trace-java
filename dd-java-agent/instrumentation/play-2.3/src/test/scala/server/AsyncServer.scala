@@ -20,6 +20,17 @@ object AsyncServer {
           )
         )
       }
+    case ("GET", "/forwarded") =>
+      Action.async { request =>
+        HttpServerTest.controller(
+          FORWARDED,
+          new AsyncControllerClosureAdapter(
+            Future.successful(
+              Results.Status(FORWARDED.getStatus).apply(request.remoteAddress)
+            )
+          )
+        )
+      }
     case ("GET", "/redirect") =>
       Action.async { request =>
         HttpServerTest.controller(

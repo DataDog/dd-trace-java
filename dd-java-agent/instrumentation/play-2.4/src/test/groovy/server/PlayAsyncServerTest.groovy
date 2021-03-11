@@ -10,6 +10,7 @@ import java.util.function.Supplier
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -26,10 +27,17 @@ class PlayAsyncServerTest extends PlayServerTest {
           }
         }, HttpExecution.defaultContext())
       } as Supplier)
+        .GET(FORWARDED.getPath()).routeAsync({
+        CompletableFuture.supplyAsync({
+          controller(FORWARDED) {
+            Results.status(FORWARDED.getStatus(), FORWARDED.getBody()) // cheating
+          }
+        }, HttpExecution.defaultContext())
+      } as Supplier)
         .GET(QUERY_PARAM.getPath()).routeAsync({
         CompletableFuture.supplyAsync({
           controller(QUERY_PARAM) {
-            Results.status(QUERY_PARAM.getStatus(), QUERY_PARAM.getBody())
+            Results.status(QUERY_PARAM.getStatus(), QUERY_PARAM.getBody()) // cheating
           }
         }, HttpExecution.defaultContext())
       } as Supplier)

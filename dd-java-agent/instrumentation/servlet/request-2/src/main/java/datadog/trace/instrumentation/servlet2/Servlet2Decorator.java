@@ -49,12 +49,16 @@ public class Servlet2Decorator
   }
 
   @Override
-  public AgentSpan onRequest(final AgentSpan span, final HttpServletRequest request) {
+  public AgentSpan onRequest(
+      final AgentSpan span,
+      final HttpServletRequest connection,
+      final HttpServletRequest request,
+      AgentSpan.Context.Extracted context) {
     assert span != null;
     if (request != null) {
       span.setTag("servlet.context", request.getContextPath());
       span.setTag("servlet.path", request.getServletPath());
     }
-    return super.onRequest(span, request);
+    return super.onRequest(span, connection, request, context);
   }
 }

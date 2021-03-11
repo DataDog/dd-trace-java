@@ -4,6 +4,7 @@ import io.dropwizard.setup.Bootstrap
 import io.dropwizard.setup.Environment
 
 import javax.ws.rs.GET
+import javax.ws.rs.HeaderParam
 import javax.ws.rs.Path
 import javax.ws.rs.QueryParam
 import javax.ws.rs.container.AsyncResponse
@@ -13,6 +14,7 @@ import java.util.concurrent.Executors
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -48,6 +50,16 @@ class DropwizardAsyncTest extends DropwizardTest {
       executor.execute {
         controller(SUCCESS) {
           asyncResponse.resume(Response.status(SUCCESS.status).entity(SUCCESS.body).build())
+        }
+      }
+    }
+
+    @GET
+    @Path("forwarded")
+    Response forwarded(@Suspended final AsyncResponse asyncResponse, @HeaderParam("x-forwarded-for") String forwarded) {
+      executor.execute {
+        controller(FORWARDED) {
+          asyncResponse.resume(Response.status(FORWARDED.status).entity(forwarded).build())
         }
       }
     }

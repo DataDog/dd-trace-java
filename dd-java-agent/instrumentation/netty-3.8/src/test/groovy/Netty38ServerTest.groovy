@@ -27,6 +27,7 @@ import org.jboss.netty.util.CharsetUtil
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
@@ -54,7 +55,8 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
       @Override
       void messageReceived(ChannelHandlerContext ctx, MessageEvent msg) throws Exception {
         if (msg.getMessage() instanceof HttpRequest) {
-          def uri = URI.create((msg.getMessage() as HttpRequest).getUri())
+          def request = msg.getMessage() as HttpRequest
+          def uri = URI.create(request.getUri())
           HttpServerTest.ServerEndpoint endpoint = forPath(uri.path)
           ctx.sendDownstream controller(endpoint) {
             HttpResponse response
@@ -63,6 +65,11 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
               case SUCCESS:
               case ERROR:
                 responseContent = ChannelBuffers.copiedBuffer(endpoint.body, CharsetUtil.UTF_8)
+                response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
+                response.setContent(responseContent)
+                break
+              case FORWARDED:
+                responseContent = ChannelBuffers.copiedBuffer(request.headers().get("x-forwarded-for"), CharsetUtil.UTF_8)
                 response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
                 response.setContent(responseContent)
                 break

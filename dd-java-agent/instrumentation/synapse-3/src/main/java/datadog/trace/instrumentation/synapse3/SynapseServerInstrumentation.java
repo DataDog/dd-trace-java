@@ -71,8 +71,7 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing {
         @Advice.FieldValue("request") final SourceRequest request) {
       AgentSpan span = startSpan(SYNAPSE_REQUEST);
       DECORATE.afterStart(span);
-      DECORATE.onConnection(span, request.getConnection());
-      DECORATE.onRequest(span, request);
+      DECORATE.onRequest(span, request.getConnection(), request, null);
       request.getConnection().getContext().setAttribute(SYNAPSE_SPAN_KEY, span);
       return activateSpan(span);
     }

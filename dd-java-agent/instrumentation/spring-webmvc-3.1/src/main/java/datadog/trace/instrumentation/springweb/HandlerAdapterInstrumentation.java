@@ -74,7 +74,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing {
       // Name the parent span based on the matching pattern
       Object parentSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
       if (parentSpan instanceof AgentSpan) {
-        DECORATE.onRequest((AgentSpan) parentSpan, request);
+        DECORATE.onRequest((AgentSpan) parentSpan, request, request, null);
       }
 
       if (activeSpan() == null) {

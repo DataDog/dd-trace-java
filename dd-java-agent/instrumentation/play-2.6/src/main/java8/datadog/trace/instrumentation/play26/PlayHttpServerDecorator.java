@@ -86,8 +86,12 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   }
 
   @Override
-  public AgentSpan onRequest(final AgentSpan span, final Request request) {
-    super.onRequest(span, request);
+  public AgentSpan onRequest(
+      final AgentSpan span,
+      final Request connection,
+      final Request request,
+      AgentSpan.Context.Extracted context) {
+    super.onRequest(span, connection, request, context);
     if (request != null) {
       // more about routes here:
       // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md

@@ -7,6 +7,7 @@ import ratpack.test.embed.EmbeddedApp
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -31,6 +32,17 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
             }.fork().then { HttpServerTest.ServerEndpoint endpoint ->
               controller(endpoint) {
                 context.response.status(endpoint.status).send(endpoint.body)
+              }
+            }
+          }
+        }
+        prefix(FORWARDED.rawPath()) {
+          all {
+            Promise.sync {
+              FORWARDED
+            }.fork().then { HttpServerTest.ServerEndpoint endpoint ->
+              controller(endpoint) {
+                context.response.status(endpoint.status).send(request.headers.get("x-forwarded-for"))
               }
             }
           }

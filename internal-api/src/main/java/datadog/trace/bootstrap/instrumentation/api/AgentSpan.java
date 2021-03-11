@@ -24,6 +24,7 @@ public interface AgentSpan extends MutableSpan {
 
   AgentSpan setTag(String key, Object value);
 
+  @Override
   AgentSpan setTag(String key, Number value);
 
   @Override
@@ -81,5 +82,11 @@ public interface AgentSpan extends MutableSpan {
     AgentTrace getTrace();
 
     Iterable<Map.Entry<String, String>> baggageItems();
+
+    interface Extracted extends Context {
+      String getForwardedFor();
+
+      String getForwardedPort();
+    }
   }
 }

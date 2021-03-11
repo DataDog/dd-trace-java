@@ -7,16 +7,13 @@ import okhttp3.RequestBody
 
 import javax.servlet.Servlet
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 import static org.junit.Assume.assumeTrue
 
 abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERVER> {
@@ -63,28 +60,15 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
 
   protected void setupServlets(CONTEXT context) {
     def servlet = servlet()
-
-    addServlet(context, SUCCESS.path, servlet)
-    addServlet(context, QUERY_PARAM.path, servlet)
-    addServlet(context, ERROR.path, servlet)
-    addServlet(context, EXCEPTION.path, servlet)
-    addServlet(context, CUSTOM_EXCEPTION.path, servlet)
-    addServlet(context, REDIRECT.path, servlet)
-    addServlet(context, AUTH_REQUIRED.path, servlet)
-    addServlet(context, TIMEOUT.path, servlet)
-    addServlet(context, TIMEOUT_ERROR.path, servlet)
+    ServerEndpoint.values().findAll { it != NOT_FOUND && it != UNKNOWN }.each {
+      addServlet(context, it.path, servlet)
+    }
   }
 
   protected void setupDispatchServlets(CONTEXT context, Class<Servlet> dispatchServlet) {
-    addServlet(context, "/dispatch" + SUCCESS.path, dispatchServlet)
-    addServlet(context, "/dispatch" + QUERY_PARAM.path, dispatchServlet)
-    addServlet(context, "/dispatch" + REDIRECT.path, dispatchServlet)
-    addServlet(context, "/dispatch" + ERROR.path, dispatchServlet)
-    addServlet(context, "/dispatch" + EXCEPTION.path, dispatchServlet)
-    addServlet(context, "/dispatch" + CUSTOM_EXCEPTION.path, dispatchServlet)
-    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, dispatchServlet)
-    addServlet(context, "/dispatch" + TIMEOUT.path, dispatchServlet)
-    addServlet(context, "/dispatch" + TIMEOUT_ERROR.path, dispatchServlet)
+    ServerEndpoint.values().findAll { it != NOT_FOUND && it != UNKNOWN }.each {
+      addServlet(context, "/dispatch" + it.path, dispatchServlet)
+    }
 
     // NOT_FOUND will hit on the initial URL, but be dispatched to a missing url
     addServlet(context, "/dispatch" + NOT_FOUND.path, dispatchServlet)

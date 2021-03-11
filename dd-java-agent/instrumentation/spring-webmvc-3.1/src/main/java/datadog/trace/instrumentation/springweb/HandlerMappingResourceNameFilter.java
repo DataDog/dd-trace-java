@@ -37,7 +37,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
         if (findMapping(request)) {
           // Name the parent span based on the matching pattern
           // Let the parent span resource name be set with the attribute set in findMapping.
-          DECORATE.onRequest((AgentSpan) parentSpan, request);
+          DECORATE.onRequest((AgentSpan) parentSpan, request, request, null);
         }
       } catch (final Exception ignored) {
         // mapping.getHandler() threw exception.  Ignore

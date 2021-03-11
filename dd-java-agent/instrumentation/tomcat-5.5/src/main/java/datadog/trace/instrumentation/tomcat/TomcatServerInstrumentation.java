@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.tomcat.RequestExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DD_EXTRACTED_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DECORATE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.SERVLET_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -76,7 +77,8 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing {
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final AgentSpan.Context extractedContext = propagate().extract(req, GETTER);
+      final AgentSpan.Context.Extracted extractedContext = propagate().extract(req, GETTER);
+      req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
 
       final AgentSpan span =
           AgentTracer.startSpan(SERVLET_REQUEST, extractedContext).setMeasured(true);
@@ -114,9 +116,12 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing {
     public static void afterParse(@Advice.Argument(1) Request req) {
       Object spanObj = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (spanObj instanceof AgentSpan) {
-        AgentSpan span = (AgentSpan) spanObj;
-        DECORATE.onConnection(span, req);
-        DECORATE.onRequest(span, req);
+        Object ctxObj = req.getAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE);
+        AgentSpan.Context.Extracted ctx =
+            ctxObj instanceof AgentSpan.Context.Extracted
+                ? (AgentSpan.Context.Extracted) ctxObj
+                : null;
+        DECORATE.onRequest((AgentSpan) spanObj, req, req, ctx);
       }
     }
   }
