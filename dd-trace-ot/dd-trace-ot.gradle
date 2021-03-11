@@ -1,6 +1,6 @@
 plugins {
-  id "com.github.johnrengelman.shadow" version "5.2.0"
-  id "me.champeau.gradle.jmh" version "0.5.0"
+  id "com.github.johnrengelman.shadow"
+  id "me.champeau.jmh"
 }
 
 description = 'dd-trace-ot'
@@ -164,6 +164,6 @@ jmh {
   //  zip64 = true // Use ZIP64 format for bigger archives
   jmhVersion = '1.23' // Specifies JMH version
   //  includeTests = true // Allows to include test sources into generate JMH jar, i.e. use it when benchmarks depend on the test classes.
-  duplicateClassesStrategy = 'warn'
+  //duplicateClassesStrategy = 'warn'
   // Strategy to apply when encountring duplicate classes during creation of the fat jar (i.e. while executing jmhJar task)
 }

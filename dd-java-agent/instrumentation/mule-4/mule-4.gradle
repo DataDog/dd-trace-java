@@ -26,7 +26,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 def muleVersion = '4.2.2'
 def muleBaseDir = "$buildDir/mule"
-def appDir = "$projectDir/mule-application"
+def appDir = "$projectDir/application"
 def generatedResourcesDir = "$buildDir/generated-resources/test"
 
 clean.doFirst {

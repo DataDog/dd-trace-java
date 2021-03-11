@@ -15,6 +15,9 @@ plugins {
 
   id 'org.unbroken-dome.test-sets' version '3.0.1'
   id 'pl.allegro.tech.build.axion-release' version '1.10.3'
+
+  id "com.github.johnrengelman.shadow" version "5.2.0" apply false
+  id "me.champeau.jmh" version "0.6.2" apply false
 }
 
 def isCI = System.getenv("CI") != null

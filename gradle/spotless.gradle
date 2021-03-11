@@ -42,8 +42,7 @@ spotless {
 
   format 'misc', {
     toggleOffOn()
-    target '**/.gitignore', '**/*.md', '**/*.sh'
-    targetExclude '**/build/**', '**/integrations-core/**' // Exclude git submodule from evaluation.
+    target '.gitignore', '*.md', '.github/**/*.md', 'src/**/*.md', 'application/**/*.md', '*.sh', 'tooling/*.sh', '.circleci/*.sh'
     indentWithSpaces()
     trimTrailingWhitespace()
     endWithNewline()
@@ -51,8 +50,8 @@ spotless {
 
   format 'xml', {
     toggleOffOn()
-    target '**/*.xml', '**/*.xsd'
-    targetExclude '**/build/**', '**/integrations-core/**' // Exclude git submodule from evaluation.
+    target 'src/**/*.xml', 'src/**/*.xsd', 'gradle/**/*.xml', 'gradle/**/*.xsd', 'conf/**/*.xml', 'conf/**/*.xsd', 'application/**/*.xml', 'application/**/*.xsd'
+    targetExclude '**/build/**', '**/target/**'
     trimTrailingWhitespace()
     endWithNewline()
     eclipseWtp('xml').configFile(configPath + '/enforcement/spotless-xml.properties')
