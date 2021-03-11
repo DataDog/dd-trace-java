@@ -10,7 +10,7 @@ apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
 
 def forkedTestLimit = gradle.sharedServices.registerIfAbsent("forkedTestLimit", BuildService) {
-  maxParallelUsages = 2
+  maxParallelUsages = 4
 }
 
 // Task for tests that want to run forked in their own separate JVM
