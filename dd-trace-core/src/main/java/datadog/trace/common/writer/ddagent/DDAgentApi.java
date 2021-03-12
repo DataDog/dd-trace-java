@@ -14,14 +14,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** The API pointing to a DD agent */
-@Slf4j
 public class DDAgentApi {
+
+  private static final Logger log = LoggerFactory.getLogger(DDAgentApi.class);
+
   private static final String DATADOG_CLIENT_COMPUTED_STATS = "Datadog-Client-Computed-Stats";
   // this is not intended to be a toggled feature,
   // rather it identifies this tracer as one which has computed top level status

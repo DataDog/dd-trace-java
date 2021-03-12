@@ -12,14 +12,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class DDAgentFeaturesDiscovery implements DroppingPolicy {
+
+  private static final Logger log = LoggerFactory.getLogger(DDAgentFeaturesDiscovery.class);
 
   private static final JsonAdapter<Map<String, Object>> RESPONSE_ADAPTER =
       new Moshi.Builder()

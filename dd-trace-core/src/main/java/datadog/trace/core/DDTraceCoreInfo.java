@@ -2,9 +2,7 @@ package datadog.trace.core;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 public class DDTraceCoreInfo {
 
   public static final String JAVA_VERSION = System.getProperty("java.version", "unknown");

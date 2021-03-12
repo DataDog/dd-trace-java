@@ -10,12 +10,14 @@ import datadog.trace.core.serialization.WritableFormatter;
 import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 import java.nio.ByteBuffer;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
 import org.jctools.counters.CountersFactory;
 import org.jctools.counters.FixedSizeStripedLongCounter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class PayloadDispatcher implements ByteBufferConsumer {
+
+  private static final Logger log = LoggerFactory.getLogger(PayloadDispatcher.class);
 
   private final DDAgentApi api;
   private final DDAgentFeaturesDiscovery featuresDiscovery;

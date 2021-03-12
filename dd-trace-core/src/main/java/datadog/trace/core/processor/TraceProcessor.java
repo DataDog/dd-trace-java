@@ -6,10 +6,12 @@ import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.processor.rule.URLAsResourceNameRule;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class TraceProcessor {
+
+  private static final Logger log = LoggerFactory.getLogger(TraceProcessor.class);
   final Rule[] DEFAULT_RULES = new Rule[] {new URLAsResourceNameRule()};
 
   private final List<Rule> rules;

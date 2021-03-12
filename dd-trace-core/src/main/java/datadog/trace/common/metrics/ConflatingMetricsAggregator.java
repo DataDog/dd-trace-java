@@ -22,12 +22,14 @@ import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.jctools.queues.SpmcArrayQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public final class ConflatingMetricsAggregator implements MetricsAggregator, EventListener {
+
+  private static final Logger log = LoggerFactory.getLogger(ConflatingMetricsAggregator.class);
 
   private static final DDCache<String, UTF8BytesString> SERVICE_NAMES =
       DDCaches.newFixedSizeCache(32);

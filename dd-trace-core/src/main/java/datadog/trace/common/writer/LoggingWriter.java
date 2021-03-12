@@ -6,10 +6,12 @@ import com.squareup.moshi.Types;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class LoggingWriter implements Writer {
+
+  private static final Logger log = LoggerFactory.getLogger(LoggingWriter.class);
   private static final JsonAdapter<List<DDSpan>> TRACE_ADAPTER =
       new Moshi.Builder()
           .add(DDSpanJsonAdapter.buildFactory(false))

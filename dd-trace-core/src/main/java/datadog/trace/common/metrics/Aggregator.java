@@ -12,10 +12,12 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 final class Aggregator implements Runnable {
+
+  private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
   private final Queue<Batch> batchPool;
   private final BlockingQueue<Batch> inbox;

@@ -12,7 +12,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents a period of time. Associated information is stored in the SpanContext.
@@ -20,8 +21,8 @@ import lombok.extern.slf4j.Slf4j;
  * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
-@Slf4j
 public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
+  private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
   static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
     final DDSpan span = new DDSpan(timestampMicro, context);
