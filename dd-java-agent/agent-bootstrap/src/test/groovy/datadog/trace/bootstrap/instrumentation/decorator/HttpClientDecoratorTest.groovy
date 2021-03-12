@@ -119,39 +119,39 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
   @Override
   def newDecorator(String serviceName = "test-service") {
     return new HttpClientDecorator<Map, Map>() {
-      @Override
-      protected String[] instrumentationNames() {
-        return ["test1", "test2"]
-      }
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1", "test2"]
+        }
 
-      @Override
-      protected String service() {
-        return serviceName
-      }
+        @Override
+        protected String service() {
+          return serviceName
+        }
 
-      @Override
-      protected CharSequence component() {
-        return "test-component"
-      }
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
 
-      @Override
-      protected String method(Map m) {
-        return m.method
-      }
+        @Override
+        protected String method(Map m) {
+          return m.method
+        }
 
-      @Override
-      protected URI url(Map m) {
-        return m.url
-      }
+        @Override
+        protected URI url(Map m) {
+          return m.url
+        }
 
-      @Override
-      protected int status(Map m) {
-        null == m.status ? 0 : m.status.intValue()
-      }
+        @Override
+        protected int status(Map m) {
+          null == m.status ? 0 : m.status.intValue()
+        }
 
-      protected boolean traceAnalyticsDefault() {
-        return true
+        protected boolean traceAnalyticsDefault() {
+          return true
+        }
       }
-    }
   }
 }

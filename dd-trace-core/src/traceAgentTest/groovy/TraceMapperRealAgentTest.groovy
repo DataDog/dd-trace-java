@@ -18,7 +18,9 @@ import java.util.concurrent.TimeUnit
 
 import static TraceGenerator.generateRandomTraces
 
-@Requires({ "true" == System.getenv("CI") })
+@Requires({
+  "true" == System.getenv("CI")
+})
 class TraceMapperRealAgentTest extends DDSpecification {
 
   @Shared

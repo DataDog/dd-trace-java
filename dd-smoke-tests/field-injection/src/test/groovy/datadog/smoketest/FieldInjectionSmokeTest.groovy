@@ -21,7 +21,7 @@ import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFor
 class FieldInjectionSmokeTest extends Specification {
 
   private static final Pattern CONTEXT_STORE_ALLOCATION =
-      Pattern.compile('.*Allocated ContextStore #(\\d+) to (\\S+) -> (\\S+)')
+  Pattern.compile('.*Allocated ContextStore #(\\d+) to (\\S+) -> (\\S+)')
 
   String javaPath() {
     final String separator = System.getProperty("file.separator")
@@ -47,7 +47,10 @@ class FieldInjectionSmokeTest extends Specification {
     testedTypesAndExpectedFields.put(FutureTask.getName(),
       new HashSet<>([fieldName(RunnableFuture)]))
     testedTypesAndExpectedFields.put("java.util.concurrent.CompletableFuture\$UniCompletion",
-      new HashSet<>([fieldName(ForkJoinTask), fieldName("java.util.concurrent.CompletableFuture\$UniCompletion")]))
+      new HashSet<>([
+        fieldName(ForkJoinTask),
+        fieldName("java.util.concurrent.CompletableFuture\$UniCompletion")
+      ]))
     String jar = System.getProperty("datadog.smoketest.fieldinjection.shadowJar.path")
     List<String> command = new ArrayList<>()
     command.add(javaPath())

@@ -37,25 +37,25 @@ class DatadogClassLoaderTest extends DDSpecification {
 
     when:
     final Thread thread1 = new Thread() {
-      @Override
-      void run() {
-        synchronized (ddLoader.getClassLoadingLock(className1)) {
-          threadHoldLockPhase.arrive()
-          acquireLockFromMainThreadPhase.arriveAndAwaitAdvance()
+        @Override
+        void run() {
+          synchronized (ddLoader.getClassLoadingLock(className1)) {
+            threadHoldLockPhase.arrive()
+            acquireLockFromMainThreadPhase.arriveAndAwaitAdvance()
+          }
         }
       }
-    }
     thread1.start()
 
     final Thread thread2 = new Thread() {
-      @Override
-      void run() {
-        threadHoldLockPhase.arriveAndAwaitAdvance()
-        synchronized (ddLoader.getClassLoadingLock(className2)) {
-          acquireLockFromMainThreadPhase.arrive()
+        @Override
+        void run() {
+          threadHoldLockPhase.arriveAndAwaitAdvance()
+          synchronized (ddLoader.getClassLoadingLock(className2)) {
+            acquireLockFromMainThreadPhase.arrive()
+          }
         }
       }
-    }
     thread2.start()
     thread1.join()
     thread2.join()
@@ -147,11 +147,11 @@ class DatadogClassLoaderTest extends DDSpecification {
 
     for (int i = 0; i < 100; i++) {
       futures.add(executorService.submit(new Callable<Void>() {
-        Void call() {
-          child.loadClass("a.A")
-          return null
-        }
-      }))
+          Void call() {
+            child.loadClass("a.A")
+            return null
+          }
+        }))
     }
 
     for (Future<Void> callable : futures) {
@@ -164,7 +164,6 @@ class DatadogClassLoaderTest extends DDSpecification {
 
     then:
     noExceptionThrown()
-
   }
 
   def "test delegate classloader successfully loads classes concurrently"() {
@@ -183,11 +182,11 @@ class DatadogClassLoaderTest extends DDSpecification {
     when:
     for (int i = 0; i < 100; i++) {
       futures.add(executorService.submit(new Callable<Void>() {
-        Void call() {
-          child.loadClass("x.X")
-          return null
-        }
-      }))
+          Void call() {
+            child.loadClass("x.X")
+            return null
+          }
+        }))
     }
 
     for (Future<Void> callable : futures) {
@@ -200,7 +199,6 @@ class DatadogClassLoaderTest extends DDSpecification {
 
     then:
     noExceptionThrown()
-
   }
 
   def "test load nested classes and call getEnclosingClass"() {

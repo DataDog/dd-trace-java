@@ -12,8 +12,8 @@ class ShouldInjectFieldsMatcherTest extends DDSpecification {
 
   @Shared
   def typePool =
-    AgentTooling.poolStrategy()
-      .typePool(AgentTooling.locationStrategy().classFileLocator(this.class.classLoader, null), this.class.classLoader)
+  AgentTooling.poolStrategy()
+  .typePool(AgentTooling.locationStrategy().classFileLocator(this.class.classLoader, null), this.class.classLoader)
 
   def "should inject only into #keyType when #klass is transformed"() {
     setup:
@@ -28,7 +28,7 @@ class ShouldInjectFieldsMatcherTest extends DDSpecification {
       // to be able to test the non-null case
       null,
       Mock(ProtectionDomain)
-    )
+      )
 
     then:
     ((klass == keyType) && matches) || ((klass != keyType) && !matches)
@@ -53,7 +53,7 @@ class ShouldInjectFieldsMatcherTest extends DDSpecification {
       // to be able to test the non-null case
       null,
       Mock(ProtectionDomain)
-    )
+      )
 
     then:
     ((klass == expected) && matches) || ((klass != expected) && !matches)
@@ -68,5 +68,4 @@ class ShouldInjectFieldsMatcherTest extends DDSpecification {
     // tests the case where a direct interface in the hierarchy does not extend the target interface but an indirect interface does
     "java.util.concurrent.Future"         | "datadog.trace.agent.test.LeafFutureTask"                               | "java.util.concurrent.FutureTask"
   }
-
 }

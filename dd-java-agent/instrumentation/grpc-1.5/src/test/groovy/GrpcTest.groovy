@@ -35,20 +35,20 @@ class GrpcTest extends AgentTestRunner {
     setup:
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
-      @Override
-      void sayHello(
-        final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
-        final Helloworld.Response reply = Helloworld.Response.newBuilder().setMessage("Hello $req.name").build()
-        responseExecutor.execute {
-          if (TEST_TRACER.activeSpan() == null) {
-            responseObserver.onError(new IllegalStateException("no active span"))
-          } else {
-            responseObserver.onNext(reply)
-            responseObserver.onCompleted()
+        @Override
+        void sayHello(
+          final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
+          final Helloworld.Response reply = Helloworld.Response.newBuilder().setMessage("Hello $req.name").build()
+          responseExecutor.execute {
+            if (TEST_TRACER.activeSpan() == null) {
+              responseObserver.onError(new IllegalStateException("no active span"))
+            } else {
+              responseObserver.onNext(reply)
+              responseObserver.onCompleted()
+            }
           }
         }
       }
-    }
     Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter).directExecutor().build().start()
 
     ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
@@ -134,12 +134,12 @@ class GrpcTest extends AgentTestRunner {
     setup:
     def error = status.asException()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
-      @Override
-      void sayHello(
-        final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
-        responseObserver.onError(error)
+        @Override
+        void sayHello(
+          final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
+          responseObserver.onError(error)
+        }
       }
-    }
     Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter).directExecutor().build().start()
 
     ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
@@ -220,12 +220,12 @@ class GrpcTest extends AgentTestRunner {
     setup:
     def error = status.asRuntimeException()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
-      @Override
-      void sayHello(
-        final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
-        throw error
+        @Override
+        void sayHello(
+          final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
+          throw error
+        }
       }
-    }
     Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter).directExecutor().build().start()
 
     ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
@@ -307,12 +307,12 @@ class GrpcTest extends AgentTestRunner {
     def keys = new ArrayList()
     GrpcExtractAdapter.GETTER.forEachKey(meta, new AgentPropagation.KeyClassifier() {
 
-      @Override
-      boolean accept(String key, String value) {
-        keys.add(key.toLowerCase())
-        return true
-      }
-    })
+        @Override
+        boolean accept(String key, String value) {
+          keys.add(key.toLowerCase())
+          return true
+        }
+      })
 
     then:
     keys == ["test"]
@@ -322,16 +322,16 @@ class GrpcTest extends AgentTestRunner {
     setup:
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
-      @Override
-      void ignore(
-        final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
-        final Helloworld.Response reply = Helloworld.Response.newBuilder().setMessage("Hello $req.name").build()
-        responseExecutor.execute {
-          responseObserver.onNext(reply)
-          responseObserver.onCompleted()
+        @Override
+        void ignore(
+          final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
+          final Helloworld.Response reply = Helloworld.Response.newBuilder().setMessage("Hello $req.name").build()
+          responseExecutor.execute {
+            responseObserver.onNext(reply)
+            responseObserver.onCompleted()
+          }
         }
       }
-    }
     Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter).directExecutor().build().start()
     ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
     GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(channel)
@@ -381,6 +381,5 @@ class GrpcTest extends AgentTestRunner {
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
     server?.shutdownNow()?.awaitTermination()
-
   }
 }

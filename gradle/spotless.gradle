@@ -34,7 +34,6 @@ spotless {
         // the Groovy Eclipse formatter extends the Java Eclipse formatter,
         // so it formats Java files by default (unless `excludeJava` is used).
       }
-      targetExclude '**/*Test.groovy' // Current formatting configuration is not great for our tests.
       greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
     }
   }

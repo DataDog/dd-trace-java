@@ -32,7 +32,11 @@ class AgentIsolationSmokeTest extends Specification {
   def "other agents can safely call Class.getSimpleName() on loaded instrumentation classes"() {
     setup:
     // force transformation of instrumented types
-    def triggerTypes = ["org.apache.http.impl.client.MinimalHttpClient", ForkJoinTask.getName(), FutureTask.getName()]
+    def triggerTypes = [
+      "org.apache.http.impl.client.MinimalHttpClient",
+      ForkJoinTask.getName(),
+      FutureTask.getName()
+    ]
     String app = System.getProperty("datadog.smoketest.agentisolation.appJar.path")
     String agent = System.getProperty("datadog.smoketest.agentisolation.agentJar.path")
     List<String> command = new ArrayList<>()

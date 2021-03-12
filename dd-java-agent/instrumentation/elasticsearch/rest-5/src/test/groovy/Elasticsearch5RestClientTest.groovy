@@ -60,7 +60,6 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
         }
       })
       .build()
-
   }
 
   def cleanupSpec() {

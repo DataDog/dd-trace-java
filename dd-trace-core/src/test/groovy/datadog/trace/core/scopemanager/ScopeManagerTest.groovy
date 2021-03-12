@@ -526,9 +526,25 @@ class ScopeManagerTest extends DDCoreSpecification {
     firstScope.close()
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE, CLOSE]
+    eventCountingListener.events == [
+      ACTIVATE,
+      ACTIVATE,
+      ACTIVATE,
+      CLOSE,
+      CLOSE,
+      ACTIVATE,
+      CLOSE
+    ]
     tracer.activeScope() == null
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE, CLOSE]
+    eventCountingListener.events == [
+      ACTIVATE,
+      ACTIVATE,
+      ACTIVATE,
+      CLOSE,
+      CLOSE,
+      ACTIVATE,
+      CLOSE
+    ]
     0 * _
   }
 

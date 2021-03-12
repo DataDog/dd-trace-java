@@ -19,12 +19,12 @@ class TextMapExtractAdapterTest extends AgentTestRunner {
     when:
     String extracted = null
     adapter.forEachKey(headers, new AgentPropagation.KeyClassifier() {
-      @Override
-      boolean accept(String key, String value) {
-        extracted = value
-        return false
-      }
-    })
+        @Override
+        boolean accept(String key, String value) {
+          extracted = value
+          return false
+        }
+      })
 
     then:
     extracted == expectedValue

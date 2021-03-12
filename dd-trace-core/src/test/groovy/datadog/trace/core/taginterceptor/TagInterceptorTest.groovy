@@ -170,9 +170,9 @@ class TagInterceptorTest extends DDCoreSpecification {
       .serviceName("my-service")
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
-    // equivalent to split-by-tags: tag
+      // equivalent to split-by-tags: tag
       .tagInterceptor(new TagInterceptor(true, "my-service",
-        Collections.singleton(tag), new RuleFlags()))
+      Collections.singleton(tag), new RuleFlags()))
       .build()
   }
 
@@ -353,7 +353,7 @@ class TagInterceptorTest extends DDCoreSpecification {
 
     cleanup:
     tracer.close()
-    
+
     where:
     tag                | value   | expected
     DDTags.MANUAL_KEEP | true    | PrioritySampling.USER_KEEP
@@ -505,8 +505,6 @@ class TagInterceptorTest extends DDCoreSpecification {
     DDTags.SERVICE_NAME | "new-service" | "some-service"
     "service"           | "new-service" | "some-service"
     "sn.tag1"           | "new-service" | "new-service"
-
-
   }
 
   def "change top level status when changing service name"() {

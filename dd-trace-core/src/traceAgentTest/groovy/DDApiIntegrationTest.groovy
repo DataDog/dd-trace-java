@@ -40,9 +40,9 @@ class DDApiIntegrationTest extends DDSpecification {
   static final SOMEPORT = 123
 
   /*
-  Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
-  'testcontainers' are built for Java 8 and Java 7 cannot load this class.
- */
+   Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
+   'testcontainers' are built for Java 8 and Java 7 cannot load this class.
+   */
   @Shared
   def agentContainer
   @Shared
@@ -75,20 +75,20 @@ class DDApiIntegrationTest extends DDSpecification {
     statsDClient = new NonBlockingStatsDClient("itest", agentContainerHost, 8125)
 
     /*
-      CI will provide us with agent container running along side our build.
-      When building locally, however, we need to take matters into our own hands
-      and we use 'testcontainers' for this.
+     CI will provide us with agent container running along side our build.
+     When building locally, however, we need to take matters into our own hands
+     and we use 'testcontainers' for this.
      */
     if ("true" != System.getenv("CI")) {
       agentContainer = new GenericContainer("datadog/agent:7.22.0")
         .withEnv(["DD_APM_ENABLED": "true",
-                  "DD_BIND_HOST"  : "0.0.0.0",
-                  "DD_API_KEY"    : "invalid_key_but_this_is_fine",
-                  "DD_LOGS_STDOUT": "yes"])
+          "DD_BIND_HOST"  : "0.0.0.0",
+          "DD_API_KEY"    : "invalid_key_but_this_is_fine",
+          "DD_LOGS_STDOUT": "yes"])
         .withExposedPorts(datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT)
         .withStartupTimeout(Duration.ofSeconds(120))
-      // Apparently we need to sleep for a bit so agent's response `{"service:,env:":1}` in rate_by_service.
-      // This is clearly a race-condition and maybe we should avoid verifying complete response
+        // Apparently we need to sleep for a bit so agent's response `{"service:,env:":1}` in rate_by_service.
+        // This is clearly a race-condition and maybe we should avoid verifying complete response
         .withStartupCheckStrategy(new MinimumDurationRunningStartupCheckStrategy(Duration.ofSeconds(10)))
       //        .withLogConsumer { output ->
       //        print output.utf8String
@@ -155,11 +155,13 @@ class DDApiIntegrationTest extends DDSpecification {
     assert agentResponse.get()["rate_by_service"] instanceof Map
 
     where:
+    // spotless:off
     traces                 | test | enableV05
     []                     | 1    | true
     (1..16).collect { [] } | 4    | true
     []                     | 5    | false
     (1..16).collect { [] } | 8    | false
+    // spotless:on
   }
 
   def "Sending traces succeeds"() {
@@ -193,9 +195,11 @@ class DDApiIntegrationTest extends DDSpecification {
     assert agentResponse.get()["rate_by_service"] instanceof Map
 
     where:
+    // spotless:off
     traces | test | enableV05
     []     | 1    | true
     []     | 3    | false
+    // spotless:on
   }
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {

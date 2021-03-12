@@ -19,8 +19,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 class HasInterfaceMatcherTest extends DDSpecification {
   @Shared
   def typePool =
-    AgentTooling.poolStrategy()
-      .typePool(AgentTooling.locationStrategy().classFileLocator(this.class.classLoader, null), this.class.classLoader)
+  AgentTooling.poolStrategy()
+  .typePool(AgentTooling.locationStrategy().classFileLocator(this.class.classLoader, null), this.class.classLoader)
 
   def "test matcher #matcherClass.simpleName -> #type.simpleName"() {
     expect:

@@ -15,11 +15,11 @@ class CompletableFuturePromiseNoAsyncTest extends AbstractPromiseTest<Completabl
   @Override
   CompletableFuture<String> map(CompletableFuture<Boolean> promise, Closure<String> callback) {
     return promise.thenApply(new Function<Boolean, String>() {
-      @Override
-      String apply(Boolean value) {
-        return callback.call(value)
-      }
-    }).toCompletableFuture()
+        @Override
+        String apply(Boolean value) {
+          return callback.call(value)
+        }
+      }).toCompletableFuture()
   }
 
   @Override
@@ -75,5 +75,4 @@ class CompletableFuturePromiseNoAsyncTest extends AbstractPromiseTest<Completabl
     where:
     value << [true, false]
   }
-
 }

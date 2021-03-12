@@ -68,9 +68,9 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     embeddedDbUri = "redis://" + dbAddr
 
     redisServer = RedisServer.builder()
-    // bind to localhost to avoid firewall popup
+      // bind to localhost to avoid firewall popup
       .setting("bind " + HOST)
-    // set max memory to avoid problems in CI
+      // set max memory to avoid problems in CI
       .setting("maxmemory 128M")
       .port(port).build()
   }
@@ -202,13 +202,13 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     def conds = new AsyncConditions()
     Consumer<String> consumer = new Consumer<String>() {
-      @Override
-      void accept(String res) {
-        conds.evaluate {
-          assert res == "TESTVAL"
+        @Override
+        void accept(String res) {
+          conds.evaluate {
+            assert res == "TESTVAL"
+          }
         }
       }
-    }
 
     when:
     RedisFuture<String> redisFuture = asyncCommands.get("TESTKEY")
@@ -243,24 +243,24 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     def conds = new AsyncConditions()
     final String successStr = "KEY MISSING"
     BiFunction<String, Throwable, String> firstStage = new BiFunction<String, Throwable, String>() {
-      @Override
-      String apply(String res, Throwable throwable) {
-        conds.evaluate {
-          assert res == null
-          assert throwable == null
+        @Override
+        String apply(String res, Throwable throwable) {
+          conds.evaluate {
+            assert res == null
+            assert throwable == null
+          }
+          return (res == null ? successStr : res)
         }
-        return (res == null ? successStr : res)
       }
-    }
     Function<String, Object> secondStage = new Function<String, Object>() {
-      @Override
-      Object apply(String input) {
-        conds.evaluate {
-          assert input == successStr
+        @Override
+        Object apply(String input) {
+          conds.evaluate {
+            assert input == successStr
+          }
+          return null
         }
-        return null
       }
-    }
 
     when:
     RedisFuture<String> redisFuture = asyncCommands.get("NON_EXISTENT_KEY")
@@ -292,13 +292,13 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     def conds = new AsyncConditions()
     BiConsumer<String, Throwable> biConsumer = new BiConsumer<String, Throwable>() {
-      @Override
-      void accept(String keyRetrieved, Throwable throwable) {
-        conds.evaluate {
-          assert keyRetrieved != null
+        @Override
+        void accept(String keyRetrieved, Throwable throwable) {
+          conds.evaluate {
+            assert keyRetrieved != null
+          }
         }
       }
-    }
 
     when:
     RedisFuture<String> redisFuture = asyncCommands.randomkey()
@@ -333,33 +333,33 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     when:
     RedisFuture<String> hmsetFuture = asyncCommands.hmset("TESTHM", testHashMap)
     hmsetFuture.thenApplyAsync(new Function<String, Object>() {
-      @Override
-      Object apply(String setResult) {
-        TEST_WRITER.waitForTraces(1) // Wait for 'hmset' trace to get written
-        conds.evaluate {
-          assert setResult == "OK"
+        @Override
+        Object apply(String setResult) {
+          TEST_WRITER.waitForTraces(1) // Wait for 'hmset' trace to get written
+          conds.evaluate {
+            assert setResult == "OK"
+          }
+          RedisFuture<Map<String, String>> hmGetAllFuture = asyncCommands.hgetall("TESTHM")
+          hmGetAllFuture.exceptionally(new Function<Throwable, Map<String, String>>() {
+              @Override
+              Map<String, String> apply(Throwable throwable) {
+                println("unexpected:" + throwable.toString())
+                throwable.printStackTrace()
+                assert false
+                return null
+              }
+            })
+          hmGetAllFuture.thenAccept(new Consumer<Map<String, String>>() {
+              @Override
+              void accept(Map<String, String> hmGetAllResult) {
+                conds.evaluate {
+                  assert testHashMap == hmGetAllResult
+                }
+              }
+            })
+          return null
         }
-        RedisFuture<Map<String, String>> hmGetAllFuture = asyncCommands.hgetall("TESTHM")
-        hmGetAllFuture.exceptionally(new Function<Throwable, Map<String, String>>() {
-          @Override
-          Map<String, String> apply(Throwable throwable) {
-            println("unexpected:" + throwable.toString())
-            throwable.printStackTrace()
-            assert false
-            return null
-          }
-        })
-        hmGetAllFuture.thenAccept(new Consumer<Map<String, String>>() {
-          @Override
-          void accept(Map<String, String> hmGetAllResult) {
-            conds.evaluate {
-              assert testHashMap == hmGetAllResult
-            }
-          }
-        })
-        return null
-      }
-    })
+      })
 
     then:
     conds.await()
@@ -406,14 +406,13 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     def conds = new AsyncConditions()
     RedisFuture redisFuture = asyncCommands.del("key1", "key2")
     boolean completedExceptionally = ((AsyncCommand) redisFuture).completeExceptionally(new IllegalStateException("TestException"))
-    redisFuture.exceptionally({
-      throwable ->
-        conds.evaluate {
-          assert throwable != null
-          assert throwable instanceof IllegalStateException
-          assert throwable.getMessage() == "TestException"
-        }
-        throw throwable
+    redisFuture.exceptionally({ throwable ->
+      conds.evaluate {
+        assert throwable != null
+        assert throwable instanceof IllegalStateException
+        assert throwable.getMessage() == "TestException"
+      }
+      throw throwable
     })
 
     when:
@@ -451,12 +450,11 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     asyncCommands.setAutoFlushCommands(false)
     def conds = new AsyncConditions()
     RedisFuture redisFuture = asyncCommands.sadd("SKEY", "1", "2")
-    redisFuture.whenCompleteAsync({
-      res, throwable ->
-        conds.evaluate {
-          assert throwable != null
-          assert throwable instanceof CancellationException
-        }
+    redisFuture.whenCompleteAsync({ res, throwable ->
+      conds.evaluate {
+        assert throwable != null
+        assert throwable instanceof CancellationException
+      }
     })
 
     when:

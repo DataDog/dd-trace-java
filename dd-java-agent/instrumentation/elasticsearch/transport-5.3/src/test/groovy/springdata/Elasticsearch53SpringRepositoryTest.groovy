@@ -23,9 +23,9 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
 
   @Shared
   DocRepository repo = Proxy.newProxyInstance(
-    getClass().getClassLoader(),
-    [DocRepository] as Class[],
-    new LazyProxyInvoker())
+  getClass().getClassLoader(),
+  [DocRepository] as Class[],
+  new LazyProxyInvoker())
 
   static class LazyProxyInvoker implements InvocationHandler {
     def repo

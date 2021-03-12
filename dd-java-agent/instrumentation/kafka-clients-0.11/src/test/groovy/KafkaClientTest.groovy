@@ -71,12 +71,12 @@ class KafkaClientTest extends AgentTestRunner {
 
     // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
-      @Override
-      void onMessage(ConsumerRecord<String, String> record) {
-        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-        records.add(record)
-      }
-    })
+        @Override
+        void onMessage(ConsumerRecord<String, String> record) {
+          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+          records.add(record)
+        }
+      })
 
     // start the container and underlying message listener
     container.start()
@@ -180,12 +180,12 @@ class KafkaClientTest extends AgentTestRunner {
 
     // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
-      @Override
-      void onMessage(ConsumerRecord<String, String> record) {
-        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-        records.add(record)
-      }
-    })
+        @Override
+        void onMessage(ConsumerRecord<String, String> record) {
+          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+          records.add(record)
+        }
+      })
 
     // start the container and underlying message listener
     container.start()
@@ -287,12 +287,12 @@ class KafkaClientTest extends AgentTestRunner {
 
     // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
-      @Override
-      void onMessage(ConsumerRecord<String, String> record) {
-        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-        records.add(record)
-      }
-    })
+        @Override
+        void onMessage(ConsumerRecord<String, String> record) {
+          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+          records.add(record)
+        }
+      })
 
     // start the container and underlying message listener
     container.start()
@@ -428,7 +428,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            
+
             defaultTags(true)
           }
         }
@@ -668,14 +668,14 @@ class KafkaClientTest extends AgentTestRunner {
     def container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties)
     def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
     container.setupMessageListener(new BatchMessageListener<String, String>() {
-      @Override
-      void onMessage(List<ConsumerRecord<String, String>> consumerRecords) {
-        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-        consumerRecords.each {
-          records.add(it)
+        @Override
+        void onMessage(List<ConsumerRecord<String, String>> consumerRecords) {
+          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+          consumerRecords.each {
+            records.add(it)
+          }
         }
-      }
-    })
+      })
     container.start()
     ContainerTestUtils.waitForAssignment(container, embeddedKafka.getPartitionsPerTopic())
 
@@ -839,12 +839,12 @@ class KafkaClientTest extends AgentTestRunner {
 
     // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
-      @Override
-      void onMessage(ConsumerRecord<String, String> record) {
-        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-        records.add(record)
-      }
-    })
+        @Override
+        void onMessage(ConsumerRecord<String, String> record) {
+          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+          records.add(record)
+        }
+      })
 
     // start the container and underlying message listener
     container.start()

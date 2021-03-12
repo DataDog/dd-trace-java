@@ -31,8 +31,8 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
 class RabbitMQTest extends AgentTestRunner {
   /*
-    Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
-    'testcontainers' are built for Java 8 and Java 7 cannot load this class.
+   Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
+   'testcontainers' are built for Java 8 and Java 7 cannot load this class.
    */
   @Shared
   def rabbbitMQContainer
@@ -61,22 +61,22 @@ class RabbitMQTest extends AgentTestRunner {
   def setupSpec() {
 
     /*
-      CI will provide us with rabbitmq container running along side our build.
-      When building locally, however, we need to take matters into our own hands
-      and we use 'testcontainers' for this.
+     CI will provide us with rabbitmq container running along side our build.
+     When building locally, however, we need to take matters into our own hands
+     and we use 'testcontainers' for this.
      */
     if ("true" != System.getenv("CI")) {
       rabbbitMQContainer = new GenericContainer('rabbitmq:latest')
         .withExposedPorts(defaultRabbitMQPort)
         .withStartupTimeout(Duration.ofSeconds(120))
-//        .withLogConsumer { output ->
-//        print output.utf8String
-//      }
+      //        .withLogConsumer { output ->
+      //        print output.utf8String
+      //      }
       rabbbitMQContainer.start()
       rabbitmqAddress = new InetSocketAddress(
         rabbbitMQContainer.containerIpAddress,
         rabbbitMQContainer.getMappedPort(defaultRabbitMQPort)
-      )
+        )
     }
   }
 
@@ -169,12 +169,12 @@ class RabbitMQTest extends AgentTestRunner {
     def deliveries = []
 
     Consumer callback = new DefaultConsumer(channel) {
-      @Override
-      void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-        phaser.arriveAndAwaitAdvance() // Ensure publish spans are reported first.
-        deliveries << new String(body)
+        @Override
+        void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+          phaser.arriveAndAwaitAdvance() // Ensure publish spans are reported first.
+          deliveries << new String(body)
+        }
       }
-    }
 
     channel.basicConsume(queueName, callback)
 
@@ -246,13 +246,13 @@ class RabbitMQTest extends AgentTestRunner {
     phaser.register()
 
     Consumer callback = new DefaultConsumer(channel) {
-      @Override
-      void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-        phaser.arriveAndAwaitAdvance() // Ensure publish spans are reported first.
-        throw error
-        // Unfortunately this doesn't seem to be observable in the test outside of the span generated.
+        @Override
+        void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+          phaser.arriveAndAwaitAdvance() // Ensure publish spans are reported first.
+          throw error
+          // Unfortunately this doesn't seem to be observable in the test outside of the span generated.
+        }
       }
-    }
 
     channel.basicConsume(queueName, callback)
 

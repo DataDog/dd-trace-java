@@ -210,14 +210,14 @@ class CacheProviderTest extends DDSpecification {
 
   static newLocator() {
     return new ClassFileLocator() {
-      @Override
-      ClassFileLocator.Resolution locate(String name) throws IOException {
-        return null
-      }
+        @Override
+        ClassFileLocator.Resolution locate(String name) throws IOException {
+          return null
+        }
 
-      @Override
-      void close() throws IOException {
+        @Override
+        void close() throws IOException {
+        }
       }
-    }
   }
 }

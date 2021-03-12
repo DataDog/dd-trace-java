@@ -134,5 +134,4 @@ class DDSketchHistogramTest extends DDSpecification {
     Arrays.sort(data)
     return data
   }
-
 }

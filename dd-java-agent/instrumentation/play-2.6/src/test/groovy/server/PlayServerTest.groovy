@@ -28,35 +28,35 @@ class PlayServerTest extends HttpServerTest<Server> {
     return Server.forRouter(Mode.TEST, port) { BuiltInComponents components ->
       RoutingDsl.fromComponents(components)
         .GET(SUCCESS.getPath()).routeTo({
-        controller(SUCCESS) {
-          Results.status(SUCCESS.getStatus(), SUCCESS.getBody())
-        }
-      } as Supplier)
+          controller(SUCCESS) {
+            Results.status(SUCCESS.getStatus(), SUCCESS.getBody())
+          }
+        } as Supplier)
         .GET(FORWARDED.getPath()).routeTo({
-        controller(FORWARDED) {
-          Results.status(FORWARDED.getStatus(), FORWARDED.getBody()) // cheating
-        }
-      } as Supplier)
+          controller(FORWARDED) {
+            Results.status(FORWARDED.getStatus(), FORWARDED.getBody()) // cheating
+          }
+        } as Supplier)
         .GET(QUERY_PARAM.getPath()).routeTo({
-        controller(QUERY_PARAM) {
-          Results.status(QUERY_PARAM.getStatus(), QUERY_PARAM.getBody()) // cheating
-        }
-      } as Supplier)
+          controller(QUERY_PARAM) {
+            Results.status(QUERY_PARAM.getStatus(), QUERY_PARAM.getBody()) // cheating
+          }
+        } as Supplier)
         .GET(REDIRECT.getPath()).routeTo({
-        controller(REDIRECT) {
-          Results.found(REDIRECT.getBody())
-        }
-      } as Supplier)
+          controller(REDIRECT) {
+            Results.found(REDIRECT.getBody())
+          }
+        } as Supplier)
         .GET(ERROR.getPath()).routeTo({
-        controller(ERROR) {
-          Results.status(ERROR.getStatus(), ERROR.getBody())
-        }
-      } as Supplier)
+          controller(ERROR) {
+            Results.status(ERROR.getStatus(), ERROR.getBody())
+          }
+        } as Supplier)
         .GET(EXCEPTION.getPath()).routeTo({
-        controller(EXCEPTION) {
-          throw new Exception(EXCEPTION.getBody())
-        }
-      } as Supplier)
+          controller(EXCEPTION) {
+            throw new Exception(EXCEPTION.getBody())
+          }
+        } as Supplier)
         .build()
     }
   }

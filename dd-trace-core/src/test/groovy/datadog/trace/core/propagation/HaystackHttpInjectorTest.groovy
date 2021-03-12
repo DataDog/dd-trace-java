@@ -25,25 +25,24 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-        DDId.from(traceId),
-        DDId.from(spanId),
-        DDId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        samplingPriority,
-        origin,
-        new HashMap<String, String>() {
-          {
-            put("k1", "v1")
-            put("k2", "v2")
-          }
-        },
-        false,
-        "fakeType",
-        0,
-        tracer.pendingTraceFactory.create(DDId.ONE))
+      DDId.from(traceId),
+      DDId.from(spanId),
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      samplingPriority,
+      origin,
+      new HashMap<String, String>() { {
+          put("k1", "v1")
+          put("k2", "v2")
+        }
+      },
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE))
 
     final Map<String, String> carrier = Mock()
 
@@ -78,26 +77,25 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
     def haystackUuid = traceUuid
     final DDSpanContext mockedContext =
       new DDSpanContext(
-        DDId.from(traceId),
-        DDId.from(spanId),
-        DDId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        samplingPriority,
-        origin,
-        new HashMap<String, String>() {
-          {
-            put("k1", "v1")
-            put("k2", "v2")
-            put(HAYSTACK_TRACE_ID_BAGGAGE_KEY, haystackUuid)
-          }
-        },
-        false,
-        "fakeType",
-        0,
-        tracer.pendingTraceFactory.create(DDId.ONE))
+      DDId.from(traceId),
+      DDId.from(spanId),
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      samplingPriority,
+      origin,
+      new HashMap<String, String>() { {
+          put("k1", "v1")
+          put("k2", "v2")
+          put(HAYSTACK_TRACE_ID_BAGGAGE_KEY, haystackUuid)
+        }
+      },
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE))
 
     final Map<String, String> carrier = Mock()
 
@@ -114,7 +112,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
 
     cleanup:
     tracer.close()
-    
+
     where:
     traceId               | spanId                | samplingPriority              | origin | traceUuid                              | spanUuid
     "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"

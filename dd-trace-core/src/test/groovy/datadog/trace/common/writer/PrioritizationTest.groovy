@@ -30,6 +30,7 @@ class PrioritizationTest extends DDSpecification {
     secondaryOffers * secondary.offer(trace) >> true
 
     where:
+    // spotless:off
     trace | primaryFull | priority     | primaryOffers | secondaryOffers
     []    | true        | UNSET        | 2             | 0
     []    | true        | SAMPLER_DROP | 0             | 1
@@ -41,6 +42,7 @@ class PrioritizationTest extends DDSpecification {
     []    | false       | SAMPLER_KEEP | 1             | 0
     []    | false       | SAMPLER_DROP | 0             | 1
     []    | false       | USER_KEEP    | 1             | 0
+    // spotless:on
   }
 
   def "fast lane strategy sends kept and unset priority traces to the primary queue, dropped traces to the secondary queue"() {
@@ -57,12 +59,14 @@ class PrioritizationTest extends DDSpecification {
     secondaryOffers * secondary.offer(trace)
 
     where:
+    // spotless:off
     trace | priority     | primaryOffers | secondaryOffers
     []    | UNSET        | 1             | 0
     []    | SAMPLER_DROP | 0             | 1
     []    | SAMPLER_KEEP | 1             | 0
     []    | SAMPLER_DROP | 0             | 1
     []    | USER_KEEP    | 1             | 0
+    // spotless:on
   }
 
   def "FAST_LANE with active dropping policy sends kept and unset priority traces to the primary queue, drops all else"() {
@@ -80,12 +84,14 @@ class PrioritizationTest extends DDSpecification {
     0 * secondary.offer(trace)
 
     where:
+    // spotless:off
     trace | priority     | primaryOffers | publish
     []    | UNSET        | 1             | true
     []    | SAMPLER_DROP | 0             | false
     []    | SAMPLER_KEEP | 1             | true
     []    | SAMPLER_DROP | 0             | false
     []    | USER_KEEP    | 1             | true
+    // spotless:on
   }
 
   def "#strategy strategy flushes primary queue"() {

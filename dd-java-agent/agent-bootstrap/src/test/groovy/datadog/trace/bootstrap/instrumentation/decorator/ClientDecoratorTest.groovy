@@ -47,29 +47,29 @@ class ClientDecoratorTest extends BaseDecoratorTest {
 
   def newDecorator(String serviceName) {
     return new ClientDecorator() {
-      @Override
-      protected String[] instrumentationNames() {
-        return ["test1", "test2"]
-      }
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1", "test2"]
+        }
 
-      @Override
-      protected String service() {
-        return serviceName
-      }
+        @Override
+        protected String service() {
+          return serviceName
+        }
 
-      @Override
-      protected CharSequence spanType() {
-        return "test-type"
-      }
+        @Override
+        protected CharSequence spanType() {
+          return "test-type"
+        }
 
-      @Override
-      protected CharSequence component() {
-        return "test-component"
-      }
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
 
-      protected boolean traceAnalyticsDefault() {
-        return true
+        protected boolean traceAnalyticsDefault() {
+          return true
+        }
       }
-    }
   }
 }

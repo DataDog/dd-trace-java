@@ -65,12 +65,12 @@ class SpringTemplateJMS1Test extends AgentTestRunner {
       TextMessage msg = template.receive(destination)
       assert msg.text == messageText
 
-      template.send(msg.getJMSReplyTo()) {
-        session -> template.getMessageConverter().toMessage("responded!", session)
+      template.send(msg.getJMSReplyTo()) { session ->
+        template.getMessageConverter().toMessage("responded!", session)
       }
     }
-    TextMessage receivedMessage = template.sendAndReceive(destination) {
-      session -> template.getMessageConverter().toMessage(messageText, session)
+    TextMessage receivedMessage = template.sendAndReceive(destination) { session ->
+      template.getMessageConverter().toMessage(messageText, session)
     }
 
     expect:

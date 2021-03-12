@@ -6,7 +6,9 @@ import spock.lang.Requires
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
 
-@Requires({ isJavaVersionAtLeast(8) })
+@Requires({
+  isJavaVersionAtLeast(8)
+})
 class MetricsAggregatorFactoryTest extends DDSpecification {
 
   def "when metrics disabled no-op aggregator created"() {

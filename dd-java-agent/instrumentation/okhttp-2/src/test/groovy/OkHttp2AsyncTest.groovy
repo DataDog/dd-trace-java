@@ -32,17 +32,17 @@ class OkHttp2AsyncTest extends OkHttp2Test {
     def latch = new CountDownLatch(1)
 
     client.newCall(request).enqueue(new Callback() {
-      void onResponse(Response response) {
-        responseRef.set(response)
-        callback?.call()
-        latch.countDown()
-      }
+        void onResponse(Response response) {
+          responseRef.set(response)
+          callback?.call()
+          latch.countDown()
+        }
 
-      void onFailure(Request req, IOException e) {
-        exRef.set(e)
-        latch.countDown()
-      }
-    })
+        void onFailure(Request req, IOException e) {
+          exRef.set(e)
+          latch.countDown()
+        }
+      })
     latch.await(10, SECONDS)
     if (exRef.get() != null) {
       throw exRef.get()

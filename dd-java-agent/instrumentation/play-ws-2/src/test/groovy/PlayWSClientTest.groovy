@@ -53,7 +53,7 @@ class PlayJavaStreamedWSClientTest extends PlayWSClientTestBase {
 
     // The status can be ready before the body so explicity call wait for body to be ready
     wsResponse.getBodyAsSource().runFold("", { acc, out -> "" }, materializer)
-      .toCompletableFuture().get(5, TimeUnit.SECONDS)
+    .toCompletableFuture().get(5, TimeUnit.SECONDS)
     return wsResponse.getStatus()
   }
 

@@ -166,7 +166,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
         case "meta":
           int packedSize = unpacker.unpackMapHeader()
           int expectedSize = expected.size()
-          // filter out "thread.name" and "thread.id"
+        // filter out "thread.name" and "thread.id"
           assert packedSize - 2 == expectedSize
           Map<String, String> unpackedMeta = [:]
           for (int j = 0; j < packedSize; j++) {
@@ -254,7 +254,7 @@ class DDSpanSerializationTest extends DDCoreSpecification {
 
     cleanup:
     tracer.close()
-    
+
     where:
     baggage       | tags          | expected
     [:]           | [:]           | [:]

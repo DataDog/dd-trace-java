@@ -99,7 +99,9 @@ class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
               response.headers().set(CONTENT_LENGTH, content.readableBytes())
               ctx.write(response)
             },
-            channelReadComplete: { it.flush() }
+            channelReadComplete: {
+              it.flush()
+            }
           ] as SimpleChannelInboundHandler)
         }
       ] as ChannelInitializer).channel(NioServerSocketChannel)

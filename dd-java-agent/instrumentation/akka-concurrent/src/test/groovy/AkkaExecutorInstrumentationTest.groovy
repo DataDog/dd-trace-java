@@ -42,17 +42,17 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
     def m = method
 
     new Runnable() {
-      @Override
-      @Trace(operationName = "parent")
-      void run() {
-        activeScope().setAsyncPropagation(true)
-        // this child will have a span
-        m(pool, new AkkaAsyncChild())
-        // this child won't
-        m(pool, new AkkaAsyncChild(false, false))
-        blockUntilChildSpansFinished(1)
-      }
-    }.run()
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          // this child will have a span
+          m(pool, new AkkaAsyncChild())
+          // this child won't
+          m(pool, new AkkaAsyncChild(false, false))
+          blockUntilChildSpansFinished(1)
+        }
+      }.run()
 
     TEST_WRITER.waitForTraces(1)
     List<DDSpan> trace = TEST_WRITER.get(0)
@@ -96,17 +96,17 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
     def dispatcher = actorSystem.dispatchers().defaultGlobalDispatcher()
 
     new Runnable() {
-      @Override
-      @Trace(operationName = "parent")
-      void run() {
-        activeScope().setAsyncPropagation(true)
-        // this child will have a span
-        dispatcher.execute(new AkkaAsyncChild())
-        // this child won't
-        dispatcher.execute(new AkkaAsyncChild(false, false))
-        blockUntilChildSpansFinished(1)
-      }
-    }.run()
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          // this child will have a span
+          dispatcher.execute(new AkkaAsyncChild())
+          // this child won't
+          dispatcher.execute(new AkkaAsyncChild(false, false))
+          blockUntilChildSpansFinished(1)
+        }
+      }.run()
 
     TEST_WRITER.waitForTraces(1)
     List<DDSpan> trace = TEST_WRITER.get(0)
@@ -127,38 +127,38 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
     List<Future> jobFutures = new ArrayList<>()
 
     new Runnable() {
-      @Override
-      @Trace(operationName = "parent")
-      void run() {
-        activeScope().setAsyncPropagation(true)
-        try {
-          for (int i = 0; i < 20; ++i) {
-            // Our current instrumentation instrumentation does not behave very well
-            // if we try to reuse Callable/Runnable. Namely we would be getting 'orphaned'
-            // child traces sometimes since state can contain only one continuation - and
-            // we do not really have a good way for attributing work to correct parent span
-            // if we reuse Callable/Runnable.
-            // Solution for now is to never reuse a Callable/Runnable.
-            final AkkaAsyncChild child = new AkkaAsyncChild(false, true)
-            children.add(child)
-            try {
-              Future f = m(pool, child)
-              jobFutures.add(f)
-            } catch (InvocationTargetException e) {
-              throw e.getCause()
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          try {
+            for (int i = 0; i < 20; ++i) {
+              // Our current instrumentation instrumentation does not behave very well
+              // if we try to reuse Callable/Runnable. Namely we would be getting 'orphaned'
+              // child traces sometimes since state can contain only one continuation - and
+              // we do not really have a good way for attributing work to correct parent span
+              // if we reuse Callable/Runnable.
+              // Solution for now is to never reuse a Callable/Runnable.
+              final AkkaAsyncChild child = new AkkaAsyncChild(false, true)
+              children.add(child)
+              try {
+                Future f = m(pool, child)
+                jobFutures.add(f)
+              } catch (InvocationTargetException e) {
+                throw e.getCause()
+              }
             }
+          } catch (RejectedExecutionException e) {
           }
-        } catch (RejectedExecutionException e) {
-        }
 
-        for (Future f : jobFutures) {
-          f.cancel(false)
+          for (Future f : jobFutures) {
+            f.cancel(false)
+          }
+          for (AkkaAsyncChild child : children) {
+            child.unblock()
+          }
         }
-        for (AkkaAsyncChild child : children) {
-          child.unblock()
-        }
-      }
-    }.run()
+      }.run()
 
     TEST_WRITER.waitForTraces(1)
 

@@ -161,9 +161,9 @@ abstract class JaxRsFilterTest extends AgentTestRunner {
       if (abort) {
         requestContext.abortWith(
           Response.status(Response.Status.UNAUTHORIZED)
-            .entity("Aborted")
-            .type(MediaType.TEXT_PLAIN_TYPE)
-            .build())
+          .entity("Aborted")
+          .type(MediaType.TEXT_PLAIN_TYPE)
+          .build())
       }
     }
   }
@@ -178,9 +178,9 @@ abstract class JaxRsFilterTest extends AgentTestRunner {
       if (abort) {
         requestContext.abortWith(
           Response.status(Response.Status.UNAUTHORIZED)
-            .entity("Aborted Prematch")
-            .type(MediaType.TEXT_PLAIN_TYPE)
-            .build())
+          .entity("Aborted Prematch")
+          .type(MediaType.TEXT_PLAIN_TYPE)
+          .build())
       }
     }
   }
@@ -190,12 +190,12 @@ class JerseyFilterTest extends JaxRsFilterTest {
   @Shared
   @ClassRule
   ResourceTestRule resources = ResourceTestRule.builder()
-    .addResource(new Resource.Test1())
-    .addResource(new Resource.Test2())
-    .addResource(new Resource.Test3())
-    .addProvider(simpleRequestFilter)
-    .addProvider(prematchRequestFilter)
-    .build()
+  .addResource(new Resource.Test1())
+  .addResource(new Resource.Test2())
+  .addResource(new Resource.Test3())
+  .addProvider(simpleRequestFilter)
+  .addProvider(prematchRequestFilter)
+  .build()
 
   @Override
   def makeRequest(String url) {

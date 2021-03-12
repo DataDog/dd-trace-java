@@ -21,7 +21,9 @@ import spock.lang.Shared
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.instrumentation.synapse3.TestPassThroughHttpListener.PORT
 
-@Requires({ isJavaVersionAtLeast(8) })
+@Requires({
+  isJavaVersionAtLeast(8)
+})
 class SynapseServerTest extends AgentTestRunner {
 
   String expectedServiceName() {

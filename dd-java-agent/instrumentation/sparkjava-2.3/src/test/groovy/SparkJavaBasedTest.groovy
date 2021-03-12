@@ -65,5 +65,4 @@ class SparkJavaBasedTest extends AgentTestRunner {
       }
     }
   }
-
 }

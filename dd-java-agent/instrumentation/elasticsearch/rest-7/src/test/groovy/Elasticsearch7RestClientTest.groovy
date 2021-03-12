@@ -46,7 +46,7 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
       .put("transport.type", "netty4")
       .build()
     testNode = new Node(InternalSettingsPreparer.prepareEnvironment(
-        settings, [:], null, null), [Netty4Plugin], false) {}
+      settings, [:], null, null), [Netty4Plugin], false) {}
     testNode.start()
     httpTransportAddress = testNode.injector().getInstance(HttpServerTransport).boundAddress().publishAddress()
 
@@ -58,7 +58,6 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
         }
       })
       .build()
-
   }
 
   def cleanupSpec() {

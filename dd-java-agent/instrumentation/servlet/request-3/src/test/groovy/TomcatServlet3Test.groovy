@@ -54,13 +54,13 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
     Context servletContext = tomcatServer.addWebapp("/$context", applicationDir.getAbsolutePath())
     // Speed up startup by disabling jar scanning:
     servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
-      @Override
-      boolean check(JarScanType jarScanType, String jarName) {
-        return false
-      }
-    })
+        @Override
+        boolean check(JarScanType jarScanType, String jarName) {
+          return false
+        }
+      })
 
-//    setupAuthentication(tomcatServer, servletContext)
+    //    setupAuthentication(tomcatServer, servletContext)
     setupServlets(servletContext)
 
     (tomcatServer.host as StandardHost).errorReportValveClass = ErrorHandlerValve.name
@@ -255,37 +255,37 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
   }
 
   // FIXME: Add authentication tests back in...
-//  private setupAuthentication(Tomcat server, Context servletContext) {
-//    // Login Config
-//    LoginConfig authConfig = new LoginConfig()
-//    authConfig.setAuthMethod("BASIC")
-//
-//    // adding constraint with role "test"
-//    SecurityConstraint constraint = new SecurityConstraint()
-//    constraint.addAuthRole("role")
-//
-//    // add constraint to a collection with pattern /second
-//    SecurityCollection collection = new SecurityCollection()
-//    collection.addPattern("/auth/*")
-//    constraint.addCollection(collection)
-//
-//    servletContext.setLoginConfig(authConfig)
-//    // does the context need a auth role too?
-//    servletContext.addSecurityRole("role")
-//    servletContext.addConstraint(constraint)
-//
-//    // add tomcat users to realm
-//    MemoryRealm realm = new MemoryRealm() {
-//      protected void startInternal() {
-//        credentialHandler = new MessageDigestCredentialHandler()
-//        setState(LifecycleState.STARTING)
-//      }
-//    }
-//    realm.addUser(user, pass, "role")
-//    server.getEngine().setRealm(realm)
-//
-//    servletContext.setLoginConfig(authConfig)
-//  }
+  //  private setupAuthentication(Tomcat server, Context servletContext) {
+  //    // Login Config
+  //    LoginConfig authConfig = new LoginConfig()
+  //    authConfig.setAuthMethod("BASIC")
+  //
+  //    // adding constraint with role "test"
+  //    SecurityConstraint constraint = new SecurityConstraint()
+  //    constraint.addAuthRole("role")
+  //
+  //    // add constraint to a collection with pattern /second
+  //    SecurityCollection collection = new SecurityCollection()
+  //    collection.addPattern("/auth/*")
+  //    constraint.addCollection(collection)
+  //
+  //    servletContext.setLoginConfig(authConfig)
+  //    // does the context need a auth role too?
+  //    servletContext.addSecurityRole("role")
+  //    servletContext.addConstraint(constraint)
+  //
+  //    // add tomcat users to realm
+  //    MemoryRealm realm = new MemoryRealm() {
+  //      protected void startInternal() {
+  //        credentialHandler = new MessageDigestCredentialHandler()
+  //        setState(LifecycleState.STARTING)
+  //      }
+  //    }
+  //    realm.addUser(user, pass, "role")
+  //    server.getEngine().setRealm(realm)
+  //
+  //    servletContext.setLoginConfig(authConfig)
+  //  }
 }
 
 class ErrorHandlerValve extends ErrorReportValve {

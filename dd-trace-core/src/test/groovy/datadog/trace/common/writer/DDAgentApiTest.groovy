@@ -132,6 +132,7 @@ class DDAgentApiTest extends DDCoreSpecification {
 
     // Populate thread info dynamically as it is different when run via gradle vs idea.
     where:
+    // spotless:off
     traces                                              | expectedRequestBody
     []                                                  | []
     [[buildSpan(1L, "service.name", "my-service")]]     | [[new TreeMap<>([
@@ -170,6 +171,7 @@ class DDAgentApiTest extends DDCoreSpecification {
       "trace_id" : 1,
       "type"     : "fakeType"
     ])]]
+    // spotless:on
 
     ignore = traces.each {
       it.each {
@@ -303,6 +305,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     // all the sizes match, except in v0.5 where there is 1 byte for a
     // 2 element array header and 1 byte for an empty dictionary
     where:
+    // spotless:off
     agentVersion  | expectedLength | traces
     "v0.4/traces" | 1              | []
     "v0.4/traces" | 3              | [[], []]
@@ -316,6 +319,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     "v0.5/traces" | 19 + 1 + 1     | (1..16).collect { [] }
     "v0.5/traces" | 65538 + 1 + 1  | (1..((1 << 16) - 1)).collect { [] }
     "v0.5/traces" | 65541 + 1 + 1  | (1..(1 << 16)).collect { [] }
+    // spotless:on
   }
 
   def "Embedded HTTP client rejects async requests"() {
@@ -392,7 +396,7 @@ class DDAgentApiTest extends DDCoreSpecification {
     packer.flush()
     return traceMapper.newPayload()
       .withBody(traceCapture.traceCount,
-        traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer)
+      traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer)
   }
 
   static class Traces implements ByteBufferConsumer {

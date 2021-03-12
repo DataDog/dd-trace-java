@@ -13,14 +13,14 @@ import java.util.concurrent.TimeUnit
 class PlayWSClientTest extends HttpClientTest {
   @Shared
   def application = new FakeApplication(
-    new File("."),
-    FakeApplication.getClassLoader(),
-    [
-      "ws.timeout.connection": CONNECT_TIMEOUT_MS,
-      "ws.timeout.request"   : READ_TIMEOUT_MS
-    ],
-    Collections.emptyList(),
-    new GlobalSettings()
+  new File("."),
+  FakeApplication.getClassLoader(),
+  [
+    "ws.timeout.connection": CONNECT_TIMEOUT_MS,
+    "ws.timeout.request"   : READ_TIMEOUT_MS
+  ],
+  Collections.emptyList(),
+  new GlobalSettings()
   )
 
   @Shared

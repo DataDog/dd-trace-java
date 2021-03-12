@@ -30,8 +30,8 @@ class VertxRxCircuitBreakerWebClientTest extends HttpClientTest {
   WebClient client = WebClient.create(vertx, clientOptions)
   @Shared
   CircuitBreaker breaker = CircuitBreaker.create("my-circuit-breaker", vertx,
-    new CircuitBreakerOptions()
-      .setTimeout(-1) // Disable the timeout otherwise it makes each test take this long.
+  new CircuitBreakerOptions()
+  .setTimeout(-1) // Disable the timeout otherwise it makes each test take this long.
   )
 
   @Override

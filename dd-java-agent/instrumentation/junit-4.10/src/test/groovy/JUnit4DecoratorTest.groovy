@@ -35,5 +35,4 @@ class JUnit4DecoratorTest extends AgentTestRunner {
     expect:
     decorator.skipTrace(description)
   }
-
 }

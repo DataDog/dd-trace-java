@@ -24,10 +24,11 @@ class JMXFetchTest extends Specification {
     setup:
     // verify that JMX starts and reports metrics through the given socket.
     def returnCode = IntegrationTestUtils.runOnSeparateJvm(JmxStartedChecker.getName()
-      , ["-Ddd.jmxfetch.enabled=true",
-         "-Ddd.jmxfetch.start-delay=0",
-         "-Ddd.jmxfetch.statsd.port=${jmxStatsSocket.localPort}",
-         "-Ddd.writer.type=DDAgentWriter"] as String[]
+      , [
+        "-Ddd.jmxfetch.enabled=true",
+        "-Ddd.jmxfetch.start-delay=0",
+        "-Ddd.jmxfetch.statsd.port=${jmxStatsSocket.localPort}",
+        "-Ddd.writer.type=DDAgentWriter"] as String[]
       , "" as String[]
       , [:]
       , true)
@@ -46,10 +47,11 @@ class JMXFetchTest extends Specification {
     setup:
     // verify the agent starts up correctly with a bogus address.
     def returnCode = IntegrationTestUtils.runOnSeparateJvm(AgentLoadedChecker.getName()
-      , ["-Ddd.jmxfetch.enabled=true",
-         "-Ddd.jmxfetch.start-delay=0",
-         "-Ddd.jmxfetch.statsd.host=example.local",
-         "-Ddd.writer.type=DDAgentWriter"] as String[]
+      , [
+        "-Ddd.jmxfetch.enabled=true",
+        "-Ddd.jmxfetch.start-delay=0",
+        "-Ddd.jmxfetch.statsd.host=example.local",
+        "-Ddd.writer.type=DDAgentWriter"] as String[]
       , "" as String[]
       , [:]
       , true)
@@ -65,11 +67,13 @@ class JMXFetchTest extends Specification {
     }
     def testOutput = new ByteArrayOutputStream()
     def returnCode = IntegrationTestUtils.runOnSeparateJvm(JmxStartedChecker.getName()
-      , ["-Ddd.jmxfetch.enabled=true",
-         "-Ddd.jmxfetch.start-delay=0",
-         "-Ddd.jmxfetch.statsd.port=${jmxStatsSocket.localPort}",
-         "-Ddd.trace.debug=true",
-         "-Ddd.writer.type=DDAgentWriter"] + configSettings as String[]
+      , [
+        "-Ddd.jmxfetch.enabled=true",
+        "-Ddd.jmxfetch.start-delay=0",
+        "-Ddd.jmxfetch.statsd.port=${jmxStatsSocket.localPort}",
+        "-Ddd.trace.debug=true",
+        "-Ddd.writer.type=DDAgentWriter"]
+      + configSettings as String[]
       , "" as String[]
       , [:]
       , new PrintStream(testOutput))
@@ -88,6 +92,7 @@ class JMXFetchTest extends Specification {
     actualConfig as Set == expectedConfig as Set
 
     where:
+    // spotless:off
     names               | enable | expectedConfig
     []                  | true   | []
     ["tomcat"]          | false  | []
@@ -96,6 +101,6 @@ class JMXFetchTest extends Specification {
     ["tomcat", "kafka"] | true   | ["datadog/trace/agent/jmxfetch/metricconfigs/tomcat.yaml", "datadog/trace/agent/jmxfetch/metricconfigs/kafka.yaml"]
     ["tomcat", "kafka"] | false  | []
     ["invalid"]         | true   | []
+    // spotless:on
   }
-
 }

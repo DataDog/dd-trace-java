@@ -48,37 +48,37 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
 
     ServletContextHandler servletContext = new ServletContextHandler(null, "/$context")
     servletContext.errorHandler = new ErrorHandler() {
-      @Override
-      void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException {
-        try {
-          // This allows calling response.sendError in async context on a different thread. (Without results in NPE.)
-          def original = org.eclipse.jetty.server.AbstractHttpConnection.currentConnection
-          org.eclipse.jetty.server.AbstractHttpConnection.setCurrentConnection(baseRequest.connection)
-          super.handle(target, baseRequest, request, response)
-          org.eclipse.jetty.server.AbstractHttpConnection.setCurrentConnection(original)
-        } catch (Throwable e) {
-          // latest dep fallback which is missing AbstractHttpConnection and doesn't need the special handling
-          super.handle(target, baseRequest, request, response)
+        @Override
+        void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException {
+          try {
+            // This allows calling response.sendError in async context on a different thread. (Without results in NPE.)
+            def original = org.eclipse.jetty.server.AbstractHttpConnection.currentConnection
+            org.eclipse.jetty.server.AbstractHttpConnection.setCurrentConnection(baseRequest.connection)
+            super.handle(target, baseRequest, request, response)
+            org.eclipse.jetty.server.AbstractHttpConnection.setCurrentConnection(original)
+          } catch (Throwable e) {
+            // latest dep fallback which is missing AbstractHttpConnection and doesn't need the special handling
+            super.handle(target, baseRequest, request, response)
+          }
         }
-      }
 
-      protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
-        Throwable t = (Throwable) request.getAttribute("javax.servlet.error.exception")
-        def response = ((Request) request).response
-        if (t) {
-          if (t instanceof ServletException) {
-            t = t.rootCause
+        protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
+          Throwable t = (Throwable) request.getAttribute("javax.servlet.error.exception")
+          def response = ((Request) request).response
+          if (t) {
+            if (t instanceof ServletException) {
+              t = t.rootCause
+            }
+            if (t instanceof InputMismatchException) {
+              response.status = CUSTOM_EXCEPTION.status
+            }
+            writer.write(t.message)
+          } else {
+            writer.write(message)
           }
-          if (t instanceof InputMismatchException) {
-            response.status = CUSTOM_EXCEPTION.status
-          }
-          writer.write(t.message)
-        } else {
-          writer.write(message)
         }
       }
-    }
-//    setupAuthentication(jettyServer, servletContext)
+    //    setupAuthentication(jettyServer, servletContext)
     setupServlets(servletContext)
     jettyServer.setHandler(servletContext)
 
@@ -191,28 +191,28 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   }
 
   // FIXME: Add authentication tests back in...
-//  static setupAuthentication(Server jettyServer, ServletContextHandler servletContext) {
-//    ConstraintSecurityHandler authConfig = new ConstraintSecurityHandler()
-//
-//    Constraint constraint = new Constraint()
-//    constraint.setName("auth")
-//    constraint.setAuthenticate(true)
-//    constraint.setRoles("role")
-//
-//    ConstraintMapping mapping = new ConstraintMapping()
-//    mapping.setPathSpec("/auth/*")
-//    mapping.setConstraint(constraint)
-//
-//    authConfig.setConstraintMappings(mapping)
-//    authConfig.setAuthenticator(new BasicAuthenticator())
-//
-//    LoginService loginService = new HashLoginService("TestRealm",
-//      "src/test/resources/realm.properties")
-//    authConfig.setLoginService(loginService)
-//    jettyServer.addBean(loginService)
-//
-//    servletContext.setSecurityHandler(authConfig)
-//  }
+  //  static setupAuthentication(Server jettyServer, ServletContextHandler servletContext) {
+  //    ConstraintSecurityHandler authConfig = new ConstraintSecurityHandler()
+  //
+  //    Constraint constraint = new Constraint()
+  //    constraint.setName("auth")
+  //    constraint.setAuthenticate(true)
+  //    constraint.setRoles("role")
+  //
+  //    ConstraintMapping mapping = new ConstraintMapping()
+  //    mapping.setPathSpec("/auth/*")
+  //    mapping.setConstraint(constraint)
+  //
+  //    authConfig.setConstraintMappings(mapping)
+  //    authConfig.setAuthenticator(new BasicAuthenticator())
+  //
+  //    LoginService loginService = new HashLoginService("TestRealm",
+  //      "src/test/resources/realm.properties")
+  //    authConfig.setLoginService(loginService)
+  //    jettyServer.addBean(loginService)
+  //
+  //    servletContext.setSecurityHandler(authConfig)
+  //  }
 }
 
 class JettyServlet3TestSync extends JettyServlet3Test {

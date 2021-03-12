@@ -28,28 +28,28 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     where:
     enabled | target
     true    | new TestDefaultInstrumenter("test") {
-      @Override
-      protected boolean defaultEnabled() {
-        return true
+        @Override
+        protected boolean defaultEnabled() {
+          return true
+        }
       }
-    }
     false   | new TestDefaultInstrumenter("test") {
-      @Override
-      protected boolean defaultEnabled() {
-        return false
+        @Override
+        protected boolean defaultEnabled() {
+          return false
+        }
       }
-    }
   }
 
   def "default disabled can override to enabled"() {
     setup:
     injectSysConfig("integration.test.enabled", "$enabled")
     def target = new TestDefaultInstrumenter("test") {
-      @Override
-      protected boolean defaultEnabled() {
-        return false
+        @Override
+        protected boolean defaultEnabled() {
+          return false
+        }
       }
-    }
     target.instrument(new AgentBuilder.Default())
 
     expect:
@@ -147,12 +147,12 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     boolean applyCalled = false
 
     TestDefaultInstrumenter(
-      String instrumentationName) {
+    String instrumentationName) {
       super(instrumentationName)
     }
 
     TestDefaultInstrumenter(
-      String instrumentationName, String additionalName) {
+    String instrumentationName, String additionalName) {
       super(instrumentationName, [additionalName])
     }
 
@@ -160,11 +160,11 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     ElementMatcher<? super TypeDescription> typeMatcher() {
       applyCalled = true
       return new ElementMatcher() {
-        @Override
-        boolean matches(Object target) {
-          return false
+          @Override
+          boolean matches(Object target) {
+            return false
+          }
         }
-      }
     }
 
     @Override

@@ -17,7 +17,9 @@ import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG
 import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG
 
-@Requires({ isJavaVersionAtLeast(8) })
+@Requires({
+  isJavaVersionAtLeast(8)
+})
 class AggregateMetricTest extends DDSpecification {
 
   def "record durations sums up to total"() {
@@ -41,7 +43,7 @@ class AggregateMetricTest extends DDSpecification {
   def "clear"() {
     given:
     AggregateMetric aggregate = new AggregateMetric()
-    .recordDurations(3, new AtomicLongArray(5, ERROR_TAG | 6, TOP_LEVEL_TAG | 7))
+      .recordDurations(3, new AtomicLongArray(5, ERROR_TAG | 6, TOP_LEVEL_TAG | 7))
     when:
     aggregate.clear()
     then:

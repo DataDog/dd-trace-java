@@ -52,8 +52,10 @@ class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
       Bucket bucketCouchbase = couchbaseCluster.openBucket(bucketCouchbase.name(), bucketCouchbase.password())
       Bucket bucketMemcache = memcacheCluster.openBucket(bucketMemcache.name(), bucketMemcache.password())
 
-      templates = [new CouchbaseTemplate(couchbaseManager.info(), bucketCouchbase),
-                   new CouchbaseTemplate(memcacheManager.info(), bucketMemcache)]
+      templates = [
+        new CouchbaseTemplate(couchbaseManager.info(), bucketCouchbase),
+        new CouchbaseTemplate(memcacheManager.info(), bucketMemcache)
+      ]
       activeSpan()
     }
     TEST_WRITER.waitUntilReported(setupSpan)

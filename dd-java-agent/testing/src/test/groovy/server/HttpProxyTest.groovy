@@ -16,7 +16,9 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 /* Don't actually need AgentTestRunner, but it messes up the classloader for AgentTestRunnerTest if this runs first. */
 
-@Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
+@Requires({
+  !System.getProperty("java.vm.name").contains("IBM J9 VM")
+})
 class HttpProxyTest extends AgentTestRunner {
 
   @AutoCleanup

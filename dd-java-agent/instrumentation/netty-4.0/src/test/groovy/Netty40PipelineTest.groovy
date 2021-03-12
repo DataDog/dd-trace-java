@@ -31,8 +31,18 @@ class Netty40PipelineTest extends AgentTestRunner {
     then: "we remove the previous handler and add a new one"
     pipeline.get(HttpClientTracingHandler) != null
     pipeline.get(HttpClientTracingHandler) != tracingHandler
-    pipeline.names() == ["EmbeddedChannel\$LastInboundHandler#0", "HttpClientCodec#0", "$HttpClientTracingHandler.name", "DefaultChannelPipeline\$TailContext#0"] ||
-      pipeline.names() == ["HttpClientCodec#0", "$HttpClientTracingHandler.name", "DefaultChannelPipeline\$TailContext#0"]
+    // spotless:off
+    pipeline.names() == [
+      "EmbeddedChannel\$LastInboundHandler#0",
+      "HttpClientCodec#0",
+      "$HttpClientTracingHandler.name",
+      "DefaultChannelPipeline\$TailContext#0"] ||
+    pipeline.names() == [
+      "HttpClientCodec#0",
+      "$HttpClientTracingHandler.name",
+      "DefaultChannelPipeline\$TailContext#0"
+    ]
+    // spotless:on
   }
 
   def "when a handler is added to the netty pipeline we add ONLY ONE tracing handler"() {
@@ -77,8 +87,22 @@ class Netty40PipelineTest extends AgentTestRunner {
     pipeline.addAfter("$SimpleHandler.name#0", "http", new HttpClientCodec())
 
     then:
-    pipeline.names() == ["EmbeddedChannel\$LastInboundHandler#0", "$SimpleHandler.name#0", "http", "$HttpClientTracingHandler.name", "$OtherSimpleHandler.name#0", "DefaultChannelPipeline\$TailContext#0"] ||
-      pipeline.names() == ["$SimpleHandler.name#0", "http", "$HttpClientTracingHandler.name", "$OtherSimpleHandler.name#0", "DefaultChannelPipeline\$TailContext#0"]
+    // spotless:off
+    pipeline.names() == [
+      "EmbeddedChannel\$LastInboundHandler#0",
+      "$SimpleHandler.name#0",
+      "http",
+      "$HttpClientTracingHandler.name",
+      "$OtherSimpleHandler.name#0",
+      "DefaultChannelPipeline\$TailContext#0"] ||
+    pipeline.names() == [
+      "$SimpleHandler.name#0",
+      "http",
+      "$HttpClientTracingHandler.name",
+      "$OtherSimpleHandler.name#0",
+      "DefaultChannelPipeline\$TailContext#0"
+    ]
+    // spotless:on
   }
 
   def "calling pipeline.addLast methods that use overloaded methods does not cause infinite loop"() {

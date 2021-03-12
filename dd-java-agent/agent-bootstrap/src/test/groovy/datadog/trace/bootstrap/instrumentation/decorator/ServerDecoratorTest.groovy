@@ -40,24 +40,24 @@ class ServerDecoratorTest extends BaseDecoratorTest {
   @Override
   def newDecorator() {
     return new ServerDecorator() {
-      @Override
-      protected String[] instrumentationNames() {
-        return ["test1", "test2"]
-      }
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1", "test2"]
+        }
 
-      @Override
-      protected CharSequence spanType() {
-        return "test-type"
-      }
+        @Override
+        protected CharSequence spanType() {
+          return "test-type"
+        }
 
-      @Override
-      protected CharSequence component() {
-        return "test-component"
-      }
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
 
-      protected boolean traceAnalyticsDefault() {
-        return true
+        protected boolean traceAnalyticsDefault() {
+          return true
+        }
       }
-    }
   }
 }

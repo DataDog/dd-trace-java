@@ -45,7 +45,7 @@ class AgentTestRunnerTest extends AgentTestRunner {
       for (int i = 0; i < Constants.BOOTSTRAP_PACKAGE_PREFIXES.length; ++i) {
         if (info.getName().startsWith(Constants.BOOTSTRAP_PACKAGE_PREFIXES[i])) {
           if (!jfrSupported && info.getName().startsWith("datadog.trace.bootstrap.instrumentation.exceptions.")) {
-            continue; // skip exception-profiling classes - they won't load if JFR is not available
+            continue // skip exception-profiling classes - they won't load if JFR is not available
           }
           try {
             Class<?> bootstrapClass = Class.forName(info.getName())

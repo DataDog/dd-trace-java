@@ -188,9 +188,9 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
       byte[] responseBody
 
       ResponseParameters(HttpServerTest.ServerEndpoint endpoint,
-                         int status,
-                         byte[] responseBody,
-                         Map<String, String> headers) {
+      int status,
+      byte[] responseBody,
+      Map<String, String> headers) {
         this.endpoint = endpoint
         this.status = status
         this.responseBody = responseBody

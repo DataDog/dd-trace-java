@@ -24,6 +24,7 @@ class ContainerInfoTest extends DDSpecification {
 
     // Examples from container tagging rfc and Qard/container-info
     where:
+    // spotless:off
     id | controllers             | path                                                                                                                            | containerId                                                        | podId                                  | line
 
     // Docker examples
@@ -83,7 +84,7 @@ class ContainerInfoTest extends DDSpecification {
     1  | ["name=systemd"]        | "/system.slice/docker-cde7c2bab394630a42d73dc610b9c57415dced996106665d427f6d0566594411.scope"                                   | "cde7c2bab394630a42d73dc610b9c57415dced996106665d427f6d0566594411" | null                                   | "1:name=systemd:/system.slice/docker-cde7c2bab394630a42d73dc610b9c57415dced996106665d427f6d0566594411.scope"
     1  | ["name=systemd"]        | "/docker/051e2ee0bce99116029a13df4a9e943137f19f957f38ac02d6bad96f9b700f76/not_hex"                                              | null       | null                                   | "1:name=systemd:/docker/051e2ee0bce99116029a13df4a9e943137f19f957f38ac02d6bad96f9b700f76/not_hex"
     1  | ["name=systemd"]        | "/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod90d81341_92de_11e7_8cf2_507b9d4141fa.slice/crio-2227daf62df6694645fee5df53c1f91271546a9560e8600a525690ae252b7f63.scope" | "2227daf62df6694645fee5df53c1f91271546a9560e8600a525690ae252b7f63" | "90d81341_92de_11e7_8cf2_507b9d4141fa" | "1:name=systemd:/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod90d81341_92de_11e7_8cf2_507b9d4141fa.slice/crio-2227daf62df6694645fee5df53c1f91271546a9560e8600a525690ae252b7f63.scope"
-
+    // spotless:on
   }
 
   @Unroll
@@ -97,6 +98,7 @@ class ContainerInfoTest extends DDSpecification {
     containerInfo.getCGroups().size() == size
 
     where:
+    // spotless:off
     containerId                                                        | podId                                  | size | content
     // Docker
     "3726184226f5d3147c25fdeab5b60097e378e8a720503a5e19ecfdf29f869860" | null                                   | 13   | """13:name=systemd:/docker/3726184226f5d3147c25fdeab5b60097e378e8a720503a5e19ecfdf29f869860
@@ -162,6 +164,7 @@ class ContainerInfoTest extends DDSpecification {
 3:blkio:/ecs/55091c13-b8cf-4801-b527-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da
 2:memory:/ecs/55091c13-b8cf-4801-b527-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da
 1:name=systemd:/ecs/34dc0b5e626f2c5c4c5170e34b10e765-1234567890"""
+    // spotless:on
   }
 
   def "ContainerInfo from empty file is empty"() {

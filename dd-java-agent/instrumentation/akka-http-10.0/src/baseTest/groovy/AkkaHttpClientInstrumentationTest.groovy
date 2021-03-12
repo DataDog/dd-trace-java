@@ -23,7 +23,8 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
   @Shared
   ActorSystem system = ActorSystem.create()
   @Shared
-  boolean callsNeedMaterializer = { ->
+  boolean callsNeedMaterializer = {
+    ->
     def ver = Version.current()
     // Skip the materializer in the calls for 10.2+
     ver.startsWith("10.0.") || ver.startsWith("10.1.")

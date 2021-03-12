@@ -22,7 +22,7 @@ import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch5TransportClientTest extends AgentTestRunner {
-  public static final long TIMEOUT = 10000; // 10 seconds
+  public static final long TIMEOUT = 10000 // 10 seconds
 
   @Shared
   TransportAddress tcpPublishAddress
@@ -55,10 +55,10 @@ class Elasticsearch5TransportClientTest extends AgentTestRunner {
     client = new PreBuiltTransportClient(
       Settings.builder()
       // Since we use listeners to close spans this should make our span closing deterministic which is good for tests
-        .put("thread_pool.listener.size", 1)
-        .put(CLUSTER_NAME_SETTING.getKey(), clusterName)
-        .build()
-    )
+      .put("thread_pool.listener.size", 1)
+      .put(CLUSTER_NAME_SETTING.getKey(), clusterName)
+      .build()
+      )
     client.addTransportAddress(tcpPublishAddress)
     runUnderTrace("setup") {
       // this may potentially create multiple requests and therefore multiple spans, so we wrap this call

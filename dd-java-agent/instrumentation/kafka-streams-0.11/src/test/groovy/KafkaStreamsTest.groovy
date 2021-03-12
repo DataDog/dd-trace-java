@@ -55,15 +55,15 @@ class KafkaStreamsTest extends AgentTestRunner {
 
     // setup a Kafka message listener
     consumerContainer.setupMessageListener(new MessageListener<String, String>() {
-      @Override
-      void onMessage(ConsumerRecord<String, String> record) {
-        // ensure consistent ordering of traces
-        // this is the last processing step so we should see 2 traces here
-        TEST_WRITER.waitForTraces(3)
-        TEST_TRACER.activeSpan().setTag("testing", 123)
-        records.add(record)
-      }
-    })
+        @Override
+        void onMessage(ConsumerRecord<String, String> record) {
+          // ensure consistent ordering of traces
+          // this is the last processing step so we should see 2 traces here
+          TEST_WRITER.waitForTraces(3)
+          TEST_TRACER.activeSpan().setTag("testing", 123)
+          records.add(record)
+        }
+      })
 
     // start the container and underlying message listener
     consumerContainer.start()

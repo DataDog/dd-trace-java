@@ -275,15 +275,15 @@ class TestScopeManager implements ScopeManager {
     @Override
     Continuation capture() {
       return new Continuation() {
-        @Override
-        TraceScope activate() {
-          return TestTraceScope.this
-        }
+          @Override
+          TraceScope activate() {
+            return TestTraceScope.this
+          }
 
-        @Override
-        void cancel() {
+          @Override
+          void cancel() {
+          }
         }
-      }
     }
 
     @Override

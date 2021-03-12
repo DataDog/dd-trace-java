@@ -7,6 +7,6 @@ class EquinoxSmokeTest extends AbstractOSGiSmokeTest {
   }
 
   List<String> frameworkArguments() {
-    return [ "-Dframework.factory=org.eclipse.osgi.launch.EquinoxFactory" ]
+    return ["-Dframework.factory=org.eclipse.osgi.launch.EquinoxFactory"]
   }
 }

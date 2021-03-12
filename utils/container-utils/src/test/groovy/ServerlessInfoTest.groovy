@@ -24,5 +24,4 @@ class ServerlessInfoTest extends DDSpecification {
     ""           | false
     "someName"   | true
   }
-
 }

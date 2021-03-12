@@ -38,7 +38,7 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 class Aws2ClientTest extends AgentTestRunner {
 
   private static final StaticCredentialsProvider CREDENTIALS_PROVIDER = StaticCredentialsProvider
-    .create(AwsBasicCredentials.create("my-access-key", "my-secret-key"))
+  .create(AwsBasicCredentials.create("my-access-key", "my-secret-key"))
 
   @Shared
   def responseBody = new AtomicReference<String>()

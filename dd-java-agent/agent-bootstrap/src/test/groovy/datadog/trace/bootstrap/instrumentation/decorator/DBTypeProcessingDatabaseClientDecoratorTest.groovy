@@ -36,49 +36,49 @@ class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
   @Override
   def newDecorator(String serviceName = "test-service") {
     return new DBTypeProcessingDatabaseClientDecorator<Map>() {
-      @Override
-      protected String[] instrumentationNames() {
-        return ["test1", "test2"]
-      }
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1", "test2"]
+        }
 
-      @Override
-      protected String service() {
-        return serviceName
-      }
+        @Override
+        protected String service() {
+          return serviceName
+        }
 
-      @Override
-      protected CharSequence component() {
-        return "test-component"
-      }
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
 
-      @Override
-      protected CharSequence spanType() {
-        return "test-type"
-      }
+        @Override
+        protected CharSequence spanType() {
+          return "test-type"
+        }
 
-      @Override
-      protected String dbType() {
-        return "test-db"
-      }
+        @Override
+        protected String dbType() {
+          return "test-db"
+        }
 
-      @Override
-      protected String dbUser(Map map) {
-        return map.user
-      }
+        @Override
+        protected String dbUser(Map map) {
+          return map.user
+        }
 
-      @Override
-      protected String dbInstance(Map map) {
-        return map.instance
-      }
+        @Override
+        protected String dbInstance(Map map) {
+          return map.instance
+        }
 
-      @Override
-      protected String dbHostname(Map map) {
-        return map.hostname
-      }
+        @Override
+        protected String dbHostname(Map map) {
+          return map.hostname
+        }
 
-      protected boolean traceAnalyticsDefault() {
-        return true
+        protected boolean traceAnalyticsDefault() {
+          return true
+        }
       }
-    }
   }
 }

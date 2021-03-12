@@ -23,8 +23,7 @@ class GlobalLogLevelSwitcherTest extends LogValidatingSpecification {
     def loggerValidator = globalValidator.withName("foo.bar")
     def global = new GlobalLogLevelSwitcher(factory)
 
-    then:
-    {
+    then: {
       globalValidator.nothing()
       logger.warn("check warn")
       loggerValidator.warn(true, "check warn")
@@ -54,8 +53,7 @@ class GlobalLogLevelSwitcherTest extends LogValidatingSpecification {
     def loggerValidator = globalValidator.withName("foo.bar")
     def global = new GlobalLogLevelSwitcher(factory)
 
-    then:
-    {
+    then: {
       globalValidator.error(true, "Unable to find global log level switcher, found LoggerFactory")
       logger.warn("check warn")
       loggerValidator.warn(true, "check warn")

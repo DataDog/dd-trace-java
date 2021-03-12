@@ -53,52 +53,52 @@ class TestDecoratorTest extends BaseDecoratorTest {
   @Override
   def newDecorator() {
     return new TestDecorator(newMockCiInfo()) {
-      @Override
-      protected String testFramework() {
-        return "test-framework"
-      }
+        @Override
+        protected String testFramework() {
+          return "test-framework"
+        }
 
-      @Override
-      protected String[] instrumentationNames() {
-        return ["test1", "test2"]
-      }
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1", "test2"]
+        }
 
-      @Override
-      protected CharSequence spanType() {
-        return "test-type"
-      }
+        @Override
+        protected CharSequence spanType() {
+          return "test-type"
+        }
 
-      @Override
-      protected String spanKind() {
-        return "test-type"
-      }
+        @Override
+        protected String spanKind() {
+          return "test-type"
+        }
 
-      @Override
-      protected CharSequence component() {
-        return "test-component"
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
       }
-    }
   }
 
   def newMockCiInfo() {
     return new CIProviderInfo() {
 
-      @Override
-      protected GitInfo buildCIGitInfo() {
-        return GitInfo.NOOP
-      }
+        @Override
+        protected GitInfo buildCIGitInfo() {
+          return GitInfo.NOOP
+        }
 
-      @Override
-      protected CIProviderInfo.CIInfo buildCIInfo() {
-        return CIProviderInfo.CIInfo.NOOP
-      }
+        @Override
+        protected CIProviderInfo.CIInfo buildCIInfo() {
+          return CIProviderInfo.CIInfo.NOOP
+        }
 
-      @Override
-      Map<String, String> getCiTags() {
-        def mockCiTags = new HashMap()
-        mockCiTags.put("sample-ci-key", "sample-ci-value")
-        return mockCiTags
+        @Override
+        Map<String, String> getCiTags() {
+          def mockCiTags = new HashMap()
+          mockCiTags.put("sample-ci-key", "sample-ci-value")
+          return mockCiTags
+        }
       }
-    }
   }
 }

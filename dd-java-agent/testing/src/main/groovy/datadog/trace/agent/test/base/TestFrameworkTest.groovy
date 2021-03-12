@@ -44,8 +44,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         }
 
         if (isCI) {
-          ciTags.each {
-            key, val -> tag(key, val)
+          ciTags.each { key, val ->
+            tag(key, val)
           }
         }
 
@@ -78,5 +78,4 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   abstract boolean isCI()
 
   abstract Map<String, String> ciTags()
-
 }

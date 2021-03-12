@@ -17,11 +17,11 @@ class JaxRsAnnotations1InstrumentationTest extends AgentTestRunner {
   def "instrumentation can be used as root span and resource is set to METHOD PATH"() {
     setup:
     new Jax() {
-      @POST
-      @Path("/a")
-      void call() {
-      }
-    }.call()
+        @POST
+        @Path("/a")
+        void call() {
+        }
+      }.call()
 
     expect:
     assertTraces(1) {
@@ -73,49 +73,49 @@ class JaxRsAnnotations1InstrumentationTest extends AgentTestRunner {
     where:
     name                 | obj
     "/a"                 | new Jax() {
-      @Path("/a")
-      void call() {
+        @Path("/a")
+        void call() {
+        }
       }
-    }
     "GET /b"             | new Jax() {
-      @GET
-      @Path("/b")
-      void call() {
+        @GET
+        @Path("/b")
+        void call() {
+        }
       }
-    }
     "POST /interface/c"  | new InterfaceWithPath() {
-      @POST
-      @Path("/c")
-      void call() {
+        @POST
+        @Path("/c")
+        void call() {
+        }
       }
-    }
     "HEAD /interface"    | new InterfaceWithPath() {
-      @HEAD
-      void call() {
+        @HEAD
+        void call() {
+        }
       }
-    }
     "POST /abstract/d"   | new AbstractClassWithPath() {
-      @POST
-      @Path("/d")
-      void call() {
+        @POST
+        @Path("/d")
+        void call() {
+        }
       }
-    }
     "PUT /abstract"      | new AbstractClassWithPath() {
-      @PUT
-      void call() {
+        @PUT
+        void call() {
+        }
       }
-    }
     "OPTIONS /child/e"   | new ChildClassWithPath() {
-      @OPTIONS
-      @Path("/e")
-      void call() {
+        @OPTIONS
+        @Path("/e")
+        void call() {
+        }
       }
-    }
     "DELETE /child/call" | new ChildClassWithPath() {
-      @DELETE
-      void call() {
+        @DELETE
+        void call() {
+        }
       }
-    }
     "POST /child/call"   | new ChildClassWithPath()
     "GET /child/call"    | new JavaInterfaces.ChildClassOnInterface()
     // TODO: uncomment when we drop support for Java 7
@@ -146,9 +146,9 @@ class JaxRsAnnotations1InstrumentationTest extends AgentTestRunner {
     where:
     obj | _
     new Jax() {
-      void call() {
-      }
-    }   | _
+        void call() {
+        }
+      }   | _
   }
 
   interface Jax {

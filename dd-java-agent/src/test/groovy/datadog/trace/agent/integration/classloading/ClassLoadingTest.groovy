@@ -112,7 +112,7 @@ class ClassLoadingTest extends Specification {
     name                      | onTestClasspath
     "datadog.trace.api.Trace" | true
     // This test case fails on ibm j9.  Perhaps this rule only applies to OpenJdk based jvms?
-//    "datadog.trace.bootstrap.instrumentation.java.concurrent.State" | false
+    //    "datadog.trace.bootstrap.instrumentation.java.concurrent.State" | false
     resource = name.replace(".", "/") + ".class"
   }
 

@@ -40,14 +40,14 @@ class CassandraClientTest extends AgentTestRunner {
      TODO: if we continue to see failures we may want to consider using 'real' Cassandra
      started in container like we do for memcached. Note: this will complicate things because
      tests would have to assume they run under shared Cassandra and act accordingly.
-      */
+     */
     EmbeddedCassandraServerHelper.startEmbeddedCassandra(EmbeddedCassandraServerHelper.CASSANDRA_RNDPORT_YML_FILE, 120000L)
 
     cluster = EmbeddedCassandraServerHelper.getCluster()
     port = EmbeddedCassandraServerHelper.getNativeTransportPort()
     /*
-    Looks like sometimes our requests fail because Cassandra takes to long to respond,
-    Increase this timeout as well to try to cope with this.
+     Looks like sometimes our requests fail because Cassandra takes to long to respond,
+     Increase this timeout as well to try to cope with this.
      */
     cluster.getConfiguration().getSocketOptions().setReadTimeoutMillis(120000)
   }
@@ -97,7 +97,8 @@ class CassandraClientTest extends AgentTestRunner {
     Session session = cluster.connect(keyspace)
     runUnderTrace("parent") {
       def future = session.executeAsync(statement)
-      future.addListener({ ->
+      future.addListener({
+        ->
         runUnderTrace("callbackListener") {
           callbackExecuted.countDown()
         }
@@ -156,5 +157,4 @@ class CassandraClientTest extends AgentTestRunner {
       }
     }
   }
-
 }

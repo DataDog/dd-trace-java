@@ -19,7 +19,9 @@ import java.time.Duration
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 
-@Requires({ jvm.java11Compatible })
+@Requires({
+  jvm.java11Compatible
+})
 class ScopeEventTest extends DDSpecification {
   private static final Duration SLEEP_DURATION = Duration.ofSeconds(1)
 
@@ -147,20 +149,20 @@ class ScopeEventTest extends DDSpecification {
   def newBuilder(CoreTracer tracer) {
     def parentContext =
       new DDSpanContext(
-        DDId.from(123),
-        DDId.from(432),
-        DDId.from(222),
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        PrioritySampling.UNSET,
-        null,
-        [:],
-        false,
-        "fakeType",
-        0,
-        tracer.pendingTraceFactory.create(DDId.from(123)))
+      DDId.from(123),
+      DDId.from(432),
+      DDId.from(222),
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      [:],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.from(123)))
     return tracer.buildSpan("test operation")
       .asChildOf(parentContext)
       .withServiceName("test service")

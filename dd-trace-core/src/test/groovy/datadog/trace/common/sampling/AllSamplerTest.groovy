@@ -41,6 +41,5 @@ class AllSamplerTest extends DDSpecification {
 
     expect:
     sampled
-
   }
 }

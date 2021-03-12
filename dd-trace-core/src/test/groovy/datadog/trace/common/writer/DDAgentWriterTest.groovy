@@ -152,9 +152,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
     def writer = new DDAgentWriter(discovery, api, monitor, dispatcher, worker)
     def p0 = newSpan()
     p0.setSamplingPriority(PrioritySampling.SAMPLER_DROP)
-    def trace = [
-      p0, newSpan()
-    ]
+    def trace = [p0, newSpan()]
 
     when:
     writer.write(trace)

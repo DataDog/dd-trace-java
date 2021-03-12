@@ -5,11 +5,11 @@ class GithubActionsInfoTest extends CIProviderInfoTest {
   @Override
   CIProviderInfo instanceProvider() {
     return new GithubActionsInfo() {
-      @Override
-      protected String getGitFolderName() {
-        return GIT_FOLDER_FOR_TESTS
+        @Override
+        protected String getGitFolderName() {
+          return GIT_FOLDER_FOR_TESTS
+        }
       }
-    }
   }
 
   @Override

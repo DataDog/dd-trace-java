@@ -60,6 +60,7 @@ class HttpExtractorTest extends DDSpecification {
     }
 
     where:
+    // spotless:off
     styles        | datadogTraceId    | datadogSpanId     | b3TraceId         | b3SpanId          | expectedTraceId | expectedSpanId | putDatadogFields | expectDatadogFields | tagContext
     [DATADOG, B3] | "1"               | "2"               | "a"               | "b"               | "1"             | "2"            | true             | true                | false
     [DATADOG, B3] | null              | null              | "a"               | "b"               | "10"            | "11"           | false            | false               | true
@@ -76,6 +77,6 @@ class HttpExtractorTest extends DDSpecification {
     [DATADOG]     | "1"               | outOfRangeTraceId | "a"               | "b"               | null            | null           | false            | false               | false
     [DATADOG, B3] | "1"               | "2"               | outOfRangeTraceId | "b"               | "1"             | "2"            | true             | false               | false
     [DATADOG, B3] | "1"               | "2"               | "a"               | outOfRangeTraceId | "1"             | "2"            | true             | false               | false
+    // spotless:on
   }
-
 }

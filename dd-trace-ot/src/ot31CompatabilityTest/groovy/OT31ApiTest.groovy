@@ -21,7 +21,7 @@ class OT31ApiTest extends DDSpecification {
   def cleanup() {
     tracer?.close()
   }
-  
+
   def "test startActive"() {
     when:
     def scope = tracer.buildSpan("some name").startActive(finishSpan)

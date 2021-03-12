@@ -47,25 +47,25 @@ class HystrixObservableTest extends AgentTestRunner {
     def subscribeOnFn = subscribeOn
     def result = runUnderTrace("parent") {
       def val = operation new HystrixObservableCommand<String>(asKey("ExampleGroup")) {
-        @Trace
-        private String tracedMethod() {
-          return "Hello!"
-        }
+          @Trace
+          private String tracedMethod() {
+            return "Hello!"
+          }
 
-        @Override
-        protected Observable<String> construct() {
-          def obs = Observable.defer {
-            Observable.just(tracedMethod()).repeat(1)
+          @Override
+          protected Observable<String> construct() {
+            def obs = Observable.defer {
+              Observable.just(tracedMethod()).repeat(1)
+            }
+            if (observeOnFn) {
+              obs = obs.observeOn(observeOnFn)
+            }
+            if (subscribeOnFn) {
+              obs = obs.subscribeOn(subscribeOnFn)
+            }
+            return obs
           }
-          if (observeOnFn) {
-            obs = obs.observeOn(observeOnFn)
-          }
-          if (subscribeOnFn) {
-            obs = obs.subscribeOn(subscribeOnFn)
-          }
-          return obs
         }
-      }
       // when this is running in different threads, we don't know when the other span is done
       // adding sleep to improve ordering consistency
       blockUntilChildSpansFinished(2)
@@ -157,24 +157,24 @@ class HystrixObservableTest extends AgentTestRunner {
     def subscribeOnFn = subscribeOn
     def result = runUnderTrace("parent") {
       def val = operation new HystrixObservableCommand<String>(asKey("ExampleGroup")) {
-        @Override
-        protected Observable<String> construct() {
-          def err = Observable.defer {
-            Observable.error(new IllegalArgumentException()).repeat(1)
+          @Override
+          protected Observable<String> construct() {
+            def err = Observable.defer {
+              Observable.error(new IllegalArgumentException()).repeat(1)
+            }
+            if (observeOnFn) {
+              err = err.observeOn(observeOnFn)
+            }
+            if (subscribeOnFn) {
+              err = err.subscribeOn(subscribeOnFn)
+            }
+            return err
           }
-          if (observeOnFn) {
-            err = err.observeOn(observeOnFn)
-          }
-          if (subscribeOnFn) {
-            err = err.subscribeOn(subscribeOnFn)
-          }
-          return err
-        }
 
-        protected Observable<String> resumeWithFallback() {
-          return Observable.just("Fallback!").repeat(1)
+          protected Observable<String> resumeWithFallback() {
+            return Observable.just("Fallback!").repeat(1)
+          }
         }
-      }
       blockUntilChildSpansFinished(2) // Improve span ordering consistency
       return val
     }
@@ -272,20 +272,20 @@ class HystrixObservableTest extends AgentTestRunner {
       try {
         operation new HystrixObservableCommand<String>(asKey("FailingGroup")) {
 
-          @Override
-          protected Observable<String> construct() {
-            def err = Observable.defer {
-              Observable.error(new IllegalArgumentException())
+            @Override
+            protected Observable<String> construct() {
+              def err = Observable.defer {
+                Observable.error(new IllegalArgumentException())
+              }
+              if (observeOnFn) {
+                err = err.observeOn(observeOnFn)
+              }
+              if (subscribeOnFn) {
+                err = err.subscribeOn(subscribeOnFn)
+              }
+              return err
             }
-            if (observeOnFn) {
-              err = err.observeOn(observeOnFn)
-            }
-            if (subscribeOnFn) {
-              err = err.subscribeOn(subscribeOnFn)
-            }
-            return err
           }
-        }
       } finally {
         // when this is running in different threads, we don't know when the other span is done
         // adding sleep to improve ordering consistency

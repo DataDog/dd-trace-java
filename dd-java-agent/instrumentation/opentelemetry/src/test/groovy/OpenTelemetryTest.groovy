@@ -228,7 +228,6 @@ class OpenTelemetryTest extends AgentTestRunner {
     then:
     tracer.currentSpan == null
     0 * _
-
   }
 
   def "test continuation"() {

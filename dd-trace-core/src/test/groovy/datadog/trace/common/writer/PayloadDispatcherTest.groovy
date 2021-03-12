@@ -166,5 +166,4 @@ class PayloadDispatcherTest extends DDSpecification {
       0,
       trace))
   }
-
 }

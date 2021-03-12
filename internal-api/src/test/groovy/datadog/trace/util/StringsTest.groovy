@@ -10,11 +10,13 @@ class StringsTest extends DDSpecification {
     then:
     s == expected
     where:
+    // spotless:off
     joiner | strings         | expected
     ","    | ["a", "b", "c"] | "a,b,c"
     ","    | ["a", "b"]      | "a,b"
     ","    | ["a"]           | "a"
     ","    | []              | ""
+    // spotless:on
   }
 
   def "test join strings varargs"() {
@@ -24,11 +26,13 @@ class StringsTest extends DDSpecification {
     then:
     s == expected
     where:
+    // spotless:off
     joiner | strings         | expected
     ","    | ["a", "b", "c"] | "a,b,c"
     ","    | ["a", "b"]      | "a,b"
     ","    | ["a"]           | "a"
     ","    | []              | ""
+    // spotless:on
   }
 
   def "test replace strings"() {
@@ -41,6 +45,7 @@ class StringsTest extends DDSpecification {
     replacedFirst == expectedFirst
 
     where:
+    // spotless:off
     string       | delimiter | replacement | expected          | expectedFirst
     "teststring" | "tstr"    | "a"         | "tesaing"         | "tesaing"
     "teststring" | "t"       | "a"         | "aesasaring"      | "aeststring"
@@ -49,6 +54,6 @@ class StringsTest extends DDSpecification {
     "tetetetete" | "t"       | "te"        | "teeteeteeteetee" | "teetetetete"
     "tetetetete" | "te"      | "t"         | "ttttt"           | "ttetetete"
     "tetetetete" | "tet"     | "e"         | "eeeete"          | "eetetete"
-
+    // spotless:on
   }
 }

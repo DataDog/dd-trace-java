@@ -28,7 +28,6 @@ class FunctionsTest extends DDSpecification {
     Functions.PrefixJoin.of("~")                   | "x"  | "y"   | "x~y"
     Functions.SuffixJoin.of("~", Functions.zero()) | "x"  | "y"   | "x~y"
     Functions.SuffixJoin.of("~")                   | "x"  | "y"   | "x~y"
-
   }
 
   def "test encode UTF8" () {

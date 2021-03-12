@@ -150,40 +150,40 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
   @Override
   def newDecorator() {
     return new HttpServerDecorator<Map, Map, Map>() {
-      @Override
-      protected String[] instrumentationNames() {
-        return ["test1", "test2"]
-      }
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1", "test2"]
+        }
 
-      @Override
-      protected CharSequence component() {
-        return "test-component"
-      }
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
 
-      @Override
-      protected String method(Map m) {
-        return m.method
-      }
+        @Override
+        protected String method(Map m) {
+          return m.method
+        }
 
-      @Override
-      protected URIDataAdapter url(Map m) {
-        return new DefaultURIDataAdapter(m.url)
-      }
+        @Override
+        protected URIDataAdapter url(Map m) {
+          return new DefaultURIDataAdapter(m.url)
+        }
 
-      @Override
-      protected String peerHostIP(Map m) {
-        return m.ip
-      }
+        @Override
+        protected String peerHostIP(Map m) {
+          return m.ip
+        }
 
-      @Override
-      protected int peerPort(Map m) {
-        return m.port == null ? 0 : m.port
-      }
+        @Override
+        protected int peerPort(Map m) {
+          return m.port == null ? 0 : m.port
+        }
 
-      @Override
-      protected int status(Map m) {
-        return m.status == null ? 0 : m.status
+        @Override
+        protected int status(Map m) {
+          return m.status == null ? 0 : m.status
+        }
       }
-    }
   }
 }

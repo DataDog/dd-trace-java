@@ -26,13 +26,13 @@ class LagomTest extends AgentTestRunner {
       .withCassandra(false)
       .withJdbc(false)
       .configureBuilder(
-        new Function<GuiceApplicationBuilder, GuiceApplicationBuilder>() {
-          @Override
-          GuiceApplicationBuilder apply(GuiceApplicationBuilder builder) {
-            return builder
-              .bindings(new ServiceTestModule())
-          }
-        }))
+      new Function<GuiceApplicationBuilder, GuiceApplicationBuilder>() {
+        @Override
+        GuiceApplicationBuilder apply(GuiceApplicationBuilder builder) {
+          return builder
+            .bindings(new ServiceTestModule())
+        }
+      }))
   }
 
   def cleanupSpec() {
@@ -45,7 +45,7 @@ class LagomTest extends AgentTestRunner {
 
     Source<String, NotUsed> input =
       Source.from(Arrays.asList("msg1", "msg2", "msg3"))
-        .concat(Source.maybe())
+      .concat(Source.maybe())
     Source<String, NotUsed> output = service.echo().invoke(input)
       .toCompletableFuture().get()
     Probe<String> probe = output.runWith(TestSink.probe(server.system()), server.materializer())
@@ -91,7 +91,7 @@ class LagomTest extends AgentTestRunner {
 
     Source<String, NotUsed> input =
       Source.from(Arrays.asList("msg1", "msg2", "msg3"))
-        .concat(Source.maybe())
+      .concat(Source.maybe())
     try {
       service.error().invoke(input).toCompletableFuture().get()
     } catch (Exception e) {

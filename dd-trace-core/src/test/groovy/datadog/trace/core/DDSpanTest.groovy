@@ -243,20 +243,20 @@ class DDSpanTest extends DDCoreSpecification {
     when:
     DDSpanContext context =
       new DDSpanContext(
-        DDId.from(1),
-        DDId.from(1),
-        DDId.ZERO,
-        parentServiceName,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        PrioritySampling.UNSET,
-        null,
-        Collections.<String, String> emptyMap(),
-        false,
-        "fakeType",
-        0,
-        tracer.pendingTraceFactory.create(DDId.ONE))
+      DDId.from(1),
+      DDId.from(1),
+      DDId.ZERO,
+      parentServiceName,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      Collections.<String, String> emptyMap(),
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE))
     then:
     context.isTopLevel() == expectTopLevel
 

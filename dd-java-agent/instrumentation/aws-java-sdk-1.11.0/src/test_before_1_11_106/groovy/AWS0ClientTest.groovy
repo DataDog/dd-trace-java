@@ -32,10 +32,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 class AWS0ClientTest extends AgentTestRunner {
 
   private static final CREDENTIALS_PROVIDER_CHAIN = new AWSCredentialsProviderChain(
-    new EnvironmentVariableCredentialsProvider(),
-    new SystemPropertiesCredentialsProvider(),
-    new ProfileCredentialsProvider(),
-    new InstanceProfileCredentialsProvider())
+  new EnvironmentVariableCredentialsProvider(),
+  new SystemPropertiesCredentialsProvider(),
+  new ProfileCredentialsProvider(),
+  new InstanceProfileCredentialsProvider())
 
   def setup() {
     System.setProperty(SDKGlobalConfiguration.ACCESS_KEY_SYSTEM_PROPERTY, "my-access-key")
@@ -224,10 +224,10 @@ class AWS0ClientTest extends AgentTestRunner {
     setup:
     def client = new AmazonS3Client(CREDENTIALS_PROVIDER_CHAIN)
     client.addRequestHandler(new RequestHandler2() {
-      void beforeRequest(Request<?> request) {
-        throw new RuntimeException("bad handler")
-      }
-    })
+        void beforeRequest(Request<?> request) {
+          throw new RuntimeException("bad handler")
+        }
+      })
 
     when:
     client.getObject("someBucket", "someKey")

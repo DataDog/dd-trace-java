@@ -16,8 +16,8 @@ class PrintingWriterTest extends DDCoreSpecification {
   def secondTrace
 
   def adapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(Map, String,
-    Types.newParameterizedType(List,
-    Types.newParameterizedType(List, Map))))
+  Types.newParameterizedType(List,
+  Types.newParameterizedType(List, Map))))
 
   def setup() {
     def builder = tracer.buildSpan("fakeOperation")

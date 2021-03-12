@@ -29,11 +29,11 @@ class AgentTaskSchedulerTest extends DDSpecification {
     setup:
     def latch = new CountDownLatch(2)
     def task = new AgentTaskScheduler.Task<CountDownLatch>() {
-      @Override
-      void run(CountDownLatch target) {
-        target.countDown()
+        @Override
+        void run(CountDownLatch target) {
+          target.countDown()
+        }
       }
-    }
 
     expect:
     !scheduler.isShutdown()
@@ -51,11 +51,11 @@ class AgentTaskSchedulerTest extends DDSpecification {
     def latch = new CountDownLatch(Integer.MAX_VALUE)
     def weakLatch = new WeakReference(latch)
     def task = new AgentTaskScheduler.Task<CountDownLatch>() {
-      @Override
-      void run(CountDownLatch target) {
-        target.countDown()
+        @Override
+        void run(CountDownLatch target) {
+          target.countDown()
+        }
       }
-    }
 
     expect:
     !scheduler.isShutdown()
@@ -75,11 +75,11 @@ class AgentTaskSchedulerTest extends DDSpecification {
     setup:
     def latch = new CountDownLatch(1)
     def task = new AgentTaskScheduler.Task<CountDownLatch>() {
-      @Override
-      void run(CountDownLatch target) {
-        target.countDown()
+        @Override
+        void run(CountDownLatch target) {
+          target.countDown()
+        }
       }
-    }
 
     expect:
     !scheduler.isShutdown()
@@ -97,11 +97,11 @@ class AgentTaskSchedulerTest extends DDSpecification {
     setup:
     def latch = new CountDownLatch(Integer.MAX_VALUE)
     def task = new AgentTaskScheduler.Task<CountDownLatch>() {
-      @Override
-      void run(CountDownLatch target) {
-        target.countDown()
+        @Override
+        void run(CountDownLatch target) {
+          target.countDown()
+        }
       }
-    }
 
     expect:
     !scheduler.isShutdown()
@@ -120,11 +120,11 @@ class AgentTaskSchedulerTest extends DDSpecification {
     setup:
     def latch = new CountDownLatch(1)
     def target = new Runnable() {
-      @Override
-      void run() {
-        latch.countDown()
+        @Override
+        void run() {
+          latch.countDown()
+        }
       }
-    }
 
     expect:
     !scheduler.isShutdown()
@@ -142,11 +142,11 @@ class AgentTaskSchedulerTest extends DDSpecification {
     setup:
     def latch = new CountDownLatch(Integer.MAX_VALUE)
     def task = new AgentTaskScheduler.Task<CountDownLatch>() {
-      @Override
-      void run(CountDownLatch target) {
-        target.countDown()
+        @Override
+        void run(CountDownLatch target) {
+          target.countDown()
+        }
       }
-    }
 
     expect:
     !scheduler.isShutdown()
@@ -165,11 +165,11 @@ class AgentTaskSchedulerTest extends DDSpecification {
     setup:
     def callCount = new AtomicInteger()
     def task = new AgentTaskScheduler.Task<Object>() {
-      @Override
-      void run(Object t) {
-        callCount.incrementAndGet()
+        @Override
+        void run(Object t) {
+          callCount.incrementAndGet()
+        }
       }
-    }
 
     expect:
     !scheduler.isShutdown()

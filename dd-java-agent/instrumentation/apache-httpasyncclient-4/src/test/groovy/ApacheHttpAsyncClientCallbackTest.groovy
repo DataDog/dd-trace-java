@@ -17,9 +17,9 @@ class ApacheHttpAsyncClientCallbackTest extends HttpClientTest {
 
   @Shared
   RequestConfig requestConfig = RequestConfig.custom()
-    .setConnectTimeout(CONNECT_TIMEOUT_MS)
-    .setSocketTimeout(READ_TIMEOUT_MS)
-    .build()
+  .setConnectTimeout(CONNECT_TIMEOUT_MS)
+  .setSocketTimeout(READ_TIMEOUT_MS)
+  .build()
 
   @AutoCleanup
   @Shared
@@ -40,26 +40,26 @@ class ApacheHttpAsyncClientCallbackTest extends HttpClientTest {
 
     client.execute(request, new FutureCallback<HttpResponse>() {
 
-      @Override
-      void completed(HttpResponse result) {
-        try {
-          callback?.call()
-          responseFuture.complete(result.statusLine.statusCode)
-        } catch (Exception e) {
-          failed(e)
+        @Override
+        void completed(HttpResponse result) {
+          try {
+            callback?.call()
+            responseFuture.complete(result.statusLine.statusCode)
+          } catch (Exception e) {
+            failed(e)
+          }
         }
-      }
 
-      @Override
-      void failed(Exception ex) {
-        responseFuture.completeExceptionally(ex)
-      }
+        @Override
+        void failed(Exception ex) {
+          responseFuture.completeExceptionally(ex)
+        }
 
-      @Override
-      void cancelled() {
-        responseFuture.cancel(true)
-      }
-    })
+        @Override
+        void cancelled() {
+          responseFuture.cancel(true)
+        }
+      })
 
     return responseFuture.get(10, TimeUnit.SECONDS)
   }

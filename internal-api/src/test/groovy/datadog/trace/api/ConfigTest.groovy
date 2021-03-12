@@ -484,6 +484,7 @@ class ConfigTest extends DDSpecification {
     config.agentPort == expectedPort
 
     where:
+    // spotless:off
     overridePort | overrideLegacyPort | overridePortEnvVar | overrideLegacyPortEnvVar | expectedPort
     true         | true               | false              | false                    | 123
     true         | false              | false              | false                    | 123
@@ -501,6 +502,7 @@ class ConfigTest extends DDSpecification {
     true         | false              | true               | true                     | 123
     false        | true               | true               | true                     | 456 // legacy port gets picked up instead.
     false        | false              | true               | true                     | 777 // env var gets picked up instead.
+    // spotless:on
   }
 
   // FIXME: this seems to be a repeated test
@@ -673,6 +675,7 @@ class ConfigTest extends DDSpecification {
     Config.get().isIntegrationEnabled(integrationNames, defaultEnabled) == expected
 
     where:
+    // spotless:off
     names                          | defaultEnabled | expected
     []                             | true           | true
     []                             | false          | false
@@ -689,6 +692,7 @@ class ConfigTest extends DDSpecification {
     ["disabled-env", "test-env"]   | false          | true
     ["test-prop", "disabled-prop"] | true           | false
     ["disabled-env", "test-env"]   | true           | false
+    // spotless:on
 
     integrationNames = new TreeSet<>(names)
   }
@@ -707,6 +711,7 @@ class ConfigTest extends DDSpecification {
     Config.get().isRuleEnabled(name) == enabled
 
     where:
+    // spotless:off
     name            | enabled
     ""              | true
     "invalid"       | true
@@ -720,6 +725,7 @@ class ConfigTest extends DDSpecification {
     "Disabled-Prop" | false
     "disabled-env"  | false
     "Disabled-Env"  | false
+    // spotless:on
   }
 
   def "verify integration jmxfetch config"() {
@@ -736,6 +742,7 @@ class ConfigTest extends DDSpecification {
     Config.get().isJmxFetchIntegrationEnabled(integrationNames, defaultEnabled) == expected
 
     where:
+    // spotless:off
     names                          | defaultEnabled | expected
     []                             | true           | true
     []                             | false          | false
@@ -752,6 +759,7 @@ class ConfigTest extends DDSpecification {
     ["disabled-env", "test-env"]   | false          | true
     ["test-prop", "disabled-prop"] | true           | false
     ["disabled-env", "test-env"]   | true           | false
+    // spotless:on
 
     integrationNames = new TreeSet<>(names)
   }
@@ -776,6 +784,7 @@ class ConfigTest extends DDSpecification {
     Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled) == expected
 
     where:
+    // spotless:off
     names                           | defaultEnabled | expected
     []                              | true           | true
     []                              | false          | false
@@ -796,6 +805,7 @@ class ConfigTest extends DDSpecification {
     ["disabled-env", "alias-env"]   | false          | true
     ["alias-prop", "disabled-prop"] | true           | false
     ["disabled-env", "alias-env"]   | true           | false
+    // spotless:on
 
     integrationNames = new TreeSet<>(names)
   }
@@ -817,6 +827,7 @@ class ConfigTest extends DDSpecification {
 
     where:
     name              | expected
+    // spotless:off
     "env.zero.test"   | 0.0
     "prop.zero.test"  | 0
     "env.float.test"  | 1.0
@@ -825,6 +836,7 @@ class ConfigTest extends DDSpecification {
     "negative.test"   | -1.0
     "garbage.test"    | 10.0
     "default.test"    | 10.0
+    // spotless:on
 
     defaultValue = 10.0
   }
@@ -845,6 +857,7 @@ class ConfigTest extends DDSpecification {
     Config.get().configProvider.getDouble(name, defaultValue) == (double) expected
 
     where:
+    // spotless:off
     name              | expected
     "env.zero.test"   | 0.0
     "prop.zero.test"  | 0
@@ -854,6 +867,7 @@ class ConfigTest extends DDSpecification {
     "negative.test"   | -1.0
     "garbage.test"    | 10.0
     "default.test"    | 10.0
+    // spotless:on
 
     defaultValue = 10.0
   }
@@ -881,6 +895,7 @@ class ConfigTest extends DDSpecification {
     propConfig.headerTags == map
 
     where:
+    // spotless:off
     mapString                                                     | map
     "a:1, a:2, a:3"                                               | [a: "3"]
     "a:b,c:d,e:"                                                  | [a: "b", c: "d"]
@@ -909,6 +924,7 @@ class ConfigTest extends DDSpecification {
     "!a"                                                          | [:]
     // ambiguous - is properties are space separated they must be trimmed
     "key1 :value1  \t key2:  value2"                              | [:]
+    // spotless:on
   }
 
   def "verify integer range configs on tracer"() {
@@ -938,6 +954,7 @@ class ConfigTest extends DDSpecification {
 
     where:
     value               | expected // null means default value
+    // spotless:off
     "1"                 | null
     "a"                 | null
     ""                  | null
@@ -948,6 +965,7 @@ class ConfigTest extends DDSpecification {
     "999-888"           | 888..999
     "400-403,405-407"   | [400, 401, 402, 403, 405, 406, 407]
     " 400 - 403 , 405 " | [400, 401, 402, 403, 405]
+    // spotless:on
   }
 
   def "verify null value mapping configs on tracer"() {
@@ -966,8 +984,10 @@ class ConfigTest extends DDSpecification {
 
     where:
     mapString | map
+    // spotless:off
     null      | [:]
     ""        | [:]
+    // spotless:on
   }
 
   def "verify empty value list configs on tracer"() {
@@ -981,8 +1001,10 @@ class ConfigTest extends DDSpecification {
     config.jmxFetchMetricsConfigs == list
 
     where:
+    // spotless:off
     listString | list
     ""         | []
+    // spotless:on
   }
 
   def "verify hostname not added to root span tags by default"() {
@@ -1087,6 +1109,7 @@ class ConfigTest extends DDSpecification {
     value == expected
 
     where:
+    // spotless:off
     services                | expected
     ["foo"]                 | 0.5f
     ["baz"]                 | 0.7f
@@ -1101,6 +1124,7 @@ class ConfigTest extends DDSpecification {
     ["baz", "foo"]          | 0.7f
     ["alias-env", "baz"]    | 0.4f
     ["alias-prop", "foo"]   | 0.2f
+    // spotless:on
   }
 
   def "verify api key loaded from file: #path"() {
@@ -1115,9 +1139,11 @@ class ConfigTest extends DDSpecification {
     config.apiKey == expectedKey
 
     where:
+    // spotless:off
     path                                                        | expectedKey
     getClass().getClassLoader().getResource("apikey").getFile() | "test-api-key"
     "/path/that/doesnt/exist"                                   | "default-api-key"
+    // spotless:on
   }
 
   def "verify api key loaded from old option name"() {
@@ -1143,9 +1169,11 @@ class ConfigTest extends DDSpecification {
     config.apiKey == expectedKey
 
     where:
+    // spotless:off
     path                                                            | expectedKey
     getClass().getClassLoader().getResource("apikey.old").getFile() | "test-api-key-old"
     "/path/that/doesnt/exist"                                       | "default-api-key"
+    // spotless:on
   }
 
   def "verify api key loaded from very old option name"() {
@@ -1218,12 +1246,12 @@ class ConfigTest extends DDSpecification {
     then:
     config.mergedSpanTags == [a: "1", b: "2", c: "3", (ENV): "eu-east", (VERSION): "43"]
     config.mergedJmxTags == [a               : "1", b: "2", d: "4", (ENV): "eu-east", (VERSION): "43",
-                             (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+      (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
 
     config.mergedProfilingTags == [a            : "1", b: "2", f: "6", (ENV): "eu-east", (VERSION): "43",
-                                   (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(),
-                                   (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+      (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(),
+      (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
   def "verify dd.tags overrides global tags in system properties"() {
@@ -1421,7 +1449,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [version: "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
     config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): 'dd-service-env-var',
-                             version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
+      version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
   }
 
   def "merge env from dd.trace.global.tags and DD_SERVICE and DD_VERSION"() {
@@ -1437,7 +1465,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [version: "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
     config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): 'dd-service-env-var',
-                             version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
+      version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
   }
 
   def "set of dd.trace.global.tags.env exclusively by java properties and without DD_ENV"() {
@@ -1500,7 +1528,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == DEFAULT_SERVICE_NAME
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version': 'my-svc-vers']
+      'service.version': 'my-svc-vers']
   }
 
   def "DD_SERVICE precedence over 'dd.service.name' java property is set; 'dd.service' overwrites DD_SERVICE"() {
@@ -1518,7 +1546,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "dd-service-java-prop"
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version': 'my-svc-vers']
+      'service.version': 'my-svc-vers']
   }
 
   def "DD_SERVICE precedence over 'DD_SERVICE_NAME' environment var is set"() {
@@ -1534,7 +1562,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version': 'my-svc-vers']
+      'service.version': 'my-svc-vers']
   }
 
   def "dd.service overwrites DD_SERVICE"() {
@@ -1550,7 +1578,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "dd-service-java-prop"
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version': 'my-svc-vers']
+      'service.version': 'my-svc-vers']
   }
 
   def "set servicenaem by DD_SERVICE"() {
@@ -1566,7 +1594,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version': 'my-svc-vers']
+      'service.version': 'my-svc-vers']
   }
 
   def "explicit service name is not overridden by captured environment"() {
@@ -1581,10 +1609,7 @@ class ConfigTest extends DDSpecification {
     assert config.isServiceNameSetByUser()
 
     where:
-    [serviceProperty, serviceName] << [
-      [SERVICE, SERVICE_NAME],
-      [DEFAULT_SERVICE_NAME, "my-service"]
-    ].combinations()
+    [serviceProperty, serviceName]<< [[SERVICE, SERVICE_NAME], [DEFAULT_SERVICE_NAME, "my-service"]].combinations()
   }
 
   def "detect if agent is configured using default values"() {
@@ -1626,6 +1651,7 @@ class ConfigTest extends DDSpecification {
     childConfig.isAgentConfiguredUsingDefault() == childConfiguredUsingDefault
 
     where:
+    // spotless:off
     host                              | socket    | port | legacyPort | propertyHost | propertySocket | propertyPort | configuredUsingDefault | childConfiguredUsingDefault
     null                              | null      | null | null       | null         | null           | null         | true                   | true
     "example"                         | null      | null | null       | null         | null           | null         | false                  | false
@@ -1638,6 +1664,7 @@ class ConfigTest extends DDSpecification {
     null                              | null      | null | null       | null         | "example"      | null         | true                   | false
     null                              | null      | null | null       | null         | null           | "1"          | true                   | false
     "example"                         | "example" | null | null       | "example"    | null           | null         | false                  | false
+    // spotless:on
   }
 
   // Static methods test:
@@ -1663,6 +1690,7 @@ class ConfigTest extends DDSpecification {
     ConfigConverter.valueOf(value, tClass) == expected
 
     where:
+    // spotless:off
     value       | tClass  | expected
     "42.42"     | Boolean | false
     "42.42"     | Boolean | false
@@ -1680,6 +1708,7 @@ class ConfigTest extends DDSpecification {
     "44"        | Integer | 44
     "45"        | Long    | 45
     "46"        | Short   | 46
+    // spotless:on
   }
 
   def "valueOf negative test when tClass is null"() {
@@ -1692,10 +1721,12 @@ class ConfigTest extends DDSpecification {
 
     where:
     value    | defaultValue
+    // spotless:off
     null     | "42"
     ""       | "43"
     "      " | "44"
     "1"      | "45"
+    // spotless:on
   }
 
   def "valueOf negative test"() {
@@ -1707,6 +1738,7 @@ class ConfigTest extends DDSpecification {
     println("cause: ": exception.message)
 
     where:
+    // spotless:off
     value   | tClass
     "42.42" | Number
     "42.42" | Byte
@@ -1727,6 +1759,7 @@ class ConfigTest extends DDSpecification {
     "42.42" | double
     "42.42" | float
     "42.42" | ClassThrowsExceptionForValueOfMethod // will wrapped in NumberFormatException anyway
+    // spotless:on
   }
 
   def "revert to RANDOM with invalid id generation strategy"() {
@@ -1776,6 +1809,7 @@ class ConfigTest extends DDSpecification {
     config.agentUnixDomainSocket == expectedUnixDomainSocket
 
     where:
+    // spotless:off
     configuredUrl                     | expectedUrl             | expectedHost | expectedPort | expectedUnixDomainSocket
     null                              | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
     ""                                | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
@@ -1789,6 +1823,7 @@ class ConfigTest extends DDSpecification {
     "unix:"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
     "1234"                            | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
     ":1234"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    // spotless:on
   }
 
   static class ClassThrowsExceptionForValueOfMethod {

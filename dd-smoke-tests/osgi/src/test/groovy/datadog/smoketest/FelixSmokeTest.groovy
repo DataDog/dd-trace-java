@@ -7,6 +7,9 @@ class FelixSmokeTest extends AbstractOSGiSmokeTest {
   }
 
   List<String> frameworkArguments() {
-    return [ "-Dframework.factory=org.apache.felix.framework.FrameworkFactory", "-Dfelix.bootdelegation.implicit=false" ]
+    return [
+      "-Dframework.factory=org.apache.felix.framework.FrameworkFactory",
+      "-Dfelix.bootdelegation.implicit=false"
+    ]
   }
 }

@@ -28,13 +28,13 @@ class ExecutorLambdaTest extends AgentTestRunner {
     def w = wrap
     JavaAsyncChild child = new JavaAsyncChild(true, true)
     new Runnable() {
-      @Override
-      void run() {
-        runUnderTrace("parent") {
-          m(pool, w(child))
+        @Override
+        void run() {
+          runUnderTrace("parent") {
+            m(pool, w(child))
+          }
         }
-      }
-    }.run()
+      }.run()
     child.unblock()
 
     TEST_WRITER.waitForTraces(1)

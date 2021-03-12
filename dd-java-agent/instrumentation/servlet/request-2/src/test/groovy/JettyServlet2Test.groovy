@@ -30,15 +30,15 @@ class JettyServlet2Test extends HttpServerTest<Server> {
     }
     ServletContextHandler servletContext = new ServletContextHandler(null, "/$CONTEXT")
     servletContext.errorHandler = new ErrorHandler() {
-      protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
-        Throwable th = (Throwable) request.getAttribute("javax.servlet.error.exception")
-        writer.write(th ? th.message : message)
+        protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
+          Throwable th = (Throwable) request.getAttribute("javax.servlet.error.exception")
+          writer.write(th ? th.message : message)
+        }
       }
-    }
 
     // FIXME: Add tests for security/authentication.
-//    ConstraintSecurityHandler security = setupAuthentication(jettyServer)
-//    servletContext.setSecurityHandler(security)
+    //    ConstraintSecurityHandler security = setupAuthentication(jettyServer)
+    //    servletContext.setSecurityHandler(security)
 
     ServerEndpoint.values().findAll { it != NOT_FOUND && it != UNKNOWN }.each {
       servletContext.addServlet(TestServlet2.Sync, it.path)
@@ -162,26 +162,26 @@ class JettyServlet2Test extends HttpServerTest<Server> {
    * @param jettyServer server to attach login service
    * @return SecurityHandler that can be assigned to servlet
    */
-//  private ConstraintSecurityHandler setupAuthentication(Server jettyServer) {
-//    ConstraintSecurityHandler security = new ConstraintSecurityHandler()
-//
-//    Constraint constraint = new Constraint()
-//    constraint.setName("auth")
-//    constraint.setAuthenticate(true)
-//    constraint.setRoles("role")
-//
-//    ConstraintMapping mapping = new ConstraintMapping()
-//    mapping.setPathSpec("/auth/*")
-//    mapping.setConstraint(constraint)
-//
-//    security.setConstraintMappings(mapping)
-//    security.setAuthenticator(new BasicAuthenticator())
-//
-//    LoginService loginService = new HashLoginService("TestRealm",
-//      "src/test/resources/realm.properties")
-//    security.setLoginService(loginService)
-//    jettyServer.addBean(loginService)
-//
-//    security
-//  }
+  //  private ConstraintSecurityHandler setupAuthentication(Server jettyServer) {
+  //    ConstraintSecurityHandler security = new ConstraintSecurityHandler()
+  //
+  //    Constraint constraint = new Constraint()
+  //    constraint.setName("auth")
+  //    constraint.setAuthenticate(true)
+  //    constraint.setRoles("role")
+  //
+  //    ConstraintMapping mapping = new ConstraintMapping()
+  //    mapping.setPathSpec("/auth/*")
+  //    mapping.setConstraint(constraint)
+  //
+  //    security.setConstraintMappings(mapping)
+  //    security.setAuthenticator(new BasicAuthenticator())
+  //
+  //    LoginService loginService = new HashLoginService("TestRealm",
+  //      "src/test/resources/realm.properties")
+  //    security.setLoginService(loginService)
+  //    jettyServer.addBean(loginService)
+  //
+  //    security
+  //  }
 }

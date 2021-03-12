@@ -59,11 +59,11 @@ class FilterTest extends AgentTestRunner {
     setup:
     def ex = new Exception("some error")
     def filter = new TestFilter() {
-      @Override
-      void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) {
-        throw ex
+        @Override
+        void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) {
+          throw ex
+        }
       }
-    }
 
     when:
     runUnderTrace("parent") {

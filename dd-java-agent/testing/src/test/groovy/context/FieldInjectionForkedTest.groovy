@@ -39,7 +39,7 @@ class FieldInjectionForkedTest extends AgentTestRunner {
   void onDiscovery(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
     if (typeName?.endsWith("UntransformableKeyClass")) {
       throw new AbortTransformationException(
-        "Aborting transform for class name = " + typeName + ", loader = " + classLoader)
+      "Aborting transform for class name = " + typeName + ", loader = " + classLoader)
     }
 
     super.onDiscovery(typeName, classLoader, module, loaded)
@@ -144,12 +144,12 @@ class FieldInjectionForkedTest extends AgentTestRunner {
     Enhancer enhancer = new Enhancer()
     enhancer.setSuperclass(KeyClass)
     enhancer.setCallback(new MethodInterceptor() {
-      @Override
-      Object intercept(Object arg0, Method arg1, Object[] arg2,
-                       MethodProxy arg3) throws Throwable {
-        return arg3.invokeSuper(arg0, arg2)
-      }
-    })
+        @Override
+        Object intercept(Object arg0, Method arg1, Object[] arg2,
+          MethodProxy arg3) throws Throwable {
+          return arg3.invokeSuper(arg0, arg2)
+        }
+      })
 
     when:
     (KeyClass) enhancer.create()
@@ -247,5 +247,4 @@ class FieldInjectionDisabledForkedTest extends AgentTestRunner {
     hasAccessorInterface == false
     keyClass.newInstance().isInstrumented() == true
   }
-
 }

@@ -42,7 +42,7 @@ class CassandraClientTest extends AgentTestRunner {
      TODO: if we continue to see failures we may want to consider using 'real' Cassandra
      started in container like we do for memcached. Note: this will complicate things because
      tests would have to assume they run under shared Cassandra and act accordingly.
-      */
+     */
     EmbeddedCassandraServerHelper.startEmbeddedCassandra(EmbeddedCassandraServerHelper.CASSANDRA_RNDPORT_YML_FILE, 120000L)
 
     port = EmbeddedCassandraServerHelper.getNativeTransportPort()
@@ -239,5 +239,4 @@ class CassandraClientTest extends AgentTestRunner {
       }
     }
   }
-
 }

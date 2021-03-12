@@ -54,7 +54,7 @@ class JaxMultithreadedClientTest extends AgentTestRunner {
             return false
           }
           return true
-      }
+        }
       })
     }
     List<Future<Boolean>> futures = executor.invokeAll(tasks)

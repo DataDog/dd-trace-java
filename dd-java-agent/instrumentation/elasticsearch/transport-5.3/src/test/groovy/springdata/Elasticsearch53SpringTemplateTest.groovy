@@ -29,7 +29,7 @@ import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
-  public static final long TIMEOUT = 10000; // 10 seconds
+  public static final long TIMEOUT = 10000 // 10 seconds
 
   // Some ES actions are not caused by clients and seem to just happen from time to time.
   // We will just ignore these actions in traces.
@@ -54,7 +54,7 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
 
     def settings = Settings.builder()
       .put("path.home", esWorkingDir.path)
-    // Since we use listeners to close spans this should make our span closing deterministic which is good for tests
+      // Since we use listeners to close spans this should make our span closing deterministic which is good for tests
       .put("thread_pool.listener.size", 1)
       .put("transport.type", "netty3")
       .put("http.type", "netty3")
@@ -319,23 +319,23 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
     when:
     template.query(query, new ResultsExtractor<Doc>() {
 
-      @Override
-      Doc extract(SearchResponse response) {
-        hits.addAndGet(response.getHits().totalHits())
-        results.addAll(response.hits.collect { it.source })
-        if (response.getAggregations() != null) {
-          InternalNested internalNested = response.getAggregations().get("tag")
-          if (internalNested != null) {
-            Terms terms = internalNested.getAggregations().get("count_agg")
-            Collection<Terms.Bucket> buckets = terms.getBuckets()
-            for (Terms.Bucket bucket : buckets) {
-              bucketTags.put(Integer.valueOf(bucket.getKeyAsString()), bucket.getDocCount())
+        @Override
+        Doc extract(SearchResponse response) {
+          hits.addAndGet(response.getHits().totalHits())
+          results.addAll(response.hits.collect { it.source })
+          if (response.getAggregations() != null) {
+            InternalNested internalNested = response.getAggregations().get("tag")
+            if (internalNested != null) {
+              Terms terms = internalNested.getAggregations().get("count_agg")
+              Collection<Terms.Bucket> buckets = terms.getBuckets()
+              for (Terms.Bucket bucket : buckets) {
+                bucketTags.put(Integer.valueOf(bucket.getKeyAsString()), bucket.getDocCount())
+              }
             }
           }
+          return null
         }
-        return null
-      }
-    })
+      })
 
     then:
     hits.get() == 2

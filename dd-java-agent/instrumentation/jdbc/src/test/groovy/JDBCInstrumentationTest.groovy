@@ -57,8 +57,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
   @Shared
   private Properties connectionProps = {
     def props = new Properties()
-//    props.put("user", "someUser")
-//    props.put("password", "somePassword")
+    //    props.put("user", "someUser")
+    //    props.put("password", "somePassword")
     props.put("databaseName", "someDb")
     props.put("OPEN_NEW", "true") // So H2 doesn't complain about username/password.
     return props
@@ -69,17 +69,13 @@ class JDBCInstrumentationTest extends AgentTestRunner {
   private Map<String, Map<String, DataSource>> cpDatasources = new HashMap<>()
 
   def prepareConnectionPoolDatasources() {
-    String[] connectionPoolNames = [
-      "tomcat", "hikari", "c3p0",
-    ]
-    connectionPoolNames.each {
-      cpName ->
-        Map<String, DataSource> dbDSMapping = new HashMap<>()
-        jdbcUrls.each {
-          dbType, jdbcUrl ->
-            dbDSMapping.put(dbType, createDS(cpName, dbType, jdbcUrl))
-        }
-        cpDatasources.put(cpName, dbDSMapping)
+    String[] connectionPoolNames = ["tomcat", "hikari", "c3p0",]
+    connectionPoolNames.each { cpName ->
+      Map<String, DataSource> dbDSMapping = new HashMap<>()
+      jdbcUrls.each { dbType, jdbcUrl ->
+        dbDSMapping.put(dbType, createDS(cpName, dbType, jdbcUrl))
+      }
+      cpDatasources.put(cpName, dbDSMapping)
     }
   }
 
@@ -157,11 +153,10 @@ class JDBCInstrumentationTest extends AgentTestRunner {
 
   def cleanupSpec() {
     cpDatasources.values().each {
-      it.values().each {
-        datasource ->
-          if (datasource instanceof Closeable) {
-            datasource.close()
-          }
+      it.values().each { datasource ->
+        if (datasource instanceof Closeable) {
+          datasource.close()
+        }
       }
     }
   }

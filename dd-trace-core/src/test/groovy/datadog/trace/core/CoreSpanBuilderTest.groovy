@@ -77,13 +77,13 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
     span =
       tracer
-        .buildSpan(expectedName)
-        .withServiceName("foo")
-        .withResourceName(expectedResource)
-        .withServiceName(expectedService)
-        .withErrorFlag()
-        .withSpanType(expectedType)
-        .start()
+      .buildSpan(expectedName)
+      .withServiceName("foo")
+      .withResourceName(expectedResource)
+      .withServiceName(expectedService)
+      .withErrorFlag()
+      .withSpanType(expectedType)
+      .start()
 
     final DDSpanContext context = span.context()
 
@@ -133,10 +133,10 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
     DDSpan span =
       tracer
-        .buildSpan(expectedName)
-        .withServiceName("foo")
-        .withStartTimestamp(expectedTimestamp)
-        .start()
+      .buildSpan(expectedName)
+      .withServiceName("foo")
+      .withStartTimestamp(expectedTimestamp)
+      .start()
 
     expect:
     // get return nano time
@@ -170,10 +170,10 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
     final DDSpan span =
       tracer
-        .buildSpan(expectedName)
-        .withServiceName("foo")
-        .asChildOf(mockedContext)
-        .start()
+      .buildSpan(expectedName)
+      .withServiceName("foo")
+      .asChildOf(mockedContext)
+      .start()
 
     final DDSpanContext actualContext = span.context()
 
@@ -227,21 +227,21 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
 
     final DDSpan parent =
       tracer
-        .buildSpan(expectedName)
-        .withServiceName("foo")
-        .withResourceName(expectedParentResourceName)
-        .withSpanType(expectedParentType)
-        .start()
+      .buildSpan(expectedName)
+      .withServiceName("foo")
+      .withResourceName(expectedParentResourceName)
+      .withSpanType(expectedParentType)
+      .start()
 
     parent.setBaggageItem(expectedBaggageItemKey, expectedBaggageItemValue)
 
     // ServiceName and SpanType are always set by the parent  if they are not present in the child
     DDSpan span =
       tracer
-        .buildSpan(expectedName)
-        .withServiceName(expectedParentServiceName)
-        .asChildOf(parent)
-        .start()
+      .buildSpan(expectedName)
+      .withServiceName(expectedParentServiceName)
+      .asChildOf(parent)
+      .start()
 
     expect:
     span.getOperationName() == expectedName
@@ -255,12 +255,12 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     // ServiceName and SpanType are always overwritten by the child  if they are present
     span =
       tracer
-        .buildSpan(expectedName)
-        .withServiceName(expectedChildServiceName)
-        .withResourceName(expectedChildResourceName)
-        .withSpanType(expectedChildType)
-        .asChildOf(parent)
-        .start()
+      .buildSpan(expectedName)
+      .withServiceName(expectedChildServiceName)
+      .withResourceName(expectedChildResourceName)
+      .withSpanType(expectedChildType)
+      .asChildOf(parent)
+      .start()
 
     then:
     span.getOperationName() == expectedName
@@ -312,8 +312,8 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.context().origin == extractedContext.origin
     span.context().baggageItems == extractedContext.baggage
     span.context().tags == extractedContext.tags + [(RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
-                                                    (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
-                                                    (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
+      (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
+      (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
 
     where:
     extractedContext                                                                                                                                | _
@@ -333,8 +333,8 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.context().origin == tagContext.origin
     span.context().baggageItems == [:]
     span.context().tags == tagContext.tags + [(RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
-                                              (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
-                                              (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
+      (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
+      (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
 
     where:
     tagContext                                                                               | _

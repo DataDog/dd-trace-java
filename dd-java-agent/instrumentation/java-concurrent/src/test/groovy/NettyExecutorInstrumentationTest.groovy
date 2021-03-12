@@ -59,17 +59,17 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
     def m = method
 
     new Runnable() {
-      @Override
-      @Trace(operationName = "parent")
-      void run() {
-        activeScope().setAsyncPropagation(true)
-        // this child will have a span
-        m(pool, new JavaAsyncChild())
-        // this child won't
-        m(pool, new JavaAsyncChild(false, false))
-        blockUntilChildSpansFinished(1)
-      }
-    }.run()
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          // this child will have a span
+          m(pool, new JavaAsyncChild())
+          // this child won't
+          m(pool, new JavaAsyncChild(false, false))
+          blockUntilChildSpansFinished(1)
+        }
+      }.run()
 
     TEST_WRITER.waitForTraces(1)
     List<DDSpan> trace = TEST_WRITER.get(0)
@@ -83,16 +83,16 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
 
     where:
     name                     | method              | poolImpl
-// TODO flaky
-//    "execute Runnable"       | executeRunnable     | new UnorderedThreadPoolEventExecutor(1)
-//    "submit Runnable"        | submitRunnable      | new UnorderedThreadPoolEventExecutor(1)
-//    "submit Callable"        | submitCallable      | new UnorderedThreadPoolEventExecutor(1)
-//    "invokeAll"              | invokeAll           | new UnorderedThreadPoolEventExecutor(1)
-//    "invokeAll with timeout" | invokeAllTimeout    | new UnorderedThreadPoolEventExecutor(1)
-//    "invokeAny"              | invokeAny           | new UnorderedThreadPoolEventExecutor(1)
-//    "invokeAny with timeout" | invokeAnyTimeout    | new UnorderedThreadPoolEventExecutor(1)
-//    "schedule Runnable"      | scheduleRunnable    | new UnorderedThreadPoolEventExecutor(1)
-//    "schedule Callable"      | scheduleCallable    | new UnorderedThreadPoolEventExecutor(1)
+    // TODO flaky
+    //    "execute Runnable"       | executeRunnable     | new UnorderedThreadPoolEventExecutor(1)
+    //    "submit Runnable"        | submitRunnable      | new UnorderedThreadPoolEventExecutor(1)
+    //    "submit Callable"        | submitCallable      | new UnorderedThreadPoolEventExecutor(1)
+    //    "invokeAll"              | invokeAll           | new UnorderedThreadPoolEventExecutor(1)
+    //    "invokeAll with timeout" | invokeAllTimeout    | new UnorderedThreadPoolEventExecutor(1)
+    //    "invokeAny"              | invokeAny           | new UnorderedThreadPoolEventExecutor(1)
+    //    "invokeAny with timeout" | invokeAnyTimeout    | new UnorderedThreadPoolEventExecutor(1)
+    //    "schedule Runnable"      | scheduleRunnable    | new UnorderedThreadPoolEventExecutor(1)
+    //    "schedule Callable"      | scheduleCallable    | new UnorderedThreadPoolEventExecutor(1)
 
     "execute Runnable"       | executeRunnable     | defaultEventExecutorGroup
     "submit Runnable"        | submitRunnable      | defaultEventExecutorGroup
@@ -206,32 +206,32 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
     List<Future> jobFutures = new ArrayList<>()
 
     new Runnable() {
-      @Override
-      @Trace(operationName = "parent")
-      void run() {
-        activeScope().setAsyncPropagation(true)
-        try {
-          for (int i = 0; i < 20; ++i) {
-            final JavaAsyncChild child = new JavaAsyncChild(false, true)
-            children.add(child)
-            try {
-              Future f = m(pool, child)
-              jobFutures.add(f)
-            } catch (InvocationTargetException e) {
-              throw e.getCause()
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          try {
+            for (int i = 0; i < 20; ++i) {
+              final JavaAsyncChild child = new JavaAsyncChild(false, true)
+              children.add(child)
+              try {
+                Future f = m(pool, child)
+                jobFutures.add(f)
+              } catch (InvocationTargetException e) {
+                throw e.getCause()
+              }
             }
+          } catch (RejectedExecutionException e) {
           }
-        } catch (RejectedExecutionException e) {
-        }
 
-        for (Future f : jobFutures) {
-          f.cancel(false)
+          for (Future f : jobFutures) {
+            f.cancel(false)
+          }
+          for (JavaAsyncChild child : children) {
+            child.unblock()
+          }
         }
-        for (JavaAsyncChild child : children) {
-          child.unblock()
-        }
-      }
-    }.run()
+      }.run()
 
     TEST_WRITER.waitForTraces(1)
 
@@ -241,11 +241,11 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
 
     where:
     name                     | method              | poolImpl
-// TODO flaky
-//    "submit Runnable"        | submitRunnable      | new UnorderedThreadPoolEventExecutor(1)
-//    "submit Callable"        | submitCallable      | new UnorderedThreadPoolEventExecutor(1)
-//    "schedule Runnable"      | scheduleRunnable    | new UnorderedThreadPoolEventExecutor(1)
-//    "schedule Callable"      | scheduleCallable    | new UnorderedThreadPoolEventExecutor(1)
+    // TODO flaky
+    //    "submit Runnable"        | submitRunnable      | new UnorderedThreadPoolEventExecutor(1)
+    //    "submit Callable"        | submitCallable      | new UnorderedThreadPoolEventExecutor(1)
+    //    "schedule Runnable"      | scheduleRunnable    | new UnorderedThreadPoolEventExecutor(1)
+    //    "schedule Callable"      | scheduleCallable    | new UnorderedThreadPoolEventExecutor(1)
 
     "submit Runnable"        | submitRunnable      | defaultEventExecutorGroup.next()
     "submit Callable"        | submitCallable      | defaultEventExecutorGroup.next()

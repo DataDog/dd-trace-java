@@ -10,11 +10,11 @@ class JBossClassloadingTest extends AgentTestRunner {
     setup:
     def moduleFinders = new ModuleFinder[1]
     moduleFinders[0] = new ModuleFinder() {
-      @Override
-      ModuleSpec findModule(ModuleIdentifier identifier, ModuleLoader delegateLoader) throws ModuleLoadException {
-        return ModuleSpec.build(identifier).create()
+        @Override
+        ModuleSpec findModule(ModuleIdentifier identifier, ModuleLoader delegateLoader) throws ModuleLoadException {
+          return ModuleSpec.build(identifier).create()
+        }
       }
-    }
     def moduleLoader = new ModuleLoader(moduleFinders)
     def moduleId = ModuleIdentifier.fromString("test")
     def testModule = moduleLoader.loadModule(moduleId)

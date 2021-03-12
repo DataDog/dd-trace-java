@@ -65,7 +65,7 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
 
     // Call createConnector() to create at least one TCP/IP connector, and then call its property setters as desired.
     // There seems to be a bug in this version that makes it impossible to create an 'http' connector
-//    Connector connector = server.createConnector("localhost", port, true)
+    //    Connector connector = server.createConnector("localhost", port, true)
     Connector connector = new Connector("HTTP/1.1")
     connector.enableLookups = true // get localhost instead of 127.0.0.1
     connector.scheme = "http"

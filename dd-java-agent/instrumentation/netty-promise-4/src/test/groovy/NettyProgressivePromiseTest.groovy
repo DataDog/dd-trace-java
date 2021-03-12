@@ -63,16 +63,16 @@ class NettyProgressivePromiseTest extends AbstractPromiseTest<ProgressivePromise
       def listeners = iterations.collect { int i ->
         return new GenericProgressiveFutureListener<Future<?>>() {
 
-          @Override
-          void operationComplete(Future<?> future) throws Exception {
-            runUnderTrace("listen$i") {}
-          }
+            @Override
+            void operationComplete(Future<?> future) throws Exception {
+              runUnderTrace("listen$i") {}
+            }
 
-          @Override
-          void operationProgressed(Future<?> future, long progress, long total) throws Exception {
-            runUnderTrace("progress$i") {}
+            @Override
+            void operationProgressed(Future<?> future, long progress, long total) throws Exception {
+              runUnderTrace("progress$i") {}
+            }
           }
-        }
       }
       promise.addListeners(listeners.toArray(new GenericProgressiveFutureListener[0]))
     }

@@ -31,11 +31,11 @@ class Netty40ClientTest extends HttpClientTest {
   }
 
   def clientConfig = DefaultAsyncHttpClientConfig.Builder.newInstance()
-    .setConnectTimeout(CONNECT_TIMEOUT_MS)
-    .setRequestTimeout(READ_TIMEOUT_MS)
-    .setReadTimeout(READ_TIMEOUT_MS)
-    .setSslContext(SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build())
-    .setMaxRequestRetry(0)
+  .setConnectTimeout(CONNECT_TIMEOUT_MS)
+  .setRequestTimeout(READ_TIMEOUT_MS)
+  .setReadTimeout(READ_TIMEOUT_MS)
+  .setSslContext(SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build())
+  .setMaxRequestRetry(0)
 
   // Can't be @Shared otherwise field-injected classes get loaded too early.
   @AutoCleanup
@@ -44,7 +44,7 @@ class Netty40ClientTest extends HttpClientTest {
   // Can't be @Shared otherwise field-injected classes get loaded too early.
   @AutoCleanup
   AsyncHttpClient proxiedAsyncHttpClient = asyncHttpClient(clientConfig
-    .setProxyServer(new ProxyServer.Builder("localhost", proxy.port).build()))
+  .setProxyServer(new ProxyServer.Builder("localhost", proxy.port).build()))
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
@@ -55,12 +55,12 @@ class Netty40ClientTest extends HttpClientTest {
     headers.each { requestBuilder.setHeader(it.key, it.value) }
     requestBuilder.setBody(body)
     def response = requestBuilder.execute(new AsyncCompletionHandler() {
-      @Override
-      Object onCompleted(Response response) throws Exception {
-        callback?.call()
-        return response
-      }
-    }).get()
+        @Override
+        Object onCompleted(Response response) throws Exception {
+          callback?.call()
+          return response
+        }
+      }).get()
     blockUntilChildSpansFinished(proxy ? 2 : 1)
     return response.statusCode
   }

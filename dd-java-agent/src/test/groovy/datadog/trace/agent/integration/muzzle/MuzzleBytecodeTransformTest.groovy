@@ -53,5 +53,4 @@ class MuzzleBytecodeTransformTest extends Specification {
     nonLazyFields == []
     unInitFields == []
   }
-
 }

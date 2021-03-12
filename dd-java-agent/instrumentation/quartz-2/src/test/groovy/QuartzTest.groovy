@@ -44,7 +44,7 @@ class QuartzTest extends AgentTestRunner {
     latch.await(10L, TimeUnit.SECONDS)
     assertTraces(1) {
       trace(1) {
-          jobSpan(it)
+        jobSpan(it)
       }
     }
 
