@@ -17,9 +17,6 @@ import static excludefilter.ExcludeFilterTestInstrumentation.NormalRunnable
 import static excludefilter.ExcludeFilterTestInstrumentation.RunnableExcludedCallable
 
 class ExcludeFilterForkedTest extends AgentTestRunner {
-  void configurePreAgent() {
-    injectSysConfig("dd.trace.legacy.context.field.injection", "false")
-  }
 
   def "test ExcludeFilter"() {
     expect:

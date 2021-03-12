@@ -31,9 +31,6 @@ import static context.FieldInjectionTestInstrumentation.ValidSerializableKeyClas
 import static org.junit.Assume.assumeTrue
 
 class FieldInjectionForkedTest extends AgentTestRunner {
-  void configurePreAgent() {
-    injectSysConfig("dd.trace.legacy.context.field.injection", "false")
-  }
 
   @Override
   void onDiscovery(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
@@ -220,7 +217,6 @@ class FieldInjectionForkedTest extends AgentTestRunner {
  */
 class FieldInjectionDisabledForkedTest extends AgentTestRunner {
   void configurePreAgent() {
-    injectSysConfig("dd.trace.legacy.context.field.injection", "false")
     injectSysConfig("dd.trace.runtime.context.field.injection", "false")
   }
 

@@ -16,7 +16,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_LEGACY_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
@@ -120,7 +119,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
@@ -292,7 +290,6 @@ public class Config {
   @Getter private final int partialFlushMinSpans;
   @Getter private final boolean traceStrictWritesEnabled;
   @Getter private final boolean runtimeContextFieldInjection;
-  @Getter private final boolean legacyContextFieldInjection;
   @Getter private final boolean serialVersionUIDFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
   @Getter private final Set<PropagationStyle> propagationStylesToInject;
@@ -571,9 +568,6 @@ public class Config {
     runtimeContextFieldInjection =
         configProvider.getBoolean(
             RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
-    legacyContextFieldInjection =
-        configProvider.getBoolean(
-            LEGACY_CONTEXT_FIELD_INJECTION, DEFAULT_LEGACY_CONTEXT_FIELD_INJECTION);
     serialVersionUIDFieldInjection =
         configProvider.getBoolean(
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
