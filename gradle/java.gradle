@@ -68,9 +68,6 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
   dependencies {
     compileOnly sourceSets."main_$name".compileClasspath
     compile sourceSets."main_$name".output
-
-    "main_${name}CompileOnly" "org.projectlombok:lombok:${project.lombok.version}" transitive false
-    "main_${name}AnnotationProcessor" "org.projectlombok:lombok:${project.lombok.version}" transitive false
   }
 
   jar {
@@ -110,14 +107,6 @@ java {
       }
     }
   }
-}
-
-apply plugin: "io.franzbecker.gradle-lombok"
-
-lombok {
-  // optional: values below are the defaults
-  version = versions.lombok
-  sha256 = ""
 }
 
 apply plugin: "eclipse"
