@@ -7,7 +7,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import jdk.jfr.EventType;
 import jdk.jfr.FlightRecorder;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A simple exception type histogram implementation.<br>
@@ -19,8 +20,9 @@ import lombok.extern.slf4j.Slf4j;
  * ExceptionHistogram#emit()} method at chunk end, as specified in {@linkplain ExceptionCountEvent}
  * class. This callback will then emit a number of {@linkplain ExceptionCountEvent} events.
  */
-@Slf4j
 public class ExceptionHistogram {
+
+  private static final Logger log = LoggerFactory.getLogger(ExceptionHistogram.class);
 
   static final String CLIPPED_ENTRY_TYPE_NAME = "TOO-MANY-EXCEPTIONS";
 

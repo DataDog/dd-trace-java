@@ -3,11 +3,13 @@ package datadog.trace.bootstrap;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Allocates {@link ContextStore} ids and keeps track of allocated stores. */
-@Slf4j
 public final class FieldBackedContextStores {
+
+  private static final Logger log = LoggerFactory.getLogger(FieldBackedContextStores.class);
 
   // provide fast lookup for a fixed number of stores
   public static final int FAST_STORE_ID_LIMIT = 32;

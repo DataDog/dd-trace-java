@@ -6,11 +6,13 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.context.TraceScope;
 import java.util.concurrent.Executor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utils for concurrent instrumentations. */
-@Slf4j
 public final class ExecutorInstrumentationUtils {
+
+  private static final Logger log = LoggerFactory.getLogger(ExecutorInstrumentationUtils.class);
 
   /**
    * Checks if given task should get state attached.

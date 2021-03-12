@@ -3,15 +3,18 @@ package datadog.trace.bootstrap;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A classloader which maintains a package index of isolated delegate classloaders, and delegates
  * class loads according to package. Loads classes itself according to package, but delegates
  * upwards when a class cannot be loaded.
  */
-@Slf4j
 public class DatadogClassLoader extends URLClassLoader {
+
+  private static final Logger log = LoggerFactory.getLogger(DatadogClassLoader.class);
+
   static {
     ClassLoader.registerAsParallelCapable();
   }

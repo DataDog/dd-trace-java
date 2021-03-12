@@ -9,13 +9,14 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** ContextPayload wraps context information shared between client and server */
-@Slf4j
 public class ContextPayload {
-  @Getter private final Map<String, String> context;
+
+  private static final Logger log = LoggerFactory.getLogger(ContextPayload.class);
+  private final Map<String, String> context;
   public static final InjectAdapter SETTER = new InjectAdapter();
 
   public ContextPayload() {
@@ -24,6 +25,10 @@ public class ContextPayload {
 
   public ContextPayload(final Map<String, String> context) {
     this.context = context;
+  }
+
+  public Map<String, String> getContext() {
+    return context;
   }
 
   public static ContextPayload from(final AgentSpan span) {

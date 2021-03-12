@@ -3,15 +3,17 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.context.TraceScope;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The {@link ConcurrentState} models a {@link State} where there can be multiple threads racing to
  * activate spans and close them all from the same continuation. Only one thread will actually
  * succeed and do meaningful work in that span, and then close the span and continuation properly.
  */
-@Slf4j
 public final class ConcurrentState {
+
+  private static final Logger log = LoggerFactory.getLogger(ConcurrentState.class);
 
   private static final class ContinuationClaim implements TraceScope.Continuation {
 

@@ -2,11 +2,13 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.context.TraceScope;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Helper utils for Runnable/Callable instrumentation */
-@Slf4j
 public class AdviceUtils {
+
+  private static final Logger log = LoggerFactory.getLogger(AdviceUtils.class);
 
   /**
    * Start scope for a given task
