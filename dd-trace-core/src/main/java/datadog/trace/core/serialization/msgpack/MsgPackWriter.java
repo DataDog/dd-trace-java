@@ -12,11 +12,13 @@ import datadog.trace.core.serialization.WritableFormatter;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Not thread-safe (use one per thread). */
-@Slf4j
 public class MsgPackWriter implements WritableFormatter {
+
+  private static final Logger log = LoggerFactory.getLogger(MsgPackWriter.class);
 
   // see https://github.com/msgpack/msgpack/blob/master/spec.md
   public static final byte NULL = (byte) 0xC0;

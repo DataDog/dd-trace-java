@@ -6,10 +6,12 @@ import datadog.trace.api.WellKnownTags;
 import datadog.trace.core.serialization.GrowableBuffer;
 import datadog.trace.core.serialization.WritableFormatter;
 import datadog.trace.core.serialization.msgpack.MsgPackWriter;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public final class SerializingMetricWriter implements MetricWriter {
+
+  private static final Logger log = LoggerFactory.getLogger(SerializingMetricWriter.class);
 
   private static final byte[] HOSTNAME = "Hostname".getBytes(ISO_8859_1);
   private static final byte[] NAME = "Name".getBytes(ISO_8859_1);

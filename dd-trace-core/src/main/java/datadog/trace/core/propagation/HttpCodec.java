@@ -10,10 +10,12 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class HttpCodec {
+
+  private static final Logger log = LoggerFactory.getLogger(HttpCodec.class);
   static final String FORWARDED_FOR_KEY = "x-forwarded-for";
   static final String FORWARDED_PORT_KEY = "x-forwarded-port";
 

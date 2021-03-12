@@ -8,7 +8,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.TreeMap;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A codec designed for HTTP transport via headers using B3 headers
@@ -17,8 +18,9 @@ import lombok.extern.slf4j.Slf4j;
  * especially in part where TagContext is handled. We may want to refactor that and avoid special
  * handling of TagContext in other places (i.e. CompoundExtractor).
  */
-@Slf4j
 class B3HttpCodec {
+
+  private static final Logger log = LoggerFactory.getLogger(B3HttpCodec.class);
 
   private static final String TRACE_ID_KEY = "X-B3-TraceId";
   private static final String SPAN_ID_KEY = "X-B3-SpanId";

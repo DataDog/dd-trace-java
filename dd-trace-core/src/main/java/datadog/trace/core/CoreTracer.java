@@ -56,15 +56,16 @@ import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
 import lombok.Builder;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Main entrypoint into the tracer implementation. In addition to implementing
  * datadog.trace.api.Tracer and TracerAPI, it coordinates many functions necessary creating,
  * reporting, and propagating traces
  */
-@Slf4j
 public class CoreTracer implements AgentTracer.TracerAPI {
+  private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
   // UINT64 max value
   public static final BigInteger TRACE_ID_MAX =
       BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);

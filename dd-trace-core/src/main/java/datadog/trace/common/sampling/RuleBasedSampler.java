@@ -10,10 +10,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class RuleBasedSampler<T extends CoreSpan<T>> implements Sampler<T>, PrioritySampler<T> {
+
+  private static final Logger log = LoggerFactory.getLogger(RuleBasedSampler.class);
   private final List<SamplingRule<T>> samplingRules;
   private final PrioritySampler<T> fallbackSampler;
   private final SimpleRateLimiter rateLimiter;

@@ -7,11 +7,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import java.util.TreeMap;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A codec designed for HTTP transport via headers using Datadog headers */
-@Slf4j
 class DatadogHttpCodec {
+  private static final Logger log = LoggerFactory.getLogger(DatadogHttpCodec.class);
 
   private static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
   private static final String TRACE_ID_KEY = "x-datadog-trace-id";

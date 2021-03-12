@@ -13,9 +13,10 @@ import datadog.trace.core.monitor.Recording;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Worker which applies rules to traces and serializes the results. Upon completion, the serialized
@@ -24,8 +25,9 @@ import org.jctools.queues.MpscBlockingConsumerArrayQueue;
  * <p>publishing to the buffer will not block the calling thread, but instead will return false if
  * the buffer is full. This is to avoid impacting an application thread.
  */
-@Slf4j
 public class TraceProcessingWorker implements AutoCloseable {
+
+  private static final Logger log = LoggerFactory.getLogger(TraceProcessingWorker.class);
 
   private final PrioritizationStrategy prioritizationStrategy;
   private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;

@@ -3,14 +3,16 @@ package datadog.trace.common.sampling;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.CoreTracer;
 import java.math.BigDecimal;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This implements the deterministic sampling algorithm used by the Datadog Agent as well as the
  * tracers for other languages
  */
-@Slf4j
 public class DeterministicSampler<T extends CoreSpan<T>> implements RateSampler<T> {
+
+  private static final Logger log = LoggerFactory.getLogger(DeterministicSampler.class);
   private static final long KNUTH_FACTOR = 1111111111111111111L;
 
   private final long cutoff; // pre-calculated for the unsigned 64 bit comparison

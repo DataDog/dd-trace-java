@@ -11,7 +11,8 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class implements the following data flow rules when a Span is finished:
@@ -31,8 +32,9 @@ import lombok.extern.slf4j.Slf4j;
  *
  * Delayed write is handled by PendingTraceBuffer. <br>
  */
-@Slf4j
 public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
+
+  private static final Logger log = LoggerFactory.getLogger(PendingTrace.class);
 
   static class Factory {
     private final CoreTracer tracer;

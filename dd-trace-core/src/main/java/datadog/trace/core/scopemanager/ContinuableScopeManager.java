@@ -17,7 +17,8 @@ import java.util.ArrayDeque;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The primary ScopeManager. This class has ownership of the core ThreadLocal containing the
@@ -25,8 +26,9 @@ import lombok.extern.slf4j.Slf4j;
  * from being reported even if all related spans are finished. It also delegates to other
  * ScopeInterceptors to provide additional functionality.
  */
-@Slf4j
 public class ContinuableScopeManager implements AgentScopeManager {
+
+  private static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
   final ThreadLocal<ScopeStack> tlsScopeStack =
       new ThreadLocal<ScopeStack>() {
         @Override
