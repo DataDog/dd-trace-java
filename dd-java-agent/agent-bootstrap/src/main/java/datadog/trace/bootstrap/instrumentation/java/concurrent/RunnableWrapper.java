@@ -1,14 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * This is used to wrap lambda runnables since currently we cannot instrument them
  *
  * <p>FIXME: We should remove this once https://github.com/raphw/byte-buddy/issues/558 is fixed
  */
-@Slf4j
 public final class RunnableWrapper implements Runnable {
 
   private final Runnable runnable;
