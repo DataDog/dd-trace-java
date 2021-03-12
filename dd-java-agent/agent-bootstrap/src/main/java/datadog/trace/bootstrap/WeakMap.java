@@ -1,11 +1,10 @@
 package datadog.trace.bootstrap;
 
 import datadog.trace.api.Function;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
+import lombok.extern.slf4j.Slf4j;
 
 public interface WeakMap<K, V> {
 

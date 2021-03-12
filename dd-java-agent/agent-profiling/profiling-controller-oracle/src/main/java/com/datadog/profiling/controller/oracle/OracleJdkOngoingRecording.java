@@ -7,10 +7,11 @@ import java.time.Instant;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.management.ObjectName;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class OracleJdkOngoingRecording implements OngoingRecording {
+  private static final Logger log = LoggerFactory.getLogger(OracleJdkOngoingRecording.class);
   private final String name;
   private final JfrMBeanHelper helper;
   private final ObjectName recordingId;

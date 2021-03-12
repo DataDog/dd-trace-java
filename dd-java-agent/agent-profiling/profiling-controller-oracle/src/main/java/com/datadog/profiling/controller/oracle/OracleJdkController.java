@@ -8,14 +8,15 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import javax.annotation.Nonnull;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is the implementation of the controller for Oracle JDK. It will work only for JDK 8 built
  * and distributed by Oracle.
  */
-@Slf4j
 public final class OracleJdkController implements Controller {
+  private static final Logger log = LoggerFactory.getLogger(OracleJdkController.class);
   static final int RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
   static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
 
