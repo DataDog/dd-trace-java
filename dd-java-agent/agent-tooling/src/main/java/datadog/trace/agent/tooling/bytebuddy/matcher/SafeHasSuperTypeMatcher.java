@@ -7,10 +7,11 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An element matcher that matches a super type. This is different from {@link
@@ -30,9 +31,10 @@ import net.bytebuddy.matcher.ElementMatcher;
  * @param <T> The type of the matched entity.
  * @see net.bytebuddy.matcher.HasSuperTypeMatcher
  */
-@Slf4j
 class SafeHasSuperTypeMatcher<T extends TypeDescription>
     extends ElementMatcher.Junction.AbstractBase<T> {
+
+  private static final Logger log = LoggerFactory.getLogger(SafeHasSuperTypeMatcher.class);
 
   /** The matcher to apply to any super type of the matched type. */
   private final ElementMatcher<? super TypeDescription.Generic> matcher;

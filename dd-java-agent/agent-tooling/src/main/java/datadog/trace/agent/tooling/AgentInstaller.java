@@ -29,9 +29,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class AgentInstaller {
+  private static final Logger log = LoggerFactory.getLogger(AgentInstaller.class);
   private static final boolean DEBUG = log.isDebugEnabled();
 
   private static final List<Runnable> LOG_MANAGER_CALLBACKS = new CopyOnWriteArrayList<>();

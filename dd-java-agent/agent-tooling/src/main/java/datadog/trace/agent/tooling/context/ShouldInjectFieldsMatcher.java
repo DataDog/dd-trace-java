@@ -14,14 +14,16 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.utility.JavaModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
+
+  private static final Logger log = LoggerFactory.getLogger(ShouldInjectFieldsMatcher.class);
 
   // this map will contain as many entries as there are unique
   // context store keys, so can't get very big
