@@ -44,6 +44,10 @@ public class DDAgentWriter implements Writer {
 
   private static final Logger log = LoggerFactory.getLogger(DDAgentWriter.class);
 
+  public static DDAgentWriterBuilder builder() {
+    return new DDAgentWriterBuilder();
+  }
+
   private static final int BUFFER_SIZE = 1024;
 
   private final DDAgentApi api;
@@ -67,10 +71,94 @@ public class DDAgentWriter implements Writer {
     Monitoring monitoring = Monitoring.DISABLED;
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
+
+    private DDAgentApi agentApi;
+    private Prioritization prioritization;
+    private DDAgentFeaturesDiscovery featureDiscovery;
+
+    public DDAgentWriterBuilder agentApi(DDAgentApi agentApi) {
+      this.agentApi = agentApi;
+      return this;
+    }
+
+    public DDAgentWriterBuilder agentHost(String agentHost) {
+      this.agentHost = agentHost;
+      return this;
+    }
+
+    public DDAgentWriterBuilder traceAgentPort(int traceAgentPort) {
+      this.traceAgentPort = traceAgentPort;
+      return this;
+    }
+
+    public DDAgentWriterBuilder unixDomainSocket(String unixDomainSocket) {
+      this.unixDomainSocket = unixDomainSocket;
+      return this;
+    }
+
+    public DDAgentWriterBuilder timeoutMillis(long timeoutMillis) {
+      this.timeoutMillis = timeoutMillis;
+      return this;
+    }
+
+    public DDAgentWriterBuilder traceBufferSize(int traceBufferSize) {
+      this.traceBufferSize = traceBufferSize;
+      return this;
+    }
+
+    public DDAgentWriterBuilder healthMetrics(HealthMetrics healthMetrics) {
+      this.healthMetrics = healthMetrics;
+      return this;
+    }
+
+    public DDAgentWriterBuilder flushFrequencySeconds(int flushFrequencySeconds) {
+      this.flushFrequencySeconds = flushFrequencySeconds;
+      return this;
+    }
+
+    public DDAgentWriterBuilder prioritization(Prioritization prioritization) {
+      this.prioritization = prioritization;
+      return this;
+    }
+
+    public DDAgentWriterBuilder monitoring(Monitoring monitoring) {
+      this.monitoring = monitoring;
+      return this;
+    }
+
+    public DDAgentWriterBuilder traceAgentV05Enabled(boolean traceAgentV05Enabled) {
+      this.traceAgentV05Enabled = traceAgentV05Enabled;
+      return this;
+    }
+
+    public DDAgentWriterBuilder metricsReportingEnabled(boolean metricsReportingEnabled) {
+      this.metricsReportingEnabled = metricsReportingEnabled;
+      return this;
+    }
+
+    public DDAgentWriterBuilder featureDiscovery(DDAgentFeaturesDiscovery featureDiscovery) {
+      this.featureDiscovery = featureDiscovery;
+      return this;
+    }
+
+    public DDAgentWriter build() {
+      return new DDAgentWriter(
+          agentApi,
+          agentHost,
+          traceAgentPort,
+          unixDomainSocket,
+          timeoutMillis,
+          traceBufferSize,
+          healthMetrics,
+          flushFrequencySeconds,
+          prioritization,
+          monitoring,
+          traceAgentV05Enabled,
+          metricsReportingEnabled,
+          featureDiscovery);
+    }
   }
 
-  @lombok.Builder
-  // These field names must be stable to ensure the builder api is stable.
   private DDAgentWriter(
       final DDAgentApi agentApi,
       final String agentHost,
