@@ -43,8 +43,6 @@ compileMain_java11Java.doFirst {
 }
 dependencies {
   main_java11CompileOnly project(':internal-api:internal-api-8')
-  main_java11CompileOnly "org.projectlombok:lombok:${project.lombok.version}" transitive false
-  main_java11AnnotationProcessor "org.projectlombok:lombok:${project.lombok.version}" transitive false
 }
 jar {
   from sourceSets.main_java11.output
