@@ -43,7 +43,6 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.ConnectionPool;
@@ -57,10 +56,13 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** The class for uploading profiles to the backend. */
-@Slf4j
 public final class ProfileUploader {
+
+  private static final Logger log = LoggerFactory.getLogger(ProfileUploader.class);
 
   private static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 

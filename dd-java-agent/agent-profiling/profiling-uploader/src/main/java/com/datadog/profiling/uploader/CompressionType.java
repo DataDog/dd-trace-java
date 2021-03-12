@@ -1,8 +1,8 @@
 package com.datadog.profiling.uploader;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 enum CompressionType {
   /** No compression */
   OFF,
@@ -12,6 +12,8 @@ enum CompressionType {
   LZ4,
   /** Better compression ratio for the price of higher CPU usage * */
   GZIP;
+
+  private static final Logger log = LoggerFactory.getLogger(CompressionType.class);
 
   static CompressionType of(String type) {
     if (type == null) {
