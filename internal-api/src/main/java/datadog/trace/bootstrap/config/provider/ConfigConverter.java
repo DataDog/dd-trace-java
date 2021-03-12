@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import lombok.NonNull;
 import lombok.SneakyThrows;
@@ -33,6 +34,7 @@ final class ConfigConverter {
    * @throws NumberFormatException
    */
   static <T> T valueOf(final String value, @NonNull final Class<T> tClass) {
+    Objects.requireNonNull(tClass, "tClass is marked non-null but is null");
     if (value == null || value.trim().isEmpty()) {
       return null;
     }
