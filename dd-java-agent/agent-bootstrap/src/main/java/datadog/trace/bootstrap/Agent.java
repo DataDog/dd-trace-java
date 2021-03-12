@@ -43,7 +43,6 @@ public class Agent {
 
   private static final int DEFAULT_JMX_FETCH_START_DELAY = 15; // seconds
 
-  // We cannot use lombok here because we need to configure logger first
   private static final Logger log;
 
   static {
