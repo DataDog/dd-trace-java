@@ -60,7 +60,7 @@ spotless {
   format 'xml', {
     toggleOffOn()
     target 'src/**/*.xml', 'src/**/*.xsd', 'gradle/**/*.xml', 'gradle/**/*.xsd', 'conf/**/*.xml', 'conf/**/*.xsd', 'application/**/*.xml', 'application/**/*.xsd'
-    targetExclude '**/build/**', '**/target/**'
+    targetExclude '**/build/**', '**/target/**', '**/logback.xml'
     trimTrailingWhitespace()
     endWithNewline()
     eclipseWtp('xml').configFile(configPath + '/enforcement/spotless-xml.properties')
