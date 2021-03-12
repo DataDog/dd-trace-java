@@ -1,9 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
-excludedClassesCoverage += [
-  // These classes are using only for testing
-  'com.datadog.profiling.testing.*',
-]
+excludedClassesCoverage += [// These classes are using only for testing
+  'com.datadog.profiling.testing.*',]
 
 dependencies {
   compile deps.guava

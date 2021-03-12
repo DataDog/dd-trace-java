@@ -57,8 +57,10 @@ class Config {
     config.securityEnabled = false
     config.persistenceEnabled = false
     config.setQueueConfigurations([new CoreQueueConfiguration("someQueue", "someQueue", null, true)])
-    config.setAcceptorConfigurations([new TransportConfiguration(NettyAcceptorFactory.name),
-                                      new TransportConfiguration(InVMAcceptorFactory.name)].toSet())
+    config.setAcceptorConfigurations([
+      new TransportConfiguration(NettyAcceptorFactory.name),
+      new TransportConfiguration(InVMAcceptorFactory.name)
+    ].toSet())
 
     server = HornetQServers.newHornetQServer(config)
     server.start()

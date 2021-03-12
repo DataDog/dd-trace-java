@@ -35,10 +35,7 @@ jar {
 }
 
 shadowJar {
-  configurations = [
-    project.configurations.compile,
-    project.configurations.main_java8Compile
-  ]
+  configurations = [project.configurations.compile, project.configurations.main_java8Compile]
 }
 
 dependencies {

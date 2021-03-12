@@ -17,11 +17,11 @@ class CustomClassloaderConfig {
   @Bean
   BeanFactoryPostProcessor postProcessor() {
     return new BeanFactoryPostProcessor() {
-      @Override
-      void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
-        beanFactory.setBeanClassLoader(new DatadogFilteringClassloader(this.getClass().getClassLoader()))
+        @Override
+        void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+          beanFactory.setBeanClassLoader(new DatadogFilteringClassloader(this.getClass().getClassLoader()))
+        }
       }
-    }
   }
 }
 
@@ -31,7 +31,7 @@ class DatadogFilteringClassloader extends URLClassLoader {
   }
 
   protected Class<?> loadClass(String className, boolean resolve)
-    throws ClassNotFoundException {
+  throws ClassNotFoundException {
     if (className.startsWith("datadog")) {
       throw new ClassNotFoundException()
     }

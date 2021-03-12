@@ -18,14 +18,14 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   private final long startTime
 
   SimpleSpan(String serviceName,
-             String operationName,
-             String resourceName,
-             String type,
-             boolean measured,
-             boolean topLevel,
-             boolean error,
-             long startTime,
-             long duration) {
+  String operationName,
+  String resourceName,
+  String type,
+  boolean measured,
+  boolean topLevel,
+  boolean error,
+  long startTime,
+  long duration) {
     this.serviceName = serviceName
     this.operationName = operationName
     this.resourceName = resourceName
@@ -189,7 +189,6 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   void processTagsAndBaggage(MetadataConsumer consumer) {
-
   }
 
   @Override

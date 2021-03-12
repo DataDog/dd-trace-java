@@ -110,35 +110,35 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     def t2EnvEnd
 
     final Thread thread1 = new Thread() {
-      @Override
-      void run() {
-        t1VersionBeg = get(Tags.DD_VERSION)
-        t1EnvBeg = get(Tags.DD_ENV)
-        // no trace in scope
-        thread1TraceId.set(get(CorrelationIdentifier.getTraceIdKey()))
-        t1VersionEnd = get(Tags.DD_VERSION)
-        t1EnvEnd = get(Tags.DD_ENV)
+        @Override
+        void run() {
+          t1VersionBeg = get(Tags.DD_VERSION)
+          t1EnvBeg = get(Tags.DD_ENV)
+          // no trace in scope
+          thread1TraceId.set(get(CorrelationIdentifier.getTraceIdKey()))
+          t1VersionEnd = get(Tags.DD_VERSION)
+          t1EnvEnd = get(Tags.DD_ENV)
+        }
       }
-    }
 
     final Thread thread2 = new Thread() {
-      @Override
-      void run() {
-        t2VersionBeg = get(Tags.DD_VERSION)
-        t2EnvBeg = get(Tags.DD_ENV)
-        // other trace in scope
-        final AgentSpan thread2Span = startSpan("root2")
-        final AgentScope thread2Scope = activateSpan(thread2Span)
-        try {
-          thread2TraceId.set(get(CorrelationIdentifier.getTraceIdKey()))
-        } finally {
-          thread2Scope.close()
-          thread2Span.finish()
+        @Override
+        void run() {
+          t2VersionBeg = get(Tags.DD_VERSION)
+          t2EnvBeg = get(Tags.DD_ENV)
+          // other trace in scope
+          final AgentSpan thread2Span = startSpan("root2")
+          final AgentScope thread2Scope = activateSpan(thread2Span)
+          try {
+            thread2TraceId.set(get(CorrelationIdentifier.getTraceIdKey()))
+          } finally {
+            thread2Scope.close()
+            thread2Span.finish()
+          }
+          t2VersionEnd = get(Tags.DD_VERSION)
+          t2EnvEnd = get(Tags.DD_ENV)
         }
-        t2VersionEnd = get(Tags.DD_VERSION)
-        t2EnvEnd = get(Tags.DD_ENV)
       }
-    }
     final AgentSpan mainSpan = startSpan("root")
     final AgentScope mainScope = activateSpan(mainSpan)
     thread1.start()
@@ -181,25 +181,25 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     def t1EnvEnd
 
     final Thread thread1 = new Thread() {
-      @Override
-      void run() {
-        t1VersionBeg = get(Tags.DD_VERSION)
-        t1EnvBeg = get(Tags.DD_ENV)
-        put("threadName", currentThread().getName())
+        @Override
+        void run() {
+          t1VersionBeg = get(Tags.DD_VERSION)
+          t1EnvBeg = get(Tags.DD_ENV)
+          put("threadName", currentThread().getName())
 
-        println("something: " + this)
+          println("something: " + this)
 
-        t1threadNameBeg = get("threadName")
-        remove("threadName")
+          t1threadNameBeg = get("threadName")
+          remove("threadName")
 
-        t1threadNameEnd = get("threadName")
-        t1VersionEnd = get(Tags.DD_VERSION)
-        t1EnvEnd = get(Tags.DD_ENV)
+          t1threadNameEnd = get("threadName")
+          t1VersionEnd = get(Tags.DD_VERSION)
+          t1EnvEnd = get(Tags.DD_ENV)
 
-        remove(Tags.DD_VERSION)
-        remove(Tags.DD_ENV)
+          remove(Tags.DD_VERSION)
+          remove(Tags.DD_ENV)
+        }
       }
-    }
     thread1.setName("thread1")
     thread1.start()
     put("threadName", Thread.currentThread().getName())
@@ -227,13 +227,13 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
   def "modify thread context after clear of context map at the beginning of new thread"() {
     def t1A
     final Thread thread1 = new Thread() {
-      @Override
-      void run() {
-        clear()
-        put("a", "a thread1")
-        t1A = get("a")
+        @Override
+        void run() {
+          clear()
+          put("a", "a thread1")
+          t1A = get("a")
+        }
       }
-    }
     thread1.start()
     thread1.join()
 

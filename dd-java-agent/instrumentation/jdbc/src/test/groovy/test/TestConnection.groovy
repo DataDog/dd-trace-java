@@ -51,7 +51,6 @@ class TestConnection implements Connection {
 
   @Override
   void setAutoCommit(boolean autoCommit) throws SQLException {
-
   }
 
   @Override
@@ -61,17 +60,14 @@ class TestConnection implements Connection {
 
   @Override
   void commit() throws SQLException {
-
   }
 
   @Override
   void rollback() throws SQLException {
-
   }
 
   @Override
   void close() throws SQLException {
-
   }
 
   @Override
@@ -86,7 +82,6 @@ class TestConnection implements Connection {
 
   @Override
   void setReadOnly(boolean readOnly) throws SQLException {
-
   }
 
   @Override
@@ -96,7 +91,6 @@ class TestConnection implements Connection {
 
   @Override
   void setCatalog(String catalog) throws SQLException {
-
   }
 
   @Override
@@ -106,7 +100,6 @@ class TestConnection implements Connection {
 
   @Override
   void setTransactionIsolation(int level) throws SQLException {
-
   }
 
   @Override
@@ -121,7 +114,6 @@ class TestConnection implements Connection {
 
   @Override
   void clearWarnings() throws SQLException {
-
   }
 
   @Override
@@ -146,12 +138,10 @@ class TestConnection implements Connection {
 
   @Override
   void setTypeMap(Map<String, Class<?>> map) throws SQLException {
-
   }
 
   @Override
   void setHoldability(int holdability) throws SQLException {
-
   }
 
   @Override
@@ -171,12 +161,10 @@ class TestConnection implements Connection {
 
   @Override
   void rollback(Savepoint savepoint) throws SQLException {
-
   }
 
   @Override
   void releaseSavepoint(Savepoint savepoint) throws SQLException {
-
   }
 
   @Override
@@ -236,12 +224,10 @@ class TestConnection implements Connection {
 
   @Override
   void setClientInfo(String name, String value) throws SQLClientInfoException {
-
   }
 
   @Override
   void setClientInfo(Properties properties) throws SQLClientInfoException {
-
   }
 
   @Override
@@ -266,7 +252,6 @@ class TestConnection implements Connection {
 
   @Override
   void setSchema(String schema) throws SQLException {
-
   }
 
   @Override
@@ -276,12 +261,10 @@ class TestConnection implements Connection {
 
   @Override
   void abort(Executor executor) throws SQLException {
-
   }
 
   @Override
   void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
-
   }
 
   @Override
