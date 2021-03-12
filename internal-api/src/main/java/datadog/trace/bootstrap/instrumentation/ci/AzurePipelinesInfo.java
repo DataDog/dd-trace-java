@@ -28,12 +28,8 @@ class AzurePipelinesInfo extends CIProviderInfo {
 
   @Override
   protected GitInfo buildCIGitInfo() {
-    return GitInfo.builder()
-        .repositoryURL(buildGitRepositoryUrl())
-        .branch(buildGitBranch())
-        .tag(buildGitTag())
-        .commit(CommitInfo.builder().sha(buildGitCommit()).build())
-        .build();
+    return new GitInfo(
+        buildGitRepositoryUrl(), buildGitBranch(), buildGitTag(), new CommitInfo(buildGitCommit()));
   }
 
   @Override

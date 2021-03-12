@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
-import lombok.NonNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public final class SystemPropertiesConfigSource extends ConfigProvider.Source {
   private static final String PREFIX = "dd.";

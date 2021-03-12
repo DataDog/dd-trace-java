@@ -23,12 +23,11 @@ class AppVeyorInfo extends CIProviderInfo {
   protected GitInfo buildCIGitInfo() {
     final String repoProvider = System.getenv(APPVEYOR_REPO_PROVIDER);
     final String tag = buildGitTag(repoProvider);
-    return GitInfo.builder()
-        .repositoryURL(buildGitRepositoryUrl(repoProvider, System.getenv(APPVEYOR_REPO_NAME)))
-        .branch(buildGitBranch(repoProvider, tag))
-        .tag(tag)
-        .commit(CommitInfo.builder().sha(buildGitCommit()).build())
-        .build();
+    return new GitInfo(
+        buildGitRepositoryUrl(repoProvider, System.getenv(APPVEYOR_REPO_NAME)),
+        buildGitBranch(repoProvider, tag),
+        tag,
+        new CommitInfo(buildGitCommit()));
   }
 
   @Override

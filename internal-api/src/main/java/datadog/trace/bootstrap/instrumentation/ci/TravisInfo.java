@@ -24,12 +24,11 @@ class TravisInfo extends CIProviderInfo {
   protected GitInfo buildCIGitInfo() {
     final String gitTag = normalizeRef(System.getenv(TRAVIS_GIT_TAG));
 
-    return GitInfo.builder()
-        .repositoryURL(buildGitRepositoryUrl())
-        .branch(buildGitBranch(gitTag))
-        .tag(gitTag)
-        .commit(CommitInfo.builder().sha(System.getenv(TRAVIS_GIT_COMMIT)).build())
-        .build();
+    return new GitInfo(
+        buildGitRepositoryUrl(),
+        buildGitBranch(gitTag),
+        gitTag,
+        new CommitInfo(System.getenv(TRAVIS_GIT_COMMIT)));
   }
 
   @Override

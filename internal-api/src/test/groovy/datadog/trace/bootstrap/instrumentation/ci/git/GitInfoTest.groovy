@@ -6,27 +6,12 @@ class GitInfoTest extends DDSpecification {
 
   def "test builder is returning correct object"() {
     when:
-    def gitInfo = GitInfo.builder()
-      .repositoryURL("https://some-host/some-user/some-repo.git")
-      .branch("some-branch")
-      .tag("some-tag")
-      .commit(CommitInfo.builder()
-      .sha("0000000000000000000000000000000000000000")
-      .fullMessage("some commit message\n")
-      .author(PersonInfo.builder()
-      .name("author-name")
-      .email("author@email.com")
-      .when(1614169397000)
-      .tzOffset(1)
-      .build())
-      .committer(PersonInfo.builder()
-      .name("committer-name")
-      .email("committer@email.com")
-      .when(1614169397000)
-      .tzOffset(1)
-      .build())
-      .build())
-      .build()
+    def gitInfo = new GitInfo("https://some-host/some-user/some-repo.git",
+      "some-branch", "some-tag", new CommitInfo(
+      "0000000000000000000000000000000000000000",
+      new PersonInfo("author-name", "author@email.com", 1614169397000, 1),
+      new PersonInfo("committer-name", "committer@email.com", 1614169397000, 1),
+      "some commit message\n"))
 
     then:
     gitInfo.repositoryURL == "https://some-host/some-user/some-repo.git"

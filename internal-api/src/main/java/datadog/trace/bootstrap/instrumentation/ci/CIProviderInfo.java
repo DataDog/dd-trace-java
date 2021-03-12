@@ -19,10 +19,7 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
+import java.util.Objects;
 
 @SuppressForbidden
 public abstract class CIProviderInfo {
@@ -296,12 +293,82 @@ public abstract class CIProviderInfo {
     }
   }
 
-  @Getter
-  @Builder
-  @EqualsAndHashCode
-  @ToString
   public static class CIInfo {
-    public static final CIInfo NOOP = CIInfo.builder().build();
+    public static final CIInfo NOOP = new CIInfo();
+
+    public static Builder builder() {
+      return new Builder();
+    }
+
+    public static final class Builder {
+      private String ciProviderName;
+      private String ciPipelineId;
+      private String ciPipelineName;
+      private String ciStageName;
+      private String ciJobName;
+      private String ciPipelineNumber;
+      private String ciPipelineUrl;
+      private String ciJobUrl;
+      private String ciWorkspace;
+
+      public Builder ciProviderName(String ciProviderName) {
+        this.ciProviderName = ciProviderName;
+        return this;
+      }
+
+      public Builder ciPipelineId(String ciPipelineId) {
+        this.ciPipelineId = ciPipelineId;
+        return this;
+      }
+
+      public Builder ciPipelineName(String ciPipelineName) {
+        this.ciPipelineName = ciPipelineName;
+        return this;
+      }
+
+      public Builder ciStageName(String ciStageName) {
+        this.ciStageName = ciStageName;
+        return this;
+      }
+
+      public Builder ciJobName(String ciJobName) {
+        this.ciJobName = ciJobName;
+        return this;
+      }
+
+      public Builder ciPipelineNumber(String ciPipelineNumber) {
+        this.ciPipelineNumber = ciPipelineNumber;
+        return this;
+      }
+
+      public Builder ciPipelineUrl(String ciPipelineUrl) {
+        this.ciPipelineUrl = ciPipelineUrl;
+        return this;
+      }
+
+      public Builder ciJobUrl(String ciJobUrl) {
+        this.ciJobUrl = ciJobUrl;
+        return this;
+      }
+
+      public Builder ciWorkspace(String ciWorkspace) {
+        this.ciWorkspace = ciWorkspace;
+        return this;
+      }
+
+      public CIInfo build() {
+        return new CIInfo(
+            ciProviderName,
+            ciPipelineId,
+            ciPipelineName,
+            ciStageName,
+            ciJobName,
+            ciPipelineNumber,
+            ciPipelineUrl,
+            ciJobUrl,
+            ciWorkspace);
+      }
+    }
 
     private final String ciProviderName;
     private final String ciPipelineId;
@@ -312,5 +379,129 @@ public abstract class CIProviderInfo {
     private final String ciPipelineUrl;
     private final String ciJobUrl;
     private final String ciWorkspace;
+
+    public CIInfo() {
+      this(null, null, null, null, null, null, null, null, null);
+    }
+
+    public CIInfo(
+        String ciProviderName,
+        String ciPipelineId,
+        String ciPipelineName,
+        String ciStageName,
+        String ciJobName,
+        String ciPipelineNumber,
+        String ciPipelineUrl,
+        String ciJobUrl,
+        String ciWorkspace) {
+      this.ciProviderName = ciProviderName;
+      this.ciPipelineId = ciPipelineId;
+      this.ciPipelineName = ciPipelineName;
+      this.ciStageName = ciStageName;
+      this.ciJobName = ciJobName;
+      this.ciPipelineNumber = ciPipelineNumber;
+      this.ciPipelineUrl = ciPipelineUrl;
+      this.ciJobUrl = ciJobUrl;
+      this.ciWorkspace = ciWorkspace;
+    }
+
+    public String getCiProviderName() {
+      return ciProviderName;
+    }
+
+    public String getCiPipelineId() {
+      return ciPipelineId;
+    }
+
+    public String getCiPipelineName() {
+      return ciPipelineName;
+    }
+
+    public String getCiStageName() {
+      return ciStageName;
+    }
+
+    public String getCiJobName() {
+      return ciJobName;
+    }
+
+    public String getCiPipelineNumber() {
+      return ciPipelineNumber;
+    }
+
+    public String getCiPipelineUrl() {
+      return ciPipelineUrl;
+    }
+
+    public String getCiJobUrl() {
+      return ciJobUrl;
+    }
+
+    public String getCiWorkspace() {
+      return ciWorkspace;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      CIInfo ciInfo = (CIInfo) o;
+      return Objects.equals(ciProviderName, ciInfo.ciProviderName)
+          && Objects.equals(ciPipelineId, ciInfo.ciPipelineId)
+          && Objects.equals(ciPipelineName, ciInfo.ciPipelineName)
+          && Objects.equals(ciStageName, ciInfo.ciStageName)
+          && Objects.equals(ciJobName, ciInfo.ciJobName)
+          && Objects.equals(ciPipelineNumber, ciInfo.ciPipelineNumber)
+          && Objects.equals(ciPipelineUrl, ciInfo.ciPipelineUrl)
+          && Objects.equals(ciJobUrl, ciInfo.ciJobUrl)
+          && Objects.equals(ciWorkspace, ciInfo.ciWorkspace);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(
+          ciProviderName,
+          ciPipelineId,
+          ciPipelineName,
+          ciStageName,
+          ciJobName,
+          ciPipelineNumber,
+          ciPipelineUrl,
+          ciJobUrl,
+          ciWorkspace);
+    }
+
+    @Override
+    public String toString() {
+      return "CIInfo{"
+          + "ciProviderName='"
+          + ciProviderName
+          + '\''
+          + ", ciPipelineId='"
+          + ciPipelineId
+          + '\''
+          + ", ciPipelineName='"
+          + ciPipelineName
+          + '\''
+          + ", ciStageName='"
+          + ciStageName
+          + '\''
+          + ", ciJobName='"
+          + ciJobName
+          + '\''
+          + ", ciPipelineNumber='"
+          + ciPipelineNumber
+          + '\''
+          + ", ciPipelineUrl='"
+          + ciPipelineUrl
+          + '\''
+          + ", ciJobUrl='"
+          + ciJobUrl
+          + '\''
+          + ", ciWorkspace='"
+          + ciWorkspace
+          + '\''
+          + '}';
+    }
   }
 }

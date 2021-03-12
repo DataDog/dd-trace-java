@@ -19,12 +19,11 @@ class GithubActionsInfo extends CIProviderInfo {
 
   @Override
   protected GitInfo buildCIGitInfo() {
-    return GitInfo.builder()
-        .repositoryURL(buildGitRepositoryUrl(System.getenv(GHACTIONS_REPOSITORY)))
-        .branch(buildGitBranch())
-        .tag(buildGitTag())
-        .commit(CommitInfo.builder().sha(System.getenv(GHACTIONS_SHA)).build())
-        .build();
+    return new GitInfo(
+        buildGitRepositoryUrl(System.getenv(GHACTIONS_REPOSITORY)),
+        buildGitBranch(),
+        buildGitTag(),
+        new CommitInfo(System.getenv(GHACTIONS_SHA)));
   }
 
   @Override
