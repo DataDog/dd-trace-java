@@ -63,8 +63,6 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
     targetCompatibility = version
   }
 
-  // Note: ideally lombok plugin would do this for us, but currently it doesn't support custom
-  // source sets. See https://github.com/franzbecker/gradle-lombok/issues/17.
   dependencies {
     compileOnly sourceSets."main_$name".compileClasspath
     compile sourceSets."main_$name".output
