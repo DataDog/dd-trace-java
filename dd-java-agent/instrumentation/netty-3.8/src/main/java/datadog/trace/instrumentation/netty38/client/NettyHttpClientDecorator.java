@@ -6,11 +6,9 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
-import lombok.extern.slf4j.Slf4j;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
-@Slf4j
 public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
   public static final CharSequence NETTY_CLIENT = UTF8BytesString.create("netty-client");
   public static final CharSequence NETTY_CLIENT_REQUEST =

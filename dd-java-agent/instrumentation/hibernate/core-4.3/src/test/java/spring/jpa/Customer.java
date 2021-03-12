@@ -4,9 +4,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import lombok.Data;
 
-@Data
 @Entity
 public class Customer {
 
@@ -22,6 +20,18 @@ public class Customer {
   public Customer(final String firstName, final String lastName) {
     this.firstName = firstName;
     this.lastName = lastName;
+  }
+
+  public Long getId() {
+    return id;
+  }
+
+  public String getFirstName() {
+    return firstName;
+  }
+
+  public String getLastName() {
+    return lastName;
   }
 
   @Override

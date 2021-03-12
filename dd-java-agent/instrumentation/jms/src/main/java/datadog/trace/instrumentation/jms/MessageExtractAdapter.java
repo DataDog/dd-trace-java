@@ -9,9 +9,7 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Enumeration;
 import javax.jms.JMSException;
 import javax.jms.Message;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 public class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
 
   @SuppressForbidden

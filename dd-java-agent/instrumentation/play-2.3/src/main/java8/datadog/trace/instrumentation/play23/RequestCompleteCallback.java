@@ -5,12 +5,14 @@ import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.DECOR
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import play.api.mvc.Result;
 import scala.util.Try;
 
-@Slf4j
 public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try<Result>, Object> {
+
+  private static final Logger log = LoggerFactory.getLogger(RequestCompleteCallback.class);
   private final AgentSpan span;
 
   public RequestCompleteCallback(final AgentSpan span) {

@@ -13,7 +13,6 @@ import akka.stream.scaladsl.Flow;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -52,7 +51,6 @@ import net.bytebuddy.matcher.ElementMatcher;
  * closed by cleanup code in the message processing instrumentation for the {@code Actor} and its
  * {@code Mailbox}.
  */
-@Slf4j
 @AutoService(Instrumenter.class)
 public final class AkkaHttpServerInstrumentation extends Instrumenter.Tracing {
   public AkkaHttpServerInstrumentation() {

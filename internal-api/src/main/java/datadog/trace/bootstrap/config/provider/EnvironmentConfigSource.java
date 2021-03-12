@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.config.provider;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.regex.Pattern;
-import lombok.NonNull;
 
 final class EnvironmentConfigSource extends ConfigProvider.Source {
   private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");

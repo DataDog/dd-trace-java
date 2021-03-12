@@ -8,13 +8,11 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.URI;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpInetConnection;
 import org.apache.http.HttpResponse;
 import org.apache.http.nio.NHttpServerConnection;
 import org.apache.synapse.transport.passthru.SourceRequest;
 
-@Slf4j
 public final class SynapseServerDecorator
     extends HttpServerDecorator<SourceRequest, NHttpServerConnection, HttpResponse> {
   public static final SynapseServerDecorator DECORATE = new SynapseServerDecorator();

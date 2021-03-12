@@ -10,11 +10,14 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Iterator;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
+
+  private static final Logger log = LoggerFactory.getLogger(TracingIterator.class);
+
   private final Iterator<ConsumerRecord<?, ?>> delegateIterator;
   private final CharSequence operationName;
   private final KafkaDecorator decorator;

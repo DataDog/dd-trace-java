@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.annotation.AnnotationSource;
 import net.bytebuddy.description.method.MethodDescription;
@@ -35,6 +34,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatcher.Junction;
 import net.bytebuddy.utility.JavaModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Built-in bytebuddy-based instrumentation for the datadog javaagent.
@@ -75,9 +76,9 @@ public interface Instrumenter {
    */
   boolean isApplicable(Set<TargetSystem> enabledSystems);
 
-  @Slf4j
   @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
   abstract class Default implements Instrumenter {
+    private static final Logger log = LoggerFactory.getLogger(Default.class);
     private static final ElementMatcher<ClassLoader> ANY_CLASS_LOADER = any();
 
     // Added here instead of AgentInstaller's ignores because it's relatively

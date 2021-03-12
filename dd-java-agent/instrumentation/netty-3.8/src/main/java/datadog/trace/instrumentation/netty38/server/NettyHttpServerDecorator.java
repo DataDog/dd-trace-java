@@ -9,12 +9,10 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
-import lombok.extern.slf4j.Slf4j;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
-@Slf4j
 public class NettyHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, Channel, HttpResponse> {
   public static final CharSequence NETTY = UTF8BytesString.create("netty");

@@ -15,13 +15,11 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Collections;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@Slf4j
 @AutoService(Instrumenter.class)
 public final class AkkaForkJoinPoolInstrumentation extends Instrumenter.Tracing {
 

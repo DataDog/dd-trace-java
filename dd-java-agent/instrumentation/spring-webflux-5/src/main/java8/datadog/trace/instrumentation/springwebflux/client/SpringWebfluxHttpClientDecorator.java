@@ -7,11 +7,9 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.net.URI;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 
-@Slf4j
 public class SpringWebfluxHttpClientDecorator
     extends HttpClientDecorator<ClientRequest, ClientResponse> {
 

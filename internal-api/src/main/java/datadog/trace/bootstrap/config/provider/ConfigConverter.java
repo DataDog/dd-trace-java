@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.config.provider;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -12,8 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
-import lombok.NonNull;
-import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -155,14 +154,13 @@ final class ConfigConverter {
   private static class ValueOfLookup extends ClassValue<MethodHandle> {
     private static final MethodHandles.Lookup PUBLIC_LOOKUP = MethodHandles.publicLookup();
 
-    @SneakyThrows
     @Override
     protected MethodHandle computeValue(Class<?> type) {
       try {
         return PUBLIC_LOOKUP.findStatic(type, "valueOf", MethodType.methodType(type, String.class));
       } catch (final NoSuchMethodException | IllegalAccessException e) {
         log.debug("Can't invoke or access 'valueOf': ", e);
-        throw e;
+        throw new RuntimeException(e);
       }
     }
   }
