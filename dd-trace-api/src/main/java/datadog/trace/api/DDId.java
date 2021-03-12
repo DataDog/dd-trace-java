@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Class encapsulating the unsigned 64 bit id used for Trace and Span ids.
@@ -11,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
  * representations. The decimal string representation is either kept from parsing, or generated on
  * demand and cached.
  */
-@Slf4j
 public class DDId {
 
   public static final DDId ZERO = new DDId(0, "0");
