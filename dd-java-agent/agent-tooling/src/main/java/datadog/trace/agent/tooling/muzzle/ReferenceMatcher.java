@@ -17,14 +17,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 
 /** Matches a set of references against a classloader. */
-@Slf4j
 public final class ReferenceMatcher {
   private static final Source[] EMPTY_SOURCES = new Source[0];
   private final WeakCache<ClassLoader, Boolean> mismatchCache = AgentTooling.newWeakCache();

@@ -9,7 +9,6 @@ import datadog.trace.api.Function;
 import datadog.trace.bootstrap.WeakCache;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentMap;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.annotation.AnnotationList;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.method.MethodList;
@@ -17,6 +16,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * NEW (Jan 2020) Custom Pool strategy.
@@ -41,8 +42,8 @@ import net.bytebuddy.pool.TypePool;
  * <p>Eviction is handled almost entirely through a size restriction; however, softValues are still
  * used as a further safeguard.
  */
-@Slf4j
 public class DDCachingPoolStrategy implements PoolStrategy {
+  private static final Logger log = LoggerFactory.getLogger(DDCachingPoolStrategy.class);
   // Many things are package visible for testing purposes --
   // others to avoid creation of synthetic accessors
 

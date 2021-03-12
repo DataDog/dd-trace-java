@@ -5,11 +5,13 @@ import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public final class ClassLoaderMatcher {
+
+  private static final Logger log = LoggerFactory.getLogger(ClassLoaderMatcher.class);
   public static final ClassLoader BOOTSTRAP_CLASSLOADER = null;
 
   /** A private constructor that must not be invoked. */

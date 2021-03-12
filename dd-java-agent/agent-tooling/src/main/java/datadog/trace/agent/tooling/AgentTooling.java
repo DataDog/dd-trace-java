@@ -7,15 +7,16 @@ import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.bootstrap.WeakCache.Provider;
 import datadog.trace.bootstrap.WeakMap;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class contains class references for objects shared by the agent installer as well as muzzle
  * (both compile and runtime). Extracted out from AgentInstaller to begin separating some of the
  * logic out.
  */
-@Slf4j
 public class AgentTooling {
+  private static final Logger log = LoggerFactory.getLogger(AgentTooling.class);
 
   static {
     // WeakMap is used by other classes below, so we need to register the provider first.

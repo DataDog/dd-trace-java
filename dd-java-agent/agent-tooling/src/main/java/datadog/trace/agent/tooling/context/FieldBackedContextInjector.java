@@ -11,7 +11,6 @@ import datadog.trace.bootstrap.FieldBackedContextStores;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.BitSet;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -27,10 +26,13 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Injects fields and accessors so the class can act as a surrogate {@link ContextStore}. */
-@Slf4j
 final class FieldBackedContextInjector implements AsmVisitorWrapper {
+
+  private static final Logger log = LoggerFactory.getLogger(FieldBackedContextInjector.class);
 
   static final String FIELD_BACKED_CONTEXT_STORES_CLASS =
       Utils.getInternalName(FieldBackedContextStores.class.getName());

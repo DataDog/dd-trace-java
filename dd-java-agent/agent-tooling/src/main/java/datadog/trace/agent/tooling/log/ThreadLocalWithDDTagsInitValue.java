@@ -3,14 +3,16 @@ package datadog.trace.agent.tooling.log;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @param <T> something like String to String map. DD tags will be injected in T only if T is
  *     instance of Map, or has T#put(String, Object) method, or putValue(String, Object) method.
  */
-@Slf4j
 public class ThreadLocalWithDDTagsInitValue<T> extends ThreadLocal<T> {
+
+  private static final Logger log = LoggerFactory.getLogger(ThreadLocalWithDDTagsInitValue.class);
   private static final String[] PUT_METHODS_POSSIBLE_NAMES_IN_ORDER =
       new String[] {"put", "putValue"};
 

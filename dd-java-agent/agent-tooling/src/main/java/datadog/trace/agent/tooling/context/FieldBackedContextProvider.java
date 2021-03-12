@@ -13,9 +13,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * InstrumentationContextProvider which stores context in a field that is injected into a class and
@@ -31,8 +32,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  *   <li>Delegating to weak-map if neither this class or superclass have a field for the context
  * </ol>
  */
-@Slf4j
 public final class FieldBackedContextProvider implements InstrumentationContextProvider {
+
+  private static final Logger log = LoggerFactory.getLogger(FieldBackedContextProvider.class);
 
   /*
    * Mapping from the instrumentations contextClassLoaderMatcher to a set of pairs (context holder, context class)

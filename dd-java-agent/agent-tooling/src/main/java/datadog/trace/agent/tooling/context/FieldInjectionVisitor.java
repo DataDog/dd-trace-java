@@ -7,7 +7,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -20,11 +19,14 @@ import net.bytebuddy.jar.asm.FieldVisitor;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.pool.TypePool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** @deprecated not used in the new field-injection strategy */
 @Deprecated
-@Slf4j
 final class FieldInjectionVisitor implements AsmVisitorWrapper {
+
+  private static final Logger log = LoggerFactory.getLogger(FieldInjectionVisitor.class);
 
   private static final String INJECTED_FIELDS_MARKER_CLASS_NAME =
       Utils.getInternalName(FieldBackedContextStoreAppliedMarker.class.getName());

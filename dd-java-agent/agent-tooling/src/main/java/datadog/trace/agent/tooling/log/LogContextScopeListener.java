@@ -11,14 +11,16 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A scope listener that receives the MDC/ThreadContext put and receive methods and update the trace
  * and span reference anytime a new scope is activated or closed.
  */
-@Slf4j
 public class LogContextScopeListener implements ScopeListener, WithGlobalTracer.Callback {
+
+  private static final Logger log = LoggerFactory.getLogger(LogContextScopeListener.class);
 
   public static void add(final String name, final Method putMethod, final Method removeMethod) {
     final LogContextScopeListener listener =
