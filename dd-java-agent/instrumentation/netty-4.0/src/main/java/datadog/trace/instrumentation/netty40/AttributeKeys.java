@@ -2,21 +2,17 @@ package datadog.trace.instrumentation.netty40;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 
-import datadog.trace.api.Function;
-import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
 import io.netty.util.AttributeKey;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-public class AttributeKeys {
-  private static final WeakMap<ClassLoader, ConcurrentMap<String, AttributeKey<?>>> map =
-      WeakMap.Implementation.DEFAULT.get();
-  private static final Function<ClassLoader, ConcurrentMap<String, AttributeKey<?>>> mapSupplier =
-      new Function<ClassLoader, ConcurrentMap<String, AttributeKey<?>>>() {
-        @Override
-        public ConcurrentMap<String, AttributeKey<?>> apply(final ClassLoader ignore) {
+public final class AttributeKeys {
+
+  private static final ClassValue<ConcurrentMap<String, AttributeKey<?>>> MAPS =
+      new ClassValue<ConcurrentMap<String, AttributeKey<?>>>() {
+        protected ConcurrentMap<String, AttributeKey<?>> computeValue(Class<?> ignore) {
           return new ConcurrentHashMap<>();
         }
       };
@@ -37,15 +33,17 @@ public class AttributeKeys {
    * while the Attribute class is loaded by a third class loader and used internally for the
    * cassandra driver.
    */
+  @SuppressWarnings("unchecked")
   private static <T> AttributeKey<T> attributeKey(final String key) {
-    final ConcurrentMap<String, AttributeKey<?>> classLoaderMap =
-        map.computeIfAbsent(AttributeKey.class.getClassLoader(), mapSupplier);
-    if (classLoaderMap.containsKey(key)) {
-      return (AttributeKey<T>) classLoaderMap.get(key);
+    ConcurrentMap<String, AttributeKey<?>> map = MAPS.get(AttributeKey.class);
+    AttributeKey<T> attributeKey = (AttributeKey<T>) map.get(key);
+    if (null == attributeKey) {
+      attributeKey = new AttributeKey<>(key);
+      AttributeKey<T> predecessor = (AttributeKey<T>) map.putIfAbsent(key, attributeKey);
+      if (null != predecessor) {
+        attributeKey = predecessor;
+      }
     }
-
-    final AttributeKey<T> value = new AttributeKey<>(key);
-    classLoaderMap.put(key, value);
-    return value;
+    return attributeKey;
   }
 }
