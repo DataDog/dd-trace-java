@@ -1,8 +1,5 @@
 package datadog.common.container;
 
-import lombok.Getter;
-
-@Getter
 public class ServerlessInfo {
   private static final String AWS_FUNCTION_VARIABLE = "AWS_LAMBDA_FUNCTION_NAME";
   private static final ServerlessInfo INSTANCE = new ServerlessInfo();
@@ -21,5 +18,9 @@ public class ServerlessInfo {
 
   public boolean isRunningInServerlessEnvironment() {
     return functionName != null && !functionName.isEmpty();
+  }
+
+  public String getFunctionName() {
+    return functionName;
   }
 }

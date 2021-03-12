@@ -11,19 +11,18 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Parses container information from /proc/self/cgroup. Implementation based largely on
  * Qard/container-info
  */
-@Getter
-@Setter
-@Slf4j
 @SuppressForbidden
 public class ContainerInfo {
+
+  private static final Logger log = LoggerFactory.getLogger(ContainerInfo.class);
+
   private static final Path CGROUP_DEFAULT_PROCFILE = Paths.get("/proc/self/cgroup");
   private static final String UUID_REGEX =
       "[0-9a-f]{8}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{12}";
@@ -42,6 +41,30 @@ public class ContainerInfo {
   public String podId;
   public List<CGroupInfo> cGroups = new ArrayList<>();
 
+  public String getContainerId() {
+    return containerId;
+  }
+
+  public void setContainerId(String containerId) {
+    this.containerId = containerId;
+  }
+
+  public String getPodId() {
+    return podId;
+  }
+
+  public void setPodId(String podId) {
+    this.podId = podId;
+  }
+
+  public List<CGroupInfo> getCGroups() {
+    return cGroups;
+  }
+
+  public void setcGroups(List<CGroupInfo> cGroups) {
+    this.cGroups = cGroups;
+  }
+
   static {
     ContainerInfo containerInfo = new ContainerInfo();
     if (ContainerInfo.isRunningInContainer()) {
@@ -55,14 +78,52 @@ public class ContainerInfo {
     INSTANCE = containerInfo;
   }
 
-  @Getter
-  @Setter
   public static class CGroupInfo {
     public int id;
     public String path;
     public List<String> controllers;
     public String containerId;
     public String podId;
+
+    public int getId() {
+      return id;
+    }
+
+    public void setId(int id) {
+      this.id = id;
+    }
+
+    public String getPath() {
+      return path;
+    }
+
+    public void setPath(String path) {
+      this.path = path;
+    }
+
+    public List<String> getControllers() {
+      return controllers;
+    }
+
+    public void setControllers(List<String> controllers) {
+      this.controllers = controllers;
+    }
+
+    public String getContainerId() {
+      return containerId;
+    }
+
+    public void setContainerId(String containerId) {
+      this.containerId = containerId;
+    }
+
+    public String getPodId() {
+      return podId;
+    }
+
+    public void setPodId(String podId) {
+      this.podId = podId;
+    }
   }
 
   public static ContainerInfo get() {
