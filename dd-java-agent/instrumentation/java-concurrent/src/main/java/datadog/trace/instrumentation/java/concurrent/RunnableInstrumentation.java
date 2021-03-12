@@ -17,14 +17,12 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instrument {@link Runnable} and {@Callable} */
-@Slf4j
 @AutoService(Instrumenter.class)
 public final class RunnableInstrumentation extends Instrumenter.Tracing {
 

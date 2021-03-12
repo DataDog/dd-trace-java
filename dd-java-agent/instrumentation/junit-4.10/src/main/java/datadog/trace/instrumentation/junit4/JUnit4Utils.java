@@ -2,12 +2,14 @@ package datadog.trace.instrumentation.junit4;
 
 import java.lang.reflect.Field;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public abstract class JUnit4Utils {
+
+  private static final Logger log = LoggerFactory.getLogger(JUnit4Utils.class);
 
   private static final String SYNCHRONIZED_LISTENER =
       "org.junit.runner.notification.SynchronizedRunListener";

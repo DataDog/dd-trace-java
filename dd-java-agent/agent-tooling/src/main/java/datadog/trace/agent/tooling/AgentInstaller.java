@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.description.type.TypeDefinition;
@@ -220,8 +219,9 @@ public class AgentInstaller {
     return matcher;
   }
 
-  @Slf4j
   static class RedefinitionLoggingListener implements AgentBuilder.RedefinitionStrategy.Listener {
+
+    private static final Logger log = LoggerFactory.getLogger(RedefinitionLoggingListener.class);
 
     @Override
     public void onBatch(final int index, final List<Class<?>> batch, final List<Class<?>> types) {}
@@ -246,8 +246,9 @@ public class AgentInstaller {
         final Map<List<Class<?>>, Throwable> failures) {}
   }
 
-  @Slf4j
   static class TransformLoggingListener implements AgentBuilder.Listener {
+
+    private static final Logger log = LoggerFactory.getLogger(TransformLoggingListener.class);
 
     @Override
     public void onError(

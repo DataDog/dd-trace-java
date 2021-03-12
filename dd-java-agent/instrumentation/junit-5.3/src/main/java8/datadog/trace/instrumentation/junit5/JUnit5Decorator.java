@@ -3,11 +3,9 @@ package datadog.trace.instrumentation.junit5;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 
-@Slf4j
 public class JUnit5Decorator extends TestDecorator {
 
   public static final JUnit5Decorator DECORATE = new JUnit5Decorator();

@@ -7,11 +7,14 @@ import static io.opentracing.log.Fields.MESSAGE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** The default implementation of the LogHandler. */
-@Slf4j
 public class DefaultLogHandler implements LogHandler {
+
+  private static final Logger log = LoggerFactory.getLogger(DefaultLogHandler.class);
+
   @Override
   public void log(final Map<String, ?> fields, final AgentSpan span) {
     extractError(fields, span);

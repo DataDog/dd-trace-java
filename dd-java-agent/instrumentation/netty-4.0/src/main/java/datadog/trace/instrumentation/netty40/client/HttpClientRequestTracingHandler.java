@@ -21,9 +21,7 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpRequest;
 import java.net.InetSocketAddress;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @ChannelHandler.Sharable
 public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapter {
   public static final HttpClientRequestTracingHandler INSTANCE =

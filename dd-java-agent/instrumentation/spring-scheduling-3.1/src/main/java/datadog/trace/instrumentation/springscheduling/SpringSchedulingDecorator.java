@@ -3,10 +3,8 @@ package datadog.trace.instrumentation.springscheduling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.support.ScheduledMethodRunnable;
 
-@Slf4j
 public class SpringSchedulingDecorator extends BaseDecorator {
   public static final CharSequence SCHEDULED_CALL = UTF8BytesString.create("scheduled.call");
   public static final SpringSchedulingDecorator DECORATE = new SpringSchedulingDecorator();

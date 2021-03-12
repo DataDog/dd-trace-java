@@ -11,7 +11,8 @@ import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.AnnotatedGenericBeanDefinition;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -19,8 +20,9 @@ import org.springframework.web.servlet.HandlerExecutionChain;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 
-@Slf4j
 public class HandlerMappingResourceNameFilter extends OncePerRequestFilter implements Ordered {
+
+  private static final Logger log = LoggerFactory.getLogger(HandlerMappingResourceNameFilter.class);
   private final List<HandlerMapping> handlerMappings = new CopyOnWriteArrayList<>();
 
   @Override

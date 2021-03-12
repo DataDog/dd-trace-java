@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator
 import datadog.trace.core.DDSpan
-import lombok.SneakyThrows
 
 import java.util.concurrent.Callable
 
@@ -28,7 +27,6 @@ class TraceUtils {
     }
   }
 
-  @SneakyThrows
   static <T> T runUnderTrace(final String rootOperationName, final Callable<T> r) {
     final AgentSpan span = startSpan(rootOperationName)
     DECORATOR.afterStart(span)
@@ -48,7 +46,6 @@ class TraceUtils {
     }
   }
 
-  @SneakyThrows
   static <T> void runnableUnderTrace(final String rootOperationName, final Runnable r) {
     runUnderTrace(rootOperationName, new Callable<T>() {
         @Override

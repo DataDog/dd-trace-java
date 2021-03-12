@@ -12,11 +12,13 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Decorate Twilio span's with relevant contextual information. */
-@Slf4j
 public class TwilioClientDecorator extends ClientDecorator {
+
+  private static final Logger log = LoggerFactory.getLogger(TwilioClientDecorator.class);
 
   public static final CharSequence TWILIO_SDK = UTF8BytesString.create("twilio.sdk");
 

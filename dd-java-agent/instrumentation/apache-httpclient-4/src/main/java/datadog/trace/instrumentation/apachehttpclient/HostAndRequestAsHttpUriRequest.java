@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.apachehttpclient;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import lombok.Getter;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
 import org.apache.http.ProtocolVersion;
@@ -11,13 +10,12 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.message.AbstractHttpMessage;
 
 /** Wraps HttpHost and HttpRequest into a HttpUriRequest for decorators and injectors */
-@Getter
 public class HostAndRequestAsHttpUriRequest extends AbstractHttpMessage implements HttpUriRequest {
 
   private final String method;
   private final RequestLine requestLine;
   private final ProtocolVersion protocolVersion;
-  private final java.net.URI URI;
+  private final java.net.URI uri;
 
   private final HttpRequest actualRequest;
 
@@ -33,7 +31,7 @@ public class HostAndRequestAsHttpUriRequest extends AbstractHttpMessage implemen
     } catch (final URISyntaxException e) {
       calculatedURI = null;
     }
-    URI = calculatedURI;
+    uri = calculatedURI;
     actualRequest = httpRequest;
   }
 
@@ -50,5 +48,29 @@ public class HostAndRequestAsHttpUriRequest extends AbstractHttpMessage implemen
   @Override
   public void addHeader(final String name, final String value) {
     actualRequest.addHeader(name, value);
+  }
+
+  @Override
+  public String getMethod() {
+    return method;
+  }
+
+  @Override
+  public RequestLine getRequestLine() {
+    return requestLine;
+  }
+
+  @Override
+  public ProtocolVersion getProtocolVersion() {
+    return protocolVersion;
+  }
+
+  @Override
+  public java.net.URI getURI() {
+    return uri;
+  }
+
+  public HttpRequest getActualRequest() {
+    return actualRequest;
   }
 }

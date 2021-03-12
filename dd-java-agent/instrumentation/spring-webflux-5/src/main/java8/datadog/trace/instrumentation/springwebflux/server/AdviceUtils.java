@@ -11,7 +11,6 @@ import datadog.trace.bootstrap.instrumentation.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Map;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -21,7 +20,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Operators;
 import reactor.util.context.Context;
 
-@Slf4j
 public class AdviceUtils {
 
   public static final String SPAN_ATTRIBUTE = "datadog.trace.instrumentation.springwebflux.Span";

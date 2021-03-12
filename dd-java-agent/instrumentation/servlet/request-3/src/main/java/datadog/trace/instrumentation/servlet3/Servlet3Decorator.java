@@ -7,9 +7,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 public class Servlet3Decorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");

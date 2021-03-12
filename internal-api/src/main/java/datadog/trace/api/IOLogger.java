@@ -1,8 +1,6 @@
 package datadog.trace.api;
 
 import java.util.concurrent.TimeUnit;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 
 /** Logger specialized on logging IO-related activity */
@@ -94,11 +92,27 @@ public class IOLogger {
     return hasLogged;
   }
 
-  @Getter
-  @RequiredArgsConstructor
   public static final class Response {
     private final int statusCode;
     private final String message;
     private final String body;
+
+    public Response(int statusCode, String message, String body) {
+      this.statusCode = statusCode;
+      this.message = message;
+      this.body = body;
+    }
+
+    public int getStatusCode() {
+      return statusCode;
+    }
+
+    public String getMessage() {
+      return message;
+    }
+
+    public String getBody() {
+      return body;
+    }
   }
 }

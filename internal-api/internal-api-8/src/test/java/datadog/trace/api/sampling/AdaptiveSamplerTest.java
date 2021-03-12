@@ -16,7 +16,6 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.IntSupplier;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.distribution.PoissonDistribution;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
@@ -28,6 +27,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test various hand crafted scenarios of events coming in different patterns. Test both, the
@@ -37,9 +38,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
  * can be run multiple times - the number of iteration is passed in in {@literal
  * com.datadog.profiling.exceptions.test-iterations} system property.
  */
-@Slf4j
 @ExtendWith(MockitoExtension.class)
 class AdaptiveSamplerTest {
+  private static final Logger log = LoggerFactory.getLogger(AdaptiveSamplerTest.class);
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
 
   /** Generates windows with numbers of events according to Poisson distribution */

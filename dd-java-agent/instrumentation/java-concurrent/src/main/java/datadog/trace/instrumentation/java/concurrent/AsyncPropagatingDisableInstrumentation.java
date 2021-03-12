@@ -13,7 +13,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
 import java.util.Map;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -26,7 +25,6 @@ import net.bytebuddy.matcher.ElementMatchers;
  * it can cause the trace to never be reported. Add matchers below to disable async propagation
  * during this period.
  */
-@Slf4j
 @AutoService(Instrumenter.class)
 public final class AsyncPropagatingDisableInstrumentation implements Instrumenter {
 

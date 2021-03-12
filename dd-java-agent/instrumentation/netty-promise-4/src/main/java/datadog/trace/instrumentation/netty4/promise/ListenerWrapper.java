@@ -10,9 +10,7 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.concurrent.GenericProgressiveFutureListener;
 import io.netty.util.concurrent.ProgressiveFuture;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 public final class ListenerWrapper {
 
   public static GenericFutureListener wrapIfNeeded(final GenericFutureListener listener) {

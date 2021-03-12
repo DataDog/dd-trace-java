@@ -7,7 +7,8 @@ import datadog.trace.api.Config;
 import datadog.trace.core.CoreSpan;
 import java.util.Map;
 import java.util.Properties;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Main interface to sample a collection of traces. */
 public interface Sampler<T extends CoreSpan<T>> {
@@ -20,8 +21,9 @@ public interface Sampler<T extends CoreSpan<T>> {
    */
   boolean sample(T span);
 
-  @Slf4j
   final class Builder {
+    private static final Logger log = LoggerFactory.getLogger(Builder.class);
+
     public static <T extends CoreSpan<T>> Sampler<T> forConfig(final Config config) {
       Sampler<T> sampler;
       if (config != null) {

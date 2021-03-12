@@ -12,9 +12,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 public class NettyHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, Channel, HttpResponse> {
   public static final CharSequence NETTY = UTF8BytesString.create("netty");

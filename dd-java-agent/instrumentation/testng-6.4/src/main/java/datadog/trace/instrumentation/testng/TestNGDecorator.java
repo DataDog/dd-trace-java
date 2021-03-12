@@ -3,10 +3,8 @@ package datadog.trace.instrumentation.testng;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
-import lombok.extern.slf4j.Slf4j;
 import org.testng.ITestResult;
 
-@Slf4j
 public class TestNGDecorator extends TestDecorator {
   public static final TestNGDecorator DECORATE = new TestNGDecorator();
 

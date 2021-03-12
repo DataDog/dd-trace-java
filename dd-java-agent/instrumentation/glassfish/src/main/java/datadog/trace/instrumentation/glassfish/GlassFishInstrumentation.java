@@ -9,7 +9,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.Constants;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -23,7 +22,6 @@ import net.bytebuddy.matcher.ElementMatcher;
  * class as a class (not a resource) will fail because the class is not even tried. We hook into the
  * blocking method to avoid specific namespaces to be blocked.
  */
-@Slf4j
 @AutoService(Instrumenter.class)
 public final class GlassFishInstrumentation extends Instrumenter.Tracing {
 

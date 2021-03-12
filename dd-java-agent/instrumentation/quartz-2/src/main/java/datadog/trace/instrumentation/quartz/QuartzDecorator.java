@@ -9,10 +9,8 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import lombok.extern.slf4j.Slf4j;
 import org.quartz.JobExecutionContext;
 
-@Slf4j
 public class QuartzDecorator extends BaseDecorator {
   public static final CharSequence SCHEDULED_CALL = UTF8BytesString.create("scheduled.call");
   public static final QuartzDecorator DECORATE = new QuartzDecorator();

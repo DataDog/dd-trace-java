@@ -19,14 +19,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.Future;
 
-@Slf4j
 @AutoService(Instrumenter.class)
 public final class AkkaHttpSingleRequestInstrumentation extends Instrumenter.Tracing {
   public AkkaHttpSingleRequestInstrumentation() {

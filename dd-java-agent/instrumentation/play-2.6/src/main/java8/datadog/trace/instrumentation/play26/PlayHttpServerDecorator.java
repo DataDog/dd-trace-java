@@ -11,7 +11,6 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.concurrent.CompletionException;
-import lombok.extern.slf4j.Slf4j;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
 import play.api.routing.HandlerDef;
@@ -19,7 +18,6 @@ import play.libs.typedmap.TypedKey;
 import play.routing.Router;
 import scala.Option;
 
-@Slf4j
 public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Request, Result> {
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
   public static final CharSequence PLAY_ACTION = UTF8BytesString.create("play-action");

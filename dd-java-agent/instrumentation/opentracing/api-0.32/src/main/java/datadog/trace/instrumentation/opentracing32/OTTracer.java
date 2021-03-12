@@ -15,10 +15,12 @@ import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapExtract;
 import io.opentracing.propagation.TextMapInject;
 import io.opentracing.tag.Tag;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class OTTracer implements Tracer {
+
+  private static final Logger log = LoggerFactory.getLogger(OTTracer.class);
 
   private final TypeConverter converter = new TypeConverter(new DefaultLogHandler());
   private final AgentTracer.TracerAPI tracer;

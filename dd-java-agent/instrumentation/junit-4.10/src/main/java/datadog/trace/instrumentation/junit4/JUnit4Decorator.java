@@ -4,11 +4,9 @@ import datadog.trace.api.DisableTestTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 
-@Slf4j
 public class JUnit4Decorator extends TestDecorator {
   public static final JUnit4Decorator DECORATE = new JUnit4Decorator();
 
