@@ -3,15 +3,24 @@ package datadog.trace.core;
 import datadog.trace.api.DDId;
 import java.util.Collections;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
+import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 @State(Scope.Benchmark)
+@Warmup(iterations = 4, time = 20)
+@Measurement(iterations = 5, time = 20)
+@BenchmarkMode(Mode.AverageTime)
+@Fork(1)
 public class PendingTraceWrite {
 
   CoreTracer tracer;

@@ -1,7 +1,9 @@
 stages:
   - ci-image
   - build
+  - test
   - deploy
+  - bench
 
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
@@ -37,11 +39,12 @@ build:
     - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
   artifacts:
     paths:
-      - 'workspace/dd-java-agent/build/libs/*.jar'
+      - 'workspace/*'
 
 copy_to_s3:
   <<: *common
   stage: deploy
+  needs: [build]
   image: $REGISTRY/ci/dd-trace-java:latest
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
@@ -56,6 +59,7 @@ copy_to_s3:
 deploy_to_bintray:
   <<: *gradle_build
   stage: deploy
+  needs: [build]
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
@@ -66,3 +70,24 @@ deploy_to_bintray:
   script:
     - export BINTRAY_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_api_key --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbintrayUser=$BINTRAY_USER -PbintrayApiKey=$BINTRAY_API_KEY -PbuildInfo.build.number=$CI_JOB_ID artifactoryPublish --max-workers=1 --build-cache --stacktrace --no-daemon
+
+env:
+  <<: *common
+  stage: test
+  needs: []
+  script:
+    - export
+    - pwd
+    - ls -la
+
+bench:
+  <<: *gradle_build
+  stage: bench
+  needs: [build]
+  when: manual
+  script:
+    - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M" ./gradlew :dd-trace-core:jmh --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+    - cat workspace/dd-trace-core/build/reports/jmh/human.txt
+  artifacts:
+    paths:
+      - 'workspace/dd-trace-core/build/reports/jmh/*'

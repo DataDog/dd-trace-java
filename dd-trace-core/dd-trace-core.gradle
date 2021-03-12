@@ -62,4 +62,9 @@ dependencies {
 jmh {
   jmhVersion = '1.28'
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  jvmArgs.add('-Dlogback.configurationFile=logback-jmh.xml')
+  timeUnit = 'ns'
+  humanOutputFile = project.file("${project.buildDir}/reports/jmh/human.txt")
+  resultsFile = project.file("${project.buildDir}/reports/jmh/results.json")
+  resultFormat = 'JSON'
 }

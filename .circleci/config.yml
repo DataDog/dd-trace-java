@@ -115,234 +115,230 @@ jobs:
             - workspace
 
       - save_cache:
-          key: dd-trace-java-v2-{{ .Branch }}-{{ .Revision }}
-          <<: *save_cache_paths
-
-      - save_cache:
           key: dd-trace-java-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}
           <<: *save_cache_paths
 
-  default_test_job: &default_test_job
-    <<: *defaults
-
-    docker:
-      - image: *default_container
-        # This is used by spymemcached instrumentation tests
-      - image: memcached
-        # This is used by rabbitmq instrumentation tests
-      - image: rabbitmq
-        # This is used by aerospike instrumentation tests
-      - image: aerospike
-        # This is used by mongodb smoke tests
-      - image: mongo
-        # This is used by jdbc tests
-      - image: mysql
-        environment:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_USER: sa
-          MYSQL_PASSWORD: sa
-          MYSQL_DATABASE: jdbcUnitTest
-        # This is used by jdbc tests
-      - image: postgres
-        environment:
-          POSTGRES_USER: sa
-          POSTGRES_PASSWORD: sa
-          POSTGRES_DB: jdbcUnitTest
-
-    parameters:
-      testTask:
-        type: string
-      prefixTestTask:
-        default: false
-        type: boolean
-
-    steps:
-      - setup_code
-
-      - restore_cache:
-          <<: *cache_keys
-
-      - run:
-          name: Run Tests
-          command: >-
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=6
-
-      - run:
-          name: Collect Reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - run:
-          name: Collect Test Results
-          when: always
-          command: .circleci/collect_results.sh
-
-      - store_test_results:
-          path: ./results
-
-  agent_integration_tests:
-    <<: *default_test_job
-    docker:
-      - image: *default_container
-      - image: datadog/agent:7.25.0
-        environment:
-          - DD_APM_ENABLED=true
-          - DD_BIND_HOST=0.0.0.0
-          - DD_API_KEY=invalid_key_but_this_is_fine
-          - DD_APM_FEATURES=client_stats
-
-  check:
-    <<: *defaults
-
-    steps:
-      - setup_code
-
-      - restore_cache:
-          <<: *cache_keys
-
-      - run:
-          name: Build Project
-          command: >-
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=2G -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew build -PskipTests
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=7
-
-      - run:
-          name: Test Published Dependencies
-          command: |
-            mvn_local_repo=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
-            rm -rf "${mvn_local_repo}/com/datadoghq"
-            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=2G -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew install << pipeline.parameters.gradle_flags >> --max-workers=7
-            cd test-published-dependencies
-            ../gradlew check
-
-      - run:
-          name: Collect Reports
-          when: always
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-  muzzle:
-    <<: *defaults
-    parallelism: 8
-    steps:
-      - setup_code
-
-      # We are not running with a separate cache of all muzzle artifacts here because it gets very big and
-      # ends up taking more time restoring/saving than the actual increase in time it takes just
-      # downloading the artifacts each time.
-      #
-      # Let's at least restore the build cache to have something to start from.
-      - restore_cache:
-          <<: *cache_keys
-
-      - run:
-          name: Gather muzzle tasks
-          command: >-
-            SKIP_BUILDSCAN="true"
-            ./gradlew writeMuzzleTasksToFile
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=8
-
-      - run:
-          name: Verify Muzzle
-          command: >-
-            SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
-            << pipeline.parameters.gradle_flags >>
-            --max-workers=16
-
-      - run:
-          name: Collect Reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - store_test_results:
-          path: workspace/build/muzzle-test-results
-
-workflows:
-  build_test_deploy:
-    jobs:
-      - build:
-          filters:
-            tags:
-              only: /.*/
-
-      - default_test_job:
-          requires:
-            - build
-          prefixTestTask: true
-          name: test_<< matrix.testTask >>
-          matrix:
-            parameters:
-              testTask: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15" ]
-          filters:
-            tags:
-              only: /.*/
-
-      - default_test_job:
-          requires:
-            - build
-          name: test_8
-          testTask: test jacocoTestReport jacocoTestCoverageVerification
-          filters:
-            tags:
-              only: /.*/
-
-      - default_test_job:
-          requires:
-            - build
-          name: test_latest8
-          testTask: latestDepTest
-          filters:
-            tags:
-              only: /.*/
-
-      - agent_integration_tests:
-          requires:
-            - build
-          testTask: traceAgentTest
-          filters:
-            tags:
-              only: /.*/
-
-      - check:
-          requires:
-            - build
-          filters:
-            tags:
-              only: /.*/
-
-      - muzzle:
-          requires:
-            - build
-          filters:
-            branches:
-              ignore: master
-
-  daily:
-    triggers:
-      - schedule:
-          # Run this job at 00:05 UTC daily
-          cron: "5 0 * * *"
-          filters:
-            branches:
-              only:
-                - master
-    jobs:
-      # This will rebuild a main cache with a new timestamp based on the cache for the last revision
-      - build
+#  default_test_job: &default_test_job
+#    <<: *defaults
+#
+#    docker:
+#      - image: *default_container
+#        # This is used by spymemcached instrumentation tests
+#      - image: memcached
+#        # This is used by rabbitmq instrumentation tests
+#      - image: rabbitmq
+#        # This is used by aerospike instrumentation tests
+#      - image: aerospike
+#        # This is used by mongodb smoke tests
+#      - image: mongo
+#        # This is used by jdbc tests
+#      - image: mysql
+#        environment:
+#          MYSQL_ROOT_PASSWORD: password
+#          MYSQL_USER: sa
+#          MYSQL_PASSWORD: sa
+#          MYSQL_DATABASE: jdbcUnitTest
+#        # This is used by jdbc tests
+#      - image: postgres
+#        environment:
+#          POSTGRES_USER: sa
+#          POSTGRES_PASSWORD: sa
+#          POSTGRES_DB: jdbcUnitTest
+#
+#    parameters:
+#      testTask:
+#        type: string
+#      prefixTestTask:
+#        default: false
+#        type: boolean
+#
+#    steps:
+#      - setup_code
+#
+#      - restore_cache:
+#          <<: *cache_keys
+#
+#      - run:
+#          name: Run Tests
+#          command: >-
+#            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=64M"
+#            ./gradlew <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
+#            << pipeline.parameters.gradle_flags >>
+#            --max-workers=6
+#
+#      - run:
+#          name: Collect Reports
+#          when: on_fail
+#          command: .circleci/collect_reports.sh
+#
+#      - store_artifacts:
+#          path: ./reports
+#
+#      - run:
+#          name: Collect Test Results
+#          when: always
+#          command: .circleci/collect_results.sh
+#
+#      - store_test_results:
+#          path: ./results
+#
+#  agent_integration_tests:
+#    <<: *default_test_job
+#    docker:
+#      - image: *default_container
+#      - image: datadog/agent:7.25.0
+#        environment:
+#          - DD_APM_ENABLED=true
+#          - DD_BIND_HOST=0.0.0.0
+#          - DD_API_KEY=invalid_key_but_this_is_fine
+#          - DD_APM_FEATURES=client_stats
+#
+#  check:
+#    <<: *defaults
+#
+#    steps:
+#      - setup_code
+#
+#      - restore_cache:
+#          <<: *cache_keys
+#
+#      - run:
+#          name: Build Project
+#          command: >-
+#            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=2G -Ddatadog.forkedMinHeapSize=64M"
+#            ./gradlew build -PskipTests
+#            << pipeline.parameters.gradle_flags >>
+#            --max-workers=7
+#
+#      - run:
+#          name: Test Published Dependencies
+#          command: |
+#            mvn_local_repo=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
+#            rm -rf "${mvn_local_repo}/com/datadoghq"
+#            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=2G -Ddatadog.forkedMinHeapSize=64M"
+#            ./gradlew install << pipeline.parameters.gradle_flags >> --max-workers=7
+#            cd test-published-dependencies
+#            ../gradlew check
+#
+#      - run:
+#          name: Collect Reports
+#          when: always
+#          command: .circleci/collect_reports.sh
+#
+#      - store_artifacts:
+#          path: ./reports
+#
+#  muzzle:
+#    <<: *defaults
+#    parallelism: 8
+#    steps:
+#      - setup_code
+#
+#      # We are not running with a separate cache of all muzzle artifacts here because it gets very big and
+#      # ends up taking more time restoring/saving than the actual increase in time it takes just
+#      # downloading the artifacts each time.
+#      #
+#      # Let's at least restore the build cache to have something to start from.
+#      - restore_cache:
+#          <<: *cache_keys
+#
+#      - run:
+#          name: Gather muzzle tasks
+#          command: >-
+#            SKIP_BUILDSCAN="true"
+#            ./gradlew writeMuzzleTasksToFile
+#            << pipeline.parameters.gradle_flags >>
+#            --max-workers=8
+#
+#      - run:
+#          name: Verify Muzzle
+#          command: >-
+#            SKIP_BUILDSCAN="true"
+#            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
+#            ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
+#            << pipeline.parameters.gradle_flags >>
+#            --max-workers=16
+#
+#      - run:
+#          name: Collect Reports
+#          when: on_fail
+#          command: .circleci/collect_reports.sh
+#
+#      - store_artifacts:
+#          path: ./reports
+#
+#      - store_test_results:
+#          path: workspace/build/muzzle-test-results
+#
+#workflows:
+#  build_test_deploy:
+#    jobs:
+#      - build:
+#          filters:
+#            tags:
+#              only: /.*/
+#
+#      - default_test_job:
+#          requires:
+#            - build
+#          prefixTestTask: true
+#          name: test_<< matrix.testTask >>
+#          matrix:
+#            parameters:
+#              testTask: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15" ]
+#          filters:
+#            tags:
+#              only: /.*/
+#
+#      - default_test_job:
+#          requires:
+#            - build
+#          name: test_8
+#          testTask: test jacocoTestReport jacocoTestCoverageVerification
+#          filters:
+#            tags:
+#              only: /.*/
+#
+#      - default_test_job:
+#          requires:
+#            - build
+#          name: test_latest8
+#          testTask: latestDepTest
+#          filters:
+#            tags:
+#              only: /.*/
+#
+#      - agent_integration_tests:
+#          requires:
+#            - build
+#          testTask: traceAgentTest
+#          filters:
+#            tags:
+#              only: /.*/
+#
+#      - check:
+#          requires:
+#            - build
+#          filters:
+#            tags:
+#              only: /.*/
+#
+#      - muzzle:
+#          requires:
+#            - build
+#          filters:
+#            branches:
+#              ignore: master
+#
+#  daily:
+#    triggers:
+#      - schedule:
+#          # Run this job at 00:05 UTC daily
+#          cron: "5 0 * * *"
+#          filters:
+#            branches:
+#              only:
+#                - master
+#    jobs:
+#      # This will rebuild a main cache with a new timestamp based on the cache for the last revision
+#      - build
