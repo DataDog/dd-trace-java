@@ -31,14 +31,16 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import lombok.Builder;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * DDTracer implements the <code>io.opentracing.Tracer</code> interface to make it easy to send
  * traces and spans to Datadog using the OpenTracing API.
  */
-@Slf4j
 public class DDTracer implements Tracer, datadog.trace.api.Tracer {
+
+  private static final Logger log = LoggerFactory.getLogger(DDTracer.class);
   private final TypeConverter converter;
   private final AgentTracer.TracerAPI tracer;
 

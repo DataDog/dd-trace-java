@@ -5,11 +5,13 @@ import datadog.opentracing.DDTracer;
 import datadog.trace.api.Config;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.tracerresolver.TracerResolver;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 @AutoService(TracerResolver.class)
 public class DDTracerResolver extends TracerResolver {
+
+  private static final Logger log = LoggerFactory.getLogger(DDTracerResolver.class);
 
   @Override
   protected Tracer resolve() {
