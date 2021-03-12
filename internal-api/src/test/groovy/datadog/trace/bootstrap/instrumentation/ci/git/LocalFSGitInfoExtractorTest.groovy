@@ -12,48 +12,28 @@ class LocalFSGitInfoExtractorTest extends DDSpecification {
   static gitInfoOneTag
 
   static {
-    gitInfoNoCommits = GitInfo.builder()
-      .repositoryURL("https://some-host/some-user/some-repo.git")
-      .branch("master")
-      .tag(null)
-      .commit(CommitInfo.NOOP)
-      .build()
+    gitInfoNoCommits = new GitInfo("https://some-host/some-user/some-repo.git",
+      "master", null, CommitInfo.NOOP)
 
-    gitInfoOneCommit = GitInfo.builder()
-      .repositoryURL("https://some-host/some-user/some-repo.git")
-      .branch("master")
-      .tag(null)
-      .commit(CommitInfo.builder()
-      .sha("0797c248e019314fc1d91a483e859b32f4509953")
-      .author(PersonInfo.builder().name("John Doe").email("john@doe.com").when(1613137668000L).tzOffset(60).build())
-      .committer(PersonInfo.builder().name("Jane Doe").email("jane@doe.com").when(1613137724000L).tzOffset(60).build())
-      .fullMessage("This is a commit message\n")
-      .build())
-      .build()
+    gitInfoOneCommit = new GitInfo("https://some-host/some-user/some-repo.git",
+      "master", null, new CommitInfo(
+      "0797c248e019314fc1d91a483e859b32f4509953",
+      new PersonInfo("John Doe", "john@doe.com", 1613137668000L, 60),
+      new PersonInfo("Jane Doe", "jane@doe.com", 1613137724000L, 60),
+      "This is a commit message\n"))
 
-    gitInfoOneCommitNoRef = GitInfo.builder()
-      .repositoryURL("https://some-host/some-user/some-repo.git")
-      .branch(null)
-      .tag(null)
-      .commit(CommitInfo.builder()
-      .sha("0797c248e019314fc1d91a483e859b32f4509953")
-      .author(PersonInfo.builder().name("John Doe").email("john@doe.com").when(1613137668000L).tzOffset(60).build())
-      .committer(PersonInfo.builder().name("Jane Doe").email("jane@doe.com").when(1613137724000L).tzOffset(60).build())
-      .fullMessage("This is a commit message\n")
-      .build())
-      .build()
+    gitInfoOneCommitNoRef = new GitInfo("https://some-host/some-user/some-repo.git",
+      null, null, new CommitInfo(
+      "0797c248e019314fc1d91a483e859b32f4509953",
+      new PersonInfo("John Doe", "john@doe.com", 1613137668000L, 60),
+      new PersonInfo("Jane Doe", "jane@doe.com", 1613137724000L, 60),
+      "This is a commit message\n"))
 
-    gitInfoOneTag = GitInfo.builder()
-      .repositoryURL("https://some-host/some-user/some-repo.git")
-      .branch(null)
-      .tag("1.0")
-      .commit(CommitInfo.builder()
-      .sha("643f93d12768105fa9bd1a548c767c4ea11f75d7")
-      .author(PersonInfo.builder().name("John Doe").email("john@doe.com").when(1613138422000L).tzOffset(60).build())
-      .committer(PersonInfo.builder().name("Jane Doe").email("jane@doe.com").when(1613138422000L).tzOffset(60).build())
-      .fullMessage("This is a commit message\n")
-      .build())
-      .build()
+    gitInfoOneTag = new GitInfo("https://some-host/some-user/some-repo.git",
+      null, "1.0", new CommitInfo("643f93d12768105fa9bd1a548c767c4ea11f75d7",
+      new PersonInfo("John Doe", "john@doe.com", 1613138422000L, 60),
+      new PersonInfo("Jane Doe", "jane@doe.com", 1613138422000L, 60),
+      "This is a commit message\n"))
   }
 
   def "test git info extraction for local fs"() {
@@ -102,8 +82,8 @@ class LocalFSGitInfoExtractorTest extends DDSpecification {
     def fullMessage = sut.getFullMessage(commitBytes)
 
     then:
-    author == PersonInfo.builder().name("A U Thor").email("author@xample.com").when(0L).tzOffset(0).build()
-    committer == PersonInfo.builder().name("A U Thor").email("committer@xample.com").when(0L).tzOffset(0).build()
+    author == new PersonInfo("A U Thor", "author@xample.com", 0L, 0)
+    committer == new PersonInfo("A U Thor", "committer@xample.com", 0L, 0)
     fullMessage == "commit message"
   }
 

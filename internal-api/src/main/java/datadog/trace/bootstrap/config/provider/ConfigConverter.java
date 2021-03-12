@@ -14,10 +14,12 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 import lombok.NonNull;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 final class ConfigConverter {
+
+  private static final Logger log = LoggerFactory.getLogger(ConfigConverter.class);
 
   private static final Pattern COMMA_SEPARATED =
       Pattern.compile("(([^,:]+:[^,:]*,)*([^,:]+:[^,:]*),?)?");

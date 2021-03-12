@@ -6,14 +6,12 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * The {@code CapturedEnvironment} instance keeps those {@code Config} values which are platform
  * dependant. Notice that this class must be consider internal. You should not depend on it
  * directly.
  */
-@Slf4j
 public class CapturedEnvironment {
 
   private static final CapturedEnvironment INSTANCE = new CapturedEnvironment();

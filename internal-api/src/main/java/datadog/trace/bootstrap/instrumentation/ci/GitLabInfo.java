@@ -25,12 +25,11 @@ class GitLabInfo extends CIProviderInfo {
 
   @Override
   protected GitInfo buildCIGitInfo() {
-    return GitInfo.builder()
-        .repositoryURL(filterSensitiveInfo(System.getenv(GITLAB_GIT_REPOSITORY_URL)))
-        .branch(normalizeRef(System.getenv(GITLAB_GIT_BRANCH)))
-        .tag(normalizeRef(System.getenv(GITLAB_GIT_TAG)))
-        .commit(CommitInfo.builder().sha(System.getenv(GITLAB_GIT_COMMIT)).build())
-        .build();
+    return new GitInfo(
+        filterSensitiveInfo(System.getenv(GITLAB_GIT_REPOSITORY_URL)),
+        normalizeRef(System.getenv(GITLAB_GIT_BRANCH)),
+        normalizeRef(System.getenv(GITLAB_GIT_TAG)),
+        new CommitInfo(System.getenv(GITLAB_GIT_COMMIT)));
   }
 
   @Override

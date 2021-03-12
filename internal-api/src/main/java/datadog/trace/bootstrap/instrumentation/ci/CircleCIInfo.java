@@ -21,12 +21,11 @@ class CircleCIInfo extends CIProviderInfo {
   @Override
   protected GitInfo buildCIGitInfo() {
     final String gitTag = normalizeRef(System.getenv(CIRCLECI_GIT_TAG));
-    return GitInfo.builder()
-        .repositoryURL(filterSensitiveInfo(System.getenv(CIRCLECI_GIT_REPOSITORY_URL)))
-        .branch(buildGitBranch(gitTag))
-        .tag(gitTag)
-        .commit(CommitInfo.builder().sha(System.getenv(CIRCLECI_GIT_COMMIT)).build())
-        .build();
+    return new GitInfo(
+        filterSensitiveInfo(System.getenv(CIRCLECI_GIT_REPOSITORY_URL)),
+        buildGitBranch(gitTag),
+        gitTag,
+        new CommitInfo(System.getenv(CIRCLECI_GIT_COMMIT)));
   }
 
   @Override

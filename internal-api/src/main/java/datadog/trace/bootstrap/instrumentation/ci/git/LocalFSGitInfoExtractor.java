@@ -53,12 +53,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       final String repositoryURL = extractRepositoryURL(gitFolderPath, branch);
       final CommitInfo commitInfo = findCommit(gitFolder, sha);
 
-      return GitInfo.builder()
-          .repositoryURL(repositoryURL)
-          .branch(branch)
-          .tag(tag)
-          .commit(commitInfo)
-          .build();
+      return new GitInfo(repositoryURL, branch, tag, commitInfo);
     } catch (final Exception e) {
       return GitInfo.NOOP;
     }
@@ -161,12 +156,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     final PersonInfo committer = getCommitter(content);
     final String fullMessage = getFullMessage(content);
 
-    return CommitInfo.builder()
-        .sha(sha)
-        .author(author)
-        .committer(committer)
-        .fullMessage(fullMessage)
-        .build();
+    return new CommitInfo(sha, author, committer, fullMessage);
   }
 
   private GitObject inflateGitObject(final byte[] bytes) throws DataFormatException {
@@ -210,11 +200,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       final byte[] content =
           Arrays.copyOfRange(decompressed, separatorIndex + 1, decompressed.length);
 
-      return GitObject.builder()
-          .type(metadata[TYPE_INDEX])
-          .size(Integer.parseInt(metadata[SIZE_INDEX]))
-          .content(content)
-          .build();
+      return new GitObject(metadata[TYPE_INDEX], Integer.parseInt(metadata[SIZE_INDEX]), content);
     } catch (final IOException e) {
       return GitObject.NOOP;
     }
@@ -327,18 +313,18 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     final int tzBegin = lastIndexOfTrim(raw, ' ', nextLF(raw, emailE - 1) - 2) + 1;
     if (tzBegin <= emailE) // No time/zone, still valid
     {
-      return PersonInfo.builder().name(name).email(email).when(0).tzOffset(0).build();
+      return new PersonInfo(name, email, 0, 0);
     }
 
     final int whenBegin = Math.max(emailE, lastIndexOfTrim(raw, ' ', tzBegin - 1) + 1);
     if (whenBegin >= tzBegin - 1) // No time/zone, still valid
     {
-      return PersonInfo.builder().name(name).email(email).when(0).tzOffset(0).build();
+      return new PersonInfo(name, email, 0, 0);
     }
 
     final long when = parseLongBase10(raw, whenBegin);
     final int tz = parseTimeZoneOffset(raw, tzBegin);
-    return PersonInfo.builder().name(name).email(email).when(when * 1000L).tzOffset(tz).build();
+    return new PersonInfo(name, email, when * 1000L, tz);
   }
 
   private String readFile(final Path filepath) throws IOException {
