@@ -591,6 +591,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   //FIXME: add tests for POST with large/chunked data
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
+    def exception = endpoint == CUSTOM_EXCEPTION ? InputMismatchException : expectedExceptionType()
     def errorMessage = endpoint?.body
     trace.span {
       serviceName expectedServiceName()
@@ -600,7 +601,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       childOfPrevious()
       tags {
         if (errorMessage) {
-          errorTags(endpoint == CUSTOM_EXCEPTION ? InputMismatchException : Exception, errorMessage)
+          errorTags(exception, errorMessage)
         }
         defaultTags()
       }
@@ -608,6 +609,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         defaultMetrics()
       }
     }
+  }
+
+  Class<? extends Exception> expectedExceptionType() {
+    return Exception
   }
 
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {

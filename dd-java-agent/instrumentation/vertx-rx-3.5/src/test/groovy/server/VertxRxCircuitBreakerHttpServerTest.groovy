@@ -123,7 +123,7 @@ class VertxRxCircuitBreakerHttpServerTest extends VertxHttpServerTest {
       }
       router.route(EXCEPTION.path).handler { ctx ->
         breaker.executeCommand({ future ->
-          future.fail(new Exception(EXCEPTION.body))
+          future.fail(new RuntimeException(EXCEPTION.body))
         }, {
           try {
             def cause = it.cause()

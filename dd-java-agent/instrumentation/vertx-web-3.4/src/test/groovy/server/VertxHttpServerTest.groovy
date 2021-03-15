@@ -72,6 +72,11 @@ class VertxHttpServerTest extends HttpServerTest<Vertx> {
     false
   }
 
+  @Override
+  Class<? extends Exception> expectedExceptionType() {
+    return RuntimeException
+  }
+
   boolean testExceptionTag() {
     true
   }
@@ -105,7 +110,7 @@ class VertxHttpServerTest extends HttpServerTest<Vertx> {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.HTTP_STATUS" Integer
         if (endpoint == EXCEPTION && this.testExceptionTag()) {
-          errorTags(Exception, EXCEPTION.body)
+          errorTags(RuntimeException, EXCEPTION.body)
         }
         defaultTags()
       }
@@ -143,7 +148,7 @@ class VertxChainingHttpServerTest extends VertxHttpServerTest {
         "$Tags.HTTP_STATUS" Integer
         "chain" true
         if (endpoint == EXCEPTION && this.testExceptionTag()) {
-          errorTags(Exception, EXCEPTION.body)
+          errorTags(RuntimeException, EXCEPTION.body)
         }
         defaultTags()
       }
