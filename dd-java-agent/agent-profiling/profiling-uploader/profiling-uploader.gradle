@@ -11,7 +11,12 @@ excludedClassesCoverage += [
   // This is just a static declaration that is hard to test
   'com.datadog.profiling.uploader.VersionInfo',
   // Large parts of this class are jvm specific which makes jacoco really confused since we run it only for 'default' jvm
-  'com.datadog.profiling.uploader.util.PidHelper'
+  'com.datadog.profiling.uploader.util.PidHelper',
+  // The byte counting input/output stream are delegating most of their methods so it does not make sense to force the coverage there
+  'com.datadog.profiling.uploader.ByteCountingInputStream',
+  'com.datadog.profiling.uploader.ByteCountingOutputStream',
+  // A call-back inner class holds few enough instructions to make not testing with different log levels to breach the jacoco limits
+  'com.datadog.profiling.uploader.ProfileUploader.1'
 ]
 
 dependencies {

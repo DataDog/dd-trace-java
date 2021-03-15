@@ -21,6 +21,18 @@ import org.openjdk.jmc.common.io.IOToolkit;
  * data.
  */
 final class CompressingRequestBody extends RequestBody {
+  /** A simple functional supplier throwing an {@linkplain IOException} */
+  @FunctionalInterface
+  interface InputStreamSupplier {
+    InputStream get() throws IOException;
+  }
+
+  /** A simple functional mapper allowing to throw {@linkplain IOException} */
+  @FunctionalInterface
+  interface OutputStreamMappingFunction {
+    OutputStream apply(OutputStream param) throws IOException;
+  }
+
   /**
    * A data upload retry policy. By using this policy it is possible to customize how many times the
    * data upload will be reattempted if the input data stream is unavailable.
@@ -60,6 +72,9 @@ final class CompressingRequestBody extends RequestBody {
   private final OutputStreamMappingFunction outputStreamMapper;
   private final RetryPolicy retryPolicy;
   private final RetryBackoff retryBackoff;
+
+  private long readBytes = 0;
+  private long writtenBytes = 0;
 
   /**
    * Create a new instance configured with 1 retry and constant 10ms backoff delay.
@@ -134,11 +149,16 @@ final class CompressingRequestBody extends RequestBody {
        * should use the OkHttpClient callback to get notified about failed requests and handle the retries
        * at the request level.
        */
-      try (InputStream inputStream = inputStreamSupplier.get()) {
+      try (ByteCountingInputStream inputStream =
+          new ByteCountingInputStream(inputStreamSupplier.get())) {
         // Got the input stream so clear the 'lastException'
         lastException = null;
         try {
-          attemptWrite(inputStream, bufferedSink);
+          ByteCountingOutputStream outputStream =
+              new ByteCountingOutputStream(bufferedSink.outputStream());
+          attemptWrite(inputStream, outputStream);
+          readBytes = inputStream.getReadBytes();
+          writtenBytes = outputStream.getWrittenBytes();
         } catch (Throwable t) {
           // Only the failures while obtaining the input stream are retriable.
           // Any failure during reading that input stream must make this write to fail as well.
@@ -170,32 +190,39 @@ final class CompressingRequestBody extends RequestBody {
     }
   }
 
-  private void attemptWrite(@Nonnull InputStream inputStream, @Nonnull BufferedSink bufferedSink)
+  long getReadBytes() {
+    return readBytes;
+  }
+
+  long getWrittenBytes() {
+    return writtenBytes;
+  }
+
+  private void attemptWrite(@Nonnull InputStream inputStream, @Nonnull OutputStream outputStream)
       throws IOException {
-    if (!isCompressed(inputStream)) {
-      OutputStream outputStream =
-          new BufferedOutputStream(
-              outputStreamMapper.apply(
-                  new BufferedOutputStream(bufferedSink.outputStream()) {
-                    @Override
-                    public void close() throws IOException {
-                      // Do not propagate close; call 'flush()' instead.
-                      // Compression streams must be 'closed' because they finalize the compression
-                      // in that method.
-                      flush();
-                    }
-                  }));
-      BufferedSink sink = Okio.buffer(Okio.sink(outputStream));
-      try (Source source = Okio.buffer(Okio.source(inputStream))) {
-        sink.writeAll(source);
-      }
-      // a bit of cargo-culting to make sure that all writes have really-really been flushed
-      sink.emit();
-      sink.flush();
-      outputStream.close();
-    } else {
-      bufferedSink.writeAll(Okio.buffer(Okio.source(inputStream)));
+    OutputStream sinkStream =
+        isCompressed(inputStream)
+            ? outputStream
+            : new BufferedOutputStream(
+                outputStreamMapper.apply(
+                    new BufferedOutputStream(outputStream) {
+                      @Override
+                      public void close() throws IOException {
+                        // Do not propagate close; call 'flush()' instead.
+                        // Compression streams must be 'closed' because they finalize the
+                        // compression
+                        // in that method.
+                        flush();
+                      }
+                    }));
+    BufferedSink sink = Okio.buffer(Okio.sink(sinkStream));
+    try (Source source = Okio.buffer(Okio.source(inputStream))) {
+      sink.writeAll(source);
     }
+    // a bit of cargo-culting to make sure that all writes have really-really been flushed
+    sink.emit();
+    sink.flush();
+    sinkStream.close();
   }
 
   /**

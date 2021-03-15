@@ -41,7 +41,8 @@ class CompressingRequestBodyTest {
   @EnumSource(CompressionType.class)
   void contentLength(CompressionType compressionType) throws Exception {
     CompressingRequestBody instance =
-        new CompressingRequestBody(compressionType, mock(InputStreamSupplier.class));
+        new CompressingRequestBody(
+            compressionType, mock(CompressingRequestBody.InputStreamSupplier.class));
     assertEquals(-1, instance.contentLength());
   }
 
@@ -49,7 +50,8 @@ class CompressingRequestBodyTest {
   @EnumSource(CompressionType.class)
   void contentType(CompressionType compressionType) {
     CompressingRequestBody instance =
-        new CompressingRequestBody(compressionType, mock(InputStreamSupplier.class));
+        new CompressingRequestBody(
+            compressionType, mock(CompressingRequestBody.InputStreamSupplier.class));
     assertEquals(CompressingRequestBody.OCTET_STREAM, instance.contentType());
   }
 
@@ -69,7 +71,8 @@ class CompressingRequestBodyTest {
         faultyStreamSupplier(expectedRetries), 0); // faulty stream is not retried
   }
 
-  private void assertWriteToRecoverable(InputStreamSupplier faultySupplier, int expectedRetries)
+  private void assertWriteToRecoverable(
+      CompressingRequestBody.InputStreamSupplier faultySupplier, int expectedRetries)
       throws Exception {
     CompressingRequestBody instance =
         new CompressingRequestBody(CompressionType.OFF, faultySupplier, r -> r <= expectedRetries);
@@ -77,19 +80,26 @@ class CompressingRequestBodyTest {
     assertArrayEquals(recordingData, compressed);
 
     verify(faultySupplier, VerificationModeFactory.times(expectedRetries + 1)).get();
+    assertEquals(recordingData.length, instance.getReadBytes());
+    assertEquals(recordingData.length, instance.getWrittenBytes());
   }
 
   private void assertWriteToRetryIrrecoverable(
-      InputStreamSupplier faultySupplier, int expectedRetries) throws Exception {
+      CompressingRequestBody.InputStreamSupplier faultySupplier, int expectedRetries)
+      throws Exception {
     CompressingRequestBody instance =
         new CompressingRequestBody(CompressionType.OFF, faultySupplier, r -> r <= expectedRetries);
     assertThrows(IOException.class, () -> instanceWriteAsBytes(instance));
 
     verify(faultySupplier, VerificationModeFactory.times(expectedRetries + 1)).get();
+    assertEquals(0, instance.getReadBytes());
+    assertEquals(0, instance.getWrittenBytes());
   }
 
-  private InputStreamSupplier faultySupplier(int failingAttempts) throws Exception {
-    InputStreamSupplier supplier = mock(InputStreamSupplier.class);
+  private CompressingRequestBody.InputStreamSupplier faultySupplier(int failingAttempts)
+      throws Exception {
+    CompressingRequestBody.InputStreamSupplier supplier =
+        mock(CompressingRequestBody.InputStreamSupplier.class);
     AtomicInteger invocationCounter = new AtomicInteger(failingAttempts);
     when(supplier.get())
         .then(
@@ -103,8 +113,10 @@ class CompressingRequestBodyTest {
     return supplier;
   }
 
-  private InputStreamSupplier faultyStreamSupplier(int failingAttempts) throws Exception {
-    InputStreamSupplier supplier = mock(InputStreamSupplier.class);
+  private CompressingRequestBody.InputStreamSupplier faultyStreamSupplier(int failingAttempts)
+      throws Exception {
+    CompressingRequestBody.InputStreamSupplier supplier =
+        mock(CompressingRequestBody.InputStreamSupplier.class);
     AtomicInteger invocationCounter = new AtomicInteger(failingAttempts);
 
     when(supplier.get())
@@ -150,6 +162,8 @@ class CompressingRequestBodyTest {
         {
           assertFalse(CompressingRequestBody.isCompressed(compressedStream));
           assertArrayEquals(recordingData, compressed);
+          assertEquals(recordingData.length, instance.getReadBytes());
+          assertEquals(recordingData.length, instance.getWrittenBytes());
           break;
         }
       case LZ4:
@@ -158,6 +172,8 @@ class CompressingRequestBodyTest {
           assertTrue(CompressingRequestBody.isLz4(compressedStream));
           byte[] uncompressed = IOUtils.toByteArray(new LZ4FrameInputStream(compressedStream));
           assertArrayEquals(recordingData, uncompressed);
+          assertEquals(recordingData.length, instance.getReadBytes());
+          assertEquals(compressed.length, instance.getWrittenBytes());
           break;
         }
       case GZIP:
@@ -165,6 +181,8 @@ class CompressingRequestBodyTest {
           assertTrue(CompressingRequestBody.isGzip(compressedStream));
           byte[] uncompressed = IOUtils.toByteArray(new GZIPInputStream(compressedStream));
           assertArrayEquals(recordingData, uncompressed);
+          assertEquals(recordingData.length, instance.getReadBytes());
+          assertEquals(compressed.length, instance.getWrittenBytes());
           break;
         }
     }

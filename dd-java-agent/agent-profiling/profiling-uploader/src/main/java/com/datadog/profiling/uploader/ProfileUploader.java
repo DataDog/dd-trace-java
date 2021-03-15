@@ -30,9 +30,7 @@ import java.io.InterruptedIOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
-import java.util.ArrayDeque;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -150,7 +148,6 @@ public final class ProfileUploader {
 
   static final int SEED_EXPECTED_REQUEST_SIZE = 2 * 1024 * 1024; // 2MB;
   static final int REQUEST_SIZE_HISTORY_SIZE = 10;
-  static final double REQUEST_SIZE_COEFFICIENT = 1.2;
 
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
@@ -162,7 +159,6 @@ public final class ProfileUploader {
   private final int terminationTimeout;
   private final List<String> tags;
   private final CompressionType compressionType;
-  private final Deque<Integer> requestSizeHistory;
 
   public ProfileUploader(final Config config) throws IOException {
     this(config, new IOLogger(log), ContainerInfo.get().getContainerId(), TERMINATION_TIMEOUT);
@@ -265,9 +261,6 @@ public final class ProfileUploader {
     client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
 
     compressionType = CompressionType.of(config.getProfilingUploadCompression());
-
-    requestSizeHistory = new ArrayDeque<>(REQUEST_SIZE_HISTORY_SIZE);
-    requestSizeHistory.add(SEED_EXPECTED_REQUEST_SIZE);
   }
 
   /**
@@ -289,24 +282,19 @@ public final class ProfileUploader {
    * @param onCompletion call-back to execute once the request is completed (successfully or
    *     failing)
    */
-  public void upload(final RecordingType type, final RecordingData data, Runnable onCompletion) {
-    try {
-      if (canEnqueueMoreRequests()) {
-        makeUploadRequest(
-            type,
-            data,
-            () -> {
-              data.release();
-              if (onCompletion != null) {
-                onCompletion.run();
-              }
-            });
-        return;
-      } else {
-        log.warn("Cannot upload profile data: too many enqueued requests!");
-      }
-    } catch (final IllegalStateException | IOException e) {
-      log.warn("Problem uploading profile!", e);
+  public void upload(
+      final RecordingType type, final RecordingData data, @Nonnull Runnable onCompletion) {
+    if (canEnqueueMoreRequests()) {
+      makeUploadRequest(
+          type,
+          data,
+          () -> {
+            data.release();
+            onCompletion.run();
+          });
+      return;
+    } else {
+      log.warn("Cannot upload profile data: too many enqueued requests!");
     }
     // the request was not made; release the recording data
     data.release();
@@ -335,21 +323,10 @@ public final class ProfileUploader {
   private void makeUploadRequest(
       @Nonnull final RecordingType type,
       @Nonnull final RecordingData data,
-      @Nonnull Runnable onCompletion)
-      throws IOException {
-    final int expectedRequestSize = getExpectedRequestSize();
-    final RequestBody body = new CompressingRequestBody(compressionType, data::getStream);
-    if (log.isDebugEnabled()) {
-      log.debug(
-          "Uploading profile {} [{}] (Size={}/{} bytes)",
-          data.getName(),
-          type,
-          body.contentLength(),
-          expectedRequestSize);
-    }
+      @Nonnull Runnable onCompletion) {
 
-    // The body data is stored in byte array so we naturally get size limit that will fit into int
-    updateUploadSizesHistory((int) body.contentLength());
+    final CompressingRequestBody body =
+        new CompressingRequestBody(compressionType, data::getStream);
 
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder()
@@ -369,6 +346,8 @@ public final class ProfileUploader {
     final Request.Builder requestBuilder =
         new Request.Builder()
             .url(url)
+            // Set chunked transfer
+            .addHeader("Transfer-Encoding", "chunked")
             // Note: this header is used to disable tracing of profiling requests
             .addHeader(DATADOG_META_LANG, JAVA_LANG)
             .post(requestBody);
@@ -381,45 +360,36 @@ public final class ProfileUploader {
     if (containerId != null) {
       requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
     }
-    requestBuilder.addHeader("Transfer-Encoding", "chunked");
     client
         .newCall(requestBuilder.build())
         .enqueue(
             new Callback() {
               @Override
               public void onFailure(Call call, IOException e) {
+                logDebug("Failed to upload profile");
                 responseCallback.onFailure(call, e);
                 onCompletion.run();
               }
 
               @Override
               public void onResponse(Call call, Response response) throws IOException {
+                logDebug("Uploaded profile");
                 responseCallback.onResponse(call, response);
                 onCompletion.run();
               }
+
+              private void logDebug(String msg) {
+                if (log.isDebugEnabled()) {
+                  log.debug(
+                      "{} {} [{}] (Size={}/{} bytes)",
+                      msg,
+                      data.getName(),
+                      type,
+                      body.getReadBytes(),
+                      body.getWrittenBytes());
+                }
+              }
             });
-  }
-
-  private int getExpectedRequestSize() {
-    synchronized (requestSizeHistory) {
-      // We have added seed value, so history cannot be empty
-      int size = 0;
-      for (final int s : requestSizeHistory) {
-        if (s > size) {
-          size = s;
-        }
-      }
-      return (int) (size * REQUEST_SIZE_COEFFICIENT);
-    }
-  }
-
-  private void updateUploadSizesHistory(final int newSize) {
-    synchronized (requestSizeHistory) {
-      while (requestSizeHistory.size() >= REQUEST_SIZE_HISTORY_SIZE) {
-        requestSizeHistory.removeLast();
-      }
-      requestSizeHistory.offerFirst(newSize);
-    }
   }
 
   private boolean canEnqueueMoreRequests() {
