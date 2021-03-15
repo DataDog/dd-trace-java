@@ -41,6 +41,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -269,10 +270,25 @@ public final class ProfileUploader {
     requestSizeHistory.add(SEED_EXPECTED_REQUEST_SIZE);
   }
 
+  /**
+   * Enqueue an upload request. Do not receive any notification when the upload has been completed.
+   *
+   * @param type {@link RecordingType recording type}
+   * @param data {@link RecordingData recording data}
+   */
   public void upload(final RecordingType type, final RecordingData data) {
     upload(type, data, () -> {});
   }
 
+  /**
+   * Enqueue an upload request and run the provided hook when that request is completed
+   * (successfully or failing).
+   *
+   * @param type {@link RecordingType recording type}
+   * @param data {@link RecordingData recording data}
+   * @param onCompletion call-back to execute once the request is completed (successfully or
+   *     failing)
+   */
   public void upload(final RecordingType type, final RecordingData data, Runnable onCompletion) {
     try {
       if (canEnqueueMoreRequests()) {
@@ -281,7 +297,9 @@ public final class ProfileUploader {
             data,
             () -> {
               data.release();
-              onCompletion.run();
+              if (onCompletion != null) {
+                onCompletion.run();
+              }
             });
         return;
       } else {
@@ -315,14 +333,11 @@ public final class ProfileUploader {
   }
 
   private void makeUploadRequest(
-      final RecordingType type, final RecordingData data, Runnable onCompletion)
+      @Nonnull final RecordingType type,
+      @Nonnull final RecordingData data,
+      @Nonnull Runnable onCompletion)
       throws IOException {
     final int expectedRequestSize = getExpectedRequestSize();
-    // TODO: it would be really nice to avoid copy here, but:
-    // * if JFR doesn't write file to disk we seem to not be able to get size of the recording
-    // without reading whole stream
-    // * OkHTTP doesn't provide direct way to send uploads from streams - and workarounds would
-    // require stream that allows 'repeatable reads' because we may need to resend that data.
     final RequestBody body = new CompressingRequestBody(compressionType, data::getStream);
     if (log.isDebugEnabled()) {
       log.debug(

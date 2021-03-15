@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.zip.GZIPOutputStream;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import net.jpountz.lz4.LZ4FrameOutputStream;
 import okhttp3.MediaType;
@@ -15,14 +16,34 @@ import okio.Okio;
 import okio.Source;
 import org.openjdk.jmc.common.io.IOToolkit;
 
+/**
+ * A specialized {@linkplain RequestBody} subclass performing on-the fly compression of the uploaded
+ * data.
+ */
 final class CompressingRequestBody extends RequestBody {
+  /**
+   * A data upload retry policy. By using this policy it is possible to customize how many times the
+   * data upload will be reattempted if the input data stream is unavailable.
+   */
   @FunctionalInterface
   interface RetryPolicy {
+    /**
+     * @param ordinal number of data upload attempts so far
+     * @return {@literal true} if the data upload should be retried
+     */
     boolean shouldRetry(int ordinal);
   }
 
+  /**
+   * A data upload retry backoff policy. This policy will be used to obtain the delay before the
+   * next retry.
+   */
   @FunctionalInterface
   interface RetryBackoff {
+    /**
+     * @param ordinal number of data upload attempts so far
+     * @return the required delay in milliscenods before next retry
+     */
     int backoff(int ordinal);
   }
 
@@ -35,29 +56,49 @@ final class CompressingRequestBody extends RequestBody {
   private static final int ZIP_MAGIC[] = new int[] {80, 75, 3, 4};
   private static final int GZ_MAGIC[] = new int[] {31, 139};
 
-  private final MediaType mediaType;
   private final InputStreamSupplier inputStreamSupplier;
   private final OutputStreamMappingFunction outputStreamMapper;
   private final RetryPolicy retryPolicy;
   private final RetryBackoff retryBackoff;
 
-  CompressingRequestBody(CompressionType compressionType, InputStreamSupplier inputStreamSupplier) {
+  /**
+   * Create a new instance configured with 1 retry and constant 10ms backoff delay.
+   *
+   * @param compressionType {@linkplain CompressionType} value
+   * @param inputStreamSupplier supplier of the data input stream
+   */
+  CompressingRequestBody(
+      @Nonnull CompressionType compressionType, @Nonnull InputStreamSupplier inputStreamSupplier) {
     this(compressionType, inputStreamSupplier, r -> r <= 1, r -> 10);
   }
 
+  /**
+   * Create a new instance configured with constant 10ms backoff delay.
+   *
+   * @param compressionType {@linkplain CompressionType} value
+   * @param inputStreamSupplier supplier of the data input stream
+   * @param retryPolicy {@linkplain RetryPolicy} instance
+   */
   CompressingRequestBody(
-      CompressionType compressionType,
-      InputStreamSupplier inputStreamSupplier,
-      RetryPolicy retryPolicy) {
+      @Nonnull CompressionType compressionType,
+      @Nonnull InputStreamSupplier inputStreamSupplier,
+      @Nonnull RetryPolicy retryPolicy) {
     this(compressionType, inputStreamSupplier, retryPolicy, r -> 10);
   }
 
+  /**
+   * Create a new instance.
+   *
+   * @param compressionType {@linkplain CompressionType} value
+   * @param inputStreamSupplier supplier of the data input stream
+   * @param retryPolicy {@linkplain RetryPolicy} instance
+   * @param retryBackoff {@linkplain RetryBackoff} instance
+   */
   CompressingRequestBody(
-      CompressionType compressionType,
-      InputStreamSupplier inputStreamSupplier,
-      RetryPolicy retryPolicy,
-      RetryBackoff retryBackoff) {
-    this.mediaType = OCTET_STREAM;
+      @Nonnull CompressionType compressionType,
+      @Nonnull InputStreamSupplier inputStreamSupplier,
+      @Nonnull RetryPolicy retryPolicy,
+      @Nonnull RetryBackoff retryBackoff) {
     this.inputStreamSupplier = () -> ensureMarkSupported(inputStreamSupplier.get());
     this.outputStreamMapper = getOutputStreamMapper(compressionType);
     this.retryPolicy = retryPolicy;
@@ -66,13 +107,14 @@ final class CompressingRequestBody extends RequestBody {
 
   @Override
   public long contentLength() throws IOException {
+    // uploading chunked streaming data -> the length is unknown
     return -1;
   }
 
   @Nullable
   @Override
   public MediaType contentType() {
-    return mediaType;
+    return OCTET_STREAM;
   }
 
   @Override
@@ -128,7 +170,8 @@ final class CompressingRequestBody extends RequestBody {
     }
   }
 
-  private void attemptWrite(InputStream inputStream, BufferedSink bufferedSink) throws IOException {
+  private void attemptWrite(@Nonnull InputStream inputStream, @Nonnull BufferedSink bufferedSink)
+      throws IOException {
     if (!isCompressed(inputStream)) {
       OutputStream outputStream =
           new BufferedOutputStream(
@@ -155,7 +198,14 @@ final class CompressingRequestBody extends RequestBody {
     }
   }
 
-  private static InputStream ensureMarkSupported(InputStream is) {
+  /**
+   * Make sure the given {@linkplain InputStream} instance supports marking. If the given stream
+   * does not support marking wrap it in {@linkplain BufferedInputStream}.
+   *
+   * @param is the input stream ot check
+   * @return {@linkplain InputStream} representing the input data and supporting marking
+   */
+  private static InputStream ensureMarkSupported(@Nonnull InputStream is) {
     if (!is.markSupported()) {
       is = new BufferedInputStream(is);
     }
@@ -169,7 +219,7 @@ final class CompressingRequestBody extends RequestBody {
    * @return {@literal true} if the stream is compressed in a supported format
    * @throws IOException
    */
-  static boolean isCompressed(final InputStream is) throws IOException {
+  static boolean isCompressed(@Nonnull final InputStream is) throws IOException {
     checkMarkSupported(is);
     return isGzip(is) || isLz4(is) || isZip(is);
   }
@@ -181,7 +231,7 @@ final class CompressingRequestBody extends RequestBody {
    * @return {@literal true} if the stream represents GZip data
    * @throws IOException
    */
-  static boolean isGzip(final InputStream is) throws IOException {
+  static boolean isGzip(@Nonnull final InputStream is) throws IOException {
     checkMarkSupported(is);
     is.mark(GZ_MAGIC.length);
     try {
@@ -198,7 +248,7 @@ final class CompressingRequestBody extends RequestBody {
    * @return {@literal true} if the stream represents Zip data
    * @throws IOException
    */
-  static boolean isZip(final InputStream is) throws IOException {
+  private static boolean isZip(@Nonnull final InputStream is) throws IOException {
     checkMarkSupported(is);
     is.mark(ZIP_MAGIC.length);
     try {
@@ -215,7 +265,7 @@ final class CompressingRequestBody extends RequestBody {
    * @return {@literal true} if the stream represents LZ4 data
    * @throws IOException
    */
-  static boolean isLz4(final InputStream is) throws IOException {
+  static boolean isLz4(@Nonnull final InputStream is) throws IOException {
     checkMarkSupported(is);
     is.mark(LZ4_MAGIC.length);
     try {
@@ -225,14 +275,14 @@ final class CompressingRequestBody extends RequestBody {
     }
   }
 
-  private static void checkMarkSupported(final InputStream is) throws IOException {
+  private static void checkMarkSupported(@Nonnull final InputStream is) throws IOException {
     if (!is.markSupported()) {
       throw new IOException("Can not check headers on streams not supporting mark() method");
     }
   }
 
   private static OutputStreamMappingFunction getOutputStreamMapper(
-      CompressionType compressionType) {
+      @Nonnull CompressionType compressionType) {
     // currently only gzip and off are supported
     // this needs to be updated once more compression types are added
     switch (compressionType) {
@@ -253,7 +303,7 @@ final class CompressingRequestBody extends RequestBody {
     }
   }
 
-  private static OutputStream toLz4Stream(OutputStream os) throws IOException {
+  private static OutputStream toLz4Stream(@Nonnull OutputStream os) throws IOException {
     return new LZ4FrameOutputStream(
         os,
         LZ4FrameOutputStream.BLOCKSIZE.SIZE_64KB,
