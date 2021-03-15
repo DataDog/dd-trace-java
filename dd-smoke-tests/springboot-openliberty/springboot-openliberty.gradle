@@ -5,29 +5,17 @@ ext {
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Open Liberty Smoke Tests'
 
-spotless {
-  groovy {
-    excludeJava()
-    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
-  }
-}
-
 dependencies {
   testCompile project(':dd-smoke-tests')
 }
 
 def appDir = "$projectDir/application"
-def targetDir = "$buildDir/openliberty"
 def jarName = "demo-open-liberty-app.jar"
 
 // compile the Open liberty spring boot server
 task mvnStage(type:Exec) {
   workingDir "$appDir"
   commandLine './mvnw', 'package'
-  copy {
-    from file("$appDir/target")
-    into file("$targetDir")
-  }
 }
 
 compileTestGroovy {
@@ -37,10 +25,11 @@ compileTestGroovy {
   }
 }
 
-//add the embedded server jar into the class path
+// compiled dir of the packaged spring boot app with embedded openliberty
 tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.openliberty.jar.path=${targetDir}/$jarName"
+  jvmArgs "-Ddatadog.smoketest.openliberty.jar.path=${appDir}/target/${jarName}"
 }
+
 
 spotless {
   java {
@@ -52,4 +41,12 @@ spotless {
   groovyGradle {
     target '*.gradle', "**/*.gradle"
   }
+
+//  format 'xml', {
+//    target fileTree("$appDir") {
+//      include '**/*.xml'
+//      include '*.xml'
+//      eclipseWtp('xml')
+//    }
+//  }
 }
