@@ -200,7 +200,7 @@ final class CompressingRequestBody extends RequestBody {
 
   private void attemptWrite(@Nonnull InputStream inputStream, @Nonnull OutputStream outputStream)
       throws IOException {
-    OutputStream sinkStream =
+    try (OutputStream sinkStream =
         isCompressed(inputStream)
             ? outputStream
             : new BufferedOutputStream(
@@ -214,15 +214,15 @@ final class CompressingRequestBody extends RequestBody {
                         // in that method.
                         flush();
                       }
-                    }));
-    BufferedSink sink = Okio.buffer(Okio.sink(sinkStream));
-    try (Source source = Okio.buffer(Okio.source(inputStream))) {
-      sink.writeAll(source);
+                    }))) {
+      BufferedSink sink = Okio.buffer(Okio.sink(sinkStream));
+      try (Source source = Okio.buffer(Okio.source(inputStream))) {
+        sink.writeAll(source);
+      }
+      // a bit of cargo-culting to make sure that all writes have really-really been flushed
+      sink.emit();
+      sink.flush();
     }
-    // a bit of cargo-culting to make sure that all writes have really-really been flushed
-    sink.emit();
-    sink.flush();
-    sinkStream.close();
   }
 
   /**
