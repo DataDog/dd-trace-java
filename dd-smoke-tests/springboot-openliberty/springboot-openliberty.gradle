@@ -41,12 +41,4 @@ spotless {
   groovyGradle {
     target '*.gradle', "**/*.gradle"
   }
-
-//  format 'xml', {
-//    target fileTree("$appDir") {
-//      include '**/*.xml'
-//      include '*.xml'
-//      eclipseWtp('xml')
-//    }
-//  }
 }
