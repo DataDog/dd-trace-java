@@ -68,7 +68,7 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
 
   private static Class<?> initClass(final String name) {
     try {
-      return Class.forName(name);
+      return Class.forName(name, false, AxwayHTTPPluginDecorator.class.getClassLoader());
     } catch (ClassNotFoundException e) {
       log.debug(
           "Can't find class '{}': Axaway integration failed. ", SERVERTRANSACTION_CLASSNAME, e);
@@ -150,7 +150,7 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
     } catch (Throwable e) {
       log.debug("Can't find invoke '{}}' on '{}': ", getURI_mh, serverTransaction, e);
     }
-    return new DefaultURIDataAdapter(URI.create(""));
+    return null;
   }
 
   @Override

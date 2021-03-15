@@ -20,8 +20,8 @@ public class HTTPPluginAdvice {
     final AgentScope scope = activateSpan(span);
     span.setMeasured(true);
     DECORATE.afterStart(span);
-    DECORATE.onConnection(span, serverTransaction);
-    DECORATE.onRequest(span, serverTransaction);
+    // serverTransaction is like request + connection in one object:
+    DECORATE.onRequest(span, serverTransaction, serverTransaction, null);
     return scope;
   }
 
