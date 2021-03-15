@@ -70,17 +70,17 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     def m = method
 
     new Runnable() {
-      @Override
-      @Trace(operationName = "parent")
-      void run() {
-        activeScope().setAsyncPropagation(true)
-        // this child will have a span
-        m(pool, new JavaAsyncChild())
-        // this child won't
-        m(pool, new JavaAsyncChild(false, false))
-        blockUntilChildSpansFinished(1)
-      }
-    }.run()
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          // this child will have a span
+          m(pool, new JavaAsyncChild())
+          // this child won't
+          m(pool, new JavaAsyncChild(false, false))
+          blockUntilChildSpansFinished(1)
+        }
+      }.run()
 
     TEST_WRITER.waitForTraces(1)
     List<DDSpan> trace = TEST_WRITER.get(0)
@@ -99,6 +99,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
 
     // Unfortunately, there's no simple way to test the cross product of methods/pools.
     where:
+    // spotless:off
     name                     | method              | poolImpl
     "execute Runnable"       | executeRunnable     | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
     "submit Runnable"        | submitRunnable      | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
@@ -220,7 +221,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAny with timeout" | invokeAnyTimeout    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     "schedule Runnable"      | scheduleRunnable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     "schedule Callable"      | scheduleCallable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
-
+    // spotless:on
   }
 
   def "#poolImpl '#name' wraps"() {
@@ -231,13 +232,13 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
 
     JavaAsyncChild child = new JavaAsyncChild(true, true)
     new Runnable() {
-      @Override
-      @Trace(operationName = "parent")
-      void run() {
-        activeScope().setAsyncPropagation(true)
-        m(pool, w(child))
-      }
-    }.run()
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          m(pool, w(child))
+        }
+      }.run()
     child.unblock()
 
     TEST_WRITER.waitForTraces(1)
@@ -268,32 +269,32 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     List<Future> jobFutures = new ArrayList<>()
 
     new Runnable() {
-      @Override
-      @Trace(operationName = "parent")
-      void run() {
-        activeScope().setAsyncPropagation(true)
-        try {
-          for (int i = 0; i < 20; ++i) {
-            final JavaAsyncChild child = new JavaAsyncChild(false, true)
-            children.add(child)
-            try {
-              Future f = m(pool, child)
-              jobFutures.add(f)
-            } catch (InvocationTargetException e) {
-              throw e.getCause()
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          try {
+            for (int i = 0; i < 20; ++i) {
+              final JavaAsyncChild child = new JavaAsyncChild(false, true)
+              children.add(child)
+              try {
+                Future f = m(pool, child)
+                jobFutures.add(f)
+              } catch (InvocationTargetException e) {
+                throw e.getCause()
+              }
             }
+          } catch (RejectedExecutionException e) {
           }
-        } catch (RejectedExecutionException e) {
-        }
 
-        for (Future f : jobFutures) {
-          f.cancel(false)
+          for (Future f : jobFutures) {
+            f.cancel(false)
+          }
+          for (JavaAsyncChild child : children) {
+            child.unblock()
+          }
         }
-        for (JavaAsyncChild child : children) {
-          child.unblock()
-        }
-      }
-    }.run()
+      }.run()
 
     TEST_WRITER.waitForTraces(1)
 
@@ -337,13 +338,13 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
 
     // guava
     // FIXME - these need better rejection handling to pass reliably
-//    "submit Runnable"     | submitRunnable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
-//    "submit Callable"     | submitCallable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
+    //    "submit Runnable"     | submitRunnable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
+    //    "submit Callable"     | submitCallable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
 
-//    "submit Runnable"     | submitRunnable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
-//    "submit Callable"     | submitCallable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
-//    "schedule Runnable"   | scheduleRunnable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
-//    "schedule Callable"   | scheduleCallable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
+    //    "submit Runnable"     | submitRunnable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
+    //    "submit Callable"     | submitCallable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
+    //    "schedule Runnable"   | scheduleRunnable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
+    //    "schedule Callable"   | scheduleCallable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
   }
 
   private static Executor java7SafeCompletableFutureThreadPerTaskExecutor() {

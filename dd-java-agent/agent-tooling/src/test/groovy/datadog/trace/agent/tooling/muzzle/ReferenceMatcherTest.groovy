@@ -22,19 +22,21 @@ import static datadog.trace.agent.tooling.muzzle.Reference.Mismatch.MissingMetho
 class ReferenceMatcherTest extends DDSpecification {
 
   @Shared
-  ClassLoader safeClasspath = new URLClassLoader([ClasspathUtils.createJarWithClasses(MethodBodyAdvice.A,
+  ClassLoader safeClasspath = new URLClassLoader([
+    ClasspathUtils.createJarWithClasses(MethodBodyAdvice.A,
     MethodBodyAdvice.B,
     MethodBodyAdvice.SomeInterface,
     MethodBodyAdvice.SkipLevel, // pattern in e.g. AWS SDK where empty interfaces join other interfaces
     MethodBodyAdvice.HasMethod,
     MethodBodyAdvice.SomeImplementation)] as URL[],
-    (ClassLoader) null)
+  (ClassLoader) null)
 
   @Shared
-  ClassLoader unsafeClasspath = new URLClassLoader([ClasspathUtils.createJarWithClasses(MethodBodyAdvice.A,
+  ClassLoader unsafeClasspath = new URLClassLoader([
+    ClasspathUtils.createJarWithClasses(MethodBodyAdvice.A,
     MethodBodyAdvice.SomeInterface,
     MethodBodyAdvice.SomeImplementation)] as URL[],
-    (ClassLoader) null)
+  (ClassLoader) null)
 
   def "match safe classpaths"() {
     setup:
@@ -68,7 +70,8 @@ class ReferenceMatcherTest extends DDSpecification {
   def "muzzle type pool caches"() {
     setup:
     ClassLoader cl = new CountingClassLoader(
-      [ClasspathUtils.createJarWithClasses(MethodBodyAdvice.A,
+      [
+        ClasspathUtils.createJarWithClasses(MethodBodyAdvice.A,
         MethodBodyAdvice.B,
         MethodBodyAdvice.SomeInterface,
         MethodBodyAdvice.SkipLevel,
@@ -103,9 +106,11 @@ class ReferenceMatcherTest extends DDSpecification {
     getMismatchClassSet(mismatches) == expectedMismatches.toSet()
 
     where:
+    // spotless:off
     referenceName                | referenceFlags  | classToCheck       | expectedMismatches
     MethodBodyAdvice.B.getName() | [NON_INTERFACE] | MethodBodyAdvice.B | []
     MethodBodyAdvice.B.getName() | [INTERFACE]     | MethodBodyAdvice.B | [MissingFlag]
+    // spotless:on
   }
 
   def "method match #methodTestDesc"() {
@@ -124,6 +129,7 @@ class ReferenceMatcherTest extends DDSpecification {
     getMismatchClassSet(mismatches) == expectedMismatches.toSet()
 
     where:
+    // spotless:off
     methodName      | methodDesc                               | methodFlags           | classToCheck                   | expectedMismatches | methodTestDesc
     "aMethod"       | "(Ljava/lang/String;)Ljava/lang/String;" | []                    | MethodBodyAdvice.B             | []                 | "match method declared in class"
     "hashCode"      | "()I"                                    | []                    | MethodBodyAdvice.B             | []                 | "match method declared in superclass"
@@ -132,6 +138,7 @@ class ReferenceMatcherTest extends DDSpecification {
     "privateStuff"  | "()V"                                    | [PROTECTED_OR_HIGHER] | MethodBodyAdvice.B2            | [MissingFlag]      | "fail match private in supertype"
     "aStaticMethod" | "()V"                                    | [NON_STATIC]          | MethodBodyAdvice.B             | [MissingFlag]      | "static method mismatch"
     "missingMethod" | "()V"                                    | []                    | MethodBodyAdvice.B             | [MissingMethod]    | "missing method mismatch"
+    // spotless:on
   }
 
   def "field match #fieldTestDesc"() {
@@ -148,6 +155,7 @@ class ReferenceMatcherTest extends DDSpecification {
     getMismatchClassSet(mismatches) == expectedMismatches.toSet()
 
     where:
+    // spotless:off
     fieldName        | fieldType                                        | fieldFlags                    | classToCheck        | expectedMismatches | fieldTestDesc
     "missingField"   | "Ljava/lang/String;"                             | []                            | MethodBodyAdvice.A  | [MissingField]     | "mismatch missing field"
     "privateField"   | "Ljava/lang/String;"                             | []                            | MethodBodyAdvice.A  | [MissingField]     | "mismatch field type signature"
@@ -155,6 +163,7 @@ class ReferenceMatcherTest extends DDSpecification {
     "privateField"   | "Ljava/lang/Object;"                             | [PROTECTED_OR_HIGHER]         | MethodBodyAdvice.A2 | [MissingFlag]      | "mismatch private field in supertype"
     "protectedField" | "Ljava/lang/Object;"                             | [STATIC]                      | MethodBodyAdvice.A  | [MissingFlag]      | "mismatch static field"
     "staticB"        | Type.getType(MethodBodyAdvice.B).getDescriptor() | [STATIC, PROTECTED_OR_HIGHER] | MethodBodyAdvice.A  | []                 | "match static field"
+    // spotless:on
   }
 
   private static Set<Class> getMismatchClassSet(List<Reference.Mismatch> mismatches) {

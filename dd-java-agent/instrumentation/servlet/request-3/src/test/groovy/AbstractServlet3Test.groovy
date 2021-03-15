@@ -45,10 +45,10 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
   }
 
   // FIXME: Add authentication tests back in...
-//  @Shared
-//  protected String user = "user"
-//  @Shared
-//  protected String pass = "password"
+  //  @Shared
+  //  protected String user = "user"
+  //  @Shared
+  //  protected String pass = "password"
 
   abstract String getContext()
 

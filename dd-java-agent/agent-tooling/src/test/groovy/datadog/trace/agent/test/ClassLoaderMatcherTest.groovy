@@ -63,5 +63,4 @@ class ClassLoaderMatcherTest extends DDSpecification {
       throw new ClassNotFoundException(className)
     }
   }
-
 }

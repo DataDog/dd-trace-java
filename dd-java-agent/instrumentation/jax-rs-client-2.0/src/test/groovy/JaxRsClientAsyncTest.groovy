@@ -31,16 +31,16 @@ abstract class JaxRsClientAsyncTest extends HttpClientTest {
     def latch = new CountDownLatch(1)
     def reqBody = BODY_METHODS.contains(method) ? Entity.text(body) : null
     Response response = request.method(method, (Entity) reqBody, new InvocationCallback<Response>() {
-      @Override
-      void completed(Response s) {
-        callback?.call()
-        latch.countDown()
-      }
+        @Override
+        void completed(Response s) {
+          callback?.call()
+          latch.countDown()
+        }
 
-      @Override
-      void failed(Throwable throwable) {
-      }
-    }).get()
+        @Override
+        void failed(Throwable throwable) {
+        }
+      }).get()
 
     latch.await()
     return response.status

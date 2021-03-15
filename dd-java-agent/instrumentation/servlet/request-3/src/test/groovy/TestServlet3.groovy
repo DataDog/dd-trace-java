@@ -77,18 +77,18 @@ class TestServlet3 {
         // this line makes Jetty behave like Tomcat and immediately return 500 to the client
         // otherwise it will continue to repeat the same request until the client times out
         context.addListener(new AsyncListener() {
-          void onComplete(AsyncEvent event) throws IOException {}
+            void onComplete(AsyncEvent event) throws IOException {}
 
-          void onError(AsyncEvent event) throws IOException {}
+            void onError(AsyncEvent event) throws IOException {}
 
-          void onStartAsync(AsyncEvent event) throws IOException {}
+            void onStartAsync(AsyncEvent event) throws IOException {}
 
-          @Override
-          void onTimeout(AsyncEvent event) throws IOException {
-            event.suppliedResponse.status = 500
-            event.asyncContext.complete()
-          }
-        })
+            @Override
+            void onTimeout(AsyncEvent event) throws IOException {
+              event.suppliedResponse.status = 500
+              event.asyncContext.complete()
+            }
+          })
       }
       context.start {
         try {

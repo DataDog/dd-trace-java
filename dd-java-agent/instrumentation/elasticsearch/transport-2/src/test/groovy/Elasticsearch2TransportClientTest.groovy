@@ -19,7 +19,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch2TransportClientTest extends AgentTestRunner {
-  public static final long TIMEOUT = 10000; // 10 seconds
+  public static final long TIMEOUT = 10000 // 10 seconds
 
   @Shared
   TransportAddress tcpPublishAddress
@@ -50,10 +50,10 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
     client = TransportClient.builder().settings(
       Settings.builder()
       // Since we use listeners to close spans this should make our span closing deterministic which is good for tests
-        .put("threadpool.listener.size", 1)
-        .put("cluster.name", clusterName)
-        .build()
-    ).build()
+      .put("threadpool.listener.size", 1)
+      .put("cluster.name", clusterName)
+      .build()
+      ).build()
     client.addTransportAddress(tcpPublishAddress)
     runUnderTrace("setup") {
       // this may potentially create multiple requests and therefore multiple spans, so we wrap this call

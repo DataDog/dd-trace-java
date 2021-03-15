@@ -18,8 +18,8 @@ class MetricsAssert {
   }
 
   static void assertMetrics(DDSpan span,
-                            @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.MetricsAssert'])
-                            @DelegatesTo(value = MetricsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.MetricsAssert'])
+    @DelegatesTo(value = MetricsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     def asserter = new MetricsAssert(span)
     def clone = (Closure) spec.clone()
     clone.delegate = asserter

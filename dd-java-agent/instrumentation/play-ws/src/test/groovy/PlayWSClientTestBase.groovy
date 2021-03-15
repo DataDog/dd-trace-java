@@ -27,10 +27,10 @@ abstract class PlayWSClientTestBase extends HttpClientTest {
 
     AsyncHttpClientConfig asyncHttpClientConfig =
       new DefaultAsyncHttpClientConfig.Builder()
-        .setMaxRequestRetry(0)
-        .setShutdownQuietPeriod(0)
-        .setShutdownTimeout(0)
-        .build()
+      .setMaxRequestRetry(0)
+      .setShutdownQuietPeriod(0)
+      .setShutdownTimeout(0)
+      .build()
 
     asyncHttpClient = new DefaultAsyncHttpClient(asyncHttpClientConfig)
   }

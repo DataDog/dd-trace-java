@@ -129,8 +129,8 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
     "jdbc:sap://sap.host:88/?databaseName=sapdb&user=sapuser&password=PW"                             | null     | "sap"        | null          | "sapuser"     | "sap.host"                                | 88    | null                               | "sapdb"
 
     // TODO:
-//    "jdbc:informix-sqli://infxhost:99/infxdb:INFORMIXSERVER=infxsn;user=infxuser;password=PW"    | null  | "informix-sqli"   | null | "infxuser"  | "infxhost"  | 99   | "infxdb"| null
-//    "jdbc:informix-direct://infxdb:999;user=infxuser;password=PW"                                | null  | "informix-direct" | null | "infxuser"  | "infxhost"  | 999  | "infxdb"| null
+    //    "jdbc:informix-sqli://infxhost:99/infxdb:INFORMIXSERVER=infxsn;user=infxuser;password=PW"    | null  | "informix-sqli"   | null | "infxuser"  | "infxhost"  | 99   | "infxdb"| null
+    //    "jdbc:informix-direct://infxdb:999;user=infxuser;password=PW"                                | null  | "informix-direct" | null | "infxuser"  | "infxhost"  | 999  | "infxdb"| null
 
     // http://www.h2database.com/html/features.html#database_url
     "jdbc:h2:mem:"                                                                                    | null     | "h2"         | "mem"         | null          | null                                      | null  | null                               | null

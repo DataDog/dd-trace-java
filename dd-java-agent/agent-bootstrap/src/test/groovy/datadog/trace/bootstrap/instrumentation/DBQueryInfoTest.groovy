@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo
 import datadog.trace.test.util.DDSpecification
 
 class DBQueryInfoTest extends DDSpecification {
-  
+
   def "extract operation name" () {
     when:
     DBQueryInfo info = new DBQueryInfo(sql)

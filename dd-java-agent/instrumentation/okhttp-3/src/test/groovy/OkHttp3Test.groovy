@@ -20,10 +20,10 @@ class OkHttp3Test extends HttpClientTest {
   }
 
   def client = new OkHttpClient.Builder()
-    .connectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-    .readTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-    .writeTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-    .build()
+  .connectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+  .readTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+  .writeTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+  .build()
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {

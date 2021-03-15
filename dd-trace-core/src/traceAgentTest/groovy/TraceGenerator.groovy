@@ -105,20 +105,20 @@ class TraceGenerator {
     private final Metadata metadata
 
     PojoSpan(
-      String serviceName,
-      String operationName,
-      CharSequence resourceName,
-      DDId traceId,
-      DDId spanId,
-      DDId parentId,
-      long start,
-      long duration,
-      int error,
-      Map<String, Number> metrics,
-      Map<String, String> baggage,
-      Map<String, Object> tags,
-      String type,
-      boolean measured) {
+    String serviceName,
+    String operationName,
+    CharSequence resourceName,
+    DDId traceId,
+    DDId spanId,
+    DDId parentId,
+    long start,
+    long duration,
+    int error,
+    Map<String, Number> metrics,
+    Map<String, String> baggage,
+    Map<String, Object> tags,
+    String type,
+    boolean measured) {
       this.serviceName = UTF8BytesString.create(serviceName)
       this.operationName = UTF8BytesString.create(operationName)
       this.resourceName = UTF8BytesString.create(resourceName)
@@ -132,7 +132,7 @@ class TraceGenerator {
       this.type = type
       this.measured = measured
       this.metadata = new Metadata(Thread.currentThread().getId(),
-      UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage)
+        UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage)
     }
 
     @Override

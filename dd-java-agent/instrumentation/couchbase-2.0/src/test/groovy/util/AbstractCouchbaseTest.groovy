@@ -40,21 +40,21 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
 
   @Shared
   protected bucketCouchbase = DefaultBucketSettings.builder()
-    .enableFlush(true)
-    .name("$testBucketName-cb")
-    .password("test-pass")
-    .type(BucketType.COUCHBASE)
-    .quota(100)
-    .build()
+  .enableFlush(true)
+  .name("$testBucketName-cb")
+  .password("test-pass")
+  .type(BucketType.COUCHBASE)
+  .quota(100)
+  .build()
 
   @Shared
   protected bucketMemcache = DefaultBucketSettings.builder()
-    .enableFlush(true)
-    .name("$testBucketName-mem")
-    .password("test-pass")
-    .type(BucketType.MEMCACHED)
-    .quota(100)
-    .build()
+  .enableFlush(true)
+  .name("$testBucketName-mem")
+  .password("test-pass")
+  .type(BucketType.MEMCACHED)
+  .quota(100)
+  .build()
 
   @Shared
   CouchbaseMock mock
@@ -75,7 +75,6 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
 
     mock.createBucket(convert(bucketCouchbase))
     mock.createBucket(convert(bucketMemcache))
-
   }
 
   private static BucketConfiguration convert(BucketSettings bucketSettings) {
@@ -98,7 +97,7 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
     return DefaultCouchbaseEnvironment.builder()
       .bootstrapCarrierDirectPort(mock.getCarrierPort(bucketSettings.name()))
       .bootstrapHttpDirectPort(port)
-    // settings to try to reduce variability in the tests:
+      // settings to try to reduce variability in the tests:
       .runtimeMetricsCollectorConfig(DefaultMetricsCollectorConfig.create(0, TimeUnit.DAYS))
       .networkLatencyMetricsCollectorConfig(DefaultLatencyMetricsCollectorConfig.create(0, TimeUnit.DAYS))
       .computationPoolSize(1)

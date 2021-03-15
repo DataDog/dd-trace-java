@@ -50,8 +50,10 @@ class JMS2Test extends AgentTestRunner {
     config.securityEnabled = false
     config.persistenceEnabled = false
     config.setQueueConfigurations([new CoreQueueConfiguration("someQueue", "someQueue", null, true)])
-    config.setAcceptorConfigurations([new TransportConfiguration(NettyAcceptorFactory.name),
-                                      new TransportConfiguration(InVMAcceptorFactory.name)].toSet())
+    config.setAcceptorConfigurations([
+      new TransportConfiguration(NettyAcceptorFactory.name),
+      new TransportConfiguration(InVMAcceptorFactory.name)
+    ].toSet())
 
     server = HornetQServers.newHornetQServer(config)
     server.start()
@@ -113,12 +115,12 @@ class JMS2Test extends AgentTestRunner {
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
     consumer.setMessageListener new MessageListener() {
-      @Override
-      void onMessage(Message message) {
-        lock.await() // ensure the producer trace is reported first.
-        messageRef.set(message)
+        @Override
+        void onMessage(Message message) {
+          lock.await() // ensure the producer trace is reported first.
+          messageRef.set(message)
+        }
       }
-    }
 
     producer.send(message)
     lock.countDown()
@@ -153,7 +155,8 @@ class JMS2Test extends AgentTestRunner {
     expect:
     receivedMessage == null
     assertTraces(1) {
-      trace(1) { // Consumer trace
+      trace(1) {
+        // Consumer trace
         span {
           parent()
           serviceName "jms"
@@ -190,7 +193,8 @@ class JMS2Test extends AgentTestRunner {
     expect:
     receivedMessage == null
     assertTraces(1) {
-      trace(1) { // Consumer trace
+      trace(1) {
+        // Consumer trace
         span {
           parent()
           serviceName "jms"

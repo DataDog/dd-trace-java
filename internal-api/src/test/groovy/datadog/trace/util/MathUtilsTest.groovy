@@ -21,18 +21,18 @@ class MathUtilsTest extends DDSpecification {
       final localDecrements = decrementsPerThread
       final localMinimum = minimum
       threads.add(new Thread() {
-        void run() {
-          localDecrements.times {
-            Thread.sleep(random.nextInt(5))
-            boolean returnValue = MathUtils.boundedDecrement(variable, localMinimum)
-            if (returnValue) {
-              trueCount.incrementAndGet()
-            } else {
-              falseCount.incrementAndGet()
+          void run() {
+            localDecrements.times {
+              Thread.sleep(random.nextInt(5))
+              boolean returnValue = MathUtils.boundedDecrement(variable, localMinimum)
+              if (returnValue) {
+                trueCount.incrementAndGet()
+              } else {
+                falseCount.incrementAndGet()
+              }
             }
           }
-        }
-      })
+        })
     }
 
     when:

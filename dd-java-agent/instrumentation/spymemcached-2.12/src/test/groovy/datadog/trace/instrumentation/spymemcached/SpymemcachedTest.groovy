@@ -47,8 +47,8 @@ class SpymemcachedTest extends AgentTestRunner {
   def timingOutMemcachedOpTimeout = 1000
 
   /*
-    Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
-    'testcontainers' are built for Java 8 and Java 7 cannot load this class.
+   Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
+   'testcontainers' are built for Java 8 and Java 7 cannot load this class.
    */
   @Shared
   def memcachedContainer
@@ -58,7 +58,7 @@ class SpymemcachedTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    
+
     // This setting should have no effect since decorator returns null for the instance.
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
   }
@@ -66,9 +66,9 @@ class SpymemcachedTest extends AgentTestRunner {
   def setupSpec() {
 
     /*
-      CI will provide us with memcached container running along side our build.
-      When building locally, however, we need to take matters into our own hands
-      and we use 'testcontainers' for this.
+     CI will provide us with memcached container running along side our build.
+     When building locally, however, we need to take matters into our own hands
+     and we use 'testcontainers' for this.
      */
     if ("true" != System.getenv("CI")) {
       memcachedContainer = new GenericContainer('memcached:latest')
@@ -78,7 +78,7 @@ class SpymemcachedTest extends AgentTestRunner {
       memcachedAddress = new InetSocketAddress(
         memcachedContainer.containerIpAddress,
         memcachedContainer.getMappedPort(defaultMemcachedPort)
-      )
+        )
     }
   }
 
@@ -106,11 +106,11 @@ class SpymemcachedTest extends AgentTestRunner {
     memcached = new MemcachedClient(connectionFactory, Arrays.asList(memcachedAddress))
 
     def lockableQueueFactory = new OperationQueueFactory() {
-      @Override
-      BlockingQueue<Operation> create() {
-        return getLockableQueue(queueLock)
+        @Override
+        BlockingQueue<Operation> create() {
+          return getLockableQueue(queueLock)
+        }
       }
-    }
 
     ConnectionFactory lockableConnectionFactory = (new ConnectionFactoryBuilder())
       .setListenerExecutorService(listenerExecutorService)
@@ -200,7 +200,7 @@ class SpymemcachedTest extends AgentTestRunner {
      Not using runUnderTrace since timeouts happen in separate thread
      and direct executor doesn't help to make sure that parent span finishes last.
      Instead run without parent span to have only 1 span to test with.
-      */
+     */
     try {
       queueLock.lock()
       timingoutMemcached.asyncGet(key("test-get"))
@@ -497,8 +497,8 @@ class SpymemcachedTest extends AgentTestRunner {
     when:
     runUnderTrace(parentOperation) {
       /*
-        Memcached is funny in the way it handles incr/decr operations:
-        it needs values to be strings (with digits in them) and it returns actual long from decr/incr
+       Memcached is funny in the way it handles incr/decr operations:
+       it needs values to be strings (with digits in them) and it returns actual long from decr/incr
        */
       assert 195 == memcached.decr(key("test-decr"), 5)
       assert "195" == memcached.get(key("test-decr"))
@@ -546,8 +546,8 @@ class SpymemcachedTest extends AgentTestRunner {
     when:
     runUnderTrace(parentOperation) {
       /*
-        Memcached is funny in the way it handles incr/decr operations:
-        it needs values to be strings (with digits in them) and it returns actual long from decr/incr
+       Memcached is funny in the way it handles incr/decr operations:
+       it needs values to be strings (with digits in them) and it returns actual long from decr/incr
        */
       assert 105 == memcached.incr(key("test-incr"), 5)
       assert "105" == memcached.get(key("test-incr"))
@@ -604,16 +604,16 @@ class SpymemcachedTest extends AgentTestRunner {
   def getLockableQueue(ReentrantLock queueLock) {
     return new ArrayBlockingQueue<Operation>(DefaultConnectionFactory.DEFAULT_OP_QUEUE_LEN) {
 
-      @Override
-      int drainTo(Collection<? super Operation> c, int maxElements) {
-        try {
-          queueLock.lock()
-          return super.drainTo(c, maxElements)
-        } finally {
-          queueLock.unlock()
+        @Override
+        int drainTo(Collection<? super Operation> c, int maxElements) {
+          try {
+            queueLock.lock()
+            return super.drainTo(c, maxElements)
+          } finally {
+            queueLock.unlock()
+          }
         }
       }
-    }
   }
 
   def getParentSpan(TraceAssert trace, int index) {

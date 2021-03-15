@@ -32,44 +32,44 @@ class GrpcStreamingTest extends AgentTestRunner {
     def error = new AtomicReference()
 
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
-      @Override
-      StreamObserver<Helloworld.Response> conversation(StreamObserver<Helloworld.Response> observer) {
-        return new StreamObserver<Helloworld.Response>() {
-          @Override
-          void onNext(Helloworld.Response value) {
+        @Override
+        StreamObserver<Helloworld.Response> conversation(StreamObserver<Helloworld.Response> observer) {
+          return new StreamObserver<Helloworld.Response>() {
+              @Override
+              void onNext(Helloworld.Response value) {
 
-            serverReceived << value.message
+                serverReceived << value.message
 
-            (1..msgCount).each {
-              if (TEST_TRACER.activeScope().isAsyncPropagating()) {
-                observer.onNext(value)
-              } else {
-                observer.onError(new IllegalStateException("not async propagating!"))
+                (1..msgCount).each {
+                  if (TEST_TRACER.activeScope().isAsyncPropagating()) {
+                    observer.onNext(value)
+                  } else {
+                    observer.onError(new IllegalStateException("not async propagating!"))
+                  }
+                }
+              }
+
+              @Override
+              void onError(Throwable t) {
+                if (TEST_TRACER.activeScope().isAsyncPropagating()) {
+                  error.set(t)
+                  observer.onError(t)
+                } else {
+                  observer.onError(new IllegalStateException("not async propagating!"))
+                }
+              }
+
+              @Override
+              void onCompleted() {
+                if (TEST_TRACER.activeScope().isAsyncPropagating()) {
+                  observer.onCompleted()
+                } else {
+                  observer.onError(new IllegalStateException("not async propagating!"))
+                }
               }
             }
-          }
-
-          @Override
-          void onError(Throwable t) {
-            if (TEST_TRACER.activeScope().isAsyncPropagating()) {
-              error.set(t)
-              observer.onError(t)
-            } else {
-              observer.onError(new IllegalStateException("not async propagating!"))
-            }
-          }
-
-          @Override
-          void onCompleted() {
-            if (TEST_TRACER.activeScope().isAsyncPropagating()) {
-              observer.onCompleted()
-            } else {
-              observer.onError(new IllegalStateException("not async propagating!"))
-            }
-          }
         }
       }
-    }
     Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter)
       .executor(directExecutor ? MoreExecutors.directExecutor() : Executors.newCachedThreadPool())
       .build().start()
@@ -79,31 +79,31 @@ class GrpcStreamingTest extends AgentTestRunner {
 
     when:
     def observer = client.conversation(new StreamObserver<Helloworld.Response>() {
-      @Override
-      void onNext(Helloworld.Response value) {
-        if (TEST_TRACER.activeScope().isAsyncPropagating()) {
-          clientReceived << value.message
-        } else {
-          error.set(new IllegalStateException("not async propagating!"))
+        @Override
+        void onNext(Helloworld.Response value) {
+          if (TEST_TRACER.activeScope().isAsyncPropagating()) {
+            clientReceived << value.message
+          } else {
+            error.set(new IllegalStateException("not async propagating!"))
+          }
         }
-      }
 
-      @Override
-      void onError(Throwable t) {
-        if (TEST_TRACER.activeScope().isAsyncPropagating()) {
-          error.set(t)
-        } else {
-          error.set(new IllegalStateException("not async propagating!"))
+        @Override
+        void onError(Throwable t) {
+          if (TEST_TRACER.activeScope().isAsyncPropagating()) {
+            error.set(t)
+          } else {
+            error.set(new IllegalStateException("not async propagating!"))
+          }
         }
-      }
 
-      @Override
-      void onCompleted() {
-        if (!TEST_TRACER.activeScope().isAsyncPropagating()) {
-          error.set(new IllegalStateException("not async propagating!"))
+        @Override
+        void onCompleted() {
+          if (!TEST_TRACER.activeScope().isAsyncPropagating()) {
+            error.set(new IllegalStateException("not async propagating!"))
+          }
         }
-      }
-    })
+      })
 
     clientRange.each {
       def message = Helloworld.Response.newBuilder().setMessage("call $it").build()
@@ -116,7 +116,11 @@ class GrpcStreamingTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(2)
     error.get() == null
     serverReceived == clientRange.collect { "call $it" }
-    clientReceived == serverRange.collect { clientRange.collect { "call $it" } }.flatten().sort()
+    clientReceived == serverRange.collect {
+      clientRange.collect {
+        "call $it"
+      }
+    }.flatten().sort()
 
     assertTraces(2) {
       trace((clientMessageCount * serverMessageCount) + 1) {

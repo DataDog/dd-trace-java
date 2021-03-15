@@ -41,17 +41,13 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
   private Map<String, Map<String, DataSource>> cpDatasources = new HashMap<>()
 
   def prepareConnectionPoolDatasources() {
-    String[] connectionPoolNames = [
-      "tomcat", "hikari", "c3p0",
-    ]
-    connectionPoolNames.each {
-      cpName ->
-        Map<String, DataSource> dbDSMapping = new HashMap<>()
-        jdbcUrls.each {
-          dbType, jdbcUrl ->
-            dbDSMapping.put(dbType, createDS(cpName, dbType, jdbcUrl))
-        }
-        cpDatasources.put(cpName, dbDSMapping)
+    String[] connectionPoolNames = ["tomcat", "hikari", "c3p0",]
+    connectionPoolNames.each { cpName ->
+      Map<String, DataSource> dbDSMapping = new HashMap<>()
+      jdbcUrls.each { dbType, jdbcUrl ->
+        dbDSMapping.put(dbType, createDS(cpName, dbType, jdbcUrl))
+      }
+      cpDatasources.put(cpName, dbDSMapping)
     }
   }
 
@@ -121,18 +117,17 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
 
     injectSysConfig("dd.integration.jdbc-datasource.enabled", "true")
   }
-  
+
   def setupSpec() {
     prepareConnectionPoolDatasources()
   }
 
   def cleanupSpec() {
     cpDatasources.values().each {
-      it.values().each {
-        datasource ->
-          if (datasource instanceof Closeable) {
-            datasource.close()
-          }
+      it.values().each { datasource ->
+        if (datasource instanceof Closeable) {
+          datasource.close()
+        }
       }
     }
   }

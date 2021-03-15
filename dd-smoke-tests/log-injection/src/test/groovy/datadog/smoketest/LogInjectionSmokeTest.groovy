@@ -350,6 +350,8 @@ class FloggerInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() { "Logback" }
 
   List additionalArguments() {
-    return ["-Dflogger.backend_factory=com.google.common.flogger.backend.slf4j.Slf4jBackendFactory#getInstance"]
+    return [
+      "-Dflogger.backend_factory=com.google.common.flogger.backend.slf4j.Slf4jBackendFactory#getInstance"
+    ]
   }
 }

@@ -89,8 +89,7 @@ class DDLoggerTest extends LogValidatingSpecification {
     def factory = new SwitchableLogLevelFactory(new SLCompatFactory(props, settings))
     def logger = new DDLogger(factory, "foo.bar")
 
-    then:
-    {
+    then: {
       // TRACE
       logger.trace("m1")
       validator.trace(trace, "m1")
@@ -301,7 +300,6 @@ class DDLoggerTest extends LogValidatingSpecification {
       default:
         logger.error("Weird Level $level")
     }
-
   }
 
   def "test log output to a file"() {

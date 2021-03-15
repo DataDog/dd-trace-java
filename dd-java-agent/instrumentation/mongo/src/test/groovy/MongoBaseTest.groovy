@@ -29,9 +29,9 @@ class MongoBaseTest extends AgentTestRunner {
   def setup() throws Exception {
     final IMongodConfig mongodConfig =
       new MongodConfigBuilder()
-        .version(Version.Main.PRODUCTION)
-        .net(new Net("localhost", port, Network.localhostIsIPv6()))
-        .build()
+      .version(Version.Main.PRODUCTION)
+      .net(new Net("localhost", port, Network.localhostIsIPv6()))
+      .build()
 
     mongodExe = STARTER.prepare(mongodConfig)
     mongod = mongodExe.start()

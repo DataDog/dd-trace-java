@@ -22,8 +22,8 @@ class WildflySmokeTest extends AbstractServerSmokeTest {
     processBuilder.directory(wildflyDirectory)
     processBuilder.environment().put("JAVA_OPTS",
       defaultJavaProperties.join(" ")
-        + " -Djboss.http.port=${httpPort} -Djboss.https.port=${httpsPort}"
-        + " -Djboss.management.http.port=${managementPort}")
+      + " -Djboss.http.port=${httpPort} -Djboss.https.port=${httpsPort}"
+      + " -Djboss.management.http.port=${managementPort}")
     return processBuilder
   }
 

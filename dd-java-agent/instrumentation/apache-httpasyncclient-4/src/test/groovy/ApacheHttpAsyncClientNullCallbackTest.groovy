@@ -14,9 +14,9 @@ class ApacheHttpAsyncClientNullCallbackTest extends HttpClientTest {
 
   @Shared
   RequestConfig requestConfig = RequestConfig.custom()
-    .setConnectTimeout(CONNECT_TIMEOUT_MS)
-    .setSocketTimeout(READ_TIMEOUT_MS)
-    .build()
+  .setConnectTimeout(CONNECT_TIMEOUT_MS)
+  .setSocketTimeout(READ_TIMEOUT_MS)
+  .build()
 
   @AutoCleanup
   @Shared

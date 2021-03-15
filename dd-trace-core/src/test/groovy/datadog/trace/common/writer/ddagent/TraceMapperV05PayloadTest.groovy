@@ -300,11 +300,11 @@ class TraceMapperV05PayloadTest extends DDSpecification {
   static int calculateSize(List<TraceGenerator.PojoSpan> trace) {
     AtomicInteger size = new AtomicInteger()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, new ByteBufferConsumer() {
-      @Override
-      void accept(int messageCount, ByteBuffer buffer) {
-        size.set(buffer.limit() - buffer.position())
-      }
-    }))
+        @Override
+        void accept(int messageCount, ByteBuffer buffer) {
+          size.set(buffer.limit() - buffer.position())
+        }
+      }))
     packer.format(trace, new TraceMapperV0_5(1024))
     packer.flush()
     return size.get()

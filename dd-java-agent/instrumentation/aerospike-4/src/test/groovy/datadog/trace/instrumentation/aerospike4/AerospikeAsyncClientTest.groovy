@@ -39,16 +39,16 @@ class AerospikeAsyncClientTest extends AerospikeBaseTest {
     when:
     client.put(eventLoops.next(), new WriteListener() {
 
-      @Override
-      void onSuccess(Key putKey) {
-        client.get(eventLoops.next(), null, null, putKey)
-      }
+        @Override
+        void onSuccess(Key putKey) {
+          client.get(eventLoops.next(), null, null, putKey)
+        }
 
-      @Override
-      void onFailure(AerospikeException error) {
-        fail(error.toString())
-      }
-    }, null, key, bin)
+        @Override
+        void onFailure(AerospikeException error) {
+          fail(error.toString())
+        }
+      }, null, key, bin)
 
     then:
     assertTraces(1) {

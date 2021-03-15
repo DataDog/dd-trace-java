@@ -64,11 +64,14 @@ class HttpServletTest extends AgentTestRunner {
     }
 
     where:
-    servlet << [new TestServlet(), new TestServlet() {
-      @Override
-      protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
+    servlet << [
+      new TestServlet(),
+      new TestServlet() {
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
+        }
       }
-    }]
+    ]
 
     expectedResourceName = servlet.class.anonymousClass ? servlet.class.name : servlet.class.simpleName
   }
@@ -77,11 +80,11 @@ class HttpServletTest extends AgentTestRunner {
     setup:
     def ex = new Exception("some error")
     def servlet = new TestServlet() {
-      @Override
-      protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
-        throw ex
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
+          throw ex
+        }
       }
-    }
 
     when:
     runUnderTrace("parent") {

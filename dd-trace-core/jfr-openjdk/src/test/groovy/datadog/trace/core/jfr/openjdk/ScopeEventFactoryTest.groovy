@@ -5,7 +5,9 @@ import datadog.trace.core.jfr.DDNoopScopeEvent
 import spock.lang.Requires
 import spock.lang.Specification
 
-@Requires({ jvm.java11Compatible })
+@Requires({
+  jvm.java11Compatible
+})
 class ScopeEventFactoryTest extends Specification {
 
   def factory = new ScopeEventFactory()

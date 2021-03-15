@@ -13,7 +13,9 @@ import java.util.concurrent.atomic.AtomicLong
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.util.concurrent.TimeUnit.SECONDS
 
-@Requires({ isJavaVersionAtLeast(8) })
+@Requires({
+  isJavaVersionAtLeast(8)
+})
 class FootprintTest extends DDSpecification {
 
   @Shared
@@ -49,8 +51,10 @@ class FootprintTest extends DDSpecification {
       String[] resourceNames = resourceNamesByService.get(serviceName)
       String resourceName = resourceNames[ThreadLocalRandom.current().nextInt(resourceNames.length)]
       boolean isError = ThreadLocalRandom.current().nextInt(traceCount) < errorThreshold
-      aggregator.publish([new SimpleSpan(serviceName, operation, resourceName, type, true, true, isError, System.nanoTime(),
-      isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01))])
+      aggregator.publish([
+        new SimpleSpan(serviceName, operation, resourceName, type, true, true, isError, System.nanoTime(),
+        isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01))
+      ])
     }
     aggregator.report()
     latch.await(10, SECONDS)

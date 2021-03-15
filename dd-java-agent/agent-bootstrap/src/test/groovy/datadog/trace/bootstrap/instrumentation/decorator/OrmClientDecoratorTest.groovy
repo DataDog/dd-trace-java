@@ -25,51 +25,50 @@ class OrmClientDecoratorTest extends DatabaseClientDecoratorTest {
 
   def newDecorator(name) {
     return new OrmClientDecorator() {
-      @Override
-      String entityName(Object entity) {
-        return name.call(entity)
-      }
+        @Override
+        String entityName(Object entity) {
+          return name.call(entity)
+        }
 
-      @Override
-      protected String dbType() {
-        return "test-db"
-      }
+        @Override
+        protected String dbType() {
+          return "test-db"
+        }
 
-      @Override
-      protected String dbUser(Object o) {
-        return "test-user"
-      }
+        @Override
+        protected String dbUser(Object o) {
+          return "test-user"
+        }
 
-      @Override
-      protected String dbInstance(Object o) {
-        return "test-user"
-      }
+        @Override
+        protected String dbInstance(Object o) {
+          return "test-user"
+        }
 
-      @Override
-      protected String dbHostname(Object o) {
-        return "test-hostname"
-      }
+        @Override
+        protected String dbHostname(Object o) {
+          return "test-hostname"
+        }
 
-      @Override
-      protected String service() {
-        return "test-service"
-      }
+        @Override
+        protected String service() {
+          return "test-service"
+        }
 
-      @Override
-      protected String[] instrumentationNames() {
-        return ["test1"]
-      }
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1"]
+        }
 
-      @Override
-      protected CharSequence spanType() {
-        return "test-type"
-      }
+        @Override
+        protected CharSequence spanType() {
+          return "test-type"
+        }
 
-      @Override
-      protected CharSequence component() {
-        return "test-component"
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
       }
-    }
   }
-
 }

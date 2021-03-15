@@ -31,16 +31,16 @@ class HystrixTest extends AgentTestRunner {
   def "test command #action"() {
     setup:
     def command = new HystrixCommand<String>(asKey("ExampleGroup")) {
-      @Override
-      protected String run() throws Exception {
-        return tracedMethod()
-      }
+        @Override
+        protected String run() throws Exception {
+          return tracedMethod()
+        }
 
-      @Trace
-      private String tracedMethod() {
-        return "Hello!"
+        @Trace
+        private String tracedMethod() {
+          return "Hello!"
+        }
       }
-    }
     def result = runUnderTrace("parent") {
       try {
         operation(command)
@@ -111,15 +111,15 @@ class HystrixTest extends AgentTestRunner {
   def "test command #action fallback"() {
     setup:
     def command = new HystrixCommand<String>(asKey("ExampleGroup")) {
-      @Override
-      protected String run() throws Exception {
-        throw new IllegalArgumentException()
-      }
+        @Override
+        protected String run() throws Exception {
+          throw new IllegalArgumentException()
+        }
 
-      protected String getFallback() {
-        return "Fallback!"
+        protected String getFallback() {
+          return "Fallback!"
+        }
       }
-    }
     def result = runUnderTrace("parent") {
       try {
         return operation(command)

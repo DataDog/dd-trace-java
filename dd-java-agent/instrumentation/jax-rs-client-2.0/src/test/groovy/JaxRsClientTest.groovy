@@ -82,8 +82,8 @@ class CxfClientTest extends JaxRsClientTest {
   @Override
   ClientBuilder builder() {
     return new ClientBuilderImpl()
-//      .property(ClientImpl.HTTP_CONNECTION_TIMEOUT_PROP, (long) CONNECT_TIMEOUT_MS)
-//      .property(ClientImpl.HTTP_RECEIVE_TIMEOUT_PROP, (long) READ_TIMEOUT_MS)
+    //      .property(ClientImpl.HTTP_CONNECTION_TIMEOUT_PROP, (long) CONNECT_TIMEOUT_MS)
+    //      .property(ClientImpl.HTTP_RECEIVE_TIMEOUT_PROP, (long) READ_TIMEOUT_MS)
   }
 
   boolean testRedirects() {

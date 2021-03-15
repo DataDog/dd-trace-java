@@ -100,9 +100,7 @@ class RejectedExecutionTest extends AgentTestRunner {
 
     where:
     // this test requires these throw
-    rejectedExecutionHandler << [
-      new ThreadPoolExecutor.AbortPolicy()
-    ]
+    rejectedExecutionHandler << [new ThreadPoolExecutor.AbortPolicy()]
   }
 
   def "trace reported when live thread pool rejects and discards work with #rejectedExecutionHandler"() {
@@ -122,10 +120,7 @@ class RejectedExecutionTest extends AgentTestRunner {
 
     where:
     // this test requires these not to run the runnable or throw
-    rejectedExecutionHandler << [
-      new SwallowingRejectedExecutionHandler(),
-      new ThreadPoolExecutor.DiscardPolicy()
-    ]
+    rejectedExecutionHandler << [new SwallowingRejectedExecutionHandler(), new ThreadPoolExecutor.DiscardPolicy()]
   }
 
   def "trace reported when live thread pool rejects and runs work with #rejectedExecutionHandler"() {
@@ -156,7 +151,7 @@ class RejectedExecutionTest extends AgentTestRunner {
   def "trace reported with swallowing netty rejected execution handler" () {
     setup:
     DefaultEventExecutor executor = new DefaultEventExecutor(null, new DefaultThreadFactory(DefaultEventExecutor),
-    1, handler)
+      1, handler)
     CountDownLatch latch = new CountDownLatch(1)
     // this task will block the executor thread ensuring the next task gets enqueued
     executor.submit({
@@ -178,9 +173,7 @@ class RejectedExecutionTest extends AgentTestRunner {
     expectParentChildTrace()
 
     where:
-    handler << [
-      new SwallowingRejectedExecutionHandler()
-    ]
+    handler << [new SwallowingRejectedExecutionHandler()]
   }
 
   def expectParentChildTrace() {

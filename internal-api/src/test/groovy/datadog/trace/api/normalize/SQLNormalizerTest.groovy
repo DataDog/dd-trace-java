@@ -114,6 +114,5 @@ INSERT INTO country (country_name, country_name_eng, country_code) VALUES (?, ?,
 INSERT INTO country (country_name, country_name_eng, country_code) VALUES (?, ?, ?);
 INSERT INTO country (country_name, country_name_eng, country_code) VALUES (?, ?, ?);
 INSERT INTO country (country_name, country_name_eng, country_code) VALUES (?, ?, ?);"""
-
   }
 }

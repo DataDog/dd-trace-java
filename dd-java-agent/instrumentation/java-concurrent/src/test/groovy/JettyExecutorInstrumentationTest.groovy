@@ -14,7 +14,9 @@ import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static org.junit.Assume.assumeTrue
 
-@Requires({ isJavaVersionAtLeast(8)})
+@Requires({
+  isJavaVersionAtLeast(8)
+})
 class JettyExecutorInstrumentationTest extends AgentTestRunner {
 
   @Shared
@@ -32,17 +34,17 @@ class JettyExecutorInstrumentationTest extends AgentTestRunner {
     pool.start()
 
     new Runnable() {
-      @Override
-      @Trace(operationName = "parent")
-      void run() {
-        activeScope().setAsyncPropagation(true)
-        // this child will have a span
-        m(pool, new JavaAsyncChild())
-        // this child won't
-        m(pool, new JavaAsyncChild(false, false))
-        blockUntilChildSpansFinished(1)
-      }
-    }.run()
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          // this child will have a span
+          m(pool, new JavaAsyncChild())
+          // this child won't
+          m(pool, new JavaAsyncChild(false, false))
+          blockUntilChildSpansFinished(1)
+        }
+      }.run()
 
     TEST_WRITER.waitForTraces(1)
     List<DDSpan> trace = TEST_WRITER.get(0)

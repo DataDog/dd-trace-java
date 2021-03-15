@@ -5,7 +5,7 @@ import org.slf4j.Logger
 
 class IOLoggerTest extends DDSpecification {
   final response = new IOLogger.Response(404, "Not Found",
-    "The thing you were looking for does not exist")
+  "The thing you were looking for does not exist")
   final exception = new RuntimeException("Something went wrong!")
 
   Logger log = Mock(Logger)
@@ -64,7 +64,7 @@ class IOLoggerTest extends DDSpecification {
       404,
       "Not Found",
       "The thing you were looking for does not exist"
-    )
+      )
   }
 
   def "Error - Debug level - Exception"() {
@@ -79,7 +79,7 @@ class IOLoggerTest extends DDSpecification {
     1 * log.debug(
       "test message",
       exception
-    )
+      )
   }
 
   def "Error - Info level - Message"() {
@@ -108,7 +108,7 @@ class IOLoggerTest extends DDSpecification {
       "test message",
       404,
       "Not Found"
-    )
+      )
   }
 
   def "Error - Info level - Exception"() {
@@ -125,7 +125,7 @@ class IOLoggerTest extends DDSpecification {
       "test message",
       "java.lang.RuntimeException",
       "Something went wrong!"
-    )
+      )
   }
 
   def "Logged Error Then Success - Info level"() {

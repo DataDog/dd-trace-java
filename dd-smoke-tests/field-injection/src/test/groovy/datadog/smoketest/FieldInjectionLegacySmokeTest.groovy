@@ -42,7 +42,10 @@ class FieldInjectionLegacySmokeTest extends Specification {
     testedTypesAndExpectedFields.put(FutureTask.getName(),
       new HashSet<>([fieldName(RunnableFuture)]))
     testedTypesAndExpectedFields.put("java.util.concurrent.CompletableFuture\$UniCompletion",
-      new HashSet<>([fieldName(ForkJoinTask), fieldName("java.util.concurrent.CompletableFuture\$UniCompletion")]))
+      new HashSet<>([
+        fieldName(ForkJoinTask),
+        fieldName("java.util.concurrent.CompletableFuture\$UniCompletion")
+      ]))
     String jar = System.getProperty("datadog.smoketest.fieldinjection.shadowJar.path")
     List<String> command = new ArrayList<>()
     command.add(javaPath())

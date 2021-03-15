@@ -109,7 +109,6 @@ class ConfigResetTest extends AgentTestRunner {
     then:
     System.getProperty("dd.trace.enabled") == "false"
     !Config.get().isTraceEnabled()
-
   }
 
   def "removing sys config"() {
@@ -181,7 +180,6 @@ class ConfigResetTest extends AgentTestRunner {
     then:
     System.getenv("DD_TRACE_ENABLED") == "false"
     !Config.get().isTraceEnabled()
-
   }
 
   def "removing env config"() {

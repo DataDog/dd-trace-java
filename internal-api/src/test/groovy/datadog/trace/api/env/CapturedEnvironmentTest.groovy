@@ -72,5 +72,4 @@ class CapturedEnvironmentTest extends DDSpecification {
     def props = capturedEnv.properties
     props.get(GeneralConfig.SERVICE_NAME) != null
   }
-
 }

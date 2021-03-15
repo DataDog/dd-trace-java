@@ -24,5 +24,4 @@ class SingleThreadedSpringWebfluxTest extends SpringWebfluxTest {
       return factory
     }
   }
-
 }

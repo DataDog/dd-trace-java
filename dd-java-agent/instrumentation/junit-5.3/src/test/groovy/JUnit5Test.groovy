@@ -121,7 +121,6 @@ class JUnit5Test extends TestFrameworkTest {
         testSpan(it, 0, "org.example.TestFactory", "test_factory", TestDecorator.TEST_PASS)
       }
     }
-
   }
 
   def "test failed generates spans"() {

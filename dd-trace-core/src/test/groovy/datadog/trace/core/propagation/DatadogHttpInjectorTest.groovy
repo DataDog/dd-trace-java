@@ -23,25 +23,24 @@ class DatadogHttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-        DDId.from(traceId),
-        DDId.from(spanId),
-        DDId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        samplingPriority,
-        origin,
-        new HashMap<String, String>() {
-          {
-            put("k1", "v1")
-            put("k2", "v2")
-          }
-        },
-        false,
-        "fakeType",
-        0,
-        tracer.pendingTraceFactory.create(DDId.ONE))
+      DDId.from(traceId),
+      DDId.from(spanId),
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      samplingPriority,
+      origin,
+      new HashMap<String, String>() { {
+          put("k1", "v1")
+          put("k2", "v2")
+        }
+      },
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE))
 
     final Map<String, String> carrier = Mock()
 

@@ -60,11 +60,13 @@ class HealthMetricsTest extends DDSpecification {
     healthMetrics.close()
 
     where:
+    // spotless:off
     trace        | samplingPriority              | priorityName
     []           | PrioritySampling.USER_DROP    | "user_drop"
     [null, null] | PrioritySampling.USER_DROP    | "user_drop"
     []           | PrioritySampling.SAMPLER_KEEP | "sampler_keep"
     [null, null] | PrioritySampling.SAMPLER_KEEP | "sampler_keep"
+    // spotless:on
   }
 
   def "test onFailedPublish"() {
@@ -85,7 +87,13 @@ class HealthMetricsTest extends DDSpecification {
     healthMetrics.close()
 
     where:
-    samplingPriority << [PrioritySampling.SAMPLER_KEEP, PrioritySampling.USER_KEEP, PrioritySampling.USER_DROP, PrioritySampling.SAMPLER_DROP, PrioritySampling.UNSET]
+    samplingPriority << [
+      PrioritySampling.SAMPLER_KEEP,
+      PrioritySampling.USER_KEEP,
+      PrioritySampling.USER_DROP,
+      PrioritySampling.SAMPLER_DROP,
+      PrioritySampling.UNSET
+    ]
   }
 
   def "test onScheduleFlush"() {

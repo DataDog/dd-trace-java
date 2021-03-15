@@ -25,32 +25,32 @@ class PlayServerTest extends HttpServerTest<Server> {
   Server startServer(int port) {
     def router =
       new RoutingDsl()
-        .GET(SUCCESS.getPath()).routeTo({
+      .GET(SUCCESS.getPath()).routeTo({
         controller(SUCCESS) {
           Results.status(SUCCESS.getStatus(), SUCCESS.getBody())
         }
       } as Supplier)
-        .GET(FORWARDED.getPath()).routeTo({
+      .GET(FORWARDED.getPath()).routeTo({
         controller(FORWARDED) {
           Results.status(FORWARDED.getStatus(), FORWARDED.getBody()) // cheating
         }
       } as Supplier)
-        .GET(QUERY_PARAM.getPath()).routeTo({
+      .GET(QUERY_PARAM.getPath()).routeTo({
         controller(QUERY_PARAM) {
           Results.status(QUERY_PARAM.getStatus(), QUERY_PARAM.getBody()) // cheating
         }
       } as Supplier)
-        .GET(REDIRECT.getPath()).routeTo({
+      .GET(REDIRECT.getPath()).routeTo({
         controller(REDIRECT) {
           Results.found(REDIRECT.getBody())
         }
       } as Supplier)
-        .GET(ERROR.getPath()).routeTo({
+      .GET(ERROR.getPath()).routeTo({
         controller(ERROR) {
           Results.status(ERROR.getStatus(), ERROR.getBody())
         }
       } as Supplier)
-        .GET(EXCEPTION.getPath()).routeTo({
+      .GET(EXCEPTION.getPath()).routeTo({
         controller(EXCEPTION) {
           throw new Exception(EXCEPTION.getBody())
         }

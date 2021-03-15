@@ -121,8 +121,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     // TODO: add tests for the following cases:
     QUERY_PARAM("query?some=query", 200, "some=query"),
     // OkHttp never sends the fragment in the request, so these cases don't work.
-//    FRAGMENT_PARAM("fragment#some-fragment", 200, "some-fragment"),
-//    QUERY_FRAGMENT_PARAM("query/fragment?some=query#some-fragment", 200, "some=query#some-fragment"),
+    //    FRAGMENT_PARAM("fragment#some-fragment", 200, "some-fragment"),
+    //    QUERY_FRAGMENT_PARAM("query/fragment?some=query#some-fragment", 200, "some=query#some-fragment"),
     PATH_PARAM("path/123/param", 200, "123"),
     AUTH_REQUIRED("authRequired", 200, null),
     LOGIN("login", 302, null),
@@ -169,7 +169,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       assert values().length == values().collect { it.path }.toSet().size(): "paths should be unique"
     }
 
-    private static final Map<String, ServerEndpoint> PATH_MAP = values().collectEntries { [it.path, it] }
+    private static final Map<String, ServerEndpoint> PATH_MAP = values().collectEntries { [it.path, it]}
 
     static ServerEndpoint forPath(String path) {
       def endpoint = PATH_MAP.get(path)
@@ -404,7 +404,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (bubblesResponse()) {
       assert response.code() == REDIRECT.status
       assert response.header("location") == REDIRECT.body ||
-        response.header("location") == "${address.resolve(REDIRECT.body)}"
+      response.header("location") == "${address.resolve(REDIRECT.body)}"
     }
 
     response.body().contentLength() < 1 || redirectHasBody()
@@ -503,7 +503,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     and:
     assertTraces(1) {
-      trace(spanCount(NOT_FOUND) - 1) { // no controller span
+      trace(spanCount(NOT_FOUND) - 1) {
+        // no controller span
         sortSpansByStart()
         serverSpan(it, null, null, method, NOT_FOUND)
         if (hasHandlerSpan()) {
@@ -643,9 +644,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           "$DDTags.HTTP_QUERY" endpoint.query
         }
         // OkHttp never sends the fragment in the request.
-//        if (endpoint.fragment) {
-//          "$DDTags.HTTP_FRAGMENT" endpoint.fragment
-//        }
+        //        if (endpoint.fragment) {
+        //          "$DDTags.HTTP_FRAGMENT" endpoint.fragment
+        //        }
         defaultTags(true)
       }
       metrics {

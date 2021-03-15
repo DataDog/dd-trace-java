@@ -12,10 +12,10 @@ class JerseyTest extends AgentTestRunner {
   @Shared
   @ClassRule
   ResourceTestRule resources = ResourceTestRule.builder()
-    .addResource(new Resource.Test1())
-    .addResource(new Resource.Test2())
-    .addResource(new Resource.Test3())
-    .build()
+  .addResource(new Resource.Test1())
+  .addResource(new Resource.Test2())
+  .addResource(new Resource.Test3())
+  .build()
 
   def "test #resource"() {
     when:

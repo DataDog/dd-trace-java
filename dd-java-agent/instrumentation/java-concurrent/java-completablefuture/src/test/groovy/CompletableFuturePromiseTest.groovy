@@ -22,11 +22,11 @@ abstract class CompletableFuturePromiseTest extends AbstractPromiseTest<Completa
   @Override
   CompletableFuture<String> map(CompletableFuture<Boolean> promise, Closure<String> callback) {
     return promise.thenApplyAsync(new Function<Boolean, String>() {
-      @Override
-      String apply(Boolean value) {
-        return callback.call(value)
-      }
-    }, executor).toCompletableFuture()
+        @Override
+        String apply(Boolean value) {
+          return callback.call(value)
+        }
+      }, executor).toCompletableFuture()
   }
 
   @Override

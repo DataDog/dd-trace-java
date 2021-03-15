@@ -12,7 +12,9 @@ import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
-@Requires({ isJavaVersionAtLeast(8) })
+@Requires({
+  isJavaVersionAtLeast(8)
+})
 class ConflatingMetricAggregatorTest extends DDSpecification {
 
   @Shared
@@ -31,7 +33,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       queueSize,
       1,
       MILLISECONDS
-    )
+      )
     aggregator.start()
 
     when:
@@ -59,8 +61,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
 
     then:
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(new MetricKey("resource", "service", "operation", "type", 0), _) >> {
-      MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
+    1 * writer.add(new MetricKey("resource", "service", "operation", "type", 0), _) >> { MetricKey key, AggregateMetric value ->
+      value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
     }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -77,14 +79,16 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
 
     when:
     CountDownLatch latch = new CountDownLatch(1)
-    aggregator.publish([new SimpleSpan("service", "operation", "resource", "type", measured, topLevel, false, 0, 100)])
+    aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", measured, topLevel, false, 0, 100)
+    ])
     aggregator.report()
     latch.await(2, SECONDS)
 
     then:
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(new MetricKey("resource", "service", "operation", "type", 0), _) >> {
-      MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getTopLevelCount() == topLevelCount && value.getDuration() == 100
+    1 * writer.add(new MetricKey("resource", "service", "operation", "type", 0), _) >> { MetricKey key, AggregateMetric value ->
+      value.getHitCount() == 1 && value.getTopLevelCount() == topLevelCount && value.getDuration() == 100
     }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -123,11 +127,11 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "metrics should be conflated"
     1 * writer.finishBucket() >> { latch.countDown() }
     1 * writer.startBucket(2, _, SECONDS.toNanos(reportingInterval))
-    1 * writer.add(new MetricKey("resource", "service", "operation", "type", 0), _) >> {
-      MetricKey key, AggregateMetric value -> value.getHitCount() == count && value.getDuration() == count * duration
+    1 * writer.add(new MetricKey("resource", "service", "operation", "type", 0), _) >> { MetricKey key, AggregateMetric value ->
+      value.getHitCount() == count && value.getDuration() == count * duration
     }
-    1 * writer.add(new MetricKey("resource2", "service2", "operation2", "type", 0), _) >> {
-      MetricKey key, AggregateMetric value -> value.getHitCount() == count && value.getDuration() == count * duration * 2
+    1 * writer.add(new MetricKey("resource2", "service2", "operation2", "type", 0), _) >> { MetricKey key, AggregateMetric value ->
+      value.getHitCount() == count && value.getDuration() == count * duration * 2
     }
 
     cleanup:
@@ -149,7 +153,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     when:
     CountDownLatch latch = new CountDownLatch(1)
     for (int i = 0; i < 11; ++i) {
-      aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+      aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)
+      ])
     }
     aggregator.report()
     latch.await(2, SECONDS)
@@ -157,8 +163,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "the first aggregate should be dropped but the rest reported"
     1 * writer.startBucket(10, _, SECONDS.toNanos(reportingInterval))
     for (int i = 1; i < 11; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> {
-        MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getDuration() == duration
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> { MetricKey key, AggregateMetric value ->
+        value.getHitCount() == 1 && value.getDuration() == duration
       }
     }
     0 * writer.add(new MetricKey("resource", "service0", "operation", "type", 0), _)
@@ -180,7 +186,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     when:
     CountDownLatch latch = new CountDownLatch(1)
     for (int i = 0; i < 5; ++i) {
-      aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+      aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)
+      ])
     }
     aggregator.report()
     latch.await(2, SECONDS)
@@ -188,8 +196,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "all aggregates should be reported"
     1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 5; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> {
-        MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getDuration() == duration
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> { MetricKey key, AggregateMetric value ->
+        value.getHitCount() == 1 && value.getDuration() == duration
       }
     }
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -197,7 +205,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     when:
     latch = new CountDownLatch(1)
     for (int i = 1; i < 5; ++i) {
-      aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+      aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)
+      ])
     }
     aggregator.report()
     latch.await(2, SECONDS)
@@ -205,8 +215,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "aggregate not updated in cycle is not reported"
     1 * writer.startBucket(4, _, SECONDS.toNanos(reportingInterval))
     for (int i = 1; i < 5; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> {
-        MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getDuration() == duration
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> { MetricKey key, AggregateMetric value ->
+        value.getHitCount() == 1 && value.getDuration() == duration
       }
     }
     0 * writer.add(new MetricKey("resource", "service0", "operation", "type", 0), _)
@@ -228,7 +238,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     when:
     CountDownLatch latch = new CountDownLatch(1)
     for (int i = 0; i < 5; ++i) {
-      aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+      aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)
+      ])
     }
     aggregator.report()
     latch.await(2, SECONDS)
@@ -236,8 +248,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "all aggregates should be reported"
     1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 5; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> {
-        MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getDuration() == duration
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> { MetricKey key, AggregateMetric value ->
+        value.getHitCount() == 1 && value.getDuration() == duration
       }
     }
     1 * writer.finishBucket()
@@ -266,15 +278,17 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     when:
     CountDownLatch latch = new CountDownLatch(1)
     for (int i = 0; i < 5; ++i) {
-      aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+      aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)
+      ])
     }
     latch.await(2, SECONDS)
 
     then: "all aggregates should be reported"
     1 * writer.startBucket(5, _, SECONDS.toNanos(1))
     for (int i = 0; i < 5; ++i) {
-      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> {
-        MetricKey key, AggregateMetric value -> value.getHitCount() == 1 && value.getDuration() == duration
+      1 * writer.add(new MetricKey("resource", "service" + i, "operation", "type", 0), _) >> { MetricKey key, AggregateMetric value ->
+        value.getHitCount() == 1 && value.getDuration() == duration
       }
     }
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -295,10 +309,14 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     when:
     def overrides = new boolean[10]
     for (int i = 0; i < 5; ++i) {
-      overrides[i] = aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+      overrides[i] = aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)
+      ])
     }
     for (int i = 0; i < 5; ++i) {
-      overrides[i + 5] = aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+      overrides[i + 5] = aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)
+      ])
     }
 
     then: "override only the first of each point in the interval"
@@ -326,7 +344,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     when:
     CountDownLatch latch = new CountDownLatch(1)
     for (int i = 0; i < 5; ++i) {
-      aggregator.publish([new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)])
+      aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration)
+      ])
     }
     latch.await(2, SECONDS)
 

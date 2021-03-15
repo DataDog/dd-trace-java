@@ -41,5 +41,4 @@ class LogLevelTest extends Specification {
     LogLevel.ERROR | false | false | false | false | true  | true
     LogLevel.OFF   | false | false | false | false | false | true
   }
-
 }

@@ -52,72 +52,72 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
 
     channelPipeline.addLast("http-codec", new HttpServerCodec())
     channelPipeline.addLast("controller", new SimpleChannelHandler() {
-      @Override
-      void messageReceived(ChannelHandlerContext ctx, MessageEvent msg) throws Exception {
-        if (msg.getMessage() instanceof HttpRequest) {
-          def request = msg.getMessage() as HttpRequest
-          def uri = URI.create(request.getUri())
-          HttpServerTest.ServerEndpoint endpoint = forPath(uri.path)
-          ctx.sendDownstream controller(endpoint) {
-            HttpResponse response
-            ChannelBuffer responseContent = null
-            switch (endpoint) {
-              case SUCCESS:
-              case ERROR:
-                responseContent = ChannelBuffers.copiedBuffer(endpoint.body, CharsetUtil.UTF_8)
-                response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
-                response.setContent(responseContent)
-                break
-              case FORWARDED:
-                responseContent = ChannelBuffers.copiedBuffer(request.headers().get("x-forwarded-for"), CharsetUtil.UTF_8)
-                response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
-                response.setContent(responseContent)
-                break
-              case QUERY_PARAM:
-                responseContent = ChannelBuffers.copiedBuffer(uri.query, CharsetUtil.UTF_8)
-                response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
-                response.setContent(responseContent)
-                break
-              case REDIRECT:
-                response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
-                response.headers().set(LOCATION, endpoint.body)
-                break
-              case EXCEPTION:
-                throw new Exception(endpoint.body)
-              default:
-                responseContent = ChannelBuffers.copiedBuffer(NOT_FOUND.body, CharsetUtil.UTF_8)
-                response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
-                response.setContent(responseContent)
-                break
+        @Override
+        void messageReceived(ChannelHandlerContext ctx, MessageEvent msg) throws Exception {
+          if (msg.getMessage() instanceof HttpRequest) {
+            def request = msg.getMessage() as HttpRequest
+            def uri = URI.create(request.getUri())
+            HttpServerTest.ServerEndpoint endpoint = forPath(uri.path)
+            ctx.sendDownstream controller(endpoint) {
+              HttpResponse response
+              ChannelBuffer responseContent = null
+              switch (endpoint) {
+                case SUCCESS:
+                case ERROR:
+                  responseContent = ChannelBuffers.copiedBuffer(endpoint.body, CharsetUtil.UTF_8)
+                  response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
+                  response.setContent(responseContent)
+                  break
+                case FORWARDED:
+                  responseContent = ChannelBuffers.copiedBuffer(request.headers().get("x-forwarded-for"), CharsetUtil.UTF_8)
+                  response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
+                  response.setContent(responseContent)
+                  break
+                case QUERY_PARAM:
+                  responseContent = ChannelBuffers.copiedBuffer(uri.query, CharsetUtil.UTF_8)
+                  response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
+                  response.setContent(responseContent)
+                  break
+                case REDIRECT:
+                  response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
+                  response.headers().set(LOCATION, endpoint.body)
+                  break
+                case EXCEPTION:
+                  throw new Exception(endpoint.body)
+                default:
+                  responseContent = ChannelBuffers.copiedBuffer(NOT_FOUND.body, CharsetUtil.UTF_8)
+                  response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
+                  response.setContent(responseContent)
+                  break
+              }
+              response.headers().set(CONTENT_TYPE, "text/plain")
+              if (responseContent) {
+                response.headers().set(CONTENT_LENGTH, responseContent.readableBytes())
+              }
+              return new DownstreamMessageEvent(
+                ctx.getChannel(),
+                new SucceededChannelFuture(ctx.getChannel()),
+                response,
+                ctx.getChannel().getRemoteAddress())
             }
-            response.headers().set(CONTENT_TYPE, "text/plain")
-            if (responseContent) {
-              response.headers().set(CONTENT_LENGTH, responseContent.readableBytes())
-            }
-            return new DownstreamMessageEvent(
-              ctx.getChannel(),
-              new SucceededChannelFuture(ctx.getChannel()),
-              response,
-              ctx.getChannel().getRemoteAddress())
           }
         }
-      }
 
-      @Override
-      void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent ex) throws Exception {
-        def message = ex.getCause() == null ? "<no cause> " + ex.message : ex.cause.message == null ? "<null>" : ex.cause.message
-        ChannelBuffer buffer = ChannelBuffers.copiedBuffer(message, CharsetUtil.UTF_8)
-        HttpResponse response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR)
-        response.setContent(buffer)
-        response.headers().set(CONTENT_TYPE, "text/plain")
-        response.headers().set(CONTENT_LENGTH, buffer.readableBytes())
-        ctx.sendDownstream(new DownstreamMessageEvent(
-          ctx.getChannel(),
-          new FailedChannelFuture(ctx.getChannel(), ex.getCause()),
-          response,
-          ctx.getChannel().getRemoteAddress()))
-      }
-    })
+        @Override
+        void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent ex) throws Exception {
+          def message = ex.getCause() == null ? "<no cause> " + ex.message : ex.cause.message == null ? "<null>" : ex.cause.message
+          ChannelBuffer buffer = ChannelBuffers.copiedBuffer(message, CharsetUtil.UTF_8)
+          HttpResponse response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR)
+          response.setContent(buffer)
+          response.headers().set(CONTENT_TYPE, "text/plain")
+          response.headers().set(CONTENT_LENGTH, buffer.readableBytes())
+          ctx.sendDownstream(new DownstreamMessageEvent(
+            ctx.getChannel(),
+            new FailedChannelFuture(ctx.getChannel(), ex.getCause()),
+            response,
+            ctx.getChannel().getRemoteAddress()))
+        }
+      })
 
     return channelPipeline
   }
@@ -127,11 +127,11 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
     ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory())
     bootstrap.setParentHandler(LOGGING_HANDLER)
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-      @Override
-      ChannelPipeline getPipeline() throws Exception {
-        return channelPipeline()
-      }
-    })
+        @Override
+        ChannelPipeline getPipeline() throws Exception {
+          return channelPipeline()
+        }
+      })
 
     InetSocketAddress address = new InetSocketAddress(port)
     bootstrap.bind(address)

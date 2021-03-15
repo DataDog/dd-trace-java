@@ -40,8 +40,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(HealthMetrics),
       monitoring,
-      flushCountingPayloadDispatcher(flushCount),
-      {
+      flushCountingPayloadDispatcher(flushCount), {
         false
       },
       FAST_LANE,
@@ -133,8 +132,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
       monitoring, throwingDispatcher, {
-      false
-    }, FAST_LANE,
+        false
+      }, FAST_LANE,
       100, TimeUnit.SECONDS) // prevent heartbeats from helping the flush happen
     worker.start()
 
@@ -163,8 +162,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
       countingDispatcher, {
-      false
-    }, FAST_LANE, 100, TimeUnit.SECONDS)
+        false
+      }, FAST_LANE, 100, TimeUnit.SECONDS)
     // prevent heartbeats from helping the flush happen
     worker.start()
 
@@ -215,8 +214,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
       countingDispatcher, {
-      false
-    }, FAST_LANE, 100, TimeUnit.SECONDS)
+        false
+      }, FAST_LANE, 100, TimeUnit.SECONDS)
     worker.start()
     worker.close()
     int queueSize = 0

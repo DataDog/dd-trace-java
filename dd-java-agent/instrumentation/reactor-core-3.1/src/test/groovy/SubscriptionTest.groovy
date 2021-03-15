@@ -30,7 +30,6 @@ class SubscriptionTest extends AgentTestRunner {
         basicSpan(it, "Connection.query", span(0))
       }
     }
-
   }
 
   static class Connection {

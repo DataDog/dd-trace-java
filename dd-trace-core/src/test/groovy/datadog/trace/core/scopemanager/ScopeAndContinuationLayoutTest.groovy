@@ -4,7 +4,9 @@ import datadog.trace.test.util.DDSpecification
 import org.openjdk.jol.info.ClassLayout
 import spock.lang.Requires
 
-@Requires({!System.getProperty("java.vendor").toUpperCase().contains("IBM")})
+@Requires({
+  !System.getProperty("java.vendor").toUpperCase().contains("IBM")
+})
 class ScopeAndContinuationLayoutTest extends DDSpecification {
 
   def "continuable scope layout"() {

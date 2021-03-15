@@ -48,11 +48,11 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
     Context servletContext = tomcatServer.addWebapp("/$context", applicationDir.getAbsolutePath())
     // Speed up startup by disabling jar scanning:
     servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
-      @Override
-      boolean check(JarScanType jarScanType, String jarName) {
-        return false
-      }
-    })
+        @Override
+        boolean check(JarScanType jarScanType, String jarName) {
+          return false
+        }
+      })
 
     setupServlets(servletContext)
 

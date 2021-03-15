@@ -42,12 +42,6 @@ repositories {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-spotless {
-  groovy {
-    excludeJava()
-    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
-  }
-}
 
 description = 'Play 2.5 Integration Tests.'
 

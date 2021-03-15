@@ -27,14 +27,14 @@ class TraceAssert {
   }
 
   static void assertTrace(List<DDSpan> trace, int expectedSize,
-                          @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
-                          @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
+    @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     assertTrace(trace, expectedSize, false, spec)
   }
 
   static void assertTrace(List<DDSpan> trace, int expectedSize, boolean sortByName,
-                          @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
-                          @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
+    @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     // Some tests do their own sorting of the spans which can happen concurrently with other code doing
     // iterations, so we make a copy of the list here to not cause a ConcurrentModificationException
     trace = new ArrayList<DDSpan>(trace)

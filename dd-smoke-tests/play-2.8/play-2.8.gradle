@@ -7,12 +7,6 @@ def playVersion = "2.8.2"
 def scalaVersion = System.getProperty("scala.version", /* default = */ "2.13.2")
 
 apply from: "$rootDir/gradle/java.gradle"
-spotless {
-  groovy {
-    excludeJava()
-    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
-  }
-}
 
 description = 'Play Integration 2.8 Tests.'
 

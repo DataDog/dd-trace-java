@@ -24,19 +24,19 @@ class VertxHttpServerTest extends HttpServerTest<Vertx> {
   @Override
   Vertx startServer(int port) {
     def server = Vertx.vertx(new VertxOptions()
-    // Useful for debugging:
-    // .setBlockedThreadCheckInterval(Integer.MAX_VALUE)
+      // Useful for debugging:
+      // .setBlockedThreadCheckInterval(Integer.MAX_VALUE)
       .setClusterPort(port))
     final CompletableFuture<Void> future = new CompletableFuture<>()
     server.deployVerticle(verticle().name,
       new DeploymentOptions()
-        .setConfig(new JsonObject().put(CONFIG_HTTP_SERVER_PORT, port))
-        .setInstances(3)) { res ->
-      if (!res.succeeded()) {
-        throw new RuntimeException("Cannot deploy server Verticle", res.cause())
+      .setConfig(new JsonObject().put(CONFIG_HTTP_SERVER_PORT, port))
+      .setInstances(3)) { res ->
+        if (!res.succeeded()) {
+          throw new RuntimeException("Cannot deploy server Verticle", res.cause())
+        }
+        future.complete(null)
       }
-      future.complete(null)
-    }
 
     future.get()
     return server

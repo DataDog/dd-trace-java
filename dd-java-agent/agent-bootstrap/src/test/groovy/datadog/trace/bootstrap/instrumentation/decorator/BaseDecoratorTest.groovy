@@ -157,42 +157,42 @@ class BaseDecoratorTest extends DDSpecification {
         }
       } :
       analyticsEnabledDefault ?
-        new BaseDecorator() {
-          @Override
-          protected String[] instrumentationNames() {
-            return ["test1", "test2"]
-          }
-
-          @Override
-          protected CharSequence spanType() {
-            return "test-type"
-          }
-
-          @Override
-          protected CharSequence component() {
-            return "test-component"
-          }
-
-          protected boolean traceAnalyticsDefault() {
-            return true
-          }
-        } :
-        new BaseDecorator() {
-          @Override
-          protected String[] instrumentationNames() {
-            return ["test1", "test2"]
-          }
-
-          @Override
-          protected CharSequence spanType() {
-            return "test-type"
-          }
-
-          @Override
-          protected CharSequence component() {
-            return "test-component"
-          }
+      new BaseDecorator() {
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1", "test2"]
         }
+
+        @Override
+        protected CharSequence spanType() {
+          return "test-type"
+        }
+
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
+
+        protected boolean traceAnalyticsDefault() {
+          return true
+        }
+      } :
+      new BaseDecorator() {
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1", "test2"]
+        }
+
+        @Override
+        protected CharSequence spanType() {
+          return "test-type"
+        }
+
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
+      }
   }
 
   class SomeInnerClass implements Runnable {

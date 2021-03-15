@@ -81,7 +81,7 @@ class HelperInjectionTest extends DDSpecification {
     final byte[] classBytes = locator.locate(helperClassName).resolve()
     final TypeDescription typeDesc =
       new TypeDescription.Latent(
-        helperClassName, 0, null, Collections.<TypeDescription.Generic> emptyList())
+      helperClassName, 0, null, Collections.<TypeDescription.Generic> emptyList())
 
     AtomicReference<URLClassLoader> emptyLoader = new AtomicReference<>(new URLClassLoader(new URL[0], (ClassLoader) null))
     AtomicReference<ClassInjector> injector = new AtomicReference<>(new ClassInjector.UsingReflection(emptyLoader.get()))

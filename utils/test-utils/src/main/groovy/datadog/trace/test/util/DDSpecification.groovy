@@ -60,10 +60,10 @@ abstract class DDSpecification extends Specification {
       new AgentBuilder.Default()
         .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
         .with(AgentBuilder.RedefinitionStrategy.Listener.ErrorEscalating.FAIL_FAST)
-      // Config is injected into the bootstrap, so we need to provide a locator.
+        // Config is injected into the bootstrap, so we need to provide a locator.
         .with(
-          new AgentBuilder.LocationStrategy.Simple(
-            ClassFileLocator.ForClassLoader.ofSystemLoader()))
+        new AgentBuilder.LocationStrategy.Simple(
+        ClassFileLocator.ForClassLoader.ofSystemLoader()))
         .ignore(none()) // Allow transforming bootstrap classes
         .type(named(CONFIG))
         .transform { builder, typeDescription, classLoader, module ->

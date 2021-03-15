@@ -76,12 +76,12 @@ class JMS1Test extends AgentTestRunner {
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
     consumer.setMessageListener new MessageListener() {
-      @Override
-      void onMessage(Message message) {
-        lock.await() // ensure the producer trace is reported first.
-        messageRef.set(message)
+        @Override
+        void onMessage(Message message) {
+          lock.await() // ensure the producer trace is reported first.
+          messageRef.set(message)
+        }
       }
-    }
 
     producer.send(message)
     lock.countDown()
@@ -116,7 +116,8 @@ class JMS1Test extends AgentTestRunner {
     expect:
     receivedMessage == null
     assertTraces(1) {
-      trace(1) { // Consumer trace
+      trace(1) {
+        // Consumer trace
         span {
           parent()
           serviceName "jms"
@@ -153,7 +154,8 @@ class JMS1Test extends AgentTestRunner {
     expect:
     receivedMessage == null
     assertTraces(1) {
-      trace(1) { // Consumer trace
+      trace(1) {
+        // Consumer trace
         span {
           parent()
           serviceName "jms"
@@ -203,7 +205,8 @@ class JMS1Test extends AgentTestRunner {
     // The consumer span will also not be linked to the parent.
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
-      trace(1) { // Consumer trace
+      trace(1) {
+        // Consumer trace
         span {
           parent()
           serviceName "jms"

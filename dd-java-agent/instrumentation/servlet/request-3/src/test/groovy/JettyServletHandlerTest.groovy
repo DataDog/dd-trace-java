@@ -31,22 +31,22 @@ class JettyServletHandlerTest extends AbstractServlet3Test<Server, ServletHandle
     server.setHandler(handler)
     setupServlets(handler)
     server.addBean(new ErrorHandler() {
-      protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
-        Throwable t = (Throwable) request.getAttribute("javax.servlet.error.exception")
-        def response = ((Request) request).response
-        if (t) {
-          if (t instanceof ServletException) {
-            t = t.rootCause
+        protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
+          Throwable t = (Throwable) request.getAttribute("javax.servlet.error.exception")
+          def response = ((Request) request).response
+          if (t) {
+            if (t instanceof ServletException) {
+              t = t.rootCause
+            }
+            if (t instanceof InputMismatchException) {
+              response.status = CUSTOM_EXCEPTION.status
+            }
+            writer.write(t.message)
+          } else {
+            writer.write(message)
           }
-          if (t instanceof InputMismatchException) {
-            response.status = CUSTOM_EXCEPTION.status
-          }
-          writer.write(t.message)
-        } else {
-          writer.write(message)
         }
-      }
-    })
+      })
     server.start()
     return server
   }

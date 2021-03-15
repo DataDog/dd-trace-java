@@ -4,11 +4,11 @@ class BitriseInfoTest extends CIProviderInfoTest {
   @Override
   CIProviderInfo instanceProvider() {
     return new BitriseInfo() {
-      @Override
-      protected String getGitFolderName() {
-        return GIT_FOLDER_FOR_TESTS
+        @Override
+        protected String getGitFolderName() {
+          return GIT_FOLDER_FOR_TESTS
+        }
       }
-    }
   }
 
   @Override

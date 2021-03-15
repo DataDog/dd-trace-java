@@ -97,7 +97,11 @@ class FixedSizeCacheTest extends DDSpecification {
     conds.await(30.0) // the test is really fast locally, but I don't know how fast CI is
 
     where:
-    cacheImpl << [{ capacity -> DDCaches.newFixedSizeCache(capacity) }, { capacity -> DDCaches.newUnboundedCache(capacity) }]
+    cacheImpl << [
+      { capacity -> DDCaches.newFixedSizeCache(capacity) },
+      { capacity ->
+        DDCaches.newUnboundedCache(capacity) }
+    ]
   }
 
   private class TVC implements Function<TKey, String> {

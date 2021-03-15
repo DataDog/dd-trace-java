@@ -17,7 +17,7 @@ class PlatformTest extends DDSpecification {
 
   def "is at least java 11 when run on JDK11 or later"() {
     Assume.assumeTrue(!System.getProperty("java.version").startsWith("1.")
-    && !(System.getProperty("java.version").startsWith("9.")
+      && !(System.getProperty("java.version").startsWith("9.")
       || System.getProperty("java.version").startsWith("10.")))
     expect: Platform.isJavaVersionAtLeast(11) && Platform.isJavaVersionAtLeast(8)
   }
@@ -42,5 +42,4 @@ class PlatformTest extends DDSpecification {
     "14"        | 14
     "15"        | 15
   }
-
 }

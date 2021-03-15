@@ -27,17 +27,17 @@ class OkHttp3AsyncTest extends OkHttp3Test {
     def latch = new CountDownLatch(1)
 
     client.newCall(request).enqueue(new Callback() {
-      void onResponse(Call call, Response response) {
-        responseRef.set(response)
-        callback?.call()
-        latch.countDown()
-      }
+        void onResponse(Call call, Response response) {
+          responseRef.set(response)
+          callback?.call()
+          latch.countDown()
+        }
 
-      void onFailure(Call call, IOException e) {
-        exRef.set(e)
-        latch.countDown()
-      }
-    })
+        void onFailure(Call call, IOException e) {
+          exRef.set(e)
+          latch.countDown()
+        }
+      })
     latch.await(10, SECONDS)
     if (exRef.get() != null) {
       throw exRef.get()

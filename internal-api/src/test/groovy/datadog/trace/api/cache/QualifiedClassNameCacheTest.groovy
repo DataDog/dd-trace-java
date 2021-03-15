@@ -10,11 +10,11 @@ class QualifiedClassNameCacheTest extends DDSpecification {
   def "test cached string operations"() {
     when:
     QualifiedClassNameCache cache = new QualifiedClassNameCache(new Function<Class<?>, String>() {
-      @Override
-      String apply(Class<?> input) {
-        return input.getSimpleName()
-      }
-    }, func)
+        @Override
+        String apply(Class<?> input) {
+          return input.getSimpleName()
+        }
+      }, func)
     String qualified = cache.getQualifiedName(type, prefix)
 
     then:
@@ -32,11 +32,11 @@ class QualifiedClassNameCacheTest extends DDSpecification {
   def "test get cached class name"() {
     when:
     QualifiedClassNameCache cache = new QualifiedClassNameCache(new Function<Class<?>, CharSequence>() {
-      @Override
-      CharSequence apply(Class<?> input) {
-        return input.getSimpleName()
-      }
-    }, Functions.Prefix.ZERO)
+        @Override
+        CharSequence apply(Class<?> input) {
+          return input.getSimpleName()
+        }
+      }, Functions.Prefix.ZERO)
     then:
     cache.getClassName(type) == expected
 

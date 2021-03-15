@@ -11,16 +11,16 @@ class ShadowPackageRenamingTest extends Specification {
     setup:
     final Class<?> ddClass =
       IntegrationTestUtils.getAgentClassLoader()
-        .loadClass("datadog.trace.agent.tooling.AgentInstaller")
+      .loadClass("datadog.trace.agent.tooling.AgentInstaller")
     final URL userOkio =
       BufferedSink.getProtectionDomain().getCodeSource().getLocation()
     final URL agentOkioDep =
       ddClass
-        .getClassLoader()
-        .loadClass("okio.BufferedSink")
-        .getProtectionDomain()
-        .getCodeSource()
-        .getLocation()
+      .getClassLoader()
+      .loadClass("okio.BufferedSink")
+      .getProtectionDomain()
+      .getCodeSource()
+      .getLocation()
     final URL agentSource =
       ddClass.getProtectionDomain().getCodeSource().getLocation()
 
@@ -31,19 +31,19 @@ class ShadowPackageRenamingTest extends Specification {
     agentSource.getFile() != userOkio.getFile()
   }
 
-//  @Ignore("OT 0.32 removed this field.  Need to find another option.")
-//  def "java getLogger rewritten to safe logger"() {
-//    setup:
-//    Field logField = io.opentracing.util.GlobalTracer.getDeclaredField("LOGGER")
-//    logField.setAccessible(true)
-//    Object logger = logField.get(null)
-//
-//    expect:
-//    !logger.getClass().getName().startsWith("java.util.logging")
-//
-//    cleanup:
-//    logField?.setAccessible(false)
-//  }
+  //  @Ignore("OT 0.32 removed this field.  Need to find another option.")
+  //  def "java getLogger rewritten to safe logger"() {
+  //    setup:
+  //    Field logField = io.opentracing.util.GlobalTracer.getDeclaredField("LOGGER")
+  //    logField.setAccessible(true)
+  //    Object logger = logField.get(null)
+  //
+  //    expect:
+  //    !logger.getClass().getName().startsWith("java.util.logging")
+  //
+  //    cleanup:
+  //    logField?.setAccessible(false)
+  //  }
 
   def "agent classes not visible"() {
     when:

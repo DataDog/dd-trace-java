@@ -33,7 +33,11 @@ class Netty41PipelineTest extends AgentTestRunner {
     then: "we remove the previous handler and add a new one"
     pipeline.get(HttpClientTracingHandler) != null
     pipeline.get(HttpClientTracingHandler) != tracingHandler
-    pipeline.names() == ["HttpClientCodec#0", "HttpClientTracingHandler#0", "DefaultChannelPipeline\$TailContext#0"]
+    pipeline.names() == [
+      "HttpClientCodec#0",
+      "HttpClientTracingHandler#0",
+      "DefaultChannelPipeline\$TailContext#0"
+    ]
   }
 
   def "when a handler is added to the netty pipeline we add ONLY ONE tracing handler"() {
@@ -78,7 +82,13 @@ class Netty41PipelineTest extends AgentTestRunner {
     pipeline.addAfter("$SimpleHandler.name#0", "http", new HttpClientCodec())
 
     then:
-    pipeline.names() == ["$SimpleHandler.name#0", "http", "HttpClientTracingHandler#0", "$OtherSimpleHandler.name#0", "DefaultChannelPipeline\$TailContext#0"]
+    pipeline.names() == [
+      "$SimpleHandler.name#0",
+      "http",
+      "HttpClientTracingHandler#0",
+      "$OtherSimpleHandler.name#0",
+      "DefaultChannelPipeline\$TailContext#0"
+    ]
   }
 
   def "calling pipeline.addLast methods that use overloaded methods does not cause infinite loop"() {

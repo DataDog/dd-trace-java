@@ -56,9 +56,9 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
     embeddedDbUri = "redis://" + dbAddr
 
     redisServer = RedisServer.builder()
-    // bind to localhost to avoid firewall popup
+      // bind to localhost to avoid firewall popup
       .setting("bind " + HOST)
-    // set max memory to avoid problems in CI
+      // set max memory to avoid problems in CI
       .setting("maxmemory 128M")
       .port(port).build()
   }

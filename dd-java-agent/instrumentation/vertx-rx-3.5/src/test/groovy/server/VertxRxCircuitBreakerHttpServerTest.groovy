@@ -37,10 +37,10 @@ class VertxRxCircuitBreakerHttpServerTest extends VertxHttpServerTest {
       final Router router = Router.router(super.@vertx)
       final CircuitBreaker breaker =
         CircuitBreaker.create(
-          "my-circuit-breaker",
-          super.@vertx,
-          new CircuitBreakerOptions()
-            .setTimeout(-1) // Disable the timeout otherwise it makes each test take this long.
+        "my-circuit-breaker",
+        super.@vertx,
+        new CircuitBreakerOptions()
+        .setTimeout(-1) // Disable the timeout otherwise it makes each test take this long.
         )
 
       router.route(SUCCESS.path).handler { ctx ->

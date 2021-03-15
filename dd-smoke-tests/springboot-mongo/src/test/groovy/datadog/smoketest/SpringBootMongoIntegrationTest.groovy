@@ -13,7 +13,12 @@ class SpringBootMongoIntegrationTest extends AbstractServerSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
-    command.addAll((String[]) ["-Ddd.writer.type=TraceStructureWriter:${output.getAbsolutePath()}", "-jar", springBootShadowJar, "--server.port=${httpPort}"])
+    command.addAll((String[]) [
+      "-Ddd.writer.type=TraceStructureWriter:${output.getAbsolutePath()}",
+      "-jar",
+      springBootShadowJar,
+      "--server.port=${httpPort}"
+    ])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
   }
@@ -25,9 +30,7 @@ class SpringBootMongoIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
   protected Set<String> expectedTraces() {
-    return [
-      "[servlet.request[spring.handler[repository.operation[mongo.query]]]]"
-    ]
+    return ["[servlet.request[spring.handler[repository.operation[mongo.query]]]]"]
   }
 
   def "put docs and find all docs"() {

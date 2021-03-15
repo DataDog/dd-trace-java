@@ -22,8 +22,8 @@ class TagsAssert {
   }
 
   static void assertTags(DDSpan span,
-                         @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])
-                         @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])
+    @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     def asserter = new TagsAssert(span)
     def clone = (Closure) spec.clone()
     clone.delegate = asserter

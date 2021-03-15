@@ -41,19 +41,19 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
       .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
       .type(named(BaseExceptionHandlerTest.getName() + '$SomeClass'))
       .transform(
-        new AgentBuilder.Transformer.ForAdvice()
-          .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
-          .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-          .advice(
-            isMethod().and(named("isInstrumented")),
-            BadAdvice.getName()))
+      new AgentBuilder.Transformer.ForAdvice()
+      .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
+      .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
+      .advice(
+      isMethod().and(named("isInstrumented")),
+      BadAdvice.getName()))
       .transform(
-        new AgentBuilder.Transformer.ForAdvice()
-          .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
-          .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-          .advice(
-            isMethod().and(namedOneOf("smallStack", "largeStack")),
-            BadAdvice.NoOpAdvice.getName()))
+      new AgentBuilder.Transformer.ForAdvice()
+      .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
+      .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
+      .advice(
+      isMethod().and(namedOneOf("smallStack", "largeStack")),
+      BadAdvice.NoOpAdvice.getName()))
 
     ByteBuddyAgent.install()
     transformer = builder.installOn(ByteBuddyAgent.getInstrumentation())
@@ -67,12 +67,11 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
   def cleanupSpec() {
     testAppender.stop()
     transformer.reset(ByteBuddyAgent.getInstrumentation(), AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-
   }
 
   def setup() {
     changeConfig()
-    
+
     exitStatus = new AtomicInteger(0)
 
     defaultSecurityManager = System.securityManager
@@ -106,8 +105,10 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
   def "exception on non-delegating classloader"() {
     setup:
     int initLogEvents = testAppender.list.size()
-    URL[] classpath = [SomeClass.getProtectionDomain().getCodeSource().getLocation(),
-                       GroovyObject.getProtectionDomain().getCodeSource().getLocation()]
+    URL[] classpath = [
+      SomeClass.getProtectionDomain().getCodeSource().getLocation(),
+      GroovyObject.getProtectionDomain().getCodeSource().getLocation()
+    ]
     URLClassLoader loader = new URLClassLoader(classpath, (ClassLoader) null)
     when:
     loader.loadClass(LoggerFactory.getName())

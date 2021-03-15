@@ -92,20 +92,20 @@ class DynamicRoutingAppConfig extends WebMvcConfigurerAdapter {
   HttpMessageConverter<Map<String, Object>> createPlainMapMessageConverter() {
     return new AbstractHttpMessageConverter<Map<String, Object>>(MediaType.TEXT_PLAIN) {
 
-      @Override
-      protected boolean supports(Class<?> clazz) {
-        return Map.isAssignableFrom(clazz)
-      }
+        @Override
+        protected boolean supports(Class<?> clazz) {
+          return Map.isAssignableFrom(clazz)
+        }
 
-      @Override
-      protected Map<String, Object> readInternal(Class<? extends Map<String, Object>> clazz, HttpInputMessage inputMessage) throws IOException, HttpMessageNotReadableException {
-        return null
-      }
+        @Override
+        protected Map<String, Object> readInternal(Class<? extends Map<String, Object>> clazz, HttpInputMessage inputMessage) throws IOException, HttpMessageNotReadableException {
+          return null
+        }
 
-      @Override
-      protected void writeInternal(Map<String, Object> stringObjectMap, HttpOutputMessage outputMessage) throws IOException, HttpMessageNotWritableException {
-        StreamUtils.copy(stringObjectMap.get("message"), StandardCharsets.UTF_8, outputMessage.getBody())
+        @Override
+        protected void writeInternal(Map<String, Object> stringObjectMap, HttpOutputMessage outputMessage) throws IOException, HttpMessageNotWritableException {
+          StreamUtils.copy(stringObjectMap.get("message"), StandardCharsets.UTF_8, outputMessage.getBody())
+        }
       }
-    }
   }
 }

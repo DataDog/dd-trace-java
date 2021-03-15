@@ -307,12 +307,12 @@ class TraceAnnotationsTest extends AgentTestRunner {
     when:
     // Test anonymous classes with no package.
     new Callable<String>() {
-      @Trace
-      @Override
-      String call() throws Exception {
-        return "Howdy!"
-      }
-    }.call()
+        @Trace
+        @Override
+        String call() throws Exception {
+          return "Howdy!"
+        }
+      }.call()
     TEST_WRITER.waitForTraces(2)
 
     then:

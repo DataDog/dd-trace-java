@@ -25,7 +25,6 @@ class TestStatement implements Statement {
 
   @Override
   void close() throws SQLException {
-
   }
 
   @Override
@@ -35,7 +34,6 @@ class TestStatement implements Statement {
 
   @Override
   void setMaxFieldSize(int max) throws SQLException {
-
   }
 
   @Override
@@ -45,12 +43,10 @@ class TestStatement implements Statement {
 
   @Override
   void setMaxRows(int max) throws SQLException {
-
   }
 
   @Override
   void setEscapeProcessing(boolean enable) throws SQLException {
-
   }
 
   @Override
@@ -60,12 +56,10 @@ class TestStatement implements Statement {
 
   @Override
   void setQueryTimeout(int seconds) throws SQLException {
-
   }
 
   @Override
   void cancel() throws SQLException {
-
   }
 
   @Override
@@ -75,12 +69,10 @@ class TestStatement implements Statement {
 
   @Override
   void clearWarnings() throws SQLException {
-
   }
 
   @Override
   void setCursorName(String name) throws SQLException {
-
   }
 
   @Override
@@ -105,7 +97,6 @@ class TestStatement implements Statement {
 
   @Override
   void setFetchDirection(int direction) throws SQLException {
-
   }
 
   @Override
@@ -115,7 +106,6 @@ class TestStatement implements Statement {
 
   @Override
   void setFetchSize(int rows) throws SQLException {
-
   }
 
   @Override
@@ -135,12 +125,10 @@ class TestStatement implements Statement {
 
   @Override
   void addBatch(String sql) throws SQLException {
-
   }
 
   @Override
   void clearBatch() throws SQLException {
-
   }
 
   @Override
@@ -205,7 +193,6 @@ class TestStatement implements Statement {
 
   @Override
   void setPoolable(boolean poolable) throws SQLException {
-
   }
 
   @Override
@@ -215,7 +202,6 @@ class TestStatement implements Statement {
 
   @Override
   void closeOnCompletion() throws SQLException {
-
   }
 
   @Override

@@ -17,7 +17,27 @@ class RadixTreeCacheTest extends DDSpecification {
     cached == Integer.valueOf(primitive)
 
     where:
-    primitive << [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    primitive << [
+      -1,
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ]
   }
 
 
@@ -30,7 +50,27 @@ class RadixTreeCacheTest extends DDSpecification {
     cached == String.valueOf(primitive)
 
     where:
-    primitive << [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    primitive << [
+      -1,
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ]
   }
 
   def "cached values are equal to computed values with precomputing"() {
@@ -43,7 +83,27 @@ class RadixTreeCacheTest extends DDSpecification {
     cached == String.valueOf(primitive)
 
     where:
-    primitive << [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    primitive << [
+      -1,
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ]
   }
 
 

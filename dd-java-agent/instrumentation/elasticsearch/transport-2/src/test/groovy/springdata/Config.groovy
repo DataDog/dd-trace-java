@@ -37,9 +37,9 @@ class Config {
 
     final Settings.Builder elasticsearchSettings =
       Settings.settingsBuilder()
-        .put("http.enabled", "false")
-        .put("path.data", tmpDir.toString())
-        .put("path.home", tmpDir.toString())
+      .put("http.enabled", "false")
+      .put("path.data", tmpDir.toString())
+      .put("path.home", tmpDir.toString())
 
     println "ES work dir: $tmpDir"
 

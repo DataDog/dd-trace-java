@@ -19,9 +19,9 @@ class Netty38ClientTest extends HttpClientTest {
 
   @Shared
   def clientConfig = new AsyncHttpClientConfig.Builder()
-    .setRequestTimeout(TimeUnit.SECONDS.toMillis(10).toInteger())
-    .setSSLContext(server.sslContext)
-    .build()
+  .setRequestTimeout(TimeUnit.SECONDS.toMillis(10).toInteger())
+  .setSSLContext(server.sslContext)
+  .build()
 
   @Shared
   @AutoCleanup
@@ -33,12 +33,12 @@ class Netty38ClientTest extends HttpClientTest {
     def requestBuilder = asyncHttpClient."$methodName"(uri.toString())
     headers.each { requestBuilder.setHeader(it.key, it.value) }
     def response = requestBuilder.execute(new AsyncCompletionHandler() {
-      @Override
-      Object onCompleted(Response response) throws Exception {
-        callback?.call()
-        return response
-      }
-    }).get()
+        @Override
+        Object onCompleted(Response response) throws Exception {
+          callback?.call()
+          return response
+        }
+      }).get()
     blockUntilChildSpansFinished(1)
     return response.statusCode
   }

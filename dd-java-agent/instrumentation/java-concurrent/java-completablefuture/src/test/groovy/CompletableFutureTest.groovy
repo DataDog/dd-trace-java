@@ -24,36 +24,36 @@ class CompletableFutureTest extends AgentTestRunner {
     def pool = new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
     def differentPool = new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
     def supplier = new Supplier<String>() {
-      @Override
-      @Trace(operationName = "supplier")
-      String get() {
-        sleep(1000)
-        return "a"
-      }
-    }
-
-    def function = new Function<String, String>() {
-      @Override
-      @Trace(operationName = "function")
-      String apply(String s) {
-        return s + "c"
-      }
-    }
-
-    def future = new Supplier<CompletableFuture<String>>() {
-      @Override
-      @Trace(operationName = "parent")
-      CompletableFuture<String> get() {
-        try {
-          activeScope().setAsyncPropagation(true)
-          return CompletableFuture.supplyAsync(supplier, pool)
-            .thenCompose({ s -> CompletableFuture.supplyAsync(new AppendingSupplier(s), differentPool) })
-            .thenApply(function)
-        } finally {
-          blockUntilChildSpansFinished(3)
+        @Override
+        @Trace(operationName = "supplier")
+        String get() {
+          sleep(1000)
+          return "a"
         }
       }
-    }.get()
+
+    def function = new Function<String, String>() {
+        @Override
+        @Trace(operationName = "function")
+        String apply(String s) {
+          return s + "c"
+        }
+      }
+
+    def future = new Supplier<CompletableFuture<String>>() {
+        @Override
+        @Trace(operationName = "parent")
+        CompletableFuture<String> get() {
+          try {
+            activeScope().setAsyncPropagation(true)
+            return CompletableFuture.supplyAsync(supplier, pool)
+              .thenCompose({ s -> CompletableFuture.supplyAsync(new AppendingSupplier(s), differentPool) })
+              .thenApply(function)
+          } finally {
+            blockUntilChildSpansFinished(3)
+          }
+        }
+      }.get()
 
     def result = future.get()
 

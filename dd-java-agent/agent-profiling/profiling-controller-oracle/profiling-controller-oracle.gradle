@@ -15,9 +15,7 @@ apply from: "$rootDir/gradle/java.gradle"
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.7
 
-excludedClassesCoverage += [
-  'com.datadog.profiling.controller.oracle.JdkTypeIDs_8'
-]
+excludedClassesCoverage += ['com.datadog.profiling.controller.oracle.JdkTypeIDs_8']
 
 dependencies {
   compile deps.slf4j

@@ -25,8 +25,8 @@ class MongoClientTest extends MongoBaseTest {
   def setup() throws Exception {
     client = new MongoClient(new ServerAddress("localhost", port),
       MongoClientOptions.builder()
-        .description("some-description")
-        .build())
+      .description("some-description")
+      .build())
   }
 
   def cleanup() throws Exception {

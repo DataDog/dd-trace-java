@@ -22,11 +22,11 @@ class HttpServletResponseTest extends AgentTestRunner {
 
   def doService(HttpServletRequest request, TestResponse response, Closure<HttpServletResponse> testHandler) {
     def servlet = new AbstractHttpServlet() {
-      @Override
-      protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        testHandler(resp)
+        @Override
+        protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+          testHandler(resp)
+        }
       }
-    }
     servlet.service((ServletRequest) request, (ServletResponse) response)
   }
 
@@ -73,11 +73,11 @@ class HttpServletResponseTest extends AgentTestRunner {
 
     when:
     doService(request, new TestResponse() {
-      @Override
-      void sendRedirect(String s) {
-        throw ex
-      }
-    }, handler)
+        @Override
+        void sendRedirect(String s) {
+          throw ex
+        }
+      }, handler)
 
     then:
     def th = thrown(Exception)
@@ -120,7 +120,6 @@ class HttpServletResponseTest extends AgentTestRunner {
 
     @Override
     void addCookie(Cookie cookie) {
-
     }
 
     @Override
@@ -150,57 +149,46 @@ class HttpServletResponseTest extends AgentTestRunner {
 
     @Override
     void sendError(int i, String s) throws IOException {
-
     }
 
     @Override
     void sendError(int i) throws IOException {
-
     }
 
     @Override
     void sendRedirect(String s) throws IOException {
-
     }
 
     @Override
     void setDateHeader(String s, long l) {
-
     }
 
     @Override
     void addDateHeader(String s, long l) {
-
     }
 
     @Override
     void setHeader(String s, String s1) {
-
     }
 
     @Override
     void addHeader(String s, String s1) {
-
     }
 
     @Override
     void setIntHeader(String s, int i) {
-
     }
 
     @Override
     void addIntHeader(String s, int i) {
-
     }
 
     @Override
     void setStatus(int i) {
-
     }
 
     @Override
     void setStatus(int i, String s) {
-
     }
 
     @Override
@@ -220,17 +208,14 @@ class HttpServletResponseTest extends AgentTestRunner {
 
     @Override
     void setContentLength(int i) {
-
     }
 
     @Override
     void setContentType(String s) {
-
     }
 
     @Override
     void setBufferSize(int i) {
-
     }
 
     @Override
@@ -240,12 +225,10 @@ class HttpServletResponseTest extends AgentTestRunner {
 
     @Override
     void flushBuffer() throws IOException {
-
     }
 
     @Override
     void resetBuffer() {
-
     }
 
     @Override
@@ -255,12 +238,10 @@ class HttpServletResponseTest extends AgentTestRunner {
 
     @Override
     void reset() {
-
     }
 
     @Override
     void setLocale(Locale locale) {
-
     }
 
     @Override

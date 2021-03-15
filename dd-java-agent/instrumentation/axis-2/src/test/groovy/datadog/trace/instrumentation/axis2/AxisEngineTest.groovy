@@ -65,8 +65,7 @@ class AxisEngineTest extends AgentTestRunner {
   static final String TRIGGER_PAUSE = 'TRIGGER PAUSE'
 
   @Shared
-  def testPhase = new Phase('TestPhase') {
-    {
+  def testPhase = new Phase('TestPhase') { {
       addHandler(new AbstractHandler() {
         @Override
         InvocationResponse invoke(MessageContext messageContext) {
@@ -217,7 +216,7 @@ class AxisEngineTest extends AgentTestRunner {
       trace(2) {
         testSpan(it, 0)
         axisSpanWithException(it, 1, 'local://services/TestService/testAction', span(0),
-            new RuntimeException('Internal Error'))
+          new RuntimeException('Internal Error'))
       }
     }
   }
@@ -317,7 +316,7 @@ class AxisEngineTest extends AgentTestRunner {
       trace(2) {
         testSpan(it, 0)
         axisSpanWithException(it, 1, 'local://services/TestService/testAction', span(0),
-            new RuntimeException('Internal Error'))
+          new RuntimeException('Internal Error'))
       }
     }
   }
@@ -333,9 +332,9 @@ class AxisEngineTest extends AgentTestRunner {
 
     // create an operation context (normally the transport layer would do this)
     def operationContext = serverContext
-        .createServiceGroupContext(testService.getAxisServiceGroup())
-        .getServiceContext(testService)
-        .createOperationContext(new QName('testAction'))
+      .createServiceGroupContext(testService.getAxisServiceGroup())
+      .getServiceContext(testService)
+      .createOperationContext(new QName('testAction'))
     message.setOperationContext(operationContext)
 
     return message

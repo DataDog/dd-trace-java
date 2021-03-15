@@ -108,7 +108,8 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
           .subscribe({ result ->
             inserted.set(result)
             bkt.get("helloworld")
-              .subscribe({ searchResult -> found.set(searchResult)
+              .subscribe({ searchResult ->
+                found.set(searchResult)
               })
           })
       })
@@ -152,12 +153,11 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     // Mock expects this specific query.
     // See com.couchbase.mock.http.query.QueryServer.handleString.
     runUnderTrace("someTrace") {
-      cluster.openBucket(bucketCouchbase.name(), bucketCouchbase.password()).subscribe({
-        bkt ->
-          bkt.query(N1qlQuery.simple("SELECT mockrow"))
-            .flatMap({ query -> query.rows() })
-            .single()
-            .subscribe({ row -> queryResult.set(row.value()) })
+      cluster.openBucket(bucketCouchbase.name(), bucketCouchbase.password()).subscribe({ bkt ->
+        bkt.query(N1qlQuery.simple("SELECT mockrow"))
+          .flatMap({ query -> query.rows() })
+          .single()
+          .subscribe({ row -> queryResult.set(row.value()) })
       })
     }
 

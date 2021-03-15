@@ -14,7 +14,7 @@ class ResetControllableEnvironmentVariables extends EnvironmentVariables {
   @Override
   Statement apply(Statement base, Description description) {
     delegate = super.apply(base, description)
-    
+
     return delegate
   }
 

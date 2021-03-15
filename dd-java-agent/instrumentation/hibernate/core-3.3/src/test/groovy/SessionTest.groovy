@@ -97,6 +97,7 @@ class SessionTest extends AbstractHibernateTest {
     }
 
     where:
+    // spotless:off
     testName  | methodName | resource | sessionImplementations                    | sessionMethodTest
     "lock"    | "lock"     | "Value"  | [sessionBuilder]                          | { sesh, val ->
       sesh.lock(val, LockMode.READ)
@@ -107,6 +108,7 @@ class SessionTest extends AbstractHibernateTest {
     "get"     | "get"      | "Value"  | [sessionBuilder, statelessSessionBuilder] | { sesh, val ->
       sesh.get("Value", val.getId())
     }
+    // spotless:on
   }
 
   def "test hibernate statless action #testName"() {

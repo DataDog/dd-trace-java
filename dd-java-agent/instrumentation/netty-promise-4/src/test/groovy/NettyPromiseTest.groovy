@@ -63,11 +63,11 @@ class NettyPromiseTest extends AbstractPromiseTest<Promise<Boolean>, Promise<Str
       def listeners = iterations.collect { int i ->
         return new GenericFutureListener<Future<?>>() {
 
-          @Override
-          void operationComplete(Future<?> future) throws Exception {
-            runUnderTrace("listen$i") {}
+            @Override
+            void operationComplete(Future<?> future) throws Exception {
+              runUnderTrace("listen$i") {}
+            }
           }
-        }
       }
       promise.addListeners(listeners.toArray(new GenericFutureListener[0]))
     }

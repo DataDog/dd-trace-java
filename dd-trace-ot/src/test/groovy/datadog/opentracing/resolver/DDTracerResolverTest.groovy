@@ -31,5 +31,4 @@ class DDTracerResolverTest extends DDSpecification {
     then:
     tracer == null
   }
-
 }

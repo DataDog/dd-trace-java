@@ -45,8 +45,10 @@ class SpringTemplateJMS2Test extends AgentTestRunner {
     config.securityEnabled = false
     config.persistenceEnabled = false
     config.setQueueConfigurations([new CoreQueueConfiguration("someQueue", "someQueue", null, true)])
-    config.setAcceptorConfigurations([new TransportConfiguration(NettyAcceptorFactory.name),
-                                      new TransportConfiguration(InVMAcceptorFactory.name)].toSet())
+    config.setAcceptorConfigurations([
+      new TransportConfiguration(NettyAcceptorFactory.name),
+      new TransportConfiguration(InVMAcceptorFactory.name)
+    ].toSet())
 
     server = HornetQServers.newHornetQServer(config)
     server.start()
@@ -100,12 +102,12 @@ class SpringTemplateJMS2Test extends AgentTestRunner {
       assert msg.text == messageText
 
       // There's a chance this might be reported last, messing up the assertion.
-      template.send(msg.getJMSReplyTo()) {
-        session -> template.getMessageConverter().toMessage("responded!", session)
+      template.send(msg.getJMSReplyTo()) { session ->
+        template.getMessageConverter().toMessage("responded!", session)
       }
     }
-    TextMessage receivedMessage = template.sendAndReceive(destination) {
-      session -> template.getMessageConverter().toMessage(messageText, session)
+    TextMessage receivedMessage = template.sendAndReceive(destination) { session ->
+      template.getMessageConverter().toMessage(messageText, session)
     }
 
     expect:

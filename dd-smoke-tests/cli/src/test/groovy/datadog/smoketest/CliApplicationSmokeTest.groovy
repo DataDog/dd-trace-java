@@ -54,6 +54,8 @@ class BasicCLITest extends CliApplicationSmokeTest {
 
 class NoKeystoreTest extends CliApplicationSmokeTest {
   List<String> additionalArguments() {
-    return ["-Djava.security.properties=${buildDirectory}/resources/main/remove.tls.properties".toString()]
+    return [
+      "-Djava.security.properties=${buildDirectory}/resources/main/remove.tls.properties".toString()
+    ]
   }
 }

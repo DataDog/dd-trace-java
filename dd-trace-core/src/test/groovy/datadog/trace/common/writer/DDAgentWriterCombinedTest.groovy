@@ -736,11 +736,11 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
   static int calculateSize(List<DDSpan> trace, Mapper<List<DDSpan>> mapper) {
     AtomicInteger size = new AtomicInteger()
     def packer = new MsgPackWriter(new FlushingBuffer(1024, new ByteBufferConsumer() {
-      @Override
-      void accept(int messageCount, ByteBuffer buffer) {
-        size.set(buffer.limit() - buffer.position())
-      }
-    }))
+        @Override
+        void accept(int messageCount, ByteBuffer buffer) {
+          size.set(buffer.limit() - buffer.position())
+        }
+      }))
     packer.format(trace, mapper)
     packer.flush()
     return size.get()

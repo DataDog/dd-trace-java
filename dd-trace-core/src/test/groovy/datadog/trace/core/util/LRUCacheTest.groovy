@@ -24,8 +24,8 @@ class LRUCacheTest extends DDSpecification {
   def "Should notify listener when ejecting least recently used element"() {
     setup:
     List<Integer> ejected = new ArrayList<>()
-    LRUCache.ExpiryListener<Integer, String> listener = {
-      Map.Entry<Integer, String> entry -> ejected.add(entry.getKey())
+    LRUCache.ExpiryListener<Integer, String> listener = { Map.Entry<Integer, String> entry ->
+      ejected.add(entry.getKey())
     }
     when:
     def lruCache = new LRUCache<Integer, String>(listener, 10, 0.75f, 5)

@@ -69,7 +69,8 @@ class SpringJpaTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span { // select
+        span {
+          // select
           serviceName "hsqldb"
           spanType "sql"
           childOf(span(0))
@@ -105,7 +106,8 @@ class SpringJpaTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span { // insert
+        span {
+          // insert
           serviceName "hsqldb"
           spanType "sql"
           childOf(span(0))
@@ -155,7 +157,8 @@ class SpringJpaTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span { //update
+        span {
+          //update
           serviceName "hsqldb"
           spanType "sql"
           childOf(span(0))

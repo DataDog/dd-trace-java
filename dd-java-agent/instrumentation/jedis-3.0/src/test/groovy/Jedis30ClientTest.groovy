@@ -18,17 +18,17 @@ class Jedis30ClientTest extends AgentTestRunner {
   @Shared
   RedisServer redisServer = RedisServer.builder()
   // bind to localhost to avoid firewall popup
-    .setting("bind 127.0.0.1")
+  .setting("bind 127.0.0.1")
   // set max memory to avoid problems in CI
-    .setting("maxmemory 128M")
-    .port(port).build()
+  .setting("maxmemory 128M")
+  .port(port).build()
   @Shared
   Jedis jedis = new Jedis("localhost", port)
 
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    
+
     // This setting should have no effect since decorator returns null for the instance.
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
   }

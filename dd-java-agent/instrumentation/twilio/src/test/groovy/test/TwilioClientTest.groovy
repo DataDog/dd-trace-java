@@ -122,7 +122,7 @@ class TwilioClientTest extends AgentTestRunner {
         new PhoneNumber("+1 555 720 5913"),  // To number
         new PhoneNumber("+1 555 555 5215"),  // From number
         "Hello world!"                    // SMS body
-      ).create(twilioRestClient)
+        ).create(twilioRestClient)
     }
 
     expect:
@@ -173,7 +173,7 @@ class TwilioClientTest extends AgentTestRunner {
 
         // Read TwiML at this URL when a call connects (hold music)
         new URI("http://twimlets.com/holdmusic?Bucket=com.twilio.music.ambient")
-      ).create(twilioRestClient)
+        ).create(twilioRestClient)
     }
 
     expect:
@@ -237,16 +237,16 @@ class TwilioClientTest extends AgentTestRunner {
 
     TwilioRestClient realTwilioRestClient =
       new TwilioRestClient.Builder("username", "password")
-        .accountSid(ACCOUNT_SID)
-        .httpClient(networkHttpClient)
-        .build()
+      .accountSid(ACCOUNT_SID)
+      .httpClient(networkHttpClient)
+      .build()
 
     Message message = runUnderTrace("test") {
       Message.creator(
         new PhoneNumber("+1 555 720 5913"),  // To number
         new PhoneNumber("+1 555 555 5215"),  // From number
         "Hello world!"                    // SMS body
-      ).create(realTwilioRestClient)
+        ).create(realTwilioRestClient)
     }
 
     expect:
@@ -342,16 +342,16 @@ class TwilioClientTest extends AgentTestRunner {
 
     TwilioRestClient realTwilioRestClient =
       new TwilioRestClient.Builder("username", "password")
-        .accountSid(ACCOUNT_SID)
-        .httpClient(networkHttpClient)
-        .build()
+      .accountSid(ACCOUNT_SID)
+      .httpClient(networkHttpClient)
+      .build()
 
     Message message = runUnderTrace("test") {
       Message.creator(
         new PhoneNumber("+1 555 720 5913"),  // To number
         new PhoneNumber("+1 555 555 5215"),  // From number
         "Hello world!"                    // SMS body
-      ).create(realTwilioRestClient)
+        ).create(realTwilioRestClient)
     }
 
     expect:
@@ -462,16 +462,16 @@ class TwilioClientTest extends AgentTestRunner {
 
     TwilioRestClient realTwilioRestClient =
       new TwilioRestClient.Builder("username", "password")
-        .accountSid(ACCOUNT_SID)
-        .httpClient(networkHttpClient)
-        .build()
+      .accountSid(ACCOUNT_SID)
+      .httpClient(networkHttpClient)
+      .build()
 
     Message message = runUnderTrace("test") {
       ListenableFuture<Message> future = Message.creator(
         new PhoneNumber("+1 555 720 5913"),  // To number
         new PhoneNumber("+1 555 555 5215"),  // From number
         "Hello world!"                    // SMS body
-      ).createAsync(realTwilioRestClient)
+        ).createAsync(realTwilioRestClient)
 
       try {
         return future.get(10, TimeUnit.SECONDS)
@@ -583,7 +583,7 @@ class TwilioClientTest extends AgentTestRunner {
         new PhoneNumber("+1 555 720 5913"),  // To number
         new PhoneNumber("+1 555 555 5215"),  // From number
         "Hello world!"                    // SMS body
-      ).create(twilioRestClient)
+        ).create(twilioRestClient)
     }
 
     then:
@@ -629,7 +629,7 @@ class TwilioClientTest extends AgentTestRunner {
       new PhoneNumber("+1 555 720 5913"),  // To number
       new PhoneNumber("+1 555 555 5215"),  // From number
       "Hello world!"                    // SMS body
-    ).create(twilioRestClient)
+      ).create(twilioRestClient)
 
     expect:
 
@@ -672,7 +672,7 @@ class TwilioClientTest extends AgentTestRunner {
         new PhoneNumber("+1 555 720 5913"),  // To number
         new PhoneNumber("+1 555 555 5215"),  // From number
         "Hello world!"                    // SMS body
-      ).createAsync(twilioRestClient)
+        ).createAsync(twilioRestClient)
 
       try {
         return future.get(10, TimeUnit.SECONDS)
@@ -756,7 +756,7 @@ class TwilioClientTest extends AgentTestRunner {
         new PhoneNumber("+1 555 720 5913"),  // To number
         new PhoneNumber("+1 555 555 5215"),  // From number
         "Hello world!"                    // SMS body
-      ).createAsync(twilioRestClient)
+        ).createAsync(twilioRestClient)
 
       try {
         return future.get(10, TimeUnit.SECONDS)

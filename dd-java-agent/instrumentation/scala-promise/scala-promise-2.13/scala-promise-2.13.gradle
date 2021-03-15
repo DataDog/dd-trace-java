@@ -23,6 +23,7 @@ spotless {
     target('src/**/*.scala')
   }
 }
+project.ext.groovySkipJavaExclude = true
 
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.

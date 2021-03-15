@@ -33,47 +33,47 @@ class PlayAsyncServerTest extends PlayServerTest {
     return Server.forRouter(Mode.TEST, port) { BuiltInComponents components ->
       RoutingDsl.fromComponents(components)
         .GET(SUCCESS.getPath()).routeAsync({
-        CompletableFuture.supplyAsync({
-          controller(SUCCESS) {
-            Results.status(SUCCESS.getStatus(), SUCCESS.getBody())
-          }
-        }, execContext)
-      } as Supplier)
+          CompletableFuture.supplyAsync({
+            controller(SUCCESS) {
+              Results.status(SUCCESS.getStatus(), SUCCESS.getBody())
+            }
+          }, execContext)
+        } as Supplier)
         .GET(FORWARDED.getPath()).routeAsync({
-        CompletableFuture.supplyAsync({
-          controller(FORWARDED) {
-            Results.status(FORWARDED.getStatus(), FORWARDED.getBody()) // cheating
-          }
-        }, execContext)
-      } as Supplier)
+          CompletableFuture.supplyAsync({
+            controller(FORWARDED) {
+              Results.status(FORWARDED.getStatus(), FORWARDED.getBody()) // cheating
+            }
+          }, execContext)
+        } as Supplier)
         .GET(QUERY_PARAM.getPath()).routeAsync({
-        CompletableFuture.supplyAsync({
-          controller(QUERY_PARAM) {
-            Results.status(QUERY_PARAM.getStatus(), QUERY_PARAM.getBody()) // cheating
-          }
-        }, execContext)
-      } as Supplier)
+          CompletableFuture.supplyAsync({
+            controller(QUERY_PARAM) {
+              Results.status(QUERY_PARAM.getStatus(), QUERY_PARAM.getBody()) // cheating
+            }
+          }, execContext)
+        } as Supplier)
         .GET(REDIRECT.getPath()).routeAsync({
-        CompletableFuture.supplyAsync({
-          controller(REDIRECT) {
-            Results.found(REDIRECT.getBody())
-          }
-        }, execContext)
-      } as Supplier)
+          CompletableFuture.supplyAsync({
+            controller(REDIRECT) {
+              Results.found(REDIRECT.getBody())
+            }
+          }, execContext)
+        } as Supplier)
         .GET(ERROR.getPath()).routeAsync({
-        CompletableFuture.supplyAsync({
-          controller(ERROR) {
-            Results.status(ERROR.getStatus(), ERROR.getBody())
-          }
-        }, execContext)
-      } as Supplier)
+          CompletableFuture.supplyAsync({
+            controller(ERROR) {
+              Results.status(ERROR.getStatus(), ERROR.getBody())
+            }
+          }, execContext)
+        } as Supplier)
         .GET(EXCEPTION.getPath()).routeAsync({
-        CompletableFuture.supplyAsync({
-          controller(EXCEPTION) {
-            throw new Exception(EXCEPTION.getBody())
-          }
-        }, execContext)
-      } as Supplier)
+          CompletableFuture.supplyAsync({
+            controller(EXCEPTION) {
+              throw new Exception(EXCEPTION.getBody())
+            }
+          }, execContext)
+        } as Supplier)
         .build()
     }
   }

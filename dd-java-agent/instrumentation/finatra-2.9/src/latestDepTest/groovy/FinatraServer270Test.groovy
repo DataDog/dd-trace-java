@@ -39,24 +39,24 @@ class FinatraServer270Test extends HttpServerTest<HttpServer> {
     Promise<Boolean> startupPromise = new Promise<>()
 
     testServer.withObserver(new Observer() {
-      @Override
-      void onSuccess(Event event) {
-        if (event == testServer.startupCompletionEvent()) {
-          startupPromise.setValue(true)
+        @Override
+        void onSuccess(Event event) {
+          if (event == testServer.startupCompletionEvent()) {
+            startupPromise.setValue(true)
+          }
         }
-      }
 
-      void onEntry(Event event) {
+        void onEntry(Event event) {
 
-      }
-
-      @Override
-      void onFailure(Event stage, Throwable throwable) {
-        if (stage != Event.Close$.MODULE$) {
-          startupPromise.setException(throwable)
         }
-      }
-    })
+
+        @Override
+        void onFailure(Event stage, Throwable throwable) {
+          if (stage != Event.Close$.MODULE$) {
+            startupPromise.setException(throwable)
+          }
+        }
+      })
 
     Await.result(startupPromise, STARTUP_TIMEOUT)
 

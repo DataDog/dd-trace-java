@@ -32,12 +32,12 @@ class MongoAsyncClientTest extends MongoBaseTest {
   def setup() throws Exception {
     client = MongoClients.create(
       MongoClientSettings.builder()
-        .clusterSettings(
-          ClusterSettings.builder()
-            .description("some-description")
-            .applyConnectionString(new ConnectionString("mongodb://localhost:$port"))
-            .build())
-        .build())
+      .clusterSettings(
+      ClusterSettings.builder()
+      .description("some-description")
+      .applyConnectionString(new ConnectionString("mongodb://localhost:$port"))
+      .build())
+      .build())
   }
 
   def cleanup() throws Exception {
@@ -57,7 +57,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
       trace(1) {
         mongoSpan(it, 0, "create") {
           assert it.replaceAll(" ", "") == "{\"create\":\"$collectionName\",\"capped\":\"?\"}" ||
-            it == "{\"create\": \"$collectionName\", \"capped\": \"?\", \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
+          it == "{\"create\": \"$collectionName\", \"capped\": \"?\", \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
           true
         }
       }
@@ -80,7 +80,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
       trace(1) {
         mongoSpan(it, 0, "create", {
           assert it.replaceAll(" ", "") == "{\"create\":\"$collectionName\",\"capped\":\"?\"}" ||
-            it == "{\"create\": \"$collectionName\", \"capped\": \"?\", \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
+          it == "{\"create\": \"$collectionName\", \"capped\": \"?\", \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
           true
         }, dbName)
       }
@@ -105,7 +105,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
       trace(1) {
         mongoSpan(it, 0, "count") {
           assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
-            it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
+          it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
           true
         }
       }
@@ -141,14 +141,14 @@ class MongoAsyncClientTest extends MongoBaseTest {
       trace(1) {
         mongoSpan(it, 0, "insert") {
           assert it.replaceAll(" ", "") == "{\"insert\":\"$collectionName\",\"ordered\":\"?\",\"documents\":[{\"_id\":\"?\",\"password\":\"?\"}]}" ||
-            it == "{\"insert\": \"$collectionName\", \"ordered\": \"?\", \"\$db\": \"?\", \"documents\": [{\"_id\": \"?\", \"password\": \"?\"}]}"
+          it == "{\"insert\": \"$collectionName\", \"ordered\": \"?\", \"\$db\": \"?\", \"documents\": [{\"_id\": \"?\", \"password\": \"?\"}]}"
           true
         }
       }
       trace(1) {
         mongoSpan(it, 0, "count") {
           assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
-            it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
+          it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
           true
         }
       }
@@ -181,9 +181,9 @@ class MongoAsyncClientTest extends MongoBaseTest {
     collection.updateOne(
       new BsonDocument("password", new BsonString("OLDPW")),
       new BsonDocument('$set', new BsonDocument("password", new BsonString("NEWPW"))), toCallback {
-      result.complete(it)
-      collection.count toCallback { count.complete(it) }
-    })
+        result.complete(it)
+        collection.count toCallback { count.complete(it) }
+      })
 
     then:
     result.get().modifiedCount == 1
@@ -192,14 +192,14 @@ class MongoAsyncClientTest extends MongoBaseTest {
       trace(1) {
         mongoSpan(it, 0, "update") {
           assert it.replaceAll(" ", "") == "{\"update\":\"?\",\"ordered\":\"?\",\"updates\":[{\"q\":{\"password\":\"?\"},\"u\":{\"\$set\":{\"password\":\"?\"}}}]}" ||
-            it == "{\"update\": \"?\", \"ordered\": \"?\", \"\$db\": \"?\", \"updates\": [{\"q\": {\"password\": \"?\"}, \"u\": {\"\$set\": {\"password\": \"?\"}}}]}"
+          it == "{\"update\": \"?\", \"ordered\": \"?\", \"\$db\": \"?\", \"updates\": [{\"q\": {\"password\": \"?\"}, \"u\": {\"\$set\": {\"password\": \"?\"}}}]}"
           true
         }
       }
       trace(1) {
         mongoSpan(it, 0, "count") {
           assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
-            it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
+          it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
           true
         }
       }
@@ -241,14 +241,14 @@ class MongoAsyncClientTest extends MongoBaseTest {
       trace(1) {
         mongoSpan(it, 0, "delete") {
           assert it.replaceAll(" ", "") == "{\"delete\":\"?\",\"ordered\":\"?\",\"deletes\":[{\"q\":{\"password\":\"?\"},\"limit\":\"?\"}]}" ||
-            it == "{\"delete\": \"?\", \"ordered\": \"?\", \"\$db\": \"?\", \"deletes\": [{\"q\": {\"password\": \"?\"}, \"limit\": \"?\"}]}"
+          it == "{\"delete\": \"?\", \"ordered\": \"?\", \"\$db\": \"?\", \"deletes\": [{\"q\": {\"password\": \"?\"}, \"limit\": \"?\"}]}"
           true
         }
       }
       trace(1) {
         mongoSpan(it, 0, "count") {
           assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
-            it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
+          it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
           true
         }
       }
@@ -261,15 +261,15 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   SingleResultCallback toCallback(Closure closure) {
     return new SingleResultCallback() {
-      @Override
-      void onResult(Object result, Throwable t) {
-        if (t) {
-          closure.call(t)
-        } else {
-          closure.call(result)
+        @Override
+        void onResult(Object result, Throwable t) {
+          if (t) {
+            closure.call(t)
+          } else {
+            closure.call(result)
+          }
         }
       }
-    }
   }
 
   def mongoSpan(TraceAssert trace, int index, String operation, Closure<Boolean> statementEval, String instance = "some-description", Object parentSpan = null, Throwable exception = null) {

@@ -57,5 +57,4 @@ class RawParseUtilsTest extends DDSpecification {
     "  +10".bytes | 10
     "  -10".bytes | -10
   }
-
 }

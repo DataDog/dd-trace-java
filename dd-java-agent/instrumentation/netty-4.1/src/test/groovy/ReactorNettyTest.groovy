@@ -86,5 +86,4 @@ class ReactorNettyTest extends AgentTestRunner {
       }
     }
   }
-
 }

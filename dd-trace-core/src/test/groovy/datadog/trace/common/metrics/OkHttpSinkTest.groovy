@@ -22,7 +22,9 @@ import static datadog.trace.common.metrics.EventListener.EventType.DOWNGRADED
 import static datadog.trace.common.metrics.EventListener.EventType.ERROR
 import static datadog.trace.common.metrics.EventListener.EventType.OK
 
-@Requires({ isJavaVersionAtLeast(8) })
+@Requires({
+  isJavaVersionAtLeast(8)
+})
 class OkHttpSinkTest extends DDSpecification {
 
   def "http status code #responseCode yields #eventType"() {

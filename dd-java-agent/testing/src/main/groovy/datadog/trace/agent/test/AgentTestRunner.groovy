@@ -123,16 +123,16 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     TEST_WRITER = new ListWriter()
     TEST_TRACER =
       CoreTracer.builder()
-        .writer(TEST_WRITER)
-        .idGenerationStrategy(SEQUENTIAL)
-        .statsDClient(STATS_D_CLIENT)
-        .strictTraceWrites(useStrictTraceWrites())
-        .build()
+      .writer(TEST_WRITER)
+      .idGenerationStrategy(SEQUENTIAL)
+      .statsDClient(STATS_D_CLIENT)
+      .strictTraceWrites(useStrictTraceWrites())
+      .build()
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     assert ServiceLoader.load(Instrumenter, AgentTestRunner.getClassLoader())
-      .iterator()
-      .hasNext(): "No instrumentation found"
+    .iterator()
+    .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(INSTRUMENTATION, true, this)
   }
 
@@ -143,7 +143,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     configureLoggingLevels()
 
     assertThreadsEachCleanup = false
-    
+
     assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
 
     // Config is reset before each test. Thus, configurePreAgent() has to be called before each test
@@ -188,8 +188,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   void assertTraces(
     final int size,
     @ClosureParams(
-      value = SimpleType,
-      options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+    value = SimpleType,
+    options = "datadog.trace.agent.test.asserts.ListWriterAssert")
     @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
     final Closure spec) {
     assertTraces(size, false, spec)
@@ -199,8 +199,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     final int size,
     final boolean ignoreAdditionalTraces,
     @ClosureParams(
-      value = SimpleType,
-      options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+    value = SimpleType,
+    options = "datadog.trace.agent.test.asserts.ListWriterAssert")
     @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
     final Closure spec) {
     ListWriterAssert.assertTraces(TEST_WRITER, size, ignoreAdditionalTraces, spec)
@@ -221,7 +221,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       while (pendingTrace.size() < numberOfSpans) {
         if (System.currentTimeMillis() > deadline) {
           throw new TimeoutException(
-            "Timed out waiting for child spans.  Received: " + pendingTrace.size())
+          "Timed out waiting for child spans.  Received: " + pendingTrace.size())
         }
         Thread.sleep(10)
       }
@@ -243,7 +243,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     // Incorrect* classes assert on incorrect api usage. Error expected.
     if (typeName.startsWith('context.FieldInjectionTestInstrumentation$Incorrect')
-      && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
+    && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
       return
     }
 

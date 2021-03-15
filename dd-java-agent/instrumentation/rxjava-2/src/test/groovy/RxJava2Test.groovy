@@ -78,6 +78,7 @@ class RxJava2Test extends AgentTestRunner {
     }
 
     where:
+    // spotless:off
     name                      | expected | workSpans | publisherSupplier
     "basic maybe"             | 2        | 1         | { -> Maybe.just(1).map(addOne) }
     "two operations maybe"    | 4        | 2         | { -> Maybe.just(2).map(addOne).map(addOne) }
@@ -94,6 +95,7 @@ class RxJava2Test extends AgentTestRunner {
       Flowable.fromIterable([8, 9]).delay(100, MILLISECONDS).map(addOne).delay(100, MILLISECONDS).map(addOne)
     }
     "maybe from callable"     | 12       | 2         | { -> Maybe.fromCallable({ addOneFunc(10) }).map(addOne) }
+    // spotless:on
   }
 
   def "Publisher error '#name' test"() {
@@ -243,11 +245,13 @@ class RxJava2Test extends AgentTestRunner {
     }
 
     where:
+    // spotless:off
     name             | workSpans | publisherSupplier
     "basic maybe"    | 3         | { -> Maybe.just(1).map(addOne).map(addOne).concatWith(Maybe.just(1).map(addOne)) }
     "basic flowable" | 5         | { ->
       Flowable.fromIterable([5, 6]).map(addOne).map(addOne).concatWith(Maybe.just(1).map(addOne).toFlowable())
     }
+    // spotless:on
   }
 
   def "Publisher chain spans have the correct parents from subscription time"() {
@@ -369,7 +373,12 @@ class RxJava2Test extends AgentTestRunner {
     values.size() == 4
 
     where:
-    scheduler << [Schedulers.newThread(), Schedulers.computation(), Schedulers.single(), Schedulers.trampoline()]
+    scheduler << [
+      Schedulers.newThread(),
+      Schedulers.computation(),
+      Schedulers.single(),
+      Schedulers.trampoline()
+    ]
   }
 
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
@@ -408,19 +417,19 @@ class RxJava2Test extends AgentTestRunner {
     }
 
     publisher.subscribe(new Subscriber<Integer>() {
-      void onSubscribe(Subscription subscription) {
-        subscription.cancel()
-      }
+        void onSubscribe(Subscription subscription) {
+          subscription.cancel()
+        }
 
-      void onNext(Integer t) {
-      }
+        void onNext(Integer t) {
+        }
 
-      void onError(Throwable error) {
-      }
+        void onError(Throwable error) {
+        }
 
-      void onComplete() {
-      }
-    })
+        void onComplete() {
+        }
+      })
 
     scope.close()
     span.finish()

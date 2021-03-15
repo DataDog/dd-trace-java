@@ -9,7 +9,9 @@ import java.util.concurrent.ForkJoinPool
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
 
-@Requires({ isJavaVersionAtLeast(8) })
+@Requires({
+  isJavaVersionAtLeast(8)
+})
 class RecursiveThreadPoolPropagationTest extends AgentTestRunner {
 
   @Shared
@@ -354,10 +356,10 @@ class RecursiveThreadPoolPropagationTest extends AgentTestRunner {
 
   private static void sortByDepth(List<DDSpan> trace) {
     Collections.sort(trace, new Comparator<DDSpan>() {
-      @Override
-      int compare(DDSpan l, DDSpan r) {
-        return Integer.parseInt(l.getOperationName().toString()) - Integer.parseInt(r.getOperationName().toString())
-      }
-    })
+        @Override
+        int compare(DDSpan l, DDSpan r) {
+          return Integer.parseInt(l.getOperationName().toString()) - Integer.parseInt(r.getOperationName().toString())
+        }
+      })
   }
 }

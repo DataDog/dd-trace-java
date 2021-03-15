@@ -33,6 +33,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     MuzzleVersionScanPlugin.assertInstrumentationMuzzled(instrumentationLoader, userClassLoader, assertPass)
 
     where:
+    // spotless:off
     assertPass | instCP                                                           | userCP
     true       | [EmptyInst]                                                      | []
     false      | [BasicInst, SomeAdvice]                                          | []
@@ -41,6 +42,7 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     true       | [BasicInst, SomeAdvice]                                          | [AdviceParameter, AdviceReference, AdviceStaticReference]
     false      | [HelperInst, SomeAdvice, AdviceReference, AdviceStaticReference] | [] // Matching applies before helpers are injected
     // FIXME: AdviceParameter and AdviceMethodReturn are not validated
+    // spotless:on
   }
 
   def "verify advice match failure"() {
@@ -60,8 +62,10 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     ex.message == "Instrumentation failed Muzzle validation"
 
     where:
+    // spotless:off
     instCP                  | _
     [BasicInst, SomeAdvice] | _
+    // spotless:on
   }
 
   def "test assertInstrumentationMuzzled helpers"() {
@@ -78,9 +82,11 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     }.isEmpty()
 
     where:
+    // spotless:off
     inst                   | helpers
     ValidHelperInst        | [HelperClass, NestedHelperClass]
     InvalidOrderHelperInst | [HelperClass, NestedHelperClass]
+    // spotless:on
   }
 
   def "test nested helpers failure"() {
@@ -98,7 +104,9 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
     ex.message == "Nested helper $NestedHelperClass.name must have the parent class $HelperClass.name also defined as a helper"
 
     where:
+    // spotless:off
     inst                     | helpers
     InvalidMissingHelperInst | [NestedHelperClass]
+    // spotless:on
   }
 }
