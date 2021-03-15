@@ -21,8 +21,6 @@ public class DemoController {
     this.users = new int[100];
   }
 
-  // this doesn't work for some reason if the default port is set to 9080
-  // (gives internal server error)
   @RequestMapping("/connect")
   public String connect() {
     int userId = new Random().nextInt(users.length);
