@@ -40,7 +40,6 @@ allprojects {
 repositories {
   mavenLocal()
   mavenCentral()
-  jcenter()
 }
 
 description = 'dd-trace-java'

@@ -1,6 +1,6 @@
 buildscript {
   repositories {
-    jcenter()
+    mavenCentral()
   }
   dependencies {
     classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1'
