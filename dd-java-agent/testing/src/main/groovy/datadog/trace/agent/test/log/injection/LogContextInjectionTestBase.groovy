@@ -78,25 +78,28 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     AtomicReference<String> thread2TraceId = new AtomicReference<>()
 
     final Thread thread1 = new Thread() {
-      @Override
-      void run() {
-        // no trace in scope
-        thread1TraceId.set(get(CorrelationIdentifier.getTraceIdKey()))
+        @Override
+        void run() {
+          // no trace in scope
+          thread1TraceId.set(get(CorrelationIdentifier.getTraceIdKey()))
+        }
       }
 
     final Thread thread2 = new Thread() {
-      @Override
-      void run() {
-        // other trace in scope
-        final AgentSpan thread2Span = startSpan("root2")
-        final AgentScope thread2Scope = activateSpan(thread2Span)
-        try {
-          thread2TraceId.set(get(CorrelationIdentifier.getTraceIdKey()))
-        } finally {
-          thread2Scope.close()
-          thread2Span.finish()
+        @Override
+        void run() {
+          // other trace in scope
+          final AgentSpan thread2Span = startSpan("root2")
+          final AgentScope thread2Scope = activateSpan(thread2Span)
+          try {
+            thread2TraceId.set(get(CorrelationIdentifier.getTraceIdKey()))
+          } finally {
+            thread2Scope.close()
+            thread2Span.finish()
+          }
         }
       }
+
     final AgentSpan mainSpan = startSpan("root")
     final AgentScope mainScope = activateSpan(mainSpan)
     thread1.start()
@@ -143,3 +146,4 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
   }
 
 }
+

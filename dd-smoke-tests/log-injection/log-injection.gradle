@@ -156,10 +156,7 @@ generateTestingJar('JUL', 'Log4j2',
   [configurations.julLog4j2Bridge, configurations.log4j2])
 
 generateTestingJar('JUL', 'Log4j2Latest',
-  [
-    configurations.julLog4j2BridgeLatest,
-    configurations.log4j2Latest
-  ])
+  [configurations.julLog4j2BridgeLatest, configurations.log4j2Latest])
 
 generateTestingJar('JUL', 'JBoss', [configurations.jbossBackend])
 
@@ -191,10 +188,7 @@ generateTestingJar('Log4j1', 'Log4j2',
   [configurations.log4j1Log4j2Bridge, configurations.log4j2])
 
 generateTestingJar('Log4j1', 'Log4j2Latest',
-  [
-    configurations.log4j1Log4j2BridgeLatest,
-    configurations.log4j2Latest
-  ])
+  [configurations.log4j1Log4j2BridgeLatest, configurations.log4j2Latest])
 
 generateTestingJar('Log4j2', 'Log4j2',
   [configurations.log4j2])
@@ -206,10 +200,7 @@ generateTestingJar('Slf4j', 'Logback',
   [configurations.slf4jInterface, configurations.logbackBackend])
 
 generateTestingJar('Slf4j', 'LogbackLatest',
-  [
-    configurations.slf4jInterface,
-    configurations.logbackBackendLatest
-  ])
+  [configurations.slf4jInterface, configurations.logbackBackendLatest])
 
 generateTestingJar('Slf4j', 'Log4j1',
   [
@@ -283,64 +274,43 @@ generateTestingJar('JUL', 'Slf4jToLogback',
   [configurations.julSlf4jBridge, configurations.logbackBackend])
 
 generateTestingJar('JUL', 'Slf4jToLogbackLatest',
-  [
-    configurations.julSlf4jBridge,
-    configurations.logbackBackendLatest
-  ])
+  [configurations.julSlf4jBridge, configurations.logbackBackendLatest])
 
 generateTestingJar('JCL', 'Slf4jToLogback',
   [configurations.jclSlf4jBridge, configurations.logbackBackend])
 
 generateTestingJar('JCL', 'Slf4jToLogbackLatest',
-  [
-    configurations.jclSlf4jBridge,
-    configurations.logbackBackendLatest
-  ])
+  [configurations.jclSlf4jBridge, configurations.logbackBackendLatest])
 
 generateTestingJar('Log4j1', 'Slf4jToLogback',
   [configurations.log4j1Slf4jBridge, configurations.logbackBackend])
 
 generateTestingJar('Log4j1', 'Slf4jToLogbackLatest',
-  [
-    configurations.log4j1Slf4jBridge,
-    configurations.logbackBackendLatest
-  ])
+  [configurations.log4j1Slf4jBridge, configurations.logbackBackendLatest])
 
 generateTestingJar('Log4j2', 'Slf4jToLogback',
   [configurations.log4j2Slf4jBridge, configurations.logbackBackend])
 
 generateTestingJar('Log4j2', 'Slf4jToLogbackLatest',
-  [
-    configurations.log4j2Slf4jBridge,
-    configurations.logbackBackendLatest
-  ])
+  [configurations.log4j2Slf4jBridge, configurations.logbackBackendLatest])
 
 generateTestingJar('JBoss', 'JBoss',
   [configurations.jbossInterface, configurations.jbossBackend])
 
 generateTestingJar('JBoss', 'JBossLatest',
-  [
-    configurations.jbossInterface,
-    configurations.jbossBackendLatest
-  ])
+  [configurations.jbossInterface, configurations.jbossBackendLatest])
 
 generateTestingJar('JBoss', 'Log4j1',
   [configurations.jbossInterface, configurations.log4j1])
 
 generateTestingJar('JBoss', 'Log4j1Latest',
-  [
-    configurations.jbossInterface,
-    configurations.log4j1Latest
-  ])
+  [configurations.jbossInterface, configurations.log4j1Latest])
 
 generateTestingJar('JBoss', 'Log4j2',
   [configurations.jbossInterface, configurations.log4j2])
 
 generateTestingJar('JBoss', 'Log4j2Latest',
-  [
-    configurations.jbossInterface,
-    configurations.log4j2Latest
-  ])
+  [configurations.jbossInterface, configurations.log4j2Latest])
 
 generateTestingJar('JBoss', 'Slf4jToLogback',
   [
