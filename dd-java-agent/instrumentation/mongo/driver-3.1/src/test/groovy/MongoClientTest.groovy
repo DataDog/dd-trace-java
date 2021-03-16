@@ -18,6 +18,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class MongoClientTest extends MongoBaseTest {
+  static final String DB_NAME = "v3_test_db"
 
   @Shared
   MongoClient client
@@ -30,13 +31,14 @@ class MongoClientTest extends MongoBaseTest {
   }
 
   def cleanup() throws Exception {
+    client.getDatabase(DB_NAME).drop()
     client?.close()
     client = null
   }
 
   def "test create collection"() {
     setup:
-    MongoDatabase db = client.getDatabase(dbName)
+    MongoDatabase db = client.getDatabase(DB_NAME)
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
 
     when:
@@ -50,14 +52,13 @@ class MongoClientTest extends MongoBaseTest {
     }
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
     renameService << [false, true]
   }
 
   def "test create collection no description"() {
     setup:
-    MongoDatabase db = new MongoClient("localhost", port).getDatabase(dbName)
+    MongoDatabase db = new MongoClient("localhost", port).getDatabase(DB_NAME)
 
     when:
     db.createCollection(collectionName)
@@ -65,18 +66,17 @@ class MongoClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "create","{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, dbName)
+        mongoSpan(it, 0, "create","{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, DB_NAME)
       }
     }
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   def "test get collection"() {
     setup:
-    MongoDatabase db = client.getDatabase(dbName)
+    MongoDatabase db = client.getDatabase(DB_NAME)
 
     when:
     int count = db.getCollection(collectionName).count()
@@ -90,14 +90,13 @@ class MongoClientTest extends MongoBaseTest {
     }
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   def "test insert"() {
     setup:
     MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(dbName)
+      MongoDatabase db = client.getDatabase(DB_NAME)
       db.createCollection(collectionName)
       return db.getCollection(collectionName)
     }
@@ -119,14 +118,13 @@ class MongoClientTest extends MongoBaseTest {
     }
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   def "test update"() {
     setup:
     MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(dbName)
+      MongoDatabase db = client.getDatabase(DB_NAME)
       db.createCollection(collectionName)
       def coll = db.getCollection(collectionName)
       coll.insertOne(new Document("password", "OLDPW"))
@@ -153,14 +151,13 @@ class MongoClientTest extends MongoBaseTest {
     }
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   def "test delete"() {
     setup:
     MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(dbName)
+      MongoDatabase db = client.getDatabase(DB_NAME)
       db.createCollection(collectionName)
       def coll = db.getCollection(collectionName)
       coll.insertOne(new Document("password", "SECRET"))
@@ -185,14 +182,13 @@ class MongoClientTest extends MongoBaseTest {
     }
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   def "test error"() {
     setup:
     MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(dbName)
+      MongoDatabase db = client.getDatabase(DB_NAME)
       db.createCollection(collectionName)
       return db.getCollection(collectionName)
     }
@@ -208,8 +204,7 @@ class MongoClientTest extends MongoBaseTest {
     assertTraces(0) {}
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   def "test client failure"() {
@@ -218,7 +213,7 @@ class MongoClientTest extends MongoBaseTest {
     def client = new MongoClient(new ServerAddress("localhost", UNUSABLE_PORT), [], options)
 
     when:
-    MongoDatabase db = client.getDatabase(dbName)
+    MongoDatabase db = client.getDatabase(DB_NAME)
     db.createCollection(collectionName)
 
     then:
@@ -227,18 +222,14 @@ class MongoClientTest extends MongoBaseTest {
     assertTraces(0) {}
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   def mongoSpan(TraceAssert trace, int index, String operation, String statement, boolean renameService = false, String instance = "some-description", Object parentSpan = null, Throwable exception = null) {
     trace.span {
       serviceName renameService ? instance : "mongo"
       operationName "mongo.query"
-      resourceName {
-        assert it.replace(" ", "") == statement
-        return true
-      }
+      resourceName matchesStatement(statement)
       spanType DDSpanTypes.MONGO
       if (parentSpan == null) {
         parent()
