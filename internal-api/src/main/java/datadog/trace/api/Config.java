@@ -384,6 +384,9 @@ public class Config {
 
   @Getter private final Set<String> grpcIgnoredOutboundMethods;
 
+  private String env;
+  private String version;
+
   private final ConfigProvider configProvider;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
@@ -619,7 +622,7 @@ public class Config {
 
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
-    logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, false);
+    logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
@@ -773,10 +776,31 @@ public class Config {
   }
 
   public WellKnownTags getWellKnownTags() {
-    CharSequence env = tags.get(ENV);
-    CharSequence version = tags.get(VERSION);
-    return new WellKnownTags(
-        getHostName(), null == env ? "" : env, serviceName, null == version ? "" : version);
+    return new WellKnownTags(getHostName(), getEnv(), serviceName, getVersion());
+  }
+
+  public String getEnv() {
+    // intentionally not thread safe
+    if (env == null) {
+      env = getMergedSpanTags().get("env");
+      if (env == null) {
+        env = "";
+      }
+    }
+
+    return env;
+  }
+
+  public String getVersion() {
+    // intentionally not thread safe
+    if (version == null) {
+      version = getMergedSpanTags().get("version");
+      if (version == null) {
+        version = "";
+      }
+    }
+
+    return version;
   }
 
   public Map<String, String> getMergedSpanTags() {

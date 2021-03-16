@@ -1,0 +1,14 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'org.apache.logging.log4j'
+    module = 'log4j-core'
+    versions = '[2.7,]'
+    assertInverse = true
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.7'
+}

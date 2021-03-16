@@ -89,12 +89,12 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   def assertRawLogLinesWithInjection(List<String> logLines, String firstTraceId, String firstSpanId, String secondTraceId, String secondSpanId) {
     // Assert log line starts with backend name.
     // This avoids tests inadvertantly passing because the incorrect backend is logging
-    logLines.every { it.startsWith(backend())}
+    logLines.every { it.startsWith(backend()) }
     assert logLines.size() == 4
-    assert logLines[0].endsWith("-   - BEFORE FIRST SPAN") || logLines[0].endsWith("- 0 0 - BEFORE FIRST SPAN")
-    assert logLines[1].endsWith("- ${firstTraceId} ${firstSpanId} - INSIDE FIRST SPAN")
-    assert logLines[2].endsWith("-   - AFTER FIRST SPAN") || logLines[2].endsWith("- 0 0 - AFTER FIRST SPAN")
-    assert logLines[3].endsWith("- ${secondTraceId} ${secondSpanId} - INSIDE SECOND SPAN")
+    assert logLines[0].endsWith("- ${SERVICE_NAME} ${ENV} ${VERSION}   - BEFORE FIRST SPAN") || logLines[0].endsWith("- ${SERVICE_NAME} ${ENV} ${VERSION} 0 0 - BEFORE FIRST SPAN")
+    assert logLines[1].endsWith("- ${SERVICE_NAME} ${ENV} ${VERSION} ${firstTraceId} ${firstSpanId} - INSIDE FIRST SPAN")
+    assert logLines[2].endsWith("- ${SERVICE_NAME} ${ENV} ${VERSION}   - AFTER FIRST SPAN") || logLines[2].endsWith("- ${SERVICE_NAME} ${ENV} ${VERSION} 0 0 - AFTER FIRST SPAN")
+    assert logLines[3].endsWith("- ${SERVICE_NAME} ${ENV} ${VERSION} ${secondTraceId} ${secondSpanId} - INSIDE SECOND SPAN")
 
     return true
   }
@@ -104,7 +104,14 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
     assert logLines.size() == 4
 
-    assert logLines.every { it["backend"] == backend() }
+    // Log4j2's KeyValuePair for injecting static values into Json only exists in later versions of Log4j2
+    // Its tested with Log4j2LatestBackend
+    if (!getClass().simpleName.endsWith("Log4j2Backend")) {
+      assert logLines.every { it["backend"] == backend() }
+    }
+    assert logLines.every { getFromContext(it, "dd.service") == SERVICE_NAME }
+    assert logLines.every { getFromContext(it,"dd.version") == VERSION }
+    assert logLines.every { getFromContext(it,"dd.env") == ENV }
 
     assert getFromContext(logLines[0],"dd.trace_id") == null
     assert getFromContext(logLines[0],"dd.span_id") == null
@@ -223,6 +230,19 @@ class JULInterfaceLog4j2Backend extends LogInjectionSmokeTest {
   }
 }
 
+class JULInterfaceLog4j2LatestBackend extends JULInterfaceLog4j2Backend {}
+
+class JULInterfaceJBossBackend extends LogInjectionSmokeTest {
+  def backend() { "JBoss" }
+  def supportsJson() { false }
+
+  List additionalArguments() {
+    return ["-Djava.util.logging.manager=org.jboss.logmanager.LogManager"]
+  }
+}
+
+class JULInterfaceJBossLatestBackend extends JULInterfaceJBossBackend {}
+
 class JCLInterfaceJULBackend extends JULBackend {
   def backend() { "JUL" }
 }
@@ -232,35 +252,52 @@ class JCLInterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def supportsJson() { false }
 }
 
+class JCLInterfaceLog4j1LatestBackend extends JCLInterfaceLog4j1Backend {}
+
 class JCLInterfaceLog4j2Backend extends LogInjectionSmokeTest {
   def backend() { "Log4j2" }
 }
+
+class JCLInterfaceLog4j2LatestBackend extends JCLInterfaceLog4j2Backend {}
 
 class Log4j1InterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() { "Log4j1" }
   def supportsJson() { false }
 }
 
+class Log4j1InterfaceLog4j1LatestBackend extends Log4j1InterfaceLog4j1Backend {}
+
+
 class Log4j1InterfaceLog4j2Backend extends LogInjectionSmokeTest {
   def backend() { "Log4j2" }
 }
+
+class Log4j1InterfaceLog4j2LatestBackend extends Log4j1InterfaceLog4j2Backend {}
 
 class Log4j2InterfaceLog4j2Backend extends LogInjectionSmokeTest {
   def backend() { "Log4j2" }
 }
 
+class Log4j2InterfaceLog4j2LatestBackend extends Log4j2InterfaceLog4j2Backend {}
+
 class Slf4jInterfaceLogbackBackend extends LogInjectionSmokeTest {
   def backend() { "Logback" }
 }
+
+class Slf4jInterfaceLogbackLatestBackend extends Slf4jInterfaceLogbackBackend {}
 
 class Slf4jInterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() { "Log4j1" }
   def supportsJson() { false }
 }
 
+class Slf4jInterfaceLog4j1LatestBackend extends Slf4jInterfaceLog4j1Backend {}
+
 class Slf4jInterfaceLog4j2Backend extends LogInjectionSmokeTest {
   def backend() { "Log4j2" }
 }
+
+class Slf4jInterfaceLog4j2LatestBackend extends Slf4jInterfaceLog4j2Backend {}
 
 class Slf4jInterfaceSlf4jSimpleBackend extends LogInjectionSmokeTest {
   def backend() { "Slf4jSimple" }
@@ -280,9 +317,13 @@ class Slf4jInterfaceJCLToLog4j1Backend extends LogInjectionSmokeTest {
   def supportsJson() { false }
 }
 
+class Slf4jInterfaceJCLToLog4j1LatestBackend extends Slf4jInterfaceJCLToLog4j1Backend {}
+
 class Slf4jInterfaceJCLToLog4j2Backend extends LogInjectionSmokeTest {
   def backend() { "Log4j2" }
 }
+
+class Slf4jInterfaceJCLToLog4j2LatestBackend extends Slf4jInterfaceJCLToLog4j2Backend {}
 
 class JULInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   @Shared
@@ -308,16 +349,27 @@ class JULInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   }
 }
 
+class JULInterfaceSlf4jToLogbackLatestBackend extends JULInterfaceSlf4jToLogbackBackend {}
+
 class JCLInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() { "Logback" }
+}
+
+class JCLInterfaceSlf4jToLogbackLatestBackend extends JCLInterfaceSlf4jToLogbackBackend {
 }
 
 class Log4j1InterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() { "Logback" }
 }
 
+class Log4j1InterfaceSlf4jToLogbackLatestBackend extends Log4j1InterfaceSlf4jToLogbackBackend {
+}
+
 class Log4j2InterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() { "Logback" }
+}
+
+class Log4j2InterfaceSlf4jToLogbackLatestBackend extends Log4j2InterfaceSlf4jToLogbackBackend {
 }
 
 class JBossInterfaceJBossBackend extends LogInjectionSmokeTest {
@@ -329,18 +381,26 @@ class JBossInterfaceJBossBackend extends LogInjectionSmokeTest {
   }
 }
 
+class JBossInterfaceJBossLatestBackend extends JBossInterfaceJBossBackend {}
+
 class JBossInterfaceLog4j1Backend extends LogInjectionSmokeTest {
   def backend() { "Log4j1" }
   def supportsJson() { false }
 }
 
+class JBossInterfaceLog4j1LatestBackend extends JBossInterfaceLog4j1Backend {}
+
 class JBossInterfaceLog4j2Backend extends LogInjectionSmokeTest {
   def backend() { "Log4j2" }
 }
 
+class JBossInterfaceLog4j2LatestBackend extends JBossInterfaceLog4j2Backend {}
+
 class JBossInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
   def backend() { "Logback" }
 }
+
+class JBossInterfaceSlf4jToLogbackLatestBackend extends JBossInterfaceSlf4jToLogbackBackend {}
 
 class JBossInterfaceJULBackend extends JULBackend {}
 
@@ -355,3 +415,5 @@ class FloggerInterfaceSlf4jToLogbackBackend extends LogInjectionSmokeTest {
     ]
   }
 }
+
+class FloggerInterfaceSlf4jToLogbackLatestBackend extends FloggerInterfaceSlf4jToLogbackBackend {}

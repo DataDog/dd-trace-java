@@ -1,7 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 ext {
-  log4jVersion = '2.11.2'
+  log4jVersion = '2.0'
 }
 
 configurations {
@@ -15,17 +15,19 @@ muzzle {
   pass {
     group = 'org.apache.logging.log4j'
     module = 'log4j-core'
-    versions = '[,]'
+    versions = '[,2.7)'
+    assertInverse = true
   }
 
   pass {
     group = 'org.apache.logging.log4j'
     module = 'log4j-api'
-    versions = '[,]'
+    versions = '[,2.7)'
   }
 }
 
 dependencies {
+  compileOnly group: 'org.apache.logging.log4j', name: 'log4j-core', version: log4jVersion
+
   testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version: log4jVersion
-  testCompile group: 'org.apache.logging.log4j', name: 'log4j-api', version: log4jVersion
 }

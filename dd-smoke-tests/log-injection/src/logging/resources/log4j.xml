@@ -8,7 +8,7 @@
 
     <layout class="org.apache.log4j.PatternLayout">
       <param name="ConversionPattern"
-        value="Log4j1 %d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %X{dd.trace_id} %X{dd.span_id} - %m%n" />
+        value="Log4j1 %d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %X{dd.service} %X{dd.env} %X{dd.version} %X{dd.trace_id} %X{dd.span_id} - %m%n" />
     </layout>
   </appender>
 

@@ -1,0 +1,13 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'ch.qos.logback'
+    module = 'logback-classic'
+    versions = '[1.0.0,]'
+  }
+}
+
+dependencies {
+  compileOnly group: 'ch.qos.logback', name: 'logback-classic', version: '1.0.0'
+}
