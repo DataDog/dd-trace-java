@@ -176,7 +176,6 @@ import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.File;
@@ -202,6 +201,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -261,7 +261,7 @@ public class Config {
   private final String prioritySamplingForce;
   private final boolean traceResolverEnabled;
   private final Map<String, String> serviceMapping;
-  @NonNull private final Map<String, String> tags;
+  private final Map<String, String> tags;
   private final Map<String, String> spanTags;
   private final Map<String, String> jmxTags;
   private final List<String> excludedClasses;
@@ -1402,7 +1402,7 @@ public class Config {
    * @param setting The setting name, e.g. `service.name`
    * @return The public facing environment variable name
    */
-  @NonNull
+  @Nonnull
   private static String propertyNameToEnvironmentVariableName(final String setting) {
     return ENV_REPLACEMENT
         .matcher(propertyNameToSystemPropertyName(setting).toUpperCase())
@@ -1418,12 +1418,12 @@ public class Config {
    * @param setting The setting name, e.g. `service.name`
    * @return The public facing system property name
    */
-  @NonNull
+  @Nonnull
   private static String propertyNameToSystemPropertyName(final String setting) {
     return PREFIX + setting;
   }
 
-  @NonNull
+  @Nonnull
   private static Map<String, String> newHashMap(final int size) {
     return new HashMap<>(size + 1, 1f);
   }
@@ -1433,9 +1433,9 @@ public class Config {
    * @param propNames
    * @return new unmodifiable copy of {@param map} where properties are overwritten from environment
    */
-  @NonNull
+  @Nonnull
   private Map<String, String> getMapWithPropertiesDefinedByEnvironment(
-      @NonNull final Map<String, String> map, @NonNull final String... propNames) {
+      @Nonnull final Map<String, String> map, @Nonnull final String... propNames) {
     final Map<String, String> res = new HashMap<>(map);
     for (final String propName : propNames) {
       final String val = configProvider.getString(propName);
@@ -1446,7 +1446,7 @@ public class Config {
     return Collections.unmodifiableMap(res);
   }
 
-  @NonNull
+  @Nonnull
   @SuppressForbidden
   private static Set<String> parseStringIntoSetOfNonEmptyStrings(final String str) {
     // Using LinkedHashSet to preserve original string order
@@ -1461,7 +1461,7 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
-  @NonNull
+  @Nonnull
   private static Set<PropagationStyle> convertStringSetToPropagationStyleSet(
       final Set<String> input) {
     // Using LinkedHashSet to preserve original string order

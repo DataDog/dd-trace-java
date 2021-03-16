@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.googlehttpclient;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import javax.annotation.Nonnull;
 
 public class RequestState {
 
@@ -11,7 +11,7 @@ public class RequestState {
     this.span = span;
   }
 
-  @NonNull
+  @Nonnull
   public AgentSpan getSpan() {
     return span;
   }

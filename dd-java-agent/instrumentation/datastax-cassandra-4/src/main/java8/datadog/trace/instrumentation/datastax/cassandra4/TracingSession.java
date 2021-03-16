@@ -19,12 +19,12 @@ import com.datastax.oss.driver.internal.core.session.SessionWrapper;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.util.AgentThreadFactory;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import javax.annotation.Nonnull;
 
 public class TracingSession extends SessionWrapper implements CqlSession {
   private static final ExecutorService EXECUTOR_SERVICE =
@@ -37,7 +37,7 @@ public class TracingSession extends SessionWrapper implements CqlSession {
   @Override
   @Nullable
   public <RequestT extends Request, ResultT> ResultT execute(
-      @NonNull RequestT request, @NonNull GenericType<ResultT> resultType) {
+      @Nonnull RequestT request, @Nonnull GenericType<ResultT> resultType) {
 
     if (request instanceof Statement && resultType.equals(Statement.SYNC)) {
       return (ResultT) wrapSyncRequest((Statement) request);
