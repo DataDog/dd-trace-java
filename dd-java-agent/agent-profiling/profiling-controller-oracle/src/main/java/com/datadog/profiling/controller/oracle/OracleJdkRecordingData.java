@@ -21,17 +21,16 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.util.Date;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.management.ObjectName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Implementation for profiling recordings. */
-public class OracleJdkRecordingData implements RecordingData {
+public class OracleJdkRecordingData extends RecordingData {
   private static final Logger log = LoggerFactory.getLogger(OracleJdkRecordingData.class);
   private final ObjectName recordingId;
   private final String name;
-  private final Instant start;
-  private final Instant end;
 
   private final JfrMBeanHelper helper;
 
@@ -41,16 +40,15 @@ public class OracleJdkRecordingData implements RecordingData {
       @Nonnull Instant start,
       @Nonnull Instant end,
       @Nonnull JfrMBeanHelper helper) {
+    super(start, end);
     this.name = name;
     this.recordingId = recordingId;
-    this.start = start;
-    this.end = end;
     this.helper = helper;
   }
 
   @Override
-  @Nonnull
-  public InputStream getStream() throws IOException {
+  @Nullable
+  protected final InputStream doGetStream() throws IOException {
     return new JfrRecordingStream();
   }
 
@@ -68,18 +66,6 @@ public class OracleJdkRecordingData implements RecordingData {
   @Override
   public String toString() {
     return "OracleJdkRecording: " + getName();
-  }
-
-  @Override
-  @Nonnull
-  public Instant getStart() {
-    return start;
-  }
-
-  @Override
-  @Nonnull
-  public Instant getEnd() {
-    return end;
   }
 
   private class JfrRecordingStream extends InputStream {

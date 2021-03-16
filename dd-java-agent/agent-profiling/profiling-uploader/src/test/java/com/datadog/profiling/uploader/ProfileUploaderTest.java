@@ -54,6 +54,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
+import javax.annotation.Nonnull;
 import net.jpountz.lz4.LZ4FrameInputStream;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
@@ -441,6 +442,37 @@ public class ProfileUploaderTest {
 
     verify(recording).release();
     verify(recording, times(2)).getStream();
+  }
+
+  @Test
+  public void testEmptyRecording() throws Exception {
+    final RecordingData recording =
+        new RecordingData(
+            Instant.ofEpochSecond(PROFILE_START), Instant.ofEpochSecond(PROFILE_END)) {
+          @Nonnull
+          @Override
+          protected InputStream doGetStream() throws IOException {
+            // return an empty underlying stream
+            return new ByteArrayInputStream(new byte[0]);
+          }
+
+          @Override
+          public void release() {
+            // ignore
+          }
+
+          @Nonnull
+          @Override
+          public String getName() {
+            return "test data";
+          }
+        };
+
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploadAndWait(RECORDING_TYPE, recording);
+
+    final RecordedRequest request = server.takeRequest(500, TimeUnit.MILLISECONDS);
+    assertNull(request);
   }
 
   @Test

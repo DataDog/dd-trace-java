@@ -20,28 +20,26 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import jdk.jfr.Recording;
 
 /** Implementation for profiling recordings. */
-public class OpenJdkRecordingData implements RecordingData {
+public class OpenJdkRecordingData extends RecordingData {
 
   private final Recording recording;
-  private final Instant start;
-  private final Instant end;
 
   OpenJdkRecordingData(final Recording recording) {
     this(recording, recording.getStartTime(), recording.getStopTime());
   }
 
   OpenJdkRecordingData(final Recording recording, final Instant start, final Instant end) {
+    super(start, end);
     this.recording = recording;
-    this.start = start;
-    this.end = end;
   }
 
   @Override
-  @Nonnull
-  public InputStream getStream() throws IOException {
+  @Nullable
+  protected final InputStream doGetStream() throws IOException {
     return recording.getStream(start, end);
   }
 
@@ -59,18 +57,6 @@ public class OpenJdkRecordingData implements RecordingData {
   @Override
   public String toString() {
     return "OpenJdkRecording: " + getName();
-  }
-
-  @Override
-  @Nonnull
-  public Instant getStart() {
-    return start;
-  }
-
-  @Override
-  @Nonnull
-  public Instant getEnd() {
-    return end;
   }
 
   // Visible for testing

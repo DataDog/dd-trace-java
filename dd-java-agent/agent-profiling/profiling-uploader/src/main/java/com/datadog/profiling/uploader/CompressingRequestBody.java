@@ -21,6 +21,8 @@ import org.openjdk.jmc.common.io.IOToolkit;
  * data.
  */
 final class CompressingRequestBody extends RequestBody {
+  static final class MissingInputException extends IOException {}
+
   /** A simple functional supplier throwing an {@linkplain IOException} */
   @FunctionalInterface
   interface InputStreamSupplier {
@@ -219,9 +221,6 @@ final class CompressingRequestBody extends RequestBody {
       try (Source source = Okio.buffer(Okio.source(inputStream))) {
         sink.writeAll(source);
       }
-      // a bit of cargo-culting to make sure that all writes have really-really been flushed
-      sink.emit();
-      sink.flush();
     }
   }
 

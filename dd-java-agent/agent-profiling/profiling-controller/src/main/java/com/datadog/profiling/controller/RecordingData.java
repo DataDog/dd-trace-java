@@ -19,16 +19,37 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** Platform agnostic API for operations required when retrieving data using the ProfilingSystem. */
-public interface RecordingData {
+public abstract class RecordingData {
+  protected final Instant start;
+  protected final Instant end;
+
+  public RecordingData(final Instant start, final Instant end) {
+    this.start = start;
+    this.end = end;
+  }
 
   /**
-   * @return the data stream.
-   * @throws IOException if another IO-related problem occured.
+   * @return the data stream if it contains any data.
+   * @throws IOException if the stream to return is empty or another IO-related problem occurred.
    */
   @Nonnull
-  InputStream getStream() throws IOException;
+  public final InputStream getStream() throws IOException {
+    InputStream is = doGetStream();
+    if (is != null && is.available() > 0) {
+      return is;
+    }
+    throw new IOException();
+  }
+
+  /**
+   * @return the underlying recording stream or {@literal null}
+   * @throws IOException if an IO-related problem occurred.
+   */
+  @Nullable
+  protected abstract InputStream doGetStream() throws IOException;
 
   /**
    * Releases the resources associated with the recording, for example the underlying file.
@@ -42,7 +63,7 @@ public interface RecordingData {
    *
    * <p>Please don't forget to call release when done streaming...
    */
-  void release();
+  public abstract void release();
 
   /**
    * Returns the name of the recording from which the data is originating.
@@ -50,7 +71,7 @@ public interface RecordingData {
    * @return the name of the recording from which the data is originating.
    */
   @Nonnull
-  String getName();
+  public abstract String getName();
 
   /**
    * Returns the requested start time for the recording.
@@ -60,7 +81,9 @@ public interface RecordingData {
    * @return the requested start time.
    */
   @Nonnull
-  Instant getStart();
+  public final Instant getStart() {
+    return start;
+  }
 
   /**
    * Returns the requested end time for the recording.
@@ -70,5 +93,7 @@ public interface RecordingData {
    * @return the requested end time.
    */
   @Nonnull
-  Instant getEnd();
+  public final Instant getEnd() {
+    return end;
+  }
 }
