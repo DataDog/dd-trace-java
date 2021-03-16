@@ -26,7 +26,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
@@ -52,6 +51,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import net.jpountz.lz4.LZ4FrameInputStream;
@@ -69,7 +69,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
+import org.mockito.internal.verification.VerificationModeFactory;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.stubbing.Answer;
 
 /** Unit tests for the recording uploader. */
 @ExtendWith(MockitoExtension.class)
@@ -77,7 +79,7 @@ public class ProfileUploaderTest {
 
   private static final String API_KEY_VALUE = "testkey";
   private static final String URL_PATH = "/lalala";
-  private static final String RECORDING_RESOURCE = "test-recording.jfr";
+  private static final String RECORDING_RESOURCE = "/test-recording.jfr";
   private static final String RECODING_NAME_PREFIX = "test-recording-";
   private static final RecordingType RECORDING_TYPE = RecordingType.CONTINUOUS;
 
@@ -155,14 +157,14 @@ public class ProfileUploaderTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"on", "lz4", "gzip", "off", "invalid"})
-  public void testRequestParameters(final String compression)
-      throws IOException, InterruptedException {
+  public void testRequestParameters(final String compression) throws Exception {
     when(config.getProfilingUploadCompression()).thenReturn(compression);
+    when(config.getProfilingUploadTimeout()).thenReturn(500000);
     uploader = new ProfileUploader(config);
 
     server.enqueue(new MockResponse().setResponseCode(200));
 
-    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
@@ -192,8 +194,7 @@ public class ProfileUploaderTest {
         EXPECTED_TAGS, ProfilingTestUtils.parseTags(parameters.get(ProfileUploader.TAGS_PARAM)));
 
     final byte[] expectedBytes =
-        ByteStreams.toByteArray(
-            Thread.currentThread().getContextClassLoader().getResourceAsStream(RECORDING_RESOURCE));
+        ByteStreams.toByteArray(ProfileUploaderTest.class.getResourceAsStream(RECORDING_RESOURCE));
 
     byte[] uploadedBytes =
         (byte[]) Iterables.getFirst(parameters.get(ProfileUploader.DATA_PARAM), new byte[] {});
@@ -208,13 +209,13 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testRequestWithContainerId() throws IOException, InterruptedException {
+  public void testRequestWithContainerId() throws Exception {
     uploader =
         new ProfileUploader(
             config, ioLogger, "container-id", (int) TERMINATION_TIMEOUT.getSeconds());
 
     server.enqueue(new MockResponse().setResponseCode(200));
-    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
 
     final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(request);
@@ -222,12 +223,12 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testAgentRequestWithApiKey() throws IOException, InterruptedException {
+  public void testAgentRequestWithApiKey() throws Exception {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
 
     uploader = new ProfileUploader(config);
     server.enqueue(new MockResponse().setResponseCode(200));
-    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
 
     final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(request);
@@ -235,13 +236,13 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testAgentlessRequest() throws IOException, InterruptedException {
+  public void testAgentlessRequest() throws Exception {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isProfilingAgentless()).thenReturn(true);
 
     uploader = new ProfileUploader(config);
     server.enqueue(new MockResponse().setResponseCode(200));
-    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
 
     final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(request);
@@ -249,13 +250,13 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void test404() throws IOException, InterruptedException {
+  public void test404() throws Exception {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(null);
 
     uploader = new ProfileUploader(config);
     server.enqueue(new MockResponse().setResponseCode(404));
-    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
 
     final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(request);
@@ -264,14 +265,14 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void test404Agentless() throws IOException, InterruptedException {
+  public void test404Agentless() throws Exception {
     // test added to get the coverage checks to pass since we log conditionally in this case
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.isProfilingAgentless()).thenReturn(true);
 
     uploader = new ProfileUploader(config);
     server.enqueue(new MockResponse().setResponseCode(404));
-    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
 
     final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(request);
@@ -279,7 +280,7 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testRequestWithProxy() throws IOException, InterruptedException {
+  public void testRequestWithProxy() throws Exception {
     final String backendHost = "intake.profiling.datadoghq.com:1234";
     final String backendUrl = "http://intake.profiling.datadoghq.com:1234" + URL_PATH;
     when(config.getFinalProfilingUrl())
@@ -294,7 +295,7 @@ public class ProfileUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(407).addHeader("Proxy-Authenticate: Basic"));
     server.enqueue(new MockResponse().setResponseCode(200));
 
-    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
 
     final RecordedRequest recordedFirstRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(server.url(""), recordedFirstRequest.getRequestUrl());
@@ -314,7 +315,7 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testRequestWithProxyDefaultPassword() throws IOException, InterruptedException {
+  public void testRequestWithProxyDefaultPassword() throws Exception {
     final String backendUrl = "http://intake.profiling.datadoghq.com:1234" + URL_PATH;
     when(config.getFinalProfilingUrl())
         .thenReturn("http://intake.profiling.datadoghq.com:1234" + URL_PATH);
@@ -327,7 +328,7 @@ public class ProfileUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(407).addHeader("Proxy-Authenticate: Basic"));
     server.enqueue(new MockResponse().setResponseCode(200));
 
-    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
 
     final RecordedRequest recordedFirstRequest = server.takeRequest(5, TimeUnit.SECONDS);
     final RecordedRequest recordedSecondRequest = server.takeRequest(5, TimeUnit.SECONDS);
@@ -336,7 +337,7 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() {
+  void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() throws Exception {
     when(config.getFinalProfilingUrl()).thenReturn("http://example.com");
 
     uploader = new ProfileUploader(config);
@@ -347,7 +348,7 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  void testOkHttpClientUsesDefaultConnspecsOverTLS() {
+  void testOkHttpClientUsesDefaultConnspecsOverTLS() throws Exception {
     when(config.getFinalProfilingUrl()).thenReturn("https://example.com");
 
     uploader = new ProfileUploader(config);
@@ -359,37 +360,34 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testRecordingClosed() throws IOException {
+  public void testRecordingClosed() throws Exception {
     server.enqueue(new MockResponse().setResponseCode(200));
 
     final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
-    uploader.upload(RECORDING_TYPE, recording);
+    uploadAndWait(RECORDING_TYPE, recording);
 
-    verify(recording.getStream()).close();
     verify(recording).release();
   }
 
   @Test
-  public void test500Response() throws IOException, InterruptedException {
+  public void test500Response() throws Exception {
     server.enqueue(new MockResponse().setResponseCode(500));
 
     final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
-    uploader.upload(RECORDING_TYPE, recording);
+    uploadAndWait(RECORDING_TYPE, recording);
 
     assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
 
-    verify(recording.getStream()).close();
     verify(recording).release();
   }
 
   @Test
-  public void testConnectionRefused() throws IOException {
+  public void testConnectionRefused() throws Exception {
     server.shutdown();
 
     final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
-    uploader.upload(RECORDING_TYPE, recording);
+    uploadAndWait(RECORDING_TYPE, recording);
 
-    verify(recording.getStream()).close();
     verify(recording).release();
 
     // Shutting down uploader ensures all callbacks are called on http client
@@ -398,23 +396,22 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testNoReplyFromServer() throws IOException, InterruptedException {
+  public void testNoReplyFromServer() throws Exception {
     server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));
     final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
-    uploader.upload(RECORDING_TYPE, recording);
+    uploadAndWait(RECORDING_TYPE, recording);
 
     // Wait longer than request timeout
     assertNotNull(server.takeRequest(REQUEST_TIMEOUT.getSeconds() + 1, TimeUnit.SECONDS));
 
     // Shutting down uploader ensures all callbacks are called on http client
     uploader.shutdown();
-    verify(recording.getStream()).close();
     verify(recording).release();
     verify(ioLogger).error(eq("Received empty reply from " + url + " after uploading profile"));
   }
 
   @Test
-  public void testTimeout() throws IOException, InterruptedException {
+  public void testTimeout() throws Exception {
     server.enqueue(
         new MockResponse()
             .setHeadersDelay(
@@ -422,7 +419,7 @@ public class ProfileUploaderTest {
                 TimeUnit.MILLISECONDS));
 
     final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
-    uploader.upload(RECORDING_TYPE, recording);
+    uploadAndWait(RECORDING_TYPE, recording);
 
     // Wait longer than request timeout
     assertNotNull(
@@ -430,7 +427,6 @@ public class ProfileUploaderTest {
 
     // Shutting down uploader ensures all callbacks are called on http client
     uploader.shutdown();
-    verify(recording.getStream()).close();
     verify(recording).release();
     // This seems to be a weird behaviour on okHttp side: it considers request to be a success even
     // if it didn't get headers before the timeout
@@ -438,21 +434,20 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testUnfinishedRecording() throws IOException {
+  public void testUnfinishedRecording() throws Exception {
     final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
     when(recording.getStream()).thenThrow(new IllegalStateException("test exception"));
-    uploader.upload(RECORDING_TYPE, recording);
+    uploadAndWait(RECORDING_TYPE, recording);
 
     verify(recording).release();
     verify(recording, times(2)).getStream();
-    verifyNoMoreInteractions(recording);
   }
 
   @Test
-  public void testHeaders() throws IOException, InterruptedException {
+  public void testHeaders() throws Exception {
     server.enqueue(new MockResponse().setResponseCode(200));
 
-    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+    uploadAndWait(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(
@@ -460,7 +455,7 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testEnqueuedRequestsExecuted() throws IOException, InterruptedException {
+  public void testEnqueuedRequestsExecuted() throws Exception {
     // We have to block all parallel requests to make sure queue is kept full
     for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
       server.enqueue(
@@ -474,11 +469,11 @@ public class ProfileUploaderTest {
 
     for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
       final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
-      uploader.upload(RECORDING_TYPE, recording);
+      uploadAndWait(RECORDING_TYPE, recording);
     }
 
     final RecordingData additionalRecording = mockRecordingData(RECORDING_RESOURCE);
-    uploader.upload(RECORDING_TYPE, additionalRecording);
+    uploadAndWait(RECORDING_TYPE, additionalRecording);
 
     // Make sure all expected requests happened
     for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
@@ -487,12 +482,11 @@ public class ProfileUploaderTest {
 
     assertNotNull(server.takeRequest(2000, TimeUnit.MILLISECONDS), "Got enqueued request");
 
-    verify(additionalRecording.getStream()).close();
     verify(additionalRecording).release();
   }
 
   @Test
-  public void testTooManyRequests() throws IOException, InterruptedException {
+  public void testTooManyRequests() throws Exception {
     // We need to make sure that initial requests that fill up the queue hang to the duration of the
     // test. So we specify insanely large timeout here.
     when(config.getProfilingUploadTimeout()).thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
@@ -507,19 +501,23 @@ public class ProfileUploaderTest {
     }
     server.enqueue(new MockResponse().setResponseCode(200));
 
+    List<RecordingData> inflightRecordings = new ArrayList<>();
     for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
       final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
+      inflightRecordings.add(recording);
       uploader.upload(RECORDING_TYPE, recording);
     }
 
-    final List<RecordingData> hangingRequests = new ArrayList<>();
-    // We schedule one additional request to check case when request would be rejected immediately
-    // rather than added to the queue.
-    for (int i = 0; i < ProfileUploader.MAX_ENQUEUED_REQUESTS + 1; i++) {
+    for (int i = 0; i < ProfileUploader.MAX_ENQUEUED_REQUESTS; i++) {
       final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
-      hangingRequests.add(recording);
+      inflightRecordings.add(recording);
       uploader.upload(RECORDING_TYPE, recording);
     }
+
+    // We schedule one additional request to check case when request would be rejected immediately
+    // rather than added to the queue.
+    final RecordingData rejectedRecording = mockRecordingData(RECORDING_RESOURCE);
+    uploader.upload(RECORDING_TYPE, rejectedRecording);
 
     // Make sure all expected requests happened
     for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
@@ -529,33 +527,34 @@ public class ProfileUploaderTest {
     // or parallel requests has been reached.
     assertNull(server.takeRequest(100, TimeUnit.MILLISECONDS), "No more requests");
 
-    for (final RecordingData recording : hangingRequests) {
-      verify(recording.getStream()).close();
-      verify(recording).release();
+    // the hung-up running requests and the enqueued requests can not have the recording data
+    // released
+    for (RecordingData data : inflightRecordings) {
+      verify(data, VerificationModeFactory.times(0)).release();
     }
+    // however, the rejected recording should have the recording data released
+    verify(rejectedRecording).release();
   }
 
   @Test
-  public void testShutdown() throws IOException, InterruptedException {
+  public void testShutdown() throws Exception {
     uploader.shutdown();
 
     final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
-    uploader.upload(RECORDING_TYPE, recording);
+    uploadAndWait(RECORDING_TYPE, recording);
 
     assertNull(server.takeRequest(100, TimeUnit.MILLISECONDS), "No more requests");
 
-    verify(recording.getStream()).close();
     verify(recording).release();
   }
 
   private RecordingData mockRecordingData(final String recordingResource) throws IOException {
     final RecordingData recordingData = mock(RecordingData.class, withSettings().lenient());
     when(recordingData.getStream())
-        .thenReturn(
-            spy(
-                Thread.currentThread()
-                    .getContextClassLoader()
-                    .getResourceAsStream(recordingResource)));
+        .then(
+            (Answer<InputStream>)
+                invocation ->
+                    spy(ProfileUploaderTest.class.getResourceAsStream(recordingResource)));
     when(recordingData.getName()).thenReturn(RECODING_NAME_PREFIX + SEQUENCE_NUMBER);
     when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(PROFILE_START));
     when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(PROFILE_END));
@@ -574,5 +573,12 @@ public class ProfileUploaderTest {
     final ByteArrayOutputStream result = new ByteArrayOutputStream();
     ByteStreams.copy(stream, result);
     return result.toByteArray();
+  }
+
+  private void uploadAndWait(RecordingType recordingType, RecordingData data)
+      throws InterruptedException {
+    CountDownLatch latch = new CountDownLatch(1);
+    uploader.upload(recordingType, data, latch::countDown);
+    latch.await();
   }
 }
