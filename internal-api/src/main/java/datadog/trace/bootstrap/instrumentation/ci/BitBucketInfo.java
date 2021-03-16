@@ -20,12 +20,11 @@ class BitBucketInfo extends CIProviderInfo {
 
   @Override
   protected GitInfo buildCIGitInfo() {
-    return GitInfo.builder()
-        .repositoryURL(filterSensitiveInfo(System.getenv(BITBUCKET_GIT_REPOSITORY_URL)))
-        .branch(normalizeRef(System.getenv(BITBUCKET_GIT_BRANCH)))
-        .tag(normalizeRef(System.getenv(BITBUCKET_GIT_TAG)))
-        .commit(CommitInfo.builder().sha(System.getenv(BITBUCKET_GIT_COMMIT)).build())
-        .build();
+    return new GitInfo(
+        filterSensitiveInfo(System.getenv(BITBUCKET_GIT_REPOSITORY_URL)),
+        normalizeRef(System.getenv(BITBUCKET_GIT_BRANCH)),
+        normalizeRef(System.getenv(BITBUCKET_GIT_TAG)),
+        new CommitInfo(System.getenv(BITBUCKET_GIT_COMMIT)));
   }
 
   @Override

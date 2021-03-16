@@ -17,14 +17,16 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import org.jctools.queues.SpscArrayQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public final class OkHttpSink implements Sink, EventListener {
+
+  private static final Logger log = LoggerFactory.getLogger(OkHttpSink.class);
 
   private final OkHttpClient client;
   private final HttpUrl metricsUrl;

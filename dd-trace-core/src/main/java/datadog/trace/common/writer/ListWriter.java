@@ -9,11 +9,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** List writer used by tests mostly */
-@Slf4j
 public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Writer {
+
+  private static final Logger log = LoggerFactory.getLogger(ListWriter.class);
   private final TraceProcessor processor = new TraceProcessor();
   private final List<CountDownLatch> latches = new ArrayList<>();
   private final AtomicInteger traceCount = new AtomicInteger();

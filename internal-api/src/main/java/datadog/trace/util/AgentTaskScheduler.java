@@ -16,10 +16,11 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public final class AgentTaskScheduler implements Executor {
+  private static final Logger log = LoggerFactory.getLogger(AgentTaskScheduler.class);
   public static final AgentTaskScheduler INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
 
   private static final long SHUTDOWN_TIMEOUT = 5; // seconds

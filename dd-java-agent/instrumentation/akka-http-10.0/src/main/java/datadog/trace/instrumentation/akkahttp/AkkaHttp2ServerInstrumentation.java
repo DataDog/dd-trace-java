@@ -12,7 +12,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -24,7 +23,6 @@ import scala.concurrent.Future;
  * Http2 support in akka-http is handled by a separate {@code Http2} extension that only supports
  * {@code bindAndHandleAsync}.
  */
-@Slf4j
 @AutoService(Instrumenter.class)
 public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing {
   public AkkaHttp2ServerInstrumentation() {

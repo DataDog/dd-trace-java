@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
  * <p>The intention is for this class to be loaded by bootstrap classloader to make sure we have
  * unimpeded access to the rest of Datadog's agent parts.
  */
-// We cannot use lombok here because we need to configure logger first
 public class Agent {
 
   private static final String SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY =
@@ -44,7 +43,6 @@ public class Agent {
 
   private static final int DEFAULT_JMX_FETCH_START_DELAY = 15; // seconds
 
-  // We cannot use lombok here because we need to configure logger first
   private static final Logger log;
 
   static {

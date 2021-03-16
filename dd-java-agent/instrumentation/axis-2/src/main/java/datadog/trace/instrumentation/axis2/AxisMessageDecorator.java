@@ -6,10 +6,8 @@ import static datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes.SOAP
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.axis2.context.MessageContext;
 
-@Slf4j
 public class AxisMessageDecorator extends BaseDecorator {
   public static final AxisMessageDecorator DECORATE = new AxisMessageDecorator();
 

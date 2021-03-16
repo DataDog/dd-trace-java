@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
-import lombok.NonNull;
+import javax.annotation.Nonnull;
 
 public final class SystemPropertiesConfigSource extends ConfigProvider.Source {
   private static final String PREFIX = "dd.";
@@ -17,7 +17,7 @@ public final class SystemPropertiesConfigSource extends ConfigProvider.Source {
    * @param setting The setting name, e.g. `service.name`
    * @return The public facing system property name
    */
-  @NonNull
+  @Nonnull
   static String propertyNameToSystemPropertyName(final String setting) {
     return PREFIX + setting;
   }

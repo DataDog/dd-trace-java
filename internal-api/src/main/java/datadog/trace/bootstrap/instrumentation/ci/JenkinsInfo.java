@@ -24,12 +24,11 @@ class JenkinsInfo extends CIProviderInfo {
 
   @Override
   protected GitInfo buildCIGitInfo() {
-    return GitInfo.builder()
-        .repositoryURL(filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL)))
-        .branch(buildGitBranch())
-        .tag(buildGitTag())
-        .commit(CommitInfo.builder().sha(System.getenv(JENKINS_GIT_COMMIT)).build())
-        .build();
+    return new GitInfo(
+        filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL)),
+        buildGitBranch(),
+        buildGitTag(),
+        new CommitInfo(System.getenv(JENKINS_GIT_COMMIT)));
   }
 
   @Override

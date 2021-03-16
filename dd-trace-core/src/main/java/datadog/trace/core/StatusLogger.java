@@ -15,10 +15,12 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Map;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class StatusLogger {
+
+  private static final Logger log = LoggerFactory.getLogger(StatusLogger.class);
 
   public static void logStatus(Config config) {
     if (log.isInfoEnabled()) {

@@ -9,16 +9,18 @@ import datadog.trace.core.CoreSpan;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A rate sampler which maintains different sample rates per service+env name.
  *
  * <p>The configuration of (serviceName,env)->rate is configured by the core agent.
  */
-@Slf4j
 public class RateByServiceSampler<T extends CoreSpan<T>>
     implements Sampler<T>, PrioritySampler<T>, DDAgentResponseListener {
+
+  private static final Logger log = LoggerFactory.getLogger(RateByServiceSampler.class);
   public static final String SAMPLING_AGENT_RATE = "_dd.agent_psr";
 
   private static final double DEFAULT_RATE = 1.0;

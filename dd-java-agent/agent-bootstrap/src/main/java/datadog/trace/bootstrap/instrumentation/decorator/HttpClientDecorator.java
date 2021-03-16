@@ -11,10 +11,12 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.BitSet;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecorator {
+
+  private static final Logger log = LoggerFactory.getLogger(HttpClientDecorator.class);
 
   private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getHttpClientErrorStatuses();
 

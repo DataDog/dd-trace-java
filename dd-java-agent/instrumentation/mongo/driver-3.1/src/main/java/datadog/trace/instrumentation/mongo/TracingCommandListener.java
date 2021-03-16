@@ -20,9 +20,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 public class TracingCommandListener implements CommandListener {
 
   private static final DDCache<String, UTF8BytesString> COMMAND_NAMES =

@@ -22,12 +22,11 @@ class BitriseInfo extends CIProviderInfo {
   @Override
   protected GitInfo buildCIGitInfo() {
     final String gitTag = normalizeRef(System.getenv(BITRISE_GIT_TAG));
-    return GitInfo.builder()
-        .repositoryURL(filterSensitiveInfo(System.getenv(BITRISE_GIT_REPOSITORY_URL)))
-        .branch(buildGitBranch(gitTag))
-        .tag(gitTag)
-        .commit(CommitInfo.builder().sha(buildGitCommit()).build())
-        .build();
+    return new GitInfo(
+        filterSensitiveInfo(System.getenv(BITRISE_GIT_REPOSITORY_URL)),
+        buildGitBranch(gitTag),
+        gitTag,
+        new CommitInfo(buildGitCommit()));
   }
 
   @Override

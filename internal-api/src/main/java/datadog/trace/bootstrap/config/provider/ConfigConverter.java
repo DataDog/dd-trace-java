@@ -10,13 +10,15 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
-import lombok.NonNull;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
+import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 final class ConfigConverter {
+
+  private static final Logger log = LoggerFactory.getLogger(ConfigConverter.class);
 
   private static final Pattern COMMA_SEPARATED =
       Pattern.compile("(([^,:]+:[^,:]*,)*([^,:]+:[^,:]*),?)?");
@@ -32,7 +34,8 @@ final class ConfigConverter {
    * @return value == null || value.trim().isEmpty() ? defaultValue : tClass.valueOf(value)
    * @throws NumberFormatException
    */
-  static <T> T valueOf(final String value, @NonNull final Class<T> tClass) {
+  static <T> T valueOf(final String value, @Nonnull final Class<T> tClass) {
+    Objects.requireNonNull(tClass, "tClass is marked non-null but is null");
     if (value == null || value.trim().isEmpty()) {
       return null;
     }
@@ -46,12 +49,12 @@ final class ConfigConverter {
     }
   }
 
-  @NonNull
+  @Nonnull
   static List<String> parseList(final String str) {
     return parseList(str, ",");
   }
 
-  @NonNull
+  @Nonnull
   @SuppressForbidden
   static List<String> parseList(final String str, final String separator) {
     if (str == null || str.trim().isEmpty()) {
@@ -66,7 +69,7 @@ final class ConfigConverter {
     return Collections.unmodifiableList(Arrays.asList(tokens));
   }
 
-  @NonNull
+  @Nonnull
   static Map<String, String> parseMap(final String str, final String settingName) {
     // If we ever want to have default values besides an empty map, this will need to change.
     if (str == null) {
@@ -111,14 +114,14 @@ final class ConfigConverter {
     return Collections.unmodifiableMap(map);
   }
 
-  @NonNull
+  @Nonnull
   private static Map<String, String> newHashMap(final int size) {
     return new HashMap<>(size + 1, 1f);
   }
 
-  @NonNull
+  @Nonnull
   @SuppressForbidden
-  static BitSet parseIntegerRangeSet(@NonNull String str, final String settingName)
+  static BitSet parseIntegerRangeSet(@Nonnull String str, final String settingName)
       throws NumberFormatException {
     str = str.replaceAll("\\s", "");
     if (!str.matches("\\d{3}(?:-\\d{3})?(?:,\\d{3}(?:-\\d{3})?)*")) {
@@ -151,14 +154,13 @@ final class ConfigConverter {
   private static class ValueOfLookup extends ClassValue<MethodHandle> {
     private static final MethodHandles.Lookup PUBLIC_LOOKUP = MethodHandles.publicLookup();
 
-    @SneakyThrows
     @Override
     protected MethodHandle computeValue(Class<?> type) {
       try {
         return PUBLIC_LOOKUP.findStatic(type, "valueOf", MethodType.methodType(type, String.class));
       } catch (final NoSuchMethodException | IllegalAccessException e) {
         log.debug("Can't invoke or access 'valueOf': ", e);
-        throw e;
+        throw new RuntimeException(e);
       }
     }
   }

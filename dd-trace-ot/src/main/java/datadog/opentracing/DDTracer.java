@@ -30,15 +30,21 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
-import lombok.Builder;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * DDTracer implements the <code>io.opentracing.Tracer</code> interface to make it easy to send
  * traces and spans to Datadog using the OpenTracing API.
  */
-@Slf4j
 public class DDTracer implements Tracer, datadog.trace.api.Tracer {
+
+  private static final Logger log = LoggerFactory.getLogger(DDTracer.class);
+
+  public static DDTracerBuilder builder() {
+    return new DDTracerBuilder();
+  }
+
   private final TypeConverter converter;
   private final AgentTracer.TracerAPI tracer;
 
@@ -48,8 +54,112 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   private ScopeManager scopeManager;
 
   public static class DDTracerBuilder {
+
+    private Config config;
+    private String serviceName;
+    private Writer writer;
+    private Sampler sampler;
+    private HttpCodec.Injector injector;
+    private HttpCodec.Extractor extractor;
+    private ScopeManager scopeManager;
+    private Map<String, String> localRootSpanTags;
+    private Map<String, String> defaultSpanTags;
+    private Map<String, String> serviceNameMappings;
+    private Map<String, String> taggedHeaders;
+    private int partialFlushMinSpans;
+    private LogHandler logHandler;
+    private StatsDClient statsDClient;
+
+    public DDTracerBuilder config(Config config) {
+      this.config = config;
+      return this;
+    }
+
+    public DDTracerBuilder serviceName(String serviceName) {
+      this.serviceName = serviceName;
+      return this;
+    }
+
+    public DDTracerBuilder writer(Writer writer) {
+      this.writer = writer;
+      return this;
+    }
+
+    public DDTracerBuilder sampler(Sampler sampler) {
+      this.sampler = sampler;
+      return this;
+    }
+
+    public DDTracerBuilder injector(HttpCodec.Injector injector) {
+      this.injector = injector;
+      return this;
+    }
+
+    public DDTracerBuilder extractor(HttpCodec.Extractor extractor) {
+      this.extractor = extractor;
+      return this;
+    }
+
+    public DDTracerBuilder scopeManager(ScopeManager scopeManager) {
+      this.scopeManager = scopeManager;
+      return this;
+    }
+
+    public DDTracerBuilder localRootSpanTags(Map<String, String> localRootSpanTags) {
+      this.localRootSpanTags = localRootSpanTags;
+      return this;
+    }
+
+    public DDTracerBuilder defaultSpanTags(Map<String, String> defaultSpanTags) {
+      this.defaultSpanTags = defaultSpanTags;
+      return this;
+    }
+
+    public DDTracerBuilder serviceNameMappings(Map<String, String> serviceNameMappings) {
+      this.serviceNameMappings = serviceNameMappings;
+      return this;
+    }
+
+    public DDTracerBuilder taggedHeaders(Map<String, String> taggedHeaders) {
+      this.taggedHeaders = taggedHeaders;
+      return this;
+    }
+
+    public DDTracerBuilder partialFlushMinSpans(int partialFlushMinSpans) {
+      this.partialFlushMinSpans = partialFlushMinSpans;
+      return this;
+    }
+
+    public DDTracerBuilder logHandler(LogHandler logHandler) {
+      this.logHandler = logHandler;
+      return this;
+    }
+
+    public DDTracerBuilder statsDClient(StatsDClient statsDClient) {
+      this.statsDClient = statsDClient;
+      return this;
+    }
+
     public DDTracerBuilder withProperties(final Properties properties) {
       return config(Config.get(properties));
+    }
+
+    public DDTracer build() {
+      return new DDTracer(
+          config,
+          serviceName,
+          writer,
+          sampler,
+          injector,
+          extractor,
+          scopeManager,
+          localRootSpanTags,
+          defaultSpanTags,
+          serviceNameMappings,
+          taggedHeaders,
+          partialFlushMinSpans,
+          logHandler,
+          statsDClient);
     }
   }
 
@@ -180,8 +290,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     scopeManager = new OTScopeManager(tracer, converter);
   }
 
-  @Builder
-  // These field names must be stable to ensure the builder api is stable.
   private DDTracer(
       @Deprecated final Config config,
       final String serviceName,

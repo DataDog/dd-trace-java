@@ -72,7 +72,7 @@ public class SessionMethodUtils {
     CallDepthThreadLocalMap.reset(SessionMethodUtils.class);
     final AgentScope scope = sessionState.getMethodScope();
     final AgentSpan span = scope.span();
-    if (span != null && (sessionState.hasChildSpan || closeSpan)) {
+    if (span != null && (sessionState.hasChildSpan() || closeSpan)) {
       DECORATOR.onError(span, throwable);
       if (entity != null) {
         DECORATOR.onOperation(span, entity);

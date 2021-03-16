@@ -1,7 +1,8 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A fail-safe matcher catches exceptions that are thrown by a delegate matcher and returns an
@@ -12,8 +13,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  * @param <T> The type of the matched entity.
  * @see net.bytebuddy.matcher.FailSafeMatcher
  */
-@Slf4j
 class LoggingFailSafeMatcher<T> extends ElementMatcher.Junction.AbstractBase<T> {
+
+  private static final Logger log = LoggerFactory.getLogger(LoggingFailSafeMatcher.class);
 
   /** The delegate matcher that might throw an exception. */
   private final ElementMatcher<? super T> matcher;

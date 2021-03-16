@@ -2,9 +2,7 @@ package datadog.smoketest.springboot.grpc;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 public class SynchronousGreeter implements AutoCloseable {
 
   private final ManagedChannel channel;

@@ -12,10 +12,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public final class ConfigProvider {
+
+  private static final Logger log = LoggerFactory.getLogger(ConfigProvider.class);
   protected final ConfigProvider.Source[] sources;
 
   private ConfigProvider(ConfigProvider.Source... sources) {

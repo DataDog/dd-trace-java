@@ -17,13 +17,15 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import lombok.extern.slf4j.Slf4j;
 import org.datadog.jmxfetch.App;
 import org.datadog.jmxfetch.AppConfig;
 import org.datadog.jmxfetch.reporter.ReporterFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class JMXFetch {
+
+  private static final Logger log = LoggerFactory.getLogger(JMXFetch.class);
 
   public static final List<String> DEFAULT_CONFIGS =
       Collections.singletonList("jmxfetch-config.yaml");

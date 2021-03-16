@@ -4,7 +4,8 @@ import datadog.trace.api.Function;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public interface WeakMap<K, V> {
 
@@ -20,7 +21,6 @@ public interface WeakMap<K, V> {
 
   V computeIfAbsent(K key, Function<? super K, ? extends V> supplier);
 
-  @Slf4j
   class Provider {
     private static volatile Implementation PROVIDER = Implementation.DEFAULT;
 
@@ -44,8 +44,9 @@ public interface WeakMap<K, V> {
 
     Implementation DEFAULT = new Default();
 
-    @Slf4j
     class Default implements Implementation {
+
+      private static final Logger log = LoggerFactory.getLogger(Default.class);
 
       @Override
       public <K, V> WeakMap<K, V> get() {

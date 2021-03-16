@@ -22,11 +22,12 @@ import java.time.Instant;
 import java.util.Date;
 import javax.annotation.Nonnull;
 import javax.management.ObjectName;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Implementation for profiling recordings. */
-@Slf4j
 public class OracleJdkRecordingData implements RecordingData {
+  private static final Logger log = LoggerFactory.getLogger(OracleJdkRecordingData.class);
   private final ObjectName recordingId;
   private final String name;
   private final Instant start;

@@ -6,9 +6,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import lombok.Data;
 
-@Data
 @Entity
 public class JpaCustomer {
 
@@ -29,5 +27,17 @@ public class JpaCustomer {
   @Override
   public String toString() {
     return String.format("Customer[id=%d, firstName='%s', lastName='%s']", id, firstName, lastName);
+  }
+
+  public Long getId() {
+    return id;
+  }
+
+  public String getFirstName() {
+    return firstName;
+  }
+
+  public String getLastName() {
+    return lastName;
   }
 }

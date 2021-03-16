@@ -11,10 +11,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class TraceStructureWriter implements Writer {
+
+  private static final Logger log = LoggerFactory.getLogger(TraceStructureWriter.class);
 
   private final PrintStream out;
   private final boolean debugLog;

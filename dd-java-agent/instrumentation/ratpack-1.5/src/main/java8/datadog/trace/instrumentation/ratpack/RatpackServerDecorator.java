@@ -4,13 +4,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
-import lombok.extern.slf4j.Slf4j;
 import ratpack.handling.Context;
 import ratpack.http.Request;
 import ratpack.http.Response;
 import ratpack.http.Status;
 
-@Slf4j
 public class RatpackServerDecorator extends HttpServerDecorator<Request, Request, Response> {
   public static final CharSequence RATPACK_HANDLER = UTF8BytesString.create("ratpack.handler");
   public static final CharSequence RATPACK = UTF8BytesString.create("ratpack");

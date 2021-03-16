@@ -3,7 +3,8 @@ package com.datadog.profiling.uploader.util;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import jnr.posix.POSIX;
 import jnr.posix.POSIXFactory;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Get PID In reasonably cross-platform way
@@ -11,9 +12,9 @@ import lombok.extern.slf4j.Slf4j;
  * <p>FIXME: ideally we would like to be able to send PID with root span as well, but currently this
  * end up causing packaging problems. We should revisit this later.
  */
-@Slf4j
 @SuppressForbidden
 public class PidHelper {
+  private static final Logger log = LoggerFactory.getLogger(PidHelper.class);
 
   public static final String PID_TAG = "process_id";
   public static final Long PID = getPid();

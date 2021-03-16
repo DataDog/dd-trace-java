@@ -22,11 +22,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Sets up the profiling strategy and schedules the profiling recordings. */
-@Slf4j
 public final class ProfilingSystem {
+  private static final Logger log = LoggerFactory.getLogger(ProfilingSystem.class);
   static final String RECORDING_NAME = "dd-profiling";
 
   private static final long TERMINATION_TIMEOUT = 10;

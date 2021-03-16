@@ -10,19 +10,20 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public abstract class TestDecorator extends BaseDecorator {
+
+  private static final Logger log = LoggerFactory.getLogger(TestDecorator.class);
 
   public static final String TEST_TYPE = "test";
   public static final String TEST_PASS = "pass";
   public static final String TEST_FAIL = "fail";
   public static final String TEST_SKIP = "skip";
 
-  @Getter private final boolean isCI;
-  @Getter private final Map<String, String> ciTags;
+  private final boolean isCI;
+  private final Map<String, String> ciTags;
 
   public TestDecorator() {
     this(CIProviderInfo.selectCI());
@@ -31,6 +32,14 @@ public abstract class TestDecorator extends BaseDecorator {
   TestDecorator(final CIProviderInfo ciInfo) {
     this.isCI = ciInfo.isCI();
     this.ciTags = ciInfo.getCiTags();
+  }
+
+  public boolean isCI() {
+    return isCI;
+  }
+
+  public Map<String, String> getCiTags() {
+    return ciTags;
   }
 
   protected abstract String testFramework();

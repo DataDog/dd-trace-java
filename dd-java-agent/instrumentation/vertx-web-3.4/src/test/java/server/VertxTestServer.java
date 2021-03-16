@@ -17,7 +17,6 @@ import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.ext.web.Router;
-import lombok.SneakyThrows;
 
 public class VertxTestServer extends AbstractVerticle {
   public static final String CONFIG_HTTP_SERVER_PORT = "http.server.port";
@@ -93,9 +92,8 @@ public class VertxTestServer extends AbstractVerticle {
         .listen(port, event -> startFuture.complete());
   }
 
-  @SneakyThrows
   private static void exception() {
-    throw new Exception(EXCEPTION.getBody());
+    throw new RuntimeException(EXCEPTION.getBody());
   }
 
   private static void controller(final ServerEndpoint endpoint, final Runnable runnable) {

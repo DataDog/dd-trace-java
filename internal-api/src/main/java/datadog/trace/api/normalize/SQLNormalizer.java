@@ -6,7 +6,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.BitSet;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class removes numbers and SQL literals from strings on a best-effort basis, producing UTF-8
@@ -16,8 +17,9 @@ import lombok.extern.slf4j.Slf4j;
  * obfuscator, and the strings produced by this class must be passed through obfuscation in the
  * trace agent.
  */
-@Slf4j
 public final class SQLNormalizer {
+
+  private static final Logger log = LoggerFactory.getLogger(SQLNormalizer.class);
 
   private static final long[] OBFUSCATE_SEQUENCES_STARTING_WITH = new long[4];
   private static final long[] NON_WHITESPACE_SPLITTERS = new long[4];

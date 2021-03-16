@@ -14,7 +14,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * SpanContext represents Span state that must propagate to descendant Spans and across process
@@ -24,8 +25,8 @@ import lombok.extern.slf4j.Slf4j;
  * across Span boundaries and (2) any Datadog fields that are needed to identify or contextualize
  * the associated Span instance
  */
-@Slf4j
 public class DDSpanContext implements AgentSpan.Context {
+  private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
   public static final String SAMPLE_RATE_KEY = "_sample_rate";
   public static final String ORIGIN_KEY = "_dd.origin";

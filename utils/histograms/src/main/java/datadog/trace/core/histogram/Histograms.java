@@ -3,12 +3,14 @@ package datadog.trace.core.histogram;
 import datadog.trace.api.Platform;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.InvocationTargetException;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** This indirection exists to make sure the class `DDSketch` can never be loaded on JDK7 */
-@Slf4j
 @SuppressForbidden
 public final class Histograms {
+
+  private static final Logger log = LoggerFactory.getLogger(Histograms.class);
 
   private final boolean loadStub;
 

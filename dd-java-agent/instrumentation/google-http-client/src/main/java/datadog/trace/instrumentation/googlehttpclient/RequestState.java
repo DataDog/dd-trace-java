@@ -1,10 +1,18 @@
 package datadog.trace.instrumentation.googlehttpclient;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import lombok.Data;
-import lombok.NonNull;
+import javax.annotation.Nonnull;
 
-@Data
 public class RequestState {
-  @NonNull public AgentSpan span;
+
+  private final AgentSpan span;
+
+  public RequestState(AgentSpan span) {
+    this.span = span;
+  }
+
+  @Nonnull
+  public AgentSpan getSpan() {
+    return span;
+  }
 }

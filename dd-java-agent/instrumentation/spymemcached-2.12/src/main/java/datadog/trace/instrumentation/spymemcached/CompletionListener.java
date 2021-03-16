@@ -8,10 +8,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
 import net.spy.memcached.MemcachedConnection;
 
-@Slf4j
 public abstract class CompletionListener<T> {
 
   // Note: it looks like this value is being ignored and DBTypeDecorator overwrites it.

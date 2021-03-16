@@ -55,19 +55,23 @@ import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
-import lombok.Builder;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Main entrypoint into the tracer implementation. In addition to implementing
  * datadog.trace.api.Tracer and TracerAPI, it coordinates many functions necessary creating,
  * reporting, and propagating traces
  */
-@Slf4j
 public class CoreTracer implements AgentTracer.TracerAPI {
+  private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
   // UINT64 max value
   public static final BigInteger TRACE_ID_MAX =
       BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
+
+  public static CoreTracerBuilder builder() {
+    return new CoreTracerBuilder();
+  }
 
   private static final String LANG_STATSD_TAG = "lang";
   private static final String LANG_VERSION_STATSD_TAG = "lang_version";
@@ -96,7 +100,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Map<String, String> serviceNameMappings;
 
   /** number of spans in a pending trace before they get flushed */
-  @lombok.Getter private final int partialFlushMinSpans;
+  private final int partialFlushMinSpans;
 
   private final StatsDClient statsDClient;
   private final Monitoring monitoring;
@@ -139,6 +143,103 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   public static class CoreTracerBuilder {
 
+    private Config config;
+    private String serviceName;
+    private Writer writer;
+    private IdGenerationStrategy idGenerationStrategy;
+    private Sampler<DDSpan> sampler;
+    private HttpCodec.Injector injector;
+    private HttpCodec.Extractor extractor;
+    private AgentScopeManager scopeManager;
+    private Map<String, String> localRootSpanTags;
+    private Map<String, String> defaultSpanTags;
+    private Map<String, String> serviceNameMappings;
+    private Map<String, String> taggedHeaders;
+    private int partialFlushMinSpans;
+    private StatsDClient statsDClient;
+    private TagInterceptor tagInterceptor;
+    private boolean strictTraceWrites;
+
+    public CoreTracerBuilder serviceName(String serviceName) {
+      this.serviceName = serviceName;
+      return this;
+    }
+
+    public CoreTracerBuilder writer(Writer writer) {
+      this.writer = writer;
+      return this;
+    }
+
+    public CoreTracerBuilder idGenerationStrategy(IdGenerationStrategy idGenerationStrategy) {
+      this.idGenerationStrategy = idGenerationStrategy;
+      return this;
+    }
+
+    public CoreTracerBuilder sampler(Sampler<DDSpan> sampler) {
+      this.sampler = sampler;
+      return this;
+    }
+
+    public CoreTracerBuilder injector(HttpCodec.Injector injector) {
+      this.injector = injector;
+      return this;
+    }
+
+    public CoreTracerBuilder extractor(HttpCodec.Extractor extractor) {
+      this.extractor = extractor;
+      return this;
+    }
+
+    public CoreTracerBuilder scopeManager(AgentScopeManager scopeManager) {
+      this.scopeManager = scopeManager;
+      return this;
+    }
+
+    public CoreTracerBuilder localRootSpanTags(Map<String, String> localRootSpanTags) {
+      this.localRootSpanTags = localRootSpanTags;
+      return this;
+    }
+
+    public CoreTracerBuilder defaultSpanTags(Map<String, String> defaultSpanTags) {
+      this.defaultSpanTags = defaultSpanTags;
+      return this;
+    }
+
+    public CoreTracerBuilder serviceNameMappings(Map<String, String> serviceNameMappings) {
+      this.serviceNameMappings = serviceNameMappings;
+      return this;
+    }
+
+    public CoreTracerBuilder taggedHeaders(Map<String, String> taggedHeaders) {
+      this.taggedHeaders = taggedHeaders;
+      return this;
+    }
+
+    public CoreTracerBuilder partialFlushMinSpans(int partialFlushMinSpans) {
+      this.partialFlushMinSpans = partialFlushMinSpans;
+      return this;
+    }
+
+    public CoreTracerBuilder statsDClient(StatsDClient statsDClient) {
+      this.statsDClient = statsDClient;
+      return this;
+    }
+
+    public CoreTracerBuilder tagInterceptor(TagInterceptor tagInterceptor) {
+      this.tagInterceptor = tagInterceptor;
+      return this;
+    }
+
+    public CoreTracerBuilder statsDClient(TagInterceptor tagInterceptor) {
+      this.tagInterceptor = tagInterceptor;
+      return this;
+    }
+
+    public CoreTracerBuilder strictTraceWrites(boolean strictTraceWrites) {
+      this.strictTraceWrites = strictTraceWrites;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -165,9 +266,28 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       return this;
     }
+
+    public CoreTracer build() {
+      return new CoreTracer(
+          config,
+          serviceName,
+          writer,
+          idGenerationStrategy,
+          sampler,
+          injector,
+          extractor,
+          scopeManager,
+          localRootSpanTags,
+          defaultSpanTags,
+          serviceNameMappings,
+          taggedHeaders,
+          partialFlushMinSpans,
+          statsDClient,
+          tagInterceptor,
+          strictTraceWrites);
+    }
   }
 
-  @Builder
   // These field names must be stable to ensure the builder api is stable.
   private CoreTracer(
       final Config config,
@@ -368,6 +488,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   public TagInterceptor getTagInterceptor() {
     return tagInterceptor;
+  }
+
+  public int getPartialFlushMinSpans() {
+    return partialFlushMinSpans;
   }
 
   @Override

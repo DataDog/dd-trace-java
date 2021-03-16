@@ -3,9 +3,7 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.context.TraceScope;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 public final class State {
 
   private static final class ContinuationClaim implements TraceScope.Continuation {

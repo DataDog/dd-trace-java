@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.config.provider;
 
 import java.util.regex.Pattern;
-import lombok.NonNull;
+import javax.annotation.Nonnull;
 
 final class EnvironmentConfigSource extends ConfigProvider.Source {
   private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
@@ -18,7 +18,7 @@ final class EnvironmentConfigSource extends ConfigProvider.Source {
    * @param setting The setting name, e.g. `service.name`
    * @return The public facing environment variable name
    */
-  @NonNull
+  @Nonnull
   private static String propertyNameToEnvironmentVariableName(final String setting) {
     return ENV_REPLACEMENT
         .matcher(

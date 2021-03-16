@@ -9,15 +9,17 @@ import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Map;
 import java.util.TreeMap;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A codec designed for HTTP transport via headers using Haystack headers.
  *
  * @author Alex Antonov
  */
-@Slf4j
 public class HaystackHttpCodec {
+
+  private static final Logger log = LoggerFactory.getLogger(HaystackHttpCodec.class);
 
   // https://github.com/ExpediaDotCom/haystack-client-java/blob/master/core/src/main/java/com/expedia/www/haystack/client/propagation/DefaultKeyConvention.java
   private static final String OT_BAGGAGE_PREFIX = "Baggage-";
