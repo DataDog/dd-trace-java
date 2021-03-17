@@ -14,12 +14,10 @@ import java.util.concurrent.TimeUnit
 class WeakConcurrentSupplierTest extends DDSpecification {
   @Shared
   def weakConcurrentSupplier = new WeakMapSuppliers.WeakConcurrent()
-  @Shared
-  def weakInlineSupplier = new WeakMapSuppliers.WeakConcurrent.Inline()
 
   def "#name accepts null values"() {
     setup:
-    WeakMap.Provider.PROVIDER = supplier
+    WeakMap.Provider.INSTANCE.provider = supplier
     def map = WeakMap.Provider.newWeakMap()
 
     when:
@@ -31,12 +29,11 @@ class WeakConcurrentSupplierTest extends DDSpecification {
     where:
     name             | supplier
     "WeakConcurrent" | weakConcurrentSupplier
-    "WeakInline"     | weakInlineSupplier
   }
 
   def "Calling newWeakMap on #name creates independent maps"() {
     setup:
-    WeakMap.Provider.PROVIDER = supplier
+    WeakMap.Provider.INSTANCE.provider = supplier
     def key = new Object()
     def map1 = WeakMap.Provider.newWeakMap()
     def map2 = WeakMap.Provider.newWeakMap()
@@ -52,7 +49,6 @@ class WeakConcurrentSupplierTest extends DDSpecification {
     where:
     name             | supplier
     "WeakConcurrent" | weakConcurrentSupplier
-    "WeakInline"     | weakInlineSupplier
   }
 
   def "Unreferenced supplier gets cleaned up on #name"() {
@@ -72,12 +68,11 @@ class WeakConcurrentSupplierTest extends DDSpecification {
     where:
     name             | supplierSupplier
     "WeakConcurrent" | { -> new WeakMapSuppliers.WeakConcurrent() }
-    "WeakInline"     | { -> new WeakMapSuppliers.WeakConcurrent.Inline() }
   }
 
   def "Unreferenced map gets cleaned up on #name"() {
     setup:
-    WeakMap.Provider.PROVIDER = supplier
+    WeakMap.Provider.INSTANCE.provider = supplier
     def map = WeakMap.Provider.newWeakMap()
     def ref = new WeakReference(map)
 
@@ -92,7 +87,6 @@ class WeakConcurrentSupplierTest extends DDSpecification {
     where:
     name             | supplier
     "WeakConcurrent" | weakConcurrentSupplier
-    "WeakInline"     | weakInlineSupplier
   }
 
   def "Unreferenced keys get cleaned up on #name"() {
@@ -132,6 +126,5 @@ class WeakConcurrentSupplierTest extends DDSpecification {
     where:
     name             | map
     "WeakConcurrent" | weakConcurrentSupplier.get()
-    "WeakInline"     | weakInlineSupplier.get()
   }
 }

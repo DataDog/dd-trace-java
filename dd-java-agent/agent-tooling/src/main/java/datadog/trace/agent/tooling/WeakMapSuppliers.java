@@ -46,12 +46,12 @@ class WeakMapSuppliers {
     }
 
     // Important to use explicit class to avoid implicit hard references to target
-    private static class MapCleaningTask implements Task<WeakConcurrentMap> {
+    private static class MapCleaningTask implements Task<WeakConcurrentMap<?, ?>> {
 
       static final MapCleaningTask INSTANCE = new MapCleaningTask();
 
       @Override
-      public void run(final WeakConcurrentMap target) {
+      public void run(final WeakConcurrentMap<?, ?> target) {
         target.expungeStaleEntries();
       }
     }
@@ -106,14 +106,6 @@ class WeakMapSuppliers {
           }
         }
         return value;
-      }
-    }
-
-    static class Inline implements WeakMap.Implementation {
-
-      @Override
-      public <K, V> WeakMap<K, V> get() {
-        return new Adapter<>(new WeakConcurrentMap.WithInlinedExpunction<K, V>());
       }
     }
   }
