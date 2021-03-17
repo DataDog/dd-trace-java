@@ -166,7 +166,7 @@ final class CompressingRequestBody extends RequestBody {
         lastException = null;
         try {
           ByteCountingOutputStream outputStream =
-            new ByteCountingOutputStream(bufferedSink.outputStream());
+              new ByteCountingOutputStream(bufferedSink.outputStream());
           attemptWrite(inputStream, outputStream);
           readBytes = inputStream.getReadBytes();
           writtenBytes = outputStream.getWrittenBytes();
