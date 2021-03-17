@@ -44,6 +44,6 @@ public final class Pair<T, U> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(left, right);
+    return 31 * (null == left ? 0 : left.hashCode()) + (null == right ? 0 : right.hashCode());
   }
 }
