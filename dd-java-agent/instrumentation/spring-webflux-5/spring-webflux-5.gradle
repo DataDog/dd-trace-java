@@ -53,10 +53,10 @@ testSets {
     dirName = 'boot20Test'
   }
 
-  //  boot24Test {}
-  //  latestBoot24Test {
-  //    dirName = 'boot24Test'
-  //  }
+  boot24Test {}
+  latestBoot24Test {
+    dirName = 'boot24Test'
+  }
 }
 
 dependencies {
@@ -85,16 +85,16 @@ dependencies {
   latestBoot20TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.0.+'
   latestBoot20TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.+'
 
-  //  boot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.0'
-  //  boot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.0'
-  //  boot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.0'
-  //
-  //  latestBoot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.+'
-  //  latestBoot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.+'
-  //  latestBoot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.+'
+  boot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.0'
+  boot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.0'
+  boot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.0'
+
+  latestBoot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.+'
+  latestBoot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.+'
+  latestBoot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.+'
 }
 
 test.dependsOn boot20Test
-test.dependsOn latestBoot20Test
-//test.dependsOn boot24Test
-//test.dependsOn latestBoot24Test
+latestDepTest.dependsOn latestBoot20Test
+test.dependsOn boot24Test
+latestDepTest.dependsOn latestBoot24Test
