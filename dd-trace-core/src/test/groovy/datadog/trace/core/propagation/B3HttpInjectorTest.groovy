@@ -30,11 +30,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       samplingPriority,
       "fakeOrigin",
-      new HashMap<String, String>() { {
-          put("k1", "v1")
-          put("k2", "v2")
-        }
-      },
+      ["k1" : "v1", "k2" : "v2"],
       false,
       "fakeType",
       0,

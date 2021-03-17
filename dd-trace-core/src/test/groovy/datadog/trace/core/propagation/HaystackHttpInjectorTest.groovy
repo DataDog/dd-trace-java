@@ -34,11 +34,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       samplingPriority,
       origin,
-      new HashMap<String, String>() { {
-          put("k1", "v1")
-          put("k2", "v2")
-        }
-      },
+      ["k1" : "v1", "k2" : "v2"],
       false,
       "fakeType",
       0,
@@ -86,12 +82,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       samplingPriority,
       origin,
-      new HashMap<String, String>() { {
-          put("k1", "v1")
-          put("k2", "v2")
-          put(HAYSTACK_TRACE_ID_BAGGAGE_KEY, haystackUuid)
-        }
-      },
+      ["k1" : "v1", "k2" : "v2", (HAYSTACK_TRACE_ID_BAGGAGE_KEY) : haystackUuid],
       false,
       "fakeType",
       0,
