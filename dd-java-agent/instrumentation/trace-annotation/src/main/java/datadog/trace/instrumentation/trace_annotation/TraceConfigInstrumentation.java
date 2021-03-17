@@ -16,7 +16,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import datadog.trace.api.Trace;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
 import java.util.HashMap;
@@ -137,7 +136,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
 
     /** No-arg constructor only used by muzzle and tests. */
     public TracerClassInstrumentation() {
-      this(Trace.class.getName(), Collections.singleton("noop"));
+      this("datadog.trace.api.Trace", Collections.singleton("noop"));
     }
 
     public TracerClassInstrumentation(final String className, final Set<String> methodNames) {

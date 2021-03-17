@@ -5,14 +5,13 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.sa
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.instrumentation.trace_annotation.TraceConfigInstrumentation.PACKAGE_CLASS_NAME_REGEX;
 import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
-import static net.bytebuddy.matcher.ElementMatchers.is;
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import datadog.trace.api.Trace;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -36,54 +35,44 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing 
           + PACKAGE_CLASS_NAME_REGEX
           + "\\s*;?\\s*";
 
-  private static final String[] DEFAULT_ANNOTATIONS = {
-    "com.newrelic.api.agent.Trace",
-    "kamon.annotation.Trace",
-    "com.tracelytics.api.ext.LogMethod",
-    "io.opentracing.contrib.dropwizard.Trace",
-    "org.springframework.cloud.sleuth.annotation.NewSpan"
-  };
-
-  private static final String[] EMPTY = new String[0];
-  private final String[] additionalTraceAnnotations;
+  private final Set<String> annotations;
   private final ElementMatcher.Junction<NamedElement> methodTraceMatcher;
 
   @SuppressForbidden
   public TraceAnnotationsInstrumentation() {
     super("trace", "trace-annotation");
-
+    Set<String> annotations = new HashSet<>();
+    annotations.add("datadog.trace.api.Trace");
     final String configString = Config.get().getTraceAnnotations();
     if (configString == null) {
-      additionalTraceAnnotations = DEFAULT_ANNOTATIONS;
-    } else if (configString.trim().isEmpty()) {
-      additionalTraceAnnotations = EMPTY;
+      annotations.addAll(
+          Arrays.asList(
+              "com.newrelic.api.agent.Trace",
+              "kamon.annotation.Trace",
+              "com.tracelytics.api.ext.LogMethod",
+              "io.opentracing.contrib.dropwizard.Trace",
+              "org.springframework.cloud.sleuth.annotation.NewSpan"));
     } else if (!configString.matches(CONFIG_FORMAT)) {
       log.warn(
           "Invalid trace annotations config '{}'. Must match 'package.Annotation$Name;*'.",
           configString);
-      additionalTraceAnnotations = EMPTY;
-    } else {
+    } else if (!configString.trim().isEmpty()) {
       final String[] annotationClasses = configString.split(";", -1);
-      final Set<String> annotations = new HashSet<>(annotationClasses.length);
       for (final String annotationClass : annotationClasses) {
         if (!annotationClass.trim().isEmpty()) {
           annotations.add(annotationClass.trim());
         }
       }
-      additionalTraceAnnotations = annotations.toArray(EMPTY);
     }
-
-    ElementMatcher.Junction<NamedElement> methodTraceMatcher =
-        is(new TypeDescription.ForLoadedType(Trace.class))
-            .or(namedOneOf(additionalTraceAnnotations));
-    this.methodTraceMatcher = methodTraceMatcher;
+    this.annotations = annotations;
+    this.methodTraceMatcher = namedOneOf(annotations);
   }
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    ElementMatcher.Junction<ClassLoader> matcher = hasClassesNamed(Trace.class.getName());
-    for (final String name : additionalTraceAnnotations) {
+    ElementMatcher.Junction<ClassLoader> matcher = hasClassesNamed("datadog.trace.api.Trace");
+    for (final String name : annotations) {
       matcher = matcher.or(hasClassesNamed(name));
     }
     return matcher;

@@ -54,19 +54,26 @@ class ConfiguredTraceAnnotationsTest extends AgentTestRunner {
     }
 
     expect:
-    new HashSet<>(Arrays.asList(new TraceAnnotationsInstrumentation().additionalTraceAnnotations)) == expected.toSet()
+    new TraceAnnotationsInstrumentation().annotations == expected.toSet()
 
     where:
     value                               | expected
-    null                                | Arrays.asList(DEFAULT_ANNOTATIONS)
-    " "                                 | []
-    "some.Invalid[]"                    | []
-    "some.package.ClassName "           | ["some.package.ClassName"]
-    " some.package.Class\$Name"         | ["some.package.Class\$Name"]
-    "  ClassName  "                     | ["ClassName"]
-    "ClassName"                         | ["ClassName"]
-    "Class\$1;Class\$2;"                | ["Class\$1", "Class\$2"]
-    "Duplicate ;Duplicate ;Duplicate; " | ["Duplicate"]
+    null                                | [
+      "datadog.trace.api.Trace",
+      "com.newrelic.api.agent.Trace",
+      "kamon.annotation.Trace",
+      "com.tracelytics.api.ext.LogMethod",
+      "io.opentracing.contrib.dropwizard.Trace",
+      "org.springframework.cloud.sleuth.annotation.NewSpan"
+    ]
+    " "                                 | ["datadog.trace.api.Trace"]
+    "some.Invalid[]"                    | ["datadog.trace.api.Trace"]
+    "some.package.ClassName "           | ["datadog.trace.api.Trace", "some.package.ClassName"]
+    " some.package.Class\$Name"         | ["datadog.trace.api.Trace", "some.package.Class\$Name"]
+    "  ClassName  "                     | ["datadog.trace.api.Trace", "ClassName"]
+    "ClassName"                         | ["datadog.trace.api.Trace", "ClassName"]
+    "Class\$1;Class\$2;"                | ["datadog.trace.api.Trace", "Class\$1", "Class\$2"]
+    "Duplicate ;Duplicate ;Duplicate; " | ["datadog.trace.api.Trace", "Duplicate"]
   }
 
   class AnnotationTracedCallable implements Callable<String> {
