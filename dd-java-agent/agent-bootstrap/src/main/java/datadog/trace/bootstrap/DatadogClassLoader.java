@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.bootstrap.BootstrapLoadedPackages.forceLoadWithBootstrapClassLoaderIfNecessary;
+import static datadog.trace.bootstrap.BootstrapLoadedPackages.mayForceLoadWithBootstrapClassLoader;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -167,6 +170,10 @@ public class DatadogClassLoader extends URLClassLoader {
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
       String packageName = shared.getPackageName(name);
       if (internalJarURLHandler.hasPackage(packageName)) {
+        Class<?> bootstrapLoaded = loadWithBootstrapClassLoaderIfNecessary(name);
+        if (null != bootstrapLoaded) {
+          return bootstrapLoaded;
+        }
         synchronized (getClassLoadingLock(name)) {
           Class<?> loaded = findLoadedClass(name);
           if (loaded != null) {
@@ -179,5 +186,11 @@ public class DatadogClassLoader extends URLClassLoader {
       }
       return shared.loadFromPackage(packageName, name);
     }
+  }
+
+  static Class<?> loadWithBootstrapClassLoaderIfNecessary(String name) {
+    return mayForceLoadWithBootstrapClassLoader(name)
+        ? forceLoadWithBootstrapClassLoaderIfNecessary(name)
+        : null;
   }
 }

@@ -7,7 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.Constants;
+import datadog.trace.bootstrap.BootstrapLoadedPackages;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -46,7 +46,7 @@ public final class GlassFishInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void preventBlockingOfTracerClasses(
         @Advice.Argument(value = 0, readOnly = false) String name) {
-      for (final String prefix : Constants.BOOTSTRAP_PACKAGE_PREFIXES) {
+      for (final String prefix : BootstrapLoadedPackages.BOOTSTRAP_PACKAGE_PREFIXES) {
         if (name.startsWith(prefix)) {
           name = "__datadog_no_block." + name;
           break;

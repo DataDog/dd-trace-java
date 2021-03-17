@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.classloading;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
+import static datadog.trace.bootstrap.BootstrapLoadedPackages.forceLoadWithBootstrapClassLoaderIfNecessary;
+import static datadog.trace.bootstrap.BootstrapLoadedPackages.mayForceLoadWithBootstrapClassLoader;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
@@ -15,7 +17,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.Constants;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -42,7 +43,11 @@ public final class ClassloadingInstrumentation extends Instrumenter.Tracing {
   public ElementMatcher<TypeDescription> typeMatcher() {
     // just an optimization to exclude common class loaders that are known to delegate to the
     // bootstrap loader (or happen to _be_ the bootstrap loader)
-    return namedNoneOf("java.lang.ClassLoader", "com.ibm.oti.vm.BootstrapClassLoader")
+    return namedNoneOf(
+            "java.lang.ClassLoader",
+            "com.ibm.oti.vm.BootstrapClassLoader",
+            "datadog.trace.bootstrap.DatadogClassLoader",
+            "datadog.trace.bootstrap.DatadogClassLoader$DelegateClassLoader")
         .and(extendsClass(named("java.lang.ClassLoader")));
   }
 
@@ -66,9 +71,12 @@ public final class ClassloadingInstrumentation extends Instrumenter.Tracing {
   public static class LoadClassAdvice {
     @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
     public static Class<?> onEnter(@Advice.Argument(0) final String name) {
-      // we must access agent types used in the call-depth block like 'Constants' before entering it
-      // - otherwise we risk loading these agent types with a non-zero call-depth, which will fail
-      final String[] bootstrapPrefixes = Constants.BOOTSTRAP_PACKAGE_PREFIXES;
+      // optimisation to avoid incrementing the call depth on every load
+      // this call also ensures that the BootstrapLoadedPackages class
+      // must have already been loaded whenever the call depth is > 0
+      if (!mayForceLoadWithBootstrapClassLoader(name)) {
+        return null;
+      }
 
       // need to use call depth here to prevent re-entry from call to Class.forName() below
       // because on some JVMs (e.g. IBM's, though IBM bootstrap loader is explicitly excluded above)
@@ -79,13 +87,7 @@ public final class ClassloadingInstrumentation extends Instrumenter.Tracing {
         return null;
       }
       try {
-        for (final String prefix : bootstrapPrefixes) {
-          if (name.startsWith(prefix)) {
-            return Class.forName(name, false, null);
-          }
-        }
-      } catch (final ClassNotFoundException e) {
-        // bootstrap class not found, fall-back to original behaviour
+        return forceLoadWithBootstrapClassLoaderIfNecessary(name);
       } finally {
         // need to reset it right away, not waiting until onExit()
         // otherwise it will prevent this instrumentation from being applied when loadClass()
@@ -94,7 +96,6 @@ public final class ClassloadingInstrumentation extends Instrumenter.Tracing {
         // the nested loadClass instrumentation)
         CallDepthThreadLocalMap.reset(ClassLoader.class);
       }
-      return null;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)

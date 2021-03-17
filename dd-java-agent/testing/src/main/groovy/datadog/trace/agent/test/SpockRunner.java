@@ -2,6 +2,7 @@ package datadog.trace.agent.test;
 
 import com.google.common.reflect.ClassPath;
 import datadog.trace.agent.test.utils.ClasspathUtils;
+import datadog.trace.bootstrap.BootstrapLoadedPackages;
 import datadog.trace.bootstrap.DatadogClassLoader.BootstrapClassLoaderProxy;
 import java.io.File;
 import java.io.IOException;
@@ -26,7 +27,7 @@ import org.spockframework.runtime.Sputnik;
  */
 public class SpockRunner extends Sputnik {
   /**
-   * An exact copy of {@link datadog.trace.bootstrap.Constants#BOOTSTRAP_PACKAGE_PREFIXES}.
+   * An exact copy of {@link BootstrapLoadedPackages#BOOTSTRAP_PACKAGE_PREFIXES}.
    *
    * <p>This list is needed to initialize the bootstrap classpath because Utils' static initializer
    * references bootstrap classes (e.g. DatadogClassLoader).

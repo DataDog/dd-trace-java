@@ -3,7 +3,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.SpockRunner
 import datadog.trace.agent.test.utils.ClasspathUtils
 import datadog.trace.api.GlobalTracer
-import datadog.trace.bootstrap.Constants
+import datadog.trace.bootstrap.BootstrapLoadedPackages
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -34,7 +34,7 @@ class AgentTestRunnerTest extends AgentTestRunner {
 
   def "spock runner bootstrap prefixes correct for test setup"() {
     expect:
-    SpockRunner.BOOTSTRAP_PACKAGE_PREFIXES_COPY == Constants.BOOTSTRAP_PACKAGE_PREFIXES
+    SpockRunner.BOOTSTRAP_PACKAGE_PREFIXES_COPY == BootstrapLoadedPackages.BOOTSTRAP_PACKAGE_PREFIXES
   }
 
   def "classpath setup"() {
@@ -42,8 +42,8 @@ class AgentTestRunnerTest extends AgentTestRunner {
     boolean jfrSupported = isJFRSupported()
     final List<String> bootstrapClassesIncorrectlyLoaded = []
     for (ClassPath.ClassInfo info : ClasspathUtils.getTestClasspath().getAllClasses()) {
-      for (int i = 0; i < Constants.BOOTSTRAP_PACKAGE_PREFIXES.length; ++i) {
-        if (info.getName().startsWith(Constants.BOOTSTRAP_PACKAGE_PREFIXES[i])) {
+      for (int i = 0; i < BootstrapLoadedPackages.BOOTSTRAP_PACKAGE_PREFIXES.length; ++i) {
+        if (info.getName().startsWith(BootstrapLoadedPackages.BOOTSTRAP_PACKAGE_PREFIXES[i])) {
           if (!jfrSupported && info.getName().startsWith("datadog.trace.bootstrap.instrumentation.exceptions.")) {
             continue // skip exception-profiling classes - they won't load if JFR is not available
           }

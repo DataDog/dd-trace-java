@@ -130,7 +130,7 @@ public class IntegrationTestUtils {
   public static String[] getBootstrapPackagePrefixes() throws Exception {
     final Field f =
         getAgentClassLoader()
-            .loadClass("datadog.trace.bootstrap.Constants")
+            .loadClass("datadog.trace.bootstrap.BootstrapLoadedPackages")
             .getField("BOOTSTRAP_PACKAGE_PREFIXES");
     return (String[]) f.get(null);
   }
