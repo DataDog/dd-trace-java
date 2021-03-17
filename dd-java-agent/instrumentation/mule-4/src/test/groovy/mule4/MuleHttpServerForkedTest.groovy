@@ -3,7 +3,9 @@ package mule4
 import datadog.trace.agent.test.base.HttpServerTest
 import spock.lang.Shared
 
-class MuleHttpServerTest extends HttpServerTest<MuleTestContainer> {
+import static mule4.MuleTestApplicationConstants.*
+
+class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
 
   // TODO since mule uses reactor core, things sometime propagate to places where they're not closed
   @Override
@@ -61,14 +63,14 @@ class MuleHttpServerTest extends HttpServerTest<MuleTestContainer> {
       // Force cast GStringImpl to String since Mule code does String casts of some properties
       appProperties.put((String) it.key, (String) it.value)
     }
-    def app = new URI("file:" + new File(String.valueOf(buildProperties.get(this.class.simpleName + ".jar"))).canonicalPath)
+    def app = new URI("file:" + new File(String.valueOf(buildProperties.get(TEST_APPLICATION_JAR))).canonicalPath)
     container.deploy(app, appProperties)
     return container
   }
 
   @Override
   void stopServer(MuleTestContainer container) {
-    container.undeploy(String.valueOf(buildProperties.get(this.class.simpleName + ".name")))
+    container.undeploy(String.valueOf(buildProperties.get(TEST_APPLICATION_NAME)))
     container.stop()
   }
 }

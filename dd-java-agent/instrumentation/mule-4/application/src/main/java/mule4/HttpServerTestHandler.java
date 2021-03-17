@@ -2,8 +2,6 @@ package mule4;
 
 public class HttpServerTestHandler {
 
-  private Throwable throwable = null;
-
   public Response handle(String requestPath) {
     return new Response(testHandle(requestPath));
   }

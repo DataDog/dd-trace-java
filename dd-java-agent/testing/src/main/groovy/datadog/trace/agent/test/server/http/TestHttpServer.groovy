@@ -424,9 +424,14 @@ class TestHttpServer implements AutoCloseable {
       def getText() {
         return new String(body)
       }
+
+      def getParameter(String parameter) {
+        return orig.getParameter(parameter)
+      }
     }
 
     class ResponseApi {
+      private static final String DEFAULT_TYPE = "text/plain;charset=utf-8"
       private int status = 200
 
       ResponseApi status(int status) {
@@ -435,16 +440,26 @@ class TestHttpServer implements AutoCloseable {
       }
 
       void send() {
+        sendWithType(DEFAULT_TYPE)
+      }
+
+      void sendWithType(String contentType) {
+        assert contentType != null
+
         assert !req.orig.handled
-        req.orig.contentType = "text/plain;charset=utf-8"
+        req.orig.contentType = contentType
         resp.status = status
         req.orig.handled = true
       }
 
       void send(String body) {
+        sendWithType(DEFAULT_TYPE, body)
+      }
+
+      void sendWithType(String contentType, String body) {
         assert body != null
 
-        send()
+        sendWithType(contentType)
         resp.setContentLength(body.bytes.length)
         resp.writer.print(body)
       }

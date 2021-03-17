@@ -9,7 +9,7 @@
     <app.runtime>4.2.2-20210129</app.runtime>
     <mule.maven.plugin.version>3.4.2</mule.maven.plugin.version>
     <datadog.builddir>${project.basedir}</datadog.builddir>
-    <datadog.name>mule-4-http-test-server</datadog.name>
+    <datadog.name>mule-test-application</datadog.name>
     <datadog.version>1.0.0-SNAPSHOT</datadog.version>
   </properties>
 
@@ -17,7 +17,7 @@
   <artifactId>${datadog.name}</artifactId>
   <version>${datadog.version}</version>
   <packaging>mule-application</packaging>
-  <name>Mule Http Test Server</name>
+  <name>mule-test-application</name>
 
   <build>
     <directory>${datadog.builddir}/target</directory>

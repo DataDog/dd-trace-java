@@ -72,6 +72,8 @@ dependencies {
 
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:grizzly-http-2.3.20')
+  testImplementation project(':dd-java-agent:instrumentation:grizzly-client-1.9')
+
   testImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: muleVersion
   testImplementation group: 'org.mule.runtime', name: 'mule-core', version: muleVersion
   testImplementation group: 'org.mule.runtime', name: 'mule-module-extensions-spring-support', version: muleVersion
@@ -103,7 +105,7 @@ task extractMuleServices(type: Sync) {
 // build the mule application via maven
 task mvnPackage(type: Exec) {
   workingDir "$appDir"
-  commandLine 'mvn', "-Ddatadog.builddir=$buildDir", "-Ddatadog.name=mule-http-test-server", "-Ddatadog.version=$version", 'package'
+  commandLine 'mvn', "-Ddatadog.builddir=$buildDir", "-Ddatadog.name=mule-test-application", "-Ddatadog.version=$version", 'package'
   outputs.dir("$buildDir/target")
   inputs.dir("$appDir/src")
   inputs.file("$appDir/pom.xml")
@@ -116,8 +118,8 @@ task generateAppResources {
   doLast {
     def generated = new File(generatedResourcesDir, "test-build.properties")
     generated.text = """|mule.base=$muleBaseDir
-                        |MuleHttpServerTest.jar=$buildDir/target/mule-http-test-server-$version-mule-application.jar
-                        |MuleHttpServerTest.name=mule-http-test-server-$version-mule-application""".stripMargin()
+                        |MuleTestApplicationConstants.jar=$buildDir/target/mule-test-application-$version-mule-application.jar
+                        |MuleTestApplicationConstants.name=mule-test-application-$version-mule-application""".stripMargin()
   }
 }
 

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+  xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd">
+  <global-property name="test.server.host" value="localhost" />
+  <global-property name="test.server.port" value="8081" />
+  <global-property name="test.request.host" value="localhost" />
+  <global-property name="test.request.port" value="8082" />
+  <global-property name="test.request.path" value="/remote-client-request" />
+  <global-property name="test.request.pfe_path" value="/pfe-request" />
+  <http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config"
+    doc:id="b2e8081f-c842-4e27-a54a-6816fff8562c">
+    <http:listener-connection host="${test.server.host}" port="${test.server.port}" />
+  </http:listener-config>
+  <flow name="MuleHttpServerTestFlow" doc:id="dd057d61-a178-4e1e-a7e6-1342814d46ab">
+    <http:listener doc:name="Http Server Listener" doc:id="29f9ad26-4d9d-4d61-89e9-6cedf5518029"
+      config-ref="HTTP_Listener_config" path="/*" outputMimeType="text/plain">
+      <http:response statusCode="#[vars.responseCode]" />
+    </http:listener>
+    <java:new doc:name="Create Handler" doc:id="b6048082-174a-4cd9-9a80-828feb53c47e"
+      class="mule4.HttpServerTestHandler" target="onCallInstance" constructor="HttpServerTestHandler()" />
+    <java:invoke doc:name="Handle Message" doc:id="9e821936-6509-444d-9352-09c13533a941"
+      class="mule4.HttpServerTestHandler" instance="#[vars.onCallInstance]" method="handle(java.lang.String)">
+      <java:args><![CDATA[#[{arg0: attributes.requestPath}]]]></java:args>
+    </java:invoke>
+    <set-variable value="#[payload.code]" doc:name="Set Response Code"
+      doc:id="7b33c79c-5c2a-4ad8-ae51-45ae99384da7" variableName="responseCode" />
+    <set-payload value="#[payload.body]" doc:name="Set Response Body"
+      doc:id="572c5a3f-ace5-4302-b9af-238abba29dc2" />
+  </flow>
+  <http:request-config name="HTTP_Request_config" doc:name="HTTP Request configuration">
+    <http:request-connection host="${test.request.host}" port="${test.request.port}" />
+  </http:request-config>
+  <flow name="MuleHttpServerClientTestFlow">
+    <http:listener doc:name="Http Server Client Listener" config-ref="HTTP_Listener_config"
+      path="/client-request" />
+    <http:request doc:name="Http Request" config-ref="HTTP_Request_config" method="GET"
+      path="${test.request.path}" />
+  </flow>
+  <flow name="MulePFETestFlow" doc:id="81e154fb-a009-4ef1-b752-974f4e862a6f">
+    <http:listener doc:name="PFE Listener" doc:id="ae43c034-3e1b-4c31-a051-4083f4bf3323"
+      config-ref="HTTP_Listener_config" path="/pfe-request" outputMimeType="application/json" allowedMethods="PUT" />
+    <parallel-foreach doc:name="PFE" doc:id="83fb3045-72cc-40ff-8c11-1980454918df"
+      collection="#[payload]">
+      <http:request method="GET" doc:name="PFE Request" doc:id="edf9f2f8-a460-4a5d-9389-44c518032176"
+        config-ref="HTTP_Request_config" path="${test.request.pfe_path}" outputMimeType="application/json">
+        <http:query-params><![CDATA[#[output application/json
+---
+{
+	"name": payload
+}]]]></http:query-params>
+      </http:request>
+    </parallel-foreach>
+    <set-payload value="#[output application/json	&#10;---&#10;payload.payload]" doc:name="PFE Set Payload"
+      doc:id="125c0724-4679-41a1-9f62-62c2588208c9" />
+  </flow>
+</mule>
