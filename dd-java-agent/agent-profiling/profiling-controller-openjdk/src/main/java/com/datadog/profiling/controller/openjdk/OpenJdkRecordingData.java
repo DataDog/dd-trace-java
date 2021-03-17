@@ -16,11 +16,10 @@
 package com.datadog.profiling.controller.openjdk;
 
 import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.controller.RecordingInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.Instant;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import jdk.jfr.Recording;
 
 /** Implementation for profiling recordings. */
@@ -38,9 +37,9 @@ public class OpenJdkRecordingData extends RecordingData {
   }
 
   @Override
-  @Nullable
-  protected final InputStream doGetStream() throws IOException {
-    return recording.getStream(start, end);
+  @Nonnull
+  public RecordingInputStream getStream() throws IOException {
+    return new RecordingInputStream(recording.getStream(start, end));
   }
 
   @Override

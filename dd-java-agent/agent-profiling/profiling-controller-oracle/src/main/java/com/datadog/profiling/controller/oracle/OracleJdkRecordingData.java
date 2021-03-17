@@ -16,12 +16,12 @@
 package com.datadog.profiling.controller.oracle;
 
 import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.controller.RecordingInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.Date;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.management.ObjectName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,9 +47,9 @@ public class OracleJdkRecordingData extends RecordingData {
   }
 
   @Override
-  @Nullable
-  protected final InputStream doGetStream() throws IOException {
-    return new JfrRecordingStream();
+  @Nonnull
+  public RecordingInputStream getStream() throws IOException {
+    return new RecordingInputStream(new JfrRecordingStream());
   }
 
   @Override

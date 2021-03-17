@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.controller.RecordingInputStream;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.datadog.profiling.uploader.util.PidHelper;
@@ -54,7 +55,6 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
-import javax.annotation.Nonnull;
 import net.jpountz.lz4.LZ4FrameInputStream;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
@@ -446,28 +446,11 @@ public class ProfileUploaderTest {
 
   @Test
   public void testEmptyRecording() throws Exception {
-    final RecordingData recording =
-        new RecordingData(
-            Instant.ofEpochSecond(PROFILE_START), Instant.ofEpochSecond(PROFILE_END)) {
-          @Nonnull
-          @Override
-          protected InputStream doGetStream() throws IOException {
-            // return an empty underlying stream
-            return new ByteArrayInputStream(new byte[0]);
-          }
-
-          @Override
-          public void release() {
-            // ignore
-          }
-
-          @Nonnull
-          @Override
-          public String getName() {
-            return "test data";
-          }
-        };
-
+    final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
+    when(recording.getStream())
+        .then(
+            (Answer<RecordingInputStream>)
+                instance -> new RecordingInputStream(new ByteArrayInputStream(new byte[0])));
     server.enqueue(new MockResponse().setResponseCode(200));
     uploadAndWait(RECORDING_TYPE, recording);
 
@@ -586,7 +569,9 @@ public class ProfileUploaderTest {
         .then(
             (Answer<InputStream>)
                 invocation ->
-                    spy(ProfileUploaderTest.class.getResourceAsStream(recordingResource)));
+                    spy(
+                        new RecordingInputStream(
+                            ProfileUploaderTest.class.getResourceAsStream(recordingResource))));
     when(recordingData.getName()).thenReturn(RECODING_NAME_PREFIX + SEQUENCE_NUMBER);
     when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(PROFILE_START));
     when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(PROFILE_END));

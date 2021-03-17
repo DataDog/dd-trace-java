@@ -16,10 +16,8 @@
 package com.datadog.profiling.controller;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.Instant;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /** Platform agnostic API for operations required when retrieving data using the ProfilingSystem. */
 public abstract class RecordingData {
@@ -36,20 +34,7 @@ public abstract class RecordingData {
    * @throws IOException if the stream to return is empty or another IO-related problem occurred.
    */
   @Nonnull
-  public final InputStream getStream() throws IOException {
-    InputStream is = doGetStream();
-    if (is != null && is.available() > 0) {
-      return is;
-    }
-    throw new IOException();
-  }
-
-  /**
-   * @return the underlying recording stream or {@literal null}
-   * @throws IOException if an IO-related problem occurred.
-   */
-  @Nullable
-  protected abstract InputStream doGetStream() throws IOException;
+  public abstract RecordingInputStream getStream() throws IOException;
 
   /**
    * Releases the resources associated with the recording, for example the underlying file.
