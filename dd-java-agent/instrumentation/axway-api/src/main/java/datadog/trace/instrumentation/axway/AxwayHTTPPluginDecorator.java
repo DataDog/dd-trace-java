@@ -14,11 +14,13 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // request = is com.vordel.circuit.net.State,  connection = com.vordel.dwe.http.ServerTransaction
-@Slf4j
 public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object, Object> {
+  private static final Logger log = LoggerFactory.getLogger(AxwayHTTPPluginDecorator.class);
+
   public static final CharSequence AXWAY_REQUEST = UTF8BytesString.create("axway.request");
   public static final CharSequence AXWAY_TRY_TRANSACTION =
       UTF8BytesString.create("axway.trytransaction");
