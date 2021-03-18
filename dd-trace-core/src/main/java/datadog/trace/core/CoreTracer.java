@@ -651,13 +651,28 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @SuppressForbidden
   private static DDScopeEventFactory createScopeEventFactory() {
     if (Config.get().isProfilingEnabled()) {
+      DDScopeEventFactory factory = null;
       try {
-        return (DDScopeEventFactory)
-            Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory").newInstance();
-      } catch (final Throwable e) {
-        log.debug("Profiling of ScopeEvents is not available");
+        // First try the OpenJDK implementation
+        factory =
+            (DDScopeEventFactory)
+                Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory").newInstance();
+      } catch (final Throwable ignored) {
+      }
+      if (factory == null) {
+        try {
+          // If OpenJDK implementation is not available try the Oracle proprietary one
+          factory =
+              (DDScopeEventFactory)
+                  Class.forName("datadog.trace.core.jfr.oracle.ScopeEventFactory").newInstance();
+        } catch (final Throwable ignored) {
+        }
+      }
+      if (factory != null) {
+        return factory;
       }
     }
+    log.debug("Profiling of ScopeEvents is not available");
     return DDNoopScopeEventFactory.INSTANCE;
   }
 

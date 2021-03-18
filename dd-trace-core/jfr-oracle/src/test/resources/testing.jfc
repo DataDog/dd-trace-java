@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration version="1.0" name="" description="" provider="jfr-tracer">
+
+  <producer uri="http://datadoghq.com/jfr-tracer/">
+    <event path="datadog/Scope">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+    </event>
+  </producer>
+
+  <producer uri="http://www.oracle.com/hotspot/jfr-info/" label="Oracle JDK">
+
+    <event path="recordings/recording">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event path="recordings/recording_setting">
+      <setting name="enabled">true</setting>
+    </event>
+
+  </producer>
+
+</configuration>

@@ -27,8 +27,9 @@ public class ExcludedVersions {
       return true;
     }
 
-    // Exclude 1.8.0_262 onwards due to https://bugs.openjdk.java.net/browse/JDK-8252904
-    if (major == 8 && minor == 0 && update >= 262) {
+    // Exclude <1.8.0_262, 1.8.0_282) due to https://bugs.openjdk.java.net/browse/JDK-8252904 (fixed
+    // in 8u282)
+    if (major == 8 && minor == 0 && update >= 262 && update < 282) {
       return true;
     }
 

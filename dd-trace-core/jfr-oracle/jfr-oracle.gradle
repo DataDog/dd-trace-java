@@ -12,26 +12,30 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-minimumBranchCoverage = 0.5
-minimumInstructionCoverage = 0.7
-
-excludedClassesCoverage += ['com.datadog.profiling.controller.oracle.JdkTypeIDs_8']
-
 dependencies {
   compile deps.slf4j
-  compile project(':internal-api')
-  compile project(':dd-java-agent:agent-profiling:profiling-controller')
-  compile project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
-
-  testCompile deps.junit5
-  testCompile deps.mockito
-  testCompile group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
-  testCompile files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
+  compile project(':dd-trace-core')
+  testCompile project(':dd-java-agent:testing')
 }
 
-// make sure the code is compiled to Java 8 bytecode
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
+
+[JavaCompile, GroovyCompile].each {
+  tasks.withType(it) {
+    doFirst {
+      if (!System.env.JAVA_ORACLE8_HOME) {
+        throw new GradleException('JAVA_ORACLE8_HOME must be set to build profiling helpers')
+      }
+      // Disable '-processing' because some annotations are not claimed.
+      // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
+      // Disable '-path' because we do not have some of the paths seem to be missing.
+      options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
+      options.fork = true
+      options.forkOptions.javaHome = file(System.env.JAVA_ORACLE8_HOME)
+    }
+  }
+}
 
 // Oracle JDK requires extra JVM arguments to enable JFR
 tasks.withType(Test).all {
