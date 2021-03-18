@@ -1,10 +1,9 @@
 package com.datadog.profiling.controller;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayInputStream;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class RecordingInputStreamTest {
 
@@ -16,7 +15,8 @@ class RecordingInputStreamTest {
 
   @Test
   void isNotEmpty() throws Exception {
-    RecordingInputStream instance = new RecordingInputStream(new ByteArrayInputStream(new byte[]{1, 2 ,3}));
+    RecordingInputStream instance =
+        new RecordingInputStream(new ByteArrayInputStream(new byte[] {1, 2, 3}));
     assertFalse(instance.isEmpty());
   }
 }
