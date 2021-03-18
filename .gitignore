@@ -66,3 +66,4 @@ replay_pid*
 # CircleCI #
 ############
 _circle_ci_cache_*
+upstream.env
