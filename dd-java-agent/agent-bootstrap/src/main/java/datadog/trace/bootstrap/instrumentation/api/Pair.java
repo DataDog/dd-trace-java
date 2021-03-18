@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 public final class Pair<T, U> {
 
@@ -11,15 +12,17 @@ public final class Pair<T, U> {
   private final T left;
   private final U right;
 
-  Pair(T left, U right) {
+  Pair(@Nullable T left, @Nullable U right) {
     this.left = left;
     this.right = right;
   }
 
+  @Nullable
   public T getLeft() {
     return left;
   }
 
+  @Nullable
   public U getRight() {
     return right;
   }
@@ -44,6 +47,6 @@ public final class Pair<T, U> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(left, right);
+    return 31 * (null == left ? 0 : left.hashCode()) + (null == right ? 0 : right.hashCode());
   }
 }
