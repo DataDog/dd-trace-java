@@ -20,28 +20,50 @@ class MongoBaseTest extends AgentTestRunner {
   private static final MongodStarter STARTER = MongodStarter.getDefaultInstance()
 
   @Shared
-  int port = PortUtils.randomOpenPort()
+  int port
   @Shared
   MongodExecutable mongodExe
   @Shared
   MongodProcess mongod
 
-  def setup() throws Exception {
-    final IMongodConfig mongodConfig =
-      new MongodConfigBuilder()
-      .version(Version.Main.PRODUCTION)
-      .net(new Net("localhost", port, Network.localhostIsIPv6()))
-      .build()
+  def setupSpec() throws Exception {
+    /*
+     CI will provide us with a mongo container running alongside our build.
+     When building locally we need to take matters into our own hands and
+     start our own mongo server.
+     */
+    if ("true" != System.getenv("CI")) {
+      port = PortUtils.randomOpenPort()
 
-    mongodExe = STARTER.prepare(mongodConfig)
-    mongod = mongodExe.start()
+      final IMongodConfig mongodConfig =
+        new MongodConfigBuilder()
+        .version(Version.Main.PRODUCTION)
+        .net(new Net("localhost", port, Network.localhostIsIPv6()))
+        .build()
+
+      mongodExe = STARTER.prepare(mongodConfig)
+      mongod = mongodExe.start()
+    } else {
+      port = 27017 // default mongo port when running on CI
+    }
   }
 
-  def cleanup() throws Exception {
+  def cleanupSpec() throws Exception {
     mongod?.stop()
     mongod = null
     mongodExe?.stop()
     mongodExe = null
+  }
+
+  def randomCollectionName() {
+    return "testCollection-" + UUID.randomUUID()
+  }
+
+  def matchesStatement(statement) {
+    return {
+      assert it.replace(" ", "").replace(',"$db":"?"', '').replace(',"lsid":{"id":"?"}', '').replace(',"readPreference":{"node":"?"}', '') == statement
+      return true
+    }
   }
 
   def "test port open"() {
