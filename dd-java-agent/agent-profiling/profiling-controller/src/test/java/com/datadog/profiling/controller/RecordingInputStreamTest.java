@@ -18,5 +18,7 @@ class RecordingInputStreamTest {
     RecordingInputStream instance =
         new RecordingInputStream(new ByteArrayInputStream(new byte[] {1, 2, 3}));
     assertFalse(instance.isEmpty());
+    instance.read(new byte[3], 0, 3); // exhaust the stream
+    assertFalse(instance.isEmpty()); // still should not report as empty
   }
 }
