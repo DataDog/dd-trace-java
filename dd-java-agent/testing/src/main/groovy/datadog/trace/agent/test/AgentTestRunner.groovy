@@ -36,7 +36,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.AdditionalLibraryIgnoresMatcher.additionalLibraryIgnoresMatcher
 import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
 
 /**
@@ -89,10 +88,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  Set<TypeDescription> TRANSFORMED_CLASSES_TYPES = Sets.newConcurrentHashSet()
-
-  @SuppressWarnings('PropertyName')
-  @Shared
   AtomicInteger INSTRUMENTATION_ERROR_COUNT = new AtomicInteger(0)
 
   @Shared
@@ -133,7 +128,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     assert ServiceLoader.load(Instrumenter, AgentTestRunner.getClassLoader())
     .iterator()
     .hasNext(): "No instrumentation found"
-    activeTransformer = AgentInstaller.installBytebuddyAgent(INSTRUMENTATION, true, this)
+    activeTransformer = AgentInstaller.installBytebuddyAgent(INSTRUMENTATION, this)
   }
 
   /** Override to set config before the agent is installed */
@@ -177,8 +172,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     // All cleanup should happen before these assertion.  If not, a failing assertion may prevent cleanup
     assert INSTRUMENTATION_ERROR_COUNT.get() == 0: INSTRUMENTATION_ERROR_COUNT.get() + " Instrumentation errors during test"
-
-    assert TRANSFORMED_CLASSES_TYPES.findAll { additionalLibraryIgnoresMatcher().matches(it) }.isEmpty(): "Transformed classes match global libraries ignore matcher"
   }
 
   boolean useStrictTraceWrites() {
@@ -231,7 +224,6 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Override
   void onTransformation(TypeDescription typeDescription, ClassLoader classLoader, JavaModule module, boolean loaded, DynamicType dynamicType) {
     TRANSFORMED_CLASSES_NAMES.add(typeDescription.getActualName())
-    TRANSFORMED_CLASSES_TYPES.add(typeDescription)
   }
 
   @Override
