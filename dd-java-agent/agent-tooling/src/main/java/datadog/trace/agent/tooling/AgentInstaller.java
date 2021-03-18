@@ -55,7 +55,7 @@ public class AgentInstaller {
      * is active.
      */
     if (Config.get().isTraceEnabled() || Config.get().isProfilingEnabled()) {
-      installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
+      installBytebuddyAgent(inst, new AgentBuilder.Listener[0]);
       if (DEBUG) {
         log.debug("Class instrumentation installed");
       }
@@ -71,9 +71,7 @@ public class AgentInstaller {
    * @return the agent's class transformer
    */
   public static ResettableClassFileTransformer installBytebuddyAgent(
-      final Instrumentation inst,
-      final boolean skipAdditionalLibraryMatcher,
-      final AgentBuilder.Listener... listeners) {
+      final Instrumentation inst, final AgentBuilder.Listener... listeners) {
     INSTRUMENTATION = inst;
 
     addByteBuddyRawSetting();
@@ -99,9 +97,7 @@ public class AgentInstaller {
             // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
             .ignore(any(), skipClassLoader());
 
-    ignoredAgentBuilder =
-        ignoredAgentBuilder.or(globalIgnoresMatcher(skipAdditionalLibraryMatcher));
-
+    ignoredAgentBuilder = ignoredAgentBuilder.or(globalIgnoresMatcher());
     ignoredAgentBuilder = ignoredAgentBuilder.or(matchesConfiguredExcludes());
 
     AgentBuilder agentBuilder = ignoredAgentBuilder;
