@@ -23,12 +23,9 @@ import java.time.Instant;
 import java.util.Date;
 import javax.annotation.Nonnull;
 import javax.management.ObjectName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Implementation for profiling recordings. */
 public class OracleJdkRecordingData extends RecordingData {
-  private static final Logger log = LoggerFactory.getLogger(OracleJdkRecordingData.class);
   private final ObjectName recordingId;
   private final String name;
 
