@@ -14,10 +14,6 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
 
   @Override
   ProcessBuilder createProcessBuilder() {
-    File testfile = new File(openLibertyShadowJar)
-    System.out.println("TESTFILE")
-    System.out.println(testfile.exists())
-
     List<String> command = new ArrayList<>()
     command.add(javaPath())
 
