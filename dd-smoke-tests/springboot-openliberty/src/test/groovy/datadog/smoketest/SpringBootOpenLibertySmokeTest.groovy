@@ -2,8 +2,11 @@ package datadog.smoketest
 
 import datadog.trace.agent.test.utils.ThreadUtils
 import okhttp3.Request
+import spock.lang.Requires
 import spock.lang.Shared
 
+// This test currently fails on IBM JVMs
+@Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
 class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
 
   @Shared
