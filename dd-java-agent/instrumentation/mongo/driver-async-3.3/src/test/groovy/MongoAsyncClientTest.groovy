@@ -25,6 +25,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Timeout(10)
 class MongoAsyncClientTest extends MongoBaseTest {
+  static final String DB_NAME = "v3_async_test_db"
 
   @Shared
   MongoClient client
@@ -41,13 +42,16 @@ class MongoAsyncClientTest extends MongoBaseTest {
   }
 
   def cleanup() throws Exception {
+    def latch = new CountDownLatch(1)
+    client.getDatabase(DB_NAME).drop(toCallback { latch.countDown() })
+    latch.await()
     client?.close()
     client = null
   }
 
   def "test create collection"() {
     setup:
-    MongoDatabase db = client.getDatabase(dbName)
+    MongoDatabase db = client.getDatabase(DB_NAME)
 
     when:
     db.createCollection(collectionName, toCallback {})
@@ -55,22 +59,17 @@ class MongoAsyncClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "create") {
-          assert it.replaceAll(" ", "") == "{\"create\":\"$collectionName\",\"capped\":\"?\"}" ||
-          it == "{\"create\": \"$collectionName\", \"capped\": \"?\", \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
-          true
-        }
+        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}")
       }
     }
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   def "test create collection no description"() {
     setup:
-    MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(dbName)
+    MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(DB_NAME)
 
     when:
     db.createCollection(collectionName, toCallback {})
@@ -78,22 +77,17 @@ class MongoAsyncClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "create", {
-          assert it.replaceAll(" ", "") == "{\"create\":\"$collectionName\",\"capped\":\"?\"}" ||
-          it == "{\"create\": \"$collectionName\", \"capped\": \"?\", \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
-          true
-        }, dbName)
+        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", DB_NAME)
       }
     }
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   def "test get collection"() {
     setup:
-    MongoDatabase db = client.getDatabase(dbName)
+    MongoDatabase db = client.getDatabase(DB_NAME)
 
     when:
     def count = new CompletableFuture()
@@ -103,23 +97,18 @@ class MongoAsyncClientTest extends MongoBaseTest {
     count.get() == 0
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "count") {
-          assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
-          it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
-          true
-        }
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   def "test insert"() {
     setup:
     MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(dbName)
+      MongoDatabase db = client.getDatabase(DB_NAME)
       def latch1 = new CountDownLatch(1)
       // This creates a trace that isn't linked to the parent... using NIO internally that we don't handle.
       db.createCollection(collectionName, toCallback { latch1.countDown() })
@@ -139,30 +128,21 @@ class MongoAsyncClientTest extends MongoBaseTest {
     count.get() == 1
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "insert") {
-          assert it.replaceAll(" ", "") == "{\"insert\":\"$collectionName\",\"ordered\":\"?\",\"documents\":[{\"_id\":\"?\",\"password\":\"?\"}]}" ||
-          it == "{\"insert\": \"$collectionName\", \"ordered\": \"?\", \"\$db\": \"?\", \"documents\": [{\"_id\": \"?\", \"password\": \"?\"}]}"
-          true
-        }
+        mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":\"?\",\"documents\":[{\"_id\":\"?\",\"password\":\"?\"}]}")
       }
       trace(1) {
-        mongoSpan(it, 0, "count") {
-          assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
-          it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
-          true
-        }
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   def "test update"() {
     setup:
     MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(dbName)
+      MongoDatabase db = client.getDatabase(DB_NAME)
       def latch1 = new CountDownLatch(1)
       db.createCollection(collectionName, toCallback { latch1.countDown() })
       latch1.await()
@@ -190,30 +170,21 @@ class MongoAsyncClientTest extends MongoBaseTest {
     count.get() == 1
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "update") {
-          assert it.replaceAll(" ", "") == "{\"update\":\"?\",\"ordered\":\"?\",\"updates\":[{\"q\":{\"password\":\"?\"},\"u\":{\"\$set\":{\"password\":\"?\"}}}]}" ||
-          it == "{\"update\": \"?\", \"ordered\": \"?\", \"\$db\": \"?\", \"updates\": [{\"q\": {\"password\": \"?\"}, \"u\": {\"\$set\": {\"password\": \"?\"}}}]}"
-          true
-        }
+        mongoSpan(it, 0, "update", "{\"update\":\"?\",\"ordered\":\"?\",\"updates\":[{\"q\":{\"password\":\"?\"},\"u\":{\"\$set\":{\"password\":\"?\"}}}]}")
       }
       trace(1) {
-        mongoSpan(it, 0, "count") {
-          assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
-          it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
-          true
-        }
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   def "test delete"() {
     setup:
     MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(dbName)
+      MongoDatabase db = client.getDatabase(DB_NAME)
       def latch1 = new CountDownLatch(1)
       db.createCollection(collectionName, toCallback { latch1.countDown() })
       latch1.await()
@@ -239,24 +210,15 @@ class MongoAsyncClientTest extends MongoBaseTest {
     count.get() == 0
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "delete") {
-          assert it.replaceAll(" ", "") == "{\"delete\":\"?\",\"ordered\":\"?\",\"deletes\":[{\"q\":{\"password\":\"?\"},\"limit\":\"?\"}]}" ||
-          it == "{\"delete\": \"?\", \"ordered\": \"?\", \"\$db\": \"?\", \"deletes\": [{\"q\": {\"password\": \"?\"}, \"limit\": \"?\"}]}"
-          true
-        }
+        mongoSpan(it, 0, "delete", "{\"delete\":\"?\",\"ordered\":\"?\",\"deletes\":[{\"q\":{\"password\":\"?\"},\"limit\":\"?\"}]}")
       }
       trace(1) {
-        mongoSpan(it, 0, "count") {
-          assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
-          it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
-          true
-        }
+        mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
 
     where:
-    dbName = "test_db"
-    collectionName = "testCollection"
+    collectionName = randomCollectionName()
   }
 
   SingleResultCallback toCallback(Closure closure) {
@@ -272,11 +234,11 @@ class MongoAsyncClientTest extends MongoBaseTest {
       }
   }
 
-  def mongoSpan(TraceAssert trace, int index, String operation, Closure<Boolean> statementEval, String instance = "some-description", Object parentSpan = null, Throwable exception = null) {
+  def mongoSpan(TraceAssert trace, int index, String operation, String statement, String instance = "some-description", Object parentSpan = null, Throwable exception = null) {
     trace.span {
       serviceName "mongo"
       operationName "mongo.query"
-      resourceName statementEval
+      resourceName matchesStatement(statement)
       spanType DDSpanTypes.MONGO
       if (parentSpan == null) {
         parent()
