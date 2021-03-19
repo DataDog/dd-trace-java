@@ -169,6 +169,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
+import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
@@ -1334,8 +1335,7 @@ public class Config {
       return Boolean.parseBoolean(tracerDebugLevelProp);
     }
 
-    final String tracerDebugLevelEnv =
-        System.getenv(tracerDebugLevelSysprop.replace('.', '_').toUpperCase());
+    final String tracerDebugLevelEnv = System.getenv(toEnvVar(tracerDebugLevelSysprop));
 
     if (tracerDebugLevelEnv != null) {
       return Boolean.parseBoolean(tracerDebugLevelEnv);

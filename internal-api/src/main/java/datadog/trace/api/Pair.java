@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.api;
+package datadog.trace.api;
 
 import java.util.Objects;
 import javax.annotation.Nullable;

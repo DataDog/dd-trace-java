@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static datadog.trace.util.Strings.getInternalName;
 
-import datadog.trace.agent.tooling.Utils;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.FieldBackedContextStore;
 import datadog.trace.bootstrap.FieldBackedContextStores;
@@ -33,10 +33,10 @@ final class FieldBackedContextRequestRewriter implements AsmVisitorWrapper {
       LoggerFactory.getLogger(FieldBackedContextRequestRewriter.class);
 
   static final String INSTRUMENTATION_CONTEXT_CLASS =
-      Utils.getInternalName(InstrumentationContext.class.getName());
+      getInternalName(InstrumentationContext.class.getName());
 
   static final String FIELD_BACKED_CONTEXT_STORES_CLASS =
-      Utils.getInternalName(FieldBackedContextStores.class.getName());
+      getInternalName(FieldBackedContextStores.class.getName());
 
   static final String GET_METHOD = "get";
   static final String GET_METHOD_DESCRIPTOR =

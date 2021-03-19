@@ -1,6 +1,8 @@
 package datadog.trace.agent.tooling.muzzle;
 
-import datadog.trace.agent.tooling.Utils;
+import static datadog.trace.util.Strings.getClassName;
+import static datadog.trace.util.Strings.getResourceName;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayDeque;
@@ -56,7 +58,7 @@ public class ReferenceCreator extends ClassVisitor {
     while (!instrumentationQueue.isEmpty()) {
       final String className = instrumentationQueue.remove();
       visitedSources.add(className);
-      String resourceName = Utils.getResourceName(className);
+      String resourceName = getResourceName(className);
       try (InputStream in = loader.getResourceAsStream(resourceName)) {
         if (null == in) {
           System.err.println(resourceName + " not found, skipping");
@@ -184,7 +186,7 @@ public class ReferenceCreator extends ClassVisitor {
       final String signature,
       final String superName,
       final String[] interfaces) {
-    refSourceClassName = Utils.getClassName(name);
+    refSourceClassName = getClassName(name);
     refSourceType = Type.getType("L" + name + ";");
     refSourceTypeInternalName = refSourceType.getInternalName();
 

@@ -3,11 +3,11 @@ package datadog.trace.instrumentation.springwebflux.server;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 
+import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Map;
 import java.util.function.Function;

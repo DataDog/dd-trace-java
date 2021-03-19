@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
-import datadog.trace.agent.tooling.Utils;
+import static datadog.trace.util.Strings.getInternalName;
+
 import datadog.trace.bootstrap.instrumentation.java.concurrent.NewTaskForPlaceholder;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -23,7 +24,7 @@ public final class NewTaskForRewritingVisitor implements AsmVisitorWrapper {
   static final NewTaskForRewritingVisitor INSTANCE = new NewTaskForRewritingVisitor();
 
   static final String NEW_TASK_FOR_PLACEHOLDER_CLASS =
-      Utils.getInternalName(NewTaskForPlaceholder.class.getName());
+      getInternalName(NewTaskForPlaceholder.class.getName());
 
   static final String ABSTRACT_EXECUTOR_SERVICE_CLASS =
       "java/util/concurrent/AbstractExecutorService";

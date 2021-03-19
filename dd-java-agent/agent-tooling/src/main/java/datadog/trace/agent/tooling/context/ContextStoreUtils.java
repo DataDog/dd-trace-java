@@ -1,9 +1,9 @@
 package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.BOOTSTRAP_CLASSLOADER;
+import static datadog.trace.util.Strings.getInnerClassName;
 
 import datadog.trace.agent.tooling.HelperInjector;
-import datadog.trace.agent.tooling.Utils;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -92,9 +92,9 @@ final class ContextStoreUtils {
     return DYNAMIC_CLASSES_PACKAGE
         + FieldBackedProvider.class.getSimpleName()
         + "$ContextStore$"
-        + Utils.getInnerClassName(keyClassName)
+        + getInnerClassName(keyClassName)
         + "$"
-        + Utils.getInnerClassName(contextClassName);
+        + getInnerClassName(contextClassName);
   }
 
   @Deprecated
@@ -103,14 +103,14 @@ final class ContextStoreUtils {
     return DYNAMIC_CLASSES_PACKAGE
         + FieldBackedProvider.class.getSimpleName()
         + "$ContextAccessor$"
-        + Utils.getInnerClassName(keyClassName)
+        + getInnerClassName(keyClassName)
         + "$"
-        + Utils.getInnerClassName(contextClassName);
+        + getInnerClassName(contextClassName);
   }
 
   @Deprecated
   static String getContextFieldName(final String keyClassName) {
-    return "__datadogContext$" + Utils.getInnerClassName(keyClassName);
+    return "__datadogContext$" + getInnerClassName(keyClassName);
   }
 
   @Deprecated

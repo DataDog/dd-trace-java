@@ -2,8 +2,8 @@ package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.agent.tooling.context.ShouldInjectFieldsMatcher.hasInjectedField;
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static datadog.trace.util.Strings.getInternalName;
 
-import datadog.trace.agent.tooling.Utils;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
@@ -35,10 +35,10 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
   private static final Logger log = LoggerFactory.getLogger(FieldBackedContextInjector.class);
 
   static final String FIELD_BACKED_CONTEXT_STORES_CLASS =
-      Utils.getInternalName(FieldBackedContextStores.class.getName());
+      getInternalName(FieldBackedContextStores.class.getName());
 
   static final String FIELD_BACKED_CONTEXT_ACCESSOR_CLASS =
-      Utils.getInternalName(FieldBackedContextAccessor.class.getName());
+      getInternalName(FieldBackedContextAccessor.class.getName());
 
   static final String CONTEXT_STORE_ACCESS_PREFIX = "__datadogContext$";
 
@@ -62,7 +62,7 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
 
   static final String OBJECT_DESCRIPTOR = Type.getDescriptor(Object.class);
 
-  static final String LINKAGE_ERROR_CLASS = Utils.getInternalName(LinkageError.class.getName());
+  static final String LINKAGE_ERROR_CLASS = getInternalName(LinkageError.class.getName());
 
   /** Keeps track of injection requests for the class being transformed by the current thread. */
   static final ThreadLocal<BitSet> INJECTED_STORE_IDS = new ThreadLocal<>();
