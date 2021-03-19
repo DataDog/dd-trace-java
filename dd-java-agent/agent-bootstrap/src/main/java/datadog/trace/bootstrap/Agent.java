@@ -7,6 +7,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+import static datadog.trace.util.Strings.getResourceName;
 
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
@@ -572,7 +573,7 @@ public class Agent {
     final String logManagerProp = System.getProperty("java.util.logging.manager");
     if (logManagerProp != null) {
       final boolean onSysClasspath =
-          ClassLoader.getSystemResource(logManagerProp.replace('.', '/') + ".class") != null;
+          ClassLoader.getSystemResource(getResourceName(logManagerProp)) != null;
       log.debug("Prop - logging.manager: " + logManagerProp);
       log.debug("logging.manager on system classpath: " + onSysClasspath);
       // Some applications set java.util.logging.manager but never actually initialize the logger.
@@ -610,7 +611,7 @@ public class Agent {
     final String jmxBuilderProp = System.getProperty("javax.management.builder.initial");
     if (jmxBuilderProp != null) {
       final boolean onSysClasspath =
-          ClassLoader.getSystemResource(jmxBuilderProp.replace('.', '/') + ".class") != null;
+          ClassLoader.getSystemResource(getResourceName(jmxBuilderProp)) != null;
       log.debug("Prop - javax.management.builder.initial: " + jmxBuilderProp);
       log.debug("javax.management.builder.initial on system classpath: " + onSysClasspath);
       // Some applications set javax.management.builder.initial but never actually initialize JMX.
@@ -634,7 +635,7 @@ public class Agent {
     // FIXME: this is quite a hack because there maybe jfr classes on classpath somehow that have
     // nothing to do with JDK but this should be safe because only thing this does is to delay
     // tracer install
-    final String jfrClassResourceName = "jdk.jfr.Recording".replace('.', '/') + ".class";
-    return Thread.currentThread().getContextClassLoader().getResource(jfrClassResourceName) != null;
+    return Thread.currentThread().getContextClassLoader().getResource("jdk/jfr/Recording.class")
+        != null;
   }
 }

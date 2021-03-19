@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.muzzle;
 
-import datadog.trace.agent.tooling.Utils;
+import datadog.trace.util.Strings;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -32,8 +32,8 @@ public class Reference {
       final Set<Method> methods) {
     this.sources = sources;
     this.flags = flags;
-    this.className = Utils.getClassName(className);
-    this.superName = null == superName ? null : Utils.getClassName(superName);
+    this.className = Strings.getClassName(className);
+    this.superName = null == superName ? null : Strings.getClassName(superName);
     this.interfaces = interfaces;
     this.methods = methods;
     this.fields = fields;

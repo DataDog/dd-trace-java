@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
+import static datadog.trace.util.Strings.getResourceName;
 
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.PatchLogger;
@@ -128,7 +129,7 @@ public final class ClassLoaderMatcher {
     private ClassLoaderHasClassesNamedMatcher(final String... classNames) {
       resources = classNames;
       for (int i = 0; i < resources.length; i++) {
-        resources[i] = resources[i].replace(".", "/") + ".class";
+        resources[i] = getResourceName(resources[i]);
       }
     }
 

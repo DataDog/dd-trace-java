@@ -2,6 +2,39 @@ package datadog.trace.util;
 
 public final class Strings {
 
+  /** com.foo.Bar -> com/foo/Bar.class */
+  public static String getResourceName(final String className) {
+    if (!className.endsWith(".class")) {
+      return className.replace('.', '/') + ".class";
+    } else {
+      return className;
+    }
+  }
+
+  /** com/foo/Bar.class -> com.foo.Bar */
+  public static String getClassName(final String resourceName) {
+    if (resourceName.endsWith(".class")) {
+      return resourceName.substring(0, resourceName.length() - 6).replace('/', '.');
+    }
+    return resourceName.replace('/', '.');
+  }
+
+  /** com.foo.Bar -> com/foo/Bar */
+  public static String getInternalName(final String resourceName) {
+    return resourceName.replace('.', '/');
+  }
+
+  /**
+   * Convert class name to a format that can be used as part of inner class name by replacing all
+   * '.'s with '$'s.
+   *
+   * @param className class named to be converted
+   * @return convertd name
+   */
+  public static String getInnerClassName(final String className) {
+    return className.replace('.', '$');
+  }
+
   public static String join(CharSequence joiner, Iterable<? extends CharSequence> strings) {
     StringBuilder sb = new StringBuilder();
     for (CharSequence string : strings) {

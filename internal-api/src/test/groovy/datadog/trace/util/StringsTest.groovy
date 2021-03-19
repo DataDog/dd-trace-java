@@ -4,6 +4,21 @@ import datadog.trace.test.util.DDSpecification
 
 class StringsTest extends DDSpecification {
 
+  def "test resource name from class"() {
+    expect:
+    "foo/bar/Class.class" == Strings.getResourceName("foo.bar.Class")
+  }
+
+  def "test class name from resource"() {
+    expect:
+    "foo.bar.Class" == Strings.getClassName("foo/bar/Class.class")
+  }
+
+  def "test envvar from property"() {
+    expect:
+    "FOO_BAR_QUX" == Strings.toEnvVar("foo.bar-qux")
+  }
+
   def "test join strings"() {
     when:
     String s = Strings.join(joiner, strings)
