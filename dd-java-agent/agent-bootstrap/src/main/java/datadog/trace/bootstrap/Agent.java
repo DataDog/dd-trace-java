@@ -560,8 +560,8 @@ public class Agent {
     final String customLogManagerEnv = ddGetEnv(tracerCustomLogManSysprop);
 
     if (customLogManagerProp != null || customLogManagerEnv != null) {
-      log.debug("Prop - customlogmanager: " + customLogManagerProp);
-      log.debug("Env - customlogmanager: " + customLogManagerEnv);
+      log.debug("Prop - customlogmanager: {}", customLogManagerProp);
+      log.debug("Env - customlogmanager: {}", customLogManagerEnv);
       // Allow setting to skip these automatic checks:
       return Boolean.parseBoolean(customLogManagerProp)
           || Boolean.parseBoolean(customLogManagerEnv);
@@ -575,8 +575,8 @@ public class Agent {
     if (logManagerProp != null) {
       final boolean onSysClasspath =
           ClassLoader.getSystemResource(getResourceName(logManagerProp)) != null;
-      log.debug("Prop - logging.manager: " + logManagerProp);
-      log.debug("logging.manager on system classpath: " + onSysClasspath);
+      log.debug("Prop - logging.manager: {}", logManagerProp);
+      log.debug("logging.manager on system classpath: {}", onSysClasspath);
       // Some applications set java.util.logging.manager but never actually initialize the logger.
       // Check to see if the configured manager is on the system classpath.
       // If so, it should be safe to initialize jmxfetch which will setup the log manager.
@@ -598,8 +598,8 @@ public class Agent {
     final String customJMXBuilderEnv = ddGetEnv(tracerCustomJMXBuilderSysprop);
 
     if (customJMXBuilderProp != null || customJMXBuilderEnv != null) {
-      log.debug("Prop - customjmxbuilder: " + customJMXBuilderProp);
-      log.debug("Env - customjmxbuilder: " + customJMXBuilderEnv);
+      log.debug("Prop - customjmxbuilder: {}", customJMXBuilderProp);
+      log.debug("Env - customjmxbuilder: {}", customJMXBuilderEnv);
       // Allow setting to skip these automatic checks:
       return Boolean.parseBoolean(customJMXBuilderProp)
           || Boolean.parseBoolean(customJMXBuilderEnv);
@@ -613,8 +613,8 @@ public class Agent {
     if (jmxBuilderProp != null) {
       final boolean onSysClasspath =
           ClassLoader.getSystemResource(getResourceName(jmxBuilderProp)) != null;
-      log.debug("Prop - javax.management.builder.initial: " + jmxBuilderProp);
-      log.debug("javax.management.builder.initial on system classpath: " + onSysClasspath);
+      log.debug("Prop - javax.management.builder.initial: {}", jmxBuilderProp);
+      log.debug("javax.management.builder.initial on system classpath: {}", onSysClasspath);
       // Some applications set javax.management.builder.initial but never actually initialize JMX.
       // Check to see if the configured JMX builder is on the system classpath.
       // If so, it should be safe to initialize jmxfetch which will setup JMX.
