@@ -44,6 +44,7 @@ public class AgentInstaller {
   }
 
   static {
+    addByteBuddyRawSetting();
     // WeakMap is used by other classes below, so we need to register the provider first.
     AgentTooling.registerWeakMapProvider();
   }
@@ -75,8 +76,6 @@ public class AgentInstaller {
       final boolean skipAdditionalLibraryMatcher,
       final AgentBuilder.Listener... listeners) {
     INSTRUMENTATION = inst;
-
-    addByteBuddyRawSetting();
 
     if (Config.get().isLegacyContextFieldInjection()) {
       FieldBackedProvider.resetContextMatchers();
