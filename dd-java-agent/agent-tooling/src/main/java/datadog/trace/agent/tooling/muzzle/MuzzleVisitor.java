@@ -1,7 +1,8 @@
 package datadog.trace.agent.tooling.muzzle;
 
+import static datadog.trace.util.Strings.getClassName;
+
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.Utils;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -78,7 +79,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
             (Instrumenter.Default)
                 MuzzleVisitor.class
                     .getClassLoader()
-                    .loadClass(Utils.getClassName(instrumentationClassName))
+                    .loadClass(getClassName(instrumentationClassName))
                     .getDeclaredConstructor()
                     .newInstance();
       } catch (Exception e) {

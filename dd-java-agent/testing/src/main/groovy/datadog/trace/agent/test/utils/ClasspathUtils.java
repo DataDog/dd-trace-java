@@ -2,12 +2,12 @@ package datadog.trace.agent.test.utils;
 
 import static com.google.common.base.StandardSystemProperty.JAVA_CLASS_PATH;
 import static com.google.common.base.StandardSystemProperty.PATH_SEPARATOR;
+import static datadog.trace.util.Strings.getResourceName;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.reflect.ClassPath;
 import datadog.trace.agent.test.AgentTestRunner;
-import datadog.trace.agent.tooling.Utils;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -39,8 +39,7 @@ public class ClasspathUtils {
   public static byte[] convertToByteArray(final Class<?> clazz) throws IOException {
     InputStream inputStream = null;
     try {
-      inputStream =
-          clazz.getClassLoader().getResourceAsStream(Utils.getResourceName(clazz.getName()));
+      inputStream = clazz.getClassLoader().getResourceAsStream(getResourceName(clazz.getName()));
       return convertToByteArray(inputStream);
     } finally {
       if (inputStream != null) {
@@ -98,7 +97,7 @@ public class ClasspathUtils {
     final Manifest manifest = new Manifest();
     final JarOutputStream target = new JarOutputStream(new FileOutputStream(tmpJar), manifest);
     for (final Class<?> clazz : classes) {
-      addToJar(Utils.getResourceName(clazz.getName()), convertToByteArray(clazz), target);
+      addToJar(getResourceName(clazz.getName()), convertToByteArray(clazz), target);
     }
     target.close();
 
