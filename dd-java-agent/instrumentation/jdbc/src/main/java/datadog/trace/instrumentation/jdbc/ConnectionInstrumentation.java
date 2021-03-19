@@ -27,6 +27,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 public final class ConnectionInstrumentation extends Instrumenter.Tracing {
 
   private static final String[] CONCRETE_TYPES = {
+    // redshift
+    "com.amazon.redshift.jdbc.RedshiftConnectionImpl",
     // jt400
     "com.ibm.as400.access.AS400JDBCConnection",
     // possibly need more coverage
@@ -68,6 +70,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
     "org.sqlite.Conn",
     "org.sqlite.jdbc3.JDBC3Connection",
     "org.sqlite.jdbc4.JDBC4Connection",
+    // for testing purposes
     "test.TestConnection",
     // this won't match any class unless the property is set
     Config.get().getJdbcConnectionClassName()

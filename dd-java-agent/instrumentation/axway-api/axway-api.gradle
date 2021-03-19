@@ -1,0 +1,13 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  // It's difficult to split jars from axway apigateway monolith:
+  // Jars are mostly frontend to native code and this native code doesn't run separately without licence.
+  // Moreover, there is no component which you can run `java -jar ...` nor add it to classpath.
+  // Attempt to load any Axway class it results in segmentation fault.
+
+  //compileOnly group: 'com.axway.apigw', name: 'com.axway.apigw', version: '7.5'
+  //latestDepTestCompile group: 'com.axway.apigw', name: 'com.axway.apigw', version: '+'
+
+  //testCompile  group: 'com.axway.ats.framework', name: 'ats-core', version: '4.0.6'
+}

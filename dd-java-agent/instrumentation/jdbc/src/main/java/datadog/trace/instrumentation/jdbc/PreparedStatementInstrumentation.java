@@ -37,6 +37,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 public final class PreparedStatementInstrumentation extends Instrumenter.Tracing {
 
   private static final String[] CONCRETE_TYPES = {
+    // redshift
+    "com.amazon.redshift.jdbc.RedshiftPreparedStatement",
     // jt400
     "com.ibm.as400.access.AS400JDBCPreparedStatement",
     // probably patchy cover
@@ -106,6 +108,7 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Tracing
     "org.sqlite.jdbc3.JDBC3PreparedStatement",
     "org.sqlite.jdbc4.JDBC4PreparedStatement",
     "org.sqlite.PrepStmt",
+    // for testing purposes
     "test.TestPreparedStatement",
     // this won't match any classes unless set
     Config.get().getJdbcPreparedStatementClassName()
