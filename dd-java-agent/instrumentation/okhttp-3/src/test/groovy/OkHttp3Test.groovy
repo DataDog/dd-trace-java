@@ -14,6 +14,14 @@ import java.util.concurrent.TimeUnit
 class OkHttp3Test extends HttpClientTest {
 
   @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // disable tracer metrics because it uses OkHttp and class loading is
+    // not isolated in tests
+    injectSysConfig("dd.trace.tracer.metrics.enabled", "false")
+  }
+
+  @Override
   boolean useStrictTraceWrites() {
     // TODO fix this by making sure that spans get closed properly
     return false
