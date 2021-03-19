@@ -2,6 +2,10 @@ package datadog.trace.util;
 
 public final class Strings {
 
+  public static String toEnvVar(String string) {
+    return string.replace('.', '_').replace('-', '_').toUpperCase();
+  }
+
   /** com.foo.Bar -> com/foo/Bar.class */
   public static String getResourceName(final String className) {
     if (!className.endsWith(".class")) {

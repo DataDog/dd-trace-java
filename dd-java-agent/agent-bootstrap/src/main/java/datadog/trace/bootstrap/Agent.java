@@ -8,6 +8,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.getResourceName;
+import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
@@ -625,7 +626,7 @@ public class Agent {
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */
   private static String ddGetEnv(final String sysProp) {
-    return System.getenv(sysProp.replace('.', '_').replace('-', '_').toUpperCase());
+    return System.getenv(toEnvVar(sysProp));
   }
 
   private static boolean isJavaBefore9WithJFR() {
