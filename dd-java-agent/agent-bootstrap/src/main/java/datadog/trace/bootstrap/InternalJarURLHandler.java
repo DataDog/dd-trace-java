@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap;
 
-import datadog.trace.bootstrap.instrumentation.api.Pair;
+import datadog.trace.api.Pair;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;

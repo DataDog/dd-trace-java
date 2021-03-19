@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.springcloudzuul2;
 
 import datadog.trace.api.Function;
+import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.bootstrap.instrumentation.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public class ResourceNameCache {
