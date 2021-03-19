@@ -43,4 +43,59 @@ class NameMatchersTest extends DDSpecification {
     "bar"     | false
     "missing" | true
   }
+
+  def "test named"() {
+    setup:
+    def named = Mock(NamedElement)
+    named.getActualName() >> { name }
+    def matcher = NameMatchers.named("foo")
+
+    when:
+    def result = matcher.matches(named)
+
+    then:
+    result == expected
+
+    where:
+    name  | expected
+    "foo" | true
+    "bar" | false
+  }
+
+  def "test nameStartsWith"() {
+    setup:
+    def named = Mock(NamedElement)
+    named.getActualName() >> { name }
+    def matcher = NameMatchers.nameStartsWith("foo")
+
+    when:
+    def result = matcher.matches(named)
+
+    then:
+    result == expected
+
+    where:
+    name      | expected
+    "foo"     | true
+    "food"    | true
+    "barfood" | false
+  }
+
+  def "test nameEndsWith"() {
+    setup:
+    def named = Mock(NamedElement)
+    named.getActualName() >> { name }
+    def matcher = NameMatchers.nameEndsWith("foo")
+
+    when:
+    def result = matcher.matches(named)
+
+    then:
+    result == expected
+
+    where:
+    name    | expected
+    "tofoo" | true
+    "tofu"  | false
+  }
 }
