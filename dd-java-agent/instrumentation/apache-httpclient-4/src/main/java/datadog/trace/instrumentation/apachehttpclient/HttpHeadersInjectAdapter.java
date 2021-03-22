@@ -9,6 +9,6 @@ public class HttpHeadersInjectAdapter implements AgentPropagation.Setter<HttpUri
 
   @Override
   public void set(final HttpUriRequest carrier, final String key, final String value) {
-    carrier.addHeader(key, value);
+    carrier.setHeader(key, value);
   }
 }

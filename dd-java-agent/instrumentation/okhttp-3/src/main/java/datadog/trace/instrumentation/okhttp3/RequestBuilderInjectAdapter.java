@@ -14,6 +14,6 @@ public class RequestBuilderInjectAdapter implements AgentPropagation.Setter<Requ
 
   @Override
   public void set(final Request.Builder carrier, final String key, final String value) {
-    carrier.addHeader(key, value);
+    carrier.header(key, value);
   }
 }
