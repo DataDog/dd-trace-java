@@ -8,32 +8,34 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class provides some custom ByteBuddy element matchers to use when applying instrumentation
  */
-public class DDElementMatchers {
+public final class DDElementMatchers {
+
+  private static final Logger log = LoggerFactory.getLogger(DDElementMatchers.class);
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> extendsClass(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return not(isInterface()).and(new SafeExtendsClassMatcher<>(new SafeErasureMatcher<>(matcher)));
+    return not(isInterface()).and(new SafeExtendsClassMatcher<>(matcher));
   }
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> implementsInterface(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return not(isInterface())
-        .and(new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), true));
+    return not(isInterface()).and(new SafeHasSuperTypeMatcher<>(matcher, true));
   }
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), true);
+    return new SafeHasSuperTypeMatcher<>(matcher, true);
   }
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> safeHasSuperType(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return not(isInterface())
-        .and(new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), false));
+    return not(isInterface()).and(new SafeHasSuperTypeMatcher<>(matcher, false));
   }
 
   // TODO: add javadoc
@@ -67,6 +69,21 @@ public class DDElementMatchers {
       } else {
         return "?";
       }
+    }
+  }
+
+  static TypeDescription safeAsErasure(final TypeDefinition typeDefinition) {
+    try {
+      return typeDefinition.asErasure();
+    } catch (final Exception e) {
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "{} trying to get erasure for target {}: {}",
+            e.getClass().getSimpleName(),
+            safeTypeDefinitionName(typeDefinition),
+            e.getMessage());
+      }
+      return null;
     }
   }
 }

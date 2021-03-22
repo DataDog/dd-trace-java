@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeAsErasure;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeTypeDefinitionName;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeErasureMatcher.safeAsErasure;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashSet;
@@ -37,7 +37,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
   private static final Logger log = LoggerFactory.getLogger(SafeHasSuperTypeMatcher.class);
 
   /** The matcher to apply to any super type of the matched type. */
-  private final ElementMatcher<? super TypeDescription.Generic> matcher;
+  private final ElementMatcher<? super TypeDescription> matcher;
 
   private final boolean interfacesOnly;
   /**
@@ -46,21 +46,20 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
    * @param matcher The matcher to apply to any super type of the matched type.
    */
   public SafeHasSuperTypeMatcher(
-      final ElementMatcher<? super TypeDescription.Generic> matcher, final boolean interfacesOnly) {
+      final ElementMatcher<? super TypeDescription> matcher, final boolean interfacesOnly) {
     this.matcher = matcher;
     this.interfacesOnly = interfacesOnly;
   }
 
   @Override
   public boolean matches(final T target) {
-    final Set<TypeDescription> checkedInterfaces = new HashSet<>(8);
+    final Set<TypeDescription> checked = new HashSet<>(8);
     // We do not use foreach loop and iterator interface here because we need to catch exceptions
     // in {@code getSuperClass} calls
     TypeDefinition typeDefinition = target;
     while (typeDefinition != null) {
-      if (((!interfacesOnly || typeDefinition.isInterface())
-              && matcher.matches(typeDefinition.asGenericType()))
-          || hasInterface(typeDefinition, checkedInterfaces)) {
+      if (((!interfacesOnly || typeDefinition.isInterface()) && matches(typeDefinition, checked))
+          || hasInterface(typeDefinition, checked)) {
         return true;
       }
       typeDefinition = safeGetSuperClass(typeDefinition);
@@ -68,23 +67,23 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     return false;
   }
 
+  private boolean matches(TypeDefinition typeDefinition, Set<TypeDescription> checked) {
+    TypeDescription erasure = safeAsErasure(typeDefinition);
+    return null != erasure && checked.add(erasure) && matcher.matches(erasure);
+  }
+
   /**
    * Matches a type's interfaces against the provided matcher.
    *
    * @param typeDefinition The type for which to check all implemented interfaces.
-   * @param checkedInterfaces The interfaces that have already been checked.
+   * @param checked The interfaces that have already been checked.
    * @return {@code true} if any interface matches the supplied matcher.
    */
   private boolean hasInterface(
-      final TypeDefinition typeDefinition, final Set<TypeDescription> checkedInterfaces) {
+      final TypeDefinition typeDefinition, final Set<TypeDescription> checked) {
     for (final TypeDefinition interfaceType : safeGetInterfaces(typeDefinition)) {
-      final TypeDescription erasure = safeAsErasure(interfaceType);
-      if (erasure != null) {
-        if (checkedInterfaces.add(interfaceType.asErasure())
-            && (matcher.matches(interfaceType.asGenericType())
-                || hasInterface(interfaceType, checkedInterfaces))) {
-          return true;
-        }
+      if (matches(interfaceType, checked) || hasInterface(interfaceType, checked)) {
+        return true;
       }
     }
     return false;

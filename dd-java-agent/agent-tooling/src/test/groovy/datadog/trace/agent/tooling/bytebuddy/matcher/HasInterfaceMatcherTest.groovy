@@ -45,7 +45,6 @@ class HasInterfaceMatcherTest extends DDSpecification {
   def "test traversal exceptions"() {
     setup:
     def type = Mock(TypeDescription)
-    def typeGeneric = Mock(TypeDescription.Generic)
     def matcher = implementsInterface(named(Object.name))
     def interfaces = Mock(TypeList.Generic)
     def it = new ThrowOnFirstElement()
@@ -58,9 +57,8 @@ class HasInterfaceMatcherTest extends DDSpecification {
     noExceptionThrown()
     1 * type.getModifiers() >> Opcodes.ACC_ABSTRACT
     1 * type.isInterface() >> true
-    1 * type.asGenericType() >> typeGeneric
-    1 * typeGeneric.asErasure() >> { throw new Exception("asErasure exception") }
-    1 * typeGeneric.getTypeName() >> "typeGeneric-name"
+    1 * type.asErasure() >> type
+    1 * type.getActualName() >> "type-name"
     1 * type.getInterfaces() >> interfaces
     1 * interfaces.iterator() >> it
     1 * type.getSuperClass() >> { throw new Exception("getSuperClass exception") }

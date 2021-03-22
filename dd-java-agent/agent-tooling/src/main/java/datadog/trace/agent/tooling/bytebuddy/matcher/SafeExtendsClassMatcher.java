@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeAsErasure;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeHasSuperTypeMatcher.safeGetSuperClass;
 
 import net.bytebuddy.description.type.TypeDefinition;
@@ -10,9 +11,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 class SafeExtendsClassMatcher<T extends TypeDescription>
     extends ElementMatcher.Junction.AbstractBase<T> {
 
-  private final ElementMatcher<? super TypeDescription.Generic> matcher;
+  private final ElementMatcher<? super TypeDescription> matcher;
 
-  public SafeExtendsClassMatcher(final ElementMatcher<? super TypeDescription.Generic> matcher) {
+  public SafeExtendsClassMatcher(final ElementMatcher<? super TypeDescription> matcher) {
     this.matcher = matcher;
   }
 
@@ -22,12 +23,17 @@ class SafeExtendsClassMatcher<T extends TypeDescription>
     // in {@code getSuperClass} calls
     TypeDefinition typeDefinition = target;
     while (typeDefinition != null) {
-      if (matcher.matches(typeDefinition.asGenericType())) {
+      if (matches(typeDefinition)) {
         return true;
       }
       typeDefinition = safeGetSuperClass(typeDefinition);
     }
     return false;
+  }
+
+  private boolean matches(TypeDefinition typeDefinition) {
+    TypeDescription erasure = safeAsErasure(typeDefinition);
+    return null != erasure && matcher.matches(erasure);
   }
 
   @Override
