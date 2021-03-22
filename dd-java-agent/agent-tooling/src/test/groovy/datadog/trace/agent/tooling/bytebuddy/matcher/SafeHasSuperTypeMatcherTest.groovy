@@ -44,7 +44,7 @@ class SafeHasSuperTypeMatcherTest extends DDSpecification {
   def "test exception getting interfaces"() {
     setup:
     def type = Mock(TypeDescription)
-    def typeGeneric = Mock(TypeDescription.Generic)
+    def erasureType = Mock(TypeDescription)
     def matcher = safeHasSuperType(named(Object.name))
 
     when:
@@ -54,11 +54,10 @@ class SafeHasSuperTypeMatcherTest extends DDSpecification {
     !result // default to false
     noExceptionThrown()
     1 * type.getModifiers() >> Opcodes.ACC_ABSTRACT
-    1 * type.asGenericType() >> typeGeneric
-    1 * typeGeneric.asErasure() >> { throw new Exception("asErasure exception") }
-    1 * typeGeneric.getTypeName() >> "typeGeneric-name"
     1 * type.getInterfaces() >> { throw new Exception("getInterfaces exception") }
     1 * type.getSuperClass() >> { throw new Exception("getSuperClass exception") }
+    1 * type.asErasure() >> erasureType
+    1 * erasureType.getActualName() >> "erasureType"
     2 * type.getTypeName() >> "type-name"
     0 * _
   }
@@ -66,7 +65,6 @@ class SafeHasSuperTypeMatcherTest extends DDSpecification {
   def "test traversal exceptions"() {
     setup:
     def type = Mock(TypeDescription)
-    def typeGeneric = Mock(TypeDescription.Generic)
     def matcher = safeHasSuperType(named(Object.name))
     def interfaces = Mock(TypeList.Generic)
     def it = new ThrowOnFirstElement()
@@ -80,8 +78,7 @@ class SafeHasSuperTypeMatcherTest extends DDSpecification {
     1 * type.getModifiers() >> Opcodes.ACC_ABSTRACT
     1 * type.getInterfaces() >> interfaces
     1 * interfaces.iterator() >> it
-    1 * type.asGenericType() >> typeGeneric
-    1 * typeGeneric.asErasure() >> { throw new Exception("asErasure exception") }
-    1 * typeGeneric.getTypeName() >> "typeGeneric-name"
+    1 * type.asErasure() >> { throw new Exception("asErasure exception") }
+    2 * type.getTypeName() >> "type-name"
   }
 }

@@ -38,7 +38,6 @@ class ExtendsClassMatcherTest extends DDSpecification {
   def "test traversal exceptions"() {
     setup:
     def type = Mock(TypeDescription)
-    def typeGeneric = Mock(TypeDescription.Generic)
     def matcher = extendsClass(named(Object.name))
 
     when:
@@ -48,10 +47,9 @@ class ExtendsClassMatcherTest extends DDSpecification {
     !result // default to false
     noExceptionThrown()
     1 * type.getModifiers() >> Opcodes.ACC_ABSTRACT
-    1 * type.asGenericType() >> typeGeneric
+    1 * type.asErasure() >> type
     1 * type.getTypeName() >> "type-name"
-    1 * typeGeneric.asErasure() >> { throw new Exception("asErasure exception") }
-    1 * typeGeneric.getTypeName() >> "typeGeneric-name"
+    1 * type.getActualName() >> "type-name"
     1 * type.getSuperClass() >> { throw new Exception("getSuperClass exception") }
     0 * _
   }
