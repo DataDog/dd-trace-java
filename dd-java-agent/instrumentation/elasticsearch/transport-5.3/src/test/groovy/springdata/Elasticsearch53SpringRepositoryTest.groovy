@@ -4,6 +4,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
+import org.springframework.context.support.AbstractApplicationContext
 import spock.lang.Retry
 import spock.lang.Shared
 
@@ -24,18 +25,19 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
   @Shared
   DocRepository repo = Proxy.newProxyInstance(
   getClass().getClassLoader(),
-  [DocRepository] as Class[],
+  [DocRepository, AutoCloseable] as Class[],
   new LazyProxyInvoker())
 
   static class LazyProxyInvoker implements InvocationHandler {
     def repo
+    AbstractApplicationContext applicationContext
 
     DocRepository getOrCreateRepository() {
       if (repo != null) {
         return repo
       }
 
-      def applicationContext = new AnnotationConfigApplicationContext(Config)
+      applicationContext = new AnnotationConfigApplicationContext(Config)
       repo = applicationContext.getBean(DocRepository)
 
       return repo
@@ -43,6 +45,10 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
 
     @Override
     Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+      if (method.name.equals("close")) {
+        applicationContext.close()
+        return null
+      }
       return method.invoke(getOrCreateRepository(), args)
     }
   }
@@ -50,6 +56,11 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
   def setupSpec() {
     repo.refresh() // lazy init
     cleanup()
+  }
+
+  def cleanupSpec() {
+    cleanup()
+    repo.close()
   }
 
   def cleanup() {
