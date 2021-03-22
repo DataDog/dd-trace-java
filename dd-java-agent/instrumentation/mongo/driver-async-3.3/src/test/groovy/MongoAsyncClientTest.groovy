@@ -27,6 +27,11 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 class MongoAsyncClientTest extends MongoBaseTest {
   static final String DB_NAME = "v3_async_test_db"
 
+  @Override
+  def dbName() {
+    return DB_NAME
+  }
+
   @Shared
   MongoClient client
 
@@ -128,7 +133,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
     count.get() == 1
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":\"?\",\"documents\":[{\"_id\":\"?\",\"password\":\"?\"}]}")
+        mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}")
       }
       trace(1) {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
@@ -170,7 +175,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
     count.get() == 1
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "update", "{\"update\":\"?\",\"ordered\":\"?\",\"updates\":[{\"q\":{\"password\":\"?\"},\"u\":{\"\$set\":{\"password\":\"?\"}}}]}")
+        mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}")
       }
       trace(1) {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
@@ -210,7 +215,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
     count.get() == 0
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "delete", "{\"delete\":\"?\",\"ordered\":\"?\",\"deletes\":[{\"q\":{\"password\":\"?\"},\"limit\":\"?\"}]}")
+        mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}")
       }
       trace(1) {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")

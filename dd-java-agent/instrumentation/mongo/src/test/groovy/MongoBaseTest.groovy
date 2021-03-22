@@ -59,9 +59,14 @@ class MongoBaseTest extends AgentTestRunner {
     return "testCollection-" + UUID.randomUUID()
   }
 
+  def dbName() {
+    return "?"
+  }
+
   def matchesStatement(statement) {
+    String dbName = dbName()
     return {
-      assert it.replace(" ", "").replace(',"$db":"?"', '').replace(',"lsid":{"id":"?"}', '').replace(',"readPreference":{"node":"?"}', '') == statement
+      assert it.replace(" ", "").replace(",\"\$db\":\"$dbName\"", "").replace(',"lsid":{"id":"?"}', '').replace(',"readPreference":{"node":"?"}', '') == statement
       return true
     }
   }

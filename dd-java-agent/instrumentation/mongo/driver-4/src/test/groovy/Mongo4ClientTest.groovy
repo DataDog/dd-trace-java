@@ -32,6 +32,11 @@ class Mongo4ClientTest extends MongoBaseTest {
     client = null
   }
 
+  @Override
+  def dbName() {
+    return DB_NAME
+  }
+
   def "test create collection"() {
     setup:
     MongoDatabase db = client.getDatabase(DB_NAME)
@@ -106,7 +111,7 @@ class Mongo4ClientTest extends MongoBaseTest {
     collection.estimatedDocumentCount() == 1
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":\"?\",\"documents\":[{\"_id\":\"?\",\"password\":\"?\"}]}")
+        mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}")
       }
       trace(1) {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
@@ -139,7 +144,7 @@ class Mongo4ClientTest extends MongoBaseTest {
     collection.estimatedDocumentCount() == 1
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "update", "{\"update\":\"?\",\"ordered\":\"?\",\"updates\":[{\"q\":{\"password\":\"?\"},\"u\":{\"\$set\":{\"password\":\"?\"}}}]}")
+        mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}")
       }
       trace(1) {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
@@ -170,7 +175,7 @@ class Mongo4ClientTest extends MongoBaseTest {
     collection.estimatedDocumentCount() == 0
     assertTraces(2) {
       trace(1) {
-        mongoSpan(it, 0, "delete", "{\"delete\":\"?\",\"ordered\":\"?\",\"deletes\":[{\"q\":{\"password\":\"?\"},\"limit\":\"?\"}]}")
+        mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}")
       }
       trace(1) {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
