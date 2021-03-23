@@ -38,11 +38,24 @@ public class JUnit4Decorator extends TestDecorator {
   public void onTestStart(
       final AgentSpan span, final Description description, final String testNameArg) {
     final String testSuite = description.getClassName();
-    final String testName = (testNameArg != null) ? testNameArg : description.getMethodName();
+    final String fullTestName = (testNameArg != null) ? testNameArg : description.getMethodName();
 
-    span.setResourceName(testSuite + "." + testName);
+    // For parameterized tests, the test name contains a custom test name
+    // within the brackets. e.g. parameterized_test[0].
+    // For the test.name tag, we need to normalize the test names.
+    // "parameterized_test[0]" must be "parameterized_test".
+    final String normalizedTestName = JUnit4Utils.normalizeTestName(fullTestName);
+    span.setResourceName(testSuite + "." + normalizedTestName);
     span.setTag(Tags.TEST_SUITE, testSuite);
-    span.setTag(Tags.TEST_NAME, testName);
+    span.setTag(Tags.TEST_NAME, normalizedTestName);
+
+    // If the fullTestName != normalizedTestName, we assume it is a parameterized test.
+    if (!fullTestName.equals(normalizedTestName)) {
+      // No public access to the test parameters map in JUnit4.
+      // In this case, we store the fullTestName in the "metadata.test_name" object.
+      span.setTag(Tags.TEST_PARAMETERS, "{\"metadata\":{\"test_name\":\"" + fullTestName + "\"}}");
+    }
+
     // We cannot set TEST_PASS status in onTestFinish(...) method because that method
     // is executed always after onTestFailure. For that reason, TEST_PASS status is preset
     // in onTestStart.
