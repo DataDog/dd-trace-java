@@ -25,12 +25,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Timeout(10)
 class MongoAsyncClientTest extends MongoBaseTest {
-  static final String DB_NAME = "v3_async_test_db"
-
-  @Override
-  def dbName() {
-    return DB_NAME
-  }
 
   @Shared
   MongoClient client
@@ -47,16 +41,13 @@ class MongoAsyncClientTest extends MongoBaseTest {
   }
 
   def cleanup() throws Exception {
-    def latch = new CountDownLatch(1)
-    client.getDatabase(DB_NAME).drop(toCallback { latch.countDown() })
-    latch.await()
     client?.close()
     client = null
   }
 
   def "test create collection"() {
     setup:
-    MongoDatabase db = client.getDatabase(DB_NAME)
+    MongoDatabase db = client.getDatabase(databaseName)
 
     when:
     db.createCollection(collectionName, toCallback {})
@@ -74,7 +65,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test create collection no description"() {
     setup:
-    MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(DB_NAME)
+    MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
 
     when:
     db.createCollection(collectionName, toCallback {})
@@ -82,7 +73,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", DB_NAME)
+        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", databaseName)
       }
     }
 
@@ -92,7 +83,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test get collection"() {
     setup:
-    MongoDatabase db = client.getDatabase(DB_NAME)
+    MongoDatabase db = client.getDatabase(databaseName)
 
     when:
     def count = new CompletableFuture()
@@ -113,7 +104,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
   def "test insert"() {
     setup:
     MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(DB_NAME)
+      MongoDatabase db = client.getDatabase(databaseName)
       def latch1 = new CountDownLatch(1)
       // This creates a trace that isn't linked to the parent... using NIO internally that we don't handle.
       db.createCollection(collectionName, toCallback { latch1.countDown() })
@@ -147,7 +138,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
   def "test update"() {
     setup:
     MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(DB_NAME)
+      MongoDatabase db = client.getDatabase(databaseName)
       def latch1 = new CountDownLatch(1)
       db.createCollection(collectionName, toCallback { latch1.countDown() })
       latch1.await()
@@ -189,7 +180,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
   def "test delete"() {
     setup:
     MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(DB_NAME)
+      MongoDatabase db = client.getDatabase(databaseName)
       def latch1 = new CountDownLatch(1)
       db.createCollection(collectionName, toCallback { latch1.countDown() })
       latch1.await()

@@ -23,7 +23,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Timeout(10)
 class Mongo4ReactiveClientTest extends MongoBaseTest {
-  static final String DB_NAME = "v4_async_test_db"
 
   @Shared
   MongoClient client
@@ -33,16 +32,13 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
   }
 
   def cleanup() throws Exception {
-    def latch = new CountDownLatch(1)
-    client.getDatabase(DB_NAME).drop().subscribe(toSubscriber { latch.countDown() })
-    latch.await()
     client?.close()
     client = null
   }
 
   MongoCollection<Document> setupCollection(String collectionName) {
     MongoCollection<Document> collection = runUnderTrace("setup") {
-      MongoDatabase db = client.getDatabase(DB_NAME)
+      MongoDatabase db = client.getDatabase(databaseName)
       def latch = new CountDownLatch(1)
       // This creates a trace that isn't linked to the parent... using NIO internally that we don't handle.
       db.createCollection(collectionName).subscribe(toSubscriber { latch.countDown() })
@@ -71,7 +67,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test create collection"() {
     setup:
-    MongoDatabase db = client.getDatabase(DB_NAME)
+    MongoDatabase db = client.getDatabase(databaseName)
 
     when:
     db.createCollection(collectionName).subscribe(toSubscriber {})
@@ -89,7 +85,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test create collection no description"() {
     setup:
-    MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(DB_NAME)
+    MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
 
     when:
     db.createCollection(collectionName).subscribe(toSubscriber {})
@@ -97,7 +93,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", DB_NAME)
+        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", databaseName)
       }
     }
 
@@ -107,7 +103,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test get collection"() {
     setup:
-    MongoDatabase db = client.getDatabase(DB_NAME)
+    MongoDatabase db = client.getDatabase(databaseName)
 
     when:
     def count = new CompletableFuture()

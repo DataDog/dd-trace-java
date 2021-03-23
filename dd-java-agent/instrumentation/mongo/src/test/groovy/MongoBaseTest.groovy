@@ -16,6 +16,10 @@ import spock.lang.Shared
  * they downloader is at risk of a race condition.
  */
 class MongoBaseTest extends AgentTestRunner {
+
+  @Shared
+  def databaseName = "database"
+
   // https://github.com/flapdoodle-oss/de.flapdoodle.embed.mongo#executable-collision
   private static final MongodStarter STARTER = MongodStarter.getDefaultInstance()
 
@@ -59,14 +63,9 @@ class MongoBaseTest extends AgentTestRunner {
     return "testCollection-" + UUID.randomUUID()
   }
 
-  def dbName() {
-    return "?"
-  }
-
   def matchesStatement(statement) {
-    String dbName = dbName()
     return {
-      assert it.replace(" ", "").replace(",\"\$db\":\"$dbName\"", "").replace(',"lsid":{"id":"?"}', '').replace(',"readPreference":{"node":"?"}', '') == statement
+      assert it.replace(" ", "").replace(",\"\$db\":\"$databaseName\"", "").replace(',"lsid":{"id":"?"}', '').replace(',"readPreference":{"node":"?"}', '') == statement
       return true
     }
   }
