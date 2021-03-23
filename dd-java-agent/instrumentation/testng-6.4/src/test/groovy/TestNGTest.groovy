@@ -6,6 +6,7 @@ import org.example.TestError
 import org.example.TestFailed
 import org.example.TestFailedWithSuccessPercentage
 import org.example.TestInheritance
+import org.example.TestParameterized
 import org.example.TestSkipped
 import org.example.TestSucceed
 import org.testng.TestNG
@@ -134,6 +135,28 @@ class TestNGTest extends TestFrameworkTest {
 
     where:
     testTags = ["$Tags.TEST_SKIP_REASON": "Ignore reason in test"]
+  }
+
+  def "test parameterized generates spans"() {
+    setup:
+    def testNG = new TestNG()
+    testNG.setTestClasses(TestParameterized)
+    testNG.setOutputDirectory(testOutputDir)
+    testNG.run()
+
+    expect:
+    assertTraces(2) {
+      trace(1) {
+        testSpan(it, 0, "org.example.TestParameterized", "parameterized_test_succeed", TestDecorator.TEST_PASS, testTags_0)
+      }
+      trace(1) {
+        testSpan(it, 0, "org.example.TestParameterized", "parameterized_test_succeed", TestDecorator.TEST_PASS, testTags_1)
+      }
+    }
+
+    where:
+    testTags_0 = ["$Tags.TEST_PARAMETERS": "{\"0\":\"hello\",\"1\":\"true\"}"]
+    testTags_1 = ["$Tags.TEST_PARAMETERS": "{\"0\":\"goodbye\",\"1\":\"false\"}"]
   }
 
   @Override
