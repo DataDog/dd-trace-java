@@ -9,4 +9,7 @@ public interface MetricsAggregator extends AutoCloseable {
   void report();
 
   boolean publish(List<? extends CoreSpan<?>> trace);
+
+  @Override
+  void close();
 }
