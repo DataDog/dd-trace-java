@@ -46,8 +46,8 @@ public class HostAndRequestAsHttpUriRequest extends AbstractHttpMessage implemen
   }
 
   @Override
-  public void addHeader(final String name, final String value) {
-    actualRequest.addHeader(name, value);
+  public void setHeader(final String name, final String value) {
+    actualRequest.setHeader(name, value);
   }
 
   @Override
