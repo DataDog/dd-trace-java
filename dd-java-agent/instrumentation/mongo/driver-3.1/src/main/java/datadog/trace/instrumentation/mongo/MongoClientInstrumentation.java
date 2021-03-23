@@ -33,7 +33,12 @@ public final class MongoClientInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".MongoClientDecorator", packageName + ".TracingCommandListener"
+      packageName + ".MongoClientDecorator",
+      packageName + ".BsonScrubber",
+      packageName + ".BsonScrubber$1",
+      packageName + ".BsonScrubber$2",
+      packageName + ".Context",
+      packageName + ".TracingCommandListener"
     };
   }
 
