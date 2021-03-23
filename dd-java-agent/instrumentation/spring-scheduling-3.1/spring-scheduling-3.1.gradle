@@ -30,5 +30,15 @@ dependencies {
 
   testCompile project(':dd-java-agent:instrumentation:trace-annotation')
 
+  testCompile group: 'net.javacrumbs.shedlock', name: 'shedlock-spring', version: '4.21.0'
+  testCompile group: 'net.javacrumbs.shedlock', name: 'shedlock-provider-jdbc-template', version: '4.21.0'
+  testCompile group: 'com.h2database', name: 'h2', version: '1.4.199'
+  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.4.0'
+
   latestDepTestCompile group: 'org.springframework', name: 'spring-context', version: '5.+'
+
+  latestDepTestCompile group: 'net.javacrumbs.shedlock', name: 'shedlock-spring', version: '4.+'
+  latestDepTestCompile group: 'net.javacrumbs.shedlock', name: 'shedlock-provider-jdbc-template', version: '4.+'
+  latestDepTestCompile group: 'com.h2database', name: 'h2', version: '+'
+  latestDepTestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.+'
 }
