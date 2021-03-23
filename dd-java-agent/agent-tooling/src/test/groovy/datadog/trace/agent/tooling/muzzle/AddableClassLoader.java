@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.muzzle;
 
+import datadog.trace.util.Strings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -46,7 +47,7 @@ public class AddableClassLoader extends SecureClassLoader {
 
   public void addClass(Class<?> existingClass) throws IOException {
     String name = existingClass.getName();
-    String resourceName = name.replace('.', '/') + ".class";
+    String resourceName = Strings.getResourceName(name);
     URL classResource = existingClass.getResource("/" + resourceName);
     InputStream classStream = classResource.openStream();
     assert classStream != null;

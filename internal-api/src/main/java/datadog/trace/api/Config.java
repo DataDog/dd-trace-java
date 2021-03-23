@@ -169,6 +169,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
+import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
@@ -601,10 +602,10 @@ public class Config {
             && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
     tracerMetricsEnabled =
-        isJavaVersionAtLeast(8) && configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+        isJavaVersionAtLeast(8) && configProvider.getBoolean(TRACER_METRICS_ENABLED, true);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
-    tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 1000);
+    tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
     tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
 
     logsInjectionEnabled =
@@ -1334,8 +1335,7 @@ public class Config {
       return Boolean.parseBoolean(tracerDebugLevelProp);
     }
 
-    final String tracerDebugLevelEnv =
-        System.getenv(tracerDebugLevelSysprop.replace('.', '_').toUpperCase());
+    final String tracerDebugLevelEnv = System.getenv(toEnvVar(tracerDebugLevelSysprop));
 
     if (tracerDebugLevelEnv != null) {
       return Boolean.parseBoolean(tracerDebugLevelEnv);

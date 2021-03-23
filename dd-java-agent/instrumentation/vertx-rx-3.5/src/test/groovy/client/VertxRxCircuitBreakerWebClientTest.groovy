@@ -9,6 +9,7 @@ import io.vertx.ext.web.client.WebClientOptions
 import io.vertx.reactivex.circuitbreaker.CircuitBreaker
 import io.vertx.reactivex.core.Vertx
 import io.vertx.reactivex.ext.web.client.WebClient
+import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Timeout
 
@@ -22,12 +23,18 @@ class VertxRxCircuitBreakerWebClientTest extends HttpClientTest {
     return false
   }
 
+  @AutoCleanup
   @Shared
   Vertx vertx = Vertx.vertx(new VertxOptions())
+
   @Shared
   def clientOptions = new WebClientOptions().setConnectTimeout(CONNECT_TIMEOUT_MS).setIdleTimeout(READ_TIMEOUT_MS)
+
+  @AutoCleanup
   @Shared
   WebClient client = WebClient.create(vertx, clientOptions)
+
+  @AutoCleanup
   @Shared
   CircuitBreaker breaker = CircuitBreaker.create("my-circuit-breaker", vertx,
   new CircuitBreakerOptions()

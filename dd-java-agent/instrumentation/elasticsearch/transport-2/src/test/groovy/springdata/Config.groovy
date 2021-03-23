@@ -2,7 +2,9 @@ package springdata
 
 import org.elasticsearch.common.io.FileSystemUtils
 import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.node.Node
 import org.elasticsearch.node.NodeBuilder
+import org.springframework.beans.factory.DisposableBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
@@ -21,7 +23,7 @@ class Config {
   }
 
   @Bean
-  ElasticsearchOperations elasticsearchTemplate() {
+  NodeBean elasticsearchNode() {
 
     def tmpDir = File.createTempFile("test-es-working-dir-", "")
     tmpDir.delete()
@@ -43,7 +45,28 @@ class Config {
 
     println "ES work dir: $tmpDir"
 
-    return new ElasticsearchTemplate(nodeBuilder().local(true)
-      .settings(elasticsearchSettings.build()).node().client())
+    return new NodeBean(nodeBuilder().local(true).settings(elasticsearchSettings.build()).node())
+  }
+
+  @Bean
+  ElasticsearchOperations elasticsearchTemplate(NodeBean bean) {
+    return new ElasticsearchTemplate(bean.node.client())
+  }
+
+  static final class NodeBean implements DisposableBean {
+    Node node
+
+    NodeBean(Node node) {
+      this.node = node
+    }
+
+    Node getNode() {
+      return node
+    }
+
+    @Override
+    void destroy() throws Exception {
+      node.close()
+    }
   }
 }

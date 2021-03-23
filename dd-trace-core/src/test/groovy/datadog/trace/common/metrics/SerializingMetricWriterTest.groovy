@@ -1,7 +1,7 @@
 package datadog.trace.common.metrics
 
 import datadog.trace.api.WellKnownTags
-import datadog.trace.bootstrap.instrumentation.api.Pair
+import datadog.trace.api.Pair
 import datadog.trace.test.util.DDSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker

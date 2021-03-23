@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling.context;
 
+import static datadog.trace.util.Strings.getInternalName;
+
 import datadog.trace.agent.tooling.Utils;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextStoreAppliedMarker;
@@ -29,7 +31,7 @@ final class FieldInjectionVisitor implements AsmVisitorWrapper {
   private static final Logger log = LoggerFactory.getLogger(FieldInjectionVisitor.class);
 
   private static final String INJECTED_FIELDS_MARKER_CLASS_NAME =
-      Utils.getInternalName(FieldBackedContextStoreAppliedMarker.class.getName());
+      getInternalName(FieldBackedContextStoreAppliedMarker.class.getName());
 
   private final boolean serialVersionUIDFieldInjection =
       Config.get().isSerialVersionUIDFieldInjection();

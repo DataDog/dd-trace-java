@@ -29,6 +29,10 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
     TEST_WRITER.waitUntilReported(cleanupSpan)
   }
 
+  def cleanupSpec() {
+    applicationContext?.close()
+  }
+
   def "test empty repo"() {
     when:
     def result = repo.findAll()

@@ -6,11 +6,11 @@ import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.DECOR
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHandler;
 import com.ning.http.client.Response;
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Pair;
 import net.bytebuddy.asm.Advice;
 
 @SuppressWarnings({"unchecked", "rawtypes"})

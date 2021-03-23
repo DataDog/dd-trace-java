@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.agent.tooling.context.ContextStoreUtils.getContextStoreImplementationClassName;
+import static datadog.trace.util.Strings.getInternalName;
 
-import datadog.trace.agent.tooling.Utils;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
@@ -29,7 +29,7 @@ final class ContextStoreReadsRewritingVisitor implements AsmVisitorWrapper {
       LoggerFactory.getLogger(ContextStoreReadsRewritingVisitor.class);
 
   private static final String INSTRUMENTATION_CONTEXT_CLASS =
-      Utils.getInternalName(InstrumentationContext.class.getName());
+      getInternalName(InstrumentationContext.class.getName());
 
   private static final String GET_METHOD = "get";
   private static final String GET_METHOD_DESCRIPTOR =

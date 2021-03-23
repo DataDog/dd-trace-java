@@ -7,6 +7,7 @@ import io.vertx.core.VertxOptions
 import io.vertx.core.http.HttpClientOptions
 import io.vertx.core.http.HttpClientResponse
 import io.vertx.core.http.HttpMethod
+import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Timeout
 
@@ -20,10 +21,14 @@ class VertxHttpClientTest extends HttpClientTest {
     return false
   }
 
+  @AutoCleanup
   @Shared
   def vertx = Vertx.vertx(new VertxOptions())
+
   @Shared
   def clientOptions = new HttpClientOptions().setConnectTimeout(CONNECT_TIMEOUT_MS).setIdleTimeout(READ_TIMEOUT_MS)
+
+  @AutoCleanup
   @Shared
   def httpClient = vertx.createHttpClient(clientOptions)
 

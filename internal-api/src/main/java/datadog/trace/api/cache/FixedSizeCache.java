@@ -1,6 +1,7 @@
 package datadog.trace.api.cache;
 
 import datadog.trace.api.Function;
+import datadog.trace.api.Pair;
 
 /**
  * This is a fixed size cache that only has one operation <code>computeIfAbsent</code>, that is used
@@ -20,23 +21,13 @@ final class FixedSizeCache<K, V> implements DDCache<K, V> {
 
   static final int MAXIMUM_CAPACITY = 1 << 30;
 
-  private static final class Node<K, V> {
-    private final K key;
-    private final V value;
-
-    private Node(K key, V value) {
-      this.key = key;
-      this.value = value;
-    }
-  }
-
   private final int mask;
   // This is a cache, so there is no need for volatile, atomics or synchronized.
   // All race conditions here are benign since you always read or write a full
   // Node that can not be modified, and eventually other threads will see it or
   // write the same information at that position, or other information in the
   // case of a collision.
-  private final Node<K, V>[] elements;
+  private final Pair<K, V>[] elements;
 
   /**
    * Creates a <code>FixedSizeCache</code> that can hold up to <code>capacity</code> elements, if
@@ -55,7 +46,7 @@ final class FixedSizeCache<K, V> implements DDCache<K, V> {
     int n = -1 >>> Integer.numberOfLeadingZeros(capacity - 1);
     n = (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
     @SuppressWarnings({"rawtype", "unchecked"})
-    Node<K, V>[] lmnts = (Node<K, V>[]) new Node[n];
+    Pair<K, V>[] lmnts = (Pair<K, V>[]) new Pair[n];
     this.elements = lmnts;
     this.mask = n - 1;
   }
@@ -79,14 +70,14 @@ final class FixedSizeCache<K, V> implements DDCache<K, V> {
     // try to find a slot or a match 3 times
     for (int i = 1; true; i++) {
       int pos = h & mask;
-      Node<K, V> current = elements[pos];
+      Pair<K, V> current = elements[pos];
       if (current == null) {
         // we found an empty slot, so store the value there
         value = createAndStoreValue(key, creator, pos);
         break;
-      } else if (key.equals(current.key)) {
+      } else if (key.equals(current.getLeft())) {
         // we found a cached key, so use that value
-        value = current.value;
+        value = current.getRight();
         break;
       } else if (i == 3) {
         // all 3 slots have been taken, so overwrite the first one
@@ -101,8 +92,7 @@ final class FixedSizeCache<K, V> implements DDCache<K, V> {
 
   private V createAndStoreValue(K key, Function<K, ? extends V> creator, int pos) {
     V value = creator.apply(key);
-    Node<K, V> node = new Node<>(key, value);
-    elements[pos] = node;
+    elements[pos] = Pair.of(key, value);
     return value;
   }
 

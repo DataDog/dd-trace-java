@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
+import static datadog.trace.util.Strings.getResourceName;
 
 import datadog.trace.agent.tooling.Utils;
 import java.io.IOException;
@@ -23,7 +24,7 @@ public final class DDClassFileLocator extends WeakReference<ClassLoader>
 
   @Override
   public Resolution locate(final String className) throws IOException {
-    String resourceName = className.replace('.', '/') + ".class";
+    String resourceName = getResourceName(className);
 
     // try bootstrap first
     Resolution resolution = loadClassResource(Utils.getBootstrapProxy(), resourceName);

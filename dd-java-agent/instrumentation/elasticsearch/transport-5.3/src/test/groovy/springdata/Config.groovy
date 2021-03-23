@@ -6,6 +6,7 @@ import org.elasticsearch.env.Environment
 import org.elasticsearch.node.InternalSettingsPreparer
 import org.elasticsearch.node.Node
 import org.elasticsearch.transport.Netty3Plugin
+import org.springframework.beans.factory.DisposableBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.Configuration
@@ -24,7 +25,7 @@ class Config {
   }
 
   @Bean
-  ElasticsearchOperations elasticsearchTemplate() {
+  NodeBean elasticsearchNode() {
     def tmpDir = File.createTempFile("test-es-working-dir-", "")
     tmpDir.delete()
     tmpDir.mkdir()
@@ -49,6 +50,28 @@ class Config {
 
     println "ES work dir: $tmpDir"
 
-    return new ElasticsearchTemplate(new Node(new Environment(InternalSettingsPreparer.prepareSettings(settings)), [Netty3Plugin]).start().client())
+    return new NodeBean(new Node(new Environment(InternalSettingsPreparer.prepareSettings(settings)), [Netty3Plugin]))
+  }
+
+  @Bean
+  ElasticsearchOperations elasticsearchTemplate(NodeBean bean) {
+    return new ElasticsearchTemplate(bean.node.start().client())
+  }
+
+  static final class NodeBean implements DisposableBean {
+    Node node
+
+    NodeBean(Node node) {
+      this.node = node
+    }
+
+    Node getNode() {
+      return node
+    }
+
+    @Override
+    void destroy() throws Exception {
+      node.close()
+    }
   }
 }

@@ -8,7 +8,49 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public final class NameMatchers {
+public final class NameMatchers<T extends NamedElement>
+    extends ElementMatcher.Junction.AbstractBase<T> {
+
+  private static final int NAMED = 0;
+  private static final int NAME_STARTS_WITH = 1;
+  private static final int NAME_ENDS_WITH = 2;
+  private static final int NAMED_ONE_OF = 3;
+  private static final int NAMED_NONE_OF = 4;
+
+  @SuppressWarnings("unchecked")
+  private static final ConcurrentHashMap<String, NameMatchers<?>>[] DEDUPLICATORS =
+      new ConcurrentHashMap[3];
+
+  static {
+    DEDUPLICATORS[0] = new ConcurrentHashMap<>();
+    DEDUPLICATORS[1] = new ConcurrentHashMap<>();
+    DEDUPLICATORS[2] = new ConcurrentHashMap<>();
+  }
+
+  @SuppressWarnings("unchecked")
+  static <T extends NamedElement> NameMatchers<T> deduplicate(int mode, String data) {
+    assert mode <= NAME_ENDS_WITH : "do not call with sets";
+    // TODO use computeIfAbsent when baselining on JDK8
+    ConcurrentHashMap<String, NameMatchers<?>> deduplicator = DEDUPLICATORS[mode];
+    NameMatchers<T> matcher = (NameMatchers<T>) DEDUPLICATORS[mode].get(data);
+    if (null == matcher) {
+      matcher = new NameMatchers<>(mode, data);
+      NameMatchers<T> predecessor = (NameMatchers<T>) deduplicator.putIfAbsent(data, matcher);
+      if (null != predecessor) {
+        matcher = predecessor;
+      }
+    }
+    return matcher;
+  }
+
+  private final int mode;
+  private final Object data;
+
+  public NameMatchers(int mode, Object data) {
+    assert data instanceof Set || data instanceof String;
+    this.mode = mode;
+    this.data = data;
+  }
 
   /**
    * Matches a {@link NamedElement} for its exact name's membership of a set.
@@ -18,7 +60,7 @@ public final class NameMatchers {
    * @return An element matcher checking if an element's exact name is a member of a set.
    */
   public static <T extends NamedElement> ElementMatcher.Junction<T> namedOneOf(String... names) {
-    return new SetMatcher<>(true, names);
+    return new NameMatchers<>(NAMED_ONE_OF, toSet(names));
   }
 
   /**
@@ -30,7 +72,7 @@ public final class NameMatchers {
    */
   public static <T extends NamedElement> ElementMatcher.Junction<T> namedOneOf(
       Collection<String> names) {
-    return new SetMatcher<>(true, names);
+    return new NameMatchers<>(NAMED_ONE_OF, new HashSet<>(names));
   }
 
   /**
@@ -41,7 +83,7 @@ public final class NameMatchers {
    * @return An element matcher checking if an element's exact name is absent from a set.
    */
   public static <T extends NamedElement> ElementMatcher.Junction<T> namedNoneOf(String... names) {
-    return new SetMatcher<>(false, names);
+    return new NameMatchers<>(NAMED_NONE_OF, toSet(names));
   }
 
   /**
@@ -52,7 +94,7 @@ public final class NameMatchers {
    * @return An element matcher for a named element's name's prefix.
    */
   public static <T extends NamedElement> ElementMatcher.Junction<T> nameStartsWith(String prefix) {
-    return PrefixMatcher.of(prefix);
+    return deduplicate(NAME_STARTS_WITH, prefix);
   }
 
   /**
@@ -63,7 +105,7 @@ public final class NameMatchers {
    * @return An element matcher for a named element's name's suffix.
    */
   public static <T extends NamedElement> ElementMatcher.Junction<T> nameEndsWith(String suffix) {
-    return SuffixMatcher.of(suffix);
+    return deduplicate(NAME_ENDS_WITH, suffix);
   }
 
   /**
@@ -74,125 +116,34 @@ public final class NameMatchers {
    * @return An element matcher for a named element's exact name.
    */
   public static <T extends NamedElement> ElementMatcher.Junction<T> named(String name) {
-    return NameMatcher.of(name);
+    return deduplicate(NAMED, name);
   }
 
-  private static class SetMatcher<T extends NamedElement>
-      extends ElementMatcher.Junction.AbstractBase<T> {
-
-    private final boolean include;
-    private final Set<String> values;
-
-    private SetMatcher(boolean include, String... values) {
-      this.include = include;
-      this.values = new HashSet<>(Arrays.asList(values));
-    }
-
-    private SetMatcher(boolean include, Collection<String> values) {
-      this.include = include;
-      this.values = new HashSet<>(values.size() * 2);
-      this.values.addAll(values);
-    }
-
-    @Override
-    public boolean matches(T target) {
-      boolean contained = values.contains(target.getActualName());
-      return (include && contained) || (!include && !contained);
+  @Override
+  public boolean matches(T target) {
+    String name = target.getActualName();
+    switch (mode) {
+      case NAMED:
+        return name.equals(data);
+      case NAME_STARTS_WITH:
+        return name.startsWith((String) data);
+      case NAME_ENDS_WITH:
+        return name.endsWith((String) data);
+      case NAMED_ONE_OF:
+        return namedOneOf(name);
+      case NAMED_NONE_OF:
+        return !namedOneOf(name);
+      default:
+        return false;
     }
   }
 
-  private static final class NameMatcher<T extends NamedElement>
-      extends ElementMatcher.Junction.AbstractBase<T> {
-    private static final ConcurrentHashMap<String, NameMatcher<? extends NamedElement>>
-        DEDUPLICATOR = new ConcurrentHashMap<>();
-
-    @SuppressWarnings("unchecked")
-    static <T extends NamedElement> NameMatcher<T> of(String name) {
-      // TODO use computeIfAbsent when baselining on JDK8
-      NameMatcher<?> matcher = DEDUPLICATOR.get(name);
-      if (null == matcher) {
-        matcher = new NameMatcher<>(name);
-        NameMatcher<?> predecessor = DEDUPLICATOR.putIfAbsent(name, matcher);
-        if (null != predecessor) {
-          matcher = predecessor;
-        }
-      }
-      return (NameMatcher<T>) matcher;
-    }
-
-    private final String name;
-
-    private NameMatcher(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public boolean matches(T target) {
-      return target.getActualName().equals(name);
-    }
+  @SuppressWarnings("unchecked")
+  private boolean namedOneOf(String name) {
+    return ((Set<String>) data).contains(name);
   }
 
-  private static final class PrefixMatcher<T extends NamedElement>
-      extends ElementMatcher.Junction.AbstractBase<T> {
-
-    private static final ConcurrentHashMap<String, PrefixMatcher<? extends NamedElement>>
-        DEDUPLICATOR = new ConcurrentHashMap<>();
-
-    @SuppressWarnings("unchecked")
-    static <T extends NamedElement> PrefixMatcher<T> of(String prefix) {
-      // TODO use computeIfAbsent when baselining on JDK8
-      PrefixMatcher<?> matcher = DEDUPLICATOR.get(prefix);
-      if (null == matcher) {
-        matcher = new PrefixMatcher<>(prefix);
-        PrefixMatcher<?> predecessor = DEDUPLICATOR.putIfAbsent(prefix, matcher);
-        if (null != predecessor) {
-          matcher = predecessor;
-        }
-      }
-      return (PrefixMatcher<T>) matcher;
-    }
-
-    private final String prefix;
-
-    private PrefixMatcher(String prefix) {
-      this.prefix = prefix;
-    }
-
-    @Override
-    public boolean matches(T target) {
-      return target.getActualName().startsWith(prefix);
-    }
-  }
-
-  private static final class SuffixMatcher<T extends NamedElement>
-      extends ElementMatcher.Junction.AbstractBase<T> {
-
-    private static final ConcurrentHashMap<String, SuffixMatcher<? extends NamedElement>>
-        DEDUPLICATOR = new ConcurrentHashMap<>();
-
-    @SuppressWarnings("unchecked")
-    static <T extends NamedElement> SuffixMatcher<T> of(String suffix) {
-      // TODO use computeIfAbsent when baselining on JDK8
-      SuffixMatcher<?> matcher = DEDUPLICATOR.get(suffix);
-      if (null == matcher) {
-        matcher = new SuffixMatcher<>(suffix);
-        SuffixMatcher<?> predecessor = DEDUPLICATOR.putIfAbsent(suffix, matcher);
-        if (null != predecessor) {
-          matcher = predecessor;
-        }
-      }
-      return (SuffixMatcher<T>) matcher;
-    }
-
-    private final String suffix;
-
-    private SuffixMatcher(String suffix) {
-      this.suffix = suffix;
-    }
-
-    @Override
-    public boolean matches(T target) {
-      return target.getActualName().endsWith(suffix);
-    }
+  private static Set<String> toSet(String... strings) {
+    return new HashSet<>(Arrays.asList(strings));
   }
 }
