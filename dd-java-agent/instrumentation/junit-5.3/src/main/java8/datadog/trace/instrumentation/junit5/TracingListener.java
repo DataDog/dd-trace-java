@@ -45,7 +45,7 @@ public class TracingListener implements TestExecutionListener {
               scope.setAsyncPropagation(true);
 
               DECORATE.afterStart(span);
-              DECORATE.onTestStart(span, methodSource);
+              DECORATE.onTestStart(span, methodSource, testIdentifier);
             });
   }
 
