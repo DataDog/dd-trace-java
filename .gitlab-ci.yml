@@ -66,3 +66,15 @@ deploy_to_bintray:
   script:
     - export BINTRAY_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_api_key --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbintrayUser=$BINTRAY_USER -PbintrayApiKey=$BINTRAY_API_KEY -PbuildInfo.build.number=$CI_JOB_ID artifactoryPublish --max-workers=1 --build-cache --stacktrace --no-daemon
+
+create_key:
+  when: manual
+  tags: [ "runner:docker", "size:large" ]
+  variables:
+    PROJECT_NAME: "dd-trace-java"
+    EXPORT_TO_KEYSERVER: "false" # TODO: Change to true after generation verified.
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/agent-key-management-tools/gpg:1
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+      - pubkeys
