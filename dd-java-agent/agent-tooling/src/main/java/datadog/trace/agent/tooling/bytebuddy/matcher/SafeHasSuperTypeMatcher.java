@@ -1,7 +1,8 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.logException;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeAsErasure;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeTypeDefinitionName;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeGetSuperClass;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashSet;
@@ -10,8 +11,6 @@ import java.util.Set;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An element matcher that matches a super type. This is different from {@link
@@ -33,8 +32,6 @@ import org.slf4j.LoggerFactory;
  */
 class SafeHasSuperTypeMatcher<T extends TypeDescription>
     extends ElementMatcher.Junction.AbstractBase<T> {
-
-  private static final Logger log = LoggerFactory.getLogger(SafeHasSuperTypeMatcher.class);
 
   /** The matcher to apply to any super type of the matched type. */
   private final ElementMatcher<? super TypeDescription> matcher;
@@ -93,42 +90,20 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     return new SafeInterfaceIterator(typeDefinition);
   }
 
-  static TypeDefinition safeGetSuperClass(final TypeDefinition typeDefinition) {
-    try {
-      return typeDefinition.getSuperClass();
-    } catch (final Exception e) {
-      if (log.isDebugEnabled()) {
-        log.debug(
-            "{} trying to get super class for target {}: {}",
-            e.getClass().getSimpleName(),
-            safeTypeDefinitionName(typeDefinition),
-            e.getMessage());
-      }
-      return null;
-    }
-  }
-
-  @Override
-  public String toString() {
-    return "safeHasSuperType(" + matcher + ")";
-  }
-
   @Override
   public boolean equals(final Object other) {
     if (this == other) {
       return true;
-    } else if (other == null) {
-      return false;
-    } else if (getClass() != other.getClass()) {
-      return false;
-    } else {
+    }
+    if (other instanceof SafeHasSuperTypeMatcher) {
       return matcher.equals(((SafeHasSuperTypeMatcher) other).matcher);
     }
+    return false;
   }
 
   @Override
   public int hashCode() {
-    return 17 * 31 + matcher.hashCode();
+    return matcher.hashCode();
   }
 
   /**
@@ -139,7 +114,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
    *
    * <p>This wrapper exists to allow getting interfaces even if the lookup on one fails.
    */
-  private static class SafeInterfaceIterator
+  private static final class SafeInterfaceIterator
       implements Iterator<TypeDefinition>, Iterable<TypeDefinition> {
     private final TypeDefinition typeDefinition;
     private final Iterator<TypeDescription.Generic> it;
@@ -151,7 +126,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
       try {
         it = typeDefinition.getInterfaces().iterator();
       } catch (Exception e) {
-        logException(typeDefinition, e);
+        logException(typeDefinition, "interfaces", e);
       }
       this.it = it;
     }
@@ -163,7 +138,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
           this.next = it.next();
           return true;
         } catch (Exception e) {
-          logException(typeDefinition, e);
+          logException(typeDefinition, "interfaces", e);
           return false;
         }
       }
@@ -182,16 +157,6 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     @Override
     public Iterator<TypeDefinition> iterator() {
       return this;
-    }
-
-    private void logException(TypeDefinition typeDefinition, Exception e) {
-      if (log.isDebugEnabled()) {
-        log.debug(
-            "{} trying to get interfaces for target {}: {}",
-            e.getClass().getSimpleName(),
-            safeTypeDefinitionName(typeDefinition),
-            e.getMessage());
-      }
     }
   }
 }

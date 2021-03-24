@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeHasSuperTypeMatcher.safeGetSuperClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeGetSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.hasSignature;
 
 import java.util.HashSet;
@@ -63,25 +63,18 @@ class HasSuperMethodMatcher<T extends MethodDescription>
   }
 
   @Override
-  public String toString() {
-    return "hasSuperMethodMatcher(" + matcher + ")";
-  }
-
-  @Override
   public boolean equals(final Object other) {
     if (this == other) {
       return true;
-    } else if (other == null) {
-      return false;
-    } else if (getClass() != other.getClass()) {
-      return false;
-    } else {
+    }
+    if (other instanceof HasSuperMethodMatcher) {
       return matcher.equals(((HasSuperMethodMatcher) other).matcher);
     }
+    return false;
   }
 
   @Override
   public int hashCode() {
-    return 17 * 31 + matcher.hashCode();
+    return matcher.hashCode();
   }
 }

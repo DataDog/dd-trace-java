@@ -1,6 +1,5 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.failSafe;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
@@ -152,14 +151,7 @@ public interface Instrumenter {
 
       AgentBuilder.Identified.Extendable agentBuilder =
           parentAgentBuilder
-              .type(
-                  failSafe(
-                      typeMatcher(),
-                      "Instrumentation type matcher unexpected exception: " + getClass().getName()),
-                  failSafe(
-                      classLoaderMatcher(),
-                      "Instrumentation class loader matcher unexpected exception: "
-                          + getClass().getName()))
+              .type(typeMatcher(), classLoaderMatcher())
               .and(NOT_DECORATOR_MATCHER)
               .and(new MuzzleMatcher())
               .transform(DDTransformers.defaultTransformers());

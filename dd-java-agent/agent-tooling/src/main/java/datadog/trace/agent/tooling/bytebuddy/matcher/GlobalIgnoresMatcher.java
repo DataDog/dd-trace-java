@@ -215,28 +215,4 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
 
     return !skipAdditionalLibraryMatcher && additionalLibraryIgnoreMatcher.matches(target);
   }
-
-  @Override
-  public String toString() {
-    return "globalIgnoresMatcher(" + additionalLibraryIgnoreMatcher.toString() + ")";
-  }
-
-  @Override
-  public boolean equals(final Object other) {
-    if (this == other) {
-      return true;
-    } else if (other == null) {
-      return false;
-    } else if (getClass() != other.getClass()) {
-      return false;
-    } else {
-      return additionalLibraryIgnoreMatcher.equals(
-          ((GlobalIgnoresMatcher) other).additionalLibraryIgnoreMatcher);
-    }
-  }
-
-  @Override
-  public int hashCode() {
-    return 17 * 31 + additionalLibraryIgnoreMatcher.hashCode();
-  }
 }

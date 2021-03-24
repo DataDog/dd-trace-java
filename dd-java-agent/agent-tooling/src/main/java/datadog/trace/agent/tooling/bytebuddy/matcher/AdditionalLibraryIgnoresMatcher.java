@@ -314,27 +314,4 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
 
     return false;
   }
-
-  @Override
-  public String toString() {
-    return "additionalLibraryIgnoresMatcher()";
-  }
-
-  @Override
-  public boolean equals(final Object other) {
-    if (!super.equals(other)) {
-      return false;
-    } else if (this == other) {
-      return true;
-    } else if (other == null) {
-      return false;
-    } else {
-      return getClass() == other.getClass();
-    }
-  }
-
-  @Override
-  public int hashCode() {
-    return 17;
-  }
 }
