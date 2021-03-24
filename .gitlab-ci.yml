@@ -70,12 +70,12 @@ deploy_to_bintray:
 
 create_key:
   stage: generate-signing-key
-  # TODO: schedule to run annually.
   when: manual
+  needs: []
   tags: [ "runner:docker", "size:large" ]
   variables:
     PROJECT_NAME: "dd-trace-java"
-    EXPORT_TO_KEYSERVER: "false" # TODO: Change to true after generation verified.
+    EXPORT_TO_KEYSERVER: "true"
   image: $REGISTRY/ci/agent-key-management-tools/gpg:1
   script:
     - /create.sh
