@@ -656,7 +656,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         return (DDScopeEventFactory)
             Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory").newInstance();
       } catch (final Throwable e) {
-        log.debug("Profiling of ScopeEvents is not available");
+        log.debug("Profiling of ScopeEvents is not available. {}", e.getMessage());
       }
     }
     return DDNoopScopeEventFactory.INSTANCE;
