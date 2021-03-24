@@ -2,6 +2,7 @@ stages:
   - ci-image
   - build
   - deploy
+  - generate-signing-key
 
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
@@ -68,12 +69,16 @@ deploy_to_bintray:
     - ./gradlew -PbintrayUser=$BINTRAY_USER -PbintrayApiKey=$BINTRAY_API_KEY -PbuildInfo.build.number=$CI_JOB_ID artifactoryPublish --max-workers=1 --build-cache --stacktrace --no-daemon
 
 create_key:
+  stage: generate-signing-key
   when: manual
+  needs: []
   tags: [ "runner:docker", "size:large" ]
   variables:
     PROJECT_NAME: "dd-trace-java"
-    EXPORT_TO_KEYSERVER: "false" # TODO: Change to true after generation verified.
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/agent-key-management-tools/gpg:1
+    EXPORT_TO_KEYSERVER: "true"
+  image: $REGISTRY/ci/agent-key-management-tools/gpg:1
+  script:
+    - /create.sh
   artifacts:
     expire_in: 2 weeks
     paths:
