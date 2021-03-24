@@ -6,6 +6,9 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.core.ResponseInputStream
 import software.amazon.awssdk.core.async.AsyncResponseTransformer
 import software.amazon.awssdk.core.exception.SdkClientException
+import software.amazon.awssdk.core.interceptor.Context
+import software.amazon.awssdk.core.interceptor.ExecutionAttributes
+import software.amazon.awssdk.core.interceptor.ExecutionInterceptor
 import software.amazon.awssdk.http.apache.ApacheHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
@@ -53,9 +56,21 @@ class Aws2ClientTest extends AgentTestRunner {
     }
   }
 
+  def watch(builder, callback) {
+    builder.addExecutionInterceptor(new ExecutionInterceptor() {
+        @Override
+        void afterExecution(Context.AfterExecution context, ExecutionAttributes executionAttributes) {
+          callback.call()
+        }
+      })
+  }
+
   def "send #operation request with builder {#builder.class.getName()} mocked response"() {
     setup:
+    boolean executed = false
     def client = builder
+      // tests that our instrumentation doesn't disturb any overridden configuration
+      .overrideConfiguration({ watch(it, { executed = true }) })
       .endpointOverride(server.address)
       .region(Region.AP_NORTHEAST_1)
       .credentialsProvider(CREDENTIALS_PROVIDER)
@@ -68,6 +83,7 @@ class Aws2ClientTest extends AgentTestRunner {
     }
 
     expect:
+    executed
     response != null
     response.class.simpleName.startsWith(operation) || response instanceof ResponseInputStream
 
@@ -166,7 +182,10 @@ class Aws2ClientTest extends AgentTestRunner {
 
   def "send #operation async request with builder {#builder.class.getName()} mocked response"() {
     setup:
+    boolean executed = false
     def client = builder
+      // tests that our instrumentation doesn't disturb any overridden configuration
+      .overrideConfiguration({ watch(it, { executed = true }) })
       .endpointOverride(server.address)
       .region(Region.AP_NORTHEAST_1)
       .credentialsProvider(CREDENTIALS_PROVIDER)
@@ -179,6 +198,7 @@ class Aws2ClientTest extends AgentTestRunner {
     }
 
     expect:
+    executed
     response != null
 
     assertTraces(2) {

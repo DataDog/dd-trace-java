@@ -7,9 +7,6 @@ import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORAT
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.function.Consumer;
-import software.amazon.awssdk.core.client.builder.SdkClientBuilder;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.interceptor.Context;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
@@ -17,12 +14,6 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 /** AWS request execution interceptor */
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
-
-  // Note: it looks like this lambda doesn't get generated as a separate class file so we do not
-  // need to inject helper for it.
-  private static final Consumer<ClientOverrideConfiguration.Builder>
-      OVERRIDE_CONFIGURATION_CONSUMER =
-          builder -> builder.addExecutionInterceptor(new TracingExecutionInterceptor());
 
   private static final ExecutionAttribute<AgentSpan> SPAN_ATTRIBUTE =
       new ExecutionAttribute<>("DatadogSpan");
@@ -83,14 +74,6 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       DECORATE.beforeFinish(span);
       span.finish();
     }
-  }
-
-  /**
-   * We keep this method here because it references Java8 classes and we would like to avoid
-   * compiling this for instrumentation code that should load into Java7.
-   */
-  public static void overrideConfiguration(final SdkClientBuilder client) {
-    client.overrideConfiguration(OVERRIDE_CONFIGURATION_CONSUMER);
   }
 
   public static void muzzleCheck() {
