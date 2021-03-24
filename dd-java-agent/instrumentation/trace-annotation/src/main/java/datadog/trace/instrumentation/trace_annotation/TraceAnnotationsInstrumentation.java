@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.trace_annotation;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.instrumentation.trace_annotation.TraceConfigInstrumentation.PACKAGE_CLASS_NAME_REGEX;
 import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 
@@ -24,12 +23,7 @@ import org.slf4j.LoggerFactory;
 @AutoService(Instrumenter.class)
 public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing {
 
-  static final String CONFIG_FORMAT =
-      "(?:\\s*"
-          + PACKAGE_CLASS_NAME_REGEX
-          + "\\s*;)*\\s*"
-          + PACKAGE_CLASS_NAME_REGEX
-          + "\\s*;?\\s*";
+  static final String CONFIG_FORMAT = "(?:\\s*[\\w.$]+\\s*;)*\\s*[\\w.$]+\\s*;?\\s*";
 
   private final ElementMatcher.Junction<NamedElement> methodTraceMatcher;
 

@@ -245,6 +245,7 @@ class TraceConfigTest extends AgentTestRunner {
     value                                                           | expected
     null                                                            | [:]
     " "                                                             | [:]
+    "*"                                                             | [:]
     "some.package.ClassName"                                        | [:]
     "some.package.ClassName[ , ]"                                   | [:]
     "some.package.ClassName[ , method]"                             | [:]
@@ -252,10 +253,13 @@ class TraceConfigTest extends AgentTestRunner {
     "ClassName[ method1,]"                                          | ["ClassName": ["method1"].toSet()]
     "ClassName[method1 , method2]"                                  | ["ClassName": ["method1", "method2"].toSet()]
     "Class\$1[method1 ] ; Class\$2[ method2];"                      | ["Class\$1": ["method1"].toSet(), "Class\$2": ["method2"].toSet()]
-    "Duplicate[method1] ; Duplicate[method2]  ;Duplicate[method3];" | ["Duplicate": ["method3"].toSet()]
+    "Duplicate[method1] ; Duplicate[method2]  ;Duplicate[method3];" | ["Duplicate": ["method1", "method2", "method3"].toSet()]
     "ClassName[*]"                                                  | ["ClassName": ["*"].toSet()]
     "ClassName[*,asdfg]"                                            | [:]
     "ClassName[asdfg,*]"                                            | [:]
     "Class[*] ; Class\$2[ method2];"                                | ["Class": ["*"].toSet(), "Class\$2": ["method2"].toSet()]
+    "Class[*] ; Class\$2[ method2];      "                          | ["Class": ["*"].toSet(), "Class\$2": ["method2"].toSet()]
+    "     Class[*] ; Class\$2[ method2];      "                     | ["Class": ["*"].toSet(), "Class\$2": ["method2"].toSet()]
+    "     Class[*] ; Class\$2[ method2];"                           | ["Class": ["*"].toSet(), "Class\$2": ["method2"].toSet()]
   }
 }
