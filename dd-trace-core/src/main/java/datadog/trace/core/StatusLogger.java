@@ -1,13 +1,15 @@
 package datadog.trace.core;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.logging.LoggingSettingsDescription;
+import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -18,119 +20,105 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StatusLogger {
-
-  private static final Logger log = LoggerFactory.getLogger(StatusLogger.class);
+public final class StatusLogger extends JsonAdapter<Config>
+    implements AgentTaskScheduler.Task<Config>, JsonAdapter.Factory {
 
   public static void logStatus(Config config) {
+    AgentTaskScheduler.INSTANCE.schedule(new StatusLogger(), config, 500, MILLISECONDS);
+  }
+
+  @Override
+  public void run(Config config) {
+    Logger log = LoggerFactory.getLogger(StatusLogger.class);
     if (log.isInfoEnabled()) {
       log.info(
           "DATADOG TRACER CONFIGURATION {}",
-          new Moshi.Builder()
-              .add(ConfigAdapter.FACTORY)
-              .build()
-              .adapter(Config.class)
-              .toJson(config));
+          new Moshi.Builder().add(this).build().adapter(Config.class).toJson(config));
     }
     if (log.isDebugEnabled()) {
       log.debug("class path: {}", System.getProperty("java.class.path"));
     }
   }
 
+  @Override
+  public Config fromJson(JsonReader reader) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void toJson(JsonWriter writer, Config config) throws IOException {
+    if (null == config) {
+      return;
+    }
+    writer.beginObject();
+    writer.name("version");
+    writer.value(DDTraceCoreInfo.VERSION);
+    writer.name("os_name");
+    writer.value(System.getProperty("os.name"));
+    writer.name("os_version");
+    writer.value(System.getProperty("os.version"));
+    writer.name("architecture");
+    writer.value(System.getProperty("os.arch"));
+    writer.name("lang");
+    writer.value("jvm");
+    writer.name("lang_version");
+    writer.value(System.getProperty("java.version"));
+    writer.name("jvm_vendor");
+    writer.value(System.getProperty("java.vendor"));
+    writer.name("jvm_version");
+    writer.value(System.getProperty("java.vm.version"));
+    writer.name("java_class_version");
+    writer.value(System.getProperty("java.class.version"));
+    writer.name("http_nonProxyHosts");
+    writer.value(String.valueOf(System.getProperty("http.nonProxyHosts")));
+    writer.name("http_proxyHost");
+    writer.value(String.valueOf(System.getProperty("http.proxyHost")));
+    writer.name("enabled");
+    writer.value(config.isTraceEnabled());
+    writer.name("service");
+    writer.value(config.getServiceName());
+    writer.name("agent_url");
+    writer.value(config.getAgentUrl());
+    writer.name("agent_unix_domain_socket");
+    writer.value(config.getAgentUnixDomainSocket());
+    writer.name("agent_error");
+    writer.value(!agentServiceCheck(config));
+    writer.name("debug");
+    writer.value(config.isDebugEnabled());
+    writer.name("analytics_enabled");
+    writer.value(config.isTraceAnalyticsEnabled());
+    writer.name("sample_rate");
+    writer.value(config.getTraceSampleRate());
+    writer.name("sampling_rules");
+    writer.beginArray();
+    writeMap(writer, config.getTraceSamplingServiceRules());
+    writeMap(writer, config.getTraceSamplingOperationRules());
+    writer.endArray();
+    writer.name("priority_sampling_enabled");
+    writer.value(config.isPrioritySamplingEnabled());
+    writer.name("logs_correlation_enabled");
+    writer.value(config.isLogsInjectionEnabled());
+    writer.name("profiling_enabled");
+    writer.value(config.isProfilingEnabled());
+    writer.name("dd_version");
+    writer.value(DDTraceApiInfo.VERSION);
+    writer.name("health_checks_enabled");
+    writer.value(config.isHealthMetricsEnabled());
+    writer.name("configuration_file");
+    writer.value(config.getConfigFile());
+    writer.name("runtime_id");
+    writer.value(config.getRuntimeId());
+    writer.name("logging_settings");
+    writeObjectMap(writer, LoggingSettingsDescription.getDescription());
+    writer.endObject();
+  }
+
   private static boolean agentServiceCheck(Config config) {
     try (Socket s = new Socket()) {
-      s.setSoTimeout(500);
-      s.connect(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()));
+      s.connect(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()), 500);
       return true;
     } catch (IOException ex) {
       return false;
-    }
-  }
-
-  private static class ConfigAdapter extends JsonAdapter<Config> {
-
-    public static final JsonAdapter.Factory FACTORY =
-        new JsonAdapter.Factory() {
-
-          @Override
-          public JsonAdapter<?> create(
-              Type type, Set<? extends Annotation> annotations, Moshi moshi) {
-            final Class<?> rawType = Types.getRawType(type);
-            if (rawType.isAssignableFrom(Config.class)) {
-              return new ConfigAdapter();
-            }
-            return null;
-          }
-        };
-
-    @Override
-    public Config fromJson(JsonReader reader) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void toJson(JsonWriter writer, Config config) throws IOException {
-      writer.beginObject();
-      writer.name("version");
-      writer.value(DDTraceCoreInfo.VERSION);
-      writer.name("os_name");
-      writer.value(System.getProperty("os.name"));
-      writer.name("os_version");
-      writer.value(System.getProperty("os.version"));
-      writer.name("architecture");
-      writer.value(System.getProperty("os.arch"));
-      writer.name("lang");
-      writer.value("jvm");
-      writer.name("lang_version");
-      writer.value(System.getProperty("java.version"));
-      writer.name("jvm_vendor");
-      writer.value(System.getProperty("java.vendor"));
-      writer.name("jvm_version");
-      writer.value(System.getProperty("java.vm.version"));
-      writer.name("java_class_version");
-      writer.value(System.getProperty("java.class.version"));
-      writer.name("http_nonProxyHosts");
-      writer.value(String.valueOf(System.getProperty("http.nonProxyHosts")));
-      writer.name("http_proxyHost");
-      writer.value(String.valueOf(System.getProperty("http.proxyHost")));
-      writer.name("enabled");
-      writer.value(config.isTraceEnabled());
-      writer.name("service");
-      writer.value(config.getServiceName());
-      writer.name("agent_url");
-      writer.value(config.getAgentUrl());
-      writer.name("agent_unix_domain_socket");
-      writer.value(config.getAgentUnixDomainSocket());
-      writer.name("agent_error");
-      writer.value(!agentServiceCheck(config));
-      writer.name("debug");
-      writer.value(config.isDebugEnabled());
-      writer.name("analytics_enabled");
-      writer.value(config.isTraceAnalyticsEnabled());
-      writer.name("sample_rate");
-      writer.value(config.getTraceSampleRate());
-      writer.name("sampling_rules");
-      writer.beginArray();
-      writeMap(writer, config.getTraceSamplingServiceRules());
-      writeMap(writer, config.getTraceSamplingOperationRules());
-      writer.endArray();
-      writer.name("priority_sampling_enabled");
-      writer.value(config.isPrioritySamplingEnabled());
-      writer.name("logs_correlation_enabled");
-      writer.value(config.isLogsInjectionEnabled());
-      writer.name("profiling_enabled");
-      writer.value(config.isProfilingEnabled());
-      writer.name("dd_version");
-      writer.value(DDTraceApiInfo.VERSION);
-      writer.name("health_checks_enabled");
-      writer.value(config.isHealthMetricsEnabled());
-      writer.name("configuration_file");
-      writer.value(config.getConfigFile());
-      writer.name("runtime_id");
-      writer.value(config.getRuntimeId());
-      writer.name("logging_settings");
-      writeObjectMap(writer, LoggingSettingsDescription.getDescription());
-      writer.endObject();
     }
   }
 
@@ -158,5 +146,10 @@ public class StatusLogger {
       }
     }
     writer.endObject();
+  }
+
+  @Override
+  public JsonAdapter<?> create(Type type, Set<? extends Annotation> annotations, Moshi moshi) {
+    return this;
   }
 }
