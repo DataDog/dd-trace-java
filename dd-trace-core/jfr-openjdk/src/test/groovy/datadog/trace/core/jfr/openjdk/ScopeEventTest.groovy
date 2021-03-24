@@ -1,40 +1,43 @@
 package datadog.trace.core.jfr.openjdk
 
-import com.timgroup.statsd.NoOpStatsDClient
-import datadog.trace.api.DDId
-import datadog.trace.api.config.GeneralConfig
+
 import datadog.trace.api.config.ProfilingConfig
-import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
-import datadog.trace.core.DDSpanContext
 import datadog.trace.core.util.SystemAccess
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Requires
 
 import java.time.Duration
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
-
 @Requires({
   jvm.java11Compatible
 })
 class ScopeEventTest extends DDSpecification {
-  private static final Duration SLEEP_DURATION = Duration.ofSeconds(1)
+  private static final Duration SLEEP_DURATION = Duration.ofMillis(200)
 
+  def tracer
+
+  def setup() {
+    injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
+    tracer = CoreTracer.builder().writer(new ListWriter()).build()
+  }
+
+  def cleanup() {
+    tracer?.close()
+  }
+
+  // TODO more tests around CPU time (mocking out the SystemAccess class)
   def "Scope event is written with thread CPU time"() {
     setup:
-    injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
-    def tracer = newTracer()
-    def builder = newBuilder(tracer)
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
     when:
-    AgentSpan span = builder.start()
+    AgentSpan span = tracer.buildSpan("test").start()
     AgentScope scope = tracer.activateSpan(span)
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
@@ -48,23 +51,16 @@ class ScopeEventTest extends DDSpecification {
     event.duration >= SLEEP_DURATION
     event.getLong("traceId") == span.context().traceId.toLong()
     event.getLong("spanId") == span.context().spanId.toLong()
-    event.getLong("cpuTime") != Long.MIN_VALUE
-
-    cleanup:
-    SystemAccess.disableJmx()
-    tracer.close()
+    event.getLong("cpuTime") > 0
   }
 
-  def "Scope event is written without thread CPU time - profiling enabled"() {
+  def "Scope event is written without thread CPU time"() {
     setup:
-    injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
-    def tracer = newTracer()
-    def builder = newBuilder(tracer)
     SystemAccess.disableJmx()
     def recording = JfrHelper.startRecording()
 
     when:
-    AgentSpan span = builder.start()
+    AgentSpan span = tracer.buildSpan("test").start()
     AgentScope scope = tracer.activateSpan(span)
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
@@ -79,47 +75,16 @@ class ScopeEventTest extends DDSpecification {
     event.getLong("traceId") == span.context().traceId.toLong()
     event.getLong("spanId") == span.context().spanId.toLong()
     event.getLong("cpuTime") == Long.MIN_VALUE
-
-    cleanup:
-    SystemAccess.disableJmx()
-    tracer.close()
-  }
-
-  def "No scope event produced when profiling disabled"() {
-    setup:
-    injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "false")
-    injectSysConfig(GeneralConfig.HEALTH_METRICS_ENABLED, "false")
-    def tracer = newTracer()
-    def builder = newBuilder(tracer)
-    SystemAccess.enableJmx()
-    def recording = JfrHelper.startRecording()
-
-    when:
-    AgentSpan span = builder.start()
-    AgentScope scope = tracer.activateSpan(span)
-    sleep(SLEEP_DURATION.toMillis())
-    scope.close()
-    def events = JfrHelper.stopRecording(recording)
-    span.finish()
-
-    then:
-    events.isEmpty()
-
-    cleanup:
-    SystemAccess.disableJmx()
-    tracer.close()
   }
 
   def "Scope event is written after continuation activation"() {
     setup:
-    injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
-    def tracer = newTracer()
-    def builder = newBuilder(tracer)
-    AgentSpan span = builder.start()
+    def recording = JfrHelper.startRecording()
+
+    AgentSpan span = tracer.buildSpan("test").start()
     AgentScope parentScope = tracer.activateSpan(span)
     parentScope.setAsyncPropagation(true)
     TraceScope.Continuation continuation = ((TraceScope) parentScope).capture()
-    def recording = JfrHelper.startRecording()
 
     when:
     TraceScope scope = continuation.activate()
@@ -135,37 +100,182 @@ class ScopeEventTest extends DDSpecification {
     event.duration >= SLEEP_DURATION
     event.getLong("traceId") == span.context().traceId.toLong()
     event.getLong("spanId") == span.context().spanId.toLong()
+  }
+
+  def "Scope events are written - two deep"() {
+    setup:
+    SystemAccess.enableJmx()
+    def recording = JfrHelper.startRecording()
+
+    when:
+    AgentSpan span = tracer.buildSpan("test").start()
+    AgentScope scope = tracer.activateSpan(span)
+    sleep(SLEEP_DURATION.toMillis())
+
+    AgentSpan span2 = tracer.buildSpan("test").start()
+    AgentScope scope2 = tracer.activateSpan(span2)
+    sleep(SLEEP_DURATION.toMillis())
+    scope2.close()
+    span2.finish()
+
+    sleep(SLEEP_DURATION.toMillis())
+    scope.close()
+    span.finish()
+
+    def events = JfrHelper.stopRecording(recording)
+
+    then:
+    events.size() == 2
+    events.each {
+      assert it.eventType.name == "datadog.Scope"
+    }
+
+    with(events[0]) {
+      getLong("traceId") == span2.context().traceId.toLong()
+      getLong("spanId") == span2.context().spanId.toLong()
+      duration >= SLEEP_DURATION
+      duration < SLEEP_DURATION * 2
+    }
+
+    with(events[1]) {
+      getLong("traceId") == span.context().traceId.toLong()
+      getLong("spanId") == span.context().spanId.toLong()
+      duration >= SLEEP_DURATION * 3
+      getLong("cpuTime") > events[0].getLong("cpuTime")
+    }
+  }
+
+  def "Scope events are written - two deep, two wide"() {
+    setup:
+    SystemAccess.enableJmx()
+    def recording = JfrHelper.startRecording()
+
+    when:
+    AgentSpan span = tracer.buildSpan("test").start()
+    AgentScope scope = tracer.activateSpan(span)
+    sleep(SLEEP_DURATION.toMillis())
+
+    AgentSpan span2 = tracer.buildSpan("test").start()
+    AgentScope scope2 = tracer.activateSpan(span2)
+    sleep(SLEEP_DURATION.toMillis())
+    scope2.close()
+    span2.finish()
+
+    sleep(SLEEP_DURATION.toMillis())
+    scope.close()
+    span.finish()
+
+    AgentSpan span3 = tracer.buildSpan("test").start()
+    AgentScope scope3 = tracer.activateSpan(span3)
+    sleep(SLEEP_DURATION.toMillis())
+
+    AgentSpan span4 = tracer.buildSpan("test").start()
+    AgentScope scope4 = tracer.activateSpan(span4)
+    sleep(SLEEP_DURATION.toMillis())
+    scope4.close()
+    span4.finish()
+
+    sleep(SLEEP_DURATION.toMillis())
+    scope3.close()
+    span3.finish()
+
+    def events = JfrHelper.stopRecording(recording)
+
+    then:
+    events.size() == 4
+    events.each {
+      assert it.eventType.name == "datadog.Scope"
+    }
+
+    with(events[0]) {
+      getLong("traceId") == span2.context().traceId.toLong()
+      getLong("spanId") == span2.context().spanId.toLong()
+      duration >= SLEEP_DURATION
+      duration < SLEEP_DURATION * 2
+    }
+
+    with(events[1]) {
+      getLong("traceId") == span.context().traceId.toLong()
+      getLong("spanId") == span.context().spanId.toLong()
+      duration >= SLEEP_DURATION * 3
+      getLong("cpuTime") > events[0].getLong("cpuTime")
+    }
+
+    with(events[2]) {
+      getLong("traceId") == span4.context().traceId.toLong()
+      getLong("spanId") == span4.context().spanId.toLong()
+      duration >= SLEEP_DURATION
+      duration < SLEEP_DURATION * 2
+    }
+
+    with(events[3]) {
+      getLong("traceId") == span3.context().traceId.toLong()
+      getLong("spanId") == span3.context().spanId.toLong()
+      duration >= SLEEP_DURATION * 3
+      getLong("cpuTime") > events[2].getLong("cpuTime")
+    }
+  }
+
+  def "Test out of order scope closing"() {
+    setup:
+    def recording = JfrHelper.startRecording()
+
+    when:
+    AgentSpan span = tracer.buildSpan("test").start()
+    AgentScope scope = tracer.activateSpan(span)
+    sleep(SLEEP_DURATION.toMillis())
+
+    AgentSpan span2 = tracer.buildSpan("test").start()
+    AgentScope scope2 = tracer.activateSpan(span2)
+
+    scope.close()
+    span.finish()
+
+    sleep(SLEEP_DURATION.toMillis())
+
+    scope2.close()
+    span2.finish()
+
+    def events = JfrHelper.stopRecording(recording)
+
+    then:
+    events.size() == 2
+    events.each {
+      assert it.eventType.name == "datadog.Scope"
+      assert it.duration >= SLEEP_DURATION
+    }
+
+    with(events[0]) {
+      getLong("traceId") == span2.context().traceId.toLong()
+      getLong("spanId") == span2.context().spanId.toLong()
+    }
+
+    with(events[1]) {
+      getLong("traceId") == span.context().traceId.toLong()
+      getLong("spanId") == span.context().spanId.toLong()
+    }
+  }
+
+  def "Events are not created when profiling is not enabled"() {
+    setup:
+    injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "false")
+    def noProfilingTracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def recording = JfrHelper.startRecording()
+
+    when:
+    AgentSpan span = noProfilingTracer.buildSpan("test").start()
+    AgentScope scope = noProfilingTracer.activateSpan(span)
+    sleep(SLEEP_DURATION.toMillis())
+
+    scope.close()
+    span.finish()
+
+    def events = JfrHelper.stopRecording(recording)
+
+    then:
+    events.isEmpty()
 
     cleanup:
-    tracer.close()
-  }
-
-  def newTracer() {
-    return CoreTracer.builder().serviceName(DEFAULT_SERVICE_NAME)
-      .statsDClient(new NoOpStatsDClient())
-      .writer(new ListWriter()).build()
-  }
-
-  def newBuilder(CoreTracer tracer) {
-    def parentContext =
-      new DDSpanContext(
-      DDId.from(123),
-      DDId.from(432),
-      DDId.from(222),
-      null,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      PrioritySampling.UNSET,
-      null,
-      [:],
-      false,
-      "fakeType",
-      0,
-      tracer.pendingTraceFactory.create(DDId.from(123)))
-    return tracer.buildSpan("test operation")
-      .asChildOf(parentContext)
-      .withServiceName("test service")
-      .withResourceName("test resource")
+    noProfilingTracer.close()
   }
 }

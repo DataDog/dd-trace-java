@@ -4,9 +4,9 @@ import datadog.trace.core.DDTraceCoreInfo;
 
 public class ExcludedVersions {
 
-  public static void checkVersionExclusion() throws ClassNotFoundException {
+  public static void checkVersionExclusion() throws IllegalStateException {
     if (isVersionExcluded(DDTraceCoreInfo.JAVA_VERSION)) {
-      throw new ClassNotFoundException("Excluded java version: " + DDTraceCoreInfo.JAVA_VERSION);
+      throw new IllegalStateException("Excluded java version: " + DDTraceCoreInfo.JAVA_VERSION);
     }
   }
 
