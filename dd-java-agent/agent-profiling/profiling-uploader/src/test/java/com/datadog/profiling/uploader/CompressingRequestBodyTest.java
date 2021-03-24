@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.datadog.profiling.controller.RecordingInputStream;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -218,7 +219,9 @@ class CompressingRequestBodyTest {
       byte[] compressedInput = baos.toByteArray();
 
       CompressingRequestBody instance =
-          new CompressingRequestBody(targetType, () -> new ByteArrayInputStream(compressedInput));
+          new CompressingRequestBody(
+              targetType,
+              () -> new RecordingInputStream(new ByteArrayInputStream(compressedInput)));
       byte[] compressedOutput = instanceWriteAsBytes(instance);
 
       assertArrayEquals(compressedInput, compressedOutput);
@@ -233,7 +236,8 @@ class CompressingRequestBodyTest {
     return baos.toByteArray();
   }
 
-  private static InputStream testRecordingStream() {
-    return CompressingRequestBodyTest.class.getResourceAsStream("/test-recording.jfr");
+  private static RecordingInputStream testRecordingStream() {
+    return new RecordingInputStream(
+        CompressingRequestBodyTest.class.getResourceAsStream("/test-recording.jfr"));
   }
 }

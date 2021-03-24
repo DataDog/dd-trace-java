@@ -3,6 +3,7 @@ package com.datadog.profiling.controller.openjdk;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.internal.verification.VerificationModeFactory;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -51,7 +53,8 @@ public class OpenJdkRecordingDataTest {
 
   @Test
   public void testGetStream() throws IOException {
-    assertEquals(stream, recordingData.getStream());
+    assertNotNull(recordingData.getStream());
+    verify(recording, VerificationModeFactory.times(1)).getStream(start, end);
   }
 
   @Test
@@ -82,7 +85,8 @@ public class OpenJdkRecordingDataTest {
 
   @Test
   public void testCustomGetStream() throws IOException {
-    assertEquals(customStream, customRecordingData.getStream());
+    assertNotNull(customRecordingData.getStream());
+    verify(recording, VerificationModeFactory.times(1)).getStream(customStart, customEnd);
   }
 
   @Test

@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.controller.RecordingInputStream;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.datadog.profiling.uploader.util.PidHelper;
@@ -444,6 +445,20 @@ public class ProfileUploaderTest {
   }
 
   @Test
+  public void testEmptyRecording() throws Exception {
+    final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
+    when(recording.getStream())
+        .then(
+            (Answer<RecordingInputStream>)
+                instance -> new RecordingInputStream(new ByteArrayInputStream(new byte[0])));
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploadAndWait(RECORDING_TYPE, recording);
+
+    final RecordedRequest request = server.takeRequest(500, TimeUnit.MILLISECONDS);
+    assertNull(request);
+  }
+
+  @Test
   public void testHeaders() throws Exception {
     server.enqueue(new MockResponse().setResponseCode(200));
 
@@ -554,7 +569,9 @@ public class ProfileUploaderTest {
         .then(
             (Answer<InputStream>)
                 invocation ->
-                    spy(ProfileUploaderTest.class.getResourceAsStream(recordingResource)));
+                    spy(
+                        new RecordingInputStream(
+                            ProfileUploaderTest.class.getResourceAsStream(recordingResource))));
     when(recordingData.getName()).thenReturn(RECODING_NAME_PREFIX + SEQUENCE_NUMBER);
     when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(PROFILE_START));
     when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(PROFILE_END));

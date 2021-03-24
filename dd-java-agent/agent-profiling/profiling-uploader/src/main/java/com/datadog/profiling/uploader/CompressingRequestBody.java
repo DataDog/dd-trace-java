@@ -1,6 +1,6 @@
 package com.datadog.profiling.uploader;
 
-import java.io.BufferedInputStream;
+import com.datadog.profiling.controller.RecordingInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,10 +21,16 @@ import org.openjdk.jmc.common.io.IOToolkit;
  * data.
  */
 final class CompressingRequestBody extends RequestBody {
+  static final class MissingInputException extends IOException {
+    public MissingInputException(String message) {
+      super(message);
+    }
+  }
+
   /** A simple functional supplier throwing an {@linkplain IOException} */
   @FunctionalInterface
   interface InputStreamSupplier {
-    InputStream get() throws IOException;
+    RecordingInputStream get() throws IOException;
   }
 
   /** A simple functional mapper allowing to throw {@linkplain IOException} */
@@ -114,7 +120,7 @@ final class CompressingRequestBody extends RequestBody {
       @Nonnull InputStreamSupplier inputStreamSupplier,
       @Nonnull RetryPolicy retryPolicy,
       @Nonnull RetryBackoff retryBackoff) {
-    this.inputStreamSupplier = () -> ensureMarkSupported(inputStreamSupplier.get());
+    this.inputStreamSupplier = inputStreamSupplier;
     this.outputStreamMapper = getOutputStreamMapper(compressionType);
     this.retryPolicy = retryPolicy;
     this.retryBackoff = retryBackoff;
@@ -149,8 +155,13 @@ final class CompressingRequestBody extends RequestBody {
        * should use the OkHttpClient callback to get notified about failed requests and handle the retries
        * at the request level.
        */
-      try (ByteCountingInputStream inputStream =
-          new ByteCountingInputStream(inputStreamSupplier.get())) {
+      try (RecordingInputStream recordingInputStream = inputStreamSupplier.get()) {
+        if (recordingInputStream.isEmpty()) {
+          // The recording stream appears to be empty.
+          // Simply fail the request - there is 0% chance that it suddenly becomes non-empty.
+          throw new MissingInputException("Empty recording");
+        }
+        ByteCountingInputStream inputStream = new ByteCountingInputStream(recordingInputStream);
         // Got the input stream so clear the 'lastException'
         lastException = null;
         try {
@@ -165,6 +176,9 @@ final class CompressingRequestBody extends RequestBody {
           lastException = t;
           shouldRetry = false;
         }
+      } catch (MissingInputException e) {
+        // The recording is empty - just re-throw
+        throw e;
       } catch (Throwable t) {
         // Only the failures while obtaining the input stream are retriable.
         lastException = t;
@@ -210,8 +224,7 @@ final class CompressingRequestBody extends RequestBody {
                       public void close() throws IOException {
                         // Do not propagate close; call 'flush()' instead.
                         // Compression streams must be 'closed' because they finalize the
-                        // compression
-                        // in that method.
+                        // compression in that method.
                         flush();
                       }
                     }))) {
@@ -223,20 +236,6 @@ final class CompressingRequestBody extends RequestBody {
       sink.emit();
       sink.flush();
     }
-  }
-
-  /**
-   * Make sure the given {@linkplain InputStream} instance supports marking. If the given stream
-   * does not support marking wrap it in {@linkplain BufferedInputStream}.
-   *
-   * @param is the input stream ot check
-   * @return {@linkplain InputStream} representing the input data and supporting marking
-   */
-  private static InputStream ensureMarkSupported(@Nonnull InputStream is) {
-    if (!is.markSupported()) {
-      is = new BufferedInputStream(is);
-    }
-    return is;
   }
 
   /**
