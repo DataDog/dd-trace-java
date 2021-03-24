@@ -662,7 +662,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       continuableScopeManager.addScopeListener(scopeListener);
     } catch (final Throwable e) {
-      log.debug("Profiling of ScopeEvents is not available");
+      log.debug("Profiling of ScopeEvents is not available. {}", e.getMessage());
     }
   }
 

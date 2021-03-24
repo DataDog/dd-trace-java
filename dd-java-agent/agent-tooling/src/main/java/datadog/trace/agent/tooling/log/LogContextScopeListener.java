@@ -14,8 +14,8 @@ public abstract class LogContextScopeListener implements ScopeListener, WithGlob
 
   @Override
   public void afterScopeActivated(DDId traceId, DDId spanId) {
-    add(CorrelationIdentifier.getTraceIdKey(), traceId);
-    add(CorrelationIdentifier.getSpanIdKey(), spanId);
+    add(CorrelationIdentifier.getTraceIdKey(), traceId.toString());
+    add(CorrelationIdentifier.getSpanIdKey(), spanId.toString());
   }
 
   @Override
