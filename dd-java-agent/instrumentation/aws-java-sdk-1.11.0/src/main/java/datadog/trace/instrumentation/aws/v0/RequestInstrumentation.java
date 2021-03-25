@@ -8,6 +8,7 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.amazonaws.AmazonWebServiceRequest;
+import com.amazonaws.handlers.HandlerContextKey;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
@@ -42,13 +43,6 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RequestMeta",
-    };
-  }
-
-  @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
     transformers.put(
@@ -71,7 +65,7 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("com.amazonaws.AmazonWebServiceRequest", packageName + ".RequestMeta");
+    return singletonMap("com.amazonaws.AmazonWebServiceRequest", Map.class.getName());
   }
 
   public static class BucketNameAdvice {
@@ -79,14 +73,19 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
     public static void methodEnter(
         @Advice.Argument(0) final String value,
         @Advice.This final AmazonWebServiceRequest request) {
-      final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore =
-          InstrumentationContext.get(AmazonWebServiceRequest.class, RequestMeta.class);
-      RequestMeta requestMeta = contextStore.get(request);
+      final ContextStore<AmazonWebServiceRequest, Map> contextStore =
+          InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
+      Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new RequestMeta();
+        requestMeta = new HashMap<>(8);
         contextStore.put(request, requestMeta);
       }
-      requestMeta.setBucketName(value);
+      requestMeta.put("aws.bucket.name", value);
+    }
+
+    // Don't apply this advice when HandlerContextKey is missing as we need it to trace requests
+    private static void muzzleCheck() {
+      new HandlerContextKey<>("muzzle");
     }
   }
 
@@ -95,14 +94,19 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
     public static void methodEnter(
         @Advice.Argument(0) final String value,
         @Advice.This final AmazonWebServiceRequest request) {
-      final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore =
-          InstrumentationContext.get(AmazonWebServiceRequest.class, RequestMeta.class);
-      RequestMeta requestMeta = contextStore.get(request);
+      final ContextStore<AmazonWebServiceRequest, Map> contextStore =
+          InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
+      Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new RequestMeta();
+        requestMeta = new HashMap<>(8);
         contextStore.put(request, requestMeta);
       }
-      requestMeta.setQueueUrl(value);
+      requestMeta.put("aws.queue.url", value);
+    }
+
+    // Don't apply this advice when HandlerContextKey is missing as we need it to trace requests
+    private static void muzzleCheck() {
+      new HandlerContextKey<>("muzzle");
     }
   }
 
@@ -111,14 +115,19 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
     public static void methodEnter(
         @Advice.Argument(0) final String value,
         @Advice.This final AmazonWebServiceRequest request) {
-      final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore =
-          InstrumentationContext.get(AmazonWebServiceRequest.class, RequestMeta.class);
-      RequestMeta requestMeta = contextStore.get(request);
+      final ContextStore<AmazonWebServiceRequest, Map> contextStore =
+          InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
+      Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new RequestMeta();
+        requestMeta = new HashMap<>(8);
         contextStore.put(request, requestMeta);
       }
-      requestMeta.setQueueName(value);
+      requestMeta.put("aws.queue.name", value);
+    }
+
+    // Don't apply this advice when HandlerContextKey is missing as we need it to trace requests
+    private static void muzzleCheck() {
+      new HandlerContextKey<>("muzzle");
     }
   }
 
@@ -127,14 +136,19 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
     public static void methodEnter(
         @Advice.Argument(0) final String value,
         @Advice.This final AmazonWebServiceRequest request) {
-      final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore =
-          InstrumentationContext.get(AmazonWebServiceRequest.class, RequestMeta.class);
-      RequestMeta requestMeta = contextStore.get(request);
+      final ContextStore<AmazonWebServiceRequest, Map> contextStore =
+          InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
+      Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new RequestMeta();
+        requestMeta = new HashMap<>(8);
         contextStore.put(request, requestMeta);
       }
-      requestMeta.setStreamName(value);
+      requestMeta.put("aws.stream.name", value);
+    }
+
+    // Don't apply this advice when HandlerContextKey is missing as we need it to trace requests
+    private static void muzzleCheck() {
+      new HandlerContextKey<>("muzzle");
     }
   }
 
@@ -143,14 +157,19 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
     public static void methodEnter(
         @Advice.Argument(0) final String value,
         @Advice.This final AmazonWebServiceRequest request) {
-      final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore =
-          InstrumentationContext.get(AmazonWebServiceRequest.class, RequestMeta.class);
-      RequestMeta requestMeta = contextStore.get(request);
+      final ContextStore<AmazonWebServiceRequest, Map> contextStore =
+          InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
+      Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new RequestMeta();
+        requestMeta = new HashMap<>(8);
         contextStore.put(request, requestMeta);
       }
-      requestMeta.setTableName(value);
+      requestMeta.put("aws.table.name", value);
+    }
+
+    // Don't apply this advice when HandlerContextKey is missing as we need it to trace requests
+    private static void muzzleCheck() {
+      new HandlerContextKey<>("muzzle");
     }
   }
 }
