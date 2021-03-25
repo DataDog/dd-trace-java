@@ -8,6 +8,7 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.amazonaws.AmazonWebServiceRequest;
+import com.amazonaws.handlers.HandlerContextKey;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
@@ -81,6 +82,11 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
       }
       requestMeta.put("aws.bucket.name", value);
     }
+
+    // Don't apply this advice when HandlerContextKey is missing as we need it to trace requests
+    private static void muzzleCheck() {
+      new HandlerContextKey<>("muzzle");
+    }
   }
 
   public static class QueueUrlAdvice {
@@ -96,6 +102,11 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
         contextStore.put(request, requestMeta);
       }
       requestMeta.put("aws.queue.url", value);
+    }
+
+    // Don't apply this advice when HandlerContextKey is missing as we need it to trace requests
+    private static void muzzleCheck() {
+      new HandlerContextKey<>("muzzle");
     }
   }
 
@@ -113,6 +124,11 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
       }
       requestMeta.put("aws.queue.name", value);
     }
+
+    // Don't apply this advice when HandlerContextKey is missing as we need it to trace requests
+    private static void muzzleCheck() {
+      new HandlerContextKey<>("muzzle");
+    }
   }
 
   public static class StreamNameAdvice {
@@ -129,6 +145,11 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
       }
       requestMeta.put("aws.stream.name", value);
     }
+
+    // Don't apply this advice when HandlerContextKey is missing as we need it to trace requests
+    private static void muzzleCheck() {
+      new HandlerContextKey<>("muzzle");
+    }
   }
 
   public static class TableNameAdvice {
@@ -144,6 +165,11 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
         contextStore.put(request, requestMeta);
       }
       requestMeta.put("aws.table.name", value);
+    }
+
+    // Don't apply this advice when HandlerContextKey is missing as we need it to trace requests
+    private static void muzzleCheck() {
+      new HandlerContextKey<>("muzzle");
     }
   }
 }
