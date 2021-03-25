@@ -76,7 +76,7 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
           InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
       Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new HashMap<>();
+        requestMeta = new HashMap<>(8);
         contextStore.put(request, requestMeta);
       }
       requestMeta.put("aws.bucket.name", value);
@@ -92,7 +92,7 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
           InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
       Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new HashMap<>();
+        requestMeta = new HashMap<>(8);
         contextStore.put(request, requestMeta);
       }
       requestMeta.put("aws.queue.url", value);
@@ -108,7 +108,7 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
           InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
       Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new HashMap<>();
+        requestMeta = new HashMap<>(8);
         contextStore.put(request, requestMeta);
       }
       requestMeta.put("aws.queue.name", value);
@@ -124,7 +124,7 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
           InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
       Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new HashMap<>();
+        requestMeta = new HashMap<>(8);
         contextStore.put(request, requestMeta);
       }
       requestMeta.put("aws.stream.name", value);
@@ -140,7 +140,7 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
           InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
       Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new HashMap<>();
+        requestMeta = new HashMap<>(8);
         contextStore.put(request, requestMeta);
       }
       requestMeta.put("aws.table.name", value);
