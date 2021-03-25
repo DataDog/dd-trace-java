@@ -162,7 +162,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     String resource(String method, URI address, String pathParam) {
-      return path == "not-found" ? "404" : "$method ${hasPathParam ? pathParam : resolve(address).path}"
+      return "$method ${hasPathParam ? pathParam : resolve(address).path}"
     }
 
     static {

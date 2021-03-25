@@ -543,7 +543,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
-          resourceName "404"
+          resourceName "GET /jsptest-context/forwards/forwardToNonExistent.jsp"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
           tags {

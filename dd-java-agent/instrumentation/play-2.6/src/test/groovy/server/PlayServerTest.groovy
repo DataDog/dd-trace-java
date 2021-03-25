@@ -116,7 +116,7 @@ class PlayServerTest extends HttpServerTest<Server> {
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
+      resourceName "$method ${endpoint.resolve(address).path}"
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint.errored
       if (parentID != null) {

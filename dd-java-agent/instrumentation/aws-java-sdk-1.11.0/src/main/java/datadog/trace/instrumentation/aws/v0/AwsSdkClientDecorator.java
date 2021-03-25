@@ -46,7 +46,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   public AgentSpan onRequest(final AgentSpan span, final Request request) {
     // Call super first because we override the resource name below.
-    super.onRequest(span, request);
+    super.onRequest(span, request, false);
 
     final String awsServiceName = request.getServiceName();
     final AmazonWebServiceRequest originalRequest = request.getOriginalRequest();

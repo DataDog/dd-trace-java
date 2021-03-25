@@ -23,17 +23,19 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (req) {
       1 * span.setTag(Tags.HTTP_METHOD, "test-method")
       1 * span.setTag(Tags.HTTP_URL, url)
+      1 * span.hasResourceName() >> false
+      1 * span.setResourceName({ it as String == req.method + " " + req.path })
     }
     0 * _
 
     where:
-    req                                                                    | url
-    null                                                                   | _
-    [method: "test-method", url: URI.create("http://test-url?some=query")] | "http://test-url/"
-    [method: "test-method", url: URI.create("http://a:80/")]               | "http://a/"
-    [method: "test-method", url: URI.create("https://10.0.0.1:443")]       | "https://10.0.0.1/"
-    [method: "test-method", url: URI.create("https://localhost:0/1/")]     | "https://localhost/1/"
-    [method: "test-method", url: URI.create("http://123:8080/some/path")]  | "http://123:8080/some/path"
+    req                                                                                       | url
+    null                                                                                      | _
+    [method: "test-method", url: URI.create("http://test-url?some=query"), path: '/']         | "http://test-url/"
+    [method: "test-method", url: URI.create("http://a:80/"), path: '/']                       | "http://a/"
+    [method: "test-method", url: URI.create("https://10.0.0.1:443"), path: '/']               | "https://10.0.0.1/"
+    [method: "test-method", url: URI.create("https://localhost:0/1/"), path: '/?/']           | "https://localhost/1/"
+    [method: "test-method", url: URI.create("http://123:8080/some/path"), path: '/some/path'] | "http://123:8080/some/path"
   }
 
   def "test url handling for #url"() {
@@ -52,24 +54,26 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)
       1 * span.setTag(DDTags.HTTP_FRAGMENT, expectedFragment)
     }
+    1 * span.hasResourceName() >> false
+    1 * span.setResourceName({ it as String == expectedPath })
     1 * span.setTag(Tags.HTTP_METHOD, null)
     0 * _
 
     where:
-    tagQueryString | url                                                    | expectedUrl           | expectedQuery       | expectedFragment
-    false          | null                                                   | null                  | null                | null
-    false          | ""                                                     | "/"                   | ""                  | null
-    false          | "/path?query"                                          | "/path"               | ""                  | null
-    false          | "https://host:0"                                       | "https://host/"       | ""                  | null
-    false          | "https://host/path"                                    | "https://host/path"   | ""                  | null
-    false          | "http://host:99/path?query#fragment"                   | "http://host:99/path" | ""                  | null
-    true           | null                                                   | null                  | null                | null
-    true           | ""                                                     | "/"                   | null                | null
-    true           | "/path?encoded+%28query%29%3F?"                        | "/path"               | "encoded+(query)??" | null
-    true           | "https://host:0"                                       | "https://host/"       | null                | null
-    true           | "https://host/path"                                    | "https://host/path"   | null                | null
-    true           | "http://host:99/path?query#enc+%28fragment%29%3F"      | "http://host:99/path" | "query"             | "enc+(fragment)?"
-    true           | "http://host:99/path?query#enc+%28fragment%29%3F?tail" | "http://host:99/path" | "query"             | "enc+(fragment)??tail"
+    tagQueryString | url                                                    | expectedUrl           | expectedQuery       | expectedFragment       | expectedPath
+    false          | null                                                   | null                  | null                | null                   | "/"
+    false          | ""                                                     | "/"                   | ""                  | null                   | "/"
+    false          | "/path?query"                                          | "/path"               | ""                  | null                   | "/path"
+    false          | "https://host:0"                                       | "https://host/"       | ""                  | null                   | "/"
+    false          | "https://host/path"                                    | "https://host/path"   | ""                  | null                   | "/path"
+    false          | "http://host:99/path?query#fragment"                   | "http://host:99/path" | ""                  | null                   | "/path"
+    true           | null                                                   | null                  | null                | null                   | "/"
+    true           | ""                                                     | "/"                   | null                | null                   | "/"
+    true           | "/path?encoded+%28query%29%3F?"                        | "/path"               | "encoded+(query)??" | null                   | "/path"
+    true           | "https://host:0"                                       | "https://host/"       | null                | null                   | "/"
+    true           | "https://host/path"                                    | "https://host/path"   | null                | null                   | "/path"
+    true           | "http://host:99/path?query#enc+%28fragment%29%3F"      | "http://host:99/path" | "query"             | "enc+(fragment)?"      | "/path"
+    true           | "http://host:99/path?query#enc+%28fragment%29%3F?tail" | "http://host:99/path" | "query"             | "enc+(fragment)??tail" | "/path"
 
     req = [url: url == null ? null : new URI(url)]
   }
@@ -131,6 +135,10 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (error) {
       1 * span.setError(true)
     }
+    if (status == 404) {
+      1 * span.hasResourceName() >> false
+      1 * span.setResourceName({ it as String == "404" })
+    }
     0 * _
 
     where:
@@ -167,7 +175,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
         @Override
         protected URIDataAdapter url(Map m) {
-          return new DefaultURIDataAdapter(m.url)
+          return m.url == null ? null : new DefaultURIDataAdapter(m.url)
         }
 
         @Override

@@ -53,7 +53,7 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
 
   @Override
   String component() {
-    return "jax-rs"
+    return "java-web-servlet"
   }
 
   @Override
@@ -99,7 +99,7 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
+      resourceName "$method ${endpoint.resolve(address).path}"
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint.errored
       if (parentID != null) {

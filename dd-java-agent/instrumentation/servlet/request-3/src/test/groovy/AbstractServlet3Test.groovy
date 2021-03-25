@@ -118,7 +118,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     trace.span {
       serviceName expectedServiceName()
       operationName "servlet.include"
-      resourceName endpoint.status == 404 ? "404" : "$endpoint.path".replace("/dispatch", "")
+      resourceName "$endpoint.path".replace("/dispatch", "")
       spanType DDSpanTypes.HTTP_SERVER
       // Exceptions are always bubbled up, other statuses aren't
       errored endpoint == EXCEPTION || endpoint == CUSTOM_EXCEPTION

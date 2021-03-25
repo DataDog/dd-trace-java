@@ -96,7 +96,7 @@ class UrlConnectionTest extends AgentTestRunner {
         }
         span {
           operationName "file.request"
-          resourceName "file:$url.path"
+          resourceName "$url.path"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           errored true

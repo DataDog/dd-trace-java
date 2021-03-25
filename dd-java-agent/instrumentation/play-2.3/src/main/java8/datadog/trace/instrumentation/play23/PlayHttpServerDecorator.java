@@ -9,7 +9,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
-import scala.Option;
 
 public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Request, Result> {
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
@@ -49,25 +48,6 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   @Override
   protected int status(final Result httpResponse) {
     return httpResponse.header().status();
-  }
-
-  @Override
-  public AgentSpan onRequest(
-      final AgentSpan span,
-      final Request connection,
-      final Request request,
-      AgentSpan.Context.Extracted context) {
-    super.onRequest(span, connection, request, context);
-    if (request != null) {
-      // more about routes here:
-      // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md#router-tags-are-now-attributes
-      final Option pathOption = request.tags().get("ROUTE_PATTERN");
-      if (!pathOption.isEmpty()) {
-        final String path = (String) pathOption.get();
-        span.setResourceName(request.method() + " " + path);
-      }
-    }
-    return span;
   }
 
   @Override

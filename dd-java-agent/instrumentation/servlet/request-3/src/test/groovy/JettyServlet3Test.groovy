@@ -123,7 +123,7 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
+      resourceName "$method ${endpoint.resolve(address).path}"
       spanType DDSpanTypes.HTTP_SERVER
       // Exceptions are always bubbled up, other statuses: only if bubblesResponse == true
       errored((endpoint.errored && bubblesResponse) || endpoint == EXCEPTION || endpoint == TIMEOUT_ERROR)

@@ -170,4 +170,14 @@ public final class Functions {
       return key.toString();
     }
   }
+
+  public static final Function<Pair<String, String>, UTF8BytesString> PATH_BASED_RESOURCE_NAME =
+      new Function<Pair<String, String>, UTF8BytesString>() {
+        @Override
+        public UTF8BytesString apply(Pair<String, String> pair) {
+          String method = pair.getLeft();
+          String path = pair.getRight();
+          return UTF8BytesString.create(null == method ? path : method + " " + path);
+        }
+      };
 }

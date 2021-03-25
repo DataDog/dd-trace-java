@@ -1,7 +1,6 @@
 package datadog.trace.common.writer;
 
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.processor.TraceProcessor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -16,7 +15,6 @@ import org.slf4j.LoggerFactory;
 public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Writer {
 
   private static final Logger log = LoggerFactory.getLogger(ListWriter.class);
-  private final TraceProcessor processor = new TraceProcessor();
   private final List<CountDownLatch> latches = new ArrayList<>();
   private final AtomicInteger traceCount = new AtomicInteger();
   private final TraceStructureWriter structureWriter = new TraceStructureWriter(true);
@@ -29,7 +27,6 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   public void write(List<DDSpan> trace) {
     traceCount.incrementAndGet();
     synchronized (latches) {
-      trace = processor.onTraceComplete(trace);
       add(trace);
       for (final CountDownLatch latch : latches) {
         if (size() >= latch.getCount()) {

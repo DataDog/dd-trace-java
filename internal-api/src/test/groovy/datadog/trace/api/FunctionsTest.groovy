@@ -30,10 +30,22 @@ class FunctionsTest extends DDSpecification {
     Functions.SuffixJoin.of("~")                   | "x"  | "y"   | "x~y"
   }
 
-  def "test encode UTF8" () {
+  def "test encode UTF8"() {
     when:
     UTF8BytesString utf8 = Functions.UTF8_ENCODE.apply("foo")
     then:
     utf8.toString() == "foo"
+  }
+
+  def "test create path based resource name"() {
+    when:
+    UTF8BytesString resourceName = Functions.PATH_BASED_RESOURCE_NAME.apply(Pair.of(method, path))
+    then:
+    resourceName as String == expected
+    where:
+    method | path    | expected
+    "GET"  | "/"     | "GET /"
+    "GET"  | "/path" | "GET /path"
+    null   | "/path" | "/path"
   }
 }

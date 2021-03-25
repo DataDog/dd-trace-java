@@ -13,10 +13,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.util.concurrent.CompletionException;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
-import play.api.routing.HandlerDef;
 import play.libs.typedmap.TypedKey;
-import play.routing.Router;
-import scala.Option;
 
 public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Request, Result> {
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
@@ -81,36 +78,6 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   @Override
   protected int status(final Result httpResponse) {
     return httpResponse.header().status();
-  }
-
-  @Override
-  public AgentSpan onRequest(
-      final AgentSpan span,
-      final Request connection,
-      final Request request,
-      AgentSpan.Context.Extracted context) {
-    super.onRequest(span, connection, request, context);
-    if (request != null) {
-      // more about routes here:
-      // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md
-      Option<HandlerDef> defOption = Option.empty();
-      if (TYPED_KEY_GET_UNDERLYING != null) { // Should always be non-null but just to make sure
-        try {
-          defOption =
-              request
-                  .attrs()
-                  .get(
-                      (play.api.libs.typedmap.TypedKey<HandlerDef>)
-                          TYPED_KEY_GET_UNDERLYING.invokeExact(Router.Attrs.HANDLER_DEF));
-        } catch (final Throwable ignored) {
-        }
-      }
-      if (!defOption.isEmpty()) {
-        final String path = defOption.get().path();
-        span.setResourceName(request.method() + " " + path);
-      }
-    }
-    return span;
   }
 
   @Override
