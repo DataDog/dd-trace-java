@@ -48,8 +48,8 @@ public class TestTemplate {
     public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(
         final ExtensionContext context) {
       return Stream.of(
-          featureEnabledContext(new SampleTestCase("test_template", 0, 0, 0)),
-          featureEnabledContext(new SampleTestCase("test_template", 1, 1, 2)));
+          featureEnabledContext(new SampleTestCase("test_template_1", 0, 0, 0)),
+          featureEnabledContext(new SampleTestCase("test_template_2", 1, 1, 2)));
     }
 
     private TestTemplateInvocationContext featureEnabledContext(

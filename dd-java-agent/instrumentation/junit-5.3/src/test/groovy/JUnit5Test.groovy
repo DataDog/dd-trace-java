@@ -61,12 +61,16 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(2) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestParameterized", "test_parameterized", TestDecorator.TEST_PASS)
+        testSpan(it, 0, "org.example.TestParameterized", "test_parameterized", TestDecorator.TEST_PASS, testTags_0)
       }
       trace(1) {
-        testSpan(it, 0, "org.example.TestParameterized", "test_parameterized", TestDecorator.TEST_PASS)
+        testSpan(it, 0, "org.example.TestParameterized", "test_parameterized", TestDecorator.TEST_PASS, testTags_1)
       }
     }
+
+    where:
+    testTags_0 = ["$Tags.TEST_PARAMETERS": "{\"metadata\":{\"test_name\":\"[1] 0, 0, 0\"}}"]
+    testTags_1 = ["$Tags.TEST_PARAMETERS": "{\"metadata\":{\"test_name\":\"[2] 1, 1, 2\"}}"]
   }
 
   def "test repeated generates spans"() {
@@ -97,12 +101,16 @@ class JUnit5Test extends TestFrameworkTest {
     expect:
     assertTraces(2) {
       trace(1) {
-        testSpan(it, 0, "org.example.TestTemplate", "test_template", TestDecorator.TEST_PASS)
+        testSpan(it, 0, "org.example.TestTemplate", "test_template", TestDecorator.TEST_PASS, testTags_0)
       }
       trace(1) {
-        testSpan(it, 0, "org.example.TestTemplate", "test_template", TestDecorator.TEST_PASS)
+        testSpan(it, 0, "org.example.TestTemplate", "test_template", TestDecorator.TEST_PASS, testTags_1)
       }
     }
+
+    where:
+    testTags_0 = ["$Tags.TEST_PARAMETERS": "{\"metadata\":{\"test_name\":\"test_template_1\"}}"]
+    testTags_1 = ["$Tags.TEST_PARAMETERS": "{\"metadata\":{\"test_name\":\"test_template_2\"}}"]
   }
 
   def "test factory generates spans"() {
