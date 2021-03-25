@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.net.URI;
+import java.util.Map;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
 
@@ -36,10 +37,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
                 }
               }));
 
-  private final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore;
+  private final ContextStore<AmazonWebServiceRequest, Map> contextStore;
 
-  public AwsSdkClientDecorator(
-      final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore) {
+  public AwsSdkClientDecorator(final ContextStore<AmazonWebServiceRequest, Map> contextStore) {
     this.contextStore = contextStore;
   }
 
@@ -61,13 +61,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setMeasured(true);
 
     if (contextStore != null) {
-      final RequestMeta requestMeta = contextStore.get(originalRequest);
+      final Map<String, String> requestMeta = contextStore.get(originalRequest);
       if (requestMeta != null) {
-        span.setTag("aws.bucket.name", requestMeta.getBucketName());
-        span.setTag("aws.queue.url", requestMeta.getQueueUrl());
-        span.setTag("aws.queue.name", requestMeta.getQueueName());
-        span.setTag("aws.stream.name", requestMeta.getStreamName());
-        span.setTag("aws.table.name", requestMeta.getTableName());
+        span.setTag("aws.bucket.name", requestMeta.get("aws.bucket.name"));
+        span.setTag("aws.queue.url", requestMeta.get("aws.queue.url"));
+        span.setTag("aws.queue.name", requestMeta.get("aws.queue.name"));
+        span.setTag("aws.stream.name", requestMeta.get("aws.stream.name"));
+        span.setTag("aws.table.name", requestMeta.get("aws.table.name"));
       }
     }
 

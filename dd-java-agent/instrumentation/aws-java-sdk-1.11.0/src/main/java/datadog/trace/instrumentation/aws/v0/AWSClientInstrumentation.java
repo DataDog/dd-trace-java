@@ -45,7 +45,6 @@ public final class AWSClientInstrumentation extends Instrumenter.Tracing {
       packageName + ".AwsSdkClientDecorator",
       packageName + ".AwsSdkClientDecorator$1",
       packageName + ".AwsSdkClientDecorator$2",
-      packageName + ".RequestMeta",
       packageName + ".TracingRequestHandler",
     };
   }
@@ -58,7 +57,7 @@ public final class AWSClientInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("com.amazonaws.AmazonWebServiceRequest", packageName + ".RequestMeta");
+    return singletonMap("com.amazonaws.AmazonWebServiceRequest", Map.class.getName());
   }
 
   public static class AWSClientAdvice {
@@ -76,7 +75,8 @@ public final class AWSClientInstrumentation extends Instrumenter.Tracing {
       if (!hasDDHandler) {
         handlers.add(
             new TracingRequestHandler(
-                InstrumentationContext.get(AmazonWebServiceRequest.class, RequestMeta.class)));
+                new AwsSdkClientDecorator(
+                    InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class))));
       }
     }
   }

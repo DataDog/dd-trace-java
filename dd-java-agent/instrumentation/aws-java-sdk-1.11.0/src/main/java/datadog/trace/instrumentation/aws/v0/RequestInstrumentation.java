@@ -42,13 +42,6 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RequestMeta",
-    };
-  }
-
-  @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
     transformers.put(
@@ -71,7 +64,7 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("com.amazonaws.AmazonWebServiceRequest", packageName + ".RequestMeta");
+    return singletonMap("com.amazonaws.AmazonWebServiceRequest", Map.class.getName());
   }
 
   public static class BucketNameAdvice {
@@ -79,14 +72,14 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
     public static void methodEnter(
         @Advice.Argument(0) final String value,
         @Advice.This final AmazonWebServiceRequest request) {
-      final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore =
-          InstrumentationContext.get(AmazonWebServiceRequest.class, RequestMeta.class);
-      RequestMeta requestMeta = contextStore.get(request);
+      final ContextStore<AmazonWebServiceRequest, Map> contextStore =
+          InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
+      Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new RequestMeta();
+        requestMeta = new HashMap<>();
         contextStore.put(request, requestMeta);
       }
-      requestMeta.setBucketName(value);
+      requestMeta.put("aws.bucket.name", value);
     }
   }
 
@@ -95,14 +88,14 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
     public static void methodEnter(
         @Advice.Argument(0) final String value,
         @Advice.This final AmazonWebServiceRequest request) {
-      final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore =
-          InstrumentationContext.get(AmazonWebServiceRequest.class, RequestMeta.class);
-      RequestMeta requestMeta = contextStore.get(request);
+      final ContextStore<AmazonWebServiceRequest, Map> contextStore =
+          InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
+      Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new RequestMeta();
+        requestMeta = new HashMap<>();
         contextStore.put(request, requestMeta);
       }
-      requestMeta.setQueueUrl(value);
+      requestMeta.put("aws.queue.url", value);
     }
   }
 
@@ -111,14 +104,14 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
     public static void methodEnter(
         @Advice.Argument(0) final String value,
         @Advice.This final AmazonWebServiceRequest request) {
-      final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore =
-          InstrumentationContext.get(AmazonWebServiceRequest.class, RequestMeta.class);
-      RequestMeta requestMeta = contextStore.get(request);
+      final ContextStore<AmazonWebServiceRequest, Map> contextStore =
+          InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
+      Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new RequestMeta();
+        requestMeta = new HashMap<>();
         contextStore.put(request, requestMeta);
       }
-      requestMeta.setQueueName(value);
+      requestMeta.put("aws.queue.name", value);
     }
   }
 
@@ -127,14 +120,14 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
     public static void methodEnter(
         @Advice.Argument(0) final String value,
         @Advice.This final AmazonWebServiceRequest request) {
-      final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore =
-          InstrumentationContext.get(AmazonWebServiceRequest.class, RequestMeta.class);
-      RequestMeta requestMeta = contextStore.get(request);
+      final ContextStore<AmazonWebServiceRequest, Map> contextStore =
+          InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
+      Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new RequestMeta();
+        requestMeta = new HashMap<>();
         contextStore.put(request, requestMeta);
       }
-      requestMeta.setStreamName(value);
+      requestMeta.put("aws.stream.name", value);
     }
   }
 
@@ -143,14 +136,14 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
     public static void methodEnter(
         @Advice.Argument(0) final String value,
         @Advice.This final AmazonWebServiceRequest request) {
-      final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore =
-          InstrumentationContext.get(AmazonWebServiceRequest.class, RequestMeta.class);
-      RequestMeta requestMeta = contextStore.get(request);
+      final ContextStore<AmazonWebServiceRequest, Map> contextStore =
+          InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class);
+      Map<String, String> requestMeta = contextStore.get(request);
       if (requestMeta == null) {
-        requestMeta = new RequestMeta();
+        requestMeta = new HashMap<>();
         contextStore.put(request, requestMeta);
       }
-      requestMeta.setTableName(value);
+      requestMeta.put("aws.table.name", value);
     }
   }
 }

@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
-import static datadog.trace.instrumentation.aws.v0.RequestMeta.SCOPE_CONTEXT_KEY;
+import static datadog.trace.instrumentation.aws.v0.TracingRequestHandler.SCOPE_CONTEXT_KEY;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -41,7 +41,7 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".OnErrorDecorator", packageName + ".RequestMeta",
+      packageName + ".OnErrorDecorator", packageName + ".TracingRequestHandler",
     };
   }
 
