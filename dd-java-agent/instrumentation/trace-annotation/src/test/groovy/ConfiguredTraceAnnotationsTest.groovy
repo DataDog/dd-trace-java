@@ -1,18 +1,15 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.trace_annotation.TraceAnnotationsInstrumentation
 import dd.test.trace.annotation.SayTracedHello
 
 import java.util.concurrent.Callable
-
-import static datadog.trace.instrumentation.trace_annotation.TraceAnnotationsInstrumentation.DEFAULT_ANNOTATIONS
 
 class ConfiguredTraceAnnotationsTest extends AgentTestRunner {
 
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("dd.trace.annotations", "package.Class\$Name;${OuterClass.InterestingMethod.name}")
+    injectSysConfig("dd.trace.annotations", " package.Class\$Name; something.else.Here ;${OuterClass.InterestingMethod.name} ; ")
   }
 
   def "test disabled nr annotation"() {
@@ -43,30 +40,6 @@ class ConfiguredTraceAnnotationsTest extends AgentTestRunner {
         }
       }
     }
-  }
-
-  def "test configuration #value"() {
-    setup:
-    if (value) {
-      injectSysConfig("dd.trace.annotations", value)
-    } else {
-      removeSysConfig("dd.trace.annotations")
-    }
-
-    expect:
-    new HashSet<>(Arrays.asList(new TraceAnnotationsInstrumentation().additionalTraceAnnotations)) == expected.toSet()
-
-    where:
-    value                               | expected
-    null                                | Arrays.asList(DEFAULT_ANNOTATIONS)
-    " "                                 | []
-    "some.Invalid[]"                    | []
-    "some.package.ClassName "           | ["some.package.ClassName"]
-    " some.package.Class\$Name"         | ["some.package.Class\$Name"]
-    "  ClassName  "                     | ["ClassName"]
-    "ClassName"                         | ["ClassName"]
-    "Class\$1;Class\$2;"                | ["Class\$1", "Class\$2"]
-    "Duplicate ;Duplicate ;Duplicate; " | ["Duplicate"]
   }
 
   class AnnotationTracedCallable implements Callable<String> {

@@ -15,8 +15,8 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.Config;
-import datadog.trace.api.Trace;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,31 +44,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
 
   private static final Logger log = LoggerFactory.getLogger(TraceConfigInstrumentation.class);
 
-  static final String PACKAGE_CLASS_NAME_REGEX = "[\\w.\\$]+";
-  private static final String METHOD_LIST_REGEX =
-      "\\s*(?:\\*|(?:\\w+\\s*,)*\\s*(?:\\w+\\s*,?))\\s*";
-  private static final String CONFIG_FORMAT =
-      "(?:\\s*"
-          + PACKAGE_CLASS_NAME_REGEX
-          + "\\["
-          + METHOD_LIST_REGEX
-          + "\\]\\s*;)*\\s*"
-          + PACKAGE_CLASS_NAME_REGEX
-          + "\\["
-          + METHOD_LIST_REGEX
-          + "\\]";
-
   private final Map<String, Set<String>> classMethodsToTrace;
-
-  @SuppressForbidden
-  private boolean validateConfigString(final String configString) {
-    for (final String segment : configString.split(";")) {
-      if (!segment.trim().matches(CONFIG_FORMAT)) {
-        return false;
-      }
-    }
-    return true;
-  }
 
   @SuppressForbidden
   public TraceConfigInstrumentation() {
@@ -76,36 +52,43 @@ public class TraceConfigInstrumentation implements Instrumenter {
     if (configString == null || configString.trim().isEmpty()) {
       classMethodsToTrace = Collections.emptyMap();
 
-    } else if (!validateConfigString(configString)) {
+    } else if (!configString.matches(
+        "(?:\\s*[\\w.$]+\\[\\s*(?:\\*|(?:\\w+\\s*,)*\\s*(?:\\w+\\s*,?))\\s*]\\s*;)*(?:\\s*[\\w.$]+\\[\\s*(?:\\*|(?:\\w+\\s*,)*\\s*(?:\\w+\\s*,?))\\s*]\\s*)?\\s*")) {
       log.warn(
           "Invalid trace method config '{}'. Must match 'package.Class$Name[method1,method2];*' or 'package.Class$Name[*];*'.",
           configString);
       classMethodsToTrace = Collections.emptyMap();
 
     } else {
-      final String[] classMethods = configString.split(";", -1);
-
-      final Map<String, Set<String>> toTrace = new HashMap<>(classMethods.length);
-      for (final String classMethod : classMethods) {
-        if (classMethod.trim().isEmpty()) {
-          continue;
-        }
-        final String[] splitClassMethod = classMethod.split("\\[", -1);
-        final String className = splitClassMethod[0];
-        final String method = splitClassMethod[1].trim();
-        final String methodNames = method.substring(0, method.length() - 1);
-        final String[] splitMethodNames = methodNames.split(",", -1);
-        final Set<String> trimmedMethodNames = new HashSet<>();
-        for (final String methodName : splitMethodNames) {
-          final String trimmedMethodName = methodName.trim();
-          if (!trimmedMethodName.isEmpty()) {
-            trimmedMethodNames.add(trimmedMethodName);
+      final Map<String, Set<String>> toTrace = new HashMap<>();
+      int start = 0;
+      do {
+        int next = configString.indexOf(';', start + 1);
+        int end = next == -1 ? configString.length() : next;
+        if (end > start + 1) {
+          int methodsStart = configString.indexOf('[', start);
+          if (methodsStart == -1) {
+            break; // reached trailing whitespace
+          }
+          int methodsEnd = configString.indexOf(']', methodsStart);
+          String className = configString.substring(start, methodsStart).trim();
+          Set<String> methodNames = toTrace.get(className);
+          if (null == methodNames) {
+            methodNames = new HashSet<>();
+            toTrace.put(className, methodNames);
+          }
+          for (int methodStart = methodsStart + 1; methodStart < methodsEnd; ) {
+            int nextComma = configString.indexOf(',', methodStart);
+            int methodEnd = nextComma == -1 ? methodsEnd : nextComma;
+            String method = configString.substring(methodStart, methodEnd).trim();
+            if (!method.isEmpty()) {
+              methodNames.add(method);
+            }
+            methodStart = methodEnd + 1;
           }
         }
-        if (!trimmedMethodNames.isEmpty()) {
-          toTrace.put(className.trim(), trimmedMethodNames);
-        }
-      }
+        start = next + 1;
+      } while (start != 0);
       classMethodsToTrace = Collections.unmodifiableMap(toTrace);
     }
   }
@@ -137,7 +120,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
 
     /** No-arg constructor only used by muzzle and tests. */
     public TracerClassInstrumentation() {
-      this(Trace.class.getName(), Collections.singleton("noop"));
+      this("datadog.trace.api.Trace", Collections.singleton("noop"));
     }
 
     public TracerClassInstrumentation(final String className, final Set<String> methodNames) {
@@ -166,30 +149,23 @@ public class TraceConfigInstrumentation implements Instrumenter {
 
     @Override
     public Map<ElementMatcher<? super MethodDescription>, String> transformers() {
-      ElementMatcher.Junction<MethodDescription> methodMatchers = null;
-      for (final String methodName : methodNames) {
-        if (methodMatchers == null) {
-          if (methodName.equals("*")) {
-            methodMatchers =
-                not(
-                    isHashCode()
-                        .or(isEquals())
-                        .or(isToString())
-                        .or(isFinalizer())
-                        .or(isGetter())
-                        .or(isConstructor())
-                        .or(isSetter())
-                        .or(isSynthetic()));
-          } else {
-            methodMatchers = named(methodName);
-          }
-        } else {
-          methodMatchers = methodMatchers.or(named(methodName));
-        }
+      boolean hasWildcard = false;
+      for (String methodName : methodNames) {
+        hasWildcard |= methodName.equals("*");
       }
-
       return Collections.<ElementMatcher<? super MethodDescription>, String>singletonMap(
-          methodMatchers, packageName + ".TraceAdvice");
+          hasWildcard
+              ? not(
+                  isHashCode()
+                      .or(isEquals())
+                      .or(isToString())
+                      .or(isFinalizer())
+                      .or(isGetter())
+                      .or(isConstructor())
+                      .or(isSetter())
+                      .or(isSynthetic()))
+              : NameMatchers.<MethodDescription>namedOneOf(methodNames),
+          packageName + ".TraceAdvice");
     }
   }
 }
