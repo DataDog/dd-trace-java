@@ -1,9 +1,4 @@
 plugins {
-  id 'com.jfrog.artifactory' version '4.9.8'
-  // ^ Last version to not have problems with NoSuchMethodError HttpClientBuilder.setPublicSuffixMatcher...
-  // See also https://www.jfrog.com/jira/browse/GAP-317
-
-  id 'com.jfrog.bintray' version '1.8.5'
   id 'com.github.ben-manes.versions' version '0.27.0'
 
   id "com.diffplug.spotless" version "5.11.0"
@@ -13,10 +8,13 @@ plugins {
 
   id 'org.unbroken-dome.test-sets' version '3.0.1'
   id 'pl.allegro.tech.build.axion-release' version '1.10.3'
+  id 'io.github.gradle-nexus.publish-plugin' version '1.0.0'
 
   id "com.github.johnrengelman.shadow" version "5.2.0" apply false
   id "me.champeau.jmh" version "0.6.2" apply false
 }
+
+description = 'dd-trace-java'
 
 def isCI = System.getenv("CI") != null
 
@@ -41,12 +39,29 @@ repositories {
   jcenter()
 }
 
-description = 'dd-trace-java'
-
 tasks.register("latestDepTest")
 
-// Applied here to allow publishing of artifactory build info
-apply from: "$rootDir/gradle/publish.gradle"
+nexusPublishing {
+  repositories {
+    def forceLocal = project.hasProperty('forceLocal') && forceLocal
+    if (forceLocal && !isCI) {
+      local {
+        // For testing use with https://hub.docker.com/r/sonatype/nexus
+        // docker run --rm -d -p 8081:8081 --name nexus sonatype/nexus
+        // Doesn't work for testing releases though... (due to staging)
+        nexusUrl = uri("http://localhost:8081/nexus/content/repositories/releases/")
+        snapshotRepositoryUrl = uri("http://localhost:8081/nexus/content/repositories/snapshots/")
+        username = "admin"
+        password = "admin123"
+      }
+    } else {
+      sonatype {
+        username = System.getenv("SONATYPE_USERNAME")
+        password = System.getenv("SONATYPE_PASSWORD")
+      }
+    }
+  }
+}
 
 wrapper {
   distributionType = Wrapper.DistributionType.ALL

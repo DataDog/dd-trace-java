@@ -87,31 +87,34 @@ shadowJar {
   }
 }
 
-modifyPom {
-  // We're bundling the internal dependencies.  So we need to add external transitive dependencies
-  // of those projects. Directly adding to the XML is the only way to prevent the shadowJar plugin
-  // from removing them
-  def bundledProjectNames = bundledProjects.collect { it.substring(it.lastIndexOf(":") + 1) }
-  def externalDependencies = { p -> p.configurations.getByName("compile").dependencies.withType(ExternalDependency) }
-  withXml({ XmlProvider provider ->
-    Node dependencies = provider.asNode().dependencies[0]
-    def addedDependencies = externalDependencies(project).collect { it.name }
-    addedDependencies.addAll(bundledProjectNames)
-    bundledProjects.forEach { bundledProject ->
-      externalDependencies(project(bundledProject)).forEach { transitiveDependency ->
-        if (!addedDependencies.contains(transitiveDependency.name)) {
-          def dependency = dependencies.appendNode("dependency")
-          dependency.appendNode("groupId", transitiveDependency.group)
-          dependency.appendNode("artifactId", transitiveDependency.name)
-          dependency.appendNode("version", transitiveDependency.version)
-          dependency.appendNode("scope", "compile")
-          addedDependencies.add(transitiveDependency.name)
+/**
+ *  We're bundling the internal dependencies.  So we need to add external transitive dependencies
+ *  of those projects. Directly adding to the XML is the only way to prevent the shadowJar plugin
+ *  from removing them
+ */
+def bundledProjectNames = bundledProjects.collect { it.substring(it.lastIndexOf(":") + 1) }
+def externalDependencies = { p -> p.configurations.getByName("compile").dependencies.withType(ExternalDependency) }
+tasks.withType(GenerateMavenPom).configureEach { task ->
+  doFirst {
+    task.pom.withXml { XmlProvider provider ->
+      Node dependencies = provider.asNode().dependencies[0]
+      def addedDependencies = externalDependencies(project).collect { it.name }
+      addedDependencies.addAll(bundledProjectNames)
+      bundledProjects.forEach { bundledProject ->
+        externalDependencies(project(bundledProject)).forEach { transitiveDependency ->
+          if (!addedDependencies.contains(transitiveDependency.name)) {
+            def dependency = dependencies.appendNode("dependency")
+            dependency.appendNode("groupId", transitiveDependency.group)
+            dependency.appendNode("artifactId", transitiveDependency.name)
+            dependency.appendNode("version", transitiveDependency.version)
+            dependency.appendNode("scope", "compile")
+            addedDependencies.add(transitiveDependency.name)
+          }
         }
       }
+      dependencies.children().removeAll { Node node -> bundledProjectNames.contains(node.artifactId[0].children()[0]) }
     }
-  })
-
-  dependencies.removeAll { bundledProjectNames.contains(it.artifactId) }
+  }
 }
 
 jmh {

@@ -220,7 +220,7 @@ jobs:
             mvn_local_repo=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
             rm -rf "${mvn_local_repo}/com/datadoghq"
             export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=2G -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew install << pipeline.parameters.gradle_flags >> --max-workers=7
+            ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=7
             cd test-published-dependencies
             ../gradlew check
 

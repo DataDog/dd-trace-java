@@ -6,7 +6,7 @@ stages:
 
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
-  BINTRAY_USER: robot-bintray-apm-integrations
+  SONATYPE_USERNAME: robot-sonatype-apm-java
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
@@ -54,7 +54,7 @@ copy_to_s3:
     - export AWS_SECRET_ACCESS_KEY_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_sec_key_id --with-decryption --query "Parameter.Value" --out text)
     - python -u .gitlab/copy_artifact_s3.py
 
-deploy_to_bintray:
+deploy_to_sonatype:
   <<: *gradle_build
   stage: deploy
   rules:
@@ -65,8 +65,10 @@ deploy_to_bintray:
     - when: manual
       allow_failure: true
   script:
-    - export BINTRAY_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_api_key --with-decryption --query "Parameter.Value" --out text)
-    - ./gradlew -PbintrayUser=$BINTRAY_USER -PbintrayApiKey=$BINTRAY_API_KEY -PbuildInfo.build.number=$CI_JOB_ID artifactoryPublish --max-workers=1 --build-cache --stacktrace --no-daemon
+    - export SONATYPE_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.sonatype_password --with-decryption --query "Parameter.Value" --out text)
+    - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
+    - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
+    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publish --max-workers=1 --build-cache --stacktrace --no-daemon
 
 create_key:
   stage: generate-signing-key
