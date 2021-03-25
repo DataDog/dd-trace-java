@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
-import datadog.trace.agent.tooling.context.FieldBackedProvider;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -77,11 +76,7 @@ public class AgentInstaller {
       final AgentBuilder.Listener... listeners) {
     INSTRUMENTATION = inst;
 
-    if (Config.get().isLegacyContextFieldInjection()) {
-      FieldBackedProvider.resetContextMatchers();
-    } else {
-      FieldBackedContextProvider.resetContextMatchers();
-    }
+    FieldBackedContextProvider.resetContextMatchers();
 
     AgentBuilder.Ignored ignoredAgentBuilder =
         new AgentBuilder.Default()

@@ -60,7 +60,6 @@ class FieldInjectionSmokeTest extends Specification {
     command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log")
     command.add("-Ddd.writer.type=TraceStructureWriter")
     command.add("-Ddd.trace.debug=true")
-    command.add("-Ddd.trace.legacy.context.field.injection=false")
     command.add("-jar")
     command.add(jar)
     for (String type : testedTypesAndExpectedFields.keySet()) {

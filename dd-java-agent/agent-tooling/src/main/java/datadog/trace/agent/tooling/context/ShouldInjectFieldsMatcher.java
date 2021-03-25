@@ -2,9 +2,7 @@ package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
 
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
-import datadog.trace.bootstrap.FieldBackedContextStoreAppliedMarker;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
@@ -30,19 +28,11 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
   private static final ConcurrentHashMap<String, Boolean> KEY_TYPE_IS_CLASS =
       new ConcurrentHashMap<>();
 
-  private static final Class<?> FIELD_INJECTED_MARKER =
-      Config.get().isLegacyContextFieldInjection()
-          ? FieldBackedContextStoreAppliedMarker.class
-          : FieldBackedContextAccessor.class;
-
-  private static final boolean TRACK_EXCLUDED_CONTEXT_STORES =
-      !Config.get().isLegacyContextFieldInjection();
-
   // this map will contain entries for any root type that we wanted to field-inject
   // but were not able to - either because it was explicitly excluded, or because we
   // failed to field-inject as the type was already loaded
   private static final ConcurrentHashMap<String, BitSet> EXCLUDED_STORE_IDS_BY_TYPE =
-      TRACK_EXCLUDED_CONTEXT_STORES ? new ConcurrentHashMap<String, BitSet>() : null;
+      new ConcurrentHashMap<String, BitSet>();
 
   public static AgentBuilder.RawMatcher of(String keyType, String valueType) {
     return new ShouldInjectFieldsMatcher(keyType, valueType);
@@ -69,9 +59,7 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
 
     // First check if we should skip injecting the field based on the key type
     if (skipType != null && ExcludeFilter.exclude(skipType, matchedType)) {
-      if (TRACK_EXCLUDED_CONTEXT_STORES) {
-        excludeStoreForType(matchedType, getContextStoreId(keyType, valueType));
-      }
+      excludeStoreForType(matchedType, getContextStoreId(keyType, valueType));
       if (log.isDebugEnabled()) {
         log.debug("Skipping context-store field for {}: {} -> {}", matchedType, keyType, valueType);
       }
@@ -87,7 +75,8 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
      */
     boolean shouldInject =
         classBeingRedefined == null
-            || Arrays.asList(classBeingRedefined.getInterfaces()).contains(FIELD_INJECTED_MARKER);
+            || Arrays.asList(classBeingRedefined.getInterfaces())
+                .contains(FieldBackedContextAccessor.class);
     String injectionTarget = null;
     if (shouldInject) {
       // will always inject the key type if it's a class,
@@ -121,9 +110,7 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
         if (keyType.equals(matchedType)
             || matchedType.equals(getInjectionTarget(typeDescription))) {
 
-          if (TRACK_EXCLUDED_CONTEXT_STORES) {
-            excludeStoreForType(matchedType, getContextStoreId(keyType, valueType));
-          }
+          excludeStoreForType(matchedType, getContextStoreId(keyType, valueType));
 
           // Only log failed redefines where we would have injected this class
           log.debug(
