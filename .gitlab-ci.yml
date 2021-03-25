@@ -44,6 +44,7 @@ deploy_to_reliability_env:
     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
+    FORCE_TRIGGER: $FORCE_TRIGGER
 
 deploy_to_sonatype:
   <<: *gradle_build
