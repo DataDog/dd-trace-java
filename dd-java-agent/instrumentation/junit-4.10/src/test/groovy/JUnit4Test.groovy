@@ -7,6 +7,7 @@ import org.example.TestAssumption
 import org.example.TestError
 import org.example.TestFailed
 import org.example.TestInheritance
+import org.example.TestParameterized
 import org.example.TestSkipped
 import org.example.TestSkippedClass
 import org.example.TestSucceed
@@ -124,6 +125,25 @@ class JUnit4Test extends TestFrameworkTest {
 
     where:
     testTags = ["$Tags.TEST_SKIP_REASON": "got: <false>, expected: is <true>"]
+  }
+
+  def "test parameterized"() {
+    setup:
+    runner.run(TestParameterized)
+
+
+    assertTraces(2) {
+      trace(1) {
+        testSpan(it, 0, "org.example.TestParameterized", "parameterized_test_succeed", TestDecorator.TEST_PASS, testTags_0)
+      }
+      trace(1) {
+        testSpan(it, 0, "org.example.TestParameterized", "parameterized_test_succeed", TestDecorator.TEST_PASS, testTags_1)
+      }
+    }
+
+    where:
+    testTags_0 = ["$Tags.TEST_PARAMETERS": "{\"metadata\":{\"test_name\":\"parameterized_test_succeed[0]\"}}"]
+    testTags_1 = ["$Tags.TEST_PARAMETERS": "{\"metadata\":{\"test_name\":\"parameterized_test_succeed[1]\"}}"]
   }
 
   @Override
