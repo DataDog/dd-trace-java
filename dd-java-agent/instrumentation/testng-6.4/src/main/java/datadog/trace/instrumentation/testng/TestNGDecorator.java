@@ -64,16 +64,16 @@ public class TestNGDecorator extends TestDecorator {
   }
 
   // We build manually the JSON for test.parameters tag.
-  // Example: {"0":"param1","1":"param2"}
+  // Example: {"arguments":{"0":"param1","1":"param2"}}
   private String buildParametersTagValue(final ITestResult result) {
-    final StringBuilder sb = new StringBuilder("{");
+    final StringBuilder sb = new StringBuilder("{\"arguments\":{");
     for (int i = 0; i < result.getParameters().length; i++) {
       sb.append("\"").append(i).append("\":\"").append(result.getParameters()[i]).append("\"");
       if (i != result.getParameters().length - 1) {
         sb.append(",");
       }
     }
-    sb.append("}");
+    sb.append("}}");
     return sb.toString();
   }
 }
