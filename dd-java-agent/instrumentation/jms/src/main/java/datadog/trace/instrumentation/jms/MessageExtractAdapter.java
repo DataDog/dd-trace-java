@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jms;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -10,20 +9,14 @@ import java.util.Enumeration;
 import javax.jms.JMSException;
 import javax.jms.Message;
 
-public class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
-
-  @SuppressForbidden
-  private static final boolean USE_LEGACY_DASH_REPLACEMENT =
-      Config.get().isJmsLegacyDashReplacement();
+public final class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
 
   private static final Function<String, String> KEY_MAPPER =
       new Function<String, String>() {
+        @SuppressForbidden
         @Override
         public String apply(String key) {
-          if (USE_LEGACY_DASH_REPLACEMENT) {
-            return key.replace("__dash__", "-").toLowerCase();
-          }
-          return key.replace('$', '-').toLowerCase();
+          return key.replace("__dash__", "-").replace('$', '-').toLowerCase();
         }
       };
 
