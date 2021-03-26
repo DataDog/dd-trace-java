@@ -37,7 +37,6 @@ deploy_to_reliability_env:
   when: on_success
   trigger:
     project: DataDog/datadog-reliability-env
-    branch: landerson/downstream-trigger
   variables:
     UPSTREAM_PACKAGE_JOB: build
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
