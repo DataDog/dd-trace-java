@@ -141,6 +141,19 @@ public final class OkHttpSink implements Sink, EventListener {
     this.listeners.add(listener);
   }
 
+  @Override
+  public boolean validate() {
+    try (final okhttp3.Response response =
+        client.newCall(prepareRequest(metricsUrl).build()).execute()) {
+      if (response.code() != 404 && response.code() < 500) {
+        return true;
+      }
+    } catch (Throwable ignore) {
+      log.debug("Error validating metrics endpoint", ignore);
+    }
+    return false;
+  }
+
   private void handleFailure(okhttp3.Response response) throws IOException {
     final int code = response.code();
     if (code == 404) {
