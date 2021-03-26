@@ -25,6 +25,7 @@ class FootprintTest extends DDSpecification {
     setup:
     CountDownLatch latch = new CountDownLatch(1)
     Sink sink = Mock(Sink)
+    sink.validate() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       new WellKnownTags("hostname", "env", "service", "version"),
       sink,

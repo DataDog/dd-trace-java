@@ -72,6 +72,11 @@ class SerializingMetricWriterTest extends DDSpecification {
     }
 
     @Override
+    boolean validate() {
+      return true
+    }
+
+    @Override
     void accept(int messageCount, ByteBuffer buffer) {
       MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)
       int mapSize = unpacker.unpackMapHeader()
