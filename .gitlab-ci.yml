@@ -68,7 +68,7 @@ deploy_to_sonatype:
     - export SONATYPE_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.sonatype_password --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
-    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publish --max-workers=1 --build-cache --stacktrace --no-daemon
+    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository --max-workers=1 --build-cache --stacktrace --no-daemon
 
 create_key:
   stage: generate-signing-key
@@ -82,6 +82,6 @@ create_key:
   script:
     - /create.sh
   artifacts:
-    expire_in: 2 weeks
+    expire_in: 13 mos
     paths:
       - pubkeys
