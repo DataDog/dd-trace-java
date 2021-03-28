@@ -15,6 +15,11 @@ public final class ClassLoaderMatcher {
   private static final Logger log = LoggerFactory.getLogger(ClassLoaderMatcher.class);
   public static final ClassLoader BOOTSTRAP_CLASSLOADER = null;
 
+  private static final String DATADOG_CLASSLOADER_NAME =
+      "datadog.trace.bootstrap.DatadogClassLoader";
+  private static final String DATADOG_DELEGATE_CLASSLOADER_NAME =
+      "datadog.trace.bootstrap.DatadogClassLoader$DelegateClassLoader";
+
   /** A private constructor that must not be invoked. */
   private ClassLoaderMatcher() {
     throw new UnsupportedOperationException();
@@ -22,6 +27,21 @@ public final class ClassLoaderMatcher {
 
   public static ElementMatcher.Junction.AbstractBase<ClassLoader> skipClassLoader() {
     return SkipClassLoaderMatcher.INSTANCE;
+  }
+
+  public static boolean canSkipClassLoaderByName(final ClassLoader loader) {
+    switch (loader.getClass().getName()) {
+      case "org.codehaus.groovy.runtime.callsite.CallSiteClassLoader":
+      case "sun.reflect.DelegatingClassLoader":
+      case "jdk.internal.reflect.DelegatingClassLoader":
+      case "clojure.lang.DynamicClassLoader":
+      case "org.apache.cxf.common.util.ASMHelper$TypeHelperClassLoader":
+      case "sun.misc.Launcher$ExtClassLoader":
+      case DATADOG_CLASSLOADER_NAME:
+      case DATADOG_DELEGATE_CLASSLOADER_NAME:
+        return true;
+    }
+    return false;
   }
 
   /**
@@ -40,10 +60,6 @@ public final class ClassLoaderMatcher {
       extends ElementMatcher.Junction.AbstractBase<ClassLoader> {
     public static final SkipClassLoaderMatcher INSTANCE = new SkipClassLoaderMatcher();
     /* Cache of classloader-instance -> (true|false). True = skip instrumentation. False = safe to instrument. */
-    private static final String DATADOG_CLASSLOADER_NAME =
-        "datadog.trace.bootstrap.DatadogClassLoader";
-    private static final String DATADOG_DELEGATE_CLASSLOADER_NAME =
-        "datadog.trace.bootstrap.DatadogClassLoader$DelegateClassLoader";
     private static final WeakCache<ClassLoader, Boolean> skipCache = AgentTooling.newWeakCache();
 
     private SkipClassLoaderMatcher() {}
@@ -72,21 +88,6 @@ public final class ClassLoaderMatcher {
       v = !delegatesToBootstrap(cl);
       skipCache.put(cl, v);
       return v;
-    }
-
-    private static boolean canSkipClassLoaderByName(final ClassLoader loader) {
-      switch (loader.getClass().getName()) {
-        case "org.codehaus.groovy.runtime.callsite.CallSiteClassLoader":
-        case "sun.reflect.DelegatingClassLoader":
-        case "jdk.internal.reflect.DelegatingClassLoader":
-        case "clojure.lang.DynamicClassLoader":
-        case "org.apache.cxf.common.util.ASMHelper$TypeHelperClassLoader":
-        case "sun.misc.Launcher$ExtClassLoader":
-        case DATADOG_CLASSLOADER_NAME:
-        case DATADOG_DELEGATE_CLASSLOADER_NAME:
-          return true;
-      }
-      return false;
     }
 
     /**
