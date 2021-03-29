@@ -1,7 +1,6 @@
 package datadog.opentracing
 
 import com.timgroup.statsd.StatsDClient
-import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.interceptor.MutableSpan
