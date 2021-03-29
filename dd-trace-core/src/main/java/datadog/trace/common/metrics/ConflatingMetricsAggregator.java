@@ -236,6 +236,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private void disable() {
     this.enabled = false;
+    AgentTaskScheduler.Scheduled<?> cancellation = this.cancellation;
+    if (null != cancellation) {
+      cancellation.cancel();
+    }
     this.thread.interrupt();
     this.pending.clear();
     this.batchPool.clear();
