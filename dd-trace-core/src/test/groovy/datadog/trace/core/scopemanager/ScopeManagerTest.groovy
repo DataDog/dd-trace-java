@@ -901,7 +901,7 @@ class EventCountingListener implements ScopeListener {
   public final List<EVENT> events = new ArrayList<>()
 
   @Override
-  void afterScopeActivated(DDId traceId, DDId spanId) {
+  void afterScopeActivated() {
     synchronized (events) {
       events.add(ACTIVATE)
     }
@@ -920,7 +920,7 @@ class ExceptionThrowingScopeListener implements ScopeListener {
   boolean throwOnScopeClosed = false
 
   @Override
-  void afterScopeActivated(DDId traceId, DDId spanId) {
+  void afterScopeActivated() {
     if (throwOnScopeActivated) {
       throw new RuntimeException("Exception on activated")
     }

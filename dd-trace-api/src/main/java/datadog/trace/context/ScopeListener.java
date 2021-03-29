@@ -10,7 +10,7 @@ public interface ScopeListener {
    * <p>May be called multiple times. When a scope is initially created, or after a child scope is
    * deactivated.
    */
-  void afterScopeActivated(DDId traceId, DDId spanId);
+  void afterScopeActivated();
 
   /** Called just after a scope is closed. */
   void afterScopeClosed();

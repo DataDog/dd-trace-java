@@ -13,9 +13,9 @@ import datadog.trace.context.ScopeListener;
 public abstract class LogContextScopeListener implements ScopeListener, WithGlobalTracer.Callback {
 
   @Override
-  public void afterScopeActivated(DDId traceId, DDId spanId) {
-    add(CorrelationIdentifier.getTraceIdKey(), traceId.toString());
-    add(CorrelationIdentifier.getSpanIdKey(), spanId.toString());
+  public void afterScopeActivated() {
+    add(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+    add(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
   }
 
   @Override
