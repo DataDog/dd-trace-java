@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.log;
 
 import datadog.trace.api.CorrelationIdentifier;
-import datadog.trace.api.DDId;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.context.ScopeListener;

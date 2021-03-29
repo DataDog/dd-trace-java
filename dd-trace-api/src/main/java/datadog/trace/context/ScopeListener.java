@@ -1,7 +1,5 @@
 package datadog.trace.context;
 
-import datadog.trace.api.DDId;
-
 /** Hooks for scope activation */
 public interface ScopeListener {
   /**
