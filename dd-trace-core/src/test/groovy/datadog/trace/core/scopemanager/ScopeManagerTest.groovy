@@ -22,9 +22,13 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
-import static datadog.trace.core.scopemanager.EventCountingListener.EVENT.ACTIVATE
-import static datadog.trace.core.scopemanager.EventCountingListener.EVENT.CLOSE
+import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
+import static datadog.trace.core.scopemanager.EVENT.CLOSE
 import static datadog.trace.test.util.GCUtils.awaitGC
+
+enum EVENT {
+  ACTIVATE, CLOSE
+}
 
 class ScopeManagerTest extends DDCoreSpecification {
   private static final long TIMEOUT_MS = 10_000
@@ -40,6 +44,7 @@ class ScopeManagerTest extends DDCoreSpecification {
   ContinuableScopeManager scopeManager
   StatsDClient statsDClient
   EventCountingListener eventCountingListener
+  EventCountingExtendedListener eventCountingExtendedListener
 
   def setup() {
     writer = new ListWriter()
@@ -48,6 +53,8 @@ class ScopeManagerTest extends DDCoreSpecification {
     scopeManager = tracer.scopeManager
     eventCountingListener = new EventCountingListener()
     scopeManager.addScopeListener(eventCountingListener)
+    eventCountingExtendedListener = new EventCountingExtendedListener()
+    scopeManager.addExtendedScopeListener(eventCountingExtendedListener)
   }
 
   def cleanup() {
@@ -378,25 +385,25 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope scope1 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
 
     then:
-    eventCountingListener.events == [ACTIVATE]
+    assertEvents([ACTIVATE])
 
     when:
     AgentScope scope2 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
 
     then: 'Activating the same span multiple times does not create a new scope'
-    eventCountingListener.events == [ACTIVATE]
+    assertEvents([ACTIVATE])
 
     when:
     scope2.close()
 
     then: 'Closing a scope once that has been activated multiple times does not close'
-    eventCountingListener.events == [ACTIVATE]
+    assertEvents([ACTIVATE])
 
     when:
     scope1.close()
 
     then:
-    eventCountingListener.events == [ACTIVATE, CLOSE]
+    assertEvents([ACTIVATE, CLOSE])
   }
 
   def "opening and closing multiple scopes"() {
@@ -406,7 +413,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     continuableScope instanceof ContinuableScopeManager.ContinuableScope
-    eventCountingListener.events == [ACTIVATE]
+    assertEvents([ACTIVATE])
 
     when:
     AgentSpan childSpan = tracer.buildSpan("foo").start()
@@ -414,21 +421,21 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     childDDScope instanceof ContinuableScopeManager.ContinuableScope
-    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE])
 
     when:
     childDDScope.close()
     childSpan.finish()
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE])
 
     when:
     continuableScope.close()
     span.finish()
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE]
+    assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE])
   }
 
   def "closing scope out of order - simple"() {
@@ -443,7 +450,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     firstScope.close()
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE])
     1 * statsDClient.incrementCounter("scope.close.error")
     0 * _
 
@@ -452,14 +459,14 @@ class ScopeManagerTest extends DDCoreSpecification {
     secondScope.close()
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, CLOSE]
+    assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
 
     when:
     firstScope.close()
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, CLOSE]
+    assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     1 * statsDClient.incrementCounter("scope.close.error")
   }
 
@@ -472,11 +479,11 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope firstScope = tracer.activateSpan(firstSpan)
 
     then:
-    eventCountingListener.events == [ACTIVATE]
+    assertEvents([ACTIVATE])
 
     tracer.activeSpan() == firstSpan
     tracer.activeScope() == firstScope
-    eventCountingListener.events == [ACTIVATE]
+    assertEvents([ACTIVATE])
     0 * _
 
     when:
@@ -484,10 +491,10 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope secondScope = tracer.activateSpan(secondSpan)
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == secondSpan
     tracer.activeScope() == secondScope
-    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE])
     0 * _
 
     when:
@@ -495,20 +502,20 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope thirdScope = tracer.activateSpan(thirdSpan)
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     0 * _
 
     when:
     secondScope.close()
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     1 * statsDClient.incrementCounter("scope.close.error")
     0 * _
 
@@ -516,18 +523,18 @@ class ScopeManagerTest extends DDCoreSpecification {
     thirdScope.close()
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
     tracer.activeSpan() == firstSpan
     tracer.activeScope() == firstScope
 
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE])
     0 * _
 
     when:
     firstScope.close()
 
     then:
-    eventCountingListener.events == [
+    assertEvents([
       ACTIVATE,
       ACTIVATE,
       ACTIVATE,
@@ -535,9 +542,9 @@ class ScopeManagerTest extends DDCoreSpecification {
       CLOSE,
       ACTIVATE,
       CLOSE
-    ]
+    ])
     tracer.activeScope() == null
-    eventCountingListener.events == [
+    assertEvents([
       ACTIVATE,
       ACTIVATE,
       ACTIVATE,
@@ -545,7 +552,7 @@ class ScopeManagerTest extends DDCoreSpecification {
       CLOSE,
       ACTIVATE,
       CLOSE
-    ]
+    ])
     0 * _
   }
 
@@ -554,13 +561,13 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope scope1 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
 
     then:
-    eventCountingListener.events == [ACTIVATE]
+    assertEvents([ACTIVATE])
 
     when:
     AgentScope scope2 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
 
     then: 'Activating the same span multiple times does not create a new scope'
-    eventCountingListener.events == [ACTIVATE]
+    assertEvents([ACTIVATE])
 
     when:
     AgentSpan thirdSpan = tracer.buildSpan("quux").start()
@@ -568,17 +575,17 @@ class ScopeManagerTest extends DDCoreSpecification {
     0 * _
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
-    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE])
     0 * _
 
     when:
     scope2.close()
 
     then: 'Closing a scope once that has been activated multiple times does not close'
-    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE])
     1 * statsDClient.incrementCounter("scope.close.error")
     0 * _
 
@@ -587,14 +594,14 @@ class ScopeManagerTest extends DDCoreSpecification {
     thirdSpan.finish()
 
     then: 'Closing scope above multiple activated scope does not close it'
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE])
     0 * _
 
     when:
     scope1.close()
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE]
+    assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE])
   }
 
   def "Closing a continued scope out of order cancels the continuation"() {
@@ -802,7 +809,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
 
     then:
-    eventCountingListener.events == [ACTIVATE]
+    assertEvents([ACTIVATE])
 
     when:
     def listener = new EventCountingListener()
@@ -820,7 +827,34 @@ class ScopeManagerTest extends DDCoreSpecification {
     scope.close()
 
     then:
-    eventCountingListener.events == [ACTIVATE, CLOSE]
+    assertEvents([ACTIVATE, CLOSE])
+    listener.events == [ACTIVATE, CLOSE]
+  }
+
+  def "extended scope listener should be notified about the currently active scope"() {
+    when:
+    AgentScope scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+
+    then:
+    assertEvents([ACTIVATE])
+
+    when:
+    def listener = new EventCountingExtendedListener()
+
+    then:
+    listener.events == []
+
+    when:
+    scopeManager.addExtendedScopeListener(listener)
+
+    then:
+    listener.events == [ACTIVATE]
+
+    when:
+    scope.close()
+
+    then:
+    assertEvents([ACTIVATE, CLOSE])
     listener.events == [ACTIVATE, CLOSE]
   }
 
@@ -853,7 +887,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope continuableScope = tracer.activateSpan(span)
 
     then:
-    eventCountingListener.events == [ACTIVATE]
+    assertEvents([ACTIVATE])
     secondEventCountingListener.events == [ACTIVATE]
 
     when:
@@ -861,7 +895,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope childDDScope = tracer.activateSpan(childSpan)
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE])
     secondEventCountingListener.events == [ACTIVATE, ACTIVATE]
 
     when:
@@ -869,7 +903,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     childSpan.finish()
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE]
+    assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE])
     secondEventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE]
 
     when:
@@ -877,7 +911,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     span.finish()
 
     then:
-    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE]
+    assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE])
     secondEventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE]
 
     where:
@@ -891,13 +925,33 @@ class ScopeManagerTest extends DDCoreSpecification {
   boolean spanFinished(AgentSpan span) {
     return ((DDSpan) span)?.isFinished()
   }
+
+  def assertEvents( List<EVENT> events ) {
+    assert eventCountingListener.events == events
+    assert eventCountingExtendedListener.events == events
+    return true
+  }
 }
 
 class EventCountingListener implements ScopeListener {
-  enum EVENT {
-    ACTIVATE, CLOSE
+  public final List<EVENT> events = new ArrayList<>()
+
+  @Override
+  void afterScopeActivated() {
+    synchronized (events) {
+      events.add(ACTIVATE)
+    }
   }
 
+  @Override
+  void afterScopeClosed() {
+    synchronized (events) {
+      events.add(CLOSE)
+    }
+  }
+}
+
+class EventCountingExtendedListener implements ExtendedScopeListener {
   public final List<EVENT> events = new ArrayList<>()
 
   @Override
@@ -920,7 +974,7 @@ class ExceptionThrowingScopeListener implements ScopeListener {
   boolean throwOnScopeClosed = false
 
   @Override
-  void afterScopeActivated(DDId traceId, DDId spanId) {
+  void afterScopeActivated() {
     if (throwOnScopeActivated) {
       throw new RuntimeException("Exception on activated")
     }

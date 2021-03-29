@@ -35,6 +35,7 @@ import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
+import datadog.trace.core.scopemanager.ExtendedScopeListener;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.util.AgentTaskScheduler;
@@ -654,13 +655,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @SuppressForbidden
   private static void createScopeEventFactory(ContinuableScopeManager continuableScopeManager) {
     try {
-      ScopeListener scopeListener =
-          (ScopeListener)
+      ExtendedScopeListener scopeListener =
+          (ExtendedScopeListener)
               Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
                   .getDeclaredConstructor()
                   .newInstance();
 
-      continuableScopeManager.addScopeListener(scopeListener);
+      continuableScopeManager.addExtendedScopeListener(scopeListener);
     } catch (final Throwable e) {
       log.debug("Profiling of ScopeEvents is not available. {}", e.getMessage());
     }

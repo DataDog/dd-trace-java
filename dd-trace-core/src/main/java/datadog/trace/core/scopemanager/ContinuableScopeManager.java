@@ -36,6 +36,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       };
 
   private final List<ScopeListener> scopeListeners;
+  private final List<ExtendedScopeListener> extendedScopeListeners;
   private final int depthLimit;
   private final StatsDClient statsDClient;
   private final boolean strictMode;
@@ -52,6 +53,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     this.strictMode = strictMode;
     this.inheritAsyncPropagation = inheritAsyncPropagation;
     this.scopeListeners = new CopyOnWriteArrayList<>();
+    this.extendedScopeListeners = new CopyOnWriteArrayList<>();
   }
 
   @Override
@@ -144,6 +146,16 @@ public class ContinuableScopeManager implements AgentScopeManager {
     AgentSpan activeSpan = activeSpan();
     if (activeSpan != null) {
       // Notify the listener about the currently active scope
+      listener.afterScopeActivated();
+    }
+  }
+
+  public void addExtendedScopeListener(final ExtendedScopeListener listener) {
+    extendedScopeListeners.add(listener);
+    log.debug("Added scope listener {}", listener);
+    AgentSpan activeSpan = activeSpan();
+    if (activeSpan != null) {
+      // Notify the listener about the currently active scope
       listener.afterScopeActivated(activeSpan.getTraceId(), activeSpan.context().getSpanId());
     }
   }
@@ -228,6 +240,14 @@ public class ContinuableScopeManager implements AgentScopeManager {
           log.debug("ScopeListener threw exception in close()", e);
         }
       }
+
+      for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
+        try {
+          listener.afterScopeClosed();
+        } catch (Exception e) {
+          log.debug("ScopeListener threw exception in close()", e);
+        }
+      }
     }
 
     final void incrementReferences() {
@@ -291,9 +311,17 @@ public class ContinuableScopeManager implements AgentScopeManager {
     public void afterActivated() {
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         try {
-          listener.afterScopeActivated(span.getTraceId(), span.context().getSpanId());
+          listener.afterScopeActivated();
         } catch (Throwable e) {
           log.debug("ScopeListener threw exception in afterActivated()", e);
+        }
+      }
+
+      for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
+        try {
+          listener.afterScopeActivated(span.getTraceId(), span.context().getSpanId());
+        } catch (Throwable e) {
+          log.debug("ExtendedScopeListener threw exception in afterActivated()", e);
         }
       }
     }

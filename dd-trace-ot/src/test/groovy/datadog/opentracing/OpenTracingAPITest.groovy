@@ -1,7 +1,6 @@
 package datadog.opentracing
 
 import com.timgroup.statsd.StatsDClient
-import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.interceptor.MutableSpan
@@ -118,7 +117,7 @@ class OpenTracingAPITest extends DDSpecification {
     Scope scope = tracer.activateSpan(testSpan)
 
     then:
-    1 * scopeListener.afterScopeActivated(_ as DDId, _ as DDId)
+    1 * scopeListener.afterScopeActivated()
     testSpan instanceof MutableSpan
     scope.span() instanceof MutableSpan
 
@@ -324,7 +323,7 @@ class OpenTracingAPITest extends DDSpecification {
     Scope scope = tracer.activateSpan(testSpan)
 
     then:
-    1 * scopeListener.afterScopeActivated({ it.toString() == tracer.getTraceId() }, { it.toString() == tracer.getSpanId() })
+    1 * scopeListener.afterScopeActivated()
 
     testSpan.context().toSpanId() == tracer.getSpanId()
     testSpan.context().toTraceId() == tracer.getTraceId()
@@ -366,7 +365,7 @@ class OpenTracingAPITest extends DDSpecification {
     firstScope.close()
 
     then:
-    2 * scopeListener.afterScopeActivated(_ as DDId, _ as DDId)
+    2 * scopeListener.afterScopeActivated()
     1 * statsDClient.incrementCounter("scope.close.error")
     1 * statsDClient.incrementCounter("scope.user.close.error")
     0 * _
@@ -405,7 +404,7 @@ class OpenTracingAPITest extends DDSpecification {
     Scope secondScope = strictTracer.activateSpan(secondSpan)
 
     then:
-    2 * scopeListener.afterScopeActivated(_ as DDId, _ as DDId)
+    2 * scopeListener.afterScopeActivated()
     0 * _
 
     when:
@@ -426,7 +425,7 @@ class OpenTracingAPITest extends DDSpecification {
     then:
     1 * scopeListener.afterScopeClosed()
     1 * traceInterceptor.onTraceComplete({ it.size() == 2 }) >> { args -> args[0] }
-    1 * scopeListener.afterScopeActivated(_ as DDId, _ as DDId)
+    1 * scopeListener.afterScopeActivated()
     0 * _
 
     when:

@@ -1,13 +1,13 @@
 package datadog.trace.core.jfr.openjdk;
 
 import datadog.trace.api.DDId;
-import datadog.trace.context.ScopeListener;
+import datadog.trace.core.scopemanager.ExtendedScopeListener;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import jdk.jfr.EventType;
 
 /** Event factory for {@link ScopeEvent} */
-public class ScopeEventFactory implements ScopeListener {
+public class ScopeEventFactory implements ExtendedScopeListener {
   private final ThreadLocal<Deque<ScopeEvent>> scopeEventStack =
       ThreadLocal.withInitial(ArrayDeque::new);
 
