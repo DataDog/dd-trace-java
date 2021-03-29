@@ -16,6 +16,16 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   public static final CharSequence PLAY_ACTION = UTF8BytesString.create("play-action");
   public static final PlayHttpServerDecorator DECORATE = new PlayHttpServerDecorator();
 
+  private static final Class<?> classCompletionException = getClassCompletionException();
+
+  private static Class<?> getClassCompletionException() {
+    try {
+      return Class.forName("java.util.concurrent.CompletionException");
+    } catch (ClassNotFoundException ignore) {
+    }
+    return null;
+  }
+
   @Override
   protected String[] instrumentationNames() {
     return new String[] {"play"};
@@ -72,10 +82,10 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
 
   @Override
   public AgentSpan onError(final AgentSpan span, Throwable throwable) {
-    span.setTag(Tags.HTTP_STATUS, _500);
     if (throwable != null
         // This can be moved to instanceof check when using Java 8.
-        && throwable.getClass().getName().equals("java.util.concurrent.CompletionException")
+        && classCompletionException != null
+        && classCompletionException.isInstance(throwable)
         && throwable.getCause() != null) {
       throwable = throwable.getCause();
     }
@@ -83,6 +93,11 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
             || throwable instanceof UndeclaredThrowableException)
         && throwable.getCause() != null) {
       throwable = throwable.getCause();
+    }
+    if (throwable.getMessage().toLowerCase().contains("not found")) {
+      span.setTag(Tags.HTTP_STATUS, _404);
+    } else {
+      span.setTag(Tags.HTTP_STATUS, _500);
     }
     return super.onError(span, throwable);
   }

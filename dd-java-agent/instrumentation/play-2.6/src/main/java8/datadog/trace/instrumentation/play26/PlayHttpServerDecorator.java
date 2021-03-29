@@ -115,7 +115,6 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
 
   @Override
   public AgentSpan onError(final AgentSpan span, Throwable throwable) {
-    span.setTag(Tags.HTTP_STATUS, _500);
     if (throwable instanceof CompletionException && throwable.getCause() != null) {
       throwable = throwable.getCause();
     }
@@ -123,6 +122,11 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
             || throwable instanceof UndeclaredThrowableException)
         && throwable.getCause() != null) {
       throwable = throwable.getCause();
+    }
+    if (throwable.getMessage().toLowerCase().contains("not found")) {
+      span.setTag(Tags.HTTP_STATUS, _404);
+    } else {
+      span.setTag(Tags.HTTP_STATUS, _500);
     }
     return super.onError(span, throwable);
   }
