@@ -31,6 +31,10 @@ public class TestNGDecorator extends TestDecorator {
     span.setResourceName(testSuite + "." + testName);
     span.setTag(Tags.TEST_SUITE, testSuite);
     span.setTag(Tags.TEST_NAME, testName);
+
+    if (hasParameters(result)) {
+      span.setTag(Tags.TEST_PARAMETERS, buildParametersTagValue(result));
+    }
   }
 
   public void onTestSuccess(final AgentSpan span) {
@@ -53,5 +57,23 @@ public class TestNGDecorator extends TestDecorator {
     if (result.getThrowable() != null) {
       span.setTag(Tags.TEST_SKIP_REASON, result.getThrowable().getMessage());
     }
+  }
+
+  private boolean hasParameters(final ITestResult result) {
+    return result.getParameters() != null && result.getParameters().length > 0;
+  }
+
+  // We build manually the JSON for test.parameters tag.
+  // Example: {"arguments":{"0":"param1","1":"param2"}}
+  private String buildParametersTagValue(final ITestResult result) {
+    final StringBuilder sb = new StringBuilder("{\"arguments\":{");
+    for (int i = 0; i < result.getParameters().length; i++) {
+      sb.append("\"").append(i).append("\":\"").append(result.getParameters()[i]).append("\"");
+      if (i != result.getParameters().length - 1) {
+        sb.append(",");
+      }
+    }
+    sb.append("}}");
+    return sb.toString();
   }
 }
