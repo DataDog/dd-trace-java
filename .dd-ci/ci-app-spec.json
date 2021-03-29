@@ -1,6 +1,7 @@
 [
   "test.suite",
   "test.name",
+  "test.parameters",
   "test.status",
   "test.framework",
   "test.skip_reason",
@@ -17,5 +18,18 @@
   "git.repository_url",
   "git.commit.sha",
   "git.branch",
-  "git.tag"
+  "git.tag",
+  "git.commit.author.date",
+  "git.commit.author.email",
+  "git.commit.author.name",
+  "git.commit.committer.date",
+  "git.commit.committer.email",
+  "git.commit.committer.name",
+  "git.commit.message",
+  "os.architecture",
+  "os.platform",
+  "os.version",
+  "runtime.name",
+  "runtime.version",
+  "runtime.vendor"
 ]
