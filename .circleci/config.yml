@@ -135,7 +135,7 @@ jobs:
       - image: aerospike
         # This is used by mongodb smoke tests
       - image: mongo
-        # This is used by jdbc tests
+        # This is used by jdbc and vert.x tests
       - image: mysql
         environment:
           MYSQL_ROOT_PASSWORD: password

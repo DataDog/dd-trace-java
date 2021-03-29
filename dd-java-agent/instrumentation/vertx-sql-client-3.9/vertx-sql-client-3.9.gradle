@@ -1,0 +1,41 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+//muzzle {
+//  pass {
+//    group = 'io.vertx'
+//    module = "vertx-sql-client"
+//    versions = "[3.9.0,4)"
+//    assertInverse = true
+//  }
+//}
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+configurations {
+  testArtifacts
+}
+
+dependencies {
+  main_java8CompileOnly group: 'io.vertx', name: 'vertx-mysql-client', version: '3.9.0'
+
+  //testCompile project(':dd-java-agent:instrumentation:trace-annotation')
+
+  testCompile group: 'io.vertx', name: 'vertx-mysql-client', version: '3.9.0'
+
+  // This is needed for the test container to start
+  testCompile group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
+  testCompile "org.testcontainers:mysql:1.15.1"
+
+  latestDepTestCompile group: 'io.vertx', name: 'vertx-mysql-client', version: '3.+'
+}
