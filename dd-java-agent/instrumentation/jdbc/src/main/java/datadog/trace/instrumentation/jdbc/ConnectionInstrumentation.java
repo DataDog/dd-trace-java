@@ -1,30 +1,15 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.returns;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
-import java.sql.PreparedStatement;
-import java.util.Map;
-import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class ConnectionInstrumentation extends Instrumenter.Tracing {
+public class ConnectionInstrumentation extends AbstractConnectionInstrumentation {
 
   private static final String[] CONCRETE_TYPES = {
     // redshift
@@ -76,52 +61,12 @@ public final class ConnectionInstrumentation extends Instrumenter.Tracing {
     Config.get().getJdbcConnectionClassName()
   };
 
-  private static final String[] ABSTRACT_TYPES = {
-    // this should cover DB2
-    "com.ibm.db2.jcc.DB2Connection",
-    // this won't match any class unless the property is set
-    Config.get().getJdbcConnectionClassName()
-  };
-
   public ConnectionInstrumentation() {
     super("jdbc");
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return PreparedStatementInstrumentation.CLASS_LOADER_MATCHER;
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.sql.PreparedStatement", DBQueryInfo.class.getName());
-  }
-
-  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return namedOneOf(CONCRETE_TYPES)
-        .or(safeHasSuperType(NameMatchers.<TypeDescription>namedOneOf(ABSTRACT_TYPES)));
-  }
-
-  @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
-        nameStartsWith("prepare")
-            .and(takesArgument(0, String.class))
-            // Also include CallableStatement, which is a sub type of PreparedStatement
-            .and(returns(hasInterface(named("java.sql.PreparedStatement")))),
-        ConnectionInstrumentation.class.getName() + "$ConnectionPrepareAdvice");
-  }
-
-  public static class ConnectionPrepareAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void addDBInfo(
-        @Advice.Argument(0) final String sql, @Advice.Return final PreparedStatement statement) {
-      ContextStore<PreparedStatement, DBQueryInfo> contextStore =
-          InstrumentationContext.get(PreparedStatement.class, DBQueryInfo.class);
-      if (null == contextStore.get(statement)) {
-        contextStore.putIfAbsent(statement, DBQueryInfo.ofPreparedStatement(sql));
-      }
-    }
+    return namedOneOf(CONCRETE_TYPES);
   }
 }
