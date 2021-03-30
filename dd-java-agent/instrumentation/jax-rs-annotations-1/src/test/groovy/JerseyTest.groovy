@@ -34,6 +34,7 @@ class JerseyTest extends AgentTestRunner {
           resourceName expectedResourceName
           tags {
             "$Tags.COMPONENT" "jax-rs"
+            "$Tags.HTTP_ROUTE" expectedResourceName.split(" ").last()
             defaultTags()
           }
         }
@@ -76,6 +77,7 @@ class JerseyTest extends AgentTestRunner {
           resourceName parentResourceName
           tags {
             "$Tags.COMPONENT" "jax-rs"
+            "$Tags.HTTP_ROUTE" parentResourceName.split(" ").last()
             defaultTags()
           }
         }

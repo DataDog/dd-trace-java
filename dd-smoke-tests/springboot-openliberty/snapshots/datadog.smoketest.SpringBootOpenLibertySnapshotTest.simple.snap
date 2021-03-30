@@ -20,6 +20,7 @@
            "http.status_code" "200"
            "span.kind" "server"
            "http.method" "GET"
+           "http.route" "/connect/{user}"
            "thread.id" "44"
            "servlet.path" "/connect/0"}
    "metrics" {"_dd.agent_psr" 1.0

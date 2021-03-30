@@ -10,6 +10,7 @@ public class Tags {
   public static final String SPAN_KIND_TEST = "test";
 
   public static final String HTTP_URL = "http.url";
+  public static final String HTTP_ROUTE = "http.route";
   public static final String HTTP_STATUS = "http.status_code";
   public static final String HTTP_METHOD = "http.method";
   public static final String PEER_HOST_IPV4 = "peer.ipv4";

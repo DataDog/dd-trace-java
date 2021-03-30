@@ -7,6 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 import static datadog.trace.instrumentation.finatra.FinatraDecorator.DECORATE;
 import static datadog.trace.instrumentation.finatra.FinatraDecorator.FINATRA_CONTROLLER;
 import static datadog.trace.instrumentation.finatra.FinatraDecorator.FINATRA_REQUEST;
@@ -72,7 +73,7 @@ public class FinatraInstrumentation extends Instrumenter.Tracing {
 
       // Update the parent "netty.request"
       final AgentSpan parent = activeSpan();
-      parent.setResourceName(request.method().name() + " " + path);
+      ROUTE_HANDLER_DECORATOR.withRoute(parent, request.method().name(), path);
       parent.setTag(Tags.COMPONENT, "finatra");
       parent.setSpanName(FINATRA_REQUEST);
 

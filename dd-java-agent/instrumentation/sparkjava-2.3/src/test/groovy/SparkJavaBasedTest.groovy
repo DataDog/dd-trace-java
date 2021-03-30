@@ -59,6 +59,7 @@ class SparkJavaBasedTest extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/param/asdf1234"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_ROUTE" String
             defaultTags()
           }
         }

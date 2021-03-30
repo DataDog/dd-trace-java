@@ -52,6 +52,8 @@ class PlayServerTest extends HttpServerTest<TestServer> {
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_METHOD" String
         "$Tags.HTTP_STATUS" Integer
+        // BUG
+        //        "$Tags.HTTP_ROUTE" String
         if (endpoint == EXCEPTION) {
           errorTags(Exception, EXCEPTION.body)
         }
