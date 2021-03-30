@@ -277,10 +277,7 @@ jobs:
 workflows:
   build_test_deploy:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /.*/
+      - build
 
       - default_test_job:
           requires:
@@ -290,42 +287,27 @@ workflows:
           matrix:
             parameters:
               testTask: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15" ]
-          filters:
-            tags:
-              only: /.*/
 
       - default_test_job:
           requires:
             - build
           name: test_8
           testTask: test jacocoTestReport jacocoTestCoverageVerification
-          filters:
-            tags:
-              only: /.*/
 
       - default_test_job:
           requires:
             - build
           name: test_latest8
           testTask: latestDepTest
-          filters:
-            tags:
-              only: /.*/
 
       - agent_integration_tests:
           requires:
             - build
           testTask: traceAgentTest
-          filters:
-            tags:
-              only: /.*/
 
       - check:
           requires:
             - build
-          filters:
-            tags:
-              only: /.*/
 
       - muzzle:
           requires:
