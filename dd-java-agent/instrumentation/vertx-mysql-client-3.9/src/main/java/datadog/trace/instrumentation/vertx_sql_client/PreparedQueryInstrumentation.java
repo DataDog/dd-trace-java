@@ -32,14 +32,12 @@ public class PreparedQueryInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap(
-        "io.vertx.sqlclient.Query", "datadog.trace.instrumentation.vertx_sql_client.QueryInfo");
+    return singletonMap("io.vertx.sqlclient.Query", "datadog.trace.api.Pair");
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".QueryInfo",
       packageName + ".QueryResultHandlerWrapper",
       packageName + ".VertxSqlClientDecorator",
       packageName + ".QueryAdvice",

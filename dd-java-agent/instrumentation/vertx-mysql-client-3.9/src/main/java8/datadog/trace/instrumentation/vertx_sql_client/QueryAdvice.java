@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.vertx_sql_client;
 
 import static datadog.trace.instrumentation.vertx_sql_client.VertxSqlClientDecorator.DECORATE;
 
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -18,8 +19,7 @@ public class QueryAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterCopy(
         @Advice.This final Query<?> zis, @Advice.Return final Query<?> ret) {
-      ContextStore<Query, QueryInfo> contextStore =
-          InstrumentationContext.get(Query.class, QueryInfo.class);
+      ContextStore<Query, Pair> contextStore = InstrumentationContext.get(Query.class, Pair.class);
       contextStore.put(ret, contextStore.get(zis));
     }
 
@@ -44,7 +44,7 @@ public class QueryAdvice {
       final boolean prepared = !(maybeHandler instanceof Handler);
       final AgentSpan span =
           DECORATE.startAndDecorateSpanForStatement(
-              zis, InstrumentationContext.get(Query.class, QueryInfo.class), prepared);
+              zis, InstrumentationContext.get(Query.class, Pair.class), prepared);
       if (null != span) {
         if (prepared) {
           handler = new QueryResultHandlerWrapper<>(handler, span);

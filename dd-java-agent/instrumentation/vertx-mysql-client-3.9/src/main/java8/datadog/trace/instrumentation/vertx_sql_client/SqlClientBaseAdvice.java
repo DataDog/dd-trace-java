@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.vertx_sql_client;
 
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
@@ -15,11 +16,11 @@ public class SqlClientBaseAdvice {
         @Advice.This final SqlClient zis,
         @Advice.Argument(0) final String sql,
         @Advice.Return final Query query) {
-      QueryInfo info =
-          new QueryInfo(
+      Pair<DBInfo, DBQueryInfo> info =
+          Pair.of(
               InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
               DBQueryInfo.ofStatement(sql));
-      InstrumentationContext.get(Query.class, QueryInfo.class).put(query, info);
+      InstrumentationContext.get(Query.class, Pair.class).put(query, info);
     }
 
     // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x
@@ -34,11 +35,11 @@ public class SqlClientBaseAdvice {
         @Advice.This final SqlClient zis,
         @Advice.Argument(0) final String sql,
         @Advice.Return final Query query) {
-      QueryInfo info =
-          new QueryInfo(
+      Pair<DBInfo, DBQueryInfo> info =
+          Pair.of(
               InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
               DBQueryInfo.ofPreparedStatement(sql));
-      InstrumentationContext.get(Query.class, QueryInfo.class).put(query, info);
+      InstrumentationContext.get(Query.class, Pair.class).put(query, info);
     }
 
     // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x

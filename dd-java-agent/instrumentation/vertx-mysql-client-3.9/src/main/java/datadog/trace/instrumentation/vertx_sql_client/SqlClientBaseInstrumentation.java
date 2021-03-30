@@ -25,15 +25,13 @@ public class SqlClientBaseInstrumentation extends Instrumenter.Tracing {
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
     contextStores.put("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
-    contextStores.put(
-        "io.vertx.sqlclient.Query", "datadog.trace.instrumentation.vertx_sql_client.QueryInfo");
+    contextStores.put("io.vertx.sqlclient.Query", "datadog.trace.api.Pair");
     return contextStores;
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".QueryInfo",
       packageName + ".SqlClientBaseAdvice",
       packageName + ".SqlClientBaseAdvice$NormalQuery",
       packageName + ".SqlClientBaseAdvice$PreparedQuery",

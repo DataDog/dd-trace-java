@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.vertx_sql_client;
 
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
 import io.vertx.mysqlclient.MySQLConnection;
 import io.vertx.sqlclient.PreparedStatement;
@@ -10,8 +11,8 @@ public class PreparedStatementQueryAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterQuery(
       @Advice.This final PreparedStatement zis, @Advice.Return final Query query) {
-    InstrumentationContext.get(Query.class, QueryInfo.class)
-        .put(query, InstrumentationContext.get(PreparedStatement.class, QueryInfo.class).get(zis));
+    InstrumentationContext.get(Query.class, Pair.class)
+        .put(query, InstrumentationContext.get(PreparedStatement.class, Pair.class).get(zis));
   }
 
   // Limit ourselves to 3.9.x and MySQL by checking for this method that was removed in 4.x

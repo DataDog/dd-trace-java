@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.vertx_sql_client;
 
 import static datadog.trace.instrumentation.vertx_sql_client.VertxSqlClientDecorator.DECORATE;
 
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.AsyncResult;
@@ -24,7 +25,7 @@ public class CursorReadAdvice {
     }
     final AgentSpan span =
         DECORATE.startAndDecorateSpanForStatement(
-            ps, InstrumentationContext.get(PreparedStatement.class, QueryInfo.class), true);
+            ps, InstrumentationContext.get(PreparedStatement.class, Pair.class), true);
     if (null != span) {
       handler = new QueryResultHandlerWrapper<>(handler, span);
     }

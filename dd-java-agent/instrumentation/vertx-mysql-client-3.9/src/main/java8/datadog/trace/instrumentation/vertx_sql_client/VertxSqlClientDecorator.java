@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.vertx_sql_client;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
 
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -69,7 +70,7 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public <T> AgentSpan startAndDecorateSpanForStatement(
-      T query, ContextStore<T, QueryInfo> contextStore, boolean prepared) {
+      T query, ContextStore<T, Pair> contextStore, boolean prepared) {
     CharSequence component = prepared ? VERTX_PREPARED_STATEMENT : VERTX_STATEMENT;
     AgentSpan span = startSpan(DATABASE_QUERY);
     if (null == span) {
@@ -79,10 +80,10 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
 
     DBInfo dbInfo = null;
     DBQueryInfo dbQueryInfo = null;
-    QueryInfo queryInfo = contextStore.get(query);
+    Pair<DBInfo, DBQueryInfo> queryInfo = contextStore.get(query);
     if (queryInfo != null) {
-      dbInfo = queryInfo.getDbInfo();
-      dbQueryInfo = queryInfo.getDbQueryInfo();
+      dbInfo = queryInfo.getLeft();
+      dbQueryInfo = queryInfo.getRight();
     }
 
     if (dbInfo != null) {
