@@ -7,7 +7,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import org.bson.BsonDocument;
-import org.bson.BsonDocumentReader;
 
 public class Mongo4ClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<CommandStartedEvent> {
@@ -71,7 +70,7 @@ public class Mongo4ClientDecorator
 
   private static String scrub(final BsonDocument origin) {
     try (BsonScrubber scrubber = new BsonScrubber()) {
-      scrubber.pipe(new BsonDocumentReader(origin));
+      scrubber.pipe(origin.asBsonReader());
       return scrubber.toResourceName();
     }
   }
