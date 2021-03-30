@@ -15,6 +15,7 @@ public final class PreparedStatementInstrumentation
   private static final String[] CONCRETE_TYPES = {
     // redshift
     "com.amazon.redshift.jdbc.RedshiftPreparedStatement",
+    "com.amazon.redshift.jdbc.RedshiftCallableStatement",
     // jt400
     "com.ibm.as400.access.AS400JDBCPreparedStatement",
     // probably patchy cover
