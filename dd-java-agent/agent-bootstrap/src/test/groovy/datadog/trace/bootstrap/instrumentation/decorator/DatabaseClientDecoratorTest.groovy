@@ -43,6 +43,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     if (session) {
       1 * span.setTag(Tags.DB_USER, session.user)
       1 * span.setTag(Tags.DB_INSTANCE, session.instance)
+      1 * span.setMeasured(true)
       if (session.hostname != null) {
         1 * span.setTag(Tags.PEER_HOSTNAME, session.hostname)
       }
