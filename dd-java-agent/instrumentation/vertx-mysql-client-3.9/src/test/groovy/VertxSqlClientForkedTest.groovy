@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicReference
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-class VertxSqlClientTest extends AgentTestRunner {
+class VertxSqlClientForkedTest extends AgentTestRunner {
   @AutoCleanup
   @Shared
   // This database name must match up with the name in the CircleCI MySQL Docker definition
