@@ -71,10 +71,10 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then:
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
-    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> clientError(request) }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> clientError(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> clientError(request) }
-    features.getMetricsEndpoint() == "v0.5/stats"
-    features.supportsMetrics()
+    features.getMetricsEndpoint() == null
+    !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
   }
@@ -89,10 +89,10 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then:
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
-    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> success(request) }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> success(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> success(request) }
-    features.getMetricsEndpoint() == "v0.5/stats"
-    features.supportsMetrics()
+    features.getMetricsEndpoint() == null
+    !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.5/traces"
     !features.supportsDropping()
   }
@@ -107,10 +107,10 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then:
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
-    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> clientError(request) }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> clientError(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> clientError(request) }
-    features.getMetricsEndpoint() == "v0.5/stats"
-    features.supportsMetrics()
+    features.getMetricsEndpoint() == null
+    !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.4/traces"
     !features.supportsDropping()
   }
@@ -125,11 +125,11 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then:
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
-    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> clientError(request) }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> clientError(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> notFound(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> clientError(request) }
-    features.getMetricsEndpoint() == "v0.5/stats"
-    features.supportsMetrics()
+    features.getMetricsEndpoint() == null
+    !features.supportsMetrics()
     features.getTraceEndpoint() == "v0.4/traces"
     !features.supportsDropping()
   }
@@ -144,7 +144,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then:
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
-    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> notFound(request) }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> notFound(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> notFound(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> clientError(request) }
     features.getMetricsEndpoint() == null
@@ -163,7 +163,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
     then:
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
-    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> notFound(request) }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/stats" }) >> { Request request -> notFound(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.5/traces" }) >> { Request request -> notFound(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> notFound(request) }
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.3/traces" }) >> { Request request -> clientError(request) }

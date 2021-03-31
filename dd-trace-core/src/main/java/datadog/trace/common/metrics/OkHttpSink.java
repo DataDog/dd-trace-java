@@ -30,6 +30,7 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private final OkHttpClient client;
   private final HttpUrl metricsUrl;
+  private final HttpUrl validationUrl;
   private final List<EventListener> listeners;
   private final SpscArrayQueue<Request> enqueuedRequests = new SpscArrayQueue<>(10);
   private final AtomicLong lastRequestTime = new AtomicLong();
@@ -60,6 +61,7 @@ public final class OkHttpSink implements Sink, EventListener {
       boolean bufferingEnabled) {
     this.client = client;
     this.metricsUrl = HttpUrl.get(agentUrl).resolve(path);
+    this.validationUrl = HttpUrl.get(agentUrl).resolve("info");
     this.listeners = new CopyOnWriteArrayList<>();
     this.asyncThresholdLatency = asyncThresholdLatency;
     this.bufferingEnabled = bufferingEnabled;
@@ -143,8 +145,11 @@ public final class OkHttpSink implements Sink, EventListener {
 
   @Override
   public boolean validate() {
+    // TODO rework DDAgentFeaturesDiscovery so it can be used here,
+    // independently of DDAgentWriter
+    // check the /info endpoint exists which means trace agent >= 7.27.0
     try (final okhttp3.Response response =
-        client.newCall(prepareRequest(metricsUrl).build()).execute()) {
+        client.newCall(prepareRequest(validationUrl).build()).execute()) {
       if (response.code() != 404 && response.code() < 500) {
         return true;
       }
