@@ -70,7 +70,7 @@ public final class DriverInstrumentation extends Instrumenter.Tracing {
         // Exception was probably thrown.
         return;
       }
-      final DBInfo dbInfo = JDBCConnectionUrlParser.parse(url, props);
+      final DBInfo dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, props);
       InstrumentationContext.get(Connection.class, DBInfo.class).put(connection, dbInfo);
     }
   }

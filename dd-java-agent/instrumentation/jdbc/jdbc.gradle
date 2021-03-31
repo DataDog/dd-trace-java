@@ -1,6 +1,7 @@
 muzzle {
   pass {
     coreJdk()
+    extraDependency 'com.ibm.db2:jcc:11.1.4.4'
   }
 }
 

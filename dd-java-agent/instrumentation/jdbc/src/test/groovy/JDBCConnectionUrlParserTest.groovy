@@ -2,7 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo
 import spock.lang.Shared
 
-import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser.parse
+import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser.extractDBInfo
 
 class JDBCConnectionUrlParserTest extends AgentTestRunner {
 
@@ -24,7 +24,7 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
 
   def "invalid url returns default"() {
     expect:
-    parse(url, null) == DBInfo.DEFAULT
+    extractDBInfo(url, null) == DBInfo.DEFAULT
 
     where:
     url            | _
@@ -37,7 +37,7 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
 
   def "verify #type:#subtype parsing of #url"() {
     setup:
-    def info = parse(url, props)
+    def info = extractDBInfo(url, props)
 
     expect:
     info.url == expected.url
