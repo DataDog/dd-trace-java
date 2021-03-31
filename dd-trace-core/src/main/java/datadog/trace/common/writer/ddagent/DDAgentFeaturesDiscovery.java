@@ -82,36 +82,15 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       if (fallback) {
         this.supportsDropping = false;
         log.debug("Falling back to probing, client dropping will be disabled");
-        if (metricsEnabled) {
-          this.metricsEndpoint = probeTracerMetricsEndpoint();
-        }
+        // disable metrics unless the info endpoint is present, which prevents
+        // sending metrics to 7.26.0, which has a bug in reporting metric origin
+        this.metricsEndpoint = null;
         // don't want to rewire the traces pipeline
         if (null == traceEndpoint) {
           this.traceEndpoint = probeTracesEndpoint();
         }
       }
     }
-  }
-
-  private String probeTracerMetricsEndpoint() {
-    String candidate = "v0.5/stats";
-    try (Response response =
-        client
-            .newCall(
-                new Request.Builder()
-                    .put(OkHttpUtils.msgpackRequestBodyOf(Collections.<ByteBuffer>emptyList()))
-                    .url(agentBaseUrl.resolve(candidate).url())
-                    .build())
-            .execute()) {
-      if (response.code() != 404) {
-        this.state = response.header(DATADOG_AGENT_STATE);
-        return candidate;
-      }
-    } catch (IOException e) {
-      errorQueryingEndpoint(candidate, e);
-    }
-    log.debug("No metrics endpoint found, metrics will be disabled");
-    return null;
   }
 
   private String probeTracesEndpoint() {
@@ -125,6 +104,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
                       .build())
               .execute()) {
         if (response.code() != 404) {
+          this.state = response.header(DATADOG_AGENT_STATE);
           return candidate;
         }
       } catch (IOException e) {
