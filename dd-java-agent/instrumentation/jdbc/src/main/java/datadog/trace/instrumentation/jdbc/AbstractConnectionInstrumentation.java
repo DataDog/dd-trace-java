@@ -44,7 +44,7 @@ public abstract class AbstractConnectionInstrumentation extends Instrumenter.Tra
       ContextStore<PreparedStatement, DBQueryInfo> contextStore =
           InstrumentationContext.get(PreparedStatement.class, DBQueryInfo.class);
       if (null == contextStore.get(statement)) {
-        contextStore.putIfAbsent(statement, DBQueryInfo.ofPreparedStatement(sql));
+        contextStore.put(statement, DBQueryInfo.ofPreparedStatement(sql));
       }
     }
   }
