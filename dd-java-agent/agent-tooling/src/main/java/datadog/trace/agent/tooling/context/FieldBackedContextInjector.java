@@ -2,7 +2,8 @@ package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.agent.tooling.context.ShouldInjectFieldsMatcher.hasInjectedField;
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
-import static datadog.trace.util.Strings.getInternalName;
+import static net.bytebuddy.jar.asm.Opcodes.ASM7;
+import static net.bytebuddy.jar.asm.Type.getInternalName;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
@@ -11,6 +12,7 @@ import datadog.trace.bootstrap.FieldBackedContextStores;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -34,21 +36,26 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
 
   private static final Logger log = LoggerFactory.getLogger(FieldBackedContextInjector.class);
 
+  static final Type OBJECT_TYPE = Type.getType(Object.class);
+  static final String OBJECT_DESCRIPTOR = OBJECT_TYPE.getDescriptor();
+  static final String ATOMIC_REFERENCE_FIELD_UPDATER_DESCRIPTOR =
+      Type.getDescriptor(AtomicReferenceFieldUpdater.class);
+
   static final String FIELD_BACKED_CONTEXT_STORES_CLASS =
-      getInternalName(FieldBackedContextStores.class.getName());
+      getInternalName(FieldBackedContextStores.class);
 
   static final String FIELD_BACKED_CONTEXT_ACCESSOR_CLASS =
-      getInternalName(FieldBackedContextAccessor.class.getName());
+      getInternalName(FieldBackedContextAccessor.class);
 
   static final String CONTEXT_STORE_ACCESS_PREFIX = "__datadogContext$";
 
   static final String GETTER_METHOD = "$get$" + CONTEXT_STORE_ACCESS_PREFIX;
   static final String GETTER_METHOD_DESCRIPTOR =
-      Type.getMethodDescriptor(Type.getType(Object.class), Type.INT_TYPE);
+      Type.getMethodDescriptor(OBJECT_TYPE, Type.INT_TYPE);
 
   static final String PUTTER_METHOD = "$put$" + CONTEXT_STORE_ACCESS_PREFIX;
   static final String PUTTER_METHOD_DESCRIPTOR =
-      Type.getMethodDescriptor(Type.VOID_TYPE, Type.INT_TYPE, Type.getType(Object.class));
+      Type.getMethodDescriptor(Type.VOID_TYPE, Type.INT_TYPE, OBJECT_TYPE);
 
   static final String WEAK_GET_METHOD = "weakGet";
   static final String WEAK_GET_METHOD_DESCRIPTOR =
@@ -60,9 +67,17 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
       Type.getMethodDescriptor(
           Type.VOID_TYPE, Type.getType(Object.class), Type.INT_TYPE, Type.getType(Object.class));
 
-  static final String OBJECT_DESCRIPTOR = Type.getDescriptor(Object.class);
+  static final String ATOMIC_REFERENCE_FIELD_UPDATER_NAME =
+      getInternalName(AtomicReferenceFieldUpdater.class);
+  static final String NEW_UPDATER_NAME = "newUpdater";
+  static final String NEW_UPDATER_DESCRIPTOR =
+      Type.getMethodDescriptor(
+          Type.getType(AtomicReferenceFieldUpdater.class),
+          Type.getType(Class.class),
+          Type.getType(Class.class),
+          Type.getType(String.class));
 
-  static final String LINKAGE_ERROR_CLASS = getInternalName(LinkageError.class.getName());
+  static final String LINKAGE_ERROR_CLASS = getInternalName(LinkageError.class);
 
   /** Keeps track of injection requests for the class being transformed by the current thread. */
   static final ThreadLocal<BitSet> INJECTED_STORE_IDS = new ThreadLocal<>();
@@ -97,16 +112,19 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
       final MethodList<?> methods,
       final int writerFlags,
       final int readerFlags) {
-    return new ClassVisitor(Opcodes.ASM7, classVisitor) {
+    return new ClassVisitor(ASM7, classVisitor) {
 
       private final boolean frames =
           implementationContext.getClassFileVersion().isAtLeast(ClassFileVersion.JAVA_V6);
 
       private String storeFieldName;
+      private String storeUpdaterFieldName;
 
       private boolean foundField;
       private boolean foundGetter;
       private boolean foundPutter;
+
+      private boolean foundStaticInitializer;
 
       private SerialVersionUIDInjector serialVersionUIDInjector;
 
@@ -123,6 +141,7 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
         // because we need to switch between them in the generated getter/putter methods
         int storeId = injectContextStore(keyClassName, contextClassName);
         storeFieldName = CONTEXT_STORE_ACCESS_PREFIX + storeId;
+        storeUpdaterFieldName = storeFieldName + "$updater";
 
         if (interfaces == null) {
           interfaces = new String[] {};
@@ -170,6 +189,12 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
           final String descriptor,
           final String signature,
           final String[] exceptions) {
+        MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
+        if (name.equals("<clinit>")) {
+          foundStaticInitializer = true;
+          return new AtomicReferenceUpdaterInitializationBlock(
+              mv, instrumentedType, storeFieldName, storeUpdaterFieldName);
+        }
         if (name.equals(GETTER_METHOD)) {
           foundGetter = true;
         } else if (name.equals(PUTTER_METHOD)) {
@@ -177,7 +202,7 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
         } else if (serialVersionUIDInjector != null) {
           serialVersionUIDInjector.visitMethod(access, name, descriptor, signature, exceptions);
         }
-        return super.visitMethod(access, name, descriptor, signature, exceptions);
+        return mv;
       }
 
       @Override
@@ -193,6 +218,10 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
       public void visitEnd() {
         if (!foundField) {
           addStoreField();
+          addStoreUpdaterField();
+          if (!foundStaticInitializer) {
+            addStoreUpdaterInitializer();
+          }
         }
         // first injector to reach here is responsible for adding the generated getter and setter
         // for the class - at this point all the other injectors will have recorded their requests
@@ -220,21 +249,45 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
         }
 
         storeFieldName = null;
+        storeUpdaterFieldName = null;
 
         foundField = false;
         foundGetter = false;
         foundPutter = false;
+        foundStaticInitializer = false;
 
         super.visitEnd();
       }
 
       private void addStoreField() {
         cv.visitField(
-            Opcodes.ACC_PRIVATE | Opcodes.ACC_TRANSIENT,
+            Opcodes.ACC_PRIVATE | Opcodes.ACC_TRANSIENT | Opcodes.ACC_VOLATILE,
             storeFieldName,
             OBJECT_DESCRIPTOR,
             null,
             null);
+      }
+
+      private void addStoreUpdaterField() {
+        cv.visitField(
+            Opcodes.ACC_PRIVATE | Opcodes.ACC_STATIC | Opcodes.ACC_FINAL | Opcodes.ACC_TRANSIENT,
+            storeUpdaterFieldName,
+            ATOMIC_REFERENCE_FIELD_UPDATER_DESCRIPTOR,
+            null,
+            null);
+      }
+
+      private void addStoreUpdaterInitializer() {
+        MethodVisitor mv =
+            new AtomicReferenceUpdaterInitializationBlock(
+                cv.visitMethod(Opcodes.ACC_STATIC, "<clinit>", "()V", null, null),
+                instrumentedType,
+                storeFieldName,
+                storeUpdaterFieldName);
+        mv.visitCode();
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
       }
 
       private void addStoreGetter(
@@ -487,7 +540,7 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
   private static final class SerialVersionUIDInjector
       extends datadog.trace.agent.tooling.context.asm.SerialVersionUIDAdder {
     public SerialVersionUIDInjector() {
-      super(Opcodes.ASM7, null);
+      super(ASM7, null);
     }
 
     public void injectSerialVersionUID(
@@ -504,6 +557,58 @@ final class FieldBackedContextInjector implements AsmVisitorWrapper {
           log.debug("Failed to add serialVersionUID to {}", instrumentedType.getActualName(), e);
         }
       }
+    }
+  }
+
+  private static class AtomicReferenceUpdaterInitializationBlock extends MethodVisitor {
+    private final TypeDescription instrumentedType;
+    private final String storeFieldName;
+    private final String storeUpdaterFieldName;
+
+    public AtomicReferenceUpdaterInitializationBlock(
+        MethodVisitor mv,
+        TypeDescription instrumentedType,
+        String storeFieldName,
+        String storeUpdaterFieldName) {
+      super(Opcodes.ASM7, mv);
+      this.instrumentedType = instrumentedType;
+      this.storeFieldName = storeFieldName;
+      this.storeUpdaterFieldName = storeUpdaterFieldName;
+    }
+
+    @Override
+    public void visitCode() {
+      super.visitCode();
+      /*
+       static {};
+       Code:
+          0: ldc           #4                  // class Foo
+          2: ldc           #5                  // class java/lang/Object
+          4: ldc           #6                  // String __datadogContext$0
+          6: invokestatic  #7                  // Method java/util/concurrent/atomic/AtomicReferenceFieldUpdater.newUpdater:(Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;)Ljava/util/concurrent/atomic/AtomicReferenceFieldUpdater;
+          9: putstatic     #2                  // Field __datadogContext$0$updater:Ljava/util/concurrent/atomic/AtomicReferenceFieldUpdater;
+      */
+      Type targetType = Type.getObjectType(instrumentedType.getInternalName());
+      // 3 stack slots, no locals (see visitMaxs)
+      super.visitLdcInsn(targetType);
+      super.visitLdcInsn(OBJECT_TYPE);
+      super.visitLdcInsn(storeFieldName);
+      super.visitMethodInsn(
+          Opcodes.INVOKESTATIC,
+          ATOMIC_REFERENCE_FIELD_UPDATER_NAME,
+          NEW_UPDATER_NAME,
+          NEW_UPDATER_DESCRIPTOR,
+          false);
+      super.visitFieldInsn(
+          Opcodes.PUTSTATIC,
+          "java/util/concurrent/atomic/AtomicReferenceFieldUpdater",
+          storeUpdaterFieldName,
+          targetType.getDescriptor());
+    }
+
+    @Override
+    public void visitMaxs(int maxStack, int maxLocals) {
+      super.visitMaxs(Math.max(maxStack, 3), maxLocals);
     }
   }
 }
