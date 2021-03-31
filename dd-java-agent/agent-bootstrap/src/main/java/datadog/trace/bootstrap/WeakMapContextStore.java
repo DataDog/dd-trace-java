@@ -31,13 +31,7 @@ final class WeakMapContextStore implements ContextStore<Object, Object> {
   public Object putIfAbsent(final Object key, final Factory<Object> contextFactory) {
     Object existingContext = map.get(key);
     if (null == existingContext) {
-      synchronized (map) {
-        existingContext = map.get(key);
-        if (null == existingContext) {
-          existingContext = contextFactory.create();
-          put(key, existingContext);
-        }
-      }
+      return putIfAbsent(key, contextFactory.create());
     }
     return existingContext;
   }
