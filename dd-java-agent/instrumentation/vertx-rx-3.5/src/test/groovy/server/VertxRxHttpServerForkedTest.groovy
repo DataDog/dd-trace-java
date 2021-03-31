@@ -15,7 +15,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 @Ignore("This test isn't different from VertxHttpServerTest. Needs rework to meet intent")
-class VertxRxHttpServerTest extends VertxHttpServerTest {
+class VertxRxHttpServerForkedTest extends VertxHttpServerForkedTest {
 
   @Override
   protected Class<AbstractVerticle> verticle() {

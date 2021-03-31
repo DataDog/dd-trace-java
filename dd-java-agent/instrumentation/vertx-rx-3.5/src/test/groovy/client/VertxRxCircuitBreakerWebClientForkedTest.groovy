@@ -16,7 +16,7 @@ import spock.lang.Timeout
 import java.util.concurrent.CompletableFuture
 
 @Timeout(10)
-class VertxRxCircuitBreakerWebClientTest extends HttpClientTest {
+class VertxRxCircuitBreakerWebClientForkedTest extends HttpClientTest {
 
   @Override
   boolean useStrictTraceWrites() {

@@ -20,7 +20,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FO
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
-class VertxHttpServerTest extends HttpServerTest<Vertx> {
+class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   @Override
   Vertx startServer(int port) {
     def server = Vertx.vertx(new VertxOptions()
@@ -118,7 +118,7 @@ class VertxHttpServerTest extends HttpServerTest<Vertx> {
   }
 }
 
-class VertxChainingHttpServerTest extends VertxHttpServerTest {
+class VertxChainingHttpServerForkedTest extends VertxHttpServerForkedTest {
   @Override
   protected Class<AbstractVerticle> verticle() {
     VertxChainingTestServer
