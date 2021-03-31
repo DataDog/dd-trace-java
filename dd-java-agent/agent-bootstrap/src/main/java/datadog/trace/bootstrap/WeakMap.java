@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap;
 
-import datadog.trace.api.Function;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public interface WeakMap<K, V> {
@@ -13,9 +12,7 @@ public interface WeakMap<K, V> {
 
   void put(K key, V value);
 
-  void putIfAbsent(K key, V value);
-
-  V computeIfAbsent(K key, Function<? super K, ? extends V> supplier);
+  V putIfAbsent(K key, V value);
 
   class Provider {
     private static final AtomicReferenceFieldUpdater<Provider, Implementation> UPDATER =
