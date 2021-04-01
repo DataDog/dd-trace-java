@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class PortUtils {
 
@@ -72,15 +73,18 @@ public class PortUtils {
     throw new RuntimeException("Timed out waiting for port " + port + " to be opened");
   }
 
-  public static void waitForPortToOpen(int port, long timeout, TimeUnit unit) {
+  public static void waitForPortToOpen(int port, long timeout, TimeUnit unit)
+      throws TimeoutException {
     waitForPort(port, timeout, unit, true);
   }
 
-  public static void waitForPortToClose(int port, long timeout, TimeUnit unit) {
+  public static void waitForPortToClose(int port, long timeout, TimeUnit unit)
+      throws TimeoutException {
     waitForPort(port, timeout, unit, false);
   }
 
-  private static void waitForPort(int port, long timeout, TimeUnit unit, boolean open) {
+  private static void waitForPort(int port, long timeout, TimeUnit unit, boolean open)
+      throws TimeoutException {
     long waitNanos = unit.toNanos(timeout);
     long start = System.nanoTime();
     String state = open ? "open" : "closed";
@@ -93,10 +97,11 @@ public class PortUtils {
       try {
         Thread.sleep(100);
       } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new RuntimeException("Interrupted while waiting for " + port + " to be " + state);
       }
     }
 
-    throw new RuntimeException("Timed out waiting for port " + port + " to be " + state);
+    throw new TimeoutException("Timed out waiting for port " + port + " to be " + state);
   }
 }

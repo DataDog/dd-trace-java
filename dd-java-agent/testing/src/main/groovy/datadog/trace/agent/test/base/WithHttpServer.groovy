@@ -6,30 +6,44 @@ import datadog.trace.agent.test.utils.PortUtils
 import net.bytebuddy.utility.JavaModule
 import okhttp3.OkHttpClient
 import spock.lang.Shared
+import spock.lang.Subject
 
 import java.util.concurrent.TimeUnit
 
 abstract class WithHttpServer<SERVER> extends AgentTestRunner {
+  @Subject
   @Shared
-  SERVER server = null
+  SERVER server
   @Shared
   OkHttpClient client = OkHttpUtils.client()
   @Shared
-  ServerSocket socket = PortUtils.randomOpenSocket()
-  @Shared
-  int port = socket.localPort
-  @Shared
-  URI address = null
+  URI address
 
   def setupSpec() {
-    // Set up other shared variables
-    address = buildAddress()
-    // Wait with closing the socket until right before we start the server
-    socket.close()
-    PortUtils.waitForPortToClose(port, 5, TimeUnit.SECONDS)
-    server = startServer(port)
-    PortUtils.waitForPortToOpen(port, 5, TimeUnit.SECONDS)
-    println getClass().name + " http server started at: http://localhost:$port/"
+    int port = -1
+    int retries = 3
+    for (i in 0..<retries) {
+      try {
+        ServerSocket socket = PortUtils.randomOpenSocket()
+        port = socket.localPort
+        socket.close()
+        PortUtils.waitForPortToClose(port, 5, TimeUnit.SECONDS)
+        server = startServer(port)
+        PortUtils.waitForPortToOpen(port, 5, TimeUnit.SECONDS)
+        break
+      } catch (Exception e) {
+        e.printStackTrace()
+        if (server != null) {
+          println "Stopping existing server with port $port to retry"
+          stopServer(server)
+        }
+      }
+    }
+    if (server == null) {
+      throw new Exception("Failed to start server after $retries retries.")
+    }
+    address = buildAddress(port)
+    println getClass().name + " http server started at: $address"
   }
 
   def cleanupSpec() {
@@ -39,8 +53,8 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
     }
     stopServer(server)
     server = null
-    PortUtils.waitForPortToClose(port, 10, TimeUnit.SECONDS)
-    println getClass().name + " http server stopped at: http://localhost:$port/"
+    PortUtils.waitForPortToClose(address.port, 10, TimeUnit.SECONDS)
+    println getClass().name + " http server stopped at: $address"
   }
 
   @Override
@@ -53,8 +67,7 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
     }
   }
 
-
-  URI buildAddress() {
+  URI buildAddress(int port) {
     return new URI("http://localhost:$port/")
   }
 

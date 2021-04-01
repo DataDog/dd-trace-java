@@ -57,7 +57,7 @@ class JettyServlet2Test extends HttpServerTest<Server> {
   }
 
   @Override
-  URI buildAddress() {
+  URI buildAddress(int port) {
     return new URI("http://localhost:$port/$CONTEXT/")
   }
 
