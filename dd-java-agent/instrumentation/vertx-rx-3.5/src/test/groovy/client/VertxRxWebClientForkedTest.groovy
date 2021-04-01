@@ -12,7 +12,7 @@ import spock.lang.Shared
 import spock.lang.Timeout
 
 @Timeout(10)
-class VertxRxWebClientTest extends HttpClientTest {
+class VertxRxWebClientForkedTest extends HttpClientTest {
 
   @Override
   boolean useStrictTraceWrites() {

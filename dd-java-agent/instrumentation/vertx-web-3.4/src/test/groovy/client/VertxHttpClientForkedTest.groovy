@@ -14,7 +14,7 @@ import spock.lang.Timeout
 import java.util.concurrent.CompletableFuture
 
 @Timeout(10)
-class VertxHttpClientTest extends HttpClientTest {
+class VertxHttpClientForkedTest extends HttpClientTest {
 
   @Override
   boolean useStrictTraceWrites() {

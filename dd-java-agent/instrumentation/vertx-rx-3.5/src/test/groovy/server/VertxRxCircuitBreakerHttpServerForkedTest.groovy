@@ -16,7 +16,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
-class VertxRxCircuitBreakerHttpServerTest extends VertxHttpServerTest {
+class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTest {
 
   @Override
   protected Class<AbstractVerticle> verticle() {
