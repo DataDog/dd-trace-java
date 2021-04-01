@@ -51,7 +51,10 @@ ext {
       dependencies.create(group: 'org.objenesis', name: 'objenesis', version: '2.6') // Last version to support Java7
     ],
     groovy        : "org.codehaus.groovy:groovy-all:${versions.groovy}",
-    junit5        : "org.junit.jupiter:junit-jupiter:${versions.junit5}",
+    junit5        : [
+      dependencies.create(group: 'org.junit.jupiter', name: 'junit-jupiter', version: versions.junit5),
+      dependencies.create(group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: versions.junit5),
+    ],
     mockito       : [
       dependencies.create(group: 'org.mockito', name: 'mockito-core', version: versions.mockito),
       dependencies.create(group: 'org.mockito', name: 'mockito-junit-jupiter', version: versions.mockito)

@@ -3,7 +3,8 @@ plugins {
 }
 
 ext {
-  minJavaVersionForTests = JavaVersion.VERSION_11
+  enableJunitPlatform = true
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
   // Oracle 8 has JFR 1 and Zulu has backported JFR 2
   forceJdk = ['ZULU8', 'ORACLE8']
 }
@@ -11,6 +12,9 @@ ext {
 apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Profiling Integration Tests.'
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
 jar {
   manifest {
@@ -23,11 +27,15 @@ dependencies {
 
   testCompile project(':dd-smoke-tests')
   testCompile project(':dd-java-agent:agent-profiling:profiling-testing')
+  testCompile deps.junit5
+  testCompile deps.mockito
   testCompile deps.jmc
 }
 
 tasks.withType(Test).configureEach {
   dependsOn shadowJar
+
+  onlyIf { !name.contains('IBM') && !name.contains('Generated') }
 
   jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archivePath}"
 }

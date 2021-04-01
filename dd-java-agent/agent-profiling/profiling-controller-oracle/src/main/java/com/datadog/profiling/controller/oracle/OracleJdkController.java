@@ -30,7 +30,7 @@ public final class OracleJdkController implements Controller {
    */
   public OracleJdkController(@Nonnull final Config config) throws ConfigurationException {
     try {
-      log.debug("Initiating Oracle JFR controller");
+      log.debug("Initializing Oracle JFR controller");
       helper = new JfrMBeanHelper();
       eventSettings =
           JfpUtils.readNamedJfpResource(

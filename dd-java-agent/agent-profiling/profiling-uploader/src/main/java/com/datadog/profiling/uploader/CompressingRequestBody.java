@@ -216,7 +216,16 @@ final class CompressingRequestBody extends RequestBody {
       throws IOException {
     try (OutputStream sinkStream =
         isCompressed(inputStream)
-            ? outputStream
+            ? new BufferedOutputStream(outputStream) {
+              @Override
+              public void close() throws IOException {
+                // Do not propagate close; call 'flush()' instead.
+                // Compression streams must be 'closed' because they finalize the
+                // compression
+                // in that method.
+                flush();
+              }
+            }
             : new BufferedOutputStream(
                 outputStreamMapper.apply(
                     new BufferedOutputStream(outputStream) {
