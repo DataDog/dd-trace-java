@@ -61,15 +61,30 @@ public class Agent {
   private static ClassLoader AGENT_CLASSLOADER = null;
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
   private static ClassLoader PROFILING_CLASSLOADER = null;
+  private static volatile AgentTaskScheduler.Task<URL> PROFILER_INIT_AFTER_JMX = null;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createParentClassloader(bootstrapURL);
 
-    // Profiling agent startup code is written in a way to allow `startProfilingAgent` be called
-    // multiple times
-    // If early profiling is enabled then this call will start profiling.
-    // If early profiling is disabled then later call will do this.
-    startProfilingAgent(bootstrapURL, true);
+    if (!isOracleJDK8()) {
+      // Profiling agent startup code is written in a way to allow `startProfilingAgent` be called
+      // multiple times
+      // If early profiling is enabled then this call will start profiling.
+      // If early profiling is disabled then later call will do this.
+      startProfilingAgent(bootstrapURL, true);
+    } else {
+      log.debug("Oracle JDK 8 detected. Delaying profiler initialization.");
+      // Profiling can not run early on Oracle JDK 8 because it will cause JFR initialization
+      // deadlock.
+      // Oracle JDK 8 JFR controller requires JMX so register an 'after-jmx-initialized' callback.
+      PROFILER_INIT_AFTER_JMX =
+          new AgentTaskScheduler.Task<URL>() {
+            @Override
+            public void run(URL target) {
+              startProfilingAgent(target, false);
+            }
+          };
+    }
 
     startDatadogAgent(inst, bootstrapURL);
 
@@ -121,27 +136,23 @@ public class Agent {
     }
 
     /*
-     * Similar thing happens with Profiler:
-     * a) on zulu-8 because it is using OkHttp which indirectly loads JFR events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different logging facility.
-     * b) on Oracle JDK 8 because we need JMX to communicate with JFR engine and initializing JMX will cause an attempt to load LogManager.
+     * Similar thing happens with Profiler on zulu-8 because it is using OkHttp which indirectly loads JFR events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different logging facility.
      */
-    boolean shouldDelayProfilerStartup = false;
-    if (!isJavaVersionAtLeast(9)) {
-      if (appUsingCustomLogManager) {
-        log.debug("Custom logger detected. Delaying Profiling Agent startup.");
-        shouldDelayProfilerStartup = true;
-      }
-      if (System.getProperty("java.vendor").contains("Oracle")
-          && !System.getProperty("java.runtime.name").contains("OpenJDK")) {
-        log.debug("Oracle JDK 8 detected. Delaying Profiling Agent startup");
-        shouldDelayProfilerStartup = true;
+    if (!isOracleJDK8()) {
+      if (!isJavaVersionAtLeast(9) && appUsingCustomLogManager) {
+        log.debug("Custom logger detected. Delaying JMXFetch initialization.");
+        registerLogManagerCallback(new StartProfilingAgentCallback(inst, bootstrapURL));
+      } else {
+        // Anything above 8 is OpenJDK implementation and is safe to run synchronously
+        startProfilingAgent(bootstrapURL, false);
       }
     }
-    if (shouldDelayProfilerStartup) {
-      registerLogManagerCallback(new StartProfilingAgentCallback(inst, bootstrapURL));
-    } else {
-      startProfilingAgent(bootstrapURL, false);
-    }
+  }
+
+  private static boolean isOracleJDK8() {
+    return !isJavaVersionAtLeast(9)
+        && System.getProperty("java.vendor").contains("Oracle")
+        && !System.getProperty("java.runtime.name").contains("OpenJDK");
   }
 
   private static void registerLogManagerCallback(final ClassLoadCallBack callback) {
@@ -343,6 +354,17 @@ public class Agent {
     startJmxFetch(bootstrapURL);
     initializeJmxSystemAccessProvider(AGENT_CLASSLOADER);
     registerDeadlockDetectionEvent(bootstrapURL);
+    if (PROFILER_INIT_AFTER_JMX != null) {
+      if (getJmxStartDelay() == 0) {
+        log.debug("Waiting for profiler initialization");
+        AgentTaskScheduler.INSTANCE.scheduleWithJitter(
+            PROFILER_INIT_AFTER_JMX, bootstrapURL, 500, TimeUnit.MILLISECONDS);
+      } else {
+        log.debug("Initializing profiler");
+        PROFILER_INIT_AFTER_JMX.run(bootstrapURL);
+      }
+      PROFILER_INIT_AFTER_JMX = null;
+    }
   }
 
   private static synchronized void registerDeadlockDetectionEvent(URL bootstrapUrl) {
@@ -397,8 +419,7 @@ public class Agent {
     }
   }
 
-  private static synchronized void startProfilingAgent(
-      final URL bootstrapURL, final boolean isStartingFirst) {
+  private static void startProfilingAgent(final URL bootstrapURL, final boolean isStartingFirst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       final ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
