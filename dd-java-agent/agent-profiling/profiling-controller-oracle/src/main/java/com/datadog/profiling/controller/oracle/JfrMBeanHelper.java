@@ -110,7 +110,7 @@ final class JfrMBeanHelper {
   private final MBeanServer server;
 
   private static void initialize() throws IOException {
-    log.warn("Initializing MBean helper");
+    log.debug("Initializing MBean helper");
     if (initPhase.compareAndSet(0, 1)) {
       registerMBeans();
 
@@ -129,7 +129,7 @@ final class JfrMBeanHelper {
     try {
       try {
         server.createMBean(MC_BEAN_CLASS, MC_BEAN_NAME);
-        log.warn("MissionControl MBean created");
+        log.debug("MissionControl MBean created");
       } catch (InstanceAlreadyExistsException iaee) {
         // Ok, it already exists.
       } catch (MBeanException mbe) {

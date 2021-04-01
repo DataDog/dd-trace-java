@@ -132,7 +132,7 @@ public final class ProfilingSystem {
   private void startProfilingRecording() {
     try {
       final Instant now = Instant.now();
-
+      log.debug("Initiating profiling recording");
       recording = controller.createRecording(RECORDING_NAME);
       scheduler.scheduleAtFixedRate(
           SnapshotRecording::snapshot,
@@ -189,6 +189,7 @@ public final class ProfilingSystem {
     public void snapshot() {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
       try {
+        log.debug("Creating profiler snapshot");
         final RecordingData recordingData = recording.snapshot(lastSnapshot, Instant.now());
         // The hope here is that we do not get chunk rotated after taking snapshot and before we
         // take this timestamp otherwise we will start losing data.
