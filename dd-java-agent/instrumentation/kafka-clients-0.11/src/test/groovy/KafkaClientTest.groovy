@@ -22,6 +22,7 @@ import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Unroll
 
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -683,11 +684,15 @@ class KafkaClientTest extends AgentTestRunner {
     List<String> greetings = ["msg 1", "msg 2", "msg 3"]
     runUnderTrace("parent") {
       for (g in greetings) {
+        def latch = new CountDownLatch(1)
         kafkaTemplate.send(SHARED_TOPIC, g).addCallback({
           runUnderTrace("producer callback") {}
+          latch.countDown()
         }, { ex ->
           runUnderTrace("producer exception: " + ex) {}
+          latch.countDown()
         })
+        latch.await(5, TimeUnit.SECONDS)
       }
       blockUntilChildSpansFinished(2 * greetings.size())
     }
@@ -707,8 +712,8 @@ class KafkaClientTest extends AgentTestRunner {
 
     assertTraces(4) {
       trace(7) {
+        sortSpansByStart()
         basicSpan(it, "parent")
-        basicSpan(it, "producer callback", span(0))
         span {
           serviceName "kafka"
           operationName "kafka.produce"
@@ -750,6 +755,7 @@ class KafkaClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
+        basicSpan(it, "producer callback", span(0))
       }
       trace(1) {
         span {
