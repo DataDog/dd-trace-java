@@ -89,7 +89,9 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
     func.call()
 
     Thread.sleep(1000)
-    if (testAgent != null) printLogToFile(testTokenID)
+    if (testAgent != null) {
+      printLogToFile(testTokenID)
+    }
 
     //resend the test agent results to query the snapshot comparison results that the test agent does
     url = "http://localhost:${testAgentMappedPort}/test/snapshot"
@@ -107,7 +109,9 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
 
   def printLogToFile(String fileName) {
     File logFile = new File("${buildDirectory}/reports/${fileName}.log")
-    if (!logFile.exists()) logFile.createNewFile()
+    if (!logFile.exists()) {
+      logFile.createNewFile()
+    }
     logFile.write(testAgent.getLogs())
   }
 

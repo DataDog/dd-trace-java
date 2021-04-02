@@ -28,7 +28,7 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
     return processBuilder
   }
 
-  def "Test Simple Request"() {
+  def "Test trace snapshot of sending single request to Openliberty server"() {
     setup:
     Response response
     snapshot("datadog.smoketest.SpringBootOpenLibertySnapshotTest.simple", {
@@ -42,7 +42,7 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
     response.code() == 200
   }
 
-  def "Test nested Request"() {
+  def "Test trace snapshot of sending nested request to Openliberty server"() {
     setup:
     Response response
     String[] ignoredKeys =  ['meta.http.url', 'meta.thread.name', 'meta.peer.port', 'meta.thread.id', "meta.servlet.path"]
