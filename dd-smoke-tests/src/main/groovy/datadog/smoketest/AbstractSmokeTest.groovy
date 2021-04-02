@@ -1,13 +1,8 @@
 package datadog.smoketest
 
 import datadog.trace.agent.test.server.http.TestHttpServer
-import datadog.trace.agent.test.utils.PortUtils
 import spock.lang.AutoCleanup
 import spock.lang.Shared
-import spock.lang.Specification
-
-import java.nio.file.Files
-import java.nio.file.Paths
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
