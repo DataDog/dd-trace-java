@@ -98,7 +98,7 @@ public class PortUtils {
         Thread.sleep(100);
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException("Interrupted while waiting for " + port + " to be " + state);
+        throw new RuntimeException("Interrupted while waiting for " + port + " to be " + state, e);
       }
     }
 

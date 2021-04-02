@@ -11,7 +11,6 @@ import org.glassfish.grizzly.http.HttpHeader
 import org.glassfish.grizzly.http.HttpRequestPacket
 import org.glassfish.grizzly.http.HttpResponsePacket
 import org.glassfish.grizzly.http.HttpServerFilter
-import org.glassfish.grizzly.http.server.HttpServer
 import org.glassfish.grizzly.nio.transport.TCPNIOServerConnection
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport
 import org.glassfish.grizzly.nio.transport.TCPNIOTransportBuilder
@@ -34,8 +33,7 @@ import static java.nio.charset.Charset.defaultCharset
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static org.glassfish.grizzly.memory.Buffers.wrap
 
-class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
-  private TCPNIOTransport transport
+class GrizzlyFilterchainServerTest extends HttpServerTest<TCPNIOTransport> {
   private TCPNIOServerConnection serverConnection
 
   @Override
@@ -46,17 +44,17 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
   }
 
   @Override
-  HttpServer startServer(int port) {
+  TCPNIOTransport startServer(int port) {
     FilterChain filterChain = setUpFilterChain()
-    setUpTransport(filterChain)
+    TCPNIOTransport transport = setUpTransport(filterChain)
 
     serverConnection = transport.bind("127.0.0.1", port)
     transport.start()
-    return null
+    return transport
   }
 
   @Override
-  void stopServer(HttpServer httpServer) {
+  void stopServer(TCPNIOTransport transport) {
     transport.shutdownNow()
   }
 
@@ -77,7 +75,7 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
     false
   }
 
-  void setUpTransport(FilterChain filterChain) {
+  def setUpTransport(FilterChain filterChain) {
     TCPNIOTransportBuilder transportBuilder = TCPNIOTransportBuilder.newInstance()
       .setOptimizedForMultiplexing(true)
 
@@ -87,8 +85,9 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
     transportBuilder.setServerConnectionBackLog(50)
     transportBuilder.setServerSocketSoTimeout(80000)
 
-    transport = transportBuilder.build()
+    TCPNIOTransport transport = transportBuilder.build()
     transport.setProcessor(filterChain)
+    return transport
   }
 
   FilterChain setUpFilterChain() {
