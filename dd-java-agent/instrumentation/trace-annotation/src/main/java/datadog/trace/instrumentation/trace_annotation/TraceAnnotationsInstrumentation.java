@@ -40,7 +40,8 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing 
               "kamon.annotation.Trace",
               "com.tracelytics.api.ext.LogMethod",
               "io.opentracing.contrib.dropwizard.Trace",
-              "org.springframework.cloud.sleuth.annotation.NewSpan"));
+              "org.springframework.cloud.sleuth.annotation.NewSpan",
+              "io.micronaut.tracing.annotation.NewSpan"));
     } else if (!configString.matches(CONFIG_FORMAT)) {
       LoggerFactory.getLogger(TraceAnnotationsInstrumentation.class)
           .warn(
