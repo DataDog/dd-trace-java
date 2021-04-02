@@ -328,7 +328,7 @@ class AWS1ClientTest extends AgentTestRunner {
         }
       }
     }
-    AmazonS3Client client = new AmazonS3Client(new ClientConfiguration().withRequestTimeout(50 /* ms */))
+    AmazonS3Client client = new AmazonS3Client(new ClientConfiguration().withRequestTimeout(1 /* ms */))
       .withEndpoint("http://localhost:$server.address.port")
 
     when:
