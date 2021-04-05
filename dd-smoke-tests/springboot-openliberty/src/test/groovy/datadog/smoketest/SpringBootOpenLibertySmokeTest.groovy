@@ -2,10 +2,7 @@ package datadog.smoketest
 
 import datadog.trace.agent.test.utils.ThreadUtils
 import okhttp3.FormBody
-import okhttp3.MediaType
 import okhttp3.Request
-import okhttp3.RequestBody
-import okio.BufferedSink
 import spock.lang.Requires
 import spock.lang.Shared
 
@@ -72,8 +69,12 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
     def url = "http://localhost:${httpPort}/connect/0"
     def formBody = new FormBody.Builder()
     def value = new StringBuilder()
-    for (int i = 0; i < 10000; i++) value.append("@@@@@@@@@@")
-    for (int i = 0; i < 100; i++) formBody.add("test" + i, value.toString())
+    for (int i = 0; i < 10000; i++) {
+      value.append("@@@@@@@@@@")
+    }
+    for (int i = 0; i < 100; i++) {
+      formBody.add("test" + i, value.toString())
+    }
     def request = new Request.Builder().url(url).post(formBody.build()).build()
 
     expect:
