@@ -5,7 +5,9 @@ import okhttp3.Response
 import spock.lang.Requires
 import spock.lang.Shared
 
-@Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") && System.getenv("CI") != "true" })
+@Requires({
+  !System.getProperty("java.vm.name").contains("IBM J9 VM") && System.getenv("CI") != "true"
+})
 class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
 
   @Shared
