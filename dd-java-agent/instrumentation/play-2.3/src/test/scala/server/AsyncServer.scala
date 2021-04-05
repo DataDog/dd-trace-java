@@ -72,6 +72,15 @@ object AsyncServer {
           })
         )
       }
+//    case ("GET", "/not-found") =>
+//      Action.async { result =>
+//        HttpServerTest.controller(
+//          EXCEPTION,
+//          new AsyncBlockClosureAdapter(() => {
+//            throw new Exception("not fouNd")
+//          })
+//        )
+//      }
   }
 
   def server(port: Int): TestServer = {

@@ -18,6 +18,7 @@ import java.util.function.Supplier
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -55,6 +56,16 @@ class PlayServerTest extends HttpServerTest<Server> {
         .GET(EXCEPTION.getPath()).routeTo({
           controller(EXCEPTION) {
             throw new Exception(EXCEPTION.getBody())
+          }
+        } as Supplier)
+        .GET(NOT_FOUND.getPath()).routeTo({
+          controller(NOT_FOUND) {
+            Results.status(NOT_FOUND.getStatus(), NOT_FOUND.getBody())
+          }
+        } as Supplier)
+        .GET("/not-found-propagated").routeTo({
+          controller(ERROR) {
+            throw new Exception("not found")
           }
         } as Supplier)
         .build()

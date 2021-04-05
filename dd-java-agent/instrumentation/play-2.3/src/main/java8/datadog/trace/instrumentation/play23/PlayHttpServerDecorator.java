@@ -82,9 +82,8 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
 
   @Override
   public AgentSpan onError(final AgentSpan span, Throwable throwable) {
-    if (throwable != null
-        // This can be moved to instanceof check when using Java 8.
-        && classCompletionException != null
+    if ( // This can be moved to instanceof check when using Java 8.
+    classCompletionException != null
         && classCompletionException.isInstance(throwable)
         && throwable.getCause() != null) {
       throwable = throwable.getCause();
