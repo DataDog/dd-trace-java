@@ -12,11 +12,7 @@ apply plugin: 'signing'
 apply from: "$rootDir/gradle/version.gradle"
 apply from: "$rootDir/gradle/maven-pom.gradle"
 
-def isSnapshot = version.endsWith("-SNAPSHOT")
 def isGitlabCI = System.getenv("GITLAB_CI") != null
-def gitlabTag = System.getenv("CI_COMMIT_TAG")
-def isCIandTagged = isGitlabCI && gitlabTag
-assert isSnapshot != isCIandTagged
 
 // define in ~/.gradle/gradle.properties to override for testing
 def forceLocal = project.hasProperty('forceLocal') && forceLocal
