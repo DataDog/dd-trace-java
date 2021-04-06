@@ -34,8 +34,8 @@ public final class PreparedStatementInstrumentation
     "com.mysql.jdbc.jdbc1.CallableStatement",
     "com.mysql.jdbc.jdbc2.CallableStatement",
     "com.mysql.cj.jdbc.CallableStatement",
-    "oracle.jdbc.driver.OracleCallableStatement",
-    "oracle.jdbc.driver.OraclePreparedStatement",
+    "oracle.jdbc.driver.OracleCallableStatementWrapper",
+    "oracle.jdbc.driver.OraclePreparedStatementWrapper",
     // covers hsqldb
     "org.hsqldb.jdbc.JDBCPreparedStatement",
     "org.hsqldb.jdbc.jdbcPreparedStatement",

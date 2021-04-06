@@ -5,6 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -27,6 +29,7 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class AbstractPreparedStatementInstrumentation extends Instrumenter.Tracing {
+
   public AbstractPreparedStatementInstrumentation(
       String instrumentationName, String... additionalNames) {
     super(instrumentationName, additionalNames);
@@ -70,6 +73,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         DBQueryInfo queryInfo =
             InstrumentationContext.get(PreparedStatement.class, DBQueryInfo.class).get(statement);
         if (null == queryInfo) {
+          logMissingQueryInfo(statement);
           return null;
         }
 
@@ -80,6 +84,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         DECORATE.onPreparedStatement(span, queryInfo);
         return activateSpan(span);
       } catch (SQLException e) {
+        logSQLException(e);
         // if we can't get the connection for any reason
         return null;
       }

@@ -26,7 +26,7 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     "com.mysql.jdbc.JDBC4Connection",
     "com.mysql.cj.jdbc.ConnectionImpl",
     // should cover Oracle
-    "oracle.jdbc.driver.OracleConnection",
+    "oracle.jdbc.driver.PhysicalConnection",
     // should cover derby
     "org.apache.derby.impl.jdbc.EmbedConnection",
     "org.apache.hive.jdbc.HiveConnection",
