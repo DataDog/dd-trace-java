@@ -1,0 +1,46 @@
+[[{"name" "servlet.request"
+   "service" "smoke-test-java-app"
+   "resource" "GET /connect/{user}"
+   "type" "web"
+   "error" 0
+   "span_id" 0
+   "trace_id" 0
+   "parent_id" nil
+   "start" 1617384998837488823
+   "duration" 141690778
+   "meta" {"env" "smoketest"
+           "language" "jvm"
+           "runtime-id" "e73fdb27-bae3-4852-bb31-ddb0a182aec6"
+           "version" "99"
+           "peer.port" "55723"
+           "http.url" "http://localhost:55617/connect/0"
+           "component" "java-web-servlet"
+           "thread.name" "Default Executor-thread-4"
+           "peer.ipv4" "127.0.0.1"
+           "http.status_code" "200"
+           "span.kind" "server"
+           "http.method" "GET"
+           "thread.id" "48"
+           "servlet.path" "/connect/0"}
+   "metrics" {"_dd.agent_psr" 1.0
+              "_dd.measured" 1
+              "_sampling_priority_v1" 1
+              "_dd.top_level" 1}}
+      {"name" "spring.handler"
+       "service" "smoke-test-java-app"
+       "resource" "DemoController.connectFinal"
+       "type" "web"
+       "error" 0
+       "span_id" 1
+       "trace_id" 0
+       "parent_id" 0
+       "start" 1617384998898788931
+       "duration" 74330915
+       "meta" {"env" "smoketest"
+               "language" "jvm"
+               "version" "99"
+               "thread.name" "Default Executor-thread-4"
+               "thread.id" "48"
+               "component" "spring-web-controller"
+               "span.kind" "server"}
+       "metrics" {"_dd.measured" 1}}]]
