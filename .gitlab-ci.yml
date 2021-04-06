@@ -6,8 +6,12 @@ stages:
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   SONATYPE_USERNAME: robot-sonatype-apm-java
-  DOWNSTREAM_BRANCH: master
-  FORCE_TRIGGER: "false"
+  DOWNSTREAM_BRANCH:
+    value: "master"
+    description: "Run a specific datadog-reliability-env branch downstream"
+  FORCE_TRIGGER:
+    value: "false"
+    description: "Set to true to override rules in the reliability-env pipeline (e.g. override 'only deploy master')"
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
