@@ -152,9 +152,9 @@ jobs:
           ports:
             - "127.0.0.1:8126:8126"
           volumes:
-            - ./tests/snapshots:/snapshots
+            - ./dd-smoke-tests:/dd-smoke-tests
           environment:
-            - SNAPSHOT_DIR=/snapshots
+            - SNAPSHOT_DIR=/dd-smoke-tests
             - SNAPSHOT_CI
 
 
