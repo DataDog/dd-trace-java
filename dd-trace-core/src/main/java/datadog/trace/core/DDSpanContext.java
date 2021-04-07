@@ -1,5 +1,8 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.sampling.PrioritySampling.UNSET;
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
@@ -14,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +31,7 @@ import org.slf4j.LoggerFactory;
  */
 public class DDSpanContext implements AgentSpan.Context {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
+
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
   public static final String SAMPLE_RATE_KEY = "_sample_rate";
   public static final String ORIGIN_KEY = "_dd.origin";
@@ -84,9 +89,10 @@ public class DDSpanContext implements AgentSpan.Context {
    *
    * <p>For thread safety, this boolean is only modified or accessed under instance lock.
    */
-  private boolean samplingPriorityLocked = false;
+  private static final AtomicIntegerFieldUpdater<DDSpanContext> SAMPLING_PRIORITY_UPDATER =
+      AtomicIntegerFieldUpdater.newUpdater(DDSpanContext.class, "samplingPriorityV1");
 
-  private volatile byte samplingPriorityV1 = PrioritySampling.UNSET;
+  private volatile int samplingPriorityV1 = PrioritySampling.UNSET;
   /** The origin of the trace. (eg. Synthetics) */
   private final String origin;
   /** Metrics on the span - access synchronized on the spanId */
@@ -235,6 +241,19 @@ public class DDSpanContext implements AgentSpan.Context {
     this.spanType = spanType;
   }
 
+  public void forceKeep() {
+    if (trace != null) {
+      final DDSpan rootSpan = trace.getRootSpan();
+      if (null != rootSpan && rootSpan.context() != this) {
+        rootSpan.context().forceKeep();
+        return;
+      }
+    }
+    // if the user really wants to keep this trace chunk, we will let them,
+    // even if the old sampling priority has already propagated
+    SAMPLING_PRIORITY_UPDATER.set(this, USER_KEEP);
+  }
+
   /** @return if sampling priority was set by this method invocation */
   public boolean setSamplingPriority(final int newPriority) {
     if (newPriority == PrioritySampling.UNSET) {
@@ -248,21 +267,16 @@ public class DDSpanContext implements AgentSpan.Context {
         return rootSpan.context().setSamplingPriority(newPriority);
       }
     }
-    // sync with lockSamplingPriority
-    synchronized (this) {
-      if (samplingPriorityLocked) {
-        if (log.isDebugEnabled()) {
-          log.debug(
-              "samplingPriority locked at {}. Refusing to set to {}",
-              samplingPriorityV1,
-              newPriority);
-        }
-        return false;
-      } else {
-        this.samplingPriorityV1 = (byte) newPriority;
-        return true;
+    if (!SAMPLING_PRIORITY_UPDATER.compareAndSet(this, UNSET, newPriority)) {
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "samplingPriority locked at {}. Refusing to set to {}",
+            samplingPriorityV1,
+            newPriority);
       }
+      return false;
     }
+    return true;
   }
 
   /** @return the sampling priority of this span's trace, or null if no priority has been set */
@@ -284,21 +298,17 @@ public class DDSpanContext implements AgentSpan.Context {
    *
    * @return true if the sampling priority was locked.
    */
+  @Deprecated
   public boolean lockSamplingPriority() {
+    // this is now effectively a no-op - there is no locking.
+    // the priority is just CAS'd against UNSET, unless it's forced to USER_KEEP
+    // but is maintained for backwards compatability, and returns false when it used to
     final DDSpan rootSpan = trace.getRootSpan();
     if (null != rootSpan && rootSpan.context() != this) {
       return rootSpan.context().lockSamplingPriority();
     }
 
-    // sync with setSamplingPriority
-    synchronized (this) {
-      if (samplingPriorityV1 == PrioritySampling.UNSET) {
-        log.debug("{} : refusing to lock unset samplingPriority", this);
-      } else if (!samplingPriorityLocked) {
-        samplingPriorityLocked = true;
-      }
-      return samplingPriorityLocked;
-    }
+    return SAMPLING_PRIORITY_UPDATER.get(this) != UNSET;
   }
 
   public String getOrigin() {

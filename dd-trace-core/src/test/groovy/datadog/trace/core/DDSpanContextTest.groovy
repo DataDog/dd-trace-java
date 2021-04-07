@@ -4,6 +4,10 @@ import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
+
 class DDSpanContextTest extends DDCoreSpecification {
 
   def writer = new ListWriter()
@@ -132,6 +136,33 @@ class DDSpanContextTest extends DDCoreSpecification {
     Double  | 0.5f
     Double  | 0.5d
     Integer | 0x55
+  }
+
+  def "force keep really keeps the trace"() {
+    setup:
+    def span = tracer.buildSpan("fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start()
+    def context = span.context()
+    when:
+    context.setSamplingPriority(SAMPLER_DROP)
+    then: "priority should be set"
+    context.getSamplingPriority() == SAMPLER_DROP
+
+    when: "sampling priority locked"
+    context.lockSamplingPriority()
+    then: "override ignored"
+    !context.setSamplingPriority(USER_DROP)
+    context.getSamplingPriority() == SAMPLER_DROP
+
+    when:
+    context.forceKeep()
+    then: "lock is bypassed and priority set to USER_KEEP"
+    context.getSamplingPriority() == USER_KEEP
+
+    cleanup:
+    span.finish()
   }
 
   static void assertTagmap(Map source, Map comparison) {
