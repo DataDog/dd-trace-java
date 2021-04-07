@@ -58,8 +58,8 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
     if ("true" != System.getenv("CI")) {
       testAgent = new FixedHostPortGenericContainer("kyleverhoog/dd-trace-test-agent:latest")
         .withFixedExposedPort(testAgentMappedPort, testAgentPort)
-        .withEnv("SNAPSHOT_DIR", "/snaps")
-        .withFileSystemBind(snapshotDirectory, "/snaps")
+        .withEnv("SNAPSHOT_DIR", "/dd-smoke-tests")
+        .withFileSystemBind(new File(workingDirectory).getParentFile().getAbsolutePath(), "/dd-smoke-tests")
         .waitingFor(
         Wait.forLogMessage(".*Started server on port.*\\n", 1)
         )
@@ -97,6 +97,7 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
     url = "http://localhost:${testAgentMappedPort}/test/snapshot"
     urlBuilder = HttpUrl.parse(url).newBuilder()
       .addEncodedQueryParameter("ignores", String.join(",", ignoredKeys) )
+      .addQueryParameter("dir", "/dd-smoke-tests/${projectName()}/snapshots")
       .addQueryParameter("token", testTokenID)
 
     request = new Request.Builder().url(urlBuilder.build()).get().build()
@@ -107,6 +108,7 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
     assert response.code() == 200
   }
 
+  //prints the log snapshot to the build/reports directory of the specific project
   def printLogToFile(String fileName) {
     File logFile = new File("${buildDirectory}/reports/${fileName}.log")
     if (!logFile.exists()) {
@@ -120,4 +122,7 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
       testAgent.stop()
     }
   }
+
+  // this value needs to be specified in the tests implementation for the test agent to find the correct folder for snapshots
+  abstract String projectName()
 }

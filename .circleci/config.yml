@@ -148,6 +148,15 @@ jobs:
           POSTGRES_USER: sa
           POSTGRES_PASSWORD: sa
           POSTGRES_DB: jdbcUnitTest
+      - image: kyleverhoog/dd-trace-test-agent
+          ports:
+            - "127.0.0.1:8126:8126"
+          volumes:
+            - ./tests/snapshots:/snapshots
+          environment:
+            - SNAPSHOT_DIR=/snapshots
+            - SNAPSHOT_CI
+
 
     parameters:
       testTask:
