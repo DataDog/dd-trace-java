@@ -113,6 +113,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_O
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
@@ -342,6 +343,7 @@ public class Config {
   private final boolean kafkaClientBase64DecodingEnabled;
 
   private final boolean hystrixTagsEnabled;
+  private final boolean hystrixMeasuredEnabled;
 
   private final int osgiSearchDepth;
 
@@ -709,6 +711,7 @@ public class Config {
         new HashSet<>(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
+    hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
 
     osgiSearchDepth = configProvider.getInteger(OSGI_SEARCH_DEPTH, 1);
 
@@ -1070,6 +1073,10 @@ public class Config {
 
   public boolean isHystrixTagsEnabled() {
     return hystrixTagsEnabled;
+  }
+
+  public boolean isHystrixMeasuredEnabled() {
+    return hystrixMeasuredEnabled;
   }
 
   public int getOsgiSearchDepth() {
@@ -1749,6 +1756,8 @@ public class Config {
         + kafkaClientBase64DecodingEnabled
         + ", hystrixTagsEnabled="
         + hystrixTagsEnabled
+        + ", hystrixMeasuredEnabled="
+        + hystrixMeasuredEnabled
         + ", osgiSearchDepth="
         + osgiSearchDepth
         + ", servletPrincipalEnabled="

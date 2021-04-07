@@ -18,13 +18,15 @@ public class HystrixDecorator extends BaseDecorator {
   public static HystrixDecorator DECORATE = new HystrixDecorator();
 
   private final boolean extraTags;
+  private final boolean measured;
 
-  private HystrixDecorator(boolean extraTags) {
+  private HystrixDecorator(boolean extraTags, boolean measured) {
     this.extraTags = extraTags;
+    this.measured = measured;
   }
 
   private HystrixDecorator() {
-    this(Config.get().isHystrixTagsEnabled());
+    this(Config.get().isHystrixTagsEnabled(), Config.get().isHystrixMeasuredEnabled());
   }
 
   public static final CharSequence HYSTRIX = UTF8BytesString.create("hystrix");
@@ -88,6 +90,9 @@ public class HystrixDecorator extends BaseDecorator {
         span.setTag(HYSTRIX_COMMAND, command.getCommandKey().name());
         span.setTag(HYSTRIX_GROUP, command.getCommandGroup().name());
         span.setTag(HYSTRIX_CIRCUIT_OPEN, command.isCircuitBreakerOpen());
+      }
+      if (measured) {
+        span.setMeasured(true);
       }
       span.setResourceName(
           RESOURCE_NAME_CACHE.computeIfAbsent(
