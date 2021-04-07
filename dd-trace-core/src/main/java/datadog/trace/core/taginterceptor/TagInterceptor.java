@@ -3,9 +3,7 @@ package datadog.trace.core.taginterceptor;
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
-import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_DROP;
-import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_KEEP;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.PEER_SERVICE;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.RESOURCE_NAME;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.SERVICE_NAME;
@@ -58,7 +56,11 @@ public class TagInterceptor {
       case Tags.PEER_SERVICE:
         return interceptServiceName(PEER_SERVICE, span, value);
       case DDTags.MANUAL_KEEP:
-        return interceptSamplingPriority(FORCE_MANUAL_KEEP, USER_KEEP, span, value);
+        if (asBoolean(value)) {
+          span.forceKeep();
+          return true;
+        }
+        return false;
       case DDTags.MANUAL_DROP:
         return interceptSamplingPriority(FORCE_MANUAL_DROP, USER_DROP, span, value);
       case InstrumentationTags.SERVLET_CONTEXT:
