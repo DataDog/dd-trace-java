@@ -10,6 +10,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.getResourceName;
 import static datadog.trace.util.Strings.toEnvVar;
 
+import datadog.trace.api.StatsDClientManager;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
@@ -43,7 +44,7 @@ public class Agent {
   private static final String SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY =
       "datadog.slf4j.simpleLogger.defaultLogLevel";
 
-  private static final int DEFAULT_JMX_FETCH_START_DELAY = 15; // seconds
+  private static final int DEFAULT_JMX_START_DELAY = 15; // seconds
 
   private static final Logger log;
 
@@ -408,8 +409,9 @@ public class Agent {
         Thread.currentThread().setContextClassLoader(jmxFetchClassLoader);
         final Class<?> jmxFetchAgentClass =
             jmxFetchClassLoader.loadClass("datadog.trace.agent.jmxfetch.JMXFetch");
-        final Method jmxFetchInstallerMethod = jmxFetchAgentClass.getMethod("run");
-        jmxFetchInstallerMethod.invoke(null);
+        final Method jmxFetchInstallerMethod =
+            jmxFetchAgentClass.getMethod("run", StatsDClientManager.class);
+        jmxFetchInstallerMethod.invoke(null, statsDClientManager());
         JMXFETCH_CLASSLOADER = jmxFetchClassLoader;
       } catch (final Throwable ex) {
         log.error("Throwable thrown while starting JmxFetch", ex);
@@ -417,6 +419,14 @@ public class Agent {
         Thread.currentThread().setContextClassLoader(contextLoader);
       }
     }
+  }
+
+  private static StatsDClientManager statsDClientManager() throws Exception {
+    final Class<?> statsdClientManagerClass =
+        AGENT_CLASSLOADER.loadClass("datadog.trace.core.monitor.DDAgentStatsDClientManager");
+    final Method statsDClientManagerMethod =
+        statsdClientManagerClass.getMethod("statsDClientManager");
+    return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
   }
 
   private static void startProfilingAgent(final URL bootstrapURL, final boolean isStartingFirst) {
@@ -554,19 +564,18 @@ public class Agent {
 
   /** @return configured JMX start delay in seconds */
   private static int getJmxStartDelay() {
-    final String jmxStartDelaySysprop = "dd.jmxfetch.start-delay";
-    String jmxStartDelay = System.getProperty(jmxStartDelaySysprop);
-    if (jmxStartDelay == null) {
-      jmxStartDelay = ddGetEnv(jmxStartDelaySysprop);
+    String startDelay = ddGetProperty("dd.dogstatsd.start-delay");
+    if (startDelay == null) {
+      startDelay = ddGetProperty("dd.jmxfetch.start-delay");
     }
-    if (jmxStartDelay != null) {
+    if (startDelay != null) {
       try {
-        return Integer.parseInt(jmxStartDelay);
+        return Integer.parseInt(startDelay);
       } catch (NumberFormatException e) {
         // fall back to default delay
       }
     }
-    return DEFAULT_JMX_FETCH_START_DELAY;
+    return DEFAULT_JMX_START_DELAY;
   }
 
   /**
@@ -643,6 +652,15 @@ public class Agent {
     }
 
     return false;
+  }
+
+  /** Looks for the "dd." system property first then the "DD_" environment variable equivalent. */
+  private static String ddGetProperty(final String sysProp) {
+    String value = System.getProperty(sysProp);
+    if (null == value) {
+      value = ddGetEnv(sysProp);
+    }
+    return value;
   }
 
   /** Looks for the "DD_" environment variable equivalent of the given "dd." system property. */

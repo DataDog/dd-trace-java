@@ -1,7 +1,7 @@
 package datadog.trace.common.writer
 
-import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.api.DDId
+import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class PayloadDispatcherTest extends DDSpecification {
 
   @Shared
-  Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
+  Monitoring monitoring = new Monitoring(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
 
   @Timeout(5)
   def "flush automatically when data limit is breached"() {

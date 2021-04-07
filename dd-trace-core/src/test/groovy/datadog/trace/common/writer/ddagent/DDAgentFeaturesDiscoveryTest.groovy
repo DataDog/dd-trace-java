@@ -1,6 +1,6 @@
 package datadog.trace.common.writer.ddagent
 
-import com.timgroup.statsd.NoOpStatsDClient
+import datadog.trace.api.StatsDClient
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Call
@@ -23,7 +23,7 @@ import static datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery.V6_ME
 class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
   @Shared
-  Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
+  Monitoring monitoring = new Monitoring(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
 
   @Shared
   HttpUrl agentUrl = HttpUrl.get("http://localhost:8125")

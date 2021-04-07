@@ -1,6 +1,6 @@
 package datadog.trace.core.monitor;
 
-import com.timgroup.statsd.StatsDClient;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.core.util.SystemAccess;
 
 public class CPUTimer extends Timer {

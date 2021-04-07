@@ -4,12 +4,12 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.util.ContextInitializer
 import com.google.common.collect.Sets
-import com.timgroup.statsd.StatsDClient
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.Config
+import datadog.trace.api.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.common.writer.ListWriter

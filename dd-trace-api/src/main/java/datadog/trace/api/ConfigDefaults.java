@@ -44,6 +44,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 
+  static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
   static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
 
   static final boolean DEFAULT_HEALTH_METRICS_ENABLED = true;

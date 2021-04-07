@@ -1,6 +1,6 @@
 
 
-import com.timgroup.statsd.NoOpStatsDClient
+import datadog.trace.api.StatsDClient
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
@@ -29,7 +29,7 @@ class TraceMapperRealAgentTest extends DDSpecification {
   OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 30_000)
 
   @Shared
-  Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
+  Monitoring monitoring = new Monitoring(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
   @Shared
   DDAgentFeaturesDiscovery v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
   @Shared

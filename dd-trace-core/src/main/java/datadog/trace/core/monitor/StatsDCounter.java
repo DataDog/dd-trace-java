@@ -2,7 +2,7 @@ package datadog.trace.core.monitor;
 
 import static datadog.trace.core.monitor.Utils.mergeTags;
 
-import com.timgroup.statsd.StatsDClient;
+import datadog.trace.api.StatsDClient;
 
 public final class StatsDCounter implements Counter {
 

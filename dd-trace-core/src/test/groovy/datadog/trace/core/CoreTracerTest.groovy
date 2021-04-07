@@ -1,8 +1,7 @@
 package datadog.trace.core
 
-import com.timgroup.statsd.NoOpStatsDClient
-import com.timgroup.statsd.NonBlockingStatsDClient
 import datadog.trace.api.Config
+import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.common.sampling.AllSampler
@@ -39,7 +38,7 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer.serviceName != ""
     tracer.sampler instanceof RateByServiceSampler
     tracer.writer instanceof DDAgentWriter
-    tracer.statsDClient instanceof NonBlockingStatsDClient
+    tracer.statsDClient != null && tracer.statsDClient != StatsDClient.NO_OP
 
     tracer.injector instanceof HttpCodec.CompoundInjector
     tracer.extractor instanceof HttpCodec.CompoundExtractor
@@ -56,7 +55,7 @@ class CoreTracerTest extends DDCoreSpecification {
     def tracer = CoreTracer.builder().build()
 
     then:
-    tracer.statsDClient instanceof NoOpStatsDClient
+    tracer.statsDClient == StatsDClient.NO_OP
 
     cleanup:
     tracer.close()

@@ -2,8 +2,7 @@ package datadog.trace.core.monitor;
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 
-import com.timgroup.statsd.NoOpStatsDClient;
-import com.timgroup.statsd.StatsDClient;
+import datadog.trace.api.StatsDClient;
 import java.util.concurrent.TimeUnit;
 
 public final class Monitoring {
@@ -21,7 +20,7 @@ public final class Monitoring {
   }
 
   private Monitoring() {
-    this.statsd = new NoOpStatsDClient();
+    this.statsd = StatsDClient.NO_OP;
     this.flushAfterNanos = 0;
     this.enabled = false;
   }

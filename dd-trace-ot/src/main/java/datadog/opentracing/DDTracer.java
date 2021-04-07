@@ -1,9 +1,9 @@
 package datadog.opentracing;
 
-import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;

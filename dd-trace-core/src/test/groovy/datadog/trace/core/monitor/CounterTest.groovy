@@ -1,6 +1,6 @@
 package datadog.trace.core.monitor
 
-import com.timgroup.statsd.StatsDClient
+import datadog.trace.api.StatsDClient
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
 

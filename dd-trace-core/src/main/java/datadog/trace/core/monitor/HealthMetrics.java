@@ -6,8 +6,8 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.IntFunction;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.DDSpan;
@@ -95,7 +95,7 @@ public class HealthMetrics implements AutoCloseable {
   }
 
   public void onStart(final int queueCapacity) {
-    statsd.recordGaugeValue("queue.max_length", queueCapacity, NO_TAGS);
+    statsd.gauge("queue.max_length", queueCapacity, NO_TAGS);
   }
 
   public void onShutdown(final boolean flushSuccess) {}

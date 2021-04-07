@@ -1,8 +1,8 @@
 package datadog.trace.core.scopemanager
 
-import com.timgroup.statsd.StatsDClient
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.DDId
+import datadog.trace.api.StatsDClient
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.bootstrap.instrumentation.api.AgentScope

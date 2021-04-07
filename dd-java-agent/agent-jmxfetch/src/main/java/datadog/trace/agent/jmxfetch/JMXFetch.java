@@ -5,7 +5,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
+import datadog.trace.api.StatsDClientManager;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,7 +19,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import org.datadog.jmxfetch.App;
 import org.datadog.jmxfetch.AppConfig;
-import org.datadog.jmxfetch.reporter.ReporterFactory;
+import org.datadog.jmxfetch.reporter.Reporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,12 +34,12 @@ public class JMXFetch {
 
   private static final String UNIX_DOMAIN_SOCKET_PREFIX = "unix://";
 
-  public static void run() {
-    run(Config.get());
+  public static void run(final StatsDClientManager statsDClientManager) {
+    run(statsDClientManager, Config.get());
   }
 
   // This is used by tests
-  private static void run(final Config config) {
+  private static void run(final StatsDClientManager statsDClientManager, final Config config) {
     if (!config.isJmxFetchEnabled()) {
       log.debug("JMXFetch is disabled");
       return;
@@ -58,7 +58,18 @@ public class JMXFetch {
     final Integer checkPeriod = config.getJmxFetchCheckPeriod();
     final Integer refreshBeansPeriod = config.getJmxFetchRefreshBeansPeriod();
     final Map<String, String> globalTags = config.getMergedJmxTags();
-    final String reporter = getReporter(config);
+
+    String host =
+        config.getJmxFetchStatsdHost() == null
+            ? config.getAgentHost()
+            : config.getJmxFetchStatsdHost();
+    int port = config.getJmxFetchStatsdPort();
+
+    if (host.startsWith(UNIX_DOMAIN_SOCKET_PREFIX)) {
+      host = host.substring(UNIX_DOMAIN_SOCKET_PREFIX.length());
+      // Port equal to zero tells the java dogstatsd client to use UDS
+      port = 0;
+    }
 
     if (log.isDebugEnabled()) {
       log.debug(
@@ -70,8 +81,11 @@ public class JMXFetch {
           checkPeriod,
           refreshBeansPeriod,
           globalTags,
-          reporter);
+          "statsd:" + host + ":" + port);
     }
+
+    final Reporter reporter =
+        new AgentStatsdReporter(statsDClientManager.statsDClient(host, port, null, null));
 
     final AppConfig.AppConfigBuilder configBuilder =
         AppConfig.builder()
@@ -87,7 +101,7 @@ public class JMXFetch {
             .metricConfigFiles(metricsConfigs)
             .refreshBeansPeriod(refreshBeansPeriod)
             .globalTags(globalTags)
-            .reporter(ReporterFactory.getReporter(reporter));
+            .reporter(reporter);
 
     if (checkPeriod != null) {
       configBuilder.checkPeriod(checkPeriod);
@@ -119,26 +133,6 @@ public class JMXFetch {
             });
     thread.setContextClassLoader(JMXFetch.class.getClassLoader());
     thread.start();
-  }
-
-  private static String getReporter(final Config config) {
-    if (WriterConstants.LOGGING_WRITER_TYPE.equals(config.getWriterType())) {
-      // If logging writer is enabled then also enable console reporter in JMXFetch
-      return "console";
-    }
-
-    String host =
-        config.getJmxFetchStatsdHost() == null
-            ? config.getAgentHost()
-            : config.getJmxFetchStatsdHost();
-    int port = config.getJmxFetchStatsdPort();
-
-    if (host.startsWith(UNIX_DOMAIN_SOCKET_PREFIX)) {
-      host = host.substring(UNIX_DOMAIN_SOCKET_PREFIX.length());
-      // Port equal to zero tells the java dogstatsd client to use UDS
-      port = 0;
-    }
-    return "statsd:" + host + ":" + port;
   }
 
   @SuppressForbidden

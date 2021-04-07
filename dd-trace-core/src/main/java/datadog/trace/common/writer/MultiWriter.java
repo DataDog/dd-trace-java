@@ -2,8 +2,8 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 
-import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.Config;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.Monitoring;

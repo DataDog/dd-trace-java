@@ -38,6 +38,35 @@ class FixedSizeCacheTest extends DDSpecification {
     null                      | null           | 3     // do nothing
   }
 
+  def "fixed size with array-keys should store and retrieve values"() {
+    setup:
+    def fsCache = DDCaches.newFixedSizeArrayKeyCache(15)
+    def creationCount = new AtomicInteger(0)
+    def tvc = new TVCA(creationCount)
+    // need to offset key hashes by 31 to achieve the same collisions using array hashing
+    def tk1 = [new TKey(1 - 31, 1, "one")] as TKey[]
+    def tk6 = [new TKey(6 - 31, 6, "six")] as TKey[]
+    def tk10 = [new TKey(10 - 31, 10, "ten")] as TKey[]
+    // insert some values that happen to be the chain of hashes 1 -> 6 -> 10
+    fsCache.computeIfAbsent(tk1, tvc)
+    fsCache.computeIfAbsent(tk6, tvc)
+    fsCache.computeIfAbsent(tk10, tvc)
+
+    expect:
+    fsCache.computeIfAbsent(tk, tvc) == value
+    creationCount.get() == count
+
+    where:
+    tk                                         | value          | count
+    [new TKey(1 - 31, 1, "foo")] as TKey[]     | "one_value"    | 3     // used the cached tk1
+    [new TKey(1 - 31, 6, "foo")] as TKey[]     | "six_value"    | 3     // used the cached tk6
+    [new TKey(1 - 31, 10, "foo")] as TKey[]    | "ten_value"    | 3     // used the cached tk10
+    [new TKey(6 - 31, 6, "foo")] as TKey[]     | "six_value"    | 3     // used the cached tk6
+    [new TKey(1 - 31, 11, "eleven")] as TKey[] | "eleven_value" | 4     // create new value in an occupied slot
+    [new TKey(4 - 31, 4, "four")] as TKey[]    | "four_value"   | 4     // create new value in empty slot
+    null                                       | null           | 3     // do nothing
+  }
+
   def "chm cache should store and retrieve values"() {
     setup:
     def fsCache = DDCaches.newUnboundedCache(15)
@@ -115,6 +144,20 @@ class FixedSizeCacheTest extends DDSpecification {
     String apply(TKey key) {
       count.incrementAndGet()
       return key.string + "_value"
+    }
+  }
+
+  private class TVCA implements Function<TKey[], String> {
+    private final AtomicInteger count
+
+    TVCA(AtomicInteger count) {
+      this.count = count
+    }
+
+    @Override
+    String apply(TKey[] key) {
+      count.incrementAndGet()
+      return key[0].string + "_value"
     }
   }
 

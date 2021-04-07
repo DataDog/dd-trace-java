@@ -2,7 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
-import com.timgroup.statsd.StatsDClient;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;

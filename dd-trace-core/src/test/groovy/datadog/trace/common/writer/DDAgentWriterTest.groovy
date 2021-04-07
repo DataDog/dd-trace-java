@@ -1,7 +1,7 @@
 package datadog.trace.common.writer
 
-import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.api.DDId
+import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
@@ -24,7 +24,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
   def api = Mock(DDAgentApi)
   def monitor = Mock(HealthMetrics)
   def worker = Mock(TraceProcessingWorker)
-  def monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
+  def monitoring = new Monitoring(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
 
   @Subject
   def writer = new DDAgentWriter(discovery, api, monitor, monitoring, worker)

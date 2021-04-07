@@ -4,6 +4,8 @@ minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.8
 
 excludedClassesCoverage += [
+  "datadog.trace.api.StatsDClient",
+  "datadog.trace.api.NoOpStatsDClient",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
   "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",

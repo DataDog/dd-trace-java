@@ -9,6 +9,7 @@ package datadog.trace.api.config;
 public final class JmxFetchConfig {
   public static final String JMX_TAGS = "trace.jmx.tags";
   public static final String JMX_FETCH_ENABLED = "jmxfetch.enabled";
+  public static final String JMX_FETCH_START_DELAY = "jmxfetch.start-delay";
   public static final String JMX_FETCH_CONFIG_DIR = "jmxfetch.config.dir";
   public static final String JMX_FETCH_CONFIG = "jmxfetch.config";
   @Deprecated public static final String JMX_FETCH_METRICS_CONFIGS = "jmxfetch.metrics-configs";
