@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics
 
 import datadog.trace.api.WellKnownTags
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Requires
@@ -17,6 +18,8 @@ import static java.util.concurrent.TimeUnit.SECONDS
 })
 class ConflatingMetricAggregatorTest extends DDSpecification {
 
+  static Set<String> empty = new HashSet<>()
+
   @Shared
   long reportingInterval = 10
   @Shared
@@ -29,6 +32,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     WellKnownTags wellKnownTags = new WellKnownTags("hostname", "env", "service", "version")
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
+      empty,
       sink,
       10,
       queueSize,
@@ -47,12 +51,45 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
+  def "should ignore traces with ignored resource names"() {
+    setup:
+    String ignoredResourceName = "foo"
+    Sink sink = Mock(Sink)
+    sink.validate() >> true
+    WellKnownTags wellKnownTags = new WellKnownTags("hostname", "env", "service", "version")
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+      wellKnownTags,
+      [ignoredResourceName].toSet(),
+      sink,
+      10,
+      queueSize,
+      1,
+      MILLISECONDS
+      )
+    aggregator.start()
+
+    when: "publish ignored resource names"
+    aggregator.publish([new SimpleSpan("", "", ignoredResourceName, "", true, true, false, 0, 0)])
+    aggregator.publish([new SimpleSpan("", "", UTF8BytesString.create(ignoredResourceName), "", true, true, false, 0, 0)])
+    aggregator.publish([
+      new SimpleSpan("", "", ignoredResourceName, "", true, true, false, 0, 0),
+      new SimpleSpan("", "",
+      "measured, not ignored, but child of ignored, so should be ignored", "", true, true, false, 0, 0)
+    ])
+    reportAndWaitUntilEmpty(aggregator)
+    then:
+    0 * sink._
+
+    cleanup:
+    aggregator.close()
+  }
+
   def "unmeasured top level spans have metrics computed"() {
     setup:
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     sink.validate() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       sink, writer, 10, queueSize, reportingInterval, SECONDS)
     aggregator.start()
 
@@ -78,7 +115,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     sink.validate() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       sink, writer, 10, queueSize, reportingInterval, SECONDS)
     aggregator.start()
 
@@ -112,7 +149,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     sink.validate() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       sink, writer, 10, queueSize, reportingInterval, SECONDS)
     long duration = 100
     List<CoreSpan> trace = [
@@ -154,7 +191,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     sink.validate() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
     long duration = 100
     aggregator.start()
@@ -189,7 +226,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     sink.validate() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
     long duration = 100
     aggregator.start()
@@ -243,7 +280,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     sink.validate() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
     long duration = 100
     aggregator.start()
@@ -285,7 +322,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     sink.validate() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       sink, writer, maxAggregates, queueSize, 1, SECONDS)
     long duration = 100
     aggregator.start()
@@ -318,7 +355,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     sink.validate() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       sink, writer, maxAggregates, queueSize, 1, SECONDS)
     long duration = 100
     aggregator.start()
@@ -355,7 +392,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     sink.validate() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       sink, writer, maxAggregates, queueSize, 1, SECONDS)
     long duration = 100
     aggregator.start()

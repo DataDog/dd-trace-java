@@ -35,6 +35,7 @@ excludedClassesCoverage += [
   "datadog.trace.util.AgentTaskScheduler.ShutdownHook",
   "datadog.trace.util.AgentThreadFactory",
   "datadog.trace.util.AgentThreadFactory.1",
+  "datadog.trace.util.CollectionUtils",
 ]
 
 dependencies {

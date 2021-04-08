@@ -8,7 +8,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   private final String serviceName
   private final String operationName
-  private final String resourceName
+  private final CharSequence resourceName
   private final String type
   private final boolean measured
   private final boolean topLevel
@@ -19,7 +19,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   SimpleSpan(String serviceName,
   String operationName,
-  String resourceName,
+  CharSequence resourceName,
   String type,
   boolean measured,
   boolean topLevel,

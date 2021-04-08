@@ -29,6 +29,7 @@ import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.SITE
 import static datadog.trace.api.config.GeneralConfig.TAGS
+import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
 import static datadog.trace.api.config.GeneralConfig.VERSION
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
@@ -1824,6 +1825,16 @@ class ConfigTest extends DDSpecification {
     "1234"                            | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
     ":1234"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
     // spotless:on
+  }
+
+  def "test get ignored resource names"(){
+    setup:
+    System.setProperty(PREFIX + TRACER_METRICS_IGNORED_RESOURCES, "GET /healthcheck,SELECT foo from bar")
+
+    when:
+    def config = new Config()
+    then:
+    config.getMetricsIgnoredResources() == ["GET /healthcheck", "SELECT foo from bar"].toSet()
   }
 
   static class ClassThrowsExceptionForValueOfMethod {

@@ -74,6 +74,7 @@ import static datadog.trace.api.config.GeneralConfig.SITE;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
@@ -167,6 +168,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
+import static datadog.trace.util.CollectionUtils.immutableSet;
 import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.config.GeneralConfig;
@@ -1149,6 +1151,10 @@ public class Config {
 
   public WellKnownTags getWellKnownTags() {
     return new WellKnownTags(getHostName(), getEnv(), serviceName, getVersion());
+  }
+
+  public Set<String> getMetricsIgnoredResources() {
+    return immutableSet(new HashSet<>(configProvider.getList(TRACER_METRICS_IGNORED_RESOURCES)));
   }
 
   public String getEnv() {
