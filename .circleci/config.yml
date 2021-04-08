@@ -148,16 +148,6 @@ jobs:
           POSTGRES_USER: sa
           POSTGRES_PASSWORD: sa
           POSTGRES_DB: jdbcUnitTest
-        # This is used by smoke tests
-      - image: kyleverhoog/dd-trace-test-agent
-        ports:
-          - "127.0.0.1:8126:8126"
-        volumes:
-          - ./dd-smoke-tests:/dd-smoke-tests
-        environment:
-          - SNAPSHOT_DIR=/dd-smoke-tests
-          - SNAPSHOT_CI
-
 
     parameters:
       testTask:
@@ -171,6 +161,13 @@ jobs:
 
       - restore_cache:
           <<: *cache_keys
+
+      - run:
+          # runs the test agent for smoke tests
+          name: Setup Test Agent for Smoke Tests
+          command: ./test-agent
+          environment:
+            SNAPSHOT_DIR: ./dd-smoke-tests
 
       - run:
           name: Run Tests
