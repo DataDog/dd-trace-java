@@ -87,7 +87,8 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
 
     func.call()
 
-    Thread.sleep(1000)
+    //makes sure that the test agent receives it, this might cause race conditions
+    Thread.sleep(1500)
     if (testAgent != null) {
       printLogToFile(testTokenID)
     }

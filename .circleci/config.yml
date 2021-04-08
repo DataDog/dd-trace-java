@@ -167,7 +167,7 @@ jobs:
           name: Setup Test Agent for Smoke Tests
           command: sudo chmod +x test-agent && sudo ./test-agent
           environment:
-            SNAPSHOT_DIR: ./dd-smoke-tests
+            SNAPSHOT_DIR: ~/dd-trace-java/dd-smoke-tests
           background: true
 
       - run:
