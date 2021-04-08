@@ -14,8 +14,13 @@ import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
+
+  private static final Logger log = LoggerFactory.getLogger(JDBCDecorator.class);
 
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
   public static final CharSequence JAVA_JDBC = UTF8BytesString.create("java-jdbc");
@@ -25,6 +30,32 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       UTF8BytesString.create("java-jdbc-statement");
   private static final UTF8BytesString JDBC_PREPARED_STATEMENT =
       UTF8BytesString.create("java-jdbc-prepared_statement");
+
+  public static void logMissingQueryInfo(Statement statement) throws SQLException {
+    if (log.isDebugEnabled()) {
+      log.debug(
+          "No query info in {} with {}",
+          statement.getClass(),
+          statement.getConnection().getClass());
+    }
+  }
+
+  public static void logQueryInfoInjection(
+      Connection connection, Statement statement, DBQueryInfo info) {
+    if (log.isDebugEnabled()) {
+      log.debug(
+          "injected {} into {} from {}",
+          info.getSql(),
+          statement.getClass(),
+          connection.getClass());
+    }
+  }
+
+  public static void logSQLException(SQLException ex) {
+    if (log.isDebugEnabled()) {
+      log.debug("JDBC instrumentation error", ex);
+    }
+  }
 
   @Override
   protected String[] instrumentationNames() {
