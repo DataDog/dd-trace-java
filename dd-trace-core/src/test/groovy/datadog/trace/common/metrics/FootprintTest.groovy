@@ -28,6 +28,7 @@ class FootprintTest extends DDSpecification {
     sink.validate() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       new WellKnownTags("hostname", "env", "service", "version"),
+      [].toSet() as Set<String>,
       sink,
       1000,
       1000,

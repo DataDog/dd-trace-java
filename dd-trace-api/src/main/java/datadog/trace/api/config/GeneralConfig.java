@@ -37,6 +37,8 @@ public final class GeneralConfig {
       "trace.tracer.metrics.buffering.enabled";
   public static final String TRACER_METRICS_MAX_AGGREGATES = "trace.tracer.metrics.max.aggregates";
   public static final String TRACER_METRICS_MAX_PENDING = "trace.tracer.metrics.max.pending";
+  public static final String TRACER_METRICS_IGNORED_RESOURCES =
+      "trace.tracer.metrics.ignored.resources";
 
   public static final String INTERNAL_EXIT_ON_FAILURE = "trace.internal.exit.on.failure";
 
