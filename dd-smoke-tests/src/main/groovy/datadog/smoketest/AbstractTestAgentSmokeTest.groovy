@@ -23,7 +23,7 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
   protected GenericContainer testAgent
 
   @Shared
-  protected int testAgentMappedPort = PortUtils.randomOpenPort()
+  protected int testAgentMappedPort = "true" == System.getenv("CI") ? 8126 : PortUtils.randomOpenPort()
 
   @Shared
   protected int testAgentPort = 8126
@@ -64,7 +64,6 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
         Wait.forLogMessage(".*Started server on port.*\\n", 1)
         )
       testAgent.start()
-      testAgentMappedPort = testAgent.getMappedPort(testAgentPort)
     }
   }
 

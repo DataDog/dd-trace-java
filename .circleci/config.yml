@@ -169,7 +169,7 @@ jobs:
           environment:
             SNAPSHOT_DIR: ./dd-smoke-tests
           background: true
-          
+
       - run:
           name: Run Tests
           command: >-
