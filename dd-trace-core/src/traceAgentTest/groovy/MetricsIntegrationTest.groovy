@@ -33,7 +33,7 @@ class MetricsIntegrationTest extends DDSpecification {
 
     when:
     SerializingMetricWriter writer = new SerializingMetricWriter(
-      new WellKnownTags("hostname", "env", "service", "version"),
+      new WellKnownTags("runtimeid","hostname", "env", "service", "version"),
       sink
       )
     writer.startBucket(2, System.nanoTime(), SECONDS.toNanos(10))

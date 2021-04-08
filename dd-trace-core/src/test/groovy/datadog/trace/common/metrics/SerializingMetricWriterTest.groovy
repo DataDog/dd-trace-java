@@ -23,7 +23,7 @@ class SerializingMetricWriterTest extends DDSpecification {
     setup:
     long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
     long duration = SECONDS.toNanos(10)
-    WellKnownTags wellKnownTags = new WellKnownTags("hostname", "env", "service", "version")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version")
     ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
     SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128)
 
@@ -80,7 +80,11 @@ class SerializingMetricWriterTest extends DDSpecification {
     void accept(int messageCount, ByteBuffer buffer) {
       MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)
       int mapSize = unpacker.unpackMapHeader()
-      assert mapSize == 4
+      assert mapSize == 6
+      assert unpacker.unpackString() == "RuntimeId"
+      assert unpacker.unpackString() == wellKnownTags.getRuntimeId() as String
+      assert unpacker.unpackString() == "Seq"
+      assert unpacker.unpackLong() == 0L
       assert unpacker.unpackString() == "Hostname"
       assert unpacker.unpackString() == wellKnownTags.getHostname() as String
       assert unpacker.unpackString() == "Env"
