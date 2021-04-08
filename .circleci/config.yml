@@ -165,7 +165,7 @@ jobs:
       - run:
           # runs the test agent for smoke tests
           name: Setup Test Agent for Smoke Tests
-          command: ./test-agent
+          command: sudo chmod +x test-agent && sudo ./test-agent
           environment:
             SNAPSHOT_DIR: ./dd-smoke-tests
 
