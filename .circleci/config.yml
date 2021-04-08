@@ -168,7 +168,8 @@ jobs:
           command: sudo chmod +x test-agent && sudo ./test-agent
           environment:
             SNAPSHOT_DIR: ./dd-smoke-tests
-
+          background: true
+          
       - run:
           name: Run Tests
           command: >-
