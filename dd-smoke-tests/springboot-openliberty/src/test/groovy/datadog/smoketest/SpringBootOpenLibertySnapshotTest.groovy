@@ -58,4 +58,18 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
     response != null
     response.code() == 200
   }
+
+  def "Test trace snapshot for server exception" () {
+    setup:
+    Response response
+    snapshot("datadog.smoketest.SpringBootOpenLibertySnapshotTest.exception404", {
+      def url = "http://localhost:${httpPort}/randomEndpoint"
+      def request = new Request.Builder().url(url).get().build()
+      response = client.newCall(request).execute()
+    })
+
+    expect:
+    response != null
+    response.code() != 200
+  }
 }
