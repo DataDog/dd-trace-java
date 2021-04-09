@@ -5,7 +5,6 @@ description = 'dd-smoke-tests'
 dependencies {
   compile deps.spock
   compile project(':dd-java-agent:testing')
-  compile 'org.testcontainers:testcontainers:1.15.2'
 }
 
 def smokeTestLimit = gradle.sharedServices.registerIfAbsent("smokeTestLimit", BuildService) {
