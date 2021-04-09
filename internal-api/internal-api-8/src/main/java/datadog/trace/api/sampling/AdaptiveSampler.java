@@ -27,8 +27,8 @@ import java.util.concurrent.atomic.LongAdder;
  * spectrum, there will be to few incoming events and the sampler will not be able to generate the
  * target number of samples.
  *
- * <p>To smooth out these hicups the sampler maintains an under-sampling budget which can be used to
- * compensate for too rapid changes in the incoming events rate and maintain the target average
+ * <p>To smooth out these hiccups the sampler maintains an under-sampling budget which can be used
+ * to compensate for too rapid changes in the incoming events rate and maintain the target average
  * number of samples per window.
  */
 public final class AdaptiveSampler {
@@ -49,6 +49,11 @@ public final class AdaptiveSampler {
 
     boolean addSample(final long limit) {
       return sampleCounter.getAndUpdate(s -> s + (s < limit ? 1 : 0)) < limit;
+    }
+
+    void reset() {
+      testCounter.reset();
+      sampleCounter.set(0);
     }
   }
 
@@ -78,6 +83,10 @@ public final class AdaptiveSampler {
 
   private final double budgetAlpha;
 
+  // accessed exclusively from the window maintenance task - does not require any synchronization
+  private int countsSlotIdx = 0;
+  private final Counts[] countsSlots = new Counts[] {new Counts(), new Counts()};
+
   /**
    * Create a new sampler instance
    *
@@ -93,10 +102,10 @@ public final class AdaptiveSampler {
       final AgentTaskScheduler taskScheduler) {
 
     this.samplesPerWindow = samplesPerWindow;
-    samplesBudget = samplesPerWindow + CARRIED_OVER_BUDGET_LOOK_BACK * samplesPerWindow;
+    samplesBudget = samplesPerWindow + (long) CARRIED_OVER_BUDGET_LOOK_BACK * samplesPerWindow;
     emaAlpha = computeIntervalAlpha(lookback);
     budgetAlpha = computeIntervalAlpha(CARRIED_OVER_BUDGET_LOOK_BACK);
-    countsRef = new AtomicReference<>(new Counts());
+    countsRef = new AtomicReference<>(countsSlots[0]);
 
     taskScheduler.weakScheduleAtFixedRate(
         RollWindowTask.INSTANCE,
@@ -135,27 +144,41 @@ public final class AdaptiveSampler {
 
   private void rollWindow() {
 
-    /*
-     * Atomically replace the Counts instance such that sample requests during window maintenance will be
-     * using the newly created counts instead of the ones currently processed by the maintenance routine.
-     */
-    final Counts counts = countsRef.getAndSet(new Counts());
-    final long totalCount = counts.testCounter.sum();
-    final long sampledCount = counts.sampleCounter.get();
+    final Counts counts = countsSlots[countsSlotIdx];
+    try {
+      /*
+       * Semi-atomically replace the Counts instance such that sample requests during window maintenance will be
+       * using the newly created counts instead of the ones currently processed by the maintenance routine.
+       * We are ok with slightly racy outcome where totaCount and sampledCount may not be totally in sync
+       * because it allows to avoid contention in the hot-path and the effect on the overall sample rate is minimal
+       * and will get compensated in the long run.
+       * Theoretically, a compensating system might be devised but it will always require introducing a single point
+       * of contention and add a fair amount of complexity. Considering that we are ok with keeping the target sampling
+       * rate within certain error margins and this data race is not breaking the margin it is better to keep the
+       * code simple and reasonably fast.
+       */
+      countsSlotIdx = (countsSlotIdx++) % 2;
+      countsRef.set(countsSlots[countsSlotIdx]);
+      final long totalCount = counts.testCounter.sum();
+      final long sampledCount = counts.sampleCounter.get();
 
-    samplesBudget = calculateBudgetEma(sampledCount);
+      samplesBudget = calculateBudgetEma(sampledCount);
 
-    if (totalCountRunningAverage == 0) {
-      totalCountRunningAverage = totalCount;
-    } else {
-      totalCountRunningAverage =
-          totalCountRunningAverage + emaAlpha * (totalCount - totalCountRunningAverage);
-    }
+      if (totalCountRunningAverage == 0) {
+        totalCountRunningAverage = totalCount;
+      } else {
+        totalCountRunningAverage =
+            totalCountRunningAverage + emaAlpha * (totalCount - totalCountRunningAverage);
+      }
 
-    if (totalCountRunningAverage <= 0) {
-      probability = 1;
-    } else {
-      probability = Math.min(samplesBudget / totalCountRunningAverage, 1d);
+      if (totalCountRunningAverage <= 0) {
+        probability = 1;
+      } else {
+        probability = Math.min(samplesBudget / totalCountRunningAverage, 1d);
+      }
+    } finally {
+      // Reset the previous counts slot
+      counts.reset();
     }
   }
 
@@ -171,9 +194,6 @@ public final class AdaptiveSampler {
     return 1 - Math.pow(lookback, -1d / lookback);
   }
 
-  /*
-   * Important to use explicit class to avoid implicit hard references to StreamingSampler from within scheduler
-   */
   private static class RollWindowTask implements Task<AdaptiveSampler> {
 
     static final RollWindowTask INSTANCE = new RollWindowTask();
