@@ -20,6 +20,9 @@ subprojects { subProject ->
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
     jvmArgs "-Ddatadog.smoketest.agent.shadowJar.path=${project(':dd-java-agent').tasks.shadowJar.archivePath}"
 
+    // The jar path for the test agent (taken from https://github.com/DataDog/dd-trace-test-agent )
+    jvmArgs "-Ddatadog.smoketest.test.agent.dir=${project.getRootDir()}/dd-smoke-tests/src/main/resources/test-agent.jar"
+
     // Only one smoke test at a time
     usesService(smokeTestLimit)
   }

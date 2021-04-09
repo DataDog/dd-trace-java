@@ -21,6 +21,7 @@ abstract class ProcessManager extends Specification {
   protected String buildDirectory = System.getProperty("datadog.smoketest.builddir")
   @Shared
   protected String shadowJarPath = System.getProperty("datadog.smoketest.agent.shadowJar.path")
+
   @Shared
   protected static int profilingPort = -1
 

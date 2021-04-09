@@ -6,24 +6,22 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import org.testcontainers.containers.FixedHostPortGenericContainer
-import org.testcontainers.containers.GenericContainer
-import org.testcontainers.containers.wait.strategy.Wait
 import spock.lang.Shared
+
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
+
 import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork
 import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork
 
 abstract class AbstractTestAgentSmokeTest extends ProcessManager {
 
   @Shared
-  protected String snapshotDirectory
+  protected String snapshotDirectory = "${workingDirectory}/snapshots"
 
   @Shared
-  protected GenericContainer testAgent
-
-  @Shared
-  protected int testAgentMappedPort = "true" == System.getenv("CI") ? 8126 : PortUtils.randomOpenPort()
+  protected String testAgentPath = System.getProperty("datadog.smoketest.test.agent.dir")
 
   @Shared
   protected int testAgentPort = 8126
@@ -32,12 +30,15 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
   int httpPort = PortUtils.randomOpenPort()
 
   @Shared
+  String testAgentLogFilePath = "${buildDirectory}/reports/testAgent.${this.getClass().getName()}.log"
+
+  @Shared
   String[] defaultJavaProperties = [
     "${getMaxMemoryArgumentForFork()}",
     "${getMinMemoryArgumentForFork()}",
     "-javaagent:${shadowJarPath}",
     "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
-    "-Ddd.trace.agent.port=${testAgentMappedPort}",
+    "-Ddd.trace.agent.port=${testAgentPort}",
     "-Ddd.service.name=${SERVICE_NAME}",
     "-Ddd.env=${ENV}",
     "-Ddd.version=${VERSION}",
@@ -46,25 +47,32 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
     "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
   ]
 
+  @Shared
+  protected Process testAgent
+
+  @Shared
   protected OkHttpClient client = OkHttpUtils.client()
 
   def setupSpec() {
-    //In CI, there a container will be standup so no need to use test containers
-    PortUtils.waitForPortToOpen(httpPort, 240, TimeUnit.SECONDS, testedProcess)
-    snapshotDirectory = "${workingDirectory}/snapshots"
-
-    assert new File(snapshotDirectory).exists() : "snapshot directory doesn't exist"
-
-    if ("true" != System.getenv("CI")) {
-      testAgent = new FixedHostPortGenericContainer("kyleverhoog/dd-trace-test-agent:latest")
-        .withFixedExposedPort(testAgentMappedPort, testAgentPort)
-        .withEnv("SNAPSHOT_DIR", "/dd-smoke-tests")
-        .withFileSystemBind(new File(workingDirectory).getParentFile().getAbsolutePath(), "/dd-smoke-tests")
-        .waitingFor(
-        Wait.forLogMessage(".*Started server on port.*\\n", 1)
-        )
-      testAgent.start()
+    if (testAgentPath == null) {
+      throw new AssertionError("Expected system property for path for Test Agent but found none.")
     }
+    assert Files.isRegularFile(Paths.get(testAgentPath))
+    List<String> command = new ArrayList<>()
+    command.addAll((String[]) [javaPath(), "-jar", testAgentPath])
+
+    ProcessBuilder processBuilder = new ProcessBuilder(command)
+    processBuilder.redirectErrorStream(true)
+    processBuilder.redirectOutput(ProcessBuilder.Redirect.to(new File(testAgentLogFilePath)))
+
+    // starts the test agent in port 8126, the test agent will be updated to run on different ports soon
+    testAgent = processBuilder.start()
+    println testAgent.isAlive()
+    PortUtils.waitForPortToOpen(testAgentPort, 20, TimeUnit.SECONDS, testAgent)
+    PortUtils.waitForPortToOpen(httpPort, 240, TimeUnit.SECONDS, testedProcess)
+
+    println "Test agent started on port ${testAgentPort}"
+    println "Test agent using snapshot directory: ${snapshotDirectory}"
   }
 
   /**
@@ -74,9 +82,8 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
    * @param func the command whose generated trace should be asserted by the testAgent
    */
   def snapshot(String testTokenID, String[] ignoredKeys = ['meta.http.url', 'meta.thread.name', 'meta.peer.port', 'meta.thread.id'], Closure func) {
-    println "The user dir is " + snapshotDirectory
     //let test agent know the test is started
-    def url = "http://localhost:${testAgentMappedPort}/test/start"
+    def url = "http://localhost:${testAgentPort}/test/start"
     def urlBuilder = HttpUrl.parse(url).newBuilder().addQueryParameter("token", testTokenID)
 
     def request = new Request.Builder().url(urlBuilder.build()).get().build()
@@ -87,17 +94,13 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
 
     func.call()
 
-    //makes sure that the test agent receives it, this might cause race conditions
     Thread.sleep(1500)
-    if (testAgent != null) {
-      printLogToFile(testTokenID)
-    }
 
     //resend the test agent results to query the snapshot comparison results that the test agent does
-    url = "http://localhost:${testAgentMappedPort}/test/snapshot"
+    url = "http://localhost:${testAgentPort}/test/snapshot"
     urlBuilder = HttpUrl.parse(url).newBuilder()
       .addEncodedQueryParameter("ignores", String.join(",", ignoredKeys) )
-      .addQueryParameter("dir", "/dd-smoke-tests/${projectName()}/snapshots")
+      .addQueryParameter("dir", "${snapshotDirectory}")
       .addQueryParameter("token", testTokenID)
 
     request = new Request.Builder().url(urlBuilder.build()).get().build()
@@ -105,24 +108,13 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
 
     assert response != null
     println response.body().string()
-    assert response.code() == 200
-  }
-
-  //prints the log snapshot to the build/reports directory of the specific project
-  def printLogToFile(String fileName) {
-    File logFile = new File("${buildDirectory}/reports/${fileName}.log")
-    if (!logFile.exists()) {
-      logFile.createNewFile()
-    }
-    logFile.write(testAgent.getLogs())
+    assert response.code() == 200 : "The trace has failed, see logs for more details"
   }
 
   def cleanupSpec() {
-    if (testAgent != null) {
-      testAgent.stop()
+    testAgent.destroy()
+    if (testAgent.isAlive()) {
+      testAgent.destroyForcibly()
     }
   }
-
-  // this value needs to be specified in the tests implementation for the test agent to find the correct folder for snapshots
-  abstract String projectName()
 }

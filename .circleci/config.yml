@@ -163,14 +163,6 @@ jobs:
           <<: *cache_keys
 
       - run:
-          # runs the test agent for smoke tests
-          name: Setup Test Agent for Smoke Tests
-          command: sudo chmod +x test-agent && sudo ./test-agent
-          environment:
-            SNAPSHOT_DIR: ~/dd-trace-java/dd-smoke-tests
-          background: true
-
-      - run:
           name: Run Tests
           command: >-
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=64M"
