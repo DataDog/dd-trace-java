@@ -20,26 +20,17 @@ import java.util.concurrent.atomic.LongAdder;
  * use in the following window.
  *
  * <p>This will guarantee, if the windows are not excessively large, that the sampler will be able
- * to adjust to the changes in the rate of incoming events.
- *
- * <p>However, there might so rapid changes in incoming events rate that we will optimistically use
- * all allowed samples well before the current window has elapsed or, on the other end of the
- * spectrum, there will be to few incoming events and the sampler will not be able to generate the
- * target number of samples.
- *
- * <p>To smooth out these hiccups the sampler maintains an under-sampling budget which can be used
- * to compensate for too rapid changes in the incoming events rate and maintain the target average
- * number of samples per window.
+ * to adjust to the changes in the rate of incoming events. The desired sampling rate is
+ * recalculated after each window using PID controller
+ * (https://en.wikipedia.org/wiki/PID_controller) thanks to which the sampler is able to accommodate
+ * changing rate of the incoming events rather smoothly. For a typical event distribution the error
+ * margin will be less than 5% but in a pathological case of highly bursty event stream with
+ * interval of almost no activity being followed by a window with extremely large amount of events
+ * the error margin may be up to 50% of the expected sample rate when measured over 100+ windows.
  */
 public final class AdaptiveSampler {
 
-  /*
-   * Number of windows to look back when computing carried over budget.
-   * This value is `approximate' since we use EMA to keep running average.
-   */
-  private static final int CARRIED_OVER_BUDGET_LOOK_BACK = 16;
-
-  private static final class Counts {
+  private static final class Window {
     private final LongAdder testCounter = new LongAdder();
     private final AtomicLong sampleCounter = new AtomicLong(0L);
 
@@ -70,9 +61,9 @@ public final class AdaptiveSampler {
   private final double emaAlpha;
   private final int samplesPerWindow;
 
-  private final AtomicReference<Counts> countsRef;
+  private final AtomicReference<Window> windowRef;
 
-  // these attributes need to be volatile since they are accessed from user threds as well as the
+  // these attributes need to be volatile since they are accessed from user threads as well as the
   // maintenance one
   private volatile double probability = 1d;
   private volatile long samplesBudget;
@@ -81,11 +72,20 @@ public final class AdaptiveSampler {
   private double totalCountRunningAverage = 0d;
   private double avgSamples;
 
-  private final double budgetAlpha;
-
   // accessed exclusively from the window maintenance task - does not require any synchronization
   private int countsSlotIdx = 0;
-  private final Counts[] countsSlots = new Counts[] {new Counts(), new Counts()};
+  private final Window[] windowSlots = new Window[] {new Window(), new Window()};
+
+  /*
+   * The target sample number for the next window is controlled by a simple PID controller.
+   * See https://en.wikipedia.org/wiki/PID_controller for more details.
+   * The following fields are the integration, derivation and proportional coefficients, respectively.
+   * The values were derived based on the AdaptiveSamplerTest repeatable runs such that the error margins
+   * are acceptable.
+   */
+  private static final double KI = 0.02d;
+  private static final double KD = 0.8d;
+  private static final double KP = 0.8d;
 
   /**
    * Create a new sampler instance
@@ -102,10 +102,9 @@ public final class AdaptiveSampler {
       final AgentTaskScheduler taskScheduler) {
 
     this.samplesPerWindow = samplesPerWindow;
-    samplesBudget = samplesPerWindow + (long) CARRIED_OVER_BUDGET_LOOK_BACK * samplesPerWindow;
+    samplesBudget = samplesPerWindow;
     emaAlpha = computeIntervalAlpha(lookback);
-    budgetAlpha = computeIntervalAlpha(CARRIED_OVER_BUDGET_LOOK_BACK);
-    countsRef = new AtomicReference<>(countsSlots[0]);
+    windowRef = new AtomicReference<>(windowSlots[0]);
 
     taskScheduler.weakScheduleAtFixedRate(
         RollWindowTask.INSTANCE,
@@ -133,18 +132,20 @@ public final class AdaptiveSampler {
    * @return {@literal true} if the event should be sampled
    */
   public final boolean sample() {
-    final Counts counts = countsRef.get();
-    counts.addTest();
+    final Window window = windowRef.get();
+    window.addTest();
     if (ThreadLocalRandom.current().nextDouble() < probability) {
-      return counts.addSample(samplesBudget);
+      return window.addSample(samplesBudget);
     }
 
     return false;
   }
 
+  private long errorSum = 0;
+
   private void rollWindow() {
 
-    final Counts counts = countsSlots[countsSlotIdx];
+    final Window previousWindow = windowSlots[countsSlotIdx];
     try {
       /*
        * Semi-atomically replace the Counts instance such that sample requests during window maintenance will be
@@ -158,11 +159,19 @@ public final class AdaptiveSampler {
        * code simple and reasonably fast.
        */
       countsSlotIdx = (countsSlotIdx++) % 2;
-      countsRef.set(countsSlots[countsSlotIdx]);
-      final long totalCount = counts.testCounter.sum();
-      final long sampledCount = counts.sampleCounter.get();
+      windowRef.set(windowSlots[countsSlotIdx]);
+      final long totalCount = previousWindow.testCounter.sum();
+      final long sampledCount = previousWindow.sampleCounter.get();
 
-      samplesBudget = calculateBudgetEma(sampledCount);
+      long diff = samplesPerWindow - sampledCount;
+      errorSum += diff;
+      double proportional = (double) diff / samplesPerWindow;
+
+      // see https://en.wikipedia.org/wiki/PID_controller#Mathematical_form
+      double adjustment = KI * errorSum + KD * diff + KP * proportional;
+
+      // this will never be updated concurrently so we can mutate the volatile long safely
+      samplesBudget = (long) (samplesBudget + adjustment);
 
       if (totalCountRunningAverage == 0) {
         totalCountRunningAverage = totalCount;
@@ -178,16 +187,8 @@ public final class AdaptiveSampler {
       }
     } finally {
       // Reset the previous counts slot
-      counts.reset();
+      previousWindow.reset();
     }
-  }
-
-  private long calculateBudgetEma(final long sampledCount) {
-    avgSamples =
-        Double.isNaN(avgSamples)
-            ? sampledCount
-            : avgSamples + budgetAlpha * (sampledCount - avgSamples);
-    return Math.round(Math.max(samplesPerWindow - avgSamples, 0) * CARRIED_OVER_BUDGET_LOOK_BACK);
   }
 
   private static double computeIntervalAlpha(final int lookback) {

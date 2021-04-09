@@ -21,8 +21,9 @@ import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.apache.commons.math3.util.Pair;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -173,7 +174,7 @@ class AdaptiveSamplerTest {
 
   private static final StandardDeviation STANDARD_DEVIATION = new StandardDeviation();
   private static final int WINDOWS = 120;
-  private static final int SAMPLES_PER_WINDOW = 100;
+  private static final int SAMPLES_PER_WINDOW = 20;
   private static final int LOOKBACK = 30;
 
   @Mock AgentTaskScheduler taskScheduler;
@@ -192,91 +193,105 @@ class AdaptiveSamplerTest {
             same(TimeUnit.NANOSECONDS));
   }
 
-  @Test
-  public void testBurstLowProbability() throws Exception {
-    testSampler(new BurstingWindowsEventsSupplier(0.1d, 5, 5000), 40);
+  @ParameterizedTest
+  @CsvSource({"5, 50", "10, 50", "50, 50", "100, 50", "300, 50"})
+  public void testBurstLowProbability(int samples, int error) throws Exception {
+    testSampler(new BurstingWindowsEventsSupplier(0.1d, 5, 5000), samples, error);
   }
 
-  @Test
-  public void testBurstHighProbability() throws Exception {
-    testSampler(new BurstingWindowsEventsSupplier(0.8d, 5, 5000), 20);
+  @ParameterizedTest
+  @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
+  public void testBurstHighProbability(int samples, int error) throws Exception {
+    testSampler(new BurstingWindowsEventsSupplier(0.8d, 5, 5000), samples, error);
   }
 
-  @Test
-  public void testPoissonLowFrequency() throws Exception {
-    testSampler(new PoissonWindowEventsSupplier(153), 15);
+  @ParameterizedTest
+  @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
+  public void testPoissonLowFrequency(int samples, int error) throws Exception {
+    testSampler(new PoissonWindowEventsSupplier(153), samples, error);
   }
 
-  @Test
-  public void testPoissonMidFrequency() throws Exception {
-    testSampler(new PoissonWindowEventsSupplier(283), 15);
+  @ParameterizedTest
+  @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
+  public void testPoissonMidFrequency(int samples, int error) throws Exception {
+    testSampler(new PoissonWindowEventsSupplier(283), samples, error);
   }
 
-  @Test
-  public void testPoissonHighFrequency() throws Exception {
-    testSampler(new PoissonWindowEventsSupplier(1013), 15);
+  @ParameterizedTest
+  @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
+  public void testPoissonHighFrequency(int samples, int error) throws Exception {
+    testSampler(new PoissonWindowEventsSupplier(1013), samples, error);
   }
 
-  @Test
-  public void testConstantVeryLowLoad() throws Exception {
-    testSampler(new ConstantWindowsEventsSupplier(1), 10);
+  @ParameterizedTest
+  @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
+  public void testConstantVeryLowLoad(int samples, int error) throws Exception {
+    testSampler(new ConstantWindowsEventsSupplier(1), samples, error);
   }
 
-  @Test
-  public void testConstantLowLoad() throws Exception {
-    testSampler(new ConstantWindowsEventsSupplier(153), 15);
+  @ParameterizedTest
+  @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
+  public void testConstantLowLoad(int samples, int error) throws Exception {
+    testSampler(new ConstantWindowsEventsSupplier(153), samples, error);
   }
 
-  @Test
-  public void testConstantMediumLoad() throws Exception {
-    testSampler(new ConstantWindowsEventsSupplier(713), 15);
+  @ParameterizedTest
+  @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
+  public void testConstantMediumLoad(int samples, int error) throws Exception {
+    testSampler(new ConstantWindowsEventsSupplier(713), samples, error);
   }
 
-  @Test
-  public void testConstantHighLoad() throws Exception {
-    testSampler(new ConstantWindowsEventsSupplier(5211), 15);
+  @ParameterizedTest
+  @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
+  public void testConstantHighLoad(int samples, int error) throws Exception {
+    testSampler(new ConstantWindowsEventsSupplier(5211), samples, error);
   }
 
-  @Test
-  public void testRepeatingSemiRandom() throws Exception {
+  @ParameterizedTest
+  @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
+  public void testRepeatingSemiRandom(int samples, int error) throws Exception {
     testSampler(
         new RepeatingWindowsEventsSupplier(180, 200, 0, 0, 0, 1500, 1000, 430, 200, 115, 115, 900),
-        15);
+        samples,
+        error);
   }
 
-  @Test
-  public void testRepeatingRegularStartWithBurst() throws Exception {
-    testSampler(new RepeatingWindowsEventsSupplier(1000, 0, 1000, 0, 1000, 0), 15);
+  @ParameterizedTest
+  @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
+  public void testRepeatingRegularStartWithBurst(int samples, int error) throws Exception {
+    testSampler(new RepeatingWindowsEventsSupplier(1000, 0, 1000, 0, 1000, 0), samples, error);
   }
 
-  @Test
-  public void testRepeatingRegularStartWithLow() throws Exception {
-    testSampler(new RepeatingWindowsEventsSupplier(0, 1000, 0, 1000, 0, 1000), 15);
+  @ParameterizedTest
+  @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
+  public void testRepeatingRegularStartWithLow(int samples, int error) throws Exception {
+    testSampler(new RepeatingWindowsEventsSupplier(0, 1000, 0, 1000, 0, 1000), samples, error);
   }
 
-  private void testSampler(final IntSupplier windowEventsSupplier, final int maxErrorPercent)
+  private void testSampler(
+      final IntSupplier windowEventsSupplier, final int samples, final int maxErrorPercent)
       throws Exception {
     int iterations =
         Integer.parseInt(
-            System.getProperty("com.datadog.profiling.exceptions.test-iterations", "1"));
+            System.getProperty("com.datadog.profiling.exceptions.test-iterations", "100"));
     for (int i = 0; i < iterations; i++) {
-      testSamplerInline(windowEventsSupplier, maxErrorPercent);
+      testSamplerInline(windowEventsSupplier, samples, maxErrorPercent);
       for (int numOfThreads = 1; numOfThreads <= 64; numOfThreads *= 2) {
-        testSamplerConcurrently(numOfThreads, windowEventsSupplier, maxErrorPercent);
+        testSamplerConcurrently(numOfThreads, windowEventsSupplier, samples, maxErrorPercent);
       }
     }
   }
 
   private void testSamplerInline(
-      final IntSupplier windowEventsSupplier, final int maxErrorPercent) {
+      final IntSupplier windowEventsSupplier, final int samples, final int maxErrorPercent) {
     log.info(
         "> mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}%",
-        windowEventsSupplier, WINDOWS, SAMPLES_PER_WINDOW, LOOKBACK, maxErrorPercent);
+        windowEventsSupplier, WINDOWS, samples, LOOKBACK, maxErrorPercent);
     final AdaptiveSampler sampler =
-        new AdaptiveSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
+        new AdaptiveSampler(WINDOW_DURATION, samples, LOOKBACK, taskScheduler);
 
     // simulate event generation and sampling for the given number of sampling windows
-    final long expectedSamples = WINDOWS * SAMPLES_PER_WINDOW;
+    final long expectedSamples = WINDOWS * samples;
 
     long allSamples = 0L;
     long allEvents = 0L;
@@ -408,7 +423,10 @@ class AdaptiveSamplerTest {
   }
 
   private void testSamplerConcurrently(
-      final int threadCount, final IntSupplier windowEventsSupplier, final int maxErrorPercent)
+      final int threadCount,
+      final IntSupplier windowEventsSupplier,
+      int windowSamples,
+      final int maxErrorPercent)
       throws Exception {
     log.info(
         "> threads: {}, mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}",
@@ -423,12 +441,12 @@ class AdaptiveSamplerTest {
      * This test attempts to simulate concurrent computations by making sure that sampling requests and the window maintenance routine are run in parallel.
      * It does not provide coverage of all possible execution sequences but should be good enough for getting the 'ballpark' numbers.
      */
-    final long expectedSamples = SAMPLES_PER_WINDOW * WINDOWS;
+    final long expectedSamples = windowSamples * WINDOWS;
     final AtomicLong allSamples = new AtomicLong(0);
     final AtomicLong receivedEvents = new AtomicLong(0);
 
     final AdaptiveSampler sampler =
-        new AdaptiveSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
+        new AdaptiveSampler(WINDOW_DURATION, windowSamples, LOOKBACK, taskScheduler);
     final CyclicBarrier startBarrier = new CyclicBarrier(threadCount);
     final CyclicBarrier endBarrier = new CyclicBarrier(threadCount, this::rollWindow);
     final Mean[] means = new Mean[threadCount];
