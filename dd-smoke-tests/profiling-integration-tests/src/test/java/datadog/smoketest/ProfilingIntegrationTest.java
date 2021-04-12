@@ -244,6 +244,8 @@ class ProfilingIntegrationTest {
   private void testWithRetry(TestBody test, TestInfo testInfo, int retries) throws Exception {
     Throwable lastThrowable = null;
     while (retries-- >= 0) {
+      // clean the lastThrowable first
+      lastThrowable = null;
       try {
         test.run();
         break;
