@@ -161,16 +161,17 @@ class AggregateMetricTest extends DDSpecification {
     def future = reader.submit({
       readerLatch.countDown()
       while (!Thread.currentThread().isInterrupted()) {
-        if (queue.peek() == null && writerLatch.count == 0) {
+        Batch batch = queue.poll(100, TimeUnit.MILLISECONDS)
+        if (null == batch && writerLatch.count == 0) {
           queueEmptyLatch.countDown()
+        } else if (null != batch) {
+          batch.contributeTo(aggregate)
         }
-        Batch batch = queue.take()
-        batch.contributeTo(aggregate)
       }
     })
-    writerLatch.await(10, TimeUnit.SECONDS)
+    assert writerLatch.await(10, TimeUnit.SECONDS)
     // Wait here until we know that the queue is empty
-    queueEmptyLatch.await(10, TimeUnit.SECONDS)
+    assert queueEmptyLatch.await(10, TimeUnit.SECONDS)
     future.cancel(true)
 
     then:

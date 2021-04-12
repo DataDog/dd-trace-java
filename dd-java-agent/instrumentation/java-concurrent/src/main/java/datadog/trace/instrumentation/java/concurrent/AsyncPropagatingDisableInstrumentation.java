@@ -32,7 +32,10 @@ public final class AsyncPropagatingDisableInstrumentation implements Instrumente
   public AgentBuilder instrument(AgentBuilder agentBuilder) {
     return new DisableAsyncInstrumentation(
             extendsClass(named("rx.Scheduler$Worker")), named("schedulePeriodically"))
-        .instrument(agentBuilder);
+        .instrument(
+            new DisableAsyncInstrumentation(
+                    named("rx.internal.operators.OperatorTimeoutBase"), named("call"))
+                .instrument(agentBuilder));
   }
 
   @Override

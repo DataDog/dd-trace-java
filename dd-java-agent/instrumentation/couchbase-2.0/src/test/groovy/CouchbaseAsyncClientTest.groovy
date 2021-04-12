@@ -15,13 +15,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 @Retry
 @Unroll
 class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
-  static final int TIMEOUT = 10
-
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
+  static final int TIMEOUT = 30
 
   def "test hasBucket #type"() {
     setup:

@@ -6,26 +6,25 @@ import org.openjdk.jol.info.GraphLayout
 import spock.lang.Requires
 import spock.lang.Shared
 
+import java.nio.ByteBuffer
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.AtomicLong
 
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static java.util.concurrent.TimeUnit.SECONDS
 
 @Requires({
-  isJavaVersionAtLeast(8)
+  !System.getProperty("java.vendor").toUpperCase().contains("IBM") && isJavaVersionAtLeast(8)
 })
 class FootprintTest extends DDSpecification {
 
   @Shared
   Random random = new Random(0)
 
-  def "footprint less than 5MB"() {
+  def "footprint less than 10MB"() {
     setup:
     CountDownLatch latch = new CountDownLatch(1)
-    Sink sink = Mock(Sink)
-    sink.validate() >> true
+    ValidatingSink sink = new ValidatingSink(latch)
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       new WellKnownTags("hostname", "env", "service", "version"),
       [].toSet() as Set<String>,
@@ -34,8 +33,8 @@ class FootprintTest extends DDSpecification {
       1000,
       100,
       SECONDS)
+    long baseline = footprint(aggregator)
     aggregator.start()
-    AtomicLong size = new AtomicLong(0)
 
     when: "lots of traces are published"
     String[] operations = randomNames(operationCardinality)
@@ -59,16 +58,10 @@ class FootprintTest extends DDSpecification {
       ])
     }
     aggregator.report()
-    latch.await(10, SECONDS)
+    assert latch.await(30, SECONDS)
 
     then:
-    1 * sink.accept(_, _) >> {
-      GraphLayout layout = GraphLayout.parseInstance(aggregator.aggregator.aggregates)
-      System.err.println(layout.toFootprint())
-      size.set(layout.totalSize())
-      latch.countDown()
-    }
-    size.get() <= 5 * 1024 * 1024
+    footprint(aggregator) - baseline <= 10 * 1024 * 1024
 
     cleanup:
     aggregator.close()
@@ -111,5 +104,35 @@ class FootprintTest extends DDSpecification {
 
   def expDistributedNanoseconds(double intensity) {
     return (long)(Math.log(random.nextDouble()) / Math.log(1 - intensity) + 1)
+  }
+
+  class ValidatingSink implements Sink {
+
+    final CountDownLatch latch
+
+    ValidatingSink(CountDownLatch latch) {
+      this.latch = latch
+    }
+
+    @Override
+    void register(EventListener listener) {
+    }
+
+    @Override
+    boolean validate() {
+      return true
+    }
+
+    @Override
+    void accept(int messageCount, ByteBuffer buffer) {
+      latch.countDown()
+    }
+  }
+
+
+  static long footprint(Object o) {
+    GraphLayout layout = GraphLayout.parseInstance(o)
+    System.err.println(layout.toFootprint())
+    return layout.totalSize()
   }
 }
