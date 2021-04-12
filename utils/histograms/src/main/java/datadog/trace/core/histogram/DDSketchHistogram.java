@@ -12,7 +12,7 @@ public final class DDSketchHistogram implements Histogram, HistogramFactory {
   public DDSketchHistogram() {
     this(
         new DDSketch(
-            new BitwiseLinearlyInterpolatedMapping(0.01),
+            new BitwiseLinearlyInterpolatedMapping(1.0 / 128.0),
             () -> new CollapsingLowestDenseStore(1024)));
   }
 
