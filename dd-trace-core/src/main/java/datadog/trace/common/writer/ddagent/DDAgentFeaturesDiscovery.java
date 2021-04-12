@@ -32,14 +32,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public static final String V4_ENDPOINT = "v0.4/traces";
   public static final String V5_ENDPOINT = "v0.5/traces";
 
-  private static final String V5_METRICS_ENDPOINT = "v0.5/stats";
+  public static final String V6_METRICS_ENDPOINT = "v0.6/stats";
   private static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
   private final Recording discoveryTimer;
   private final String[] traceEndpoints;
-  private final String[] metricsEndpoints = {V5_METRICS_ENDPOINT};
+  private final String[] metricsEndpoints = {V6_METRICS_ENDPOINT};
   private final boolean metricsEnabled;
 
   private volatile String traceEndpoint;

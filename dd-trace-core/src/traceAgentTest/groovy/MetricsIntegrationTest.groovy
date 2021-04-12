@@ -8,6 +8,7 @@ import datadog.trace.common.metrics.MetricKey
 import datadog.trace.common.metrics.OkHttpSink
 import datadog.trace.common.metrics.SerializingMetricWriter
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Ignore
 import spock.lang.Requires
 
 import java.util.concurrent.CopyOnWriteArrayList
@@ -18,6 +19,7 @@ import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.common.metrics.EventListener.EventType.OK
 import static java.util.concurrent.TimeUnit.SECONDS
 
+@Ignore("requires unreleased trace agent image to pass")
 @Requires({
   "true" == System.getenv("CI") && isJavaVersionAtLeast(8)
 })
