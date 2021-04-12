@@ -2,7 +2,6 @@ package datadog.smoketest.springboot;
 
 import datadog.smoketest.springboot.grpc.AsynchronousGreeter;
 import datadog.smoketest.springboot.grpc.LocalInterface;
-import datadog.smoketest.springboot.grpc.SynchronousGreeter;
 import datadog.smoketest.springboot.spanner.SpannerTask;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -31,11 +30,6 @@ public class SpringbootGrpcApplication {
   @Bean
   AsynchronousGreeter asynchronousGreeter(LocalInterface localInterface) {
     return new AsynchronousGreeter(localInterface.getPort());
-  }
-
-  @Bean
-  SynchronousGreeter synchronousGreeter(LocalInterface localInterface) {
-    return new SynchronousGreeter(localInterface.getPort());
   }
 
   @Bean
