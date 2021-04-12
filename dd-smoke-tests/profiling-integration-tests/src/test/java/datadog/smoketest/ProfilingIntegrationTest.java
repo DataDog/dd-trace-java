@@ -3,6 +3,7 @@ package datadog.smoketest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.testing.ProfilingTestUtils;
@@ -31,8 +32,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.openjdk.jmc.common.item.Aggregators;
 import org.openjdk.jmc.common.item.Attribute;
 import org.openjdk.jmc.common.item.IAttribute;
@@ -41,11 +40,17 @@ import org.openjdk.jmc.common.item.ItemFilters;
 import org.openjdk.jmc.common.unit.IQuantity;
 import org.openjdk.jmc.common.unit.UnitLookup;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
+import org.opentest4j.AssertionFailedError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class ProfilingIntegrationTest {
   private static final Logger log = LoggerFactory.getLogger(ProfilingIntegrationTest.class);
+
+  @FunctionalInterface
+  private interface TestBody {
+    void run() throws Exception;
+  }
 
   private static final String VALID_API_KEY = "01234567890abcdef123456789ABCDEF";
   private static final String BOGUS_API_KEY = "bogus";
@@ -53,7 +58,7 @@ class ProfilingIntegrationTest {
   private static final int PROFILING_UPLOAD_PERIOD_SECONDS = 3;
   // Set the request timeout value to the sum of the initial delay and the upload period
   // multiplied by a safety margin
-  private static final int SAFETY_MARGIN = 10;
+  private static final int SAFETY_MARGIN = 3;
   private static final int REQUEST_WAIT_TIMEOUT =
       (PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS) * SAFETY_MARGIN;
 
@@ -103,13 +108,24 @@ class ProfilingIntegrationTest {
     }
   }
 
-  @ParameterizedTest(name = "testContinuousRecording_{0}_sec")
-  @ValueSource(ints = {0, 1})
-  void testContinuousRecording(int jmxFetchDelay, TestInfo testInfo) throws Exception {
+  @Test
+  @DisplayName("Test continuous recording - no jmx delay")
+  public void testContinuousRecording_no_jmx_delay(TestInfo testInfo) throws Exception {
+    testWithRetry(() -> testContinuousRecording(0), testInfo, 3);
+  }
+
+  @Test
+  @DisplayName("Test continuous recording - 1 sec jmx delay")
+  public void testContinuousRecording(TestInfo testInfo) throws Exception {
+    testWithRetry(() -> testContinuousRecording(1), testInfo, 3);
+  }
+
+  private void testContinuousRecording(int jmxFetchDelay) throws Exception {
     targetProcess = createDefaultProcessBuilder(jmxFetchDelay, logFilePath).start();
 
     RecordedRequest firstRequest = retrieveRequest();
 
+    assertNotNull(firstRequest);
     Multimap<String, Object> firstRequestParameters =
         ProfilingTestUtils.parseProfilingRequestParameters(firstRequest);
 
@@ -151,8 +167,12 @@ class ProfilingIntegrationTest {
     Instant secondStartTime =
         Instant.parse(getStringParameter("recording-start", nextRequestParameters));
     long period = secondStartTime.toEpochMilli() - firstStartTime.toEpochMilli();
-    assertTrue(period > TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS - 2));
-    assertTrue(period < TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS + 2));
+    assertTrue(
+        period > TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS - 2),
+        () -> "Upload period = " + period + ", expected >" + (PROFILING_UPLOAD_PERIOD_SECONDS - 2));
+    assertTrue(
+        period < TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS + 2),
+        () -> "Upload period = " + period + ", expected <" + (PROFILING_UPLOAD_PERIOD_SECONDS + 2));
 
     byteData = getParameter("chunk-data", byte[].class, firstRequestParameters);
     assertNotNull(byteData);
@@ -167,45 +187,87 @@ class ProfilingIntegrationTest {
   }
 
   @Test
-  @DisplayName("testBogusApiKey")
-  void testBogusApiKey() throws Exception {
-    int exitDelay = PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 2 + 1;
+  @DisplayName("Test bogus API key")
+  void testBogusApiKey(TestInfo testInfo) throws Exception {
+    testWithRetry(
+        () -> {
+          int exitDelay = PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 2 + 1;
 
-    targetProcess =
-        createProcessBuilder(
-                BOGUS_API_KEY,
-                0,
-                PROFILING_START_DELAY_SECONDS,
-                PROFILING_UPLOAD_PERIOD_SECONDS,
-                exitDelay,
-                logFilePath)
-            .start();
+          targetProcess =
+              createProcessBuilder(
+                      BOGUS_API_KEY,
+                      0,
+                      PROFILING_START_DELAY_SECONDS,
+                      PROFILING_UPLOAD_PERIOD_SECONDS,
+                      exitDelay,
+                      logFilePath)
+                  .start();
 
-    RecordedRequest request = retrieveRequest();
-    assertFalse(logHasErrors(logFilePath, it -> false));
+          RecordedRequest request = retrieveRequest();
+
+          assertNull(request);
+          assertFalse(logHasErrors(logFilePath, it -> false));
+        },
+        testInfo,
+        3);
   }
 
   @Test
-  @DisplayName("testShutdown")
-  void testShutdown() throws Exception {
-    int exitDelay = PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 2 + 1;
-    targetProcess =
-        createProcessBuilder(
-                VALID_API_KEY,
-                0,
-                PROFILING_START_DELAY_SECONDS,
-                PROFILING_UPLOAD_PERIOD_SECONDS,
-                exitDelay,
-                logFilePath)
-            .start();
+  @DisplayName("Test shutdown")
+  void testShutdown(TestInfo testInfo) throws Exception {
+    testWithRetry(
+        () -> {
+          int exitDelay = PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 4 + 1;
+          targetProcess =
+              createProcessBuilder(
+                      VALID_API_KEY,
+                      0,
+                      PROFILING_START_DELAY_SECONDS,
+                      PROFILING_UPLOAD_PERIOD_SECONDS,
+                      exitDelay,
+                      logFilePath)
+                  .start();
 
-    RecordedRequest request = retrieveRequest();
-    assertFalse(logHasErrors(logFilePath, it -> false));
-    assertTrue(request.getBodySize() > 0);
+          RecordedRequest request = retrieveRequest();
+          assertNotNull(request);
+          assertFalse(logHasErrors(logFilePath, it -> false));
+          assertTrue(request.getBodySize() > 0);
 
-    // Wait for the app exit with some extra time.
-    // The expectation is that agent doesn't prevent app from exiting.
-    assertTrue(targetProcess.waitFor(exitDelay + 10, TimeUnit.SECONDS));
+          // Wait for the app exit with some extra time.
+          // The expectation is that agent doesn't prevent app from exiting.
+          assertTrue(targetProcess.waitFor(exitDelay + 10, TimeUnit.SECONDS));
+        },
+        testInfo,
+        3);
+  }
+
+  private void testWithRetry(TestBody test, TestInfo testInfo, int retries) throws Exception {
+    Throwable lastThrowable = null;
+    while (retries-- >= 0) {
+      // clean the lastThrowable first
+      lastThrowable = null;
+      try {
+        test.run();
+        break;
+      } catch (Throwable t) {
+        lastThrowable = t;
+        if (retries > 0) {
+          log.error("Test '{}' failed. Retrying.", testInfo.getDisplayName());
+          // clean up the log file so the previous errors do not throw off the assertions
+          Files.deleteIfExists(logFilePath);
+        }
+        // retry
+      }
+    }
+    if (lastThrowable != null) {
+      if (lastThrowable instanceof AssertionFailedError) {
+        throw (AssertionFailedError) lastThrowable;
+      } else if (lastThrowable instanceof Exception) {
+        throw (Exception) lastThrowable;
+      } else {
+        throw new RuntimeException(lastThrowable);
+      }
+    }
   }
 
   private RecordedRequest retrieveRequest() throws Exception {

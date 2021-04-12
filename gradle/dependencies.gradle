@@ -53,7 +53,7 @@ ext {
     groovy        : "org.codehaus.groovy:groovy-all:${versions.groovy}",
     junit5        : [
       dependencies.create(group: 'org.junit.jupiter', name: 'junit-jupiter', version: versions.junit5),
-      dependencies.create(group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: versions.junit5),
+      dependencies.create(group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: versions.junit5)
     ],
     mockito       : [
       dependencies.create(group: 'org.mockito', name: 'mockito-core', version: versions.mockito),

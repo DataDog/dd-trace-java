@@ -35,7 +35,7 @@ dependencies {
 tasks.withType(Test).configureEach {
   dependsOn shadowJar
 
-  onlyIf { !name.contains('IBM') && !name.contains('Generated') }
+  onlyIf { !name.contains('IBM') }
 
   jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archivePath}"
 }
