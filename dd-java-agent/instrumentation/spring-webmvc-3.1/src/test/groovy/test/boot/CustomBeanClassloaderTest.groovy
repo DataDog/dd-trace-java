@@ -10,7 +10,7 @@ class CustomBeanClassloaderTest extends SpringBootBasedTest {
   ConfigurableApplicationContext startServer(int port) {
     def app = new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, CustomClassloaderConfig, TestController)
     app.setDefaultProperties(singletonMap("server.port", port))
-    def context = app.run()
+    context = app.run()
     return context
   }
 }

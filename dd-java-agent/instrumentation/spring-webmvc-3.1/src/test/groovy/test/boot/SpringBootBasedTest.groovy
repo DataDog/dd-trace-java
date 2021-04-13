@@ -12,6 +12,7 @@ import okhttp3.RequestBody
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.view.RedirectView
+import spock.lang.Shared
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
@@ -23,6 +24,9 @@ import static java.util.Collections.singletonMap
 
 class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext> {
 
+  @Shared
+  def context
+
   @Override
   boolean useStrictTraceWrites() {
     // TODO fix this by making sure that spans get closed properly
@@ -33,7 +37,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   ConfigurableApplicationContext startServer(int port) {
     def app = new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig, TestController)
     app.setDefaultProperties(singletonMap("server.port", port))
-    def context = app.run()
+    context = app.run()
     return context
   }
 
@@ -72,7 +76,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   def "test character encoding of #testPassword"() {
     setup:
-    def authProvider = server.getBean(SavingAuthenticationProvider)
+    def authProvider = context.getBean(SavingAuthenticationProvider)
 
     RequestBody formBody = new FormBody.Builder()
       .add("username", "test")
