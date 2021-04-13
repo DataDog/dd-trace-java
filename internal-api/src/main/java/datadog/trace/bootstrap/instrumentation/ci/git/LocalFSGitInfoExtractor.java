@@ -48,6 +48,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
   private static final Map<Short, VersionedPackGitInfoExtractor> PACK_EXTRACTOR_BY_VERSION;
 
   static {
+    // Prepared to be extended with more versions if needed.
+    // Only v2 is supported because we don't expect packfiles v1 as that version is very old.
     PACK_EXTRACTOR_BY_VERSION = new HashMap<>();
     PACK_EXTRACTOR_BY_VERSION.put(V2PackGitInfoExtractor.VERSION, new V2PackGitInfoExtractor());
   }
@@ -161,8 +163,14 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       return null;
     }
 
+    short packVersion = 0;
     for (final File idxFile : idxFiles) {
-      final short packVersion = GitPackUtils.extractGitPackVersion(idxFile);
+      // We assume that if an IDX file has a certain version, the rest of IDXs file will be based on
+      // the same version.
+      if (packVersion == 0) {
+        packVersion = GitPackUtils.extractGitPackVersion(idxFile);
+      }
+
       final VersionedPackGitInfoExtractor gitPackExtractor =
           PACK_EXTRACTOR_BY_VERSION.get(packVersion);
       if (gitPackExtractor == null) {

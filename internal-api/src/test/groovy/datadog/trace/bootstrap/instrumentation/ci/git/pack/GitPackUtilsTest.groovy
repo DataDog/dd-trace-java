@@ -43,7 +43,7 @@ class GitPackUtilsTest extends DDSpecification {
 
     where:
     file                                     | expectedBArray
-    file("ci/git/pack/utils/version/v2.idx") | GitPackUtils.V2_HEADER
+    file("ci/git/pack/utils/version/v2.idx") | GitPackUtils.HEADER
   }
 
   def "test convert hex to byte array correctly"() {

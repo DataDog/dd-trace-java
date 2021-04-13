@@ -6,8 +6,10 @@ import java.util.Objects;
 public class GitObject {
 
   public static final byte UNKNOWN_TYPE = 0;
+
+  // https://git-scm.com/docs/pack-format#_object_types
   public static final byte COMMIT_TYPE = 1;
-  public static final byte TAG_TYPE = 3;
+  public static final byte TAG_TYPE = 4;
 
   public static final GitObject NOOP = new GitObject();
 
