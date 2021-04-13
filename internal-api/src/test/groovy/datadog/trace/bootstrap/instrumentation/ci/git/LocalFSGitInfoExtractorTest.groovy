@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.ci.git
 
+
 import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Paths
@@ -10,6 +11,7 @@ class LocalFSGitInfoExtractorTest extends DDSpecification {
   static gitInfoOneCommit
   static gitInfoOneCommitNoRef
   static gitInfoOneTag
+  static gitInfoPack
 
   static {
     gitInfoNoCommits = new GitInfo("https://some-host/some-user/some-repo.git",
@@ -34,6 +36,13 @@ class LocalFSGitInfoExtractorTest extends DDSpecification {
       new PersonInfo("John Doe", "john@doe.com", 1613138422000L, 60),
       new PersonInfo("Jane Doe", "jane@doe.com", 1613138422000L, 60),
       "This is a commit message\n"))
+
+    gitInfoPack = new GitInfo("git@github.com:DataDog/dd-trace-dotnet.git", "master", null,
+      new CommitInfo("5b6f3a6dab5972d73a56dff737bd08d995255c08",
+      new PersonInfo("Tony Redondo", "tony.redondo@datadoghq.com", 1614364333000L, 60),
+      new PersonInfo("GitHub", "noreply@github.com", 1614364333000L, 60),
+      "Adding Git information to test spans (#1242)\n\n* Initial basic GitInfo implementation.\r\n\r\n* Adds Author, Committer and Message git parser.\r\n\r\n* Changes based on the review.")
+      )
   }
 
   def "test git info extraction for local fs"() {
@@ -54,6 +63,7 @@ class LocalFSGitInfoExtractorTest extends DDSpecification {
     resolve("ci/git/with_commits/git")         | gitInfoOneCommit
     resolve("ci/git/with_commits_no_refs/git") | gitInfoOneCommitNoRef
     resolve("ci/git/with_tag/git")             | gitInfoOneTag
+    resolve("ci/git/with_pack/git")            | gitInfoPack
   }
 
   def "test extract correct git info with complex commit object"() {
