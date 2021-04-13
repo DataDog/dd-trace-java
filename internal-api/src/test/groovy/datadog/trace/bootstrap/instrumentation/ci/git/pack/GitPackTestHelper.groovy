@@ -4,7 +4,7 @@ import java.util.zip.Inflater
 
 class GitPackTestHelper {
 
-  static def 'content_5b6f3a6dab5972d73a56dff737bd08d995255c08'() {
+  static 'content_5b6f3a6dab5972d73a56dff737bd08d995255c08'() {
     return """tree c52914110869ff3999bca4837410511f17787e87
 parent 98cd7c8e9cf71e02dc28bd9b13928bee0f85b74c
 author Tony Redondo <tony.redondo@datadoghq.com> 1614364333 +0100
@@ -24,7 +24,7 @@ gpgsig -----BEGIN PGP SIGNATURE-----
 Adding Git information to test spans (#1242)\n\n* Initial basic GitInfo implementation.\r\n\r\n* Adds Author, Committer and Message git parser.\r\n\r\n* Changes based on the review."""
   }
 
-  static def "inflate"(byte[] deflated) {
+  static "inflate"(byte[] deflated) {
     if (deflated == null) {
       return null
     }
