@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling;
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.bootstrap.WeakCache.Provider;
 import datadog.trace.bootstrap.WeakMap;
@@ -32,17 +31,9 @@ public class AgentTooling {
     Class<Provider> providerClass;
 
     try {
-      if (Platform.isJavaVersionAtLeast(8)) {
-        providerClass =
-            (Class<Provider>)
-                classLoader.loadClass("datadog.trace.agent.tooling.CaffeineWeakCache$Provider");
-        log.debug("Using CaffeineWeakCache Provider");
-      } else {
-        providerClass =
-            (Class<Provider>)
-                classLoader.loadClass("datadog.trace.agent.tooling.CLHMWeakCache$Provider");
-        log.debug("Using CLHMWeakCache Provider");
-      }
+      providerClass =
+          (Class<Provider>)
+              classLoader.loadClass("datadog.trace.agent.tooling.CLHMWeakCache$Provider");
 
       return providerClass.getDeclaredConstructor().newInstance();
     } catch (ReflectiveOperationException e) {
