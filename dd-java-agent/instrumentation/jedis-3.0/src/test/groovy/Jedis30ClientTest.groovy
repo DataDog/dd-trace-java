@@ -158,4 +158,141 @@ class Jedis30ClientTest extends AgentTestRunner {
       }
     }
   }
+
+  def "hmset and hgetAll commands"() {
+    when:
+
+    Map<String, String> h = new HashMap<>()
+    h.put("key1", "value1")
+    h.put("key2", "value2")
+    jedis.hmset("map", h)
+
+    Map<String, String> result = jedis.hgetAll("map")
+
+    then:
+    result != null
+    result == h
+
+    assertTraces(2) {
+      trace(1) {
+        span {
+          serviceName "redis"
+          operationName "redis.query"
+          resourceName "HMSET"
+          spanType DDSpanTypes.REDIS
+          tags {
+            "$Tags.COMPONENT" "redis-command"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "redis"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "redis"
+          operationName "redis.query"
+          resourceName "HGETALL"
+          spanType DDSpanTypes.REDIS
+          tags {
+            "$Tags.COMPONENT" "redis-command"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "redis"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "zadd and zrangeByScore commands"() {
+    when:
+    jedis.zadd("foo", 1d, "a")
+    jedis.zadd("foo", 10d, "b")
+    jedis.zadd("foo", 0.1d, "c")
+    jedis.zadd("foo", 2d, "d")
+
+    Set<String> verify = new HashSet<String>()
+    verify.add("a")
+    verify.add("c")
+    verify.add("d")
+    Set<String> val = jedis.zrangeByScore("foo", 0d, 2d)
+
+    then:
+    val != null
+    val == verify
+
+    assertTraces(5) {
+      trace(1) {
+        span {
+          serviceName "redis"
+          operationName "redis.query"
+          resourceName "ZADD"
+          spanType DDSpanTypes.REDIS
+          tags {
+            "$Tags.COMPONENT" "redis-command"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "redis"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "redis"
+          operationName "redis.query"
+          resourceName "ZADD"
+          spanType DDSpanTypes.REDIS
+          tags {
+            "$Tags.COMPONENT" "redis-command"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "redis"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "redis"
+          operationName "redis.query"
+          resourceName "ZADD"
+          spanType DDSpanTypes.REDIS
+          tags {
+            "$Tags.COMPONENT" "redis-command"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "redis"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "redis"
+          operationName "redis.query"
+          resourceName "ZADD"
+          spanType DDSpanTypes.REDIS
+          tags {
+            "$Tags.COMPONENT" "redis-command"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "redis"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "redis"
+          operationName "redis.query"
+          resourceName "ZRANGEBYSCORE"
+          spanType DDSpanTypes.REDIS
+          tags {
+            "$Tags.COMPONENT" "redis-command"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "redis"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
 }
