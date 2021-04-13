@@ -35,7 +35,7 @@ class V2PackGitInfoExtractorTest extends DDSpecification {
   def "test search correct sha index"() {
     setup:
     def idx = new RandomAccessFile(idxFile, "r")
-    seek(idx, 8 + (256 * 4), GitPackUtils.SeekOrigin.BEGIN)
+    seek(idx, 8L + (256 * 4), GitPackUtils.SeekOrigin.BEGIN)
 
     when:
     def shaIndex = sut.searchSha(idx, commitSha, totalObjects, previousObjects, indexObjects)

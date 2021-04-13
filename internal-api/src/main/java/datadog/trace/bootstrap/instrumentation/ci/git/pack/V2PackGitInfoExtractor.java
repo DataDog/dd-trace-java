@@ -91,7 +91,7 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
       int numObjectsPreviousIndex = 0;
       if (previousIndex != -1) {
         // Seek to previousIndex position.
-        seek(idx, previousIndex * 4, SeekOrigin.CURRENT);
+        seek(idx, 4L * previousIndex, SeekOrigin.CURRENT);
         numObjectsPreviousIndex = idx.readInt();
       }
 
@@ -101,7 +101,7 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
       final int numObjectsIndex = idx.readInt() - numObjectsPreviousIndex;
 
       // Seek to last position. The last position contains the number of all objects.
-      seek(idx, (255 - (index + 1)) * 4, SeekOrigin.CURRENT);
+      seek(idx, 4L * (255 - (index + 1)), SeekOrigin.CURRENT);
       final int totalObjects = idx.readInt();
 
       // Search the sha index in the second layer: the SHA listing.
@@ -112,7 +112,7 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
       }
 
       // Third layer: 4 byte CRC for each object. We skip it.
-      seek(idx, 4 * totalObjects, SeekOrigin.CURRENT);
+      seek(idx, 4L * totalObjects, SeekOrigin.CURRENT);
 
       // Search packOffset in fourth and fifth layer.
       final long packOffset = searchOffset(idx, shaIndex, totalObjects);
@@ -158,7 +158,7 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
       throws IOException {
 
     // Skip all previous SHAs
-    seek(idx, 20 * (numObjectsPreviousIndex), GitPackUtils.SeekOrigin.CURRENT);
+    seek(idx, 20L * (numObjectsPreviousIndex), GitPackUtils.SeekOrigin.CURRENT);
     final byte[] shaBytes = hexToByteArray(commitSha);
 
     // Search target SHA index in the SHA listing table.
@@ -168,7 +168,7 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
         final int shaIndex = numObjectsPreviousIndex + i;
 
         // If we find the SHA, we skip all SHA listing table.
-        seek(idx, 20 * (totalObjects - (shaIndex + 1)), SeekOrigin.CURRENT);
+        seek(idx, 20L * (totalObjects - (shaIndex + 1)), SeekOrigin.CURRENT);
         return shaIndex;
       }
     }
@@ -188,7 +188,7 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
   protected long searchOffset(
       final RandomAccessFile idx, final int shaIndex, final int totalObjects) throws IOException {
     // Fourth layer: 4 byte per object of offset in pack file
-    seek(idx, 4 * shaIndex, SeekOrigin.CURRENT);
+    seek(idx, 4L * shaIndex, SeekOrigin.CURRENT);
     int offset = idx.readInt();
 
     // Check the first bit.
@@ -201,10 +201,10 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
       // Clear first bit and look at it at the 5th layer
       offset &= 0x7FFFFFFF;
       // Skip complete fourth layer.
-      seek(idx, 4 * (totalObjects - (shaIndex + 1)), SeekOrigin.CURRENT);
+      seek(idx, 4L * (totalObjects - (shaIndex + 1)), SeekOrigin.CURRENT);
       // Use the offset from fourth layer, to find the actual pack file offset in the fifth layer.
       // In this case, the offset is 8 bytes long.
-      seek(idx, 8 * offset, SeekOrigin.CURRENT);
+      seek(idx, 8L * offset, SeekOrigin.CURRENT);
       return idx.readLong();
     }
   }
