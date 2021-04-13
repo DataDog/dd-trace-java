@@ -42,7 +42,7 @@ public class NettyPromiseInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(2);
+    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(3);
     transformers.put(
         named("addListener")
             .and(takesArgument(0, named("io.netty.util.concurrent.GenericFutureListener"))),
