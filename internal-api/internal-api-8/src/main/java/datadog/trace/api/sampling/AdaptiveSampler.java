@@ -70,7 +70,6 @@ public final class AdaptiveSampler {
 
   // these attributes are accessed solely from the window maintenance thread
   private double totalCountRunningAverage = 0d;
-  private double avgSamples;
 
   // accessed exclusively from the window maintenance task - does not require any synchronization
   private int countsSlotIdx = 0;
@@ -81,7 +80,8 @@ public final class AdaptiveSampler {
    * See https://en.wikipedia.org/wiki/PID_controller for more details.
    * The following fields are the integration, derivation and proportional coefficients, respectively.
    * The values were derived based on the AdaptiveSamplerTest repeatable runs such that the error margins
-   * are acceptable.
+   * are acceptable. These parameters are validated for up to 50000 events per window which should
+   * cover the typical range of frequencies of incoming data.
    */
   private static final double KI = 0.02d;
   private static final double KD = 0.8d;

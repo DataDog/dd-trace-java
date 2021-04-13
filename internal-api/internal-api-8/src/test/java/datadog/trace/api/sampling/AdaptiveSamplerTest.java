@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.IntSupplier;
@@ -160,6 +161,26 @@ class AdaptiveSamplerTest {
     }
   }
 
+  /** Generates a pre-configured repeating sequence of window events */
+  private static final class UniformRandomWindowsEventsSupplier implements IntSupplier {
+    private final int maxEvents;
+
+    /** @param maxEvents the upper bound for the number of events per window */
+    UniformRandomWindowsEventsSupplier(final int maxEvents) {
+      this.maxEvents = maxEvents;
+    }
+
+    @Override
+    public int getAsInt() {
+      return ThreadLocalRandom.current().nextInt(maxEvents);
+    }
+
+    @Override
+    public String toString() {
+      return "Uniform Random: [0, " + maxEvents + "]";
+    }
+  }
+
   private static class WindowSamplingResult {
     final int events;
     final int samples;
@@ -196,13 +217,13 @@ class AdaptiveSamplerTest {
   @ParameterizedTest
   @CsvSource({"5, 50", "10, 50", "50, 50", "100, 50", "300, 50"})
   public void testBurstLowProbability(int samples, int error) throws Exception {
-    testSampler(new BurstingWindowsEventsSupplier(0.1d, 5, 5000), samples, error);
+    testSampler(new BurstingWindowsEventsSupplier(0.1d, 5, 50000), samples, error);
   }
 
   @ParameterizedTest
   @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
   public void testBurstHighProbability(int samples, int error) throws Exception {
-    testSampler(new BurstingWindowsEventsSupplier(0.8d, 5, 5000), samples, error);
+    testSampler(new BurstingWindowsEventsSupplier(0.8d, 5, 50000), samples, error);
   }
 
   @ParameterizedTest
@@ -214,13 +235,13 @@ class AdaptiveSamplerTest {
   @ParameterizedTest
   @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
   public void testPoissonMidFrequency(int samples, int error) throws Exception {
-    testSampler(new PoissonWindowEventsSupplier(283), samples, error);
+    testSampler(new PoissonWindowEventsSupplier(1117), samples, error);
   }
 
   @ParameterizedTest
   @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
   public void testPoissonHighFrequency(int samples, int error) throws Exception {
-    testSampler(new PoissonWindowEventsSupplier(1013), samples, error);
+    testSampler(new PoissonWindowEventsSupplier(20324), samples, error);
   }
 
   @ParameterizedTest
@@ -238,13 +259,13 @@ class AdaptiveSamplerTest {
   @ParameterizedTest
   @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
   public void testConstantMediumLoad(int samples, int error) throws Exception {
-    testSampler(new ConstantWindowsEventsSupplier(713), samples, error);
+    testSampler(new ConstantWindowsEventsSupplier(1713), samples, error);
   }
 
   @ParameterizedTest
   @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
   public void testConstantHighLoad(int samples, int error) throws Exception {
-    testSampler(new ConstantWindowsEventsSupplier(5211), samples, error);
+    testSampler(new ConstantWindowsEventsSupplier(25211), samples, error);
   }
 
   @ParameterizedTest
@@ -259,13 +280,19 @@ class AdaptiveSamplerTest {
   @ParameterizedTest
   @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
   public void testRepeatingRegularStartWithBurst(int samples, int error) throws Exception {
-    testSampler(new RepeatingWindowsEventsSupplier(1000, 0, 1000, 0, 1000, 0), samples, error);
+    testSampler(new RepeatingWindowsEventsSupplier(21011, 0, 21011, 0, 21011, 0), samples, error);
   }
 
   @ParameterizedTest
   @CsvSource({"5, 10", "10, 5", "50, 4", "100, 3", "300, 3"})
   public void testRepeatingRegularStartWithLow(int samples, int error) throws Exception {
-    testSampler(new RepeatingWindowsEventsSupplier(0, 1000, 0, 1000, 0, 1000), samples, error);
+    testSampler(new RepeatingWindowsEventsSupplier(0, 21011, 0, 21011, 0, 21011), samples, error);
+  }
+
+  @ParameterizedTest
+  @CsvSource({"5, 5", "10, 5", "50, 2", "100, 2", "300, 2"})
+  public void testUniformRandom(int samples, int error) throws Exception {
+    testSampler(new UniformRandomWindowsEventsSupplier(50000), samples, error);
   }
 
   private void testSampler(
@@ -273,7 +300,7 @@ class AdaptiveSamplerTest {
       throws Exception {
     int iterations =
         Integer.parseInt(
-            System.getProperty("com.datadog.profiling.exceptions.test-iterations", "100"));
+            System.getProperty("com.datadog.profiling.exceptions.test-iterations", "1"));
     for (int i = 0; i < iterations; i++) {
       testSamplerInline(windowEventsSupplier, samples, maxErrorPercent);
       for (int numOfThreads = 1; numOfThreads <= 64; numOfThreads *= 2) {
