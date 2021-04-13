@@ -29,7 +29,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     setup:
     Sink sink = Mock(Sink)
     sink.validate() >> true
-    WellKnownTags wellKnownTags = new WellKnownTags("hostname", "env", "service", "version")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version")
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       empty,
@@ -56,7 +56,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     String ignoredResourceName = "foo"
     Sink sink = Mock(Sink)
     sink.validate() >> true
-    WellKnownTags wellKnownTags = new WellKnownTags("hostname", "env", "service", "version")
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version")
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       [ignoredResourceName].toSet(),

@@ -6,13 +6,11 @@ import datadog.trace.api.WellKnownTags;
 import datadog.trace.core.serialization.GrowableBuffer;
 import datadog.trace.core.serialization.WritableFormatter;
 import datadog.trace.core.serialization.msgpack.MsgPackWriter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class SerializingMetricWriter implements MetricWriter {
 
-  private static final Logger log = LoggerFactory.getLogger(SerializingMetricWriter.class);
-
+  private static final byte[] SEQUENCE = "Seq".getBytes(ISO_8859_1);
+  private static final byte[] RUNTIME_ID = "RuntimeId".getBytes(ISO_8859_1);
   private static final byte[] HOSTNAME = "Hostname".getBytes(ISO_8859_1);
   private static final byte[] NAME = "Name".getBytes(ISO_8859_1);
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
@@ -34,6 +32,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   private final WritableFormatter writer;
   private final Sink sink;
   private final GrowableBuffer buffer;
+  private long sequence = 0;
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
     this(wellKnownTags, sink, 512 * 1024);
@@ -48,7 +47,13 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void startBucket(int metricCount, long start, long duration) {
-    writer.startMap(4);
+    writer.startMap(6);
+
+    writer.writeUTF8(RUNTIME_ID);
+    writer.writeUTF8(wellKnownTags.getRuntimeId());
+
+    writer.writeUTF8(SEQUENCE);
+    writer.writeLong(sequence++);
 
     writer.writeUTF8(HOSTNAME);
     writer.writeUTF8(wellKnownTags.getHostname());

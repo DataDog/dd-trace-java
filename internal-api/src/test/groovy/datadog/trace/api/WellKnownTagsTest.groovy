@@ -7,8 +7,9 @@ class WellKnownTagsTest extends DDSpecification {
   def "well known tags doesn't modify its inputs"() {
     given:
     WellKnownTags wellKnownTags =
-      new WellKnownTags("hostname", "env", "service", "version")
+      new WellKnownTags("runtimeid", "hostname", "env", "service", "version")
     expect:
+    wellKnownTags.getRuntimeId() as String == "runtimeid"
     wellKnownTags.getHostname() as String == "hostname"
     wellKnownTags.getEnv() as String == "env"
     wellKnownTags.getService() as String == "service"

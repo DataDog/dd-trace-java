@@ -8,7 +8,7 @@
     "/v0.4/traces",
     "/v0.4/services",
     "/v0.5/traces",
-    "/v0.5/stats",
+    "/v0.6/stats",
     "/profiling/v1/input"
   ],
   "feature_flags": [
