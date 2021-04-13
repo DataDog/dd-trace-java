@@ -82,7 +82,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
       // This is called by the SecureClassLoader trying to obtain permissions
 
       // nullInputStream() is not available until Java 11
-      return new InternalJarURLConnection(url, new ByteArrayInputStream(new byte[0]));
+      return new InternalJarURLConnection(url, new ByteArrayInputStream(new byte[0]), 0);
     }
     // believe it or not, we're going to get called twice for this,
     // and the key will be a new object each time.
@@ -103,15 +103,18 @@ public class InternalJarURLHandler extends URLStreamHandler {
       // so dismiss cache after a hit
       this.cache = NULL;
     }
-    return new InternalJarURLConnection(url, bootstrapJarFile.getInputStream(pair.getRight()));
+    return new InternalJarURLConnection(
+        url, bootstrapJarFile.getInputStream(pair.getRight()), (int) pair.getRight().getSize());
   }
 
   private static class InternalJarURLConnection extends URLConnection {
     private final InputStream inputStream;
+    private final int contentLength;
 
-    private InternalJarURLConnection(final URL url, final InputStream inputStream) {
+    private InternalJarURLConnection(URL url, InputStream inputStream, int contentLength) {
       super(url);
       this.inputStream = inputStream;
+      this.contentLength = contentLength;
     }
 
     @Override
@@ -128,6 +131,11 @@ public class InternalJarURLHandler extends URLStreamHandler {
     public Permission getPermission() {
       // No permissions needed because all classes are in memory
       return null;
+    }
+
+    @Override
+    public int getContentLength() {
+      return contentLength;
     }
   }
 
