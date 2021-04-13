@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jetty_client;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -57,9 +58,9 @@ public class JettyAddListenerInstrumentation extends Instrumenter.Tracing {
   public static class AddSpanAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.Argument(0) final Object listener) {
-      final AgentSpan parent = activeSpan();
+      AgentSpan parent = activeSpan();
       if (parent == null) {
-        return;
+        parent = noopSpan();
       }
 
       if (listener instanceof Request.RequestListener) {
