@@ -2,15 +2,13 @@ package datadog.trace.core;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
+import static datadog.trace.core.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
-import com.timgroup.statsd.NoOpStatsDClient;
-import com.timgroup.statsd.NonBlockingStatsDClient;
-import com.timgroup.statsd.StatsDClient;
-import com.timgroup.statsd.StatsDClientException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
@@ -669,7 +667,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private static StatsDClient createStatsDClient(final Config config) {
     if (!config.isHealthMetricsEnabled()) {
-      return new NoOpStatsDClient();
+      return StatsDClient.NO_OP;
     } else {
       String host = config.getHealthMetricsStatsdHost();
       if (host == null) {
@@ -684,13 +682,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         port = config.getJmxFetchStatsdPort();
       }
 
-      try {
-        return new NonBlockingStatsDClient(
-            "datadog.tracer", host, port, generateConstantTags(config));
-      } catch (final StatsDClientException e) {
-        log.error("Unable to create StatsD client", e);
-        return new NoOpStatsDClient();
-      }
+      return statsDClientManager()
+          .statsDClient(host, port, "datadog.tracer", generateConstantTags(config));
     }
   }
 

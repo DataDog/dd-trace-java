@@ -6,10 +6,10 @@ import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 import static datadog.trace.core.http.OkHttpUtils.buildHttpClient;
 
-import com.timgroup.statsd.StatsDClient;
 import datadog.common.container.ServerlessInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;

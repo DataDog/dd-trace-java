@@ -2,6 +2,7 @@ package datadog.trace.api.cache;
 
 import datadog.trace.api.Function;
 import datadog.trace.api.Pair;
+import java.util.Arrays;
 
 /**
  * This is a fixed size cache that only has one operation <code>computeIfAbsent</code>, that is used
@@ -17,7 +18,7 @@ import datadog.trace.api.Pair;
  * @param <K> key type
  * @param <V> value type
  */
-final class FixedSizeCache<K, V> implements DDCache<K, V> {
+abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
 
   static final int MAXIMUM_CAPACITY = 1 << 30;
 
@@ -35,7 +36,7 @@ final class FixedSizeCache<K, V> implements DDCache<K, V> {
    *
    * @param capacity the maximum number of elements that the cache can hold
    */
-  public FixedSizeCache(int capacity) {
+  FixedSizeCache(int capacity) {
     if (capacity <= 0) {
       throw new IllegalArgumentException("Cache capacity must be > 0");
     }
@@ -59,12 +60,12 @@ final class FixedSizeCache<K, V> implements DDCache<K, V> {
    * @return the cached or created and stored value
    */
   @Override
-  public V computeIfAbsent(K key, Function<K, ? extends V> creator) {
+  public final V computeIfAbsent(K key, Function<K, ? extends V> creator) {
     if (key == null) {
       return null;
     }
 
-    int h = key.hashCode();
+    int h = hash(key);
     int firstPos = h & mask;
     V value;
     // try to find a slot or a match 3 times
@@ -75,7 +76,7 @@ final class FixedSizeCache<K, V> implements DDCache<K, V> {
         // we found an empty slot, so store the value there
         value = createAndStoreValue(key, creator, pos);
         break;
-      } else if (key.equals(current.getLeft())) {
+      } else if (equals(key, current)) {
         // we found a cached key, so use that value
         value = current.getRight();
         break;
@@ -90,6 +91,10 @@ final class FixedSizeCache<K, V> implements DDCache<K, V> {
     return value;
   }
 
+  abstract int hash(K key);
+
+  abstract boolean equals(K key, Pair<K, V> current);
+
   private V createAndStoreValue(K key, Function<K, ? extends V> creator, int pos) {
     V value = creator.apply(key);
     elements[pos] = Pair.of(key, value);
@@ -100,5 +105,33 @@ final class FixedSizeCache<K, V> implements DDCache<K, V> {
     int h = v * 0x9e3775cd;
     h = Integer.reverseBytes(h);
     return h * 0x9e3775cd;
+  }
+
+  static final class ObjectHash<K, V> extends FixedSizeCache<K, V> {
+    ObjectHash(int capacity) {
+      super(capacity);
+    }
+
+    int hash(K key) {
+      return key.hashCode();
+    }
+
+    boolean equals(K key, Pair<K, V> current) {
+      return key.equals(current.getLeft());
+    }
+  }
+
+  static final class ArrayHash<K, V> extends FixedSizeCache<K[], V> {
+    ArrayHash(int capacity) {
+      super(capacity);
+    }
+
+    int hash(K[] key) {
+      return Arrays.hashCode(key);
+    }
+
+    boolean equals(K[] key, Pair<K[], V> current) {
+      return Arrays.equals(key, current.getLeft());
+    }
   }
 }

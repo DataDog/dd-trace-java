@@ -4,7 +4,7 @@ import static datadog.trace.core.monitor.Utils.mergeTags;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import com.timgroup.statsd.StatsDClient;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.core.histogram.Histogram;
 import datadog.trace.core.histogram.Histograms;
 

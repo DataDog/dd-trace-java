@@ -1,8 +1,7 @@
 package datadog.trace.common.writer
 
-import com.timgroup.statsd.NoOpStatsDClient
-import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDId
+import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
@@ -39,7 +38,7 @@ import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
 class DDAgentWriterCombinedTest extends DDCoreSpecification {
 
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
-  def monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
+  def monitoring = new Monitoring(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
   def phaser = new Phaser()
 
   // Only used to create spans

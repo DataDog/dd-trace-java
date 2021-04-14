@@ -1,5 +1,4 @@
-import com.timgroup.statsd.NonBlockingStatsDClient
-import com.timgroup.statsd.StatsDClient
+import datadog.trace.api.StatsDClient
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
@@ -53,8 +52,6 @@ class DDApiIntegrationTest extends DDSpecification {
   Process process
   @Shared
   File socketPath
-  @Shared
-  StatsDClient statsDClient
 
   def discovery
   def udsDiscovery
@@ -72,8 +69,6 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
   def setupSpec() {
-    statsDClient = new NonBlockingStatsDClient("itest", agentContainerHost, 8125)
-
     /*
      CI will provide us with agent container running along side our build.
      When building locally, however, we need to take matters into our own hands
@@ -119,14 +114,11 @@ class DDApiIntegrationTest extends DDSpecification {
     if (agentContainer) {
       agentContainer.stop()
     }
-    if (null != statsDClient) {
-      statsDClient.close()
-    }
     process.destroy()
   }
 
   def beforeTest(boolean enableV05) {
-    Monitoring monitoring = new Monitoring(statsDClient, 1, TimeUnit.SECONDS)
+    Monitoring monitoring = new Monitoring(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
     HttpUrl agentUrl = HttpUrl.get(String.format("http://%s:%d", agentContainerHost, agentContainerPort))
     OkHttpClient httpClient = OkHttpUtils.buildHttpClient(agentUrl, 5000)
     discovery = new DDAgentFeaturesDiscovery(httpClient, monitoring, agentUrl, enableV05, true)

@@ -8,8 +8,8 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 import static datadog.trace.core.http.OkHttpUtils.buildHttpClient;
 
-import com.timgroup.statsd.NoOpStatsDClient;
 import datadog.trace.api.Config;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
@@ -65,7 +65,7 @@ public class DDAgentWriter implements Writer {
     String unixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
     long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
     int traceBufferSize = BUFFER_SIZE;
-    HealthMetrics healthMetrics = new HealthMetrics(new NoOpStatsDClient());
+    HealthMetrics healthMetrics = new HealthMetrics(StatsDClient.NO_OP);
     int flushFrequencySeconds = 1;
     Monitoring monitoring = Monitoring.DISABLED;
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();

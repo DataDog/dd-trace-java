@@ -6,6 +6,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN;
@@ -61,6 +62,7 @@ import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
+import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_START_DELAY;
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
@@ -84,6 +86,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_REFRESH_BEANS_PERIOD;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_START_DELAY;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
@@ -229,6 +232,8 @@ public class Config {
   private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
+  private final long startTimeMillis = System.currentTimeMillis();
+
   /**
    * this is a random UUID that gets generated on JVM start up and is attached to every root span
    * and every JMX metric that is sent out.
@@ -285,6 +290,7 @@ public class Config {
   private final Set<PropagationStyle> propagationStylesToInject;
 
   private final boolean jmxFetchEnabled;
+  private final int dogStatsDStartDelay;
   private final String jmxFetchConfigDir;
   private final List<String> jmxFetchConfigs;
   @Deprecated private final List<String> jmxFetchMetricsConfigs;
@@ -571,6 +577,10 @@ public class Config {
         getPropagationStyleSetSettingFromEnvironmentOrDefault(
             PROPAGATION_STYLE_INJECT, DEFAULT_PROPAGATION_STYLE_INJECT);
 
+    dogStatsDStartDelay =
+        configProvider.getInteger(
+            DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
+
     boolean runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
 
     jmxFetchEnabled =
@@ -741,6 +751,10 @@ public class Config {
     log.debug("New instance: {}", this);
   }
 
+  public long getStartTimeMillis() {
+    return startTimeMillis;
+  }
+
   public String getRuntimeId() {
     return runtimeId;
   }
@@ -887,6 +901,10 @@ public class Config {
 
   public Set<PropagationStyle> getPropagationStylesToInject() {
     return propagationStylesToInject;
+  }
+
+  public int getDogStatsDStartDelay() {
+    return dogStatsDStartDelay;
   }
 
   public boolean isJmxFetchEnabled() {
@@ -1656,6 +1674,8 @@ public class Config {
         + propagationStylesToInject
         + ", jmxFetchEnabled="
         + jmxFetchEnabled
+        + ", dogStatsDStartDelay="
+        + dogStatsDStartDelay
         + ", jmxFetchConfigDir='"
         + jmxFetchConfigDir
         + '\''
