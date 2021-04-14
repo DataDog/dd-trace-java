@@ -3,12 +3,17 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeTypeDefinitionName;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeErasureMatcher.safeAsErasure;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import datadog.trace.agent.tooling.AgentTooling;
+import datadog.trace.api.Function;
+import datadog.trace.bootstrap.WeakCache;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.description.type.TypeList;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +40,17 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     extends ElementMatcher.Junction.AbstractBase<T> {
 
   private static final Logger log = LoggerFactory.getLogger(SafeHasSuperTypeMatcher.class);
+
+  private static final boolean DEBUG = log.isDebugEnabled();
+
+  // this cache aims to prevent multiple matchers applied to the same type from
+  // repeating interfaces lookups, with some extra space to spread the cost of
+  // expunging over several loaded types. To ensure we retain commonly looked up
+  // types, we would need a smarter LRU cache
+  private static final WeakCache<TypeDefinition, List<TypeDefinition>> INTERFACES_CACHE =
+      AgentTooling.newWeakCache(512);
+  private static final CachedInterfacesLookup LOOKUP = new CachedInterfacesLookup();
+  private static final List<TypeDefinition> EMPTY = new ArrayList<>(0);
 
   /** The matcher to apply to any super type of the matched type. */
   private final ElementMatcher<? super TypeDescription.Generic> matcher;
@@ -91,14 +107,14 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
   }
 
   private Iterable<TypeDefinition> safeGetInterfaces(final TypeDefinition typeDefinition) {
-    return new SafeInterfaceIterator(typeDefinition);
+    return INTERFACES_CACHE.computeIfAbsent(typeDefinition, LOOKUP);
   }
 
   static TypeDefinition safeGetSuperClass(final TypeDefinition typeDefinition) {
     try {
       return typeDefinition.getSuperClass();
     } catch (final Exception e) {
-      if (log.isDebugEnabled()) {
+      if (DEBUG) {
         log.debug(
             "{} trying to get super class for target {}: {}",
             e.getClass().getSimpleName(),
@@ -135,64 +151,37 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
   /**
    * TypeDefinition#getInterfaces() produces an iterator which may throw an exception during
    * iteration if an interface is absent from the classpath.
-   *
-   * <p>The caller MUST call hasNext() before calling next().
-   *
-   * <p>This wrapper exists to allow getting interfaces even if the lookup on one fails.
    */
-  private static class SafeInterfaceIterator
-      implements Iterator<TypeDefinition>, Iterable<TypeDefinition> {
-    private final TypeDefinition typeDefinition;
-    private final Iterator<TypeDescription.Generic> it;
-    private TypeDefinition next;
-
-    private SafeInterfaceIterator(TypeDefinition typeDefinition) {
-      this.typeDefinition = typeDefinition;
-      Iterator<TypeDescription.Generic> it = null;
+  private static final class CachedInterfacesLookup
+      implements Function<TypeDefinition, List<TypeDefinition>> {
+    @Override
+    public List<TypeDefinition> apply(TypeDefinition input) {
       try {
-        it = typeDefinition.getInterfaces().iterator();
-      } catch (Exception e) {
-        logException(typeDefinition, e);
-      }
-      this.it = it;
-    }
-
-    @Override
-    public boolean hasNext() {
-      if (null != it && it.hasNext()) {
-        try {
-          this.next = it.next();
-          return true;
-        } catch (Exception e) {
-          logException(typeDefinition, e);
-          return false;
+        TypeList.Generic interfaces = input.getInterfaces();
+        List<TypeDefinition> definitions = new ArrayList<>(interfaces.size());
+        Iterator<TypeDescription.Generic> it = interfaces.iterator();
+        while (it.hasNext()) {
+          try {
+            definitions.add(it.next());
+          } catch (Exception e) {
+            logException(input, e);
+          }
         }
+        return definitions;
+      } catch (Exception e) {
+        logException(input, e);
       }
-      return false;
+      return EMPTY;
     }
+  }
 
-    @Override
-    @SuppressFBWarnings("IT_NO_SUCH_ELEMENT")
-    public TypeDefinition next() {
-      return next;
-    }
-
-    @Override
-    public void remove() {}
-
-    @Override
-    public Iterator<TypeDefinition> iterator() {
-      return this;
-    }
-
-    private void logException(TypeDefinition typeDefinition, Exception e) {
-      if (log.isDebugEnabled()) {
-        log.debug(
-            "{} trying to get interfaces for target {}: {}",
-            e.getClass().getSimpleName(),
-            safeTypeDefinitionName(typeDefinition),
-            e.getMessage());
-      }
+  private static void logException(TypeDefinition typeDefinition, Exception e) {
+    if (DEBUG) {
+      log.debug(
+          "{} trying to get interfaces for target {}: {}",
+          e.getClass().getSimpleName(),
+          safeTypeDefinitionName(typeDefinition),
+          e.getMessage());
     }
   }
 }

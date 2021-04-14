@@ -65,6 +65,7 @@ class HasInterfaceMatcherTest extends DDSpecification {
     1 * interfaces.iterator() >> it
     1 * type.getSuperClass() >> { throw new Exception("getSuperClass exception") }
     2 * type.getTypeName() >> "type-name"
+    1 * interfaces.size()
     0 * _
   }
 }
