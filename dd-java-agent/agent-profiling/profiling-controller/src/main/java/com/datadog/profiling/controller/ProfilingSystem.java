@@ -190,10 +190,11 @@ public final class ProfilingSystem {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
       try {
         log.debug("Creating profiler snapshot");
-        final RecordingData recordingData = recording.snapshot(lastSnapshot, Instant.now());
+        Instant now = Instant.now();
+        final RecordingData recordingData = recording.snapshot(lastSnapshot, now);
         // The hope here is that we do not get chunk rotated after taking snapshot and before we
-        // take this timestamp otherwise we will start losing data.
-        lastSnapshot = Instant.now();
+        // take this timestamp otherwise we will start losing data
+        lastSnapshot = now;
         if (recordingData != null) {
           dataListener.onNewData(recordingType, recordingData);
         }
