@@ -22,7 +22,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 class GlassFishServerTest extends HttpServerTest<GlassFish> {
 
   @Override
-  URI buildAddress() {
+  URI buildAddress(int port) {
     return new URI("http://localhost:$port/$context/")
   }
 

@@ -8,7 +8,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOW
 
 abstract class AbstractServletTest<SERVER, CONTEXT> extends HttpServerTest<SERVER> {
   @Override
-  URI buildAddress() {
+  URI buildAddress(int port) {
     if (dispatch) {
       return new URI("http://localhost:$port/$context/dispatch/")
     }

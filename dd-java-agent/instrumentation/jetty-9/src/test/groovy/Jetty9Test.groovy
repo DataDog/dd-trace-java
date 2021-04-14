@@ -1,10 +1,12 @@
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.server.ServerConnector
 import org.eclipse.jetty.server.handler.AbstractHandler
 import org.eclipse.jetty.server.handler.ErrorHandler
 
@@ -23,6 +25,38 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 
 class Jetty9Test extends HttpServerTest<Server> {
 
+  class JettyServer implements HttpServer {
+    def port = 0
+    def server = new Server(port)
+
+    JettyServer() {
+      server.setHandler(handler())
+      server.addBean(errorHandler)
+    }
+
+    @Override
+    void start() {
+      server.start()
+      port = (server.connectors[0] as ServerConnector).localPort
+      assert port > 0
+    }
+
+    @Override
+    void stop() {
+      server.stop()
+    }
+
+    @Override
+    URI address() {
+      return new URI("http://localhost:$port/")
+    }
+
+    @Override
+    String toString() {
+      return this.class.name
+    }
+  }
+
   static errorHandler = new ErrorHandler() {
     @Override
     protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
@@ -35,21 +69,22 @@ class Jetty9Test extends HttpServerTest<Server> {
   }
 
   @Override
-  Server startServer(int port) {
-    def server = new Server(port)
-    server.setHandler(handler())
-    server.addBean(errorHandler)
-    server.start()
-    return server
+  HttpServer server() {
+    return new JettyServer()
   }
 
-  AbstractHandler handler() {
-    TestHandler.INSTANCE
+  @Override
+  Server startServer(int port) {
+    throw new UnsupportedOperationException()
   }
 
   @Override
   void stopServer(Server server) {
-    server.stop()
+    throw new UnsupportedOperationException()
+  }
+
+  AbstractHandler handler() {
+    TestHandler.INSTANCE
   }
 
   @Override
