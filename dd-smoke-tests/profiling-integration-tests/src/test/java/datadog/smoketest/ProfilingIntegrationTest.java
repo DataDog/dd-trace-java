@@ -40,7 +40,6 @@ import org.openjdk.jmc.common.item.ItemFilters;
 import org.openjdk.jmc.common.unit.IQuantity;
 import org.openjdk.jmc.common.unit.UnitLookup;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
-import org.opentest4j.AssertionFailedError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +54,7 @@ class ProfilingIntegrationTest {
   private static final String VALID_API_KEY = "01234567890abcdef123456789ABCDEF";
   private static final String BOGUS_API_KEY = "bogus";
   private static final int PROFILING_START_DELAY_SECONDS = 1;
-  private static final int PROFILING_UPLOAD_PERIOD_SECONDS = 3;
+  private static final int PROFILING_UPLOAD_PERIOD_SECONDS = 5;
   // Set the request timeout value to the sum of the initial delay and the upload period
   // multiplied by a safety margin
   private static final int SAFETY_MARGIN = 3;
@@ -111,78 +110,83 @@ class ProfilingIntegrationTest {
   @Test
   @DisplayName("Test continuous recording - no jmx delay")
   public void testContinuousRecording_no_jmx_delay(TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(0), testInfo, 3);
+    testWithRetry(() -> testContinuousRecording(0), testInfo, 5);
   }
 
   @Test
   @DisplayName("Test continuous recording - 1 sec jmx delay")
   public void testContinuousRecording(TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(1), testInfo, 3);
+    testWithRetry(() -> testContinuousRecording(1), testInfo, 5);
   }
 
   private void testContinuousRecording(int jmxFetchDelay) throws Exception {
-    targetProcess = createDefaultProcessBuilder(jmxFetchDelay, logFilePath).start();
+    try {
+      targetProcess = createDefaultProcessBuilder(jmxFetchDelay, logFilePath).start();
 
-    RecordedRequest firstRequest = retrieveRequest();
+      RecordedRequest firstRequest = retrieveRequest();
 
-    assertNotNull(firstRequest);
-    Multimap<String, Object> firstRequestParameters =
-        ProfilingTestUtils.parseProfilingRequestParameters(firstRequest);
+      assertNotNull(firstRequest);
+      Multimap<String, Object> firstRequestParameters =
+          ProfilingTestUtils.parseProfilingRequestParameters(firstRequest);
 
-    assertEquals(profilingServer.getPort(), firstRequest.getRequestUrl().url().getPort());
-    assertEquals("jfr", getStringParameter("format", firstRequestParameters));
-    assertEquals("jfr-continuous", getStringParameter("type", firstRequestParameters));
-    assertEquals("jvm", getStringParameter("runtime", firstRequestParameters));
+      assertEquals(profilingServer.getPort(), firstRequest.getRequestUrl().url().getPort());
+      assertEquals("jfr", getStringParameter("format", firstRequestParameters));
+      assertEquals("jfr-continuous", getStringParameter("type", firstRequestParameters));
+      assertEquals("jvm", getStringParameter("runtime", firstRequestParameters));
 
-    Instant firstStartTime =
-        Instant.parse(getStringParameter("recording-start", firstRequestParameters));
-    Instant firstEndTime =
-        Instant.parse(getStringParameter("recording-end", firstRequestParameters));
-    assertNotNull(firstStartTime);
-    assertNotNull(firstEndTime);
+      Instant firstStartTime =
+          Instant.parse(getStringParameter("recording-start", firstRequestParameters));
+      Instant firstEndTime =
+          Instant.parse(getStringParameter("recording-end", firstRequestParameters));
+      assertNotNull(firstStartTime);
+      assertNotNull(firstEndTime);
 
-    long duration = firstEndTime.toEpochMilli() - firstStartTime.toEpochMilli();
-    assertTrue(duration > TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS - 2));
-    assertTrue(duration < TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS + 2));
+      long duration = firstEndTime.toEpochMilli() - firstStartTime.toEpochMilli();
+      assertTrue(duration > TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS - 2));
+      assertTrue(duration < TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS + 2));
 
-    Map<String, String> requestTags =
-        ProfilingTestUtils.parseTags(firstRequestParameters.get("tags[]"));
-    assertEquals("smoke-test-java-app", requestTags.get("service"));
-    assertEquals("jvm", requestTags.get("language"));
-    assertNotNull(requestTags.get("runtime-id"));
-    assertEquals(InetAddress.getLocalHost().getHostName(), requestTags.get("host"));
+      Map<String, String> requestTags =
+          ProfilingTestUtils.parseTags(firstRequestParameters.get("tags[]"));
+      assertEquals("smoke-test-java-app", requestTags.get("service"));
+      assertEquals("jvm", requestTags.get("language"));
+      assertNotNull(requestTags.get("runtime-id"));
+      assertEquals(InetAddress.getLocalHost().getHostName(), requestTags.get("host"));
 
-    byte[] byteData = getParameter("chunk-data", byte[].class, firstRequestParameters);
-    assertNotNull(byteData);
+      byte[] byteData = getParameter("chunk-data", byte[].class, firstRequestParameters);
+      assertNotNull(byteData);
 
-    assertFalse(logHasErrors(logFilePath, it -> false));
-    IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
-    assertTrue(events.hasItems());
+      assertFalse(logHasErrors(logFilePath, it -> false));
+      IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
+      assertTrue(events.hasItems());
 
-    RecordedRequest nextRequest = retrieveRequest();
-    assertNotNull(nextRequest);
+      RecordedRequest nextRequest = retrieveRequest();
+      assertNotNull(nextRequest);
 
-    Multimap<String, Object> nextRequestParameters =
-        ProfilingTestUtils.parseProfilingRequestParameters(nextRequest);
-    Instant secondStartTime =
-        Instant.parse(getStringParameter("recording-start", nextRequestParameters));
-    long period = secondStartTime.toEpochMilli() - firstStartTime.toEpochMilli();
-    assertTrue(
-        period > TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS - 2),
-        () -> "Upload period = " + period + ", expected >" + (PROFILING_UPLOAD_PERIOD_SECONDS - 2));
-    assertTrue(
-        period < TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS + 2),
-        () -> "Upload period = " + period + ", expected <" + (PROFILING_UPLOAD_PERIOD_SECONDS + 2));
+      Multimap<String, Object> nextRequestParameters =
+          ProfilingTestUtils.parseProfilingRequestParameters(nextRequest);
+      Instant secondStartTime =
+          Instant.parse(getStringParameter("recording-start", nextRequestParameters));
+      long period = secondStartTime.toEpochMilli() - firstStartTime.toEpochMilli();
+      long upperLimit = TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS) * 2;
+      assertTrue(
+          period > 0 && period <= upperLimit,
+          () -> "Upload period = " + period + "ms, expected (0, " + upperLimit + "]ms");
 
-    byteData = getParameter("chunk-data", byte[].class, firstRequestParameters);
-    assertNotNull(byteData);
-    events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
-    assertTrue(events.hasItems());
+      byteData = getParameter("chunk-data", byte[].class, firstRequestParameters);
+      assertNotNull(byteData);
+      events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
+      assertTrue(events.hasItems());
 
-    // Only non-Oracle JDK 8+ JVMs support custom DD events
-    if (!System.getProperty("java.vendor").contains("Oracle")
-        || !System.getProperty("java.version").contains("1.8")) {
-      assertRecordingEvents(events);
+      // Only non-Oracle JDK 8+ JVMs support custom DD events
+      if (!System.getProperty("java.vendor").contains("Oracle")
+          || !System.getProperty("java.version").contains("1.8")) {
+        assertRecordingEvents(events);
+      }
+    } finally {
+      if (targetProcess != null) {
+        targetProcess.destroyForcibly();
+      }
+      targetProcess = null;
     }
   }
 
@@ -193,20 +197,27 @@ class ProfilingIntegrationTest {
         () -> {
           int exitDelay = PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 2 + 1;
 
-          targetProcess =
-              createProcessBuilder(
-                      BOGUS_API_KEY,
-                      0,
-                      PROFILING_START_DELAY_SECONDS,
-                      PROFILING_UPLOAD_PERIOD_SECONDS,
-                      exitDelay,
-                      logFilePath)
-                  .start();
+          try {
+            targetProcess =
+                createProcessBuilder(
+                        BOGUS_API_KEY,
+                        0,
+                        PROFILING_START_DELAY_SECONDS,
+                        PROFILING_UPLOAD_PERIOD_SECONDS,
+                        exitDelay,
+                        logFilePath)
+                    .start();
 
-          RecordedRequest request = retrieveRequest();
+            RecordedRequest request = retrieveRequest();
 
-          assertNull(request);
-          assertFalse(logHasErrors(logFilePath, it -> false));
+            assertNull(request);
+            assertFalse(logHasErrors(logFilePath, it -> false));
+          } finally {
+            if (targetProcess != null) {
+              targetProcess.destroyForcibly();
+              targetProcess = null;
+            }
+          }
         },
         testInfo,
         3);
@@ -218,61 +229,67 @@ class ProfilingIntegrationTest {
     testWithRetry(
         () -> {
           int exitDelay = PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 4 + 1;
-          targetProcess =
-              createProcessBuilder(
-                      VALID_API_KEY,
-                      0,
-                      PROFILING_START_DELAY_SECONDS,
-                      PROFILING_UPLOAD_PERIOD_SECONDS,
-                      exitDelay,
-                      logFilePath)
-                  .start();
+          try {
+            targetProcess =
+                createProcessBuilder(
+                        VALID_API_KEY,
+                        0,
+                        PROFILING_START_DELAY_SECONDS,
+                        PROFILING_UPLOAD_PERIOD_SECONDS,
+                        exitDelay,
+                        logFilePath)
+                    .start();
 
-          RecordedRequest request = retrieveRequest();
-          assertNotNull(request);
-          assertFalse(logHasErrors(logFilePath, it -> false));
-          assertTrue(request.getBodySize() > 0);
+            RecordedRequest request = retrieveRequest();
+            assertNotNull(request);
+            assertFalse(logHasErrors(logFilePath, it -> false));
+            assertTrue(request.getBodySize() > 0);
 
-          // Wait for the app exit with some extra time.
-          // The expectation is that agent doesn't prevent app from exiting.
-          assertTrue(targetProcess.waitFor(exitDelay + 10, TimeUnit.SECONDS));
+            // Wait for the app exit with some extra time.
+            // The expectation is that agent doesn't prevent app from exiting.
+            assertTrue(targetProcess.waitFor(exitDelay + 10, TimeUnit.SECONDS));
+          } finally {
+            if (targetProcess != null) {
+              targetProcess.destroyForcibly();
+            }
+            targetProcess = null;
+          }
         },
         testInfo,
         3);
   }
 
   private void testWithRetry(TestBody test, TestInfo testInfo, int retries) throws Exception {
+    int cnt = retries;
     Throwable lastThrowable = null;
-    while (retries-- >= 0) {
+    while (cnt >= 0) {
       // clean the lastThrowable first
       lastThrowable = null;
+      // clean the log file so the previous errors do not throw off the assertions
+      Files.deleteIfExists(logFilePath);
       try {
         test.run();
         break;
       } catch (Throwable t) {
         lastThrowable = t;
-        if (retries > 0) {
-          log.error("Test '{}' failed. Retrying.", testInfo.getDisplayName());
-          // clean up the log file so the previous errors do not throw off the assertions
-          Files.deleteIfExists(logFilePath);
+        if (cnt > 0) {
+          log.error("Test '{}' failed. Retrying.", testInfo.getDisplayName(), t);
         }
         // retry
       }
+      cnt--;
     }
     if (lastThrowable != null) {
-      if (lastThrowable instanceof AssertionFailedError) {
-        throw (AssertionFailedError) lastThrowable;
-      } else if (lastThrowable instanceof Exception) {
-        throw (Exception) lastThrowable;
-      } else {
-        throw new RuntimeException(lastThrowable);
-      }
+      throw new RuntimeException(
+          "Failed '" + testInfo.getDisplayName() + "' after " + retries + " retries.",
+          lastThrowable);
     }
   }
 
   private RecordedRequest retrieveRequest() throws Exception {
     long ts = System.nanoTime();
-    RecordedRequest request = profilingServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
+    RecordedRequest request =
+        profilingServer.takeRequest(5 * REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
     long dur = System.nanoTime() - ts;
     log.info(
         "Profiling request retrieved in {} seconds",

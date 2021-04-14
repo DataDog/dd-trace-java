@@ -149,9 +149,6 @@ public final class ProfileUploader {
     }
   }
 
-  static final int SEED_EXPECTED_REQUEST_SIZE = 2 * 1024 * 1024; // 2MB;
-  static final int REQUEST_SIZE_HISTORY_SIZE = 10;
-
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
   private final Callback responseCallback;
