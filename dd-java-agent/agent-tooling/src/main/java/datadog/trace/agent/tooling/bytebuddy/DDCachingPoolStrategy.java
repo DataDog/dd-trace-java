@@ -53,6 +53,14 @@ public class DDCachingPoolStrategy implements PoolStrategy {
 
   static final int BOOTSTRAP_HASH = 7236344; // Just a random number
 
+  private static final Function<ClassLoader, WeakReference<ClassLoader>> WEAK_REF =
+      new Function<ClassLoader, WeakReference<ClassLoader>>() {
+        @Override
+        public WeakReference<ClassLoader> apply(ClassLoader input) {
+          return new WeakReference<>(input);
+        }
+      };
+
   /**
    * Cache of recent ClassLoader WeakReferences; used to...
    *
@@ -96,15 +104,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
       return createCachingTypePool(bootstrapCacheProvider, classFileLocator);
     }
 
-    WeakReference<ClassLoader> loaderRef =
-        loaderRefCache.computeIfAbsent(
-            classLoader,
-            new Function<ClassLoader, WeakReference<ClassLoader>>() {
-              @Override
-              public WeakReference<ClassLoader> apply(ClassLoader input) {
-                return new WeakReference<>(input);
-              }
-            });
+    WeakReference<ClassLoader> loaderRef = loaderRefCache.computeIfAbsent(classLoader, WEAK_REF);
 
     final int loaderHash = classLoader.hashCode();
     return createCachingTypePool(loaderHash, loaderRef, classFileLocator);
