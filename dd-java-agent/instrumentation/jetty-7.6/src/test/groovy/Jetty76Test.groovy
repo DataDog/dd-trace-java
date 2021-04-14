@@ -1,9 +1,9 @@
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.jetty76.JettyDecorator
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.AbstractHandler
@@ -23,6 +23,38 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 
 class Jetty76Test extends HttpServerTest<Server> {
 
+  class JettyServer implements HttpServer {
+    def port = 0
+    final server = new Server(0) // select random open port
+
+    JettyServer() {
+      server.setHandler(handler())
+      server.addBean(errorHandler)
+    }
+
+    @Override
+    void start() {
+      server.start()
+      port = server.connectors[0].localPort
+      assert port > 0
+    }
+
+    @Override
+    void stop() {
+      server.stop()
+    }
+
+    @Override
+    URI address() {
+      return new URI("http://localhost:$port/")
+    }
+
+    @Override
+    String toString() {
+      return this.class.name
+    }
+  }
+
   static errorHandler = new ErrorHandler() {
     @Override
     protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
@@ -35,12 +67,8 @@ class Jetty76Test extends HttpServerTest<Server> {
   }
 
   @Override
-  Server startServer(int port) {
-    def server = new Server(port)
-    server.setHandler(handler())
-    server.addBean(errorHandler)
-    server.start()
-    return server
+  HttpServer server() {
+    return new JettyServer()
   }
 
   AbstractHandler handler() {
@@ -48,13 +76,8 @@ class Jetty76Test extends HttpServerTest<Server> {
   }
 
   @Override
-  void stopServer(Server server) {
-    server.stop()
-  }
-
-  @Override
   String component() {
-    return JettyDecorator.DECORATE.component()
+    return "jetty-server"
   }
 
   @Override

@@ -1,5 +1,6 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -29,45 +30,70 @@ import static org.junit.Assume.assumeTrue
 @Unroll
 class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
 
-  @Override
-  Tomcat startServer(int port) {
-    def tomcatServer = new Tomcat()
+  class TomcatServer implements HttpServer {
+    def port = 0
+    final Tomcat server
 
-    def baseDir = Files.createTempDir()
-    baseDir.deleteOnExit()
-    tomcatServer.setBaseDir(baseDir.getAbsolutePath())
+    TomcatServer() {
+      server = new Tomcat()
 
-    tomcatServer.setPort(port)
-    tomcatServer.getConnector().enableLookups = true // get localhost instead of 127.0.0.1
+      def baseDir = Files.createTempDir()
+      baseDir.deleteOnExit()
+      server.setBaseDir(baseDir.getAbsolutePath())
 
-    final File applicationDir = new File(baseDir, "/webapps/ROOT")
-    if (!applicationDir.exists()) {
-      applicationDir.mkdirs()
-      applicationDir.deleteOnExit()
+      server.setPort(0) // select random open port
+      server.getConnector().enableLookups = true // get localhost instead of 127.0.0.1
+
+      final File applicationDir = new File(baseDir, "/webapps/ROOT")
+      if (!applicationDir.exists()) {
+        applicationDir.mkdirs()
+        applicationDir.deleteOnExit()
+      }
+      Context servletContext = server.addWebapp("/$context", applicationDir.getAbsolutePath())
+      // Speed up startup by disabling jar scanning:
+      servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
+          @Override
+          boolean check(JarScanType jarScanType, String jarName) {
+            return false
+          }
+        })
+
+      setupServlets(servletContext)
+
+      (server.host as StandardHost).errorReportValveClass = ErrorHandlerValve.name
+      server.host.pipeline.addValve(new RemoteIpValve())
     }
-    Context servletContext = tomcatServer.addWebapp("/$context", applicationDir.getAbsolutePath())
-    // Speed up startup by disabling jar scanning:
-    servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
-        @Override
-        boolean check(JarScanType jarScanType, String jarName) {
-          return false
-        }
-      })
 
-    setupServlets(servletContext)
+    @Override
+    void start() {
+      server.start()
+      port = server.service.findConnectors()[0].localPort
+      assert port > 0
+    }
 
-    (tomcatServer.host as StandardHost).errorReportValveClass = ErrorHandlerValve.name
-    tomcatServer.host.pipeline.addValve(new RemoteIpValve())
+    @Override
+    void stop() {
+      server.stop()
+      server.destroy()
+    }
 
-    tomcatServer.start()
+    @Override
+    URI address() {
+      if (dispatch) {
+        return new URI("http://localhost:$port/$context/dispatch/")
+      }
+      return new URI("http://localhost:$port/$context/")
+    }
 
-    return tomcatServer
+    @Override
+    String toString() {
+      return this.class.name
+    }
   }
 
   @Override
-  void stopServer(Tomcat server) {
-    server.stop()
-    server.destroy()
+  HttpServer server() {
+    return new TomcatServer()
   }
 
   @Override

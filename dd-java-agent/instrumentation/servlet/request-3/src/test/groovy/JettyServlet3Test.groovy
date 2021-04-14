@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -34,63 +35,82 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
     }
   }
 
-  @Override
-  boolean testNotFound() {
-    false
-  }
+  class JettyServer implements HttpServer {
+    def port = 0
+    final server = new Server(0) // select random open port
 
-  @Override
-  Server startServer(int port) {
-    def jettyServer = new Server(port)
-    jettyServer.connectors.each {
-      it.setHost('localhost')
+    JettyServer() {
+      server.connectors.each {
+        it.setHost('localhost')
+      }
+
+      ServletContextHandler servletContext = new ServletContextHandler(null, "/$context")
+      servletContext.errorHandler = new ErrorHandler() {
+          @Override
+          void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException {
+            try {
+              // This allows calling response.sendError in async context on a different thread. (Without results in NPE.)
+              def original = org.eclipse.jetty.server.AbstractHttpConnection.currentConnection
+              org.eclipse.jetty.server.AbstractHttpConnection.setCurrentConnection(baseRequest.connection)
+              super.handle(target, baseRequest, request, response)
+              org.eclipse.jetty.server.AbstractHttpConnection.setCurrentConnection(original)
+            } catch (Throwable e) {
+              // latest dep fallback which is missing AbstractHttpConnection and doesn't need the special handling
+              super.handle(target, baseRequest, request, response)
+            }
+          }
+
+          protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
+            Throwable t = (Throwable) request.getAttribute("javax.servlet.error.exception")
+            def response = ((Request) request).response
+            if (t) {
+              if (t instanceof ServletException) {
+                t = t.rootCause
+              }
+              if (t instanceof InputMismatchException) {
+                response.status = CUSTOM_EXCEPTION.status
+              }
+              writer.write(t.message)
+            } else {
+              writer.write(message)
+            }
+          }
+        }
+      //    setupAuthentication(jettyServer, servletContext)
+      setupServlets(servletContext)
+      server.setHandler(servletContext)
     }
 
-    ServletContextHandler servletContext = new ServletContextHandler(null, "/$context")
-    servletContext.errorHandler = new ErrorHandler() {
-        @Override
-        void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException {
-          try {
-            // This allows calling response.sendError in async context on a different thread. (Without results in NPE.)
-            def original = org.eclipse.jetty.server.AbstractHttpConnection.currentConnection
-            org.eclipse.jetty.server.AbstractHttpConnection.setCurrentConnection(baseRequest.connection)
-            super.handle(target, baseRequest, request, response)
-            org.eclipse.jetty.server.AbstractHttpConnection.setCurrentConnection(original)
-          } catch (Throwable e) {
-            // latest dep fallback which is missing AbstractHttpConnection and doesn't need the special handling
-            super.handle(target, baseRequest, request, response)
-          }
-        }
+    @Override
+    void start() {
+      server.start()
+      port = server.connectors[0].localPort
+      assert port > 0
+    }
 
-        protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
-          Throwable t = (Throwable) request.getAttribute("javax.servlet.error.exception")
-          def response = ((Request) request).response
-          if (t) {
-            if (t instanceof ServletException) {
-              t = t.rootCause
-            }
-            if (t instanceof InputMismatchException) {
-              response.status = CUSTOM_EXCEPTION.status
-            }
-            writer.write(t.message)
-          } else {
-            writer.write(message)
-          }
-        }
+    @Override
+    void stop() {
+      server.stop()
+      server.destroy()
+    }
+
+    @Override
+    URI address() {
+      if (dispatch) {
+        return new URI("http://localhost:$port/$context/dispatch/")
       }
-    //    setupAuthentication(jettyServer, servletContext)
-    setupServlets(servletContext)
-    jettyServer.setHandler(servletContext)
+      return new URI("http://localhost:$port/$context/")
+    }
 
-    jettyServer.start()
-
-    return jettyServer
+    @Override
+    String toString() {
+      return this.class.name
+    }
   }
 
   @Override
-  void stopServer(Server server) {
-    server.stop()
-    server.destroy()
+  HttpServer server() {
+    return new JettyServer()
   }
 
   @Override
@@ -101,6 +121,11 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   @Override
   String getContext() {
     return "jetty-context"
+  }
+
+  @Override
+  boolean testNotFound() {
+    false
   }
 
   @Override
