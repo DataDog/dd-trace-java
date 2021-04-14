@@ -52,16 +52,17 @@ public final class ReferenceMatcher {
     if (loader == BOOTSTRAP_LOADER) {
       loader = Utils.getBootstrapProxy();
     }
-    return mismatchCache.computeIfAbsent(
-        loader,
-        // Can't use a function reference because of Java7 support
-        new Function<ClassLoader, Boolean>() {
-          @Override
-          public Boolean apply(ClassLoader key) {
-            return doesMatch(key);
-          }
-        });
+    return mismatchCache.computeIfAbsent(loader, DOES_MATCH);
   }
+
+  // Can't use a function reference because of Java7 support
+  private final Function<ClassLoader, Boolean> DOES_MATCH =
+      new Function<ClassLoader, Boolean>() {
+        @Override
+        public Boolean apply(ClassLoader key) {
+          return doesMatch(key);
+        }
+      };
 
   private boolean doesMatch(final ClassLoader loader) {
     final List<Mismatch> mismatches = new ArrayList<>();
