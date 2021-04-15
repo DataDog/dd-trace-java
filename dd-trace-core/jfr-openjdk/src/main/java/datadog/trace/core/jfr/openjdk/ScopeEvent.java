@@ -46,8 +46,9 @@ public final class ScopeEvent extends Event {
   }
 
   /**
-   * Cpu time between start and finish without subtracting time spent in child scopes
-   * Only valid after this event is finished and if scope events are enabled
+   * Cpu time between start and finish without subtracting time spent in child scopes.
+   *
+   * <p>Only valid after this event is finished and if scope events are enabled
    */
   public long getRawCpuTime() {
     return rawCpuTime;
@@ -57,10 +58,11 @@ public final class ScopeEvent extends Event {
     if (cpuTimeStart > 0) {
       rawCpuTime = SystemAccess.getCurrentThreadCpuTime() - cpuTimeStart;
       cpuTime = rawCpuTime - childCpuTime;
-      end();
-      if (shouldCommit()) {
-        commit();
-      }
+    }
+
+    end();
+    if (shouldCommit()) {
+      commit();
     }
   }
 
