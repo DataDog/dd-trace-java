@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.any;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
@@ -31,20 +31,12 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Traci
    */
   private final Collection<String> PERMITTED_EXECUTORS;
 
-  /**
-   * Some frameworks have their executors defined as anon classes inside other classes. Referencing
-   * anon classes by name would be fragile, so instead we will use list of class prefix names. Since
-   * checking this list is more expensive (O(n)) we should try to keep it short.
-   */
-  private final Collection<String> PERMITTED_EXECUTORS_PREFIXES;
-
   public AbstractExecutorInstrumentation(final String... additionalNames) {
     super(EXEC_NAME, additionalNames);
 
     if (TRACE_ALL_EXECUTORS) {
       log.warn("Tracing all executors enabled. This is not a recommended setting.");
       PERMITTED_EXECUTORS = Collections.emptyList();
-      PERMITTED_EXECUTORS_PREFIXES = Collections.emptyList();
     } else {
       final String[] whitelist = {
         "kotlinx.coroutines.scheduling.CoroutineScheduler",
@@ -59,45 +51,15 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Traci
       executors.addAll(Arrays.asList(whitelist));
 
       PERMITTED_EXECUTORS = Collections.unmodifiableSet(executors);
-
-      final String[] whitelistPrefixes = {"slick.util.AsyncExecutor$"};
-      PERMITTED_EXECUTORS_PREFIXES =
-          Collections.unmodifiableCollection(Arrays.asList(whitelistPrefixes));
     }
   }
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    ElementMatcher.Junction<TypeDescription> matcher = any();
-    final ElementMatcher.Junction<TypeDescription> hasExecutorInterfaceMatcher =
-        implementsInterface(named(Executor.class.getName()));
-    if (!TRACE_ALL_EXECUTORS) {
-      matcher =
-          matcher.and(
-              new ElementMatcher<TypeDescription>() {
-                @Override
-                public boolean matches(final TypeDescription target) {
-                  boolean whitelisted = PERMITTED_EXECUTORS.contains(target.getName());
-
-                  // Check for possible prefixes match only if not whitelisted already
-                  if (!whitelisted) {
-                    for (final String name : PERMITTED_EXECUTORS_PREFIXES) {
-                      if (target.getName().startsWith(name)) {
-                        whitelisted = true;
-                        break;
-                      }
-                    }
-                  }
-
-                  if (!whitelisted
-                      && log.isDebugEnabled()
-                      && hasExecutorInterfaceMatcher.matches(target)) {
-                    log.debug("Skipping executor instrumentation for {}", target.getName());
-                  }
-                  return whitelisted;
-                }
-              });
+    if (TRACE_ALL_EXECUTORS) {
+      return implementsInterface(named(Executor.class.getName()));
+    } else {
+      return namedOneOf(PERMITTED_EXECUTORS);
     }
-    return matcher.and(hasExecutorInterfaceMatcher); // Apply expensive matcher last.
   }
 }

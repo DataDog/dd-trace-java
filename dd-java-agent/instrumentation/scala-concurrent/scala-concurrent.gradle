@@ -28,7 +28,6 @@ testSets {
   latest11Test {
     dirName = 'test'
   }
-  slickTest
 }
 
 compileTestGroovy {
@@ -43,9 +42,6 @@ compileLatest11TestGroovy {
 compileLatestDepTestGroovy {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
-compileSlickTestGroovy {
-  classpath += files(sourceSets.slickTest.scala.classesDirectory)
-}
 
 dependencies {
   // first version that works with the tests and can build on JDK11 (without dependency problems):
@@ -58,17 +54,8 @@ dependencies {
   latest12TestCompile group: 'org.scala-lang', name: 'scala-library', version: '2.12.+'
   latestDepTestCompile group: 'org.scala-lang', name: 'scala-library', version: '+'
   latestDepTestCompile project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
-
-  slickTestCompile project(':dd-java-agent:instrumentation:java-concurrent')
-  slickTestCompile project(':dd-java-agent:instrumentation:java-concurrent:java-completablefuture')
-  slickTestCompile project(':dd-java-agent:instrumentation:trace-annotation')
-  slickTestCompile project(':dd-java-agent:instrumentation:jdbc')
-  slickTestCompile deps.scala
-  slickTestCompile group: 'com.typesafe.slick', name: 'slick_2.11', version: '3.2.0'
-  slickTestCompile group: 'com.h2database', name: 'h2', version: '1.4.197'
 }
 
 // Run extra tests along with the rest of unit tests
-test.dependsOn slickTest
 test.dependsOn latest11Test
 test.dependsOn latest12Test

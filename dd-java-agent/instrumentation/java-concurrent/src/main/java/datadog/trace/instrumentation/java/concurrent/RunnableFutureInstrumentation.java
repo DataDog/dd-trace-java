@@ -17,6 +17,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -40,17 +41,14 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return extendsClass(
-            named("java.util.concurrent.FutureTask")
-                .or(nameEndsWith(".netty.util.concurrent.PromiseTask"))
-                .or(nameEndsWith("com.google.common.util.concurrent.TrustedListenableFutureTask")))
+    return NameMatchers.<TypeDescription>notExcludedByName(RUNNABLE_FUTURE)
         .and(
-            new ElementMatcher.Junction.AbstractBase<TypeDescription>() {
-              @Override
-              public boolean matches(TypeDescription target) {
-                return !ExcludeFilter.exclude(RUNNABLE_FUTURE, target.getName());
-              }
-            });
+            extendsClass(
+                named("java.util.concurrent.FutureTask")
+                    .or(nameEndsWith(".netty.util.concurrent.PromiseTask"))
+                    .or(
+                        nameEndsWith(
+                            "com.google.common.util.concurrent.TrustedListenableFutureTask"))));
   }
 
   @Override
