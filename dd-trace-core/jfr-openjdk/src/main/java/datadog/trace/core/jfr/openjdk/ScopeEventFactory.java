@@ -27,14 +27,10 @@ public class ScopeEventFactory implements ExtendedScopeListener {
     if (scopeEvent == null) {
       // Empty stack
       stack.push(new ScopeEvent(traceId, spanId));
-    } else if (scopeEvent.getTraceId() == traceId.toLong()
-        && scopeEvent.getSpanId() == spanId.toLong()) {
+    } else if (scopeEvent.getTraceId() != traceId.toLong()
+        || scopeEvent.getSpanId() != spanId.toLong()) {
 
-      // Reactivation
-      scopeEvent.resume();
-    } else {
       // Top being pushed down
-      scopeEvent.pause();
       stack.push(new ScopeEvent(traceId, spanId));
     }
   }
@@ -45,5 +41,10 @@ public class ScopeEventFactory implements ExtendedScopeListener {
 
     ScopeEvent scopeEvent = stack.pop();
     scopeEvent.finish();
+
+    ScopeEvent parent = stack.peek();
+    if (parent != null) {
+      parent.addChildCpuTime(scopeEvent.getRawCpuTime());
+    }
   }
 }
