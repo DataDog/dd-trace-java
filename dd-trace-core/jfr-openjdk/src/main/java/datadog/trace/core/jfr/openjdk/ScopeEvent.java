@@ -28,38 +28,39 @@ public final class ScopeEvent extends Event {
   private long cpuTime = Long.MIN_VALUE;
 
   private transient long cpuTimeStart;
+  private transient long childCpuTime;
+  private transient long rawCpuTime;
 
   ScopeEvent(DDId traceId, DDId spanId) {
     this.traceId = traceId.toLong();
     this.spanId = spanId.toLong();
 
     if (isEnabled()) {
-      resume();
+      cpuTimeStart = SystemAccess.getCurrentThreadCpuTime();
       begin();
     }
   }
 
-  public void pause() {
-    if (cpuTimeStart > 0) {
-      if (cpuTime == Long.MIN_VALUE) {
-        cpuTime = SystemAccess.getCurrentThreadCpuTime() - cpuTimeStart;
-      } else {
-        cpuTime += SystemAccess.getCurrentThreadCpuTime() - cpuTimeStart;
-      }
-
-      cpuTimeStart = 0;
-    }
+  public void addChildCpuTime(long rawCpuTime) {
+    this.childCpuTime += childCpuTime;
   }
 
-  public void resume() {
-    cpuTimeStart = SystemAccess.getCurrentThreadCpuTime();
+  /**
+   * Cpu time between start and finish without subtracting time spent in child scopes
+   * Only valid after this event is finished and if scope events are enabled
+   */
+  public long getRawCpuTime() {
+    return rawCpuTime;
   }
 
   public void finish() {
-    pause();
-    end();
-    if (shouldCommit()) {
-      commit();
+    if (cpuTimeStart > 0) {
+      rawCpuTime = SystemAccess.getCurrentThreadCpuTime() - cpuTimeStart;
+      cpuTime = rawCpuTime - childCpuTime;
+      end();
+      if (shouldCommit()) {
+        commit();
+      }
     }
   }
 
