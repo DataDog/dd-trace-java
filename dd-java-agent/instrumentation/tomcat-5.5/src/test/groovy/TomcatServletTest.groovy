@@ -1,5 +1,6 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -13,6 +14,7 @@ import org.apache.catalina.connector.Response
 import org.apache.catalina.core.StandardHost
 import org.apache.catalina.startup.Embedded
 import org.apache.catalina.valves.ErrorReportValve
+import org.apache.coyote.http11.Http11BaseProtocol
 import spock.lang.Unroll
 
 import javax.servlet.Servlet
@@ -28,63 +30,88 @@ import static org.junit.Assume.assumeTrue
 @Unroll
 class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
 
-  @Override
-  Embedded startServer(int port) {
-    def server = new Embedded()
-    def baseDir = Files.createTempDir()
-    baseDir.deleteOnExit()
+  class TomcatServer implements HttpServer {
+    def port = 0
+    final server
 
-    System.setProperty("catalina.home", baseDir.path)
+    TomcatServer() {
+      server = new Embedded()
+      def baseDir = Files.createTempDir()
+      baseDir.deleteOnExit()
 
-    final File webappDir = new File(baseDir, "/webapps")
-    webappDir.mkdirs()
-    webappDir.deleteOnExit()
+      System.setProperty("catalina.home", baseDir.path)
 
-    // Call createEngine() to create an Engine object, and then call its property setters as desired.
-    Engine engine = server.createEngine()
-    engine.name = "test"
-    engine.setDefaultHost("localhost")
+      final File webappDir = new File(baseDir, "/webapps")
+      webappDir.mkdirs()
+      webappDir.deleteOnExit()
 
-    // Call createHost() to create at least one virtual Host associated with the newly created Engine, and then call its property setters as desired.
-    StandardHost host = server.createHost("localhost", "$webappDir")
-    //  After you customize this Host, add it to the corresponding Engine with engine.addChild(host).
-    engine.addChild(host)
+      // Call createEngine() to create an Engine object, and then call its property setters as desired.
+      Engine engine = server.createEngine()
+      engine.name = "test"
+      engine.setDefaultHost("localhost")
+
+      // Call createHost() to create at least one virtual Host associated with the newly created Engine, and then call its property setters as desired.
+      StandardHost host = server.createHost("localhost", "$webappDir")
+      //  After you customize this Host, add it to the corresponding Engine with engine.addChild(host).
+      engine.addChild(host)
 
 
-    // Call createContext() to create at least one Context associated with each newly created Host, and then call its property setters as desired.
-    Context context = server.createContext("/$context", "$webappDir")
-    context.privileged = true
-    setupServlets(context)
+      // Call createContext() to create at least one Context associated with each newly created Host, and then call its property setters as desired.
+      Context context = server.createContext("/$context", "$webappDir")
+      context.privileged = true
+      setupServlets(context)
 
-    // After you customize this Context, add it to the corresponding Host with host.addChild(context).
-    host.addChild(context)
-    // You SHOULD create a Context with a pathname equal to a zero-length string, which will be used to process all requests not mapped to some other Context.
+      // After you customize this Context, add it to the corresponding Host with host.addChild(context).
+      host.addChild(context)
+      // You SHOULD create a Context with a pathname equal to a zero-length string, which will be used to process all requests not mapped to some other Context.
 
-    // Call addEngine() to attach this Engine to the set of defined Engines for this object.
-    server.addEngine(engine)
+      // Call addEngine() to attach this Engine to the set of defined Engines for this object.
+      server.addEngine(engine)
 
-    // Call createConnector() to create at least one TCP/IP connector, and then call its property setters as desired.
-    // There seems to be a bug in this version that makes it impossible to create an 'http' connector
-    //    Connector connector = server.createConnector("localhost", port, true)
-    Connector connector = new Connector("HTTP/1.1")
-    connector.enableLookups = true // get localhost instead of 127.0.0.1
-    connector.scheme = "http"
-    connector.port = port
+      // Call createConnector() to create at least one TCP/IP connector, and then call its property setters as desired.
+      // There seems to be a bug in this version that makes it impossible to create an 'http' connector
+      //    Connector connector = server.createConnector("localhost", port, true)
+      Connector connector = new Connector("HTTP/1.1")
+      connector.enableLookups = true // get localhost instead of 127.0.0.1
+      connector.scheme = "http"
+      connector.port = 0 // select random open port
 
-    // Call addConnector() to attach this Connector to the set of defined Connectors for this object. The added Connector will use the most recently added Engine to process its received requests.
-    server.addConnector(connector)
+      // Call addConnector() to attach this Connector to the set of defined Connectors for this object. The added Connector will use the most recently added Engine to process its received requests.
+      server.addConnector(connector)
 
-    host.errorReportValveClass = ErrorHandlerValve.name
+      host.errorReportValveClass = ErrorHandlerValve.name
+    }
 
-    server.start()
+    @Override
+    void start() {
+      server.start()
+      port = ((server.connectors[0] as Connector).protocolHandler as Http11BaseProtocol).ep.serverSocket.localPort
+      assert port > 0
+    }
 
-    return server
+    @Override
+    void stop() {
+      server.stop()
+      server.destroy()
+    }
+
+    @Override
+    URI address() {
+      if (dispatch) {
+        return new URI("http://localhost:$port/$context/dispatch/")
+      }
+      return new URI("http://localhost:$port/$context/")
+    }
+
+    @Override
+    String toString() {
+      return this.class.name
+    }
   }
 
   @Override
-  void stopServer(Embedded server) {
-    server.stop()
-    server.destroy()
+  HttpServer server() {
+    return new TomcatServer()
   }
 
   @Override

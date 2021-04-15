@@ -1,5 +1,6 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -33,52 +34,78 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> {
 
   @Shared
-  def accessLogValue = new TestAccessLogValve()
+  def accessLogValue = (server as TomcatServer).accessLogValue
+
+  class TomcatServer implements HttpServer {
+    def port = 0
+    final Tomcat server
+    def accessLogValue = new TestAccessLogValve()
+
+    TomcatServer() {
+      server = new Tomcat()
+
+      def baseDir = Files.createTempDir()
+      baseDir.deleteOnExit()
+      server.setBaseDir(baseDir.getAbsolutePath())
+
+      server.setPort(port)
+      server.getConnector().enableLookups = true // get localhost instead of 127.0.0.1
+
+      final File applicationDir = new File(baseDir, "/webapps/ROOT")
+      if (!applicationDir.exists()) {
+        applicationDir.mkdirs()
+        applicationDir.deleteOnExit()
+      }
+      Context servletContext = server.addWebapp("/$context", applicationDir.getAbsolutePath())
+      // Speed up startup by disabling jar scanning:
+      servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
+          @Override
+          boolean check(JarScanType jarScanType, String jarName) {
+            return false
+          }
+        })
+
+      //    setupAuthentication(tomcatServer, servletContext)
+      setupServlets(servletContext)
+
+      (server.host as StandardHost).errorReportValveClass = ErrorHandlerValve.name
+      (server.host as StandardHost).getPipeline().addValve(accessLogValue)
+    }
+
+    @Override
+    void start() {
+      server.start()
+      port = server.service.findConnectors()[0].localPort
+      assert port > 0
+    }
+
+    @Override
+    void stop() {
+      server.stop()
+      server.destroy()
+    }
+
+    @Override
+    URI address() {
+      if (dispatch) {
+        return new URI("http://localhost:$port/$context/dispatch/")
+      }
+      return new URI("http://localhost:$port/$context/")
+    }
+
+    @Override
+    String toString() {
+      return this.class.name
+    }
+  }
 
   @Override
-  Tomcat startServer(int port) {
-    def tomcatServer = new Tomcat()
-
-    def baseDir = Files.createTempDir()
-    baseDir.deleteOnExit()
-    tomcatServer.setBaseDir(baseDir.getAbsolutePath())
-
-    tomcatServer.setPort(port)
-    tomcatServer.getConnector().enableLookups = true // get localhost instead of 127.0.0.1
-
-    final File applicationDir = new File(baseDir, "/webapps/ROOT")
-    if (!applicationDir.exists()) {
-      applicationDir.mkdirs()
-      applicationDir.deleteOnExit()
-    }
-    Context servletContext = tomcatServer.addWebapp("/$context", applicationDir.getAbsolutePath())
-    // Speed up startup by disabling jar scanning:
-    servletContext.getJarScanner().setJarScanFilter(new JarScanFilter() {
-        @Override
-        boolean check(JarScanType jarScanType, String jarName) {
-          return false
-        }
-      })
-
-    //    setupAuthentication(tomcatServer, servletContext)
-    setupServlets(servletContext)
-
-    (tomcatServer.host as StandardHost).errorReportValveClass = ErrorHandlerValve.name
-    (tomcatServer.host as StandardHost).getPipeline().addValve(accessLogValue)
-
-    tomcatServer.start()
-
-    return tomcatServer
+  HttpServer server() {
+    return new TomcatServer()
   }
 
   def setup() {
     accessLogValue.loggedIds.clear()
-  }
-
-  @Override
-  void stopServer(Tomcat server) {
-    server.stop()
-    server.destroy()
   }
 
   @Override

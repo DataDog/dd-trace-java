@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
@@ -24,42 +25,68 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 
 class JettyServletHandlerTest extends AbstractServlet3Test<Server, ServletHandler> {
 
-  @Override
-  Server startServer(int port) {
-    Server server = new Server(port)
-    ServletHandler handler = new ServletHandler()
-    server.setHandler(handler)
-    setupServlets(handler)
-    server.addBean(new ErrorHandler() {
-        protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
-          Throwable t = (Throwable) request.getAttribute("javax.servlet.error.exception")
-          def response = ((Request) request).response
-          if (t) {
-            if (t instanceof ServletException) {
-              t = t.rootCause
+  class JettyServer implements HttpServer {
+    def port = 0
+    final server = new Server(0) // select random open port
+
+    JettyServer() {
+      ServletHandler handler = new ServletHandler()
+      server.setHandler(handler)
+      setupServlets(handler)
+      server.addBean(new ErrorHandler() {
+          protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
+            Throwable t = (Throwable) request.getAttribute("javax.servlet.error.exception")
+            def response = ((Request) request).response
+            if (t) {
+              if (t instanceof ServletException) {
+                t = t.rootCause
+              }
+              if (t instanceof InputMismatchException) {
+                response.status = CUSTOM_EXCEPTION.status
+              }
+              writer.write(t.message)
+            } else {
+              writer.write(message)
             }
-            if (t instanceof InputMismatchException) {
-              response.status = CUSTOM_EXCEPTION.status
-            }
-            writer.write(t.message)
-          } else {
-            writer.write(message)
           }
-        }
-      })
-    server.start()
-    return server
+        })
+    }
+
+    @Override
+    void start() {
+      server.start()
+      port = server.connectors[0].localPort
+      assert port > 0
+    }
+
+    @Override
+    void stop() {
+      server.stop()
+      server.destroy()
+    }
+
+    @Override
+    URI address() {
+      if (dispatch) {
+        return new URI("http://localhost:$port/$context/dispatch/")
+      }
+      return new URI("http://localhost:$port/$context/")
+    }
+
+    @Override
+    String toString() {
+      return this.class.name
+    }
+  }
+
+  @Override
+  HttpServer server() {
+    return new JettyServer()
   }
 
   @Override
   void addServlet(ServletHandler servletHandler, String path, Class<Servlet> servlet) {
     servletHandler.addServletWithMapping(servlet, path)
-  }
-
-  @Override
-  void stopServer(Server server) {
-    server.stop()
-    server.destroy()
   }
 
   @Override

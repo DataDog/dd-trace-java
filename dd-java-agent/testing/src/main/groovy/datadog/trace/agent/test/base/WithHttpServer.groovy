@@ -81,7 +81,11 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
     return new URI("http://localhost:$port/")
   }
 
-  abstract SERVER startServer(int port)
+  SERVER startServer(int port) {
+    throw new UnsupportedOperationException()
+  }
 
-  abstract void stopServer(SERVER server)
+  void stopServer(SERVER server) {
+    throw new UnsupportedOperationException()
+  }
 }

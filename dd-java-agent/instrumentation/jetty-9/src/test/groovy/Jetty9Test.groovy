@@ -6,7 +6,6 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
-import org.eclipse.jetty.server.ServerConnector
 import org.eclipse.jetty.server.handler.AbstractHandler
 import org.eclipse.jetty.server.handler.ErrorHandler
 
@@ -27,7 +26,7 @@ class Jetty9Test extends HttpServerTest<Server> {
 
   class JettyServer implements HttpServer {
     def port = 0
-    def server = new Server(port)
+    final server = new Server(0) // select random open port
 
     JettyServer() {
       server.setHandler(handler())
@@ -37,7 +36,7 @@ class Jetty9Test extends HttpServerTest<Server> {
     @Override
     void start() {
       server.start()
-      port = (server.connectors[0] as ServerConnector).localPort
+      port = server.connectors[0].localPort
       assert port > 0
     }
 
@@ -71,16 +70,6 @@ class Jetty9Test extends HttpServerTest<Server> {
   @Override
   HttpServer server() {
     return new JettyServer()
-  }
-
-  @Override
-  Server startServer(int port) {
-    throw new UnsupportedOperationException()
-  }
-
-  @Override
-  void stopServer(Server server) {
-    throw new UnsupportedOperationException()
   }
 
   AbstractHandler handler() {
