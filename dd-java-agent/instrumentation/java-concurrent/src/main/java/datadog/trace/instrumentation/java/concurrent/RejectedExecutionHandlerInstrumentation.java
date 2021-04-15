@@ -37,8 +37,10 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Tracin
             "java.util.concurrent.ThreadPoolExecutor$DiscardPolicy",
             "java.util.concurrent.ThreadPoolExecutor$DiscardOldestPolicy",
             "java.util.concurrent.ThreadPoolExecutor$CallerRunsPolicy")
-        .or(hasInterface(named("java.util.concurrent.RejectedExecutionHandler")))
-        .or(hasInterface(nameEndsWith("netty.util.concurrent.RejectedExecutionHandler")));
+        .or(
+            hasInterface(
+                named("java.util.concurrent.RejectedExecutionHandler")
+                    .or(nameEndsWith("netty.util.concurrent.RejectedExecutionHandler"))));
   }
 
   @Override

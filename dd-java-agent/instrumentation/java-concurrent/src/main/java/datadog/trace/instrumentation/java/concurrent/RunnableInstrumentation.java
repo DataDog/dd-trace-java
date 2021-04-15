@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.notExcludedByName;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -12,7 +14,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Map;
@@ -22,7 +23,7 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Instrument {@link Runnable} and {@Callable} */
+/** Instrument {@link Runnable} */
 @AutoService(Instrumenter.class)
 public final class RunnableInstrumentation extends Instrumenter.Tracing {
 
@@ -32,14 +33,8 @@ public final class RunnableInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return implementsInterface(named(Runnable.class.getName()))
-        .and(
-            new ElementMatcher.Junction.AbstractBase<TypeDescription>() {
-              @Override
-              public boolean matches(TypeDescription target) {
-                return !ExcludeFilter.exclude(ExcludeFilter.ExcludeType.RUNNABLE, target.getName());
-              }
-            })
+    return notExcludedByName(RUNNABLE)
+        .and(implementsInterface(named(Runnable.class.getName())))
         .and(not(implementsInterface(named(RunnableFuture.class.getName()))));
   }
 

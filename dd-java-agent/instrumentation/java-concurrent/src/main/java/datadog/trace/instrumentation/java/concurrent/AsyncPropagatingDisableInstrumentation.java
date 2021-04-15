@@ -9,6 +9,7 @@ import static java.util.Collections.singletonMap;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
 import java.util.Map;
@@ -31,7 +32,9 @@ public final class AsyncPropagatingDisableInstrumentation implements Instrumente
   @Override
   public AgentBuilder instrument(AgentBuilder agentBuilder) {
     return new DisableAsyncInstrumentation(
-            extendsClass(named("rx.Scheduler$Worker")), named("schedulePeriodically"))
+            NameMatchers.<TypeDescription>nameStartsWith("rx.")
+                .and(extendsClass(named("rx.Scheduler$Worker"))),
+            named("schedulePeriodically"))
         .instrument(
             new DisableAsyncInstrumentation(
                     named("rx.internal.operators.OperatorTimeoutBase"), named("call"))
