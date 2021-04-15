@@ -50,7 +50,19 @@ public class ExcludeFilter {
   }
 
   public static boolean exclude(ExcludeType type, String className) {
-    return excludedClassNames.get(type).contains(className);
+    boolean literalMatch = excludedClassNames.get(type).contains(className);
+    if (literalMatch) {
+      return true;
+    }
+    List<String> excludedPrefixes = SKIP_TYPE_PREFIXES.get(type);
+    if (null != excludedPrefixes) {
+      for (String prefix : excludedPrefixes) {
+        if (className.startsWith(prefix)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private static final ClassValue<EnumSet<ExcludeType>> SKIP =

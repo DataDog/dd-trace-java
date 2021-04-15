@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -14,28 +15,30 @@ public final class NameMatchers<T extends NamedElement>
   private static final int NAMED = 0;
   private static final int NAME_STARTS_WITH = 1;
   private static final int NAME_ENDS_WITH = 2;
-  private static final int NAMED_ONE_OF = 3;
-  private static final int NAMED_NONE_OF = 4;
+  private static final int NOT_EXCLUDED_BY_NAME = 3;
+  private static final int NAMED_ONE_OF = 4;
+  private static final int NAMED_NONE_OF = 5;
 
   @SuppressWarnings("unchecked")
   private static final ConcurrentHashMap<String, NameMatchers<?>>[] DEDUPLICATORS =
-      new ConcurrentHashMap[3];
+      new ConcurrentHashMap[NAMED_ONE_OF];
 
   static {
-    DEDUPLICATORS[0] = new ConcurrentHashMap<>();
-    DEDUPLICATORS[1] = new ConcurrentHashMap<>();
-    DEDUPLICATORS[2] = new ConcurrentHashMap<>();
+    DEDUPLICATORS[NAMED] = new ConcurrentHashMap<>();
+    DEDUPLICATORS[NAME_STARTS_WITH] = new ConcurrentHashMap<>();
+    DEDUPLICATORS[NAME_ENDS_WITH] = new ConcurrentHashMap<>();
+    DEDUPLICATORS[NOT_EXCLUDED_BY_NAME] = new ConcurrentHashMap<>();
   }
 
   @SuppressWarnings("unchecked")
-  static <T extends NamedElement> NameMatchers<T> deduplicate(int mode, String data) {
-    assert mode <= NAME_ENDS_WITH : "do not call with sets";
+  static <T extends NamedElement> NameMatchers<T> deduplicate(int mode, String key, Object data) {
+    assert mode < NAMED_ONE_OF : "do not call with sets";
     // TODO use computeIfAbsent when baselining on JDK8
     ConcurrentHashMap<String, NameMatchers<?>> deduplicator = DEDUPLICATORS[mode];
     NameMatchers<T> matcher = (NameMatchers<T>) DEDUPLICATORS[mode].get(data);
     if (null == matcher) {
       matcher = new NameMatchers<>(mode, data);
-      NameMatchers<T> predecessor = (NameMatchers<T>) deduplicator.putIfAbsent(data, matcher);
+      NameMatchers<T> predecessor = (NameMatchers<T>) deduplicator.putIfAbsent(key, matcher);
       if (null != predecessor) {
         matcher = predecessor;
       }
@@ -43,13 +46,31 @@ public final class NameMatchers<T extends NamedElement>
     return matcher;
   }
 
+  static <T extends NamedElement> NameMatchers<T> deduplicate(int mode, String data) {
+    return deduplicate(mode, data, data);
+  }
+
   private final int mode;
   private final Object data;
 
   public NameMatchers(int mode, Object data) {
-    assert data instanceof Set || data instanceof String;
+    assert data instanceof Set
+        || data instanceof String
+        || data instanceof ExcludeFilter.ExcludeType;
     this.mode = mode;
     this.data = data;
+  }
+
+  /**
+   * Matches a {@link NamedElement} for its name not being in an exclusion set.
+   *
+   * @param type The type of exclusion to apply
+   * @param <T> The type of the matched object.
+   * @return An element matcher checking if an element's exact name is a member of a set.
+   */
+  public static <T extends NamedElement> ElementMatcher.Junction<T> notExcludedByName(
+      ExcludeFilter.ExcludeType type) {
+    return deduplicate(NOT_EXCLUDED_BY_NAME, type.name(), type);
   }
 
   /**
@@ -129,6 +150,8 @@ public final class NameMatchers<T extends NamedElement>
         return name.startsWith((String) data);
       case NAME_ENDS_WITH:
         return name.endsWith((String) data);
+      case NOT_EXCLUDED_BY_NAME:
+        return !ExcludeFilter.exclude((ExcludeFilter.ExcludeType) data, name);
       case NAMED_ONE_OF:
         return namedOneOf(name);
       case NAMED_NONE_OF:

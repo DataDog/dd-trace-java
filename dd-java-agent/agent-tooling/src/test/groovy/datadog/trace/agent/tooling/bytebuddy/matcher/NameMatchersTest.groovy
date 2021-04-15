@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher
 
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.NamedElement
 
@@ -97,5 +98,20 @@ class NameMatchersTest extends DDSpecification {
     name    | expected
     "tofoo" | true
     "tofu"  | false
+  }
+
+  def "test notExcludedByName"() {
+    def named = Mock(NamedElement)
+    def name = "java.util.concurrent.ConcurrentHashMap\$Foo"
+    named.getActualName() >> { name }
+    when:
+    def fjtExcluder = NameMatchers.notExcludedByName(ExcludeFilter.ExcludeType.FORK_JOIN_TASK)
+    then:
+    !fjtExcluder.matches(named)
+
+    when:
+    def executorExcluder = NameMatchers.notExcludedByName(ExcludeFilter.ExcludeType.EXECUTOR)
+    then:
+    executorExcluder.matches(named)
   }
 }
