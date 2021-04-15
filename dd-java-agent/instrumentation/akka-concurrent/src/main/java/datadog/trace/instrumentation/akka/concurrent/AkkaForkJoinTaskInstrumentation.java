@@ -26,6 +26,7 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.matcher.ElementMatchers;
 
 /**
  * Instrument {@link ForkJoinTask}.
@@ -48,8 +49,9 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask"))
-        .and(not(named("akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask")));
+    return not(named("akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask"))
+        .and(ElementMatchers.<TypeDescription>declaresMethod(namedOneOf("exec", "fork", "cancel")))
+        .and(extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask")));
   }
 
   @Override
