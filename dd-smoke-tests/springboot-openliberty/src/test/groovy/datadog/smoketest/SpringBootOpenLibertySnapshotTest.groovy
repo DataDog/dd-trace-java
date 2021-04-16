@@ -47,7 +47,7 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
   def "Test trace snapshot of sending nested request to Openliberty server"() {
     setup:
     Response response
-    String[] ignoredKeys =  ['meta.http.url', 'meta.thread.name', 'meta.peer.port', 'meta.thread.id', "meta.servlet.path"]
+    String[] ignoredKeys =  ['meta.http.url', 'meta.thread.name', 'meta.peer.port', 'meta.thread.id', 'meta.servlet.path']
     snapshot("datadog.smoketest.SpringBootOpenLibertySnapshotTest.nested", ignoredKeys, {
       def url = "http://localhost:${httpPort}/connect"
       def request = new Request.Builder().url(url).get().build()
@@ -57,5 +57,20 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
     expect:
     response != null
     response.code() == 200
+  }
+
+  def "Test trace snapshot for server exception" () {
+    setup:
+    Response response
+    String[] ignoredKeys =  ['meta.http.url', 'meta.thread.name', 'meta.peer.port', 'meta.thread.id', 'meta.error.stack']
+    snapshot("datadog.smoketest.SpringBootOpenLibertySnapshotTest.exception404", ignoredKeys, {
+      def url = "http://localhost:${httpPort}/randomEndpoint"
+      def request = new Request.Builder().url(url).get().build()
+      response = client.newCall(request).execute()
+    })
+
+    expect:
+    response != null
+    response.code() != 200
   }
 }

@@ -6,21 +6,21 @@
    "span_id" 0
    "trace_id" 0
    "parent_id" nil
-   "start" 1617384998837488823
-   "duration" 141690778
+   "start" 1618011719543971755
+   "duration" 164567878
    "meta" {"env" "smoketest"
            "language" "jvm"
-           "runtime-id" "e73fdb27-bae3-4852-bb31-ddb0a182aec6"
+           "runtime-id" "fc5c927a-eb1a-4498-af46-731a5f2b0ce1"
            "version" "99"
-           "peer.port" "55723"
-           "http.url" "http://localhost:55617/connect/0"
-           "component" "java-web-servlet"
-           "thread.name" "Default Executor-thread-4"
+           "peer.port" "57792"
+           "http.url" "http://localhost:57690/connect/0"
+           "component" "liberty-server"
+           "thread.name" "Default Executor-thread-2"
            "peer.ipv4" "127.0.0.1"
            "http.status_code" "200"
            "span.kind" "server"
            "http.method" "GET"
-           "thread.id" "48"
+           "thread.id" "44"
            "servlet.path" "/connect/0"}
    "metrics" {"_dd.agent_psr" 1.0
               "_dd.measured" 1
@@ -34,13 +34,13 @@
        "span_id" 1
        "trace_id" 0
        "parent_id" 0
-       "start" 1617384998898788931
-       "duration" 74330915
+       "start" 1618011719625753238
+       "duration" 76667015
        "meta" {"env" "smoketest"
                "language" "jvm"
                "version" "99"
-               "thread.name" "Default Executor-thread-4"
-               "thread.id" "48"
+               "thread.name" "Default Executor-thread-2"
+               "thread.id" "44"
                "component" "spring-web-controller"
                "span.kind" "server"}
        "metrics" {"_dd.measured" 1}}]]

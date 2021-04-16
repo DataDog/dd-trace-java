@@ -66,6 +66,8 @@
         </executions>
       </plugin>
 
+      <!-- the open liberty libraries are actually not in the class path, but instead is provided through the open liberty 
+        plugin when running ./mvnw package -->
       <plugin>
         <groupId>io.openliberty.tools</groupId>
         <artifactId>liberty-maven-plugin</artifactId>
