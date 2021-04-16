@@ -3,6 +3,7 @@ package datadog.trace.agent.jmxfetch;
 import datadog.trace.api.StatsDClient;
 import org.datadog.jmxfetch.Instance;
 import org.datadog.jmxfetch.JmxAttribute;
+import org.datadog.jmxfetch.reporter.LoggingErrorHandler;
 import org.datadog.jmxfetch.reporter.Reporter;
 
 /** Based on {@link org.datadog.jmxfetch.reporter.StatsdReporter}. */
@@ -12,6 +13,7 @@ public final class AgentStatsdReporter extends Reporter {
 
   public AgentStatsdReporter(final StatsDClient statsd) {
     this.statsd = statsd;
+    this.handler = new ErrorHandler();
   }
 
   @Override
@@ -54,5 +56,18 @@ public final class AgentStatsdReporter extends Reporter {
   @Override
   public void displayInstanceName(final Instance instance) {
     throw new UnsupportedOperationException();
+  }
+
+  /** Handler that delegates to the shared statsd connection for error tracking purposes. */
+  final class ErrorHandler extends LoggingErrorHandler {
+    @Override
+    public void handle(final Exception error) {
+      statsd.error(error);
+    }
+
+    @Override
+    public int getErrors() {
+      return statsd.getErrorCount();
+    }
   }
 }

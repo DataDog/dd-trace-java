@@ -88,6 +88,16 @@ final class DDAgentStatsDClient implements StatsDClient {
   }
 
   @Override
+  public void error(final Exception error) {
+    connection.handle(error);
+  }
+
+  @Override
+  public int getErrorCount() {
+    return connection.getErrorCount();
+  }
+
+  @Override
   public void close() {
     connection.release();
   }

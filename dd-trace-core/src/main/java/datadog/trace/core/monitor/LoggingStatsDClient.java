@@ -117,6 +117,14 @@ public final class LoggingStatsDClient implements StatsDClient {
   }
 
   @Override
+  public void error(final Exception error) {}
+
+  @Override
+  public int getErrorCount() {
+    return 0;
+  }
+
+  @Override
   public void close() {}
 
   private static String join(final String... tags) {
