@@ -23,7 +23,7 @@ import org.hibernate.procedure.ProcedureCall;
 public class ProcedureCallInstrumentation extends Instrumenter.Tracing {
 
   public ProcedureCallInstrumentation() {
-    super("hibernate", "hibernate-core");
+    super(true, "hibernate", "hibernate-core");
   }
 
   @Override
@@ -47,7 +47,12 @@ public class ProcedureCallInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> shortCutMatcher() {
+    return named("org.hibernate.procedure.internal.ProcedureCallImpl");
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.hibernate.procedure.ProcedureCall"));
   }
 

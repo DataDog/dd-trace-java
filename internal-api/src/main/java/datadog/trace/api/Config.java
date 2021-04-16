@@ -1300,6 +1300,12 @@ public class Config {
     return isEnabled(integrationNames, "integration.", ".enabled", defaultEnabled);
   }
 
+  public boolean isIntegrationShortCutMatchingEnabled(
+      final Iterable<String> integrationNames, final boolean defaultEnabled) {
+    return isEnabled(
+        integrationNames, "integration.", ".matching.shortcut.enabled", defaultEnabled);
+  }
+
   public boolean isJmxFetchIntegrationEnabled(
       final Iterable<String> integrationNames, final boolean defaultEnabled) {
     return isEnabled(integrationNames, "jmxfetch.", ".enabled", defaultEnabled);

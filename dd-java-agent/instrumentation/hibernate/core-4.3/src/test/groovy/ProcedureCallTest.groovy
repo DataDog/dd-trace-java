@@ -47,7 +47,7 @@ class ProcedureCallTest extends AgentTestRunner {
       // Create a stored procedure.
       Connection conn = DriverManager.getConnection("jdbc:hsqldb:mem:test", "sa", "1")
       Statement stmt = conn.createStatement()
-      stmt.execute("CREATE PROCEDURE TEST_PROC() MODIFIES SQL DATA BEGIN ATOMIC INSERT INTO Value VALUES (420, 'fred'); END")
+      stmt.execute(storedProcSQL())
       stmt.close()
       conn.close()
 
@@ -62,13 +62,21 @@ class ProcedureCallTest extends AgentTestRunner {
     }
   }
 
+  def storedProcSQL() {
+    return "CREATE PROCEDURE ${storedProcName()}() MODIFIES SQL DATA BEGIN ATOMIC INSERT INTO Value VALUES (420, 'fred'); END"
+  }
+
+  def storedProcName() {
+    return "TEST_PROC"
+  }
+
   def "test ProcedureCall"() {
     setup:
 
     Session session = sessionFactory.openSession()
     session.beginTransaction()
 
-    ProcedureCall call = session.createStoredProcedureCall("TEST_PROC")
+    ProcedureCall call = session.createStoredProcedureCall(storedProcName())
     call.getOutputs()
 
     session.getTransaction().commit()
@@ -104,7 +112,7 @@ class ProcedureCallTest extends AgentTestRunner {
         }
         span {
           serviceName "hibernate"
-          resourceName "TEST_PROC"
+          resourceName storedProcName()
           operationName "hibernate.procedure.getOutputs"
           spanType DDSpanTypes.HIBERNATE
           childOf span(0)
@@ -138,7 +146,7 @@ class ProcedureCallTest extends AgentTestRunner {
     Session session = sessionFactory.openSession()
     session.beginTransaction()
 
-    ProcedureCall call = session.createStoredProcedureCall("TEST_PROC")
+    ProcedureCall call = session.createStoredProcedureCall(storedProcName())
     call.registerParameter("nonexistent", Long, ParameterMode.IN)
     call.getParameterRegistration("nonexistent").bindValue(420L)
     try {
@@ -179,7 +187,7 @@ class ProcedureCallTest extends AgentTestRunner {
         }
         span {
           serviceName "hibernate"
-          resourceName "TEST_PROC"
+          resourceName storedProcName()
           operationName "hibernate.procedure.getOutputs"
           spanType DDSpanTypes.HIBERNATE
           childOf span(0)

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.apachehttpasyncclient;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
@@ -39,7 +40,19 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> shortCutMatcher() {
+    return namedOneOf(
+        "org.apache.http.impl.nio.client.AbstractHttpAsyncClient",
+        "org.apache.http.impl.nio.client.CloseableHttpAsyncClient",
+        "org.apache.http.impl.nio.client.CloseableHttpAsyncClientBase",
+        "org.apache.http.impl.nio.client.CloseableHttpPipeliningClient",
+        "org.apache.http.impl.nio.client.DefaultHttpAsyncClient",
+        "org.apache.http.impl.nio.client.InternalHttpAsyncClient",
+        "org.apache.http.impl.nio.client.MinimalHttpAsyncClient");
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.apache.http.nio.client.HttpAsyncClient"));
   }
 

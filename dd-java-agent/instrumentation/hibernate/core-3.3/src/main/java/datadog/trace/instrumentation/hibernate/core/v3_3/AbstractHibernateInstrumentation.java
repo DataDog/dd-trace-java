@@ -7,7 +7,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public abstract class AbstractHibernateInstrumentation extends Instrumenter.Tracing {
 
   public AbstractHibernateInstrumentation() {
-    super("hibernate", "hibernate-core");
+    super(true, "hibernate", "hibernate-core");
   }
 
   @Override

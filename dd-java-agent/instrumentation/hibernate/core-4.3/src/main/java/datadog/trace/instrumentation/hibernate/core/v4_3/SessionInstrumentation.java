@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -28,7 +29,7 @@ import org.hibernate.procedure.ProcedureCall;
 public class SessionInstrumentation extends Instrumenter.Tracing {
 
   public SessionInstrumentation() {
-    super("hibernate", "hibernate-core");
+    super(true, "hibernate", "hibernate-core");
   }
 
   static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
@@ -58,8 +59,19 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.hibernate.SharedSessionContract"));
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> shortCutMatcher() {
+    return namedOneOf(
+        "org.hibernate.internal.AbstractSessionImpl",
+        "org.hibernate.internal.AbstractSharedSessionContract",
+        "org.hibernate.impl.SessionImpl",
+        "org.hibernate.impl.StatelessSessionImpl",
+        "org.hibernate.internal.SessionImpl",
+        "org.hibernate.internal.StatelessSessionImpl");
   }
 
   @Override

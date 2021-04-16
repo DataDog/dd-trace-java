@@ -31,7 +31,13 @@ public class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> shortCutMatcher() {
+    return namedOneOf(
+        "org.hibernate.internal.CriteriaImpl", "org.hibernate.internal.CriteriaImpl$Subcriteria");
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.hibernate.Criteria"));
   }
 
