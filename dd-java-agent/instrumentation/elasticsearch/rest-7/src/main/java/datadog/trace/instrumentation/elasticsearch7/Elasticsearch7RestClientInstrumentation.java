@@ -56,7 +56,7 @@ public class Elasticsearch7RestClientInstrumentation extends Instrumenter.Tracin
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformations = new HashMap<>(2);
+    Map<ElementMatcher<MethodDescription>, String> transformations = new HashMap<>(3);
     transformations.put(
         isMethod()
             .and(named("performRequest"))
