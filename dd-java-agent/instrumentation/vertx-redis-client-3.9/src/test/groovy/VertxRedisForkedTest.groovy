@@ -23,4 +23,29 @@ class VertxRedisForkedTest extends VertxRedisTestBase {
       parentTraceWithCommandAndHandler(it, "GET")
     }
   }
+
+  def "work with reused request"() {
+    setup:
+    def request = Request.cmd(Command.SET).arg("foo").arg("bar")
+
+    when:
+    def set1 = runWithParentAndHandler({ Handler<AsyncResult<Response>> h ->
+      redis.send(request, h)
+    }, this.&responseToString)
+
+    then:
+    assert set1 == "OK"
+
+    when:
+    def set2 = runWithParentAndHandler({ Handler<AsyncResult<Response>> h ->
+      redis.send(request, h)
+    }, this.&responseToString)
+
+    then:
+    assert set2 == "OK"
+    assertTraces(2) {
+      parentTraceWithCommandAndHandler(it, "SET")
+      parentTraceWithCommandAndHandler(it, "SET")
+    }
+  }
 }

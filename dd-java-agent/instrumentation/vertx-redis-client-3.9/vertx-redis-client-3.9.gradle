@@ -23,6 +23,7 @@ testSets {
 }
 
 dependencies {
+  main_java8CompileOnly project(':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs')
   main_java8CompileOnly group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'
 
   testCompile group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'

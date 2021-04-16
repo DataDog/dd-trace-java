@@ -220,6 +220,7 @@ include ':dd-java-agent:instrumentation:trace-annotation'
 include ':dd-java-agent:instrumentation:twilio'
 include ':dd-java-agent:instrumentation:vertx-mysql-client-3.9'
 include ':dd-java-agent:instrumentation:vertx-redis-client-3.9'
+include ':dd-java-agent:instrumentation:vertx-redis-client-3.9:stubs'
 include ':dd-java-agent:instrumentation:vertx-rx-3.5'
 include ':dd-java-agent:instrumentation:vertx-web-3.4'
 

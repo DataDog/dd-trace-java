@@ -187,6 +187,10 @@ public interface Instrumenter {
 
     private AgentBuilder.Identified.Extendable applyInstrumentationTransformers(
         AgentBuilder.Identified.Extendable agentBuilder) {
+      AgentBuilder.Transformer transformer = transformer();
+      if (transformer != null) {
+        agentBuilder = agentBuilder.transform(transformer);
+      }
       for (final Map.Entry<? extends ElementMatcher, String> entry : transformers().entrySet()) {
         agentBuilder =
             agentBuilder.transform(
@@ -276,6 +280,11 @@ public interface Instrumenter {
 
     /** @return A map of matcher->advice */
     public abstract Map<? extends ElementMatcher<? super MethodDescription>, String> transformers();
+
+    /** @return A transformer for further transformation of the class */
+    public AgentBuilder.Transformer transformer() {
+      return null;
+    }
 
     /**
      * Context stores to define for this instrumentation. Are added to matching class loaders.

@@ -15,12 +15,13 @@ import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.Request;
 import io.vertx.redis.client.Response;
+import io.vertx.redis.client.impl.RequestImpl;
 import net.bytebuddy.asm.Advice;
 
 public class RedisSendAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static boolean beforeSend(
-      @Advice.Argument(value = 0) Request request,
+      @Advice.Argument(value = 0, readOnly = false) Request request,
       @Advice.Argument(value = 1, readOnly = false) Handler<AsyncResult<Response>> handler)
       throws Throwable {
     if (null == handler || handler instanceof ResponseHandlerWrapper) {
@@ -31,6 +32,11 @@ public class RedisSendAdvice {
     Boolean handled = ctxt.get(request);
     if (null != handled && handled) {
       return false;
+    }
+    // Create a shallow copy of the Request here to make sure that reused Requests get spans
+    if (request instanceof Cloneable) {
+      // Other library code do this downcast, so we can do it as well
+      request = (Request) ((RequestImpl) request).clone();
     }
     ctxt.put(request, Boolean.TRUE);
 
