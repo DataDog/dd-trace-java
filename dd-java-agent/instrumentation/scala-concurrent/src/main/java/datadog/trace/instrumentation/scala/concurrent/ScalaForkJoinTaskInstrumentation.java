@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.scala.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -36,7 +38,8 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   public ElementMatcher<TypeDescription> typeMatcher() {
     // this type is constructed on entry to the JFP, and can be used to track
     // the lifecycle of tasks
-    return safeHasSuperType(named("scala.concurrent.forkjoin.ForkJoinTask"));
+    return declaresMethod(namedOneOf("exec", "fork", "cancel"))
+        .and(extendsClass(named("scala.concurrent.forkjoin.ForkJoinTask")));
   }
 
   @Override
