@@ -1,6 +1,7 @@
 package test.dynamic
 
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -8,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import org.springframework.boot.SpringApplication
+import org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.view.RedirectView
 import test.boot.SecurityConfig
@@ -25,17 +27,38 @@ class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> 
     return false
   }
 
-  @Override
-  ConfigurableApplicationContext startServer(int port) {
-    def app = new SpringApplication(DynamicRoutingAppConfig, SecurityConfig)
-    app.setDefaultProperties(singletonMap("server.port", port))
-    def context = app.run()
-    return context
+  class SpringBootServer implements HttpServer {
+    def port = 0
+    def context
+    final app = new SpringApplication(DynamicRoutingAppConfig, SecurityConfig)
+
+    @Override
+    void start() {
+      app.setDefaultProperties(singletonMap("server.port", 0))
+      context = app.run() as EmbeddedWebApplicationContext
+      port = context.embeddedServletContainer.port
+      assert port > 0
+    }
+
+    @Override
+    void stop() {
+      context.close()
+    }
+
+    @Override
+    URI address() {
+      return new URI("http://localhost:$port/")
+    }
+
+    @Override
+    String toString() {
+      return this.class.name
+    }
   }
 
   @Override
-  void stopServer(ConfigurableApplicationContext ctx) {
-    ctx.close()
+  HttpServer server() {
+    return new SpringBootServer()
   }
 
   @Override

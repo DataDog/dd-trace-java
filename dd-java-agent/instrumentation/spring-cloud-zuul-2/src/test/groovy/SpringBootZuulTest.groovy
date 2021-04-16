@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -6,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import org.springframework.boot.SpringApplication
+import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.view.RedirectView
 
@@ -17,17 +19,38 @@ import static java.util.Collections.singletonMap
 
 class SpringBootZuulTest extends HttpServerTest<ConfigurableApplicationContext> {
 
-  @Override
-  ConfigurableApplicationContext startServer(int port) {
+  class SpringBootServer implements HttpServer {
+    def port = 0
+    def context
     def app = new SpringApplication(AppConfig, TestController)
-    app.setDefaultProperties(singletonMap("server.port", port))
-    def context = app.run()
-    return context
+
+    @Override
+    void start() {
+      app.setDefaultProperties(singletonMap("server.port", 0))
+      context = app.run() as ServletWebServerApplicationContext
+      port = context.webServer.port
+      assert port > 0
+    }
+
+    @Override
+    void stop() {
+      context.close()
+    }
+
+    @Override
+    URI address() {
+      return new URI("http://localhost:$port/")
+    }
+
+    @Override
+    String toString() {
+      return this.class.name
+    }
   }
 
   @Override
-  void stopServer(ConfigurableApplicationContext ctx) {
-    ctx.close()
+  HttpServer server() {
+    return new SpringBootServer()
   }
 
   @Override
