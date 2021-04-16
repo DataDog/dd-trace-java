@@ -13,22 +13,22 @@ public class DDElementMatchers {
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> extendsClass(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), false, true, false);
+    return new SafeHasSuperTypeMatcher<>(matcher, false, true, false);
   }
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> implementsInterface(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), true, true, true);
+    return new SafeHasSuperTypeMatcher<>(matcher, true, true, true);
   }
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), true, false, true);
+    return new SafeHasSuperTypeMatcher<>(matcher, true, false, true);
   }
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> safeHasSuperType(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), false, true, true);
+    return new SafeHasSuperTypeMatcher<>(matcher, false, true, true);
   }
 
   // TODO: add javadoc

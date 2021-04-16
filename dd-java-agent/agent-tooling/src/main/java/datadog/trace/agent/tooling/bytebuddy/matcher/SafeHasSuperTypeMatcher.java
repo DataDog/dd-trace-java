@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeTypeDefinitionName;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeErasureMatcher.safeAsErasure;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashSet;
@@ -37,7 +36,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
   private static final Logger log = LoggerFactory.getLogger(SafeHasSuperTypeMatcher.class);
 
   /** The matcher to apply to any super type of the matched type. */
-  private final ElementMatcher<? super TypeDescription.Generic> matcher;
+  private final ElementMatcher<? super TypeDescription> matcher;
 
   private final boolean interfacesOnly;
   private final boolean rejectInterfaceTargets;
@@ -48,7 +47,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
    * @param matcher The matcher to apply to any super type of the matched type.
    */
   public SafeHasSuperTypeMatcher(
-      ElementMatcher<? super TypeDescription.Generic> matcher,
+      ElementMatcher<? super TypeDescription> matcher,
       boolean interfacesOnly,
       boolean rejectInterfaceTargets,
       boolean checkInterfaces) {
@@ -70,7 +69,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     if (checkInterfaces) {
       final Set<TypeDescription> checkedInterfaces = new HashSet<>(8);
       while (typeDefinition != null) {
-        if (((!interfacesOnly || isInterface) && matcher.matches(typeDefinition.asGenericType()))
+        if (((!interfacesOnly || isInterface) && erasureMatches(typeDefinition.asGenericType()))
             || (hasInterface(typeDefinition, checkedInterfaces))) {
           return true;
         }
@@ -78,13 +77,18 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
       }
     } else {
       while (typeDefinition != null) {
-        if (matcher.matches(typeDefinition.asGenericType())) {
+        if (erasureMatches(typeDefinition.asGenericType())) {
           return true;
         }
         typeDefinition = safeGetSuperClass(typeDefinition);
       }
     }
     return false;
+  }
+
+  private boolean erasureMatches(TypeDescription.Generic typeDefinition) {
+    TypeDescription erasure = safeAsErasure(typeDefinition);
+    return null != erasure && matcher.matches(erasure);
   }
 
   /**
@@ -100,7 +104,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
       final TypeDescription erasure = safeAsErasure(interfaceType);
       if (erasure != null) {
         if (checkedInterfaces.add(interfaceType.asErasure())
-            && (matcher.matches(interfaceType.asGenericType())
+            && (erasureMatches(interfaceType.asGenericType())
                 || hasInterface(interfaceType, checkedInterfaces))) {
           return true;
         }
@@ -212,6 +216,21 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
             safeTypeDefinitionName(typeDefinition),
             e.getMessage());
       }
+    }
+  }
+
+  static TypeDescription safeAsErasure(final TypeDefinition typeDefinition) {
+    try {
+      return typeDefinition.asErasure();
+    } catch (final Exception e) {
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "{} trying to get erasure for target {}: {}",
+            e.getClass().getSimpleName(),
+            safeTypeDefinitionName(typeDefinition),
+            e.getMessage());
+      }
+      return null;
     }
   }
 }
