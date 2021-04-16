@@ -108,4 +108,48 @@ class PrintingWriterTest extends DDCoreSpecification {
       assert it["meta"] instanceof Map
     }
   }
+
+  def "test printing multiple traces"() {
+    given:
+    def buffer = new Buffer()
+    def writer = new PrintingWriter(buffer.outputStream(), false)
+
+    when:
+    writer.write(sampleTrace)
+    writer.write(secondTrace)
+    Map<String, List<List<Map>>> result1 = adapter.fromJson(buffer.readUtf8Line())
+    Map<String, List<List<Map>>> result2 = adapter.fromJson(buffer.readUtf8Line())
+
+    then:
+    result1["traces"][0].size() == sampleTrace.size()
+    result2["traces"][0].each {
+      assert it["service"] == "fakeService"
+      assert it["name"] == "fakeOperation"
+      assert it["resource"] == "fakeResource"
+      assert it["type"] == "fakeType"
+      assert it["trace_id"] instanceof Number
+      assert it["span_id"] instanceof Number
+      assert it["parent_id"] instanceof Number
+      assert it["start"] instanceof Number
+      assert it["duration"] instanceof Number
+      assert it["error"] == 0
+      assert it["metrics"] instanceof Map
+      assert it["meta"] instanceof Map
+    }
+    result2["traces"][0].size() == secondTrace.size()
+    result2["traces"][0].each {
+      assert it["service"] == "fakeService"
+      assert it["name"] == "fakeOperation"
+      assert it["resource"] == "fakeResource"
+      assert it["type"] == "fakeType"
+      assert it["trace_id"] instanceof Number
+      assert it["span_id"] instanceof Number
+      assert it["parent_id"] instanceof Number
+      assert it["start"] instanceof Number
+      assert it["duration"] instanceof Number
+      assert it["error"] == 0
+      assert it["metrics"] instanceof Map
+      assert it["meta"] instanceof Map
+    }
+  }
 }
