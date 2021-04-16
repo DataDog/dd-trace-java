@@ -11,6 +11,7 @@ jobs:
       - name: Download from Sonatype
         run: |
           wget https://oss.sonatype.org/service/local/repositories/releases/content/com/datadoghq/dd-java-agent/$VERSION/dd-java-agent-$VERSION.jar
+          cp dd-java-agent-$VERSION.jar dd-java-agent.jar
       - name: Upload to release
         uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # 1.0.2
         env:
@@ -19,6 +20,15 @@ jobs:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: dd-java-agent-${{ env.VERSION }}.jar
           asset_name: dd-java-agent-${{ env.VERSION }}.jar
+          asset_content_type: application/java-archive
+      - name: Upload to release unversioned
+        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # 1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: dd-java-agent.jar
+          asset_name: dd-java-agent.jar
           asset_content_type: application/java-archive
   dd-trace-api:
     runs-on: ubuntu-latest
