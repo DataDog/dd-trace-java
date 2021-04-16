@@ -12,20 +12,11 @@ public class ScopeEventFactory implements ScopeListener {
   private final ThreadLocal<Deque<ScopeEvent>> scopeEventStack =
       ThreadLocal.withInitial(ArrayDeque::new);
 
-  public static ScopeEventFactory instance() throws Throwable {
+  public ScopeEventFactory() {
+    ExcludedVersions.checkVersionExclusion();
     // Note: Loading ScopeEvent when ScopeEventFactory is loaded is important because it also loads
     // JFR classes - which may not be present on some JVMs
     EventType.getEventType(ScopeEvent.class);
-
-    ScopeEvent event = new ScopeEvent();
-    if (event.isEnabled()) {
-      return new ScopeEventFactory();
-    }
-    throw new RuntimeException("ScopeEvents are disabled");
-  }
-
-  private ScopeEventFactory() {
-    ExcludedVersions.checkVersionExclusion();
   }
 
   @Override
