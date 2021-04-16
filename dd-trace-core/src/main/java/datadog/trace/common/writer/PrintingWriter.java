@@ -7,6 +7,7 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,7 @@ public class PrintingWriter implements Writer {
     try {
       synchronized (sink) {
         jsonAdapter.toJson(sink, Collections.singletonMap("traces", tracesList));
+        sink.writeString("\n", StandardCharsets.UTF_8);
         sink.flush();
       }
     } catch (final IOException e) {
