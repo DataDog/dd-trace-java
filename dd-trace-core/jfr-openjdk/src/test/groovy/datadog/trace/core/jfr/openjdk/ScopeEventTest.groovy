@@ -1,6 +1,6 @@
 package datadog.trace.core.jfr.openjdk
 
-
+import datadog.trace.api.GlobalTracer
 import datadog.trace.api.config.ProfilingConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -25,6 +25,8 @@ class ScopeEventTest extends DDSpecification {
     injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
     injectSysConfig(ProfilingConfig.PROFILING_HOTSPTOTS_ENABLED, "true")
     tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    GlobalTracer.forceRegister(tracer)
+    tracer.addScopeListener(new ScopeEventFactory())
   }
 
   def cleanup() {

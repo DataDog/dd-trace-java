@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
 import datadog.trace.api.DDId;
+import datadog.trace.api.SpanCorrelation;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -87,7 +88,8 @@ public class AgentTracer {
   // Not intended to be constructed.
   private AgentTracer() {}
 
-  public interface TracerAPI extends datadog.trace.api.Tracer, AgentPropagation {
+  public interface TracerAPI
+      extends datadog.trace.api.Tracer, AgentPropagation, SpanCorrelation.Provider {
     AgentSpan startSpan(CharSequence spanName);
 
     AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
@@ -223,6 +225,11 @@ public class AgentTracer {
     @Override
     public String getSpanId() {
       return null;
+    }
+
+    @Override
+    public SpanCorrelation getSpanCorrelation() {
+      return SpanCorrelation.EMPTY;
     }
 
     @Override
