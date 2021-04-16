@@ -40,30 +40,49 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
   private final ElementMatcher<? super TypeDescription.Generic> matcher;
 
   private final boolean interfacesOnly;
+  private final boolean rejectInterfaceTargets;
+  private final boolean checkInterfaces;
   /**
    * Creates a new matcher for a super type.
    *
    * @param matcher The matcher to apply to any super type of the matched type.
    */
   public SafeHasSuperTypeMatcher(
-      final ElementMatcher<? super TypeDescription.Generic> matcher, final boolean interfacesOnly) {
+      ElementMatcher<? super TypeDescription.Generic> matcher,
+      boolean interfacesOnly,
+      boolean rejectInterfaceTargets,
+      boolean checkInterfaces) {
     this.matcher = matcher;
     this.interfacesOnly = interfacesOnly;
+    this.rejectInterfaceTargets = rejectInterfaceTargets;
+    this.checkInterfaces = checkInterfaces;
   }
 
   @Override
   public boolean matches(final T target) {
-    final Set<TypeDescription> checkedInterfaces = new HashSet<>(8);
+    boolean isInterface = target.isInterface();
+    if (rejectInterfaceTargets && isInterface) {
+      return false;
+    }
     // We do not use foreach loop and iterator interface here because we need to catch exceptions
     // in {@code getSuperClass} calls
     TypeDefinition typeDefinition = target;
-    while (typeDefinition != null) {
-      if (((!interfacesOnly || typeDefinition.isInterface())
-              && matcher.matches(typeDefinition.asGenericType()))
-          || hasInterface(typeDefinition, checkedInterfaces)) {
-        return true;
+    if (checkInterfaces) {
+      final Set<TypeDescription> checkedInterfaces = new HashSet<>(8);
+      while (typeDefinition != null) {
+        if (((!interfacesOnly || isInterface) && matcher.matches(typeDefinition.asGenericType()))
+            || (hasInterface(typeDefinition, checkedInterfaces))) {
+          return true;
+        }
+        typeDefinition = safeGetSuperClass(typeDefinition);
       }
-      typeDefinition = safeGetSuperClass(typeDefinition);
+    } else {
+      while (typeDefinition != null) {
+        if (matcher.matches(typeDefinition.asGenericType())) {
+          return true;
+        }
+        typeDefinition = safeGetSuperClass(typeDefinition);
+      }
     }
     return false;
   }

@@ -1,8 +1,5 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
-import static net.bytebuddy.matcher.ElementMatchers.isInterface;
-import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDefinition;
@@ -16,24 +13,22 @@ public class DDElementMatchers {
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> extendsClass(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return not(isInterface()).and(new SafeExtendsClassMatcher<>(new SafeErasureMatcher<>(matcher)));
+    return new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), false, true, false);
   }
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> implementsInterface(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return not(isInterface())
-        .and(new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), true));
+    return new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), true, true, true);
   }
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), true);
+    return new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), true, false, true);
   }
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> safeHasSuperType(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return not(isInterface())
-        .and(new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), false));
+    return new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), false, true, true);
   }
 
   // TODO: add javadoc

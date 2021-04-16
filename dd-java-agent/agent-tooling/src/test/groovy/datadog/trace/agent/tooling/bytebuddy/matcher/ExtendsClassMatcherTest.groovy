@@ -7,7 +7,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.F
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.G
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
-import net.bytebuddy.jar.asm.Opcodes
 import spock.lang.Shared
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass
@@ -47,7 +46,7 @@ class ExtendsClassMatcherTest extends DDSpecification {
     then:
     !result // default to false
     noExceptionThrown()
-    1 * type.getModifiers() >> Opcodes.ACC_ABSTRACT
+    1 * type.isInterface() >> false
     1 * type.asGenericType() >> typeGeneric
     1 * type.getTypeName() >> "type-name"
     1 * typeGeneric.asErasure() >> { throw new Exception("asErasure exception") }
