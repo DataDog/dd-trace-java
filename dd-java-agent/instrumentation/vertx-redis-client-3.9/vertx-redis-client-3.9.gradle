@@ -1,0 +1,32 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'io.vertx'
+    module = 'vertx-redis-client'
+    versions = '[3.9.0,4)'
+    assertInverse = true
+  }
+}
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  main_java8CompileOnly group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'
+
+  testCompile group: 'io.vertx', name: 'vertx-redis-client', version: '3.9.0'
+  testCompile group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
+
+  latestDepTestCompile group: 'io.vertx', name: 'vertx-redis-client', version: '3.9+'
+}
