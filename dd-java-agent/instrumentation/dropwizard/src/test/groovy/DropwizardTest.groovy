@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -10,7 +11,6 @@ import io.dropwizard.setup.Bootstrap
 import io.dropwizard.setup.Environment
 import io.dropwizard.testing.ConfigOverride
 import io.dropwizard.testing.DropwizardTestSupport
-import spock.lang.Retry
 
 import javax.ws.rs.GET
 import javax.ws.rs.HeaderParam
@@ -25,17 +25,44 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-// Work around for: address already in use
-@Retry(count = 5, delay = 100)
 class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
 
+  class DropwizardServer implements HttpServer {
+    def port = 0
+    final DropwizardTestSupport testSupport
+
+    DropwizardServer() {
+      testSupport = new DropwizardTestSupport(testApp(),
+        null,
+        ConfigOverride.config("server.applicationConnectors[0].port", "0"))
+    }
+
+    @Override
+    void start() {
+      testSupport.before()
+      port = testSupport.localPort
+      assert port > 0
+    }
+
+    @Override
+    void stop() {
+      testSupport.after()
+    }
+
+    @Override
+    URI address() {
+      return new URI("http://localhost:$port/")
+    }
+
+    @Override
+    String toString() {
+      return this.class.name
+    }
+  }
+
   @Override
-  DropwizardTestSupport startServer(int port) {
-    def testSupport = new DropwizardTestSupport(testApp(),
-      null,
-      ConfigOverride.config("server.applicationConnectors[0].port", "$port"))
-    testSupport.before()
-    return testSupport
+  HttpServer server() {
+    return new DropwizardServer()
   }
 
   Class testApp() {
@@ -44,11 +71,6 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
 
   Class testResource() {
     ServiceResource
-  }
-
-  @Override
-  void stopServer(DropwizardTestSupport testSupport) {
-    testSupport.after()
   }
 
   @Override
