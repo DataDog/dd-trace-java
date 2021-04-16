@@ -1,13 +1,16 @@
 package server
 
-import datadog.trace.agent.test.base.HttpServerTest
+import java.net.{InetSocketAddress, URI}
+
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
+import datadog.trace.agent.test.base.{HttpServer, HttpServerTest}
 import play.api.mvc.{Action, Handler, Results}
 import play.api.test.{FakeApplication, TestServer}
+import play.core.server.NettyServer
 
 import scala.concurrent.Future
 
-object AsyncServer {
+class AsyncServer extends HttpServer {
   val routes: PartialFunction[(String, String), Handler] = {
     case ("GET", "/success") =>
       Action.async { request =>
@@ -74,10 +77,27 @@ object AsyncServer {
       }
   }
 
-  def server(port: Int): TestServer = {
-    TestServer(
-      port,
-      FakeApplication(withGlobal = Some(new Settings()), withRoutes = routes)
-    )
+  private val server: TestServer = TestServer(
+    0,
+    FakeApplication(withGlobal = Some(new Settings()), withRoutes = routes)
+  )
+  private var port: Int = 0
+
+  override def start(): Unit = {
+    server.start()
+    val serverField = server.getClass.getDeclaredField("server")
+    serverField.setAccessible(true)
+    val nettyServer = serverField.get(server).asInstanceOf[NettyServer]
+    port = nettyServer.HTTP.get._2.getLocalAddress
+      .asInstanceOf[InetSocketAddress]
+      .getPort
+  }
+
+  override def stop(): Unit = {
+    server.stop()
+  }
+
+  override def address(): URI = {
+    new URI("http://localhost:" + port + "/")
   }
 }

@@ -1,6 +1,7 @@
 package server
 
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -14,16 +15,10 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 class PlayServerTest extends HttpServerTest<TestServer> {
-  @Override
-  TestServer startServer(int port) {
-    def server = SyncServer.server(port)
-    server.start()
-    return server
-  }
 
   @Override
-  void stopServer(TestServer server) {
-    server.stop()
+  HttpServer server() {
+    return new SyncServer()
   }
 
   @Override

@@ -1,3 +1,5 @@
+import java.net.URI
+
 import AkkaHttpTestWebServer.Binder
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
@@ -5,19 +7,13 @@ import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model.HttpMethods.GET
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{
-  Directive,
-  Directive0,
-  ExceptionHandler,
-  Route,
-  RouteResult
-}
+import akka.http.scaladsl.server._
 import akka.http.scaladsl.settings.ServerSettings
 import akka.http.scaladsl.util.FastFuture.EnhancedFuture
 import akka.stream.{ActorMaterializer, Materializer}
 import com.typesafe.config.Config
-import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
+import datadog.trace.agent.test.base.{HttpServer, HttpServerTest}
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -25,26 +21,35 @@ import groovy.lang.Closure
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.control.NonFatal
 import scala.language.postfixOps
+import scala.util.control.NonFatal
 
-class AkkaHttpTestWebServer(port: Int, binder: Binder) {
+class AkkaHttpTestWebServer(binder: Binder) extends HttpServer {
   implicit val system = {
-    val name = s"${binder.name}-$port"
+    val name = s"${binder.name}"
     binder.config match {
       case None         => ActorSystem(name)
       case Some(config) => ActorSystem(name, config)
     }
   }
   implicit val materializer = ActorMaterializer()
-  private val bindingFuture: Future[ServerBinding] =
-    Await.ready(binder.bind(port), 10 seconds)
+  private var port: Int = 0
+  private var portBinding: Future[ServerBinding] = null
 
-  def stop(): Unit = {
+  override def start(): Unit = {
+    portBinding = Await.ready(binder.bind(0), 10 seconds)
+    port = portBinding.value.get.get.localAddress.getPort
+  }
+
+  override def stop(): Unit = {
     import materializer.executionContext
-    bindingFuture
+    portBinding
       .flatMap(_.unbind())
       .onComplete(_ => system.terminate())
+  }
+
+  override def address(): URI = {
+    new URI("http://localhost:" + port + "/")
   }
 }
 
@@ -52,7 +57,9 @@ object AkkaHttpTestWebServer {
 
   trait Binder {
     def name: String
+
     def config: Option[Config] = None
+
     def bind(port: Int)(
         implicit system: ActorSystem,
         materializer: Materializer
@@ -61,6 +68,7 @@ object AkkaHttpTestWebServer {
 
   val BindAndHandle: Binder = new Binder {
     override def name: String = "bind-and-handle"
+
     override def bind(port: Int)(
         implicit system: ActorSystem,
         materializer: Materializer
@@ -72,6 +80,7 @@ object AkkaHttpTestWebServer {
 
   val BindAndHandleAsyncWithRouteAsyncHandler: Binder = new Binder {
     override def name: String = "bind-and-handle-async-with-route-async-handler"
+
     override def bind(port: Int)(
         implicit system: ActorSystem,
         materializer: Materializer
@@ -83,6 +92,7 @@ object AkkaHttpTestWebServer {
 
   val BindAndHandleSync: Binder = new Binder {
     override def name: String = "bind-and-handle-sync"
+
     override def bind(port: Int)(
         implicit system: ActorSystem,
         materializer: Materializer
@@ -93,6 +103,7 @@ object AkkaHttpTestWebServer {
 
   val BindAndHandleAsync: Binder = new Binder {
     override def name: String = "bind-and-handle-async"
+
     override def bind(port: Int)(
         implicit system: ActorSystem,
         materializer: Materializer
@@ -104,6 +115,7 @@ object AkkaHttpTestWebServer {
 
   val BindAndHandleAsyncHttp2: Binder = new Binder {
     override def name: String = "bind-and-handle-async-http2"
+
     override def bind(port: Int)(
         implicit system: ActorSystem,
         materializer: Materializer
@@ -136,6 +148,7 @@ object AkkaHttpTestWebServer {
   private def withController: Directive0 = Directive[Unit] { inner => ctx =>
     def handleException: PartialFunction[Throwable, Future[RouteResult]] =
       exceptionHandler andThen (_(ctx.withAcceptAll))
+
     val uri = ctx.request.uri
     val endpoint = HttpServerTest.ServerEndpoint.forPath(uri.path.toString())
     HttpServerTest.controller(
@@ -188,7 +201,8 @@ object AkkaHttpTestWebServer {
         } ~ path("fing" / IntNumber) { id =>
           // force the response to happen on another thread or in another context
           onSuccess(Future {
-            Thread.sleep(10); id
+            Thread.sleep(10);
+            id
           }) { fid =>
             val traceId = AgentTracer.activeSpan().getTraceId
             complete(s"fong $fid -> $traceId")
@@ -245,7 +259,9 @@ object AkkaHttpTestWebServer {
   def asyncHandler(
       implicit ec: ExecutionContext
   ): HttpRequest => Future[HttpResponse] = { request =>
-    Future { syncHandler(request) }
+    Future {
+      syncHandler(request)
+    }
   }
 
   def enableHttp2(serverSettings: ServerSettings): ServerSettings = {

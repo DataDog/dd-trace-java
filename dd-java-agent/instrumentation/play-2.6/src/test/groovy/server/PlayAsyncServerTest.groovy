@@ -1,11 +1,10 @@
 package server
 
+import datadog.trace.agent.test.base.HttpServer
 import play.BuiltInComponents
-import play.Mode
 import play.libs.concurrent.HttpExecution
 import play.mvc.Results
 import play.routing.RoutingDsl
-import play.server.Server
 import spock.lang.Shared
 
 import java.util.concurrent.CompletableFuture
@@ -21,16 +20,17 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 
 class PlayAsyncServerTest extends PlayServerTest {
   @Shared
-  def executor = Executors.newCachedThreadPool()
+  def executor
 
   def cleanupSpec() {
     executor.shutdown()
   }
 
   @Override
-  Server startServer(int port) {
+  HttpServer server() {
+    executor = Executors.newCachedThreadPool()
     def execContext = HttpExecution.fromThread(executor)
-    return Server.forRouter(Mode.TEST, port) { BuiltInComponents components ->
+    return new PlayHttpServer({ BuiltInComponents components ->
       RoutingDsl.fromComponents(components)
         .GET(SUCCESS.getPath()).routeAsync({
           CompletableFuture.supplyAsync({
@@ -75,6 +75,6 @@ class PlayAsyncServerTest extends PlayServerTest {
           }, execContext)
         } as Supplier)
         .build()
-    }
+    })
   }
 }

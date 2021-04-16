@@ -1,12 +1,10 @@
 package server
 
-import play.api.test.TestServer
+import datadog.trace.agent.test.base.HttpServer
 
 class PlayAsyncServerTest extends PlayServerTest {
   @Override
-  TestServer startServer(int port) {
-    def server = AsyncServer.server(port)
-    server.start()
-    return server
+  HttpServer server() {
+    return new AsyncServer()
   }
 }
