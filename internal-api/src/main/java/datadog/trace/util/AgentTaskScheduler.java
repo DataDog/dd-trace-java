@@ -183,6 +183,17 @@ public final class AgentTaskScheduler implements Executor {
     return shutdown;
   }
 
+  public static void initialize() {
+    AgentTaskScheduler.INSTANCE.dummy();
+  }
+
+  private void dummy() {
+    /*
+     * Dummy empty method body used only to make compiler happy when initializing this class by accessing
+     * the static INSTANCE field.
+     */
+  }
+
   public void shutdown(final long timeout, final TimeUnit unit) {
     shutdown = true;
     final Thread t = worker;

@@ -87,6 +87,11 @@ public class Agent {
           };
     }
 
+    /*
+     * Force the task scheduler init early. The exception profiling instrumentation may get in way of the initialization
+     * when it will happen after the class transformers were added.
+     */
+    AgentTaskScheduler.initialize();
     startDatadogAgent(inst, bootstrapURL);
 
     final EnumSet<Library> libraries = detectLibraries(log);
