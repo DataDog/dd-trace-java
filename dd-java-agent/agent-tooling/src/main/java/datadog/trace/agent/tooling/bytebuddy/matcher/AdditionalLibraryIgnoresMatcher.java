@@ -287,7 +287,9 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
           || name.equals("org.h2.util.MathUtils$1")
           || name.equals("org.h2.store.FileLock")
           || name.equals("org.h2.engine.DatabaseCloser")
-          || name.equals("org.h2.engine.OnExitDatabaseCloser")) {
+          || name.equals("org.h2.engine.OnExitDatabaseCloser")
+          || name.equals("org.h2.tools.Server")
+          || name.equals("org.h2.store.WriterThread")) {
         return false;
       }
       return true;

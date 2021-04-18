@@ -128,6 +128,7 @@ include ':dd-java-agent:instrumentation:hibernate:core-4.0'
 include ':dd-java-agent:instrumentation:hibernate:core-4.3'
 include ':dd-java-agent:instrumentation:http-url-connection'
 include ':dd-java-agent:instrumentation:hystrix-1.4'
+include ':dd-java-agent:instrumentation:ignite-2.0'
 include ':dd-java-agent:instrumentation:jax-rs-annotations-1'
 include ':dd-java-agent:instrumentation:jax-rs-annotations-2'
 include ':dd-java-agent:instrumentation:jax-rs-annotations-2:filter-jersey'
@@ -236,3 +237,4 @@ def setBuildFile(project) {
 }
 
 setBuildFile(rootProject)
+
