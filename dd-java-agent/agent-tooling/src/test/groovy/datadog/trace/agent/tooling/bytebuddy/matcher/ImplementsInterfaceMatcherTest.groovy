@@ -9,7 +9,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.G
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.description.type.TypeList
-import net.bytebuddy.jar.asm.Opcodes
 import spock.lang.Shared
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface
@@ -44,7 +43,6 @@ class ImplementsInterfaceMatcherTest extends DDSpecification {
   def "test exception getting interfaces"() {
     setup:
     def type = Mock(TypeDescription)
-    def typeGeneric = Mock(TypeDescription.Generic)
     def matcher = implementsInterface(named(Object.name))
 
     when:
@@ -53,11 +51,7 @@ class ImplementsInterfaceMatcherTest extends DDSpecification {
     then:
     !result // default to false
     noExceptionThrown()
-    1 * type.getModifiers() >> Opcodes.ACC_ABSTRACT
-    1 * type.isInterface() >> true
-    1 * type.asGenericType() >> typeGeneric
-    1 * typeGeneric.asErasure() >> { throw new Exception("asErasure exception") }
-    1 * typeGeneric.getTypeName() >> "typeGeneric-name"
+    1 * type.isInterface() >> false
     1 * type.getInterfaces() >> { throw new Exception("getInterfaces exception") }
     1 * type.getSuperClass() >> { throw new Exception("getSuperClass exception") }
     2 * type.getTypeName() >> "type-name"
@@ -67,7 +61,6 @@ class ImplementsInterfaceMatcherTest extends DDSpecification {
   def "test traversal exceptions"() {
     setup:
     def type = Mock(TypeDescription)
-    def typeGeneric = Mock(TypeDescription.Generic)
     def matcher = implementsInterface(named(Object.name))
     def interfaces = Mock(TypeList.Generic)
     def it = new ThrowOnFirstElement()
@@ -78,11 +71,7 @@ class ImplementsInterfaceMatcherTest extends DDSpecification {
     then:
     !result // default to false
     noExceptionThrown()
-    1 * type.getModifiers() >> Opcodes.ACC_ABSTRACT
-    1 * type.isInterface() >> true
-    1 * type.asGenericType() >> typeGeneric
-    1 * typeGeneric.asErasure() >> { throw new Exception("asErasure exception") }
-    1 * typeGeneric.getTypeName() >> "typeGeneric-name"
+    1 * type.isInterface() >> false
     1 * type.getInterfaces() >> interfaces
     1 * interfaces.iterator() >> it
     2 * type.getTypeName() >> "type-name"

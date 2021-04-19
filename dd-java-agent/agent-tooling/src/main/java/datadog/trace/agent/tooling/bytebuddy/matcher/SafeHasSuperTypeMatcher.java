@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeTypeDefinitionName;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeErasureMatcher.safeAsErasure;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashSet;
@@ -37,35 +36,59 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
   private static final Logger log = LoggerFactory.getLogger(SafeHasSuperTypeMatcher.class);
 
   /** The matcher to apply to any super type of the matched type. */
-  private final ElementMatcher<? super TypeDescription.Generic> matcher;
+  private final ElementMatcher<? super TypeDescription> matcher;
 
   private final boolean interfacesOnly;
+  private final boolean rejectInterfaceTargets;
+  private final boolean checkInterfaces;
   /**
    * Creates a new matcher for a super type.
    *
    * @param matcher The matcher to apply to any super type of the matched type.
    */
   public SafeHasSuperTypeMatcher(
-      final ElementMatcher<? super TypeDescription.Generic> matcher, final boolean interfacesOnly) {
+      ElementMatcher<? super TypeDescription> matcher,
+      boolean interfacesOnly,
+      boolean rejectInterfaceTargets,
+      boolean checkInterfaces) {
     this.matcher = matcher;
     this.interfacesOnly = interfacesOnly;
+    this.rejectInterfaceTargets = rejectInterfaceTargets;
+    this.checkInterfaces = checkInterfaces;
   }
 
   @Override
   public boolean matches(final T target) {
-    final Set<TypeDescription> checkedInterfaces = new HashSet<>(8);
+    boolean isInterface = target.isInterface();
+    if (rejectInterfaceTargets && isInterface) {
+      return false;
+    }
     // We do not use foreach loop and iterator interface here because we need to catch exceptions
     // in {@code getSuperClass} calls
     TypeDefinition typeDefinition = target;
-    while (typeDefinition != null) {
-      if (((!interfacesOnly || typeDefinition.isInterface())
-              && matcher.matches(typeDefinition.asGenericType()))
-          || hasInterface(typeDefinition, checkedInterfaces)) {
-        return true;
+    if (checkInterfaces) {
+      final Set<TypeDescription> checkedInterfaces = new HashSet<>(8);
+      while (typeDefinition != null) {
+        if (((!interfacesOnly || isInterface) && erasureMatches(typeDefinition.asGenericType()))
+            || (hasInterface(typeDefinition, checkedInterfaces))) {
+          return true;
+        }
+        typeDefinition = safeGetSuperClass(typeDefinition);
       }
-      typeDefinition = safeGetSuperClass(typeDefinition);
+    } else {
+      while (typeDefinition != null) {
+        if (erasureMatches(typeDefinition.asGenericType())) {
+          return true;
+        }
+        typeDefinition = safeGetSuperClass(typeDefinition);
+      }
     }
     return false;
+  }
+
+  private boolean erasureMatches(TypeDescription.Generic typeDefinition) {
+    TypeDescription erasure = safeAsErasure(typeDefinition);
+    return null != erasure && matcher.matches(erasure);
   }
 
   /**
@@ -81,7 +104,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
       final TypeDescription erasure = safeAsErasure(interfaceType);
       if (erasure != null) {
         if (checkedInterfaces.add(interfaceType.asErasure())
-            && (matcher.matches(interfaceType.asGenericType())
+            && (erasureMatches(interfaceType.asGenericType())
                 || hasInterface(interfaceType, checkedInterfaces))) {
           return true;
         }
@@ -193,6 +216,21 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
             safeTypeDefinitionName(typeDefinition),
             e.getMessage());
       }
+    }
+  }
+
+  static TypeDescription safeAsErasure(final TypeDefinition typeDefinition) {
+    try {
+      return typeDefinition.asErasure();
+    } catch (final Exception e) {
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "{} trying to get erasure for target {}: {}",
+            e.getClass().getSimpleName(),
+            safeTypeDefinitionName(typeDefinition),
+            e.getMessage());
+      }
+      return null;
     }
   }
 }

@@ -9,11 +9,9 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.G
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.description.type.TypeList
-import net.bytebuddy.jar.asm.Opcodes
 import spock.lang.Shared
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
 
 class HasInterfaceMatcherTest extends DDSpecification {
@@ -46,7 +44,7 @@ class HasInterfaceMatcherTest extends DDSpecification {
     setup:
     def type = Mock(TypeDescription)
     def typeGeneric = Mock(TypeDescription.Generic)
-    def matcher = implementsInterface(named(Object.name))
+    def matcher = hasInterface(named(Object.name))
     def interfaces = Mock(TypeList.Generic)
     def it = new ThrowOnFirstElement()
 
@@ -56,7 +54,6 @@ class HasInterfaceMatcherTest extends DDSpecification {
     then:
     !result // default to false
     noExceptionThrown()
-    1 * type.getModifiers() >> Opcodes.ACC_ABSTRACT
     1 * type.isInterface() >> true
     1 * type.asGenericType() >> typeGeneric
     1 * typeGeneric.asErasure() >> { throw new Exception("asErasure exception") }
