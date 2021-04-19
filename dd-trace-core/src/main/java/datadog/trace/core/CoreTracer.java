@@ -652,20 +652,16 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @SuppressForbidden
   private static void createScopeEventFactory(ContinuableScopeManager continuableScopeManager) {
-    if (Config.get().isProfilingHotspotsEnabled()) {
-      try {
-        ExtendedScopeListener scopeListener =
-            (ExtendedScopeListener)
-                Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
-                    .getDeclaredConstructor()
-                    .newInstance();
+    try {
+      ExtendedScopeListener scopeListener =
+          (ExtendedScopeListener)
+              Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
+                  .getDeclaredConstructor()
+                  .newInstance();
 
-        continuableScopeManager.addExtendedScopeListener(scopeListener);
-      } catch (final Throwable e) {
-        log.debug("Profiling code hotspots are not available. {}", e.getMessage());
-      }
-    } else {
-      log.debug("Profiling code hotspots are disabled");
+      continuableScopeManager.addExtendedScopeListener(scopeListener);
+    } catch (final Throwable e) {
+      log.debug("Profiling code hotspots are not available. {}", e.getMessage());
     }
   }
 
