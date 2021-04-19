@@ -13,6 +13,7 @@ class DDIdTest extends DDSpecification {
     ddid.toLong() == longId
     ddid.toString() == expectedString
     ddid.toHexString() == expectedHex
+    ddid.toHexStringOrOriginal() == expectedHex
 
     where:
     longId         | expectedId                | expectedString         | expectedHex
@@ -74,6 +75,7 @@ class DDIdTest extends DDSpecification {
       hexId = hexId.replaceAll("^0+", "") // drop leading zeros
     }
     ddid.toHexString() == hexId
+    ddid.toHexStringOrOriginal() == hexId
     ddid.toHexStringPadded(16) == padded16
     ddid.toHexStringPadded(32) == padded32
 
@@ -120,5 +122,45 @@ class DDIdTest extends DDSpecification {
 
     where:
     idGenerator << IdGenerationStrategy.values()
+  }
+
+  def "convert ids from/to hex String while keeping the original"() {
+    when:
+    final ddid = DDId.fromHexWithOriginal(hexId)
+
+    then:
+    ddid == expectedId
+    ddid.toHexStringOrOriginal() == hexId
+
+    where:
+    hexId                    | expectedId
+    "0"                      | DDId.ZERO
+    "1"                      | DDId.ONE
+    "f" * 16                 | DDId.MAX
+    "7" + "f" * 15           | DDId.from(Long.MAX_VALUE)
+    "8" + "0" * 15           | DDId.from(Long.MIN_VALUE)
+    "0" * 4 + "8" + "0" * 15 | DDId.from(Long.MIN_VALUE)
+    "cafebabe"               | DDId.from(3405691582)
+    "123456789abcdef"        | DDId.from(81985529216486895)
+  }
+
+  def "convert ids from/to hex String and truncate to 64 bits while keeping the original"() {
+    when:
+    final ddid = DDId.fromHexTruncatedWithOriginal(hexId)
+
+    then:
+    ddid == expectedId
+    ddid.toHexStringOrOriginal() == hexId
+
+    where:
+    hexId                          | expectedId
+    "000"                          | DDId.ZERO
+    "0001"                         | DDId.ONE
+    "f" * 16                       | DDId.MAX
+    "7" + "f" * 15                 | DDId.from(Long.MAX_VALUE)
+    "8" + "0" * 15                 | DDId.from(Long.MIN_VALUE)
+    "0" * 4 + "8" + "0" * 15       | DDId.from(Long.MIN_VALUE)
+    "1" * 8 + "0" * 8 + "cafebabe" | DDId.from(3405691582)
+    "1" * 12 + "0123456789abcdef"  | DDId.from(81985529216486895)
   }
 }
