@@ -467,7 +467,8 @@ public class Agent {
                       (ScopeListener)
                           AGENT_CLASSLOADER
                               .loadClass("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
-                              .getDeclaredConstructor().newInstance();
+                              .getDeclaredConstructor()
+                              .newInstance();
                   tracer.addScopeListener(scopeListener);
                   log.debug("Scope event factory {} has been registered", scopeListener);
                 } catch (Throwable e) {

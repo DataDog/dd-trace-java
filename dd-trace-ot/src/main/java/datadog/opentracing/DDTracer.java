@@ -3,7 +3,6 @@ package datadog.opentracing;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.api.SpanCorrelation;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -38,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * DDTracer implements the <code>io.opentracing.Tracer</code> interface to make it easy to send
  * traces and spans to Datadog using the OpenTracing API.
  */
-public class DDTracer implements Tracer, datadog.trace.api.Tracer, SpanCorrelation.Provider {
+public class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
   private static final Logger log = LoggerFactory.getLogger(DDTracer.class);
 
@@ -405,11 +404,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, SpanCorrelati
   @Override
   public String getSpanId() {
     return tracer.getSpanId();
-  }
-
-  @Override
-  public SpanCorrelation getSpanCorrelation() {
-    return tracer.getSpanCorrelation();
   }
 
   @Override

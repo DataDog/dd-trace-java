@@ -26,13 +26,4 @@ public class CorrelationIdentifier {
   public static String getSpanId() {
     return GlobalTracer.get().getSpanId();
   }
-
-  public static SpanCorrelation get() {
-    Tracer tracer = GlobalTracer.get();
-    if (tracer instanceof SpanCorrelation.Provider) {
-      SpanCorrelation.Provider provider = (SpanCorrelation.Provider) tracer;
-      return provider.getSpanCorrelation();
-    }
-    return SpanCorrelation.EMPTY;
-  }
 }

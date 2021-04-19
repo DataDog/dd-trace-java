@@ -8,7 +8,6 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.SpanCorrelation;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -621,16 +620,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public SpanCorrelation getSpanCorrelation() {
-    final AgentSpan activeSpan = activeSpan();
-    if (activeSpan instanceof DDSpan) {
-      AgentSpan.Context ctx = activeSpan.context();
-      return new SpanCorrelationImpl(ctx.getTraceId(), ctx.getSpanId());
-    }
-    return SpanCorrelation.EMPTY;
-  }
-
-  @Override
   public boolean addTraceInterceptor(final TraceInterceptor interceptor) {
     return interceptors.add(interceptor);
   }
@@ -654,21 +643,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void flush() {
     pendingTraceBuffer.flush();
     writer.flush();
-  }
-
-  @SuppressForbidden
-  private static void createScopeEventFactory(ContinuableScopeManager continuableScopeManager) {
-    try {
-      ExtendedScopeListener scopeListener =
-          (ExtendedScopeListener)
-              Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
-                  .getDeclaredConstructor()
-                  .newInstance();
-
-      continuableScopeManager.addExtendedScopeListener(scopeListener);
-    } catch (final Throwable e) {
-      log.debug("Profiling code hotspots are not available. {}", e.getMessage());
-    }
   }
 
   private static StatsDClient createStatsDClient(final Config config) {

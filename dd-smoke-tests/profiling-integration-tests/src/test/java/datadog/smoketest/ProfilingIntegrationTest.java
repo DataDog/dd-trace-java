@@ -110,7 +110,7 @@ class ProfilingIntegrationTest {
   @Test
   @DisplayName("Test continuous recording - no jmx delay")
   public void testContinuousRecording_no_jmx_delay(TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(0), testInfo, 5);
+    testWithRetry(() -> testContinuousRecording(0), testInfo, 0);
   }
 
   @Test
@@ -391,6 +391,7 @@ class ProfilingIntegrationTest {
             "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
             "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
             "-Ddd.profiling.url=http://localhost:" + profilerPort,
+            "-Ddd.profiling.hotspots.enabled=true",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
             "-XX:+IgnoreUnrecognizedVMOptions",
