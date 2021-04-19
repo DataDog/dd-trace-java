@@ -51,6 +51,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
       boolean interfacesOnly,
       boolean rejectInterfaceTargets,
       boolean checkInterfaces) {
+    assert !(matcher instanceof SafeHasSuperTypeMatcher);
     this.matcher = matcher;
     this.interfacesOnly = interfacesOnly;
     this.rejectInterfaceTargets = rejectInterfaceTargets;
