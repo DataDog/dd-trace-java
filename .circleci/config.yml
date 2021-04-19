@@ -59,13 +59,6 @@ commands:
           command: |
             CIRCLE_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
 
-            if [[ -n "${CIRCLE_PR_NUMBER}" ]]
-            then
-              FETCH_REFS="${FETCH_REFS} +refs/pull/${CIRCLE_PR_NUMBER}/merge:pr/${CIRCLE_PR_NUMBER}/merge"
-              git fetch -u origin ${FETCH_REFS}
-              git checkout "pr/${CIRCLE_PR_NUMBER}/merge"
-            fi
-
             # Have the caches rotate every day ("Year-Month-Day")
             BASE_CACHE_ID=$(date -u +"%Y-%m-%d")
             if [ "$CIRCLE_BRANCH" == "master" ];
