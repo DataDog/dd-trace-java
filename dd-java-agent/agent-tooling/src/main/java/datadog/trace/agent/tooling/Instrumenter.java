@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling;
 
+import static datadog.trace.agent.tooling.bytebuddy.DDTransformers.defaultTransformers;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.failSafe;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.emptyMap;
@@ -8,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
-import datadog.trace.agent.tooling.bytebuddy.DDTransformers;
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.agent.tooling.context.InstrumentationContextProvider;
@@ -146,23 +146,31 @@ public interface Instrumenter {
       lazyInit();
 
       AgentBuilder.Identified.Extendable agentBuilder =
-          parentAgentBuilder
-              .type(
-                  failSafe(
-                      typeMatcher(),
-                      "Instrumentation type matcher unexpected exception: " + getClass().getName()),
-                  failSafe(
-                      classLoaderMatcher(),
-                      "Instrumentation class loader matcher unexpected exception: "
-                          + getClass().getName()))
-              .and(NOT_DECORATOR_MATCHER)
-              .and(new MuzzleMatcher())
-              .transform(DDTransformers.defaultTransformers());
+          filter(parentAgentBuilder).transform(defaultTransformers());
       agentBuilder = injectHelperClasses(agentBuilder);
       agentBuilder = contextProvider.instrumentationTransformer(agentBuilder);
       agentBuilder = applyInstrumentationTransformers(agentBuilder);
       agentBuilder = contextProvider.additionalInstrumentation(agentBuilder);
       return agentBuilder;
+    }
+
+    private AgentBuilder.Identified.Narrowable filter(AgentBuilder agentBuilder) {
+      final AgentBuilder.Identified.Narrowable narrowable;
+      ElementMatcher<? super TypeDescription> typeMatcher = typeMatcher();
+      if (typeMatcher instanceof AgentBuilder.RawMatcher) {
+        narrowable = agentBuilder.type((AgentBuilder.RawMatcher) typeMatcher);
+      } else {
+        narrowable =
+            agentBuilder.type(
+                failSafe(
+                    typeMatcher,
+                    "Instrumentation type matcher unexpected exception: " + getClass().getName()),
+                failSafe(
+                    classLoaderMatcher(),
+                    "Instrumentation class loader matcher unexpected exception: "
+                        + getClass().getName()));
+      }
+      return narrowable.and(NOT_DECORATOR_MATCHER).and(new MuzzleMatcher());
     }
 
     private AgentBuilder.Identified.Extendable injectHelperClasses(
