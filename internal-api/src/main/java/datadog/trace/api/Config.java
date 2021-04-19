@@ -224,11 +224,6 @@ public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
 
-  private static final String TRACE_AGENT_URL_TEMPLATE = "http://%s:%d";
-
-  private static final String PROFILING_REMOTE_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
-  private static final String PROFILING_LOCAL_URL_TEMPLATE = "http://%s:%d/profiling/v1/input";
-
   private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
@@ -476,7 +471,7 @@ public class Config {
     }
 
     if (rebuildAgentUrl) {
-      agentUrl = String.format(TRACE_AGENT_URL_TEMPLATE, agentHost, agentPort);
+      agentUrl = "http://" + agentHost + ":" + agentPort;
     } else {
       agentUrl = agentUrlFromEnvironment;
     }
@@ -1287,10 +1282,10 @@ public class Config {
       return profilingUrl;
     } else if (profilingAgentless) {
       // when agentless profiling is turned on we send directly to our intake
-      return String.format(PROFILING_REMOTE_URL_TEMPLATE, site);
+      return "https://intake.profile." + site + "/v1/input";
     } else {
       // when profilingUrl and agentless are not set we send to the dd trace agent running locally
-      return String.format(PROFILING_LOCAL_URL_TEMPLATE, agentHost, agentPort);
+      return "http://" + agentHost + ":" + agentPort + "/profiling/v1/input";
     }
   }
 
