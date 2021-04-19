@@ -1,6 +1,8 @@
 package datadog.trace.core.jfr.openjdk;
 
 import datadog.trace.api.DDId;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.core.util.SystemAccess;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
@@ -16,6 +18,9 @@ import jdk.jfr.Timespan;
 @Category("Datadog")
 @StackTrace(false)
 public final class ScopeEvent extends Event {
+  private static final boolean COLLECT_THREAD_CPU_TIME =
+      ConfigProvider.createDefault().getBoolean(ProfilingConfig.PROFILING_HOTSPTOTS_ENABLED, false);
+
   @Label("Trace Id")
   private final long traceId;
 
@@ -36,13 +41,14 @@ public final class ScopeEvent extends Event {
     this.spanId = spanId.toLong();
 
     if (isEnabled()) {
-      cpuTimeStart = SystemAccess.getCurrentThreadCpuTime();
+      cpuTimeStart =
+          COLLECT_THREAD_CPU_TIME ? SystemAccess.getCurrentThreadCpuTime() : Long.MIN_VALUE;
       begin();
     }
   }
 
   public void addChildCpuTime(long rawCpuTime) {
-    this.childCpuTime += childCpuTime;
+    this.childCpuTime += rawCpuTime;
   }
 
   /**
@@ -55,7 +61,7 @@ public final class ScopeEvent extends Event {
   }
 
   public void finish() {
-    if (cpuTimeStart > 0) {
+    if (COLLECT_THREAD_CPU_TIME && cpuTimeStart > 0) {
       rawCpuTime = SystemAccess.getCurrentThreadCpuTime() - cpuTimeStart;
       cpuTime = rawCpuTime - childCpuTime;
     }
