@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
+import datadog.trace.agent.tooling.bytebuddy.matcher.FailSafe;
 import datadog.trace.agent.tooling.context.FieldBackedContextProvider;
 import datadog.trace.agent.tooling.context.InstrumentationContextProvider;
 import datadog.trace.agent.tooling.context.NoopContextProvider;
@@ -157,7 +158,7 @@ public interface Instrumenter {
     private AgentBuilder.Identified.Narrowable filter(AgentBuilder agentBuilder) {
       final AgentBuilder.Identified.Narrowable narrowable;
       ElementMatcher<? super TypeDescription> typeMatcher = typeMatcher();
-      if (typeMatcher instanceof AgentBuilder.RawMatcher) {
+      if (typeMatcher instanceof AgentBuilder.RawMatcher && typeMatcher instanceof FailSafe) {
         narrowable = agentBuilder.type((AgentBuilder.RawMatcher) typeMatcher);
       } else {
         narrowable =

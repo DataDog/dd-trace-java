@@ -14,7 +14,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 
 public final class NameMatchers<T extends NamedElement>
-    extends ElementMatcher.Junction.AbstractBase<T> implements AgentBuilder.RawMatcher {
+    extends ElementMatcher.Junction.AbstractBase<T> implements AgentBuilder.RawMatcher, FailSafe {
 
   private static final int NAMED = 0;
   private static final int NAME_STARTS_WITH = 1;
