@@ -28,5 +28,13 @@ final class NoOpStatsDClient implements StatsDClient {
       final String... tags) {}
 
   @Override
+  public void error(Exception error) {}
+
+  @Override
+  public int getErrorCount() {
+    return 0;
+  }
+
+  @Override
   public void close() {}
 }
