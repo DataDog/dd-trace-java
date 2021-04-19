@@ -85,9 +85,11 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
-import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 
 class ConfigTest extends DDSpecification {
+
+  static final String PREFIX = "dd."
+
   @Rule
   public final FixedCapturedEnvironment fixedCapturedEnvironment = new FixedCapturedEnvironment()
 
@@ -913,7 +915,11 @@ class ConfigTest extends DDSpecification {
     "key 1!:va|ue_1,"                                             | ["key 1!": "va|ue_1"]
     "key 1!:va|ue_1 "                                             | ["key 1!": "va|ue_1"]
     " key1 :value1 ,\t key2:  value2"                             | [key1: "value1", key2: "value2"]
+    // allowing this feels inconsistent
     "a:b,c,d"                                                     | [a: "b,c,d"]
+    // see above
+    "a:b,c,d,k:v"                                                 | [:]
+    "key1 :value1  \t key2:  value2"                              | [key1: "value1", key2: "value2"]
     "dyno:web.1 dynotype:web buildpackversion:dev appname:******" | ["dyno": "web.1", "dynotype": "web", "buildpackversion": "dev", "appname": "******"]
     // Invalid strings:
     ""                                                            | [:]
@@ -921,10 +927,14 @@ class ConfigTest extends DDSpecification {
     "a"                                                           | [:]
     "a,1"                                                         | [:]
     "in:val:id"                                                   | [:]
+    "a:b,in:val:id,x:y"                                           | [:]
     "a:b:c:d"                                                     | [:]
     "!a"                                                          | [:]
-    // ambiguous - is properties are space separated they must be trimmed
-    "key1 :value1  \t key2:  value2"                              | [:]
+    "    "                                                        | [:]
+    ",,,,"                                                        | [:]
+    ":,:,:,:,"                                                    | [:]
+    ": : : : "                                                    | [:]
+    "::::"                                                        | [:]
     // spotless:on
   }
 

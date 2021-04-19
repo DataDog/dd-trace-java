@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,11 +18,6 @@ import org.slf4j.LoggerFactory;
 final class ConfigConverter {
 
   private static final Logger log = LoggerFactory.getLogger(ConfigConverter.class);
-
-  private static final Pattern COMMA_SEPARATED =
-      Pattern.compile("(([^,:]+:[^,:]*,)*([^,:]+:[^,:]*),?)?");
-  private static final Pattern SPACE_SEPARATED = Pattern.compile("((\\S+:\\S*)\\s+)*(\\S+:\\S*)?");
-  private static final Pattern ILLEGAL_SPACE_SEPARATED = Pattern.compile("(:\\S+:)+");
 
   private static final ValueOfLookup LOOKUP = new ValueOfLookup();
 
@@ -79,44 +73,53 @@ final class ConfigConverter {
     if (trimmed.isEmpty()) {
       return Collections.emptyMap();
     }
-    if (COMMA_SEPARATED.matcher(trimmed).matches()) {
-      return parseMap(str, settingName, ",");
-    }
-    if (SPACE_SEPARATED.matcher(trimmed).matches()
-        && !ILLEGAL_SPACE_SEPARATED.matcher(trimmed).find()) {
-      return parseMap(str, settingName, "\\s+");
-    }
-    log.warn(
-        "Invalid config for {}: '{}'. Must match 'key1:value1,key2:value2' or 'key1:value1 key2:value2'.",
-        settingName,
-        str);
-    return Collections.emptyMap();
-  }
-
-  @SuppressForbidden
-  private static Map<String, String> parseMap(
-      final String str, final String settingName, final String separator) {
-    final String[] tokens = str.split(separator);
-    final Map<String, String> map = newHashMap(tokens.length);
-
-    for (final String token : tokens) {
-      final String[] keyValue = token.split(":", 2);
-      if (keyValue.length == 2) {
-        final String key = keyValue[0].trim();
-        final String value = keyValue[1].trim();
-        if (value.length() <= 0) {
-          log.warn("Ignoring empty value for key '{}' in config for {}", key, settingName);
-          continue;
+    Map<String, String> map = new HashMap<>();
+    boolean badFormat = false;
+    int start = 0;
+    int splitter = trimmed.indexOf(':', start);
+    while (splitter != -1 && !badFormat) {
+      int nextSplitter = trimmed.indexOf(':', splitter + 1);
+      int end;
+      if (nextSplitter == -1) {
+        end = trimmed.length();
+        int trailingDelimiter = trimmed.indexOf(',', splitter + 1);
+        if (trailingDelimiter == trimmed.length() - 1) {
+          end = trailingDelimiter;
         }
-        map.put(key, value);
+      } else {
+        int delimiter = trimmed.indexOf(',', splitter + 1);
+        if (delimiter == -1) {
+          delimiter = trimmed.indexOf(' ', splitter + 1);
+          if (delimiter == -1) {
+            badFormat = true;
+          }
+        }
+        if (delimiter > nextSplitter) {
+          badFormat = true;
+        }
+        end = delimiter;
+      }
+      if (!badFormat) {
+        String key = trimmed.substring(start, splitter).trim();
+        badFormat = key.indexOf(',') != -1;
+        if (!badFormat) {
+          String value = trimmed.substring(splitter + 1, end).trim();
+          if (!key.isEmpty() && !value.isEmpty()) {
+            map.put(key, value);
+          }
+          splitter = nextSplitter;
+          start = end + 1;
+        }
       }
     }
-    return Collections.unmodifiableMap(map);
-  }
-
-  @Nonnull
-  private static Map<String, String> newHashMap(final int size) {
-    return new HashMap<>(size + 1, 1f);
+    if (badFormat) {
+      log.warn(
+          "Invalid config for {}: '{}'. Must match 'key1:value1,key2:value2' or 'key1:value1 key2:value2'.",
+          settingName,
+          str);
+      return Collections.emptyMap();
+    }
+    return map;
   }
 
   @Nonnull
