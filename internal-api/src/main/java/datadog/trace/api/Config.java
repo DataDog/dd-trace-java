@@ -172,6 +172,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.immutableSet;
+import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.config.GeneralConfig;
@@ -204,7 +205,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
-import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -223,9 +223,6 @@ import org.slf4j.LoggerFactory;
 public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
-
-  private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
-  private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
   private final long startTimeMillis = System.currentTimeMillis();
 
@@ -1403,20 +1400,6 @@ public class Config {
     return result;
   }
 
-  /**
-   * Converts the property name, e.g. 'service.name' into a public environment variable name, e.g.
-   * `DD_SERVICE_NAME`.
-   *
-   * @param setting The setting name, e.g. `service.name`
-   * @return The public facing environment variable name
-   */
-  @Nonnull
-  private static String propertyNameToEnvironmentVariableName(final String setting) {
-    return ENV_REPLACEMENT
-        .matcher(propertyNameToSystemPropertyName(setting).toUpperCase())
-        .replaceAll("_");
-  }
-
   private static final String PREFIX = "dd.";
 
   /**
@@ -1455,16 +1438,24 @@ public class Config {
   }
 
   @Nonnull
-  @SuppressForbidden
   private static Set<String> parseStringIntoSetOfNonEmptyStrings(final String str) {
     // Using LinkedHashSet to preserve original string order
     final Set<String> result = new LinkedHashSet<>();
     // Java returns single value when splitting an empty string. We do not need that value, so
     // we need to throw it out.
-    for (final String value : str.split(SPLIT_BY_SPACE_OR_COMMA_REGEX)) {
-      if (!value.isEmpty()) {
-        result.add(value);
+    int start = 0;
+    int i = 0;
+    for (; i < str.length(); ++i) {
+      char c = str.charAt(i);
+      if (Character.isWhitespace(c) || c == ',') {
+        if (i - start - 1 > 0) {
+          result.add(str.substring(start, i));
+        }
+        start = i + 1;
       }
+    }
+    if (i - start - 1 > 0) {
+      result.add(str.substring(start));
     }
     return Collections.unmodifiableSet(result);
   }
@@ -1492,9 +1483,15 @@ public class Config {
       configurationFilePath =
           System.getenv(propertyNameToEnvironmentVariableName(CONFIGURATION_FILE));
     }
-    if (null != configurationFilePath) {
-      configurationFilePath =
-          configurationFilePath.replaceFirst("^~", System.getProperty("user.home"));
+    if (null != configurationFilePath && !configurationFilePath.isEmpty()) {
+      int homeIndex = configurationFilePath.indexOf('~');
+      if (homeIndex != -1) {
+
+        configurationFilePath =
+            configurationFilePath.substring(0, homeIndex)
+                + System.getProperty("user.home")
+                + configurationFilePath.substring(homeIndex + 1);
+      }
       final File configurationFile = new File(configurationFilePath);
       if (!configurationFile.exists()) {
         return configurationFilePath;

@@ -1,5 +1,7 @@
 package datadog.trace.util;
 
+import javax.annotation.Nonnull;
+
 public final class Strings {
 
   public static String toEnvVar(String string) {
@@ -79,5 +81,29 @@ public final class Strings {
     int i = sb.indexOf(delimiter);
     if (i != -1) sb.replace(i, i + delimiter.length(), replacement);
     return sb.toString();
+  }
+
+  /**
+   * Converts the property name, e.g. 'service.name' into a public environment variable name, e.g.
+   * `DD_SERVICE_NAME`.
+   *
+   * @param setting The setting name, e.g. `service.name`
+   * @return The public facing environment variable name
+   */
+  @Nonnull
+  public static String propertyNameToEnvironmentVariableName(final String setting) {
+    return "DD_" + setting.replace('.', '_').replace('-', '_').toUpperCase();
+  }
+
+  /**
+   * Converts the property name, e.g. 'service.name' into a public system property name, e.g.
+   * `dd.service.name`.
+   *
+   * @param setting The setting name, e.g. `service.name`
+   * @return The public facing system property name
+   */
+  @Nonnull
+  public static String propertyNameToSystemPropertyName(final String setting) {
+    return "dd." + setting;
   }
 }

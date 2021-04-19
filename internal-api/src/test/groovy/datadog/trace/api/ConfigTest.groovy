@@ -85,9 +85,11 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
-import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 
 class ConfigTest extends DDSpecification {
+
+  static final String PREFIX = "dd."
+
   @Rule
   public final FixedCapturedEnvironment fixedCapturedEnvironment = new FixedCapturedEnvironment()
 
