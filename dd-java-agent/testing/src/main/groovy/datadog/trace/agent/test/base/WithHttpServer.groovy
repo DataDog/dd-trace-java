@@ -58,6 +58,8 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
   def setupSpec() {
     server.start()
     address = server.address()
+    assert address.port > 0
+    assert address.path.endsWith("/")
     println "$server started at: $address"
   }
 

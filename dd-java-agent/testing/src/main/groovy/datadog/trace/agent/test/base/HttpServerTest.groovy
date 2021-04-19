@@ -158,7 +158,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     URI resolve(URI address) {
-      return address.resolve(path)
+      // must be relative path to allow for servlet context
+      return address.resolve(rawPath())
     }
 
     String resource(String method, URI address, String pathParam) {

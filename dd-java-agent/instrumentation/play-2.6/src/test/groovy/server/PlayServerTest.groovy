@@ -1,6 +1,7 @@
 package server
 
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -8,7 +9,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
 import datadog.trace.instrumentation.play26.PlayHttpServerDecorator
 import play.BuiltInComponents
-import play.Mode
 import play.mvc.Results
 import play.routing.RoutingDsl
 import play.server.Server
@@ -23,9 +23,10 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 class PlayServerTest extends HttpServerTest<Server> {
+
   @Override
-  Server startServer(int port) {
-    return Server.forRouter(Mode.TEST, port) { BuiltInComponents components ->
+  HttpServer server() {
+    return new PlayHttpServer({ BuiltInComponents components ->
       RoutingDsl.fromComponents(components)
         .GET(SUCCESS.getPath()).routeTo({
           controller(SUCCESS) {
@@ -58,7 +59,7 @@ class PlayServerTest extends HttpServerTest<Server> {
           }
         } as Supplier)
         .build()
-    }
+    })
   }
 
   @Override

@@ -1,9 +1,9 @@
 package server
 
+import datadog.trace.agent.test.base.HttpServer
 import play.libs.concurrent.HttpExecution
 import play.mvc.Results
 import play.routing.RoutingDsl
-import play.server.Server
 
 import java.util.concurrent.CompletableFuture
 import java.util.function.Supplier
@@ -16,8 +16,9 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 class PlayAsyncServerTest extends PlayServerTest {
+
   @Override
-  Server startServer(int port) {
+  HttpServer server() {
     def router =
       new RoutingDsl()
       .GET(SUCCESS.getPath()).routeAsync({
@@ -63,6 +64,6 @@ class PlayAsyncServerTest extends PlayServerTest {
         }, HttpExecution.defaultContext())
       } as Supplier)
 
-    return Server.forRouter(router.build(), port)
+    return new PlayHttpServer(router.build())
   }
 }

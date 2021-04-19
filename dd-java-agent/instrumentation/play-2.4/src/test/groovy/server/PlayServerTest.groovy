@@ -1,6 +1,7 @@
 package server
 
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -21,8 +22,9 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 class PlayServerTest extends HttpServerTest<Server> {
+
   @Override
-  Server startServer(int port) {
+  HttpServer server() {
     def router =
       new RoutingDsl()
       .GET(SUCCESS.getPath()).routeTo({
@@ -55,13 +57,7 @@ class PlayServerTest extends HttpServerTest<Server> {
           throw new Exception(EXCEPTION.getBody())
         }
       } as Supplier)
-
-    return Server.forRouter(router.build(), port)
-  }
-
-  @Override
-  void stopServer(Server server) {
-    server.stop()
+    return new PlayHttpServer(router.build())
   }
 
   @Override

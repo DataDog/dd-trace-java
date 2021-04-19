@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.api.DDSpanTypes
@@ -23,11 +24,6 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
   @Override
   String expectedOperationName() {
     return "akka-http.request"
-  }
-
-  @Override
-  void stopServer(AkkaHttpTestWebServer server) {
-    server.stop()
   }
 
   @Override
@@ -78,7 +74,7 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
 
   void doAndValidateRequest(int id) {
     def type = id & 1 ? "p" : "f"
-    String url = address.toString() + "injected-id/${type}ing/$id"
+    String url = address.resolve("/injected-id/${type}ing/$id")
     def traceId = totalInvocations + id
     def request = new Request.Builder().url(url).get().header("x-datadog-trace-id", traceId.toString()).build()
     def response = client.newCall(request).execute()
@@ -101,22 +97,22 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
 
 class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstrumentationTest {
   @Override
-  AkkaHttpTestWebServer startServer(int port) {
-    return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandleSync())
+  HttpServer server() {
+    return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleSync())
   }
 }
 
 class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentationTest {
   @Override
-  AkkaHttpTestWebServer startServer(int port) {
-    return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandleAsync())
+  HttpServer server() {
+    return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleAsync())
   }
 }
 
 class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstrumentationTest {
   @Override
-  AkkaHttpTestWebServer startServer(int port) {
-    return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandle())
+  HttpServer server() {
+    return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandle())
   }
 
   @Override
@@ -127,8 +123,8 @@ class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstr
 
 class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest extends AkkaHttpServerInstrumentationTest {
   @Override
-  AkkaHttpTestWebServer startServer(int port) {
-    return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandleAsyncWithRouteAsyncHandler())
+  HttpServer server() {
+    return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleAsyncWithRouteAsyncHandler())
   }
 
   @Override
@@ -139,7 +135,7 @@ class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest e
 
 class AkkaHttpServerInstrumentationAsyncHttp2Test extends AkkaHttpServerInstrumentationTest {
   @Override
-  AkkaHttpTestWebServer startServer(int port) {
-    return new AkkaHttpTestWebServer(port, AkkaHttpTestWebServer.BindAndHandleAsyncHttp2())
+  HttpServer server() {
+    return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleAsyncHttp2())
   }
 }

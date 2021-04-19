@@ -1,7 +1,9 @@
+import datadog.trace.agent.test.base.HttpServer
+
 class AkkaHttp102ServerInstrumentationBindFlowTest extends AkkaHttpServerInstrumentationTest {
   @Override
-  AkkaHttpTestWebServer startServer(int port) {
-    return new AkkaHttpTestWebServer(port, AkkaHttp102TestWebServer.ServerBuilderBindFlow())
+  HttpServer server() {
+    return new AkkaHttpTestWebServer(AkkaHttp102TestWebServer.ServerBuilderBindFlow())
   }
 
   @Override
@@ -12,21 +14,21 @@ class AkkaHttp102ServerInstrumentationBindFlowTest extends AkkaHttpServerInstrum
 
 class AkkaHttp102ServerInstrumentationBindTest extends AkkaHttpServerInstrumentationTest {
   @Override
-  AkkaHttpTestWebServer startServer(int port) {
-    return new AkkaHttpTestWebServer(port, AkkaHttp102TestWebServer.ServerBuilderBind())
+  HttpServer server() {
+    return new AkkaHttpTestWebServer(AkkaHttp102TestWebServer.ServerBuilderBind())
   }
 }
 
 class AkkaHttp102ServerInstrumentationBindSyncTest extends AkkaHttpServerInstrumentationTest {
   @Override
-  AkkaHttpTestWebServer startServer(int port) {
-    return new AkkaHttpTestWebServer(port, AkkaHttp102TestWebServer.ServerBuilderBindSync())
+  HttpServer server() {
+    return new AkkaHttpTestWebServer(AkkaHttp102TestWebServer.ServerBuilderBindSync())
   }
 }
 
 class AkkaHttp102ServerInstrumentationBindAsyncHttp2Test extends AkkaHttpServerInstrumentationTest {
   @Override
-  AkkaHttpTestWebServer startServer(int port) {
-    return new AkkaHttpTestWebServer(port, AkkaHttp102TestWebServer.ServerBuilderBindHttp2())
+  HttpServer server() {
+    return new AkkaHttpTestWebServer(AkkaHttp102TestWebServer.ServerBuilderBindHttp2())
   }
 }
