@@ -42,7 +42,7 @@ public final class ScopeEvent extends Event {
   }
 
   public void addChildCpuTime(long rawCpuTime) {
-    this.childCpuTime += childCpuTime;
+    this.childCpuTime += rawCpuTime;
   }
 
   /**
