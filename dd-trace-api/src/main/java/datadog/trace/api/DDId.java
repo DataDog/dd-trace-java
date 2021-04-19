@@ -54,6 +54,37 @@ public class DDId {
     return DDId.create(parseUnsignedLongHex(s), null);
   }
 
+  /**
+   * Create a new {@code DDId} from the given {@code String} hex representation of the unsigned 64
+   * bit id, while retalining the original {@code String} representation for use in headers.
+   *
+   * @param s String in hex of unsigned 64 bit id
+   * @return DDId
+   * @throws NumberFormatException
+   */
+  public static DDId fromHexWithOriginal(String s) throws NumberFormatException {
+    return new DDIdOriginal(parseUnsignedLongHex(s), s);
+  }
+
+  /**
+   * Create a new {@code DDId} from the given {@code String} hex representation of the unsigned 64
+   * bit (or more) id truncated to 64 bits, while retaining the original {@code String}
+   * representation for use in headers.
+   *
+   * @param s String in hex of unsigned 64 bit (or more) id
+   * @return DDId
+   * @throws NumberFormatException
+   */
+  public static DDId fromHexTruncatedWithOriginal(String s) throws NumberFormatException {
+    if (s == null) {
+      throw new NumberFormatException("null");
+    }
+
+    int len = s.length();
+    int trimmed = Math.min(s.length(), 16);
+    return new DDIdOriginal(parseUnsignedLongHex(s, len - trimmed, trimmed), s);
+  }
+
   private final long id;
   private String str; // cache for string representation
 
@@ -68,8 +99,8 @@ public class DDId {
     return new DDId(id, str);
   }
 
-  private static int firstNonZeroCharacter(String s) {
-    int firstNonZero = 0;
+  private static int firstNonZeroCharacter(String s, int start) {
+    int firstNonZero = start;
     for (; firstNonZero < s.length(); firstNonZero++) {
       if (s.charAt(firstNonZero) != '0') break;
     }
@@ -134,16 +165,20 @@ public class DDId {
       throw new NumberFormatException("null");
     }
 
-    int len = s.length();
+    return parseUnsignedLongHex(s, 0, s.length());
+  }
+
+  private static long parseUnsignedLongHex(String s, int start, int len)
+      throws NumberFormatException {
     if (len > 0) {
-      if (len > 16 && (len - firstNonZeroCharacter(s)) > 16) {
+      if (len > 16 && (len - firstNonZeroCharacter(s, start)) > 16) {
         // Unsigned 64 bits max is 16 digits, so this always overflows
         throw numberFormatOutOfRange(s);
       }
       long result = 0;
       int ok = 0;
-      for (int i = 0; i < len; i++) {
-        char c = s.charAt(i);
+      for (int i = 0; i < len; i++, start++) {
+        char c = s.charAt(start);
         int d = Character.digit(c, 16);
         ok |= d;
         result = result << 4 | d;
@@ -170,7 +205,7 @@ public class DDId {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (!(o instanceof DDId)) return false;
     DDId ddId = (DDId) o;
     return this.id == ddId.id;
   }
@@ -238,6 +273,17 @@ public class DDId {
   }
 
   /**
+   * Returns the no zero padded hex representation, in lower case, of the unsigned 64 bit id, or the
+   * original {@code String} used to create this {@code DDId}. The hex {@code String} will NOT be
+   * cached.
+   *
+   * @return non zero padded hex String
+   */
+  public String toHexStringOrOriginal() {
+    return this.toHexString();
+  }
+
+  /**
    * Returns the id as a long representing the bits of the unsigned 64 bit id. This means that
    * values larger than Long.MAX_VALUE will be represented as negative numbers.
    *
@@ -245,5 +291,23 @@ public class DDId {
    */
   public long toLong() {
     return this.id;
+  }
+
+  /**
+   * Class representing a {@code DDId} that maintains the original {@code String} representation to
+   * be used when propagating it in headers.
+   */
+  private static final class DDIdOriginal extends DDId {
+    private final String original;
+
+    private DDIdOriginal(long id, String original) {
+      super(id, null);
+      this.original = original;
+    }
+
+    @Override
+    public String toHexStringOrOriginal() {
+      return this.original;
+    }
   }
 }

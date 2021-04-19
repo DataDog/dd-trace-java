@@ -2,6 +2,7 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -61,5 +62,55 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     6G               | 7G               | PrioritySampling.USER_DROP    | 0
     TRACE_ID_MAX     | TRACE_ID_MAX - 1 | PrioritySampling.UNSET        | null
     TRACE_ID_MAX - 1 | TRACE_ID_MAX     | PrioritySampling.SAMPLER_KEEP | 1
+  }
+
+  def "inject http headers with extracted original"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    def headers = [
+      (TRACE_ID_KEY.toUpperCase()): traceId,
+      (SPAN_ID_KEY.toUpperCase()) : spanId,
+    ]
+    HttpCodec.Extractor extractor = B3HttpCodec.newExtractor(Collections.emptyMap())
+    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    final DDSpanContext mockedContext =
+      new DDSpanContext(
+      context.traceId,
+      context.spanId,
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      "fakeOrigin",
+      ["k1" : "v1", "k2" : "v2"],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE))
+    final Map<String, String> carrier = Mock()
+
+    when:
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+
+    then:
+    1 * carrier.put(TRACE_ID_KEY, traceId)
+    1 * carrier.put(SPAN_ID_KEY, spanId)
+    0 * _
+
+    cleanup:
+    tracer.close()
+
+    where:
+    traceId                            | spanId
+    "00001"                            | "00001"
+    "463ac35c9f6413ad"                 | "463ac35c9f6413ad"
+    "463ac35c9f6413ad48485a3953bb6124" | "1"
+    "f" * 16                           | "1"
+    "a" * 16 + "f" * 16                | "1"
+    "1"                                | "f" * 16
+    "1"                                | "000" + "f" * 16
   }
 }
