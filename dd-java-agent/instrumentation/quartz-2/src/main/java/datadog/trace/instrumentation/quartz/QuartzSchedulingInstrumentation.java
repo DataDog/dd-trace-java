@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.quartz;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -25,6 +26,11 @@ public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing 
 
   public QuartzSchedulingInstrumentation() {
     super("quartz");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return hasClassesNamed("org.quartz.Job");
   }
 
   @Override

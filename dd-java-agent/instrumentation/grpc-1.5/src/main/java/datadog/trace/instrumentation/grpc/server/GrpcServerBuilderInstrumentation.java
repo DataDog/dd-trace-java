@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.grpc.server;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -26,7 +26,7 @@ public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return safeHasSuperType(named("io.grpc.ServerBuilder"));
+    return extendsClass(named("io.grpc.ServerBuilder"));
   }
 
   @Override

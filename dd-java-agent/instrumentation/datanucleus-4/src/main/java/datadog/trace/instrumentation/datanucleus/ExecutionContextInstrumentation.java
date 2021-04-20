@@ -39,7 +39,13 @@ public class ExecutionContextInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
+  public ElementMatcher<? super TypeDescription> shortCutMatcher() {
+    return namedOneOf(
+        "org.datanucleus.ExecutionContextImpl", "org.datanucleus.ExecutionContextThreadedImpl");
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.datanucleus.ExecutionContext"));
   }
 

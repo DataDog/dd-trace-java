@@ -16,6 +16,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
@@ -41,12 +42,14 @@ public final class RediscalaInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return safeHasSuperType(
-        namedOneOf(
-            "redis.ActorRequest",
-            "redis.Request",
-            "redis.BufferedRequest",
-            "redis.RoundRobinPoolRequest"));
+    return NameMatchers.nameStartsWith("redis.")
+        .and(
+            safeHasSuperType(
+                namedOneOf(
+                    "redis.ActorRequest",
+                    "redis.Request",
+                    "redis.BufferedRequest",
+                    "redis.RoundRobinPoolRequest")));
   }
 
   @Override

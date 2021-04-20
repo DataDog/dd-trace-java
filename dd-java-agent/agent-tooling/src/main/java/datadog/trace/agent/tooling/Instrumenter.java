@@ -313,13 +313,41 @@ public interface Instrumenter {
 
   /** Parent class for all tracing related instrumentations */
   abstract class Tracing extends Default {
+
+    private final boolean shortCutEnabled;
+
     public Tracing(String instrumentationName, String... additionalNames) {
+      this(false, instrumentationName, additionalNames);
+    }
+
+    public Tracing(
+        boolean defaultToShortCutMatching, String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
+      this.shortCutEnabled =
+          Config.get()
+              .isIntegrationShortCutMatchingEnabled(
+                  Collections.singletonList(instrumentationName), defaultToShortCutMatching);
     }
 
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.TRACING);
+    }
+
+    @Override
+    public ElementMatcher<? super TypeDescription> typeMatcher() {
+      if (shortCutEnabled) {
+        return shortCutMatcher();
+      }
+      return hierarchyMatcher();
+    }
+
+    public ElementMatcher<? super TypeDescription> shortCutMatcher() {
+      throw new IllegalStateException("shortCutMatcher not implemented");
+    }
+
+    public ElementMatcher<? super TypeDescription> hierarchyMatcher() {
+      throw new IllegalStateException("hierarchyMatcher not implemented");
     }
   }
 
