@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.datanucleus;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -24,14 +23,6 @@ public class JDOTransactionInstrumentation extends Instrumenter.Tracing {
 
   public JDOTransactionInstrumentation() {
     super("datanucleus");
-  }
-
-  private final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassNamed("org.datanucleus.api.jdo.JDOTransaction");
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return CLASS_LOADER_MATCHER;
   }
 
   @Override
