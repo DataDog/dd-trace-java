@@ -1,7 +1,3 @@
-import org.glassfish.grizzly.http.server.HttpServer
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory
-import org.glassfish.jersey.server.ResourceConfig
-
 import javax.ws.rs.GET
 import javax.ws.rs.HeaderParam
 import javax.ws.rs.Path
@@ -22,11 +18,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 class GrizzlyAsyncTest extends GrizzlyTest {
 
   @Override
-  HttpServer startServer(int port) {
-    ResourceConfig rc = new ResourceConfig()
-    rc.register(SimpleExceptionMapper)
-    rc.register(AsyncServiceResource)
-    GrizzlyHttpServerFactory.createHttpServer(new URI("http://localhost:$port"), rc)
+  Class<AsyncServiceResource> resource() {
+    return AsyncServiceResource
   }
 
   @Path("/")

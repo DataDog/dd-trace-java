@@ -11,6 +11,7 @@ import javax.ws.rs.Path
 import javax.ws.rs.QueryParam
 import javax.ws.rs.core.Response
 import javax.ws.rs.ext.ExceptionMapper
+import java.util.concurrent.TimeoutException
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -28,17 +29,41 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     injectSysConfig("dd.integration.grizzly-filterchain.enabled", "true")
   }
 
-  @Override
-  HttpServer startServer(int port) {
-    ResourceConfig rc = new ResourceConfig()
-    rc.register(SimpleExceptionMapper)
-    rc.register(ServiceResource)
-    GrizzlyHttpServerFactory.createHttpServer(new URI("http://localhost:$port"), rc)
+  class GrizzlyServer implements datadog.trace.agent.test.base.HttpServer {
+    final HttpServer server
+    int port = 0
+
+    GrizzlyServer() {
+      ResourceConfig rc = new ResourceConfig()
+      rc.register(SimpleExceptionMapper)
+      rc.register(resource())
+      server = GrizzlyHttpServerFactory.createHttpServer(new URI("http://localhost:0"), rc, false)
+    }
+
+    @Override
+    void start() throws TimeoutException {
+      server.start()
+      port = server.getListener("grizzly").port
+    }
+
+    @Override
+    void stop() {
+      server.shutdownNow()
+    }
+
+    @Override
+    URI address() {
+      return new URI("http://localhost:$port/")
+    }
   }
 
   @Override
-  void stopServer(HttpServer server) {
-    server.stop()
+  datadog.trace.agent.test.base.HttpServer server() {
+    return new GrizzlyServer()
+  }
+
+  Class<ServiceResource> resource() {
+    return ServiceResource
   }
 
   @Override

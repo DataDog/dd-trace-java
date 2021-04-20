@@ -12,13 +12,14 @@ import org.glassfish.grizzly.http.HttpRequestPacket
 import org.glassfish.grizzly.http.HttpResponsePacket
 import org.glassfish.grizzly.http.HttpServerFilter
 import org.glassfish.grizzly.http.server.HttpServer
-import org.glassfish.grizzly.nio.transport.TCPNIOServerConnection
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport
 import org.glassfish.grizzly.nio.transport.TCPNIOTransportBuilder
 import org.glassfish.grizzly.utils.DelayedExecutor
 import org.glassfish.grizzly.utils.IdleTimeoutFilter
 
+import java.nio.channels.ServerSocketChannel
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeoutException
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -35,8 +36,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static org.glassfish.grizzly.memory.Buffers.wrap
 
 class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
-  private TCPNIOTransport transport
-  private TCPNIOServerConnection serverConnection
 
   @Override
   void configurePreAgent() {
@@ -45,19 +44,46 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
     injectSysConfig("dd.integration.grizzly-filterchain.enabled", "true")
   }
 
-  @Override
-  HttpServer startServer(int port) {
-    FilterChain filterChain = setUpFilterChain()
-    setUpTransport(filterChain)
+  private class GrizzlyFilterchainServer implements datadog.trace.agent.test.base.HttpServer {
+    private TCPNIOTransport transport
+    int port = 0
 
-    serverConnection = transport.bind("127.0.0.1", port)
-    transport.start()
-    return null
+    GrizzlyFilterchainServer() {
+      TCPNIOTransportBuilder transportBuilder = TCPNIOTransportBuilder.newInstance()
+        .setOptimizedForMultiplexing(true)
+
+      transportBuilder.setTcpNoDelay(true)
+      transportBuilder.setKeepAlive(false)
+      transportBuilder.setReuseAddress(true)
+      transportBuilder.setServerConnectionBackLog(50)
+      transportBuilder.setServerSocketSoTimeout(80000)
+
+      transport = transportBuilder.build()
+      transport.setProcessor(setUpFilterChain())
+    }
+
+    @Override
+    void start() throws TimeoutException {
+      def serverConnection = transport.bind("127.0.0.1", 0)
+      transport.start()
+      def channel = serverConnection.channel as ServerSocketChannel
+      port = channel.socket().localPort
+    }
+
+    @Override
+    void stop() {
+      transport.shutdownNow()
+    }
+
+    @Override
+    URI address() {
+      return new URI("http://localhost:$port/")
+    }
   }
 
   @Override
-  void stopServer(HttpServer httpServer) {
-    transport.shutdownNow()
+  datadog.trace.agent.test.base.HttpServer server() {
+    return new GrizzlyFilterchainServer()
   }
 
   @Override
@@ -75,20 +101,6 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
     // justification: grizzly async closes the channel which
     // looks like a ConnectException to the client when this happens
     false
-  }
-
-  void setUpTransport(FilterChain filterChain) {
-    TCPNIOTransportBuilder transportBuilder = TCPNIOTransportBuilder.newInstance()
-      .setOptimizedForMultiplexing(true)
-
-    transportBuilder.setTcpNoDelay(true)
-    transportBuilder.setKeepAlive(false)
-    transportBuilder.setReuseAddress(true)
-    transportBuilder.setServerConnectionBackLog(50)
-    transportBuilder.setServerSocketSoTimeout(80000)
-
-    transport = transportBuilder.build()
-    transport.setProcessor(filterChain)
   }
 
   FilterChain setUpFilterChain() {
