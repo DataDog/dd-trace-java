@@ -17,10 +17,10 @@ import jdk.jfr.Timespan;
 public final class ScopeEvent extends Event {
 
   @Label("Trace Id")
-  private long traceId;
+  private final long traceId;
 
   @Label("Span Id")
-  private long spanId;
+  private final long spanId;
 
   @Label("Thread CPU Time")
   @Timespan
