@@ -180,7 +180,7 @@ class ProfilingIntegrationTest {
       // Only non-Oracle JDK 8+ JVMs support custom DD events
       if (!System.getProperty("java.vendor").contains("Oracle")
           || !System.getProperty("java.version").contains("1.8")) {
-        // assertRecordingEvents(events);
+        assertRecordingEvents(events);
       }
     } finally {
       if (targetProcess != null) {
@@ -391,6 +391,7 @@ class ProfilingIntegrationTest {
             "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
             "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
             "-Ddd.profiling.url=http://localhost:" + profilerPort,
+            "-Ddd.profiling.hotspots.enabled=true",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
             "-XX:+IgnoreUnrecognizedVMOptions",

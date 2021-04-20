@@ -1,7 +1,6 @@
 package datadog.trace.core.scopemanager
 
 import datadog.trace.agent.test.utils.ThreadUtils
-import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
@@ -44,7 +43,6 @@ class ScopeManagerTest extends DDCoreSpecification {
   ContinuableScopeManager scopeManager
   StatsDClient statsDClient
   EventCountingListener eventCountingListener
-  EventCountingExtendedListener eventCountingExtendedListener
 
   def setup() {
     writer = new ListWriter()
@@ -53,8 +51,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     scopeManager = tracer.scopeManager
     eventCountingListener = new EventCountingListener()
     scopeManager.addScopeListener(eventCountingListener)
-    eventCountingExtendedListener = new EventCountingExtendedListener()
-    scopeManager.addExtendedScopeListener(eventCountingExtendedListener)
   }
 
   def cleanup() {
@@ -831,33 +827,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     listener.events == [ACTIVATE, CLOSE]
   }
 
-  def "extended scope listener should be notified about the currently active scope"() {
-    when:
-    AgentScope scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
-
-    then:
-    assertEvents([ACTIVATE])
-
-    when:
-    def listener = new EventCountingExtendedListener()
-
-    then:
-    listener.events == []
-
-    when:
-    scopeManager.addExtendedScopeListener(listener)
-
-    then:
-    listener.events == [ACTIVATE]
-
-    when:
-    scope.close()
-
-    then:
-    assertEvents([ACTIVATE, CLOSE])
-    listener.events == [ACTIVATE, CLOSE]
-  }
-
   def "scope listener should not be notified when there is no active scope"() {
     when:
     def listener = new EventCountingListener()
@@ -928,7 +897,6 @@ class ScopeManagerTest extends DDCoreSpecification {
 
   def assertEvents( List<EVENT> events ) {
     assert eventCountingListener.events == events
-    assert eventCountingExtendedListener.events == events
     return true
   }
 }
@@ -938,24 +906,6 @@ class EventCountingListener implements ScopeListener {
 
   @Override
   void afterScopeActivated() {
-    synchronized (events) {
-      events.add(ACTIVATE)
-    }
-  }
-
-  @Override
-  void afterScopeClosed() {
-    synchronized (events) {
-      events.add(CLOSE)
-    }
-  }
-}
-
-class EventCountingExtendedListener implements ExtendedScopeListener {
-  public final List<EVENT> events = new ArrayList<>()
-
-  @Override
-  void afterScopeActivated(DDId traceId, DDId spanId) {
     synchronized (events) {
       events.add(ACTIVATE)
     }

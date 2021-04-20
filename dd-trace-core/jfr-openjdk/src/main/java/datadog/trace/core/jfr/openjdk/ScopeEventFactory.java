@@ -1,13 +1,21 @@
 package datadog.trace.core.jfr.openjdk;
 
 import datadog.trace.api.DDId;
-import datadog.trace.core.scopemanager.ExtendedScopeListener;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.scopemanager.ExtendedScopeListener;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.core.util.SystemAccess;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import jdk.jfr.EventType;
 
 /** Event factory for {@link ScopeEvent} */
 public class ScopeEventFactory implements ExtendedScopeListener {
+  private static final ThreadCpuTimeProvider THREAD_CPU_TIME_PROVIDER =
+      ConfigProvider.createDefault().getBoolean(ProfilingConfig.PROFILING_HOTSPTOTS_ENABLED, false)
+          ? SystemAccess::getCurrentThreadCpuTime
+          : () -> Long.MIN_VALUE;
+
   private final ThreadLocal<Deque<ScopeEvent>> scopeEventStack =
       ThreadLocal.withInitial(ArrayDeque::new);
 
@@ -19,19 +27,23 @@ public class ScopeEventFactory implements ExtendedScopeListener {
   }
 
   @Override
+  public void afterScopeActivated() {
+    afterScopeActivated(DDId.ZERO, DDId.ZERO);
+  }
+
+  @Override
   public void afterScopeActivated(DDId traceId, DDId spanId) {
     Deque<ScopeEvent> stack = scopeEventStack.get();
 
-    ScopeEvent scopeEvent = stack.peek();
+    ScopeEvent top = stack.peek();
 
-    if (scopeEvent == null) {
-      // Empty stack
-      stack.push(new ScopeEvent(traceId, spanId));
-    } else if (scopeEvent.getTraceId() != traceId.toLong()
-        || scopeEvent.getSpanId() != spanId.toLong()) {
+    long traceIdNum = traceId.toLong();
+    long spanIdNum = spanId.toLong();
 
-      // Top being pushed down
-      stack.push(new ScopeEvent(traceId, spanId));
+    if (top == null || top.getTraceId() != traceIdNum || top.getSpanId() != spanIdNum) {
+      ScopeEvent event = new ScopeEvent(traceIdNum, spanIdNum, THREAD_CPU_TIME_PROVIDER);
+      stack.push(event);
+      event.start();
     }
   }
 

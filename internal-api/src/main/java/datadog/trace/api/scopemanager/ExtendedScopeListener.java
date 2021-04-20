@@ -1,10 +1,12 @@
-package datadog.trace.core.scopemanager;
+package datadog.trace.api.scopemanager;
 
 import datadog.trace.api.DDId;
+import datadog.trace.context.ScopeListener;
 
-public interface ExtendedScopeListener {
+public interface ExtendedScopeListener extends ScopeListener {
   void afterScopeActivated(DDId traceId, DDId spanId);
 
   /** Called just after a scope is closed. */
+  @Override
   void afterScopeClosed();
 }

@@ -11,6 +11,9 @@ import static datadog.trace.util.Strings.getResourceName;
 import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.StatsDClientManager;
+import datadog.trace.api.Tracer;
+import datadog.trace.api.WithGlobalTracer;
+import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
@@ -87,6 +90,11 @@ public class Agent {
           };
     }
 
+    /*
+     * Force the task scheduler init early. The exception profiling instrumentation may get in way of the initialization
+     * when it will happen after the class transformers were added.
+     */
+    AgentTaskScheduler.initialize();
     startDatadogAgent(inst, bootstrapURL);
 
     final EnumSet<Library> libraries = detectLibraries(log);
@@ -438,6 +446,40 @@ public class Agent {
           classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
       final Method profilingInstallerMethod = profilingAgentClass.getMethod("run", Boolean.TYPE);
       profilingInstallerMethod.invoke(null, isStartingFirst);
+      /*
+       * Install the tracer hooks only when not using 'early start'.
+       * The 'early start' is happening so early that most of the infrastructure has not been set up yet.
+       *
+       * Also, the registration routine must be embedded right here - ProfilingAgent, where it would logically belong,
+       * is loaded by PROFILER_CLASSLOADER which has no relation to AGENT_CLASSLOADER which is used to load various
+       * helper classes like SystemAccess. An attempt to do this registration in ProfilingAgent will cause ineviatbly
+       * duplicate loads of the same named classes but in different classloaders.
+       */
+      if (!isStartingFirst) {
+        log.debug("Scheduling scope event factory registration");
+        WithGlobalTracer.registerOrExecute(
+            new WithGlobalTracer.Callback() {
+              @Override
+              public void withTracer(Tracer tracer) {
+                try {
+                  log.debug("Registering scope event factory");
+                  ScopeListener scopeListener =
+                      (ScopeListener)
+                          AGENT_CLASSLOADER
+                              .loadClass("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
+                              .getDeclaredConstructor()
+                              .newInstance();
+                  tracer.addScopeListener(scopeListener);
+                  log.debug("Scope event factory {} has been registered", scopeListener);
+                } catch (Throwable e) {
+                  if (e instanceof InvocationTargetException) {
+                    e = e.getCause();
+                  }
+                  log.debug("Profiling of ScopeEvents is not available. {}", e.getMessage());
+                }
+              }
+            });
+      }
     } catch (final ClassFormatError e) {
       /*
       Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError

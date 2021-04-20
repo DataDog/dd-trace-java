@@ -33,11 +33,9 @@ import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
-import datadog.trace.core.scopemanager.ExtendedScopeListener;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.util.AgentTaskScheduler;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -345,9 +343,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               config.isScopeInheritAsyncPropagation());
       this.scopeManager = csm;
 
-      if (config.isProfilingEnabled()) {
-        createScopeEventFactory(csm);
-      }
     } else {
       this.scopeManager = scopeManager;
     }
@@ -648,21 +643,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void flush() {
     pendingTraceBuffer.flush();
     writer.flush();
-  }
-
-  @SuppressForbidden
-  private static void createScopeEventFactory(ContinuableScopeManager continuableScopeManager) {
-    try {
-      ExtendedScopeListener scopeListener =
-          (ExtendedScopeListener)
-              Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
-                  .getDeclaredConstructor()
-                  .newInstance();
-
-      continuableScopeManager.addExtendedScopeListener(scopeListener);
-    } catch (final Throwable e) {
-      log.debug("Profiling code hotspots are not available. {}", e.getMessage());
-    }
   }
 
   private static StatsDClient createStatsDClient(final Config config) {

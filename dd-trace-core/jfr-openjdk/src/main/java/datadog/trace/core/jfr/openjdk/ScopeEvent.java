@@ -1,8 +1,5 @@
 package datadog.trace.core.jfr.openjdk;
 
-import datadog.trace.api.DDId;
-import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.core.util.SystemAccess;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
@@ -18,8 +15,6 @@ import jdk.jfr.Timespan;
 @Category("Datadog")
 @StackTrace(false)
 public final class ScopeEvent extends Event {
-  private static final boolean COLLECT_THREAD_CPU_TIME =
-      ConfigProvider.createDefault().getBoolean(ProfilingConfig.PROFILING_HOTSPTOTS_ENABLED, false);
 
   @Label("Trace Id")
   private final long traceId;
@@ -36,18 +31,16 @@ public final class ScopeEvent extends Event {
   private transient long childCpuTime;
   private transient long rawCpuTime;
 
-  ScopeEvent(DDId traceId, DDId spanId) {
-    this.traceId = traceId.toLong();
-    this.spanId = spanId.toLong();
-
+  ScopeEvent(long traceId, long spanId, ThreadCpuTimeProvider provider) {
+    this.traceId = traceId;
+    this.spanId = spanId;
     if (isEnabled()) {
-      cpuTimeStart =
-          COLLECT_THREAD_CPU_TIME ? SystemAccess.getCurrentThreadCpuTime() : Long.MIN_VALUE;
+      cpuTimeStart = provider.getThreadCpuTime();
       begin();
     }
   }
 
-  public void addChildCpuTime(long rawCpuTime) {
+  void addChildCpuTime(long rawCpuTime) {
     this.childCpuTime += rawCpuTime;
   }
 
@@ -56,12 +49,19 @@ public final class ScopeEvent extends Event {
    *
    * <p>Only valid after this event is finished and if scope events are enabled
    */
-  public long getRawCpuTime() {
+  long getRawCpuTime() {
     return rawCpuTime;
   }
 
+  public void start() {
+    if (isEnabled()) {
+      cpuTimeStart = SystemAccess.getCurrentThreadCpuTime();
+      begin();
+    }
+  }
+
   public void finish() {
-    if (COLLECT_THREAD_CPU_TIME && cpuTimeStart > 0) {
+    if (cpuTimeStart > 0) {
       rawCpuTime = SystemAccess.getCurrentThreadCpuTime() - cpuTimeStart;
       cpuTime = rawCpuTime - childCpuTime;
     }
@@ -72,11 +72,11 @@ public final class ScopeEvent extends Event {
     }
   }
 
-  public long getTraceId() {
+  long getTraceId() {
     return traceId;
   }
 
-  public long getSpanId() {
+  long getSpanId() {
     return spanId;
   }
 }

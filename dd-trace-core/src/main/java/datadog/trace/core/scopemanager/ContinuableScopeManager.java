@@ -3,6 +3,7 @@ package datadog.trace.core.scopemanager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
 import datadog.trace.api.StatsDClient;
+import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -141,16 +142,20 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
   /** Attach a listener to scope activation events */
   public void addScopeListener(final ScopeListener listener) {
-    scopeListeners.add(listener);
-    log.debug("Added scope listener {}", listener);
-    AgentSpan activeSpan = activeSpan();
-    if (activeSpan != null) {
-      // Notify the listener about the currently active scope
-      listener.afterScopeActivated();
+    if (listener instanceof ExtendedScopeListener) {
+      addExtendedScopeListener((ExtendedScopeListener) listener);
+    } else {
+      scopeListeners.add(listener);
+      log.debug("Added scope listener {}", listener);
+      AgentSpan activeSpan = activeSpan();
+      if (activeSpan != null) {
+        // Notify the listener about the currently active scope
+        listener.afterScopeActivated();
+      }
     }
   }
 
-  public void addExtendedScopeListener(final ExtendedScopeListener listener) {
+  private void addExtendedScopeListener(final ExtendedScopeListener listener) {
     extendedScopeListeners.add(listener);
     log.debug("Added scope listener {}", listener);
     AgentSpan activeSpan = activeSpan();
