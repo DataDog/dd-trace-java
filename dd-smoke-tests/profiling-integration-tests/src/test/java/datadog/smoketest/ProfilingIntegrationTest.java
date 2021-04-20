@@ -110,7 +110,7 @@ class ProfilingIntegrationTest {
   @Test
   @DisplayName("Test continuous recording - no jmx delay")
   public void testContinuousRecording_no_jmx_delay(TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(0), testInfo, 0);
+    testWithRetry(() -> testContinuousRecording(0), testInfo, 5);
   }
 
   @Test
