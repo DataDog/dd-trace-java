@@ -644,7 +644,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     pendingTraceBuffer.flush();
     writer.flush();
   }
-  
+
   private static StatsDClient createStatsDClient(final Config config) {
     if (!config.isHealthMetricsEnabled()) {
       return StatsDClient.NO_OP;

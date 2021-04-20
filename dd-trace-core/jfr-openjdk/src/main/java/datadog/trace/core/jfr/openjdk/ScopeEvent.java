@@ -15,8 +15,6 @@ import jdk.jfr.Timespan;
 @Category("Datadog")
 @StackTrace(false)
 public final class ScopeEvent extends Event {
-  private static final boolean COLLECT_THREAD_CPU_TIME =
-      ConfigProvider.createDefault().getBoolean(ProfilingConfig.PROFILING_HOTSPTOTS_ENABLED, false);
 
   @Label("Trace Id")
   private long traceId;
@@ -63,7 +61,7 @@ public final class ScopeEvent extends Event {
   }
 
   public void finish() {
-    if (COLLECT_THREAD_CPU_TIME && cpuTimeStart > 0) {
+    if (cpuTimeStart > 0) {
       rawCpuTime = SystemAccess.getCurrentThreadCpuTime() - cpuTimeStart;
       cpuTime = rawCpuTime - childCpuTime;
     }
