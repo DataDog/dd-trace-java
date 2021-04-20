@@ -1,16 +1,20 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.NamedElement;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.utility.JavaModule;
 
 public final class NameMatchers<T extends NamedElement>
-    extends ElementMatcher.Junction.AbstractBase<T> {
+    extends ElementMatcher.Junction.AbstractBase<T> implements AgentBuilder.RawMatcher, FailSafe {
 
   private static final int NAMED = 0;
   private static final int NAME_STARTS_WITH = 1;
@@ -142,7 +146,10 @@ public final class NameMatchers<T extends NamedElement>
 
   @Override
   public boolean matches(T target) {
-    String name = target.getActualName();
+    return match(target.getActualName());
+  }
+
+  private boolean match(String name) {
     switch (mode) {
       case NAMED:
         return name.equals(data);
@@ -168,5 +175,15 @@ public final class NameMatchers<T extends NamedElement>
 
   private static Set<String> toSet(String... strings) {
     return new HashSet<>(Arrays.asList(strings));
+  }
+
+  @Override
+  public boolean matches(
+      TypeDescription typeDescription,
+      ClassLoader classLoader,
+      JavaModule module,
+      Class<?> classBeingRedefined,
+      ProtectionDomain protectionDomain) {
+    return match(typeDescription.getName());
   }
 }

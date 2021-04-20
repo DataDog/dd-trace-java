@@ -46,8 +46,12 @@ public class DDElementMatchers {
    * @return A matcher that returns {@code false} in case that the given matcher throws an
    *     exception.
    */
-  public static <T> ElementMatcher.Junction<T> failSafe(
+  @SuppressWarnings("unchecked")
+  public static <T> ElementMatcher<T> failSafe(
       final ElementMatcher<? super T> matcher, final String description) {
+    if (matcher instanceof FailSafe) {
+      return (ElementMatcher<T>) matcher;
+    }
     return new LoggingFailSafeMatcher<>(matcher, false, description);
   }
 
