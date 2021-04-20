@@ -19,6 +19,10 @@ public interface StatsDClient extends Closeable {
 
   void serviceCheck(String serviceCheckName, String status, String message, String... tags);
 
+  void error(Exception error);
+
+  int getErrorCount();
+
   @Override
   void close();
 }

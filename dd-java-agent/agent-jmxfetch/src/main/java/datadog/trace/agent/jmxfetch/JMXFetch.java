@@ -5,6 +5,7 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.StatsDClient;
 import datadog.trace.api.StatsDClientManager;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
@@ -19,7 +20,6 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import org.datadog.jmxfetch.App;
 import org.datadog.jmxfetch.AppConfig;
-import org.datadog.jmxfetch.reporter.Reporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,8 +84,7 @@ public class JMXFetch {
           "statsd:" + host + ":" + port);
     }
 
-    final Reporter reporter =
-        new AgentStatsdReporter(statsDClientManager.statsDClient(host, port, null, null));
+    final StatsDClient statsd = statsDClientManager.statsDClient(host, port, null, null);
 
     final AppConfig.AppConfigBuilder configBuilder =
         AppConfig.builder()
@@ -101,7 +100,7 @@ public class JMXFetch {
             .metricConfigFiles(metricsConfigs)
             .refreshBeansPeriod(refreshBeansPeriod)
             .globalTags(globalTags)
-            .reporter(reporter);
+            .reporter(new AgentStatsdReporter(statsd));
 
     if (checkPeriod != null) {
       configBuilder.checkPeriod(checkPeriod);

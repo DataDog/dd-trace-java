@@ -21,6 +21,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   private final int port;
 
   private final AtomicInteger clientCount = new AtomicInteger(0);
+  private final AtomicInteger errorCount = new AtomicInteger(0);
   volatile com.timgroup.statsd.StatsDClient statsd = NO_OP;
 
   DDAgentStatsDConnection(final String host, final int port) {
@@ -30,6 +31,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
 
   @Override
   public void handle(final Exception e) {
+    errorCount.incrementAndGet();
     log.error(
         "{} in StatsD client - {}", e.getClass().getSimpleName(), statsDAddress(host, port), e);
   }
@@ -44,6 +46,10 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
     if (clientCount.decrementAndGet() == 0) {
       doClose();
     }
+  }
+
+  public int getErrorCount() {
+    return errorCount.get();
   }
 
   private void scheduleConnect() {

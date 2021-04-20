@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.config.provider;
 
+import static datadog.trace.util.Strings.propertyNameToSystemPropertyName;
+
 import java.util.Properties;
 
 final class PropertiesConfigSource extends ConfigProvider.Source {
@@ -14,9 +16,6 @@ final class PropertiesConfigSource extends ConfigProvider.Source {
 
   @Override
   protected String get(String key) {
-    return props.getProperty(
-        useSystemPropertyFormat
-            ? SystemPropertiesConfigSource.propertyNameToSystemPropertyName(key)
-            : key);
+    return props.getProperty(useSystemPropertyFormat ? propertyNameToSystemPropertyName(key) : key);
   }
 }
