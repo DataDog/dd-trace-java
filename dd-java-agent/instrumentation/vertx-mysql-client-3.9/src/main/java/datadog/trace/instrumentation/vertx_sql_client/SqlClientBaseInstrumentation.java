@@ -30,15 +30,6 @@ public class SqlClientBaseInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SqlClientBaseAdvice",
-      packageName + ".SqlClientBaseAdvice$NormalQuery",
-      packageName + ".SqlClientBaseAdvice$PreparedQuery",
-    };
-  }
-
-  @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return named("io.vertx.sqlclient.impl.SqlClientBase");
   }

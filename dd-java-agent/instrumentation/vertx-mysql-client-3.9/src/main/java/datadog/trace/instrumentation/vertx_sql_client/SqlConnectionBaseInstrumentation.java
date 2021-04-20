@@ -33,7 +33,7 @@ public class SqlConnectionBaseInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".PrepareHandlerWrapper", packageName + ".SqlConnectionBasePrepareAdvice",
+      packageName + ".PrepareHandlerWrapper",
     };
   }
 
