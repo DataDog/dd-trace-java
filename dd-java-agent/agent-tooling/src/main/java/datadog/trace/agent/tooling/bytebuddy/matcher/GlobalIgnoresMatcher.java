@@ -1,6 +1,5 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
-import java.util.regex.Pattern;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -22,9 +21,6 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 public class GlobalIgnoresMatcher<T extends TypeDescription>
     extends ElementMatcher.Junction.AbstractBase<T> {
-
-  private static final Pattern COM_MCHANGE_PROXY =
-      Pattern.compile("^com\\.mchange\\.v2\\.c3p0\\..*Proxy$");
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> globalIgnoresMatcher(
       final boolean skipAdditionalLibraryMatcher) {
@@ -77,7 +73,7 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
             return !name.startsWith("com.sun.messaging.")
                 && !name.startsWith("com.sun.jersey.api.client");
           }
-          if (COM_MCHANGE_PROXY.matcher(name).matches()) {
+          if (name.startsWith("com.mchange.v2.c3p0.") && name.endsWith("Proxy")) {
             return true;
           }
         }
