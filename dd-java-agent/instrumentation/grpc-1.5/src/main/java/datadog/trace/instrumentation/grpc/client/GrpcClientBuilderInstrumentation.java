@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import io.grpc.ClientInterceptor;
 import java.util.List;
 import java.util.Map;
@@ -20,12 +21,20 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class GrpcClientBuilderInstrumentation extends Instrumenter.Tracing {
 
   public GrpcClientBuilderInstrumentation() {
-    super("grpc", "grpc-client");
+    super(true, "grpc", "grpc-client");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("io.grpc.ManagedChannelBuilder"))
+        .and(declaresField(named("interceptors")));
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> shortCutMatcher() {
+    return NameMatchers.<TypeDescription>namedOneOf(
+            "io.grpc.internal.AbstractManagedChannelImplBuilder",
+            "io.grpc.internal.ManagedChannelImplBuilder")
         .and(declaresField(named("interceptors")));
   }
 

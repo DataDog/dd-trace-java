@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.grpc.server;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -21,12 +22,24 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing {
 
   public GrpcServerBuilderInstrumentation() {
-    super("grpc", "grpc-server");
+    super(true, "grpc", "grpc-server");
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
+  public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("io.grpc.ServerBuilder"));
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> shortCutMatcher() {
+    return namedOneOf(
+        "io.grpc.internal.AbstractServerImplBuilder",
+        "io.grpc.alts.AltsServerBuilder",
+        "io.grpc.ForwardingServerBuilder",
+        "io.grpc.inprocess.InProcessServerBuilder",
+        "io.grpc.netty.NettyServerBuilder",
+        "io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder",
+        "io.grpc.internal.ServerImplBuilder");
   }
 
   @Override
