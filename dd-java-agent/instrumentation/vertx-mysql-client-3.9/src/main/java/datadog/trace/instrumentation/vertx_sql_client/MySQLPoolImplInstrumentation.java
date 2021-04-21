@@ -25,13 +25,6 @@ public class MySQLPoolImplInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".MySQLPoolImplConstructorAdvice",
-    };
-  }
-
-  @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return named("io.vertx.mysqlclient.impl.MySQLPoolImpl");
   }

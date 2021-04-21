@@ -29,13 +29,6 @@ public class MySQLConnectionImplInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".MySQLConnectionImplConstructorAdvice",
-    };
-  }
-
-  @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return named("io.vertx.mysqlclient.impl.MySQLConnectionImpl");
   }

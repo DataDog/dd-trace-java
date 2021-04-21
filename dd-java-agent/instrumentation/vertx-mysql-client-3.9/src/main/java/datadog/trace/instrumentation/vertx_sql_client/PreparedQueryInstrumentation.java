@@ -38,11 +38,7 @@ public class PreparedQueryInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".QueryResultHandlerWrapper",
-      packageName + ".VertxSqlClientDecorator",
-      packageName + ".QueryAdvice",
-      packageName + ".QueryAdvice$Copy",
-      packageName + ".QueryAdvice$Execute",
+      packageName + ".QueryResultHandlerWrapper", packageName + ".VertxSqlClientDecorator",
     };
   }
 

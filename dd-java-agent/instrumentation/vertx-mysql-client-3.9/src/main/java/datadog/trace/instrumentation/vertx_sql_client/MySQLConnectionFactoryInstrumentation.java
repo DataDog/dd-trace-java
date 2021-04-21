@@ -25,13 +25,6 @@ public class MySQLConnectionFactoryInstrumentation extends Instrumenter.Tracing 
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".MySQLConnectionFactoryConstructorAdvice",
-    };
-  }
-
-  @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return named("io.vertx.mysqlclient.impl.MySQLConnectionFactory");
   }

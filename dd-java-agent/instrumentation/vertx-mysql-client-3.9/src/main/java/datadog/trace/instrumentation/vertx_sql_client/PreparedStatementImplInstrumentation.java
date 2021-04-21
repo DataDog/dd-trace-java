@@ -29,13 +29,6 @@ public class PreparedStatementImplInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".PreparedStatementQueryAdvice",
-    };
-  }
-
-  @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return named("io.vertx.sqlclient.impl.PreparedStatementImpl");
   }

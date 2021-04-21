@@ -27,9 +27,7 @@ public class CursorImplInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".QueryResultHandlerWrapper",
-      packageName + ".VertxSqlClientDecorator",
-      packageName + ".CursorReadAdvice",
+      packageName + ".QueryResultHandlerWrapper", packageName + ".VertxSqlClientDecorator",
     };
   }
 
