@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator
 import org.jboss.netty.bootstrap.ServerBootstrap
@@ -122,25 +123,40 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
     return channelPipeline
   }
 
-  @Override
-  ServerBootstrap startServer(int port) {
-    ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory())
-    bootstrap.setParentHandler(LOGGING_HANDLER)
-    bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-        @Override
-        ChannelPipeline getPipeline() throws Exception {
-          return channelPipeline()
-        }
-      })
+  private class NettyServer implements HttpServer {
+    final ServerBootstrap server = new ServerBootstrap(new NioServerSocketChannelFactory())
+    int port = 0
 
-    InetSocketAddress address = new InetSocketAddress(port)
-    bootstrap.bind(address)
-    return bootstrap
+    @Override
+    void start() {
+      server.setParentHandler(LOGGING_HANDLER)
+      server.setPipelineFactory(new ChannelPipelineFactory() {
+          @Override
+          ChannelPipeline getPipeline() throws Exception {
+            // don't invoke until after instrumentation is applied
+            return channelPipeline()
+          }
+        })
+
+      InetSocketAddress address = new InetSocketAddress(0)
+      def channel = server.bind(address)
+      port = ((InetSocketAddress) channel.localAddress).port
+    }
+
+    @Override
+    void stop() {
+      server.shutdown()
+    }
+
+    @Override
+    URI address() {
+      return new URI("http://localhost:$port/")
+    }
   }
 
   @Override
-  void stopServer(ServerBootstrap server) {
-    server?.shutdown()
+  HttpServer server() {
+    return new NettyServer()
   }
 
   @Override
