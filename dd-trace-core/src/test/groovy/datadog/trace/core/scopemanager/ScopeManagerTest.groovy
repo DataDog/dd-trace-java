@@ -381,14 +381,17 @@ class ScopeManagerTest extends DDCoreSpecification {
   }
 
   def "test activating same span multiple times"() {
+    setup:
+    def span = tracer.buildSpan("test").start()
+
     when:
-    AgentScope scope1 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+    AgentScope scope1 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
 
     then:
     assertEvents([ACTIVATE])
 
     when:
-    AgentScope scope2 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+    AgentScope scope2 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
 
     then: 'Activating the same span multiple times does not create a new scope'
     assertEvents([ACTIVATE])
@@ -557,14 +560,17 @@ class ScopeManagerTest extends DDCoreSpecification {
   }
 
   def "closing scope out of order - multiple activations"() {
+    setup:
+    def span = tracer.buildSpan("test").start()
+
     when:
-    AgentScope scope1 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+    AgentScope scope1 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
 
     then:
     assertEvents([ACTIVATE])
 
     when:
-    AgentScope scope2 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+    AgentScope scope2 = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
 
     then: 'Activating the same span multiple times does not create a new scope'
     assertEvents([ACTIVATE])
@@ -805,8 +811,11 @@ class ScopeManagerTest extends DDCoreSpecification {
   }
 
   def "scope listener should be notified about the currently active scope"() {
+    setup:
+    def span = tracer.buildSpan("test").start()
+
     when:
-    AgentScope scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+    AgentScope scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
 
     then:
     assertEvents([ACTIVATE])
@@ -832,8 +841,11 @@ class ScopeManagerTest extends DDCoreSpecification {
   }
 
   def "extended scope listener should be notified about the currently active scope"() {
+    setup:
+    def span = tracer.buildSpan("test").start()
+
     when:
-    AgentScope scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+    AgentScope scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
 
     then:
     assertEvents([ACTIVATE])

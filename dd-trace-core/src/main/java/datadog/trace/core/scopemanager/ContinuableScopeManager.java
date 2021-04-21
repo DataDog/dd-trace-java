@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
 
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -154,7 +155,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     extendedScopeListeners.add(listener);
     log.debug("Added scope listener {}", listener);
     AgentSpan activeSpan = activeSpan();
-    if (activeSpan != null) {
+    if (activeSpan != null && !(activeSpan instanceof NoopAgentSpan)) {
       // Notify the listener about the currently active scope
       listener.afterScopeActivated(activeSpan.getTraceId(), activeSpan.context().getSpanId());
     }
@@ -241,6 +242,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
         }
       }
 
+      if (span instanceof NoopAgentSpan) {
+        return;
+      }
+
       for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
         try {
           listener.afterScopeClosed();
@@ -315,6 +320,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
         } catch (Throwable e) {
           log.debug("ScopeListener threw exception in afterActivated()", e);
         }
+      }
+
+      if (span instanceof NoopAgentSpan) {
+        return;
       }
 
       for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
