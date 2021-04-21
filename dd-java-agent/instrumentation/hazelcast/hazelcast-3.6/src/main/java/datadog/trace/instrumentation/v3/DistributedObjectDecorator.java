@@ -1,0 +1,121 @@
+package datadog.trace.instrumentation.v3;
+
+import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.COMPONENT_NAME;
+import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_INSTANCE;
+import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_NAME;
+import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_OPERATION;
+import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_SERVICE;
+
+import com.hazelcast.core.DistributedObject;
+import com.hazelcast.core.HazelcastInstance;
+import datadog.trace.api.Function;
+import datadog.trace.api.Pair;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
+import datadog.trace.util.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/** Decorate Hazelcast distributed object span's with relevant contextual information. */
+public class DistributedObjectDecorator extends ClientDecorator {
+
+  private static final Logger log = LoggerFactory.getLogger(DistributedObjectDecorator.class);
+
+  public static final DistributedObjectDecorator DECORATE = new DistributedObjectDecorator();
+
+  private static final DDCache<Pair<String, String>, String> QUALIFIED_NAME_CACHE =
+      DDCaches.newFixedSizeCache(64);
+
+  private static final Function<Pair<String, String>, String> COMPUTE_QUALIFIED_NAME =
+      new Function<Pair<String, String>, String>() {
+        @Override
+        public String apply(Pair<String, String> input) {
+          final String service = input.getLeft();
+          final String objectName = input.getRight();
+
+          final StringBuilder qualifiedName = new StringBuilder();
+          boolean terminateBracket = false;
+
+          if (service != null && service.length() > 15 && service.startsWith("hz:impl:")) {
+            // Transform into just the service qualifiedName
+            qualifiedName.append(
+                service, "hz:impl:".length(), service.length() - "Service".length());
+            qualifiedName.append('[');
+            terminateBracket = true;
+          }
+
+          qualifiedName.append(objectName);
+
+          if (terminateBracket) qualifiedName.append(']');
+
+          return qualifiedName.toString();
+        }
+      };
+
+  @Override
+  protected CharSequence spanType() {
+    return InternalSpanTypes.HTTP_CLIENT;
+  }
+
+  @Override
+  protected String[] instrumentationNames() {
+    return new String[] {COMPONENT_NAME.toString()};
+  }
+
+  @Override
+  protected CharSequence component() {
+    return COMPONENT_NAME;
+  }
+
+  @Override
+  protected String service() {
+    return COMPONENT_NAME.toString();
+  }
+
+  /** Decorate trace based on service execution metadata. */
+  public AgentSpan onServiceExecution(
+      final AgentSpan span, final DistributedObject object, final String methodName) {
+
+    final String objectName =
+        QUALIFIED_NAME_CACHE.computeIfAbsent(
+            Pair.of(object.getServiceName(), object.getName()), COMPUTE_QUALIFIED_NAME);
+
+    span.setResourceName(UTF8BytesString.create(Strings.join(".", objectName, methodName)));
+
+    span.setTag(HAZELCAST_SERVICE, object.getServiceName());
+    span.setTag(HAZELCAST_OPERATION, methodName);
+    span.setTag(HAZELCAST_NAME, objectName);
+
+    return span;
+  }
+
+  public AgentSpan onHazelcastInstance(final AgentSpan span, HazelcastInstance instance) {
+
+    if (instance != null
+        && instance.getLifecycleService() != null
+        && instance.getLifecycleService().isRunning()) {
+      try {
+        span.setTag(HAZELCAST_INSTANCE, instance.getName());
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+
+    return span;
+  }
+
+  /** Annotate the span with the results of the operation. */
+  public AgentSpan onResult(final AgentSpan span, Object result) {
+
+    // Nothing to do here, so return
+    if (result == null) {
+      return span;
+    }
+
+    return span;
+  }
+}

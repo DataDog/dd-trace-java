@@ -1,0 +1,28 @@
+muzzle {
+  pass {
+    group = "com.hazelcast"
+    module = "hazelcast-all"
+    versions = "[3.11,4.0)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compile project(':dd-java-agent:instrumentation:hazelcast')
+
+  compileOnly group: 'com.hazelcast', name: 'hazelcast-all', version: '3.11'
+
+  testCompile group: 'com.hazelcast', name: 'hazelcast-all', version: '3.11'
+
+  latestDepTestCompile group: 'com.hazelcast', name: 'hazelcast-all', version: '3.+'
+}
