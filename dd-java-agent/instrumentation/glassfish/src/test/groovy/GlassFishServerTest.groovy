@@ -1,4 +1,8 @@
+import com.sun.enterprise.v3.services.impl.GlassfishNetworkListener
+import com.sun.enterprise.v3.services.impl.GrizzlyProxy
+import com.sun.enterprise.v3.services.impl.GrizzlyService
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -10,6 +14,10 @@ import org.glassfish.embeddable.GlassFish
 import org.glassfish.embeddable.GlassFishProperties
 import org.glassfish.embeddable.GlassFishRuntime
 import org.glassfish.embeddable.archive.ScatteredArchive
+import org.glassfish.grizzly.nio.transport.TCPNIOTransport
+
+import java.nio.channels.ServerSocketChannel
+import java.util.concurrent.TimeoutException
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -21,44 +29,65 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 // TODO: Figure out a better way to test with OSGi included.
 class GlassFishServerTest extends HttpServerTest<GlassFish> {
 
+  private class GlassFishServer implements HttpServer {
+    final GlassFish server
+    final testDir = new File(TestServlets.protectionDomain.codeSource.location.path)
+    final testResourcesDir = new File(TestServlets.getResource("error.jsp").path).parentFile
+    final archive = new ScatteredArchive(context, ScatteredArchive.Type.WAR, testResourcesDir)
+
+    int port = 0
+
+    GlassFishServer() {
+      // Setup the deployment archive
+      assert testDir.exists() && testDir.directory
+      assert testResourcesDir.exists() && testResourcesDir.directory
+      archive.addClassPath(testDir)
+
+      // Initialize the server
+      BootstrapProperties bootstrapProperties = new BootstrapProperties()
+      GlassFishRuntime glassfishRuntime = GlassFishRuntime.bootstrap(bootstrapProperties)
+      GlassFishProperties glassfishProperties = new GlassFishProperties()
+      glassfishProperties.setPort('http-listener', 0)
+      server = glassfishRuntime.newGlassFish(glassfishProperties)
+    }
+
+    @Override
+    void start() throws TimeoutException {
+      server.start()
+
+      // Deploy war to server
+      Deployer deployer = server.getDeployer()
+      println "Deploying $testDir.absolutePath with $testResourcesDir.absolutePath"
+      deployer.deploy(archive.toURI())
+
+      // Extract the actual bound port
+      def service = server.getService(GrizzlyService)
+      def proxy = service.proxies[0] as GrizzlyProxy
+      def networkListener = proxy.grizzlyListener as GlassfishNetworkListener
+      assert networkListener.name == "http-listener"
+      def transport = networkListener.transport as TCPNIOTransport
+      def channel = transport.serverConnections[0].channel as ServerSocketChannel
+      port = channel.socket().localPort
+    }
+
+    @Override
+    void stop() {
+      server.stop()
+    }
+
+    @Override
+    URI address() {
+      return new URI("http://localhost:$port/$context/")
+    }
+  }
+
   @Override
-  URI buildAddress(int port) {
-    return new URI("http://localhost:$port/$context/")
+  HttpServer server() {
+    return new GlassFishServer()
   }
 
   String getContext() {
     "test-gf"
-  }
-
-  @Override
-  GlassFish startServer(int port) {
-    // Setup the deployment archive
-    def testDir = new File(TestServlets.protectionDomain.codeSource.location.path)
-    assert testDir.exists() && testDir.directory
-    def testResourcesDir = new File(TestServlets.getResource("error.jsp").path).parentFile
-    assert testResourcesDir.exists() && testResourcesDir.directory
-    ScatteredArchive archive = new ScatteredArchive(context, ScatteredArchive.Type.WAR, testResourcesDir)
-    archive.addClassPath(testDir)
-
-    // Initialize the server
-    BootstrapProperties bootstrapProperties = new BootstrapProperties()
-    GlassFishRuntime glassfishRuntime = GlassFishRuntime.bootstrap(bootstrapProperties)
-    GlassFishProperties glassfishProperties = new GlassFishProperties()
-    glassfishProperties.setPort('http-listener', port)
-    def server = glassfishRuntime.newGlassFish(glassfishProperties)
-    server.start()
-
-    // Deploy war to server
-    Deployer deployer = server.getDeployer()
-    println "Deploying $testDir.absolutePath with $testResourcesDir.absolutePath"
-    deployer.deploy(archive.toURI())
-
-    return server
-  }
-
-  @Override
-  void stopServer(GlassFish server) {
-    server.stop()
   }
 
   @Override
