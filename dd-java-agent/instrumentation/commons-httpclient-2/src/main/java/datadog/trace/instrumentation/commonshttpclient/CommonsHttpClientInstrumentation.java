@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.commonshttpclient;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -35,14 +33,8 @@ public class CommonsHttpClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed("org.apache.commons.httpclient.HttpClient");
-  }
-
-  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return extendsClass(named("org.apache.commons.httpclient.HttpClient"));
+    return named("org.apache.commons.httpclient.HttpClient");
   }
 
   @Override
