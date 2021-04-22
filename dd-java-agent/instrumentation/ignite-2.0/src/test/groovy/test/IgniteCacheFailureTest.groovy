@@ -121,6 +121,7 @@ class IgniteCacheFailureTest extends AgentTestRunner {
 
     assertTraces(1) {
       trace(2) {
+        sortSpansByStart()
         basicSpan(it, "test", null, ex)
         span {
           serviceName "ignite"
