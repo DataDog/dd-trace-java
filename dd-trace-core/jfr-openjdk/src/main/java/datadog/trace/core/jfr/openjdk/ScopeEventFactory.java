@@ -51,12 +51,14 @@ public class ScopeEventFactory implements ExtendedScopeListener {
   public void afterScopeClosed() {
     Deque<ScopeEvent> stack = scopeEventStack.get();
 
-    ScopeEvent scopeEvent = stack.pop();
-    scopeEvent.finish();
+    ScopeEvent scopeEvent = stack.poll();
+    if (scopeEvent != null) {
+      scopeEvent.finish();
 
-    ScopeEvent parent = stack.peek();
-    if (parent != null) {
-      parent.addChildCpuTime(scopeEvent.getRawCpuTime());
+      ScopeEvent parent = stack.peek();
+      if (parent != null) {
+        parent.addChildCpuTime(scopeEvent.getRawCpuTime());
+      }
     }
   }
 }
