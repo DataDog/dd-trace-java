@@ -21,8 +21,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class IgniteCacheFailureTest extends AgentTestRunner {
 
-  @Shared IgniteCache cache
-  @Shared Ignite igniteServer, igniteClient
+  @Shared
+  IgniteCache cache
+  @Shared
+  Ignite igniteServer, igniteClient
 
   protected void configurePreAgent() {
     super.configurePreAgent()
@@ -110,9 +112,8 @@ class IgniteCacheFailureTest extends AgentTestRunner {
 
     when:
     runUnderTrace("test") {
-      def future = cache.putAsync("abc", "123")
-
-      return future.get(1, TimeUnit.SECONDS)
+      cache.putAsync("abc", "123")
+        .get(10, TimeUnit.SECONDS)
     }
 
     then:
@@ -144,7 +145,4 @@ class IgniteCacheFailureTest extends AgentTestRunner {
       }
     }
   }
-
-
-
 }
