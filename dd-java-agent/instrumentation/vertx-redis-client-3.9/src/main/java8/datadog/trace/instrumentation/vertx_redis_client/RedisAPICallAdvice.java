@@ -1,9 +1,12 @@
 package datadog.trace.instrumentation.vertx_redis_client;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.context.TraceScope;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.redis.RedisClient;
@@ -16,7 +19,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
 public class RedisAPICallAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void beforeCall(
+  public static boolean beforeCall(
       @Advice.Origin final Method currentMethod,
       @Advice.Argument(
               value = 0,
@@ -54,7 +57,7 @@ public class RedisAPICallAdvice {
     // either), so this seems to be the only way to communicate that we have already wrapped
     // the handler. :(
     if (CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0) {
-      return;
+      return true;
     }
 
     // TODO what is the recreated for every read about in the @Advice.Origin javadoc?
@@ -92,11 +95,14 @@ public class RedisAPICallAdvice {
     }
 
     if (null == handler || handler instanceof ResponseHandlerWrapper) {
-      return;
+      return true;
     }
 
-    final AgentSpan span = DECORATE.startAndDecorateSpan(method.getName());
-    handler = new ResponseHandlerWrapper(handler, span);
+    final AgentSpan parentSpan = activeSpan();
+    final AgentSpan clientSpan = DECORATE.startAndDecorateSpan(method.getName());
+    TraceScope.Continuation parentContinuation =
+        null == parentSpan ? null : captureSpan(parentSpan);
+    handler = new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
 
     switch (position) {
       case 1:
@@ -116,11 +122,19 @@ public class RedisAPICallAdvice {
         break;
       default:
     }
+
+    // We can not activate the clientSpan here for consistency reasons, since sometimes the Future
+    // that is returned from the inner `send` method, is completed before we add the handler, and
+    // then the handler will be executed immediately in the scope of this clientSpan
+    return true;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void afterCall(@Advice.Thrown final Throwable throwable) {
-    CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
+  public static void afterCall(
+      @Advice.Thrown final Throwable throwable, @Advice.Enter final boolean decrement) {
+    if (decrement) {
+      CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
+    }
   }
 
   // Only apply this advice for versions that we instrument 3.9.x

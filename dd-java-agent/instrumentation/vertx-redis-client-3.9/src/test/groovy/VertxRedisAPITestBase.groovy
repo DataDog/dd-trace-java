@@ -8,6 +8,8 @@ import spock.lang.Shared
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+
 abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
 
   @AutoCleanup
@@ -110,6 +112,24 @@ abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
       parentTraceWithCommandAndHandler(it, "RPUSH")
       parentTraceWithCommandAndHandler(it, "LINSERT")
       parentTraceWithCommandAndHandler(it, "LRANGE")
+    }
+  }
+
+  def "dbsize without parent (1 arg)"() {
+    when:
+    def dbsize = runWithHandler({ Handler<AsyncResult<Response>> h ->
+      redisAPI.dbsize(h)
+    }, this.&responseToInteger)
+
+    then:
+    dbsize == 0
+    assertTraces(2) {
+      trace(1) {
+        redisSpan(it, "DBSIZE")
+      }
+      trace(1) {
+        basicSpan(it, "handler")
+      }
     }
   }
 }

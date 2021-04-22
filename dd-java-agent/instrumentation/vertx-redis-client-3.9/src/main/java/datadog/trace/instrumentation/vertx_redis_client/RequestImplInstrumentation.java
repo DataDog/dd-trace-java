@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.vertx_redis_client;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -20,7 +21,6 @@ import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
-import net.bytebuddy.matcher.BooleanMatcher;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
@@ -39,8 +39,7 @@ public class RequestImplInstrumentation extends Instrumenter.Tracing {
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     // This advice should never match any methods, and is only here for Muzzle
-    return Collections.singletonMap(
-        new BooleanMatcher<MethodDescription>(false), packageName + ".RequestImplMuzzle");
+    return Collections.singletonMap(none(), packageName + ".RequestImplMuzzle");
   }
 
   @Override
@@ -99,6 +98,11 @@ public class RequestImplInstrumentation extends Instrumenter.Tracing {
                   @Override
                   public void visitEnd() {
                     // Add a clone method that calls the protected shallow clone method in Object
+                    //
+                    // public Object clone() throws CloneNotSupportedException {
+                    //    return super.clone(); // Object is the super class
+                    // }
+                    //
                     final MethodVisitor mv =
                         cv.visitMethod(
                             Opcodes.ACC_PUBLIC,

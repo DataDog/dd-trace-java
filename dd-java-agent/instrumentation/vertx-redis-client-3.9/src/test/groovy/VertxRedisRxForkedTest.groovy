@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 class VertxRedisRxForkedTest extends VertxRedisTestBase {
 
@@ -46,14 +47,42 @@ class VertxRedisRxForkedTest extends VertxRedisTestBase {
     }
   }
 
+  def "set and get command without parent"() {
+    when:
+    def set = runWithHandler(Request.cmd(Command.SET).arg("foo").arg("bar"))
+    def get = runWithHandler(Request.cmd(Command.GET).arg("foo"))
+
+    then:
+    set == "OK"
+    get == "bar"
+    assertTraces(4) {
+      trace(1) {
+        redisSpan(it, "SET")
+      }
+      trace(1) {
+        basicSpan(it, "handler")
+      }
+      trace(1) {
+        redisSpan(it, "GET")
+      }
+      trace(1) {
+        basicSpan(it, "handler")
+      }
+    }
+  }
+
+  String runWithHandler(final Request request) {
+    redisConnection.rxSend(request).map({ r ->
+      runUnderTrace("handler") {
+        responseToString(r.delegate)
+      }
+    }).toObservable().blockingFirst()
+  }
+
   String runWithParentAndHandler(final Request request) {
     String result = null
     def parentSpan = runUnderTrace("parent") {
-      result = redisConnection.rxSend(request).map({ r ->
-        runUnderTrace("handler") {
-          responseToString(r.delegate)
-        }
-      }).toObservable().blockingFirst()
+      result = runWithHandler(request)
       blockUntilChildSpansFinished(1)
       activeSpan() as DDSpan
     }

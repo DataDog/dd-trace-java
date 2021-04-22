@@ -18,6 +18,8 @@ import redis.embedded.RedisServer
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.function.Function
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -68,17 +70,27 @@ abstract class VertxRedisTestBase extends AgentTestRunner {
     TEST_WRITER.start()
   }
 
+  public <T, R> R runWithHandler(final Handler<Handler<AsyncResult<T>>> redisCommand,
+    final Function< T, R> resultFunction = null) {
+    R result = null
+    CountDownLatch latch = new CountDownLatch(1)
+    redisCommand.handle({ ar ->
+      runUnderTrace("handler") {
+        if (resultFunction) {
+          result = resultFunction.apply(ar.result())
+        }
+      }
+      latch.countDown()
+    })
+    assert latch.await(10, TimeUnit.SECONDS)
+    result
+  }
+
   public <T, R> R runWithParentAndHandler(final Handler<Handler<AsyncResult<T>>> redisCommand,
     final Function< T, R> resultFunction = null) {
     R result = null
     def parentSpan = runUnderTrace("parent") {
-      redisCommand.handle({ ar ->
-        runUnderTrace("handler") {
-          if (resultFunction) {
-            result = resultFunction.apply(ar.result())
-          }
-        }
-      })
+      result = runWithHandler(redisCommand, resultFunction)
       blockUntilChildSpansFinished(2)
       activeSpan() as DDSpan
     }
@@ -88,7 +100,7 @@ abstract class VertxRedisTestBase extends AgentTestRunner {
 
   static void parentTraceWithCommandAndHandler(ListWriterAssert lw, String command) {
     lw.trace(3, true) {
-      basicSpan(it, "handler", span(2))
+      basicSpan(it, "handler", span(1))
       basicSpan(it,"parent")
       redisSpan(it, command, span(1)) // name is redis.query
     }
@@ -103,7 +115,7 @@ abstract class VertxRedisTestBase extends AgentTestRunner {
       operationName "redis.query"
       resourceName command
       spanType DDSpanTypes.REDIS
-      topLevel parentSpan ? true : false
+      topLevel true
       tags {
         "$Tags.COMPONENT" "redis-command"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

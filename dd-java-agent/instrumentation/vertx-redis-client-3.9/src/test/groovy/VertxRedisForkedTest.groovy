@@ -4,6 +4,8 @@ import io.vertx.redis.client.Command
 import io.vertx.redis.client.Request
 import io.vertx.redis.client.Response
 
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+
 class VertxRedisForkedTest extends VertxRedisTestBase {
 
   def "set and get command"() {
@@ -21,6 +23,34 @@ class VertxRedisForkedTest extends VertxRedisTestBase {
     assertTraces(2) {
       parentTraceWithCommandAndHandler(it, "SET")
       parentTraceWithCommandAndHandler(it, "GET")
+    }
+  }
+
+  def "set and get command without parent"() {
+    when:
+    def set = runWithHandler({ Handler<AsyncResult<Response>> h ->
+      redis.send(Request.cmd(Command.SET).arg("foo").arg("bar"), h)
+    }, this.&responseToString)
+    def get = runWithHandler({ Handler<AsyncResult<Response>> h ->
+      redis.send(Request.cmd(Command.GET).arg("foo"), h)
+    }, this.&responseToString)
+
+    then:
+    set == "OK"
+    get == "bar"
+    assertTraces(4) {
+      trace(1) {
+        redisSpan(it, "SET")
+      }
+      trace(1) {
+        basicSpan(it, "handler")
+      }
+      trace(1) {
+        redisSpan(it, "GET")
+      }
+      trace(1) {
+        basicSpan(it, "handler")
+      }
     }
   }
 

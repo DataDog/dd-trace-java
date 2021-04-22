@@ -1,12 +1,18 @@
 package datadog.trace.instrumentation.vertx_redis_client;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.context.TraceScope;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.redis.RedisClient;
@@ -20,18 +26,18 @@ import net.bytebuddy.asm.Advice;
 
 public class RedisSendAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static boolean beforeSend(
+  public static AgentScope beforeSend(
       @Advice.Argument(value = 0, readOnly = false) Request request,
       @Advice.Argument(value = 1, readOnly = false) Handler<AsyncResult<Response>> handler)
       throws Throwable {
     if (null == handler || handler instanceof ResponseHandlerWrapper) {
-      return false;
+      return null;
     }
 
     ContextStore<Request, Boolean> ctxt = InstrumentationContext.get(Request.class, Boolean.class);
     Boolean handled = ctxt.get(request);
     if (null != handled && handled) {
-      return false;
+      return null;
     }
     // Create a shallow copy of the Request here to make sure that reused Requests get spans
     if (request instanceof Cloneable) {
@@ -43,22 +49,25 @@ public class RedisSendAdvice {
     // If we had already wrapped the innermost handler in the RedisAPI call, then we should
     // not wrap it again here. See comment in RedisAPICallAdvice
     if (CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0) {
-      return true;
+      return AgentTracer.NoopAgentScope.INSTANCE;
     }
 
-    final AgentSpan span =
+    AgentSpan parentSan = activeSpan();
+    TraceScope.Continuation parentContinuation = null == parentSan ? null : captureSpan(parentSan);
+    final AgentSpan clientSpan =
         DECORATE.startAndDecorateSpan(
             request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
-    handler = new ResponseHandlerWrapper(handler, span);
+    handler = new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
 
-    return true;
+    return activateSpan(clientSpan, true);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterSend(
-      @Advice.Thrown final Throwable throwable, @Advice.Enter boolean decrement) {
-    if (decrement) {
+      @Advice.Thrown final Throwable throwable, @Advice.Enter final AgentScope clientScope) {
+    if (null != clientScope) {
       CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
+      clientScope.close();
     }
   }
 
