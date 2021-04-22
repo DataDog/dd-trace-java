@@ -357,12 +357,11 @@ jobs:
 
     docker:
       - image: *default_container
-      - image: datadog/agent:7.25.0
+      - image: datadog/agent:7.29.0
         environment:
           - DD_APM_ENABLED=true
           - DD_BIND_HOST=0.0.0.0
           - DD_API_KEY=invalid_key_but_this_is_fine
-          - DD_APM_FEATURES=client_stats
 
   check:
     <<: *defaults
