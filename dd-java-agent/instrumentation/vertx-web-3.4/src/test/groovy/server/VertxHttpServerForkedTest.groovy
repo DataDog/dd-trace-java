@@ -1,6 +1,7 @@
 package server
 
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -10,6 +11,7 @@ import io.vertx.core.AbstractVerticle
 import io.vertx.core.DeploymentOptions
 import io.vertx.core.Vertx
 import io.vertx.core.VertxOptions
+import io.vertx.core.impl.VertxInternal
 import io.vertx.core.json.JsonObject
 
 import java.util.concurrent.CompletableFuture
@@ -21,34 +23,49 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
-  @Override
-  Vertx startServer(int port) {
-    def server = Vertx.vertx(new VertxOptions()
-      // Useful for debugging:
-      // .setBlockedThreadCheckInterval(Integer.MAX_VALUE)
-      .setClusterPort(port))
-    final CompletableFuture<Void> future = new CompletableFuture<>()
-    server.deployVerticle(verticle().name,
-      new DeploymentOptions()
-      .setConfig(new JsonObject().put(CONFIG_HTTP_SERVER_PORT, port))
-      .setInstances(3)) { res ->
-        if (!res.succeeded()) {
-          throw new RuntimeException("Cannot deploy server Verticle", res.cause())
-        }
-        future.complete(null)
-      }
 
-    future.get()
-    return server
+  private class VertxServer implements HttpServer {
+    private VertxInternal server
+    private int port = 0
+
+    @Override
+    void start() {
+      server = Vertx.vertx(new VertxOptions()
+        // Useful for debugging:
+        // .setBlockedThreadCheckInterval(Integer.MAX_VALUE)
+        .setClusterPort(0))
+      final CompletableFuture<Void> future = new CompletableFuture<>()
+      server.deployVerticle(verticle().name,
+        new DeploymentOptions()
+        .setConfig(new JsonObject().put(CONFIG_HTTP_SERVER_PORT, port))
+        .setInstances(1)) { res ->
+          if (!res.succeeded()) {
+            throw new RuntimeException("Cannot deploy server Verticle", res.cause())
+          }
+          future.complete(null)
+        }
+      future.get()
+      port = server.sharedHttpServers().values().first().actualPort()
+    }
+
+    @Override
+    void stop() {
+      server.close()
+    }
+
+    @Override
+    URI address() {
+      return new URI("http://localhost:$port/")
+    }
+  }
+
+  @Override
+  HttpServer server() {
+    return new VertxServer()
   }
 
   protected Class<AbstractVerticle> verticle() {
     VertxTestServer
-  }
-
-  @Override
-  void stopServer(Vertx server) {
-    server.close()
   }
 
   @Override
