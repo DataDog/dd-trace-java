@@ -120,6 +120,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TA
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_INCLUDE_KEYS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
@@ -346,6 +347,8 @@ public class Config {
 
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
+
+  private final boolean igniteCacheIncludeKeys;
 
   private final int osgiSearchDepth;
 
@@ -721,6 +724,8 @@ public class Config {
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
+
+    igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
 
     osgiSearchDepth = configProvider.getInteger(OSGI_SEARCH_DEPTH, 1);
 
@@ -1098,6 +1103,10 @@ public class Config {
 
   public boolean isHystrixMeasuredEnabled() {
     return hystrixMeasuredEnabled;
+  }
+
+  public boolean isIgniteCacheIncludeKeys() {
+    return igniteCacheIncludeKeys;
   }
 
   public int getOsgiSearchDepth() {
@@ -1792,6 +1801,8 @@ public class Config {
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="
         + hystrixMeasuredEnabled
+        + ", igniteCacheIncludeKeys="
+        + igniteCacheIncludeKeys
         + ", osgiSearchDepth="
         + osgiSearchDepth
         + ", servletPrincipalEnabled="
