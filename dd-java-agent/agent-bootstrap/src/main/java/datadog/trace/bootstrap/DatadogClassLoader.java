@@ -1,8 +1,17 @@
 package datadog.trace.bootstrap;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +36,7 @@ public class DatadogClassLoader extends URLClassLoader {
   // to use only for resource lookups.
   private final ClassLoader bootstrapProxy;
   private final String classLoaderName;
+  private final JarIndex jarIndex;
 
   private String lastPackage = null;
 
@@ -36,10 +46,15 @@ public class DatadogClassLoader extends URLClassLoader {
       final ClassLoader bootstrapProxy,
       final ClassLoader parent) {
     super(new URL[] {}, parent);
+    this.jarIndex =
+        parent instanceof DatadogClassLoader
+            ? ((DatadogClassLoader) parent).jarIndex
+            : new JarIndex(bootstrapJarLocation);
     this.bootstrapProxy = bootstrapProxy;
     this.classLoaderName = null == internalJarFileName ? "datadog" : internalJarFileName;
     this.internalJarURLHandler =
-        new InternalJarURLHandler(internalJarFileName, bootstrapJarLocation);
+        new InternalJarURLHandler(
+            internalJarFileName, jarIndex.index.get(internalJarFileName), jarIndex.jarFile);
     try {
       // The fields of the URL are mostly dummy.  InternalJarURLHandler is the only important
       // field.  If extending this class from Classloader instead of URLClassloader required less
@@ -178,6 +193,54 @@ public class DatadogClassLoader extends URLClassLoader {
         }
       }
       return shared.loadFromPackage(packageName, name);
+    }
+  }
+
+  static final class JarIndex {
+    private final HashMap<String, Set<String>> index;
+    private final JarFile jarFile;
+
+    private JarIndex(URL location) {
+      this.index = new HashMap<>();
+      JarFile jarFile = null;
+      try {
+        if (location != null) {
+          jarFile = new JarFile(new File(location.toURI()), false);
+          String currentFilePrefix = "$";
+          int prefixLength = Integer.MAX_VALUE;
+          Set<String> packages = null;
+          final Enumeration<JarEntry> entries = jarFile.entries();
+          while (entries.hasMoreElements()) {
+            final JarEntry entry = entries.nextElement();
+            String name = entry.getName();
+            if (entry.isDirectory() && !name.startsWith("META-INF/")) {
+              if (!name.startsWith(currentFilePrefix)) {
+                int end = name.indexOf('/');
+                currentFilePrefix = name.substring(0, end);
+                packages = new HashSet<>();
+                index.put(currentFilePrefix, packages);
+                prefixLength = end + 1;
+              }
+              if (name.length() > prefixLength && null != packages) {
+                String dir = name.substring(prefixLength, name.length() - 1);
+                String currentPackage = dir.replace('/', '.');
+                packages.add(currentPackage);
+              }
+            }
+          }
+        }
+      } catch (final URISyntaxException | IOException e) {
+        log.error("Unable to read internal jar", e);
+      }
+      this.jarFile = jarFile;
+    }
+
+    public Set<String> getPackages(String namespace) {
+      return index.get(namespace);
+    }
+
+    public JarFile getJarFile() {
+      return jarFile;
     }
   }
 }

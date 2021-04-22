@@ -8,10 +8,13 @@ class InternalJarURLHandlerTest extends DDSpecification {
   @Shared
   URL testJarLocation = new File("src/test/resources/classloader-test-jar/testjar-jdk8").toURI().toURL()
 
+  @Shared
+  DatadogClassLoader.JarIndex index = new DatadogClassLoader.JarIndex(testJarLocation)
+
 
   def "test extract packages"() {
     setup:
-    InternalJarURLHandler handler = new InternalJarURLHandler(dir, testJarLocation)
+    InternalJarURLHandler handler = new InternalJarURLHandler(dir, index.getPackages(dir), index.jarFile)
     expect:
     packages == handler.getPackages()
 
@@ -23,7 +26,7 @@ class InternalJarURLHandlerTest extends DDSpecification {
 
   def "test get URL"() {
     setup:
-    InternalJarURLHandler handler = new InternalJarURLHandler(dir, testJarLocation)
+    InternalJarURLHandler handler = new InternalJarURLHandler(dir, index.getPackages(dir), index.jarFile)
     when:
     URLConnection connection = handler.openConnection(new File(file).toURI().toURL())
     assert connection != null
@@ -46,7 +49,7 @@ class InternalJarURLHandlerTest extends DDSpecification {
   def "test read class twice"() {
     // guards against caching the stream
     setup:
-    InternalJarURLHandler handler = new InternalJarURLHandler(dir, testJarLocation)
+    InternalJarURLHandler handler = new InternalJarURLHandler(dir, index.getPackages(dir), index.jarFile)
     when:
     URLConnection connection = handler.openConnection(new File(file).toURI().toURL())
     assert connection != null
@@ -73,7 +76,7 @@ class InternalJarURLHandlerTest extends DDSpecification {
 
   def "handle not found"() {
     setup:
-    InternalJarURLHandler handler = new InternalJarURLHandler(dir, testJarLocation)
+    InternalJarURLHandler handler = new InternalJarURLHandler(dir, index.getPackages(dir), index.jarFile)
     when:
     handler.openConnection(new File(file).toURI().toURL())
     then:

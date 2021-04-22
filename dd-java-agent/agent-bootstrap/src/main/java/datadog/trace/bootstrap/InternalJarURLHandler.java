@@ -2,67 +2,32 @@ package datadog.trace.bootstrap;
 
 import datadog.trace.api.Pair;
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.security.Permission;
-import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class InternalJarURLHandler extends URLStreamHandler {
-
-  private static final Logger log = LoggerFactory.getLogger(InternalJarURLHandler.class);
 
   private static final WeakReference<Pair<String, JarEntry>> NULL = new WeakReference<>(null);
 
   private final String name;
   private final FileNotInInternalJar notFound;
-  private final Set<String> packages = new HashSet<>();
+  private final Set<String> packages;
   private final JarFile bootstrapJarFile;
 
   private WeakReference<Pair<String, JarEntry>> cache = NULL;
 
-  InternalJarURLHandler(final String internalJarFileName, final URL bootstrapJarLocation) {
+  InternalJarURLHandler(String internalJarFileName, Set<String> packages, JarFile jarFile) {
     this.name = internalJarFileName;
     this.notFound = new FileNotInInternalJar(internalJarFileName);
-    final String filePrefix = internalJarFileName + "/";
-    JarFile jarFile = null;
-    try {
-      if (bootstrapJarLocation != null) {
-        jarFile = new JarFile(new File(bootstrapJarLocation.toURI()), false);
-        final Enumeration<JarEntry> entries = jarFile.entries();
-        while (entries.hasMoreElements()) {
-          final JarEntry entry = entries.nextElement();
-          String name = entry.getName();
-          if (name.startsWith(filePrefix)) {
-            if (entry.isDirectory() && !name.contains("/META-INF/")) {
-              int prefix = filePrefix.length();
-              if (name.length() > prefix) {
-                String dir = name.substring(prefix, name.length() - 1);
-                String currentPackage = dir.replace('/', '.');
-                packages.add(currentPackage);
-              }
-            }
-          }
-        }
-      }
-    } catch (final URISyntaxException | IOException e) {
-      log.error("Unable to read internal jar", e);
-    }
-
-    if (packages.isEmpty()) {
-      log.warn("No internal jar entries found");
-    }
+    this.packages = packages;
     this.bootstrapJarFile = jarFile;
   }
 
