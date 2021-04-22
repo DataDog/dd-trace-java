@@ -42,7 +42,7 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
   def "test #type"() {
     when:
     AsyncResult<RowSet<Row>> asyncResult = runUnderTrace("parent") {
-      return executeQuery(query)
+      return executeQueryWithHandler(query)
     }
 
     then:
@@ -55,9 +55,43 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     result.size() == 1
     result[0].getInteger(0) == 7
     assertTraces(1) {
-      trace(2, true) {
-        checkDBSpan(it, span(1), "SELECT ?", "SELECT", dbs.DBInfos.mysql, prepared)
+      trace(3, true) {
+        basicSpan(it, "handler", span(2))
+        checkDBSpan(it, span(2), "SELECT ?", "SELECT", dbs.DBInfos.mysql, prepared)
         basicSpan(it, "parent")
+      }
+    }
+
+    cleanup:
+    pool.close()
+
+    where:
+    type                 | pool   | query                                         | prepared
+    'query'              | pool() | pool.query('SELECT 7')                        | false
+    'prepared query'     | pool() | pool.preparedQuery("SELECT 7")                | true
+    'prepared statement' | pool() | prepare(connection(pool), "SELECT 7").query() | true
+  }
+
+  @Unroll
+  def "test #type without parent"() {
+    when:
+    AsyncResult<RowSet<Row>> asyncResult = executeQueryWithHandler(query)
+
+    then:
+    asyncResult.succeeded()
+
+    when:
+    def result = asyncResult.result()
+
+    then:
+    result.size() == 1
+    result[0].getInteger(0) == 7
+    assertTraces(2) {
+      trace(1) {
+        checkDBSpan(it, null, "SELECT ?", "SELECT", dbs.DBInfos.mysql, prepared)
+      }
+      trace(1) {
+        basicSpan(it, "handler")
       }
     }
 
@@ -80,7 +114,7 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
 
     when:
     AsyncResult<RowSet<Integer>> asyncResult = runUnderTrace("parent") {
-      return executeQuery(mapped)
+      return executeQueryWithHandler(mapped)
     }
 
     then:
@@ -93,9 +127,48 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     result.size() == 1
     result[0] == 7
     assertTraces(1) {
-      trace(2, true) {
-        checkDBSpan(it, span(1), "SELECT ?", "SELECT", dbs.DBInfos.mysql, prepared)
+      trace(3, true) {
+        basicSpan(it, "handler", span(2))
+        checkDBSpan(it, span(2), "SELECT ?", "SELECT", dbs.DBInfos.mysql, prepared)
         basicSpan(it, "parent")
+      }
+    }
+
+    cleanup:
+    pool.close()
+
+    where:
+    type                 | pool   | query                                         | prepared
+    'query'              | pool() | pool.query('SELECT 7')                        | false
+    'prepared query'     | pool() | pool.preparedQuery("SELECT 7")                | true
+    'prepared statement' | pool() | prepare(connection(pool), "SELECT 7").query() | true
+  }
+
+  @Unroll
+  def "test #type mapped without parent"() {
+    setup:
+    def mapped = query.mapping({row ->
+      return row.getInteger(0)
+    })
+
+    when:
+    AsyncResult<RowSet<Integer>> asyncResult = executeQueryWithHandler(mapped)
+
+    then:
+    asyncResult.succeeded()
+
+    when:
+    def result = asyncResult.result()
+
+    then:
+    result.size() == 1
+    result[0] == 7
+    assertTraces(2) {
+      trace(1) {
+        checkDBSpan(it, null, "SELECT ?", "SELECT", dbs.DBInfos.mysql, prepared)
+      }
+      trace(1) {
+        basicSpan(it, "handler")
       }
     }
 
@@ -116,7 +189,7 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
 
     when:
     def asyncResult = runUnderTrace("parent") {
-      queryCursor(cursor)
+      queryCursorWithHandler(cursor)
     }
 
     then:
@@ -129,8 +202,9 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     result.size() == 1
     result[0].getInteger(0) == 7
     assertTraces(1) {
-      trace(2, true) {
-        checkDBSpan(it, span(1), "SELECT ?", "SELECT", dbs.DBInfos.mysql, true)
+      trace(3, true) {
+        basicSpan(it, "handler", span(2))
+        checkDBSpan(it, span(2), "SELECT ?", "SELECT", dbs.DBInfos.mysql, true)
         basicSpan(it, "parent")
       }
     }
@@ -156,8 +230,10 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     runUnderTrace("parent") {
       stream.handler({ row ->
         if (latch.getCount() != 0) {
-          result.set(row)
-          stream.close()
+          runUnderTrace("handler") {
+            result.set(row)
+            stream.close()
+          }
           latch.countDown()
         }
       })
@@ -167,8 +243,9 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     then:
     result.get().getInteger(0) == 7
     assertTraces(1) {
-      trace(2, true) {
-        checkDBSpan(it, span(1), "SELECT ?", "SELECT", dbs.DBInfos.mysql, true)
+      trace(3, true) {
+        basicSpan(it, "handler", span(2))
+        checkDBSpan(it, span(2), "SELECT ?", "SELECT", dbs.DBInfos.mysql, true)
         basicSpan(it, "parent")
       }
     }
@@ -183,22 +260,26 @@ class VertxSqlClientForkedTest extends AgentTestRunner {
     return MySQLPool.pool(vertx, connectOptions, poolOptions)
   }
 
-  public <T> AsyncResult<RowSet<T>> executeQuery(Query<RowSet<T>> query) {
+  public <T> AsyncResult<RowSet<T>> executeQueryWithHandler(Query<RowSet<T>> query) {
     def latch = new CountDownLatch(1)
     AsyncResult<RowSet<T>> result = null
     query.execute { rowSetAR ->
-      result = rowSetAR
+      runUnderTrace("handler") {
+        result = rowSetAR
+      }
       latch.countDown()
     }
     assert latch.await(10, TimeUnit.SECONDS)
     return result
   }
 
-  AsyncResult<RowSet<Row>> queryCursor(Cursor cursor) {
+  AsyncResult<RowSet<Row>> queryCursorWithHandler(Cursor cursor) {
     def latch = new CountDownLatch(1)
     AsyncResult<RowSet<Row>> result = null
     cursor.read(0) { rowSetAR ->
-      result = rowSetAR
+      runUnderTrace("handler") {
+        result = rowSetAR
+      }
       latch.countDown()
     }
     assert latch.await(10, TimeUnit.SECONDS)
