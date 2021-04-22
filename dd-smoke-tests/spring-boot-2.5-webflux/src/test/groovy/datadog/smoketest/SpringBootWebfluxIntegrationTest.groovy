@@ -13,7 +13,7 @@ class SpringBootWebfluxIntegrationTest extends AbstractServerSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) [
-      "-Ddd.writer.type=TraceStructureWriter:${output.getAbsolutePath()}",
+      "-Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter",
       "-jar",
       springBootShadowJar,
       "--server.port=${httpPort}"
@@ -43,5 +43,6 @@ class SpringBootWebfluxIntegrationTest extends AbstractServerSmokeTest {
     def responseBodyStr = response.body().string()
     responseBodyStr != null
     responseBodyStr.contains("Hello world")
+    waitForTraceCount(1)
   }
 }
