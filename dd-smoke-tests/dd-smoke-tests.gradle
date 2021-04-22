@@ -5,7 +5,6 @@ description = 'dd-smoke-tests'
 dependencies {
   compile deps.spock
   compile project(':dd-java-agent:testing')
-  compile 'org.testcontainers:testcontainers:1.15.2'
 }
 
 def smokeTestLimit = gradle.sharedServices.registerIfAbsent("smokeTestLimit", BuildService) {
@@ -19,6 +18,9 @@ subprojects { subProject ->
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
     jvmArgs "-Ddatadog.smoketest.agent.shadowJar.path=${project(':dd-java-agent').tasks.shadowJar.archivePath}"
+
+    // The jar path for the test agent (taken from https://github.com/DataDog/dd-trace-test-agent )
+    jvmArgs "-Ddatadog.smoketest.test.agent.dir=${project.getRootDir()}/dd-smoke-tests/src/main/resources/datadog.smoketest.test.agent.jar"
 
     // Only one smoke test at a time
     usesService(smokeTestLimit)
