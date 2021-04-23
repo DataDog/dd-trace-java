@@ -1,6 +1,7 @@
 package server
 
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -22,10 +23,10 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
   @Override
-  EmbeddedApp startServer(int bindPort) {
-    def ratpack = GroovyEmbeddedApp.ratpack {
+  HttpServer server() {
+    return new RatpackServer(GroovyEmbeddedApp.ratpack {
       serverConfig {
-        port bindPort
+        port 0
         address InetAddress.getByName('localhost')
       }
       bindings {
@@ -75,11 +76,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
           }
         }
       }
-    }
-    ratpack.server.start()
-
-    assert ratpack.address.port == bindPort
-    return ratpack
+    })
   }
 
   static class TestErrorHandler implements ServerErrorHandler {
@@ -87,11 +84,6 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
     void error(Context context, Throwable throwable) throws Exception {
       context.response.status(500).send(throwable.message)
     }
-  }
-
-  @Override
-  void stopServer(EmbeddedApp server) {
-    server.close()
   }
 
   @Override
