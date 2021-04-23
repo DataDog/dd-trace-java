@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.aws.v0.AWSClientInstrumentation.CLASS_LOADER_MATCHER;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
-import static datadog.trace.instrumentation.aws.v0.TracingRequestHandler.SCOPE_CONTEXT_KEY;
+import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.SCOPE_CONTEXT_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -31,15 +32,18 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return CLASS_LOADER_MATCHER;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return named("com.amazonaws.http.AmazonHttpClient");
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".OnErrorDecorator", packageName + ".TracingRequestHandler",
-    };
+    return new String[] {packageName + ".OnErrorDecorator"};
   }
 
   @Override
@@ -77,8 +81,18 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
   public static final class RequestExecutorInstrumentation extends AWSHttpClientInstrumentation {
 
     @Override
+    public ElementMatcher<ClassLoader> classLoaderMatcher() {
+      return CLASS_LOADER_MATCHER;
+    }
+
+    @Override
     public ElementMatcher<TypeDescription> typeMatcher() {
       return named("com.amazonaws.http.AmazonHttpClient$RequestExecutor");
+    }
+
+    @Override
+    public String[] helperClassNames() {
+      return new String[] {packageName + ".OnErrorDecorator"};
     }
 
     @Override

@@ -1,17 +1,14 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
-import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.List;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -27,9 +24,12 @@ public final class AWSClientInstrumentation extends Instrumenter.Tracing {
     super("aws-sdk");
   }
 
+  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("com.amazonaws.AmazonWebServiceRequest");
+
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return RequestInstrumentation.CLASS_LOADER_MATCHER;
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override
@@ -44,6 +44,8 @@ public final class AWSClientInstrumentation extends Instrumenter.Tracing {
       packageName + ".AwsSdkClientDecorator",
       packageName + ".AwsSdkClientDecorator$1",
       packageName + ".AwsSdkClientDecorator$2",
+      packageName + ".RequestAccess",
+      packageName + ".RequestAccess$1",
       packageName + ".TracingRequestHandler",
     };
   }
@@ -52,11 +54,6 @@ public final class AWSClientInstrumentation extends Instrumenter.Tracing {
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isConstructor(), AWSClientInstrumentation.class.getName() + "$AWSClientAdvice");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("com.amazonaws.AmazonWebServiceRequest", Map.class.getName());
   }
 
   public static class AWSClientAdvice {
@@ -72,10 +69,7 @@ public final class AWSClientInstrumentation extends Instrumenter.Tracing {
         }
       }
       if (!hasDDHandler) {
-        handlers.add(
-            new TracingRequestHandler(
-                new AwsSdkClientDecorator(
-                    InstrumentationContext.get(AmazonWebServiceRequest.class, Map.class))));
+        handlers.add(new TracingRequestHandler());
       }
     }
   }

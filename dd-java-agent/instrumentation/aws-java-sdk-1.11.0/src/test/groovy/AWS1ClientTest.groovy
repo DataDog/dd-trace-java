@@ -310,6 +310,7 @@ class AWS1ClientTest extends AgentTestRunner {
             "aws.endpoint" "https://s3.amazonaws.com"
             "aws.operation" "HeadBucketRequest"
             "aws.agent" "java-aws-sdk"
+            "aws.bucket.name" "someBucket"
             errorTags RuntimeException, "bad handler"
             defaultTags()
           }
