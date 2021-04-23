@@ -75,13 +75,22 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
       switch (key) {
         case Tags.DD_SERVICE:
           value = Config.get().getServiceName();
-          return;
+          if (null != value && ((String) value).isEmpty()) {
+            value = null;
+          }
+          break;
         case Tags.DD_ENV:
           value = Config.get().getEnv();
-          return;
+          if (null != value && ((String) value).isEmpty()) {
+            value = null;
+          }
+          break;
         case Tags.DD_VERSION:
           value = Config.get().getVersion();
-          return;
+          if (null != value && ((String) value).isEmpty()) {
+            value = null;
+          }
+          break;
         case "dd.trace_id":
           {
             AgentSpan.Context context =
@@ -89,8 +98,8 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
             if (context != null) {
               value = context.getTraceId().toString();
             }
-            return;
           }
+          break;
         case "dd.span_id":
           {
             AgentSpan.Context context =
@@ -98,9 +107,9 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
             if (context != null) {
               value = context.getSpanId().toString();
             }
-
-            return;
           }
+          break;
+        default:
       }
     }
   }
@@ -119,9 +128,18 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
         Hashtable mdc = new Hashtable();
 
         if (Config.get().isLogsMDCTagsInjectionEnabled()) {
-          mdc.put(Tags.DD_SERVICE, Config.get().getServiceName());
-          mdc.put(Tags.DD_ENV, Config.get().getEnv());
-          mdc.put(Tags.DD_VERSION, Config.get().getVersion());
+          String serviceName = Config.get().getServiceName();
+          if (null != serviceName && !serviceName.isEmpty()) {
+            mdc.put(Tags.DD_SERVICE, serviceName);
+          }
+          String env = Config.get().getEnv();
+          if (null != env && !env.isEmpty()) {
+            mdc.put(Tags.DD_ENV, env);
+          }
+          String version = Config.get().getVersion();
+          if (null != version && !version.isEmpty()) {
+            mdc.put(Tags.DD_VERSION, version);
+          }
         }
 
         AgentSpan.Context context =
