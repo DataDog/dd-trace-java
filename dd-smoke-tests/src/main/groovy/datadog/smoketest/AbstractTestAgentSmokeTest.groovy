@@ -24,7 +24,7 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
   protected String testAgentPath = System.getProperty("datadog.smoketest.test.agent.dir")
 
   @Shared
-  protected int testAgentPort = 8126
+  protected int testAgentPort = PortUtils.randomOpenPort()
 
   @Shared
   int httpPort = PortUtils.randomOpenPort()
@@ -62,11 +62,13 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
     command.addAll((String[]) [javaPath(), "-jar", testAgentPath])
 
     ProcessBuilder processBuilder = new ProcessBuilder(command)
+
     processBuilder.redirectErrorStream(true)
     processBuilder.redirectOutput(ProcessBuilder.Redirect.to(new File(testAgentLogFilePath)))
-
-    // starts the test agent in port 8126, the test agent will be updated to run on different ports soon
+    Map<String, String> testAgentEnv = processBuilder.environment()
+    testAgentEnv.put("DD_TEST_AGENT_PORT", testAgentPort.toString())
     testAgent = processBuilder.start()
+
     println testAgent.isAlive()
     PortUtils.waitForPortToOpen(testAgentPort, 20, TimeUnit.SECONDS, testAgent)
     PortUtils.waitForPortToOpen(httpPort, 240, TimeUnit.SECONDS, testedProcess)
