@@ -31,6 +31,15 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     synchronized (latches) {
       trace = processor.onTraceComplete(trace);
       add(trace);
+      DDSpan span = trace.get(0);
+      System.out.println(
+          "?? Wrote [s: "
+              + size()
+              + " s_id: "
+              + span.getSpanId()
+              + " n: "
+              + span.getSpanName()
+              + "]");
       for (final CountDownLatch latch : latches) {
         if (size() >= latch.getCount()) {
           while (latch.getCount() > 0) {
@@ -46,6 +55,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
       throws InterruptedException, TimeoutException {
     final CountDownLatch latch = new CountDownLatch(number);
     synchronized (latches) {
+      System.out.println("?? Waiting [w: " + number + " s: " + size() + "]");
       if (size() >= number) {
         return true;
       }
