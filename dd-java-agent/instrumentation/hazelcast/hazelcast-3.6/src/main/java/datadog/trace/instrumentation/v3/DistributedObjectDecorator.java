@@ -95,6 +95,10 @@ public class DistributedObjectDecorator extends ClientDecorator {
 
   public AgentSpan onHazelcastInstance(final AgentSpan span, HazelcastInstance instance) {
 
+    if (span == null) {
+      return span;
+    }
+
     if (instance != null
         && instance.getLifecycleService() != null
         && instance.getLifecycleService().isRunning()) {

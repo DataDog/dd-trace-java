@@ -15,17 +15,14 @@ import com.google.auto.service.AutoService;
 import com.hazelcast.client.proxy.ClientMapProxy;
 import com.hazelcast.client.spi.impl.ClientNonSmartInvocationServiceImpl;
 import com.hazelcast.core.DistributedObject;
-import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.spi.discovery.DiscoveryStrategy;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.hazelcast.HazelcastConstants;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -76,12 +73,6 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
         PROXY_PACKAGE + ".ClientPNCounterProxy",
         PROXY_PACKAGE + ".ClientCardinalityEstimatorProxy",
         PROXY_PACKAGE + ".ClientSemaphoreProxy");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "com.hazelcast.core.DistributedObject", "com.hazelcast.core.HazelcastInstance");
   }
 
   @Override
@@ -182,7 +173,6 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$SyncAdvice");
 
     // Topic
-    // TODO Handle asynchronous receive messages
     transformers.put(
         isMethod()
             .and(
@@ -295,7 +285,6 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$CompletableFutureAdvice");
 
     // Executor Service
-    // TODO support asynchronous execution via submit methods
     transformers.put(
         isMethod()
             .and(isDeclaredBy(named(PROXY_PACKAGE + ".ClientExecutorServiceProxy")))
@@ -380,8 +369,6 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
                     "tryAcquire")),
         getClass().getName() + "$SyncAdvice");
 
-    // TODO support IScheduledExecutorService
-
     return transformers;
   }
 
@@ -403,9 +390,6 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
       }
 
       final AgentSpan span = startSpan(HAZELCAST_SDK);
-      DECORATE.onHazelcastInstance(
-          span,
-          InstrumentationContext.get(DistributedObject.class, HazelcastInstance.class).get(that));
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 
@@ -465,9 +449,6 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
       }
 
       final AgentSpan span = startSpan(HAZELCAST_SDK);
-      DECORATE.onHazelcastInstance(
-          span,
-          InstrumentationContext.get(DistributedObject.class, HazelcastInstance.class).get(that));
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 
