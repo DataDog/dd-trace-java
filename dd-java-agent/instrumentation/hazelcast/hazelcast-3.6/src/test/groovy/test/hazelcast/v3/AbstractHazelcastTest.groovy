@@ -1,12 +1,14 @@
 package test.hazelcast.v3
 
 import com.hazelcast.client.HazelcastClient
+import com.hazelcast.client.config.ClientConfig
 import com.hazelcast.config.Config
 import com.hazelcast.core.Hazelcast
 import com.hazelcast.core.HazelcastInstance
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import net.bytebuddy.utility.RandomString
@@ -28,11 +30,26 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
 
   @Override
   def setupSpec() {
+    def port = PortUtils.randomOpenPort()
+    def groupName = RandomString.make(8)
+    def groupPassword = RandomString.make(8)
+
     def serverConfig = new Config()
+    serverConfig.groupConfig.name = groupName
+    serverConfig.groupConfig.password = groupPassword
+
+    serverConfig.networkConfig.port = port
+    serverConfig.networkConfig.portAutoIncrement = false
+    serverConfig.networkConfig.join.multicastConfig.enabled = false
     configureServer(serverConfig)
+
     h1 = Hazelcast.newHazelcastInstance(serverConfig)
 
-    client = HazelcastClient.newHazelcastClient()
+    def clientConfig = new ClientConfig()
+    clientConfig.groupConfig.name = groupName
+    clientConfig.groupConfig.password = groupPassword
+    clientConfig.networkConfig.addAddress("127.0.0.1:$port")
+    client = HazelcastClient.newHazelcastClient(clientConfig)
   }
 
   @Override

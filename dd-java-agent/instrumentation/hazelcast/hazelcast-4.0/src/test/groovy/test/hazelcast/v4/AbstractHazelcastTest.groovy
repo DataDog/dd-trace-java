@@ -1,12 +1,14 @@
 package test.hazelcast.v4
 
 import com.hazelcast.client.HazelcastClient
+import com.hazelcast.client.config.ClientConfig
 import com.hazelcast.config.Config
 import com.hazelcast.core.Hazelcast
 import com.hazelcast.core.HazelcastInstance
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import net.bytebuddy.utility.RandomString
@@ -29,11 +31,20 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
 
   @Override
   def setupSpec() {
+    def port = PortUtils.randomOpenPort()
+
     def serverConfig = new Config()
+
+    serverConfig.networkConfig.port = port
+    serverConfig.networkConfig.portAutoIncrement = false
+    serverConfig.networkConfig.join.multicastConfig.enabled = false
     configureServer(serverConfig)
+
     h1 = Hazelcast.newHazelcastInstance(serverConfig)
 
-    client = HazelcastClient.newHazelcastClient()
+    def clientConfig = new ClientConfig()
+    clientConfig.networkConfig.addAddress("127.0.0.1:$port")
+    client = HazelcastClient.newHazelcastClient(clientConfig)
 
     // Start using client and sleep to avoid initial join event
     def list = client.getList("null")
