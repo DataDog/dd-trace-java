@@ -1,13 +1,11 @@
 package datadog.trace.instrumentation.v3;
 
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.COMPONENT_NAME;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_INSTANCE;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_NAME;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_OPERATION;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_SERVICE;
 
 import com.hazelcast.core.DistributedObject;
-import com.hazelcast.core.HazelcastInstance;
 import datadog.trace.api.Function;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
@@ -89,25 +87,6 @@ public class DistributedObjectDecorator extends ClientDecorator {
     span.setTag(HAZELCAST_SERVICE, object.getServiceName());
     span.setTag(HAZELCAST_OPERATION, methodName);
     span.setTag(HAZELCAST_NAME, objectName);
-
-    return span;
-  }
-
-  public AgentSpan onHazelcastInstance(final AgentSpan span, HazelcastInstance instance) {
-
-    if (span == null) {
-      return span;
-    }
-
-    if (instance != null
-        && instance.getLifecycleService() != null
-        && instance.getLifecycleService().isRunning()) {
-      try {
-        span.setTag(HAZELCAST_INSTANCE, instance.getName());
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    }
 
     return span;
   }

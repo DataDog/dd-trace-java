@@ -2,17 +2,17 @@ package datadog.trace.instrumentation.v3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.instrumentation.v3.DistributedObjectDecorator.DECORATE;
+import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_INSTANCE;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import com.hazelcast.client.impl.HazelcastClientInstanceImpl;
 import com.hazelcast.client.proxy.ClientMapProxy;
-import com.hazelcast.client.spi.impl.ClientInvocation;
 import com.hazelcast.client.spi.impl.ClientNonSmartInvocationServiceImpl;
 import com.hazelcast.spi.discovery.DiscoveryStrategy;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -58,10 +58,17 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void constructorExit(
-        @Advice.This ClientInvocation that,
         @Advice.Argument(0) final HazelcastClientInstanceImpl hazelcastInstance) {
 
-      DECORATE.onHazelcastInstance(activeSpan(), hazelcastInstance);
+      final AgentSpan span = activeSpan();
+
+      if (span != null
+          && hazelcastInstance != null
+          && hazelcastInstance.getLifecycleService() != null
+          && hazelcastInstance.getLifecycleService().isRunning()) {
+
+        activeSpan().setTag(HAZELCAST_INSTANCE, hazelcastInstance.getName());
+      }
     }
 
     public static void muzzleCheck(

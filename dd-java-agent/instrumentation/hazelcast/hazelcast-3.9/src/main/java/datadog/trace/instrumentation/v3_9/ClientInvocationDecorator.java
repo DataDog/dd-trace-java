@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.v3_9;
 
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.COMPONENT_NAME;
+import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_CORRELATION_ID;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_INSTANCE;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_NAME;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_OPERATION;
@@ -43,7 +44,10 @@ public class ClientInvocationDecorator extends ClientDecorator {
 
   /** Decorate trace based on service execution metadata. */
   public AgentSpan onServiceExecution(
-      final AgentSpan span, final String operationName, final String objectName) {
+      final AgentSpan span,
+      final String operationName,
+      final String objectName,
+      long correlationId) {
 
     if (objectName != null) {
       span.setResourceName(UTF8BytesString.create(Strings.join(" ", operationName, objectName)));
@@ -54,6 +58,10 @@ public class ClientInvocationDecorator extends ClientDecorator {
 
     span.setTag(HAZELCAST_OPERATION, operationName);
     span.setTag(HAZELCAST_SERVICE, operationName.substring(0, operationName.indexOf('.')));
+
+    if (correlationId > 0) {
+      span.setTag(HAZELCAST_CORRELATION_ID, correlationId);
+    }
 
     return span;
   }
@@ -67,11 +75,6 @@ public class ClientInvocationDecorator extends ClientDecorator {
 
   /** Annotate the span with the results of the operation. */
   public AgentSpan onResult(final AgentSpan span, Object result) {
-
-    // Nothing to do here, so return
-    if (result == null) {
-      return span;
-    }
 
     return span;
   }

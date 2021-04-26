@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_SDK;
-import static datadog.trace.instrumentation.v4.ClientInvocationDecorator.DECORATE;
+import static datadog.trace.instrumentation.v4.HazelcastDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -45,7 +45,7 @@ public class ClientListenerInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ClientInvocationDecorator",
+      packageName + ".HazelcastDecorator",
       "datadog.trace.instrumentation.hazelcast.HazelcastConstants"
     };
   }
@@ -67,8 +67,6 @@ public class ClientListenerInstrumentation extends Instrumenter.Tracing {
     public static AgentScope methodEnter(
         @Advice.This final ClientListenerService that,
         @Advice.Argument(0) final ClientMessage clientMessage) {
-
-      System.err.println("Message Received: " + clientMessage);
 
       final String operationName =
           clientMessage.getOperationName() != null
@@ -110,7 +108,6 @@ public class ClientListenerInstrumentation extends Instrumenter.Tracing {
           DECORATE.beforeFinish(span);
         } else {
           DECORATE.beforeFinish(span);
-          DECORATE.onResult(span, null);
         }
       } finally {
         scope.close();

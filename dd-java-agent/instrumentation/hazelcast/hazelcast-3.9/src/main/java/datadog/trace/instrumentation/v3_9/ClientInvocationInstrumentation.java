@@ -115,7 +115,8 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
       DECORATE.onHazelcastInstance(
           span, InstrumentationContext.get(ClientInvocation.class, String.class).get(that));
       DECORATE.afterStart(span);
-      DECORATE.onServiceExecution(span, operationName, objectName);
+      DECORATE.onServiceExecution(
+          span, operationName, objectName, clientMessage.getCorrelationId());
 
       return activateSpan(span);
     }

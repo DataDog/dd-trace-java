@@ -25,26 +25,9 @@ class HazelcastTest extends AbstractHazelcastTest {
     then:
     result == "bar"
 
+    and: "operations are captured in traces"
     assertTraces(1) {
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Map.get test"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.name" "test"
-            "hazelcast.operation" "Map.get"
-            "hazelcast.service" "Map"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
+      hazelcastTrace(it, "Map.get test")
     }
   }
 
@@ -59,26 +42,9 @@ class HazelcastTest extends AbstractHazelcastTest {
     then:
     result as Set == ["bar"] as Set
 
+    and: "operations are captured in traces"
     assertTraces(1) {
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Map.valuesWithPredicate test"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.name" "test"
-            "hazelcast.operation" "Map.valuesWithPredicate"
-            "hazelcast.service" "Map"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
+      hazelcastTrace(it, "Map.valuesWithPredicate test")
     }
   }
 
@@ -97,26 +63,11 @@ class HazelcastTest extends AbstractHazelcastTest {
     then:
     result == "bar"
 
+    and: "operations are captured in traces"
     assertTraces(1) {
       trace(2) {
         basicSpan(it, "test")
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Map.get test"
-          childOfPrevious()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.name" "test"
-            "hazelcast.operation" "Map.get"
-            "hazelcast.service" "Map"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
+        hazelcastSpan(it, "Map.get test", false)
       }
     }
   }
@@ -133,26 +84,9 @@ class HazelcastTest extends AbstractHazelcastTest {
     then:
     result as Set == Arrays.asList("bar", "baz") as Set
 
+    and: "operations are captured in traces"
     assertTraces(1) {
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "MultiMap.get test"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.name" "test"
-            "hazelcast.operation" "MultiMap.get"
-            "hazelcast.service" "MultiMap"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
+      hazelcastTrace(it, "MultiMap.get test")
     }
   }
 
@@ -167,26 +101,9 @@ class HazelcastTest extends AbstractHazelcastTest {
     then:
     result == "foo"
 
+    and: "operations are captured in traces"
     assertTraces(1) {
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Queue.take test"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.name" "test"
-            "hazelcast.operation" "Queue.take"
-            "hazelcast.service" "Queue"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
+      hazelcastTrace(it, "Queue.take test")
     }
 
     cleanup:
@@ -214,44 +131,10 @@ class HazelcastTest extends AbstractHazelcastTest {
       message.messageObject == "hello"
     }
 
+    and: "operations are captured in traces"
     assertTraces(2) {
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Topic.addMessageListener"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.operation" "Topic.addMessageListener"
-            "hazelcast.service" "Topic"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Topic.publish test"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.name" "test"
-            "hazelcast.operation" "Topic.publish"
-            "hazelcast.service" "Topic"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
+      hazelcastTrace(it, "Topic.addMessageListener")
+      hazelcastTrace(it, "Topic.publish test")
     }
 
     cleanup:
@@ -276,83 +159,13 @@ class HazelcastTest extends AbstractHazelcastTest {
       message.messageObject == "hello"
     }
 
+    and: "operations are captured in traces"
+    // warning: operations and order may vary significantly across version
     assertTraces(4) {
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Ringbuffer.tailSequence _hz_rb_test"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.service" "Ringbuffer"
-            "hazelcast.name" "_hz_rb_test"
-            "hazelcast.operation" "Ringbuffer.tailSequence"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Ringbuffer.capacity _hz_rb_test"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.service" "Ringbuffer"
-            "hazelcast.name" "_hz_rb_test"
-            "hazelcast.operation" "Ringbuffer.capacity"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Ringbuffer.readMany _hz_rb_test"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.service" "Ringbuffer"
-            "hazelcast.name" "_hz_rb_test"
-            "hazelcast.operation" "Ringbuffer.readMany"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Ringbuffer.add _hz_rb_test"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.service" "Ringbuffer"
-            "hazelcast.name" "_hz_rb_test"
-            "hazelcast.operation" "Ringbuffer.add"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
+      hazelcastTrace(it, "Ringbuffer.tailSequence _hz_rb_test")
+      hazelcastTrace(it, "Ringbuffer.capacity _hz_rb_test")
+      hazelcastTrace(it, "Ringbuffer.readMany _hz_rb_test")
+      hazelcastTrace(it, "Ringbuffer.add _hz_rb_test")
     }
   }
 
@@ -366,26 +179,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
     then:
     result
+
+    and: "operations are captured in traces"
     assertTraces(1) {
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Set.contains test"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.service" "Set"
-            "hazelcast.name" "test"
-            "hazelcast.operation" "Set.contains"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
+      hazelcastTrace(it, "Set.contains test")
     }
   }
 
@@ -397,46 +194,13 @@ class HazelcastTest extends AbstractHazelcastTest {
 
     then:
     !result
+
+    and: "operations are captured in traces"
     assertTraces(2) {
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Set.add test1"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.service" "Set"
-            "hazelcast.name" "test1"
-            "hazelcast.operation" "Set.add"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Set.add test1"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.service" "Set"
-            "hazelcast.name" "test1"
-            "hazelcast.operation" "Set.add"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
+      hazelcastTrace(it, "Set.add test1")
+      hazelcastTrace(it, "Set.add test1")
     }
+
   }
 
   def "list"() {
@@ -449,26 +213,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
     then:
     result
+
+    and: "operations are captured in traces"
     assertTraces(1) {
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "List.contains test"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.service" "List"
-            "hazelcast.name" "test"
-            "hazelcast.operation" "List.contains"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
+      hazelcastTrace(it, "List.contains test")
     }
   }
 
@@ -498,6 +246,7 @@ class HazelcastTest extends AbstractHazelcastTest {
             "hazelcast.name" "test"
             "hazelcast.operation" "List.get"
             "hazelcast.instance" client.getName()
+            "hazelcast.correlationId" Long
             errorTags(ex)
             defaultTags()
           }
@@ -517,26 +266,9 @@ class HazelcastTest extends AbstractHazelcastTest {
     then:
     assert alreadyLocked
 
+    and: "operations are captured in traces"
     assertTraces(1) {
-      trace(1) {
-        span {
-          serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
-          resourceName "Lock.isLocked test"
-          parent()
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          tags {
-            "$Tags.COMPONENT" "hazelcast-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "hazelcast.service" "Lock"
-            "hazelcast.name" "test"
-            "hazelcast.operation" "Lock.isLocked"
-            "hazelcast.instance" client.getName()
-            defaultTags()
-          }
-        }
-      }
+      hazelcastTrace(it, "Lock.isLocked test")
     }
 
     cleanup:

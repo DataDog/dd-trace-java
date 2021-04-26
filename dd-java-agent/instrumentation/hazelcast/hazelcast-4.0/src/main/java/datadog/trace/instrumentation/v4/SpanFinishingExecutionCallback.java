@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.v4;
 
-import static datadog.trace.instrumentation.v4.ClientInvocationDecorator.DECORATE;
+import static datadog.trace.instrumentation.v4.HazelcastDecorator.DECORATE;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,7 +17,6 @@ public class SpanFinishingExecutionCallback implements BiConsumer<ClientMessage,
 
   public void onResponse(ClientMessage response) {
     DECORATE.beforeFinish(span);
-    DECORATE.onResult(span, response);
     span.finish();
   }
 

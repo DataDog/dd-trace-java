@@ -2,12 +2,10 @@ package datadog.trace.instrumentation.v4;
 
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.COMPONENT_NAME;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_CORRELATION_ID;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_INSTANCE;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_NAME;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_OPERATION;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_SERVICE;
 
-import com.hazelcast.core.HazelcastInstance;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -17,11 +15,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Decorate Hazelcast distributed object span's with relevant contextual information. */
-public class ClientInvocationDecorator extends ClientDecorator {
+public class HazelcastDecorator extends ClientDecorator {
 
-  private static final Logger log = LoggerFactory.getLogger(ClientInvocationDecorator.class);
+  private static final Logger log = LoggerFactory.getLogger(HazelcastDecorator.class);
 
-  public static final ClientInvocationDecorator DECORATE = new ClientInvocationDecorator();
+  public static final HazelcastDecorator DECORATE = new HazelcastDecorator();
 
   @Override
   protected CharSequence spanType() {
@@ -63,32 +61,6 @@ public class ClientInvocationDecorator extends ClientDecorator {
 
     if (correlationId > 0) {
       span.setTag(HAZELCAST_CORRELATION_ID, correlationId);
-    }
-
-    return span;
-  }
-
-  public AgentSpan onHazelcastInstance(final AgentSpan span, HazelcastInstance instance) {
-
-    if (instance != null
-        && instance.getLifecycleService() != null
-        && instance.getLifecycleService().isRunning()) {
-      try {
-        span.setTag(HAZELCAST_INSTANCE, instance.getName());
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    }
-
-    return span;
-  }
-
-  /** Annotate the span with the results of the operation. */
-  public AgentSpan onResult(final AgentSpan span, Object result) {
-
-    // Nothing to do here, so return
-    if (result == null) {
-      return span;
     }
 
     return span;

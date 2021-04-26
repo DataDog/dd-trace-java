@@ -3,8 +3,9 @@ package datadog.trace.instrumentation.v4;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_INSTANCE;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_SDK;
-import static datadog.trace.instrumentation.v4.ClientInvocationDecorator.DECORATE;
+import static datadog.trace.instrumentation.v4.HazelcastDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -15,7 +16,6 @@ import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.proxy.ClientMapProxy;
 import com.hazelcast.client.impl.spi.impl.ClientInvocation;
 import com.hazelcast.client.impl.spi.impl.ClientInvocationFuture;
-import com.hazelcast.core.HazelcastInstance;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -45,7 +45,7 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ClientInvocationDecorator",
+      packageName + ".HazelcastDecorator",
       packageName + ".SpanFinishingExecutionCallback",
       "datadog.trace.instrumentation.hazelcast.HazelcastConstants"
     };
@@ -59,13 +59,12 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "com.hazelcast.client.impl.spi.impl.ClientInvocation",
-        "com.hazelcast.core.HazelcastInstance");
+        "com.hazelcast.client.impl.spi.impl.ClientInvocation", String.class.getName());
   }
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(2);
+    final Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
 
     transformers.put(
         isMethod().and(named("invokeOnSelection")), getClass().getName() + "$InvocationAdvice");
@@ -102,9 +101,10 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
       }
 
       final AgentSpan span = startSpan(HAZELCAST_SDK);
-      DECORATE.onHazelcastInstance(
-          span,
-          InstrumentationContext.get(ClientInvocation.class, HazelcastInstance.class).get(that));
+
+      span.setTag(
+          HAZELCAST_INSTANCE,
+          InstrumentationContext.get(ClientInvocation.class, String.class).get(that));
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, operationName, objectName, correlationId);
 
@@ -153,8 +153,14 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
         @Advice.This ClientInvocation that,
         @Advice.Argument(0) final HazelcastClientInstanceImpl hazelcastInstance) {
 
-      InstrumentationContext.get(ClientInvocation.class, HazelcastInstance.class)
-          .put(that, hazelcastInstance);
+      if (hazelcastInstance != null) {
+        hazelcastInstance.getLifecycleService();
+        if (hazelcastInstance.getLifecycleService().isRunning()) {
+
+          InstrumentationContext.get(ClientInvocation.class, String.class)
+              .put(that, hazelcastInstance.getName());
+        }
+      }
     }
 
     public static void muzzleCheck(
