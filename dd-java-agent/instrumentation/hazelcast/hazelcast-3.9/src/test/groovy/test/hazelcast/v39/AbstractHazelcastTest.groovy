@@ -16,6 +16,7 @@ import spock.lang.Shared
 
 abstract class AbstractHazelcastTest extends AgentTestRunner {
 
+  @Shared String randomName
   @Shared HazelcastInstance h1, client
 
   final resourceNamePattern = ~/^(?<operation>(?<service>[A-Z]\w+)\.[a-z]\w+)(?: (?<name>.+))?$/
@@ -56,10 +57,19 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
     Hazelcast.shutdownAll()
   }
 
+  def setup() {
+    randomName = randomResourceName()
+  }
+
+
   void hazelcastTrace(ListWriterAssert writer, String name) {
     writer.trace(1) {
       hazelcastSpan(it, name)
     }
+  }
+
+  void clientProxyTrace(ListWriterAssert writer, String serviceShortName) {
+    hazelcastTrace(writer, "Client.createProxy hz:impl:${serviceShortName}Service")
   }
 
   def hazelcastSpan(TraceAssert trace, String name, boolean isParent = true) {
@@ -90,5 +100,9 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
     }
   }
 
-  def void configureServer(Config config) {}
+  void configureServer(Config config) {}
+
+  def randomResourceName(int length = 8) {
+    RandomString.make(length)
+  }
 }

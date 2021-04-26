@@ -97,11 +97,6 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
       final String operationName =
           InstrumentationContext.get(ClientMessage.class, String.class).get(clientMessage);
 
-      // Ignore Client.createProxy noise; these are automatically invoked in the background
-      if ("Client.createProxy".equals(operationName)) {
-        return null;
-      }
-
       // Ensure that we only create a span for the top-level Hazelcast method; except in the
       // case of async operations where we want visibility into how long the task was delayed from
       // starting. Our call depth checker does not span threads, so the async case is handled

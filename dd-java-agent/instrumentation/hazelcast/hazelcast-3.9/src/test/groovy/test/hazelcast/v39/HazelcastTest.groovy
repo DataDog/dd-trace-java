@@ -16,44 +16,46 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "map"() {
     when:
-    def serverMap = h1.getMap("test")
+    def serverMap = h1.getMap(randomName)
     serverMap.put("foo", "bar")
 
-    def clientMap = client.getMap("test")
+    def clientMap = client.getMap(randomName)
     def result = clientMap.get("foo")
 
     then:
     result == "bar"
 
     and: "operations are captured in traces"
-    assertTraces(1) {
-      hazelcastTrace(it, "Map.get test")
+    assertTraces(2) {
+      clientProxyTrace(it, "map")
+      hazelcastTrace(it, "Map.get $randomName")
     }
   }
 
   def "map predicate"() {
     when:
-    def serverMap = h1.getMap("test")
+    def serverMap = h1.getMap(randomName)
     serverMap.put("foo", "bar")
 
-    def clientMap = client.getMap("test")
+    def clientMap = client.getMap(randomName)
     def result = clientMap.values(Predicates.equal("__key", "foo"))
 
     then:
     result as Set == ["bar"] as Set
 
     and: "operations are captured in traces"
-    assertTraces(1) {
-      hazelcastTrace(it, "Map.valuesWithPredicate test")
+    assertTraces(2) {
+      clientProxyTrace(it, "map")
+      hazelcastTrace(it, "Map.valuesWithPredicate $randomName")
     }
   }
 
   def "map async"() {
     when:
-    def serverMap = h1.getMap("test")
+    def serverMap = h1.getMap(randomName)
     serverMap.put("foo", "bar")
 
-    def clientMap = client.getMap("test")
+    def clientMap = client.getMap(randomName)
 
     def result = runUnderTrace("test") {
       def future = clientMap.getAsync("foo")
@@ -64,46 +66,49 @@ class HazelcastTest extends AbstractHazelcastTest {
     result == "bar"
 
     and: "operations are captured in traces"
-    assertTraces(1) {
+    assertTraces(2) {
+      clientProxyTrace(it, "map")
       trace(2) {
         basicSpan(it, "test")
-        hazelcastSpan(it, "Map.get test", false)
+        hazelcastSpan(it, "Map.get $randomName", false)
       }
     }
   }
 
   def "multimap"() {
     when:
-    def serverMultiMap = h1.getMultiMap("test")
+    def serverMultiMap = h1.getMultiMap(randomName)
     serverMultiMap.put("foo", "bar")
     serverMultiMap.put("foo", "baz")
 
-    def clientMultiMap = client.getMultiMap("test")
+    def clientMultiMap = client.getMultiMap(randomName)
     def result = clientMultiMap.get("foo")
 
     then:
     result as Set == Arrays.asList("bar", "baz") as Set
 
     and: "operations are captured in traces"
-    assertTraces(1) {
-      hazelcastTrace(it, "MultiMap.get test")
+    assertTraces(2) {
+      clientProxyTrace(it, "multiMap")
+      hazelcastTrace(it, "MultiMap.get $randomName")
     }
   }
 
   def "queue"() {
     when:
-    def serverQueue = h1.getQueue("test")
+    def serverQueue = h1.getQueue(randomName)
     serverQueue.offer("foo")
 
-    def clientQueue = client.getQueue("test")
+    def clientQueue = client.getQueue(randomName)
     def result = clientQueue.take()
 
     then:
     result == "foo"
 
     and: "operations are captured in traces"
-    assertTraces(1) {
-      hazelcastTrace(it, "Queue.take test")
+    assertTraces(2) {
+      clientProxyTrace(it, "queue")
+      hazelcastTrace(it, "Queue.take $randomName")
     }
 
     cleanup:
@@ -113,10 +118,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "topic"() {
     given:
-    def serverTopic = h1.getTopic("test")
+    def serverTopic = h1.getTopic(randomName)
 
     and:
-    def clientTopic = client.getTopic("test")
+    def clientTopic = client.getTopic(randomName)
     def receivedMessage = new BlockingVariable<Message>(5, TimeUnit.SECONDS)
     def listener = Stub(MessageListener)
     listener.onMessage(_ as Message) >> { Message<String> message -> receivedMessage.set(message)}
@@ -132,9 +137,10 @@ class HazelcastTest extends AbstractHazelcastTest {
     }
 
     and: "operations are captured in traces"
-    assertTraces(2) {
+    assertTraces(3) {
+      clientProxyTrace(it, "topic")
       hazelcastTrace(it, "Topic.addMessageListener")
-      hazelcastTrace(it, "Topic.publish test")
+      hazelcastTrace(it, "Topic.publish $randomName")
     }
 
     cleanup:
@@ -144,7 +150,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "reliable topic"() {
     given:
-    def clientTopic = client.getReliableTopic("test")
+    def clientTopic = client.getReliableTopic(randomName)
     def receivedMessage = new BlockingVariable<Message>(5, TimeUnit.SECONDS)
     def listener = Stub(MessageListener)
     listener.onMessage(_ as Message) >> { Message<String> message -> receivedMessage.set(message)}
@@ -161,34 +167,37 @@ class HazelcastTest extends AbstractHazelcastTest {
 
     and: "operations are captured in traces"
     // warning: operations and order may vary significantly across version
-    assertTraces(4) {
-      hazelcastTrace(it, "Ringbuffer.tailSequence _hz_rb_test")
-      hazelcastTrace(it, "Ringbuffer.capacity _hz_rb_test")
-      hazelcastTrace(it, "Ringbuffer.readMany _hz_rb_test")
-      hazelcastTrace(it, "Ringbuffer.add _hz_rb_test")
+    assertTraces(6) {
+      clientProxyTrace(it, "ringbuffer")
+      clientProxyTrace(it, "reliableTopic")
+      hazelcastTrace(it, "Ringbuffer.tailSequence _hz_rb_$randomName")
+      hazelcastTrace(it, "Ringbuffer.capacity _hz_rb_$randomName")
+      hazelcastTrace(it, "Ringbuffer.readMany _hz_rb_$randomName")
+      hazelcastTrace(it, "Ringbuffer.add _hz_rb_$randomName")
     }
   }
 
   def "set"() {
     when:
-    def serverSet = h1.getSet("test")
+    def serverSet = h1.getSet(randomName)
     serverSet.add("foo")
 
-    def clientSet = client.getSet("test")
+    def clientSet = client.getSet(randomName)
     def result = clientSet.contains("foo")
 
     then:
     result
 
     and: "operations are captured in traces"
-    assertTraces(1) {
-      hazelcastTrace(it, "Set.contains test")
+    assertTraces(2) {
+      clientProxyTrace(it, "set")
+      hazelcastTrace(it, "Set.contains $randomName")
     }
   }
 
   def "set double value"() {
     when:
-    def clientSet = client.getSet("test1")
+    def clientSet = client.getSet(randomName)
     clientSet.add("hello")
     def result = clientSet.add("hello")
 
@@ -196,46 +205,49 @@ class HazelcastTest extends AbstractHazelcastTest {
     !result
 
     and: "operations are captured in traces"
-    assertTraces(2) {
-      hazelcastTrace(it, "Set.add test1")
-      hazelcastTrace(it, "Set.add test1")
+    assertTraces(3) {
+      clientProxyTrace(it, "set")
+      hazelcastTrace(it, "Set.add $randomName")
+      hazelcastTrace(it, "Set.add $randomName")
     }
 
   }
 
   def "list"() {
     when:
-    def serverList = h1.getList("test")
+    def serverList = h1.getList(randomName)
     serverList.add("foo")
 
-    def clientList = client.getList("test")
+    def clientList = client.getList(randomName)
     def result = clientList.contains("foo")
 
     then:
     result
 
     and: "operations are captured in traces"
-    assertTraces(1) {
-      hazelcastTrace(it, "List.contains test")
+    assertTraces(2) {
+      clientProxyTrace(it, "list")
+      hazelcastTrace(it, "List.contains $randomName")
     }
   }
 
   def "list error"() {
     when:
-    def serverList = h1.getList("test")
+    def serverList = h1.getList(randomName)
     serverList.add("foo")
 
-    def clientList = client.getList("test")
+    def clientList = client.getList(randomName)
     clientList.get(2)
 
     then:
     def ex = thrown(IndexOutOfBoundsException)
-    assertTraces(1) {
+    assertTraces(2) {
+      clientProxyTrace(it, "list")
       trace(1) {
         span {
           serviceName "hazelcast-sdk"
           operationName "hazelcast.sdk"
-          resourceName "List.get test"
+          resourceName "List.get $randomName"
           parent()
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
@@ -243,7 +255,7 @@ class HazelcastTest extends AbstractHazelcastTest {
             "$Tags.COMPONENT" "hazelcast-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "hazelcast.service" "List"
-            "hazelcast.name" "test"
+            "hazelcast.name" randomName
             "hazelcast.operation" "List.get"
             "hazelcast.instance" client.getName()
             "hazelcast.correlationId" Long
@@ -257,18 +269,19 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "lock"() {
     when:
-    def serverLock = h1.getLock("test")
+    def serverLock = h1.getLock(randomName)
     serverLock.lock()
 
-    def clientLock = client.getLock("test")
+    def clientLock = client.getLock(randomName)
     def alreadyLocked = clientLock.isLocked()
 
     then:
     assert alreadyLocked
 
     and: "operations are captured in traces"
-    assertTraces(1) {
-      hazelcastTrace(it, "Lock.isLocked test")
+    assertTraces(2) {
+      clientProxyTrace(it, "lock")
+      hazelcastTrace(it, "Lock.isLocked $randomName")
     }
 
     cleanup:
