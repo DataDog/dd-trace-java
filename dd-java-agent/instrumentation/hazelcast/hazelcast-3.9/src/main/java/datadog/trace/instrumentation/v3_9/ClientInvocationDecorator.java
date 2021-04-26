@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCA
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_OPERATION;
 import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_SERVICE;
 
-import com.hazelcast.core.HazelcastInstance;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -15,7 +14,7 @@ import datadog.trace.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Decorate Hazelcast distributed object span's with relevant contextual information. */
+/** Decorate Hazelcast client invocations with relevant contextual information. */
 public class ClientInvocationDecorator extends ClientDecorator {
 
   private static final Logger log = LoggerFactory.getLogger(ClientInvocationDecorator.class);
@@ -59,17 +58,9 @@ public class ClientInvocationDecorator extends ClientDecorator {
     return span;
   }
 
-  public AgentSpan onHazelcastInstance(final AgentSpan span, HazelcastInstance instance) {
+  public AgentSpan onHazelcastInstance(final AgentSpan span, String instanceName) {
 
-    if (instance != null
-        && instance.getLifecycleService() != null
-        && instance.getLifecycleService().isRunning()) {
-      try {
-        span.setTag(HAZELCAST_INSTANCE, instance.getName());
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    }
+    span.setTag(HAZELCAST_INSTANCE, instanceName);
 
     return span;
   }

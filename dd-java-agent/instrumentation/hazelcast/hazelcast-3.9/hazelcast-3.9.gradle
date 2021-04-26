@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = "com.hazelcast"
     module = "hazelcast-all"
-    versions = "[3.9,3.11)"
+    versions = "[3.9,4.0)"
     assertInverse = true
   }
 }

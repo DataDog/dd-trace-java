@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.v3.DistributedObjectDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -55,7 +54,6 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
         getClass().getName() + "$ConstructAdvice");
   }
 
-
   public static class ConstructAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
@@ -63,18 +61,18 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
         @Advice.This ClientInvocation that,
         @Advice.Argument(0) final HazelcastClientInstanceImpl hazelcastInstance) {
 
-        DECORATE.onHazelcastInstance(activeSpan(), hazelcastInstance);
+      DECORATE.onHazelcastInstance(activeSpan(), hazelcastInstance);
     }
 
     public static void muzzleCheck(
-      // Moved in 4.0
-      ClientMapProxy proxy,
+        // Moved in 4.0
+        ClientMapProxy proxy,
 
-      // New in 3.6
-      DiscoveryStrategy strategy,
+        // New in 3.6
+        DiscoveryStrategy strategy,
 
-      // Renamed in 3.9
-      ClientNonSmartInvocationServiceImpl invocationService) {
+        // Renamed in 3.9
+        ClientNonSmartInvocationServiceImpl invocationService) {
       strategy.start();
       proxy.getServiceName();
       invocationService.start();

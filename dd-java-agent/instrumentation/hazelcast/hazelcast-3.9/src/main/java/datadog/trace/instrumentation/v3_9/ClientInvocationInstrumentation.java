@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
-import com.hazelcast.client.impl.HazelcastClientInstanceImpl;
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.proxy.ClientMapProxy;
 import com.hazelcast.client.spi.impl.ClientInvocation;
@@ -62,8 +61,7 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
   public Map<String, String> contextStore() {
     final Map<String, String> stores = new HashMap<>();
     stores.put("com.hazelcast.client.impl.protocol.ClientMessage", String.class.getName());
-    stores.put(
-        "com.hazelcast.client.spi.impl.ClientInvocation", "com.hazelcast.core.HazelcastInstance");
+    stores.put("com.hazelcast.client.spi.impl.ClientInvocation", String.class.getName());
     return Collections.unmodifiableMap(stores);
   }
 
@@ -115,8 +113,7 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
 
       final AgentSpan span = startSpan(HAZELCAST_SDK);
       DECORATE.onHazelcastInstance(
-          span,
-          InstrumentationContext.get(ClientInvocation.class, HazelcastInstance.class).get(that));
+          span, InstrumentationContext.get(ClientInvocation.class, String.class).get(that));
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, operationName, objectName);
 
@@ -156,13 +153,9 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
         ClientMapProxy proxy,
 
         // Renamed in 3.9
-        NonSmartClientInvocationService invocationService,
-
-        // Moved in 3.11
-        HazelcastClientInstanceImpl client) {
+        NonSmartClientInvocationService invocationService) {
       proxy.getServiceName();
       invocationService.start();
-      client.start();
     }
   }
 
@@ -171,10 +164,13 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void constructorExit(
         @Advice.This ClientInvocation that,
-        @Advice.Argument(0) final HazelcastClientInstanceImpl hazelcastInstance) {
+        @Advice.Argument(0) final HazelcastInstance hazelcastInstance) {
 
-      InstrumentationContext.get(ClientInvocation.class, HazelcastInstance.class)
-          .put(that, hazelcastInstance);
+      if (hazelcastInstance.getLifecycleService() != null
+          && hazelcastInstance.getLifecycleService().isRunning()) {
+        InstrumentationContext.get(ClientInvocation.class, String.class)
+            .put(that, hazelcastInstance.getName());
+      }
     }
 
     public static void muzzleCheck(
@@ -182,13 +178,9 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
         ClientMapProxy proxy,
 
         // Renamed in 3.9
-        NonSmartClientInvocationService invocationService,
-
-        // Moved in 3.11
-        HazelcastClientInstanceImpl client) {
+        NonSmartClientInvocationService invocationService) {
       proxy.getServiceName();
       invocationService.start();
-      client.start();
     }
   }
 }

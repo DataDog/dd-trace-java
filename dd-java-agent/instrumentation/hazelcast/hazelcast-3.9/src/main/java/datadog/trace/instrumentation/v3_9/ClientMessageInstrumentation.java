@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
-import com.hazelcast.client.impl.HazelcastClientInstanceImpl;
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.proxy.ClientMapProxy;
 import com.hazelcast.client.spi.impl.NonSmartClientInvocationService;
@@ -20,6 +19,11 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
+/**
+ * This instrumentation captures the operation name when it is being set on the Client Message.
+ *
+ * <p>It is required because there is no getter for this value until 4.0.
+ */
 @AutoService(Instrumenter.class)
 public class ClientMessageInstrumentation extends Instrumenter.Tracing {
 
@@ -71,13 +75,9 @@ public class ClientMessageInstrumentation extends Instrumenter.Tracing {
         ClientMapProxy proxy,
 
         // Renamed in 3.9
-        NonSmartClientInvocationService invocationService,
-
-        // Moved in 3.11
-        HazelcastClientInstanceImpl client) {
+        NonSmartClientInvocationService invocationService) {
       proxy.getServiceName();
       invocationService.start();
-      client.start();
     }
   }
 }
