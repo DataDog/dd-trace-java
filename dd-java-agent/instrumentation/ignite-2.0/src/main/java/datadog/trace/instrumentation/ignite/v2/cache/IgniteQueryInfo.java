@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.ignite;
+package datadog.trace.instrumentation.ignite.v2.cache;
 
 import datadog.trace.api.Function;
 import datadog.trace.api.Pair;

@@ -36,9 +36,4 @@ public abstract class AbstractIgniteCacheInstrumentation extends Instrumenter.Tr
   public Map<String, String> contextStore() {
     return Collections.singletonMap("org.apache.ignite.IgniteCache", "org.apache.ignite.Ignite");
   }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".IgniteCacheDecorator"};
-  }
 }
