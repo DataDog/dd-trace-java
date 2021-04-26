@@ -84,6 +84,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED;
+import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_INITIAL_REFRESH_BEANS_PERIOD;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_REFRESH_BEANS_PERIOD;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_START_DELAY;
@@ -288,6 +289,7 @@ public class Config {
   private final List<String> jmxFetchConfigs;
   @Deprecated private final List<String> jmxFetchMetricsConfigs;
   private final Integer jmxFetchCheckPeriod;
+  private final Integer jmxFetchInitialRefreshBeansPeriod;
   private final Integer jmxFetchRefreshBeansPeriod;
   private final String jmxFetchStatsdHost;
   private final Integer jmxFetchStatsdPort;
@@ -584,6 +586,8 @@ public class Config {
     jmxFetchConfigs = configProvider.getList(JMX_FETCH_CONFIG);
     jmxFetchMetricsConfigs = configProvider.getList(JMX_FETCH_METRICS_CONFIGS);
     jmxFetchCheckPeriod = configProvider.getInteger(JMX_FETCH_CHECK_PERIOD);
+    jmxFetchInitialRefreshBeansPeriod =
+        configProvider.getInteger(JMX_FETCH_INITIAL_REFRESH_BEANS_PERIOD);
     jmxFetchRefreshBeansPeriod = configProvider.getInteger(JMX_FETCH_REFRESH_BEANS_PERIOD);
     jmxFetchStatsdHost = configProvider.getString(JMX_FETCH_STATSD_HOST);
     jmxFetchStatsdPort =
@@ -926,6 +930,10 @@ public class Config {
 
   public Integer getJmxFetchRefreshBeansPeriod() {
     return jmxFetchRefreshBeansPeriod;
+  }
+
+  public Integer getJmxFetchInitialRefreshBeansPeriod() {
+    return jmxFetchInitialRefreshBeansPeriod;
   }
 
   public String getJmxFetchStatsdHost() {
@@ -1693,6 +1701,8 @@ public class Config {
         + jmxFetchMetricsConfigs
         + ", jmxFetchCheckPeriod="
         + jmxFetchCheckPeriod
+        + ", jmxFetchInitialRefreshBeansPeriod="
+        + jmxFetchInitialRefreshBeansPeriod
         + ", jmxFetchRefreshBeansPeriod="
         + jmxFetchRefreshBeansPeriod
         + ", jmxFetchStatsdHost='"

@@ -57,6 +57,7 @@ public class JMXFetch {
     final List<String> metricsConfigs = config.getJmxFetchMetricsConfigs();
     final Integer checkPeriod = config.getJmxFetchCheckPeriod();
     final Integer refreshBeansPeriod = config.getJmxFetchRefreshBeansPeriod();
+    final Integer initialRefreshBeansPeriod = config.getJmxFetchInitialRefreshBeansPeriod();
     final Map<String, String> globalTags = config.getMergedJmxTags();
 
     String host =
@@ -73,12 +74,13 @@ public class JMXFetch {
 
     if (log.isDebugEnabled()) {
       log.debug(
-          "JMXFetch config: {} {} {} {} {} {} {} {}",
+          "JMXFetch config: {} {} {} {} {} {} {} {} {}",
           jmxFetchConfigDir,
           jmxFetchConfigs,
           internalMetricsConfigs,
           metricsConfigs,
           checkPeriod,
+          initialRefreshBeansPeriod,
           refreshBeansPeriod,
           globalTags,
           "statsd:" + host + ":" + port);
@@ -98,6 +100,7 @@ public class JMXFetch {
             .instanceConfigResources(DEFAULT_CONFIGS)
             .metricConfigResources(internalMetricsConfigs)
             .metricConfigFiles(metricsConfigs)
+            .initialRefreshBeansPeriod(initialRefreshBeansPeriod)
             .refreshBeansPeriod(refreshBeansPeriod)
             .globalTags(globalTags)
             .reporter(new AgentStatsdReporter(statsd));
