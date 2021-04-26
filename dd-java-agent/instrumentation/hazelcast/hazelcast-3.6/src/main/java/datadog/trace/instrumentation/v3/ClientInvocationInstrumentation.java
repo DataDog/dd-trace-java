@@ -14,7 +14,6 @@ import com.hazelcast.client.spi.impl.ClientInvocation;
 import com.hazelcast.client.spi.impl.ClientNonSmartInvocationServiceImpl;
 import com.hazelcast.spi.discovery.DiscoveryStrategy;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.instrumentation.hazelcast.HazelcastConstants;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -26,12 +25,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
 
   public ClientInvocationInstrumentation() {
-    super(HazelcastConstants.INSTRUMENTATION_NAME);
+    super("hazelcast_legacy");
   }
 
   @Override
   protected boolean defaultEnabled() {
-    return HazelcastConstants.DEFAULT_ENABLED;
+    return false;
   }
 
   @Override

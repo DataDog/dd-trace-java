@@ -22,7 +22,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.hazelcast.HazelcastConstants;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -36,12 +35,12 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
   private static final String PROXY_PACKAGE = "com.hazelcast.client.proxy";
 
   public DistributedObjectInstrumentation() {
-    super(HazelcastConstants.INSTRUMENTATION_NAME);
+    super("hazelcast_legacy");
   }
 
   @Override
   protected boolean defaultEnabled() {
-    return HazelcastConstants.DEFAULT_ENABLED;
+    return false;
   }
 
   @Override

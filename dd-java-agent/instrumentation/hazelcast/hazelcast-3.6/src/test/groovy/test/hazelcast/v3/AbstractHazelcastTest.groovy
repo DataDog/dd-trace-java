@@ -23,7 +23,7 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
   protected void configurePreAgent() {
     super.configurePreAgent()
 
-    injectSysConfig("dd.integration.hazelcast.enabled", "true")
+    injectSysConfig("dd.integration.hazelcast_legacy.enabled", "true")
   }
 
   @Override
