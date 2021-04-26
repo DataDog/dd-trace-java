@@ -146,10 +146,11 @@ class HazelcastTest extends AbstractHazelcastTest {
       message.messageObject == "hello"
     }
 
-    assertTraces(3) {
+    assertTraces(4) {
       clientProxyTrace(it, "topic")
       hazelcastTrace(it, "Topic.AddMessageListener")
       hazelcastTrace(it, "Topic.Publish ${randomName}")
+      hazelcastEventTrace(it)
     }
 
     cleanup:

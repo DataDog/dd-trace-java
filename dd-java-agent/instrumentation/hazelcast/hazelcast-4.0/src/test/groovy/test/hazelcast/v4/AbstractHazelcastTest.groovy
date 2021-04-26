@@ -34,6 +34,12 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
     h1 = Hazelcast.newHazelcastInstance(serverConfig)
 
     client = HazelcastClient.newHazelcastClient()
+
+    // Start using client and sleep to avoid initial join event
+    def list = client.getList("null")
+    list.add(1)
+    list.remove(0)
+    sleep(1000)
   }
 
   @Override
@@ -52,31 +58,23 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
     randomName = randomResourceName()
   }
 
-  void assertHazelcastCall(TraceAssert trace, String name, String instanceName = null,
-    boolean parentSpan = true) {
-
-    def matcher = name =~ resourceNamePattern
-    assert matcher.matches()
-
-    trace.span {
-      serviceName "hazelcast-sdk"
-      resourceName name
-      operationName "hazelcast.sdk"
-      spanType DDSpanTypes.HTTP_CLIENT
-      errored false
-      if (parentSpan) {
+  void hazelcastEventTrace(ListWriterAssert writer) {
+    writer.trace(1) {
+      span {
+        serviceName "hazelcast-sdk"
+        resourceName "Event.Handle"
+        operationName "hazelcast.sdk"
+        spanType DDSpanTypes.HTTP_CLIENT
+        errored false
         parent()
-      } else {
-        childOfPrevious()
-      }
-      tags {
-        "$Tags.COMPONENT" "hazelcast-sdk"
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "hazelcast.name" matcher.group("name")s
-        "hazelcast.operation" matcher.group("operation")
-        "hazelcast.service" matcher.group("service")
-        "hazelcast.instance" client.name
-        defaultTags()
+        tags {
+          "$Tags.COMPONENT" "hazelcast-sdk"
+          "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+          "hazelcast.operation" "Event.Handle"
+          "hazelcast.service" "Event"
+          "hazelcast.correlationId" Long
+          defaultTags()
+        }
       }
     }
   }
