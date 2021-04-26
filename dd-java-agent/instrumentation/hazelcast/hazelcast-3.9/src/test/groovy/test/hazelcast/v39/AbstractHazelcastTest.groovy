@@ -89,4 +89,6 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
       }
     }
   }
+
+  def void configureServer(Config config) {}
 }
