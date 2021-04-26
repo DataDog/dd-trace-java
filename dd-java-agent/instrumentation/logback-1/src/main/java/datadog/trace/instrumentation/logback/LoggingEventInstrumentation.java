@@ -97,9 +97,18 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
       }
 
       if (mdcTagsInjectionEnabled) {
-        correlationValues.put(Tags.DD_SERVICE, Config.get().getServiceName());
-        correlationValues.put(Tags.DD_ENV, Config.get().getEnv());
-        correlationValues.put(Tags.DD_VERSION, Config.get().getVersion());
+        String serviceName = Config.get().getServiceName();
+        if (null != serviceName && !serviceName.isEmpty()) {
+          correlationValues.put(Tags.DD_SERVICE, serviceName);
+        }
+        String env = Config.get().getEnv();
+        if (null != env && !env.isEmpty()) {
+          correlationValues.put(Tags.DD_ENV, env);
+        }
+        String version = Config.get().getVersion();
+        if (null != version && !version.isEmpty()) {
+          correlationValues.put(Tags.DD_VERSION, version);
+        }
       }
 
       if (mdc == null) {

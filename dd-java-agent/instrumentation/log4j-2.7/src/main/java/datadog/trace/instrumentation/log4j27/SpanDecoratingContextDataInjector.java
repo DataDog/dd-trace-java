@@ -32,9 +32,18 @@ public final class SpanDecoratingContextDataInjector implements ContextDataInjec
     StringMap newContextData = new SortedArrayStringMap(contextData.size() + 5);
 
     if (Config.get().isLogsMDCTagsInjectionEnabled()) {
-      newContextData.putValue(Tags.DD_ENV, Config.get().getEnv());
-      newContextData.putValue(Tags.DD_SERVICE, Config.get().getServiceName());
-      newContextData.putValue(Tags.DD_VERSION, Config.get().getVersion());
+      String env = Config.get().getEnv();
+      if (null != env && !env.isEmpty()) {
+        newContextData.putValue(Tags.DD_ENV, env);
+      }
+      String serviceName = Config.get().getServiceName();
+      if (null != serviceName && !serviceName.isEmpty()) {
+        newContextData.putValue(Tags.DD_SERVICE, serviceName);
+      }
+      String version = Config.get().getVersion();
+      if (null != version && !version.isEmpty()) {
+        newContextData.putValue(Tags.DD_VERSION, version);
+      }
     }
 
     AgentSpan span = activeSpan();
