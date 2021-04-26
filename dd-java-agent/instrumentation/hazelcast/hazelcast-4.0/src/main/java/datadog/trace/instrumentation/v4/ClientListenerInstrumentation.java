@@ -44,7 +44,10 @@ public class ClientListenerInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.hazelcast.HazelcastConstants"};
+    return new String[] {
+      packageName + ".ClientInvocationDecorator",
+      "datadog.trace.instrumentation.hazelcast.HazelcastConstants"
+    };
   }
 
   @Override
