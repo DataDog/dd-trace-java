@@ -32,4 +32,10 @@ public final class Platform {
       return 0;
     }
   }
+
+  public static boolean isWindows() {
+    // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
+    final String os = System.getProperty("os.name").toLowerCase();
+    return os.contains("win");
+  }
 }

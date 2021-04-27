@@ -32,8 +32,6 @@ public class JMXFetch {
 
   private static final int SLEEP_AFTER_JMXFETCH_EXITS = 5000;
 
-  private static final String UNIX_DOMAIN_SOCKET_PREFIX = "unix://";
-
   public static void run(final StatsDClientManager statsDClientManager) {
     run(statsDClientManager, Config.get());
   }
@@ -60,17 +58,8 @@ public class JMXFetch {
     final Integer initialRefreshBeansPeriod = config.getJmxFetchInitialRefreshBeansPeriod();
     final Map<String, String> globalTags = config.getMergedJmxTags();
 
-    String host =
-        config.getJmxFetchStatsdHost() == null
-            ? config.getAgentHost()
-            : config.getJmxFetchStatsdHost();
-    int port = config.getJmxFetchStatsdPort();
-
-    if (host.startsWith(UNIX_DOMAIN_SOCKET_PREFIX)) {
-      host = host.substring(UNIX_DOMAIN_SOCKET_PREFIX.length());
-      // Port equal to zero tells the java dogstatsd client to use UDS
-      port = 0;
-    }
+    String host = config.getJmxFetchStatsdHost();
+    Integer port = config.getJmxFetchStatsdPort();
 
     if (log.isDebugEnabled()) {
       log.debug(
@@ -83,7 +72,9 @@ public class JMXFetch {
           initialRefreshBeansPeriod,
           refreshBeansPeriod,
           globalTags,
-          "statsd:" + host + ":" + port);
+          "statsd:"
+              + (null != host ? host : "<auto-detect>")
+              + (null != port && port > 0 ? ":" + port : ""));
     }
 
     final StatsDClient statsd = statsDClientManager.statsDClient(host, port, null, null);

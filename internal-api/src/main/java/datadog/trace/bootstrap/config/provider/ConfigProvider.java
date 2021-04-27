@@ -80,6 +80,10 @@ public final class ConfigProvider {
     return get(key, null, Integer.class);
   }
 
+  public final Integer getInteger(String key, String... aliases) {
+    return get(key, null, Integer.class, aliases);
+  }
+
   public final int getInteger(String key, int defaultValue, String... aliases) {
     return get(key, defaultValue, Integer.class, aliases);
   }

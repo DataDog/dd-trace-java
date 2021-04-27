@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
@@ -15,7 +14,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
@@ -62,6 +60,8 @@ import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
+import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
+import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_START_DELAY;
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
@@ -434,7 +434,7 @@ public class Config {
 
     String agentHostFromEnvironment = null;
     int agentPortFromEnvironment = -1;
-    String unixDomainFromEnvironment = null;
+    String unixSocketFromEnvironment = null;
     boolean rebuildAgentUrl = false;
 
     final String agentUrlFromEnvironment = configProvider.getString(TRACE_AGENT_URL);
@@ -444,7 +444,7 @@ public class Config {
         agentHostFromEnvironment = parsedAgentUrl.getHost();
         agentPortFromEnvironment = parsedAgentUrl.getPort();
         if ("unix".equals(parsedAgentUrl.getScheme())) {
-          unixDomainFromEnvironment = parsedAgentUrl.getPath();
+          unixSocketFromEnvironment = parsedAgentUrl.getPath();
         }
       } catch (URISyntaxException e) {
         log.warn("{} not configured correctly: {}. Ignoring", TRACE_AGENT_URL, e.getMessage());
@@ -456,20 +456,19 @@ public class Config {
       rebuildAgentUrl = true;
     }
 
-    // The extra code is to detect when defaults are used for agent configuration
-    final boolean agentHostConfiguredUsingDefault;
+    if (agentPortFromEnvironment < 0) {
+      agentPortFromEnvironment = configProvider.getInteger(TRACE_AGENT_PORT, -1, AGENT_PORT_LEGACY);
+      rebuildAgentUrl = true;
+    }
+
     if (agentHostFromEnvironment == null) {
       agentHost = DEFAULT_AGENT_HOST;
-      agentHostConfiguredUsingDefault = true;
     } else {
       agentHost = agentHostFromEnvironment;
-      agentHostConfiguredUsingDefault = false;
     }
 
     if (agentPortFromEnvironment < 0) {
-      agentPort =
-          configProvider.getInteger(TRACE_AGENT_PORT, DEFAULT_TRACE_AGENT_PORT, AGENT_PORT_LEGACY);
-      rebuildAgentUrl = true;
+      agentPort = DEFAULT_TRACE_AGENT_PORT;
     } else {
       agentPort = agentPortFromEnvironment;
     }
@@ -480,23 +479,21 @@ public class Config {
       agentUrl = agentUrlFromEnvironment;
     }
 
-    if (unixDomainFromEnvironment == null) {
-      unixDomainFromEnvironment = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
+    if (unixSocketFromEnvironment == null) {
+      unixSocketFromEnvironment = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
+      String unixPrefix = "unix://";
+      // handle situation where someone passes us a unix:// URL instead of a socket path
+      if (unixSocketFromEnvironment != null && unixSocketFromEnvironment.startsWith(unixPrefix)) {
+        unixSocketFromEnvironment = unixSocketFromEnvironment.substring(unixPrefix.length());
+      }
     }
 
-    final boolean socketConfiguredUsingDefault;
-    if (unixDomainFromEnvironment == null) {
-      agentUnixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
-      socketConfiguredUsingDefault = true;
-    } else {
-      agentUnixDomainSocket = unixDomainFromEnvironment;
-      socketConfiguredUsingDefault = false;
-    }
+    agentUnixDomainSocket = unixSocketFromEnvironment;
 
     agentConfiguredUsingDefault =
-        agentHostConfiguredUsingDefault
-            && socketConfiguredUsingDefault
-            && agentPort == DEFAULT_TRACE_AGENT_PORT;
+        agentHostFromEnvironment == null
+            && agentPortFromEnvironment < 0
+            && unixSocketFromEnvironment == null;
 
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
 
@@ -592,9 +589,14 @@ public class Config {
     jmxFetchInitialRefreshBeansPeriod =
         configProvider.getInteger(JMX_FETCH_INITIAL_REFRESH_BEANS_PERIOD);
     jmxFetchRefreshBeansPeriod = configProvider.getInteger(JMX_FETCH_REFRESH_BEANS_PERIOD);
-    jmxFetchStatsdHost = configProvider.getString(JMX_FETCH_STATSD_HOST);
-    jmxFetchStatsdPort =
-        configProvider.getInteger(JMX_FETCH_STATSD_PORT, DEFAULT_JMX_FETCH_STATSD_PORT);
+
+    jmxFetchStatsdPort = configProvider.getInteger(JMX_FETCH_STATSD_PORT, DOGSTATSD_PORT);
+    jmxFetchStatsdHost =
+        configProvider.getString(
+            JMX_FETCH_STATSD_HOST,
+            // default to agent host if an explicit port has been set
+            null != jmxFetchStatsdPort && jmxFetchStatsdPort > 0 ? agentHost : null,
+            DOGSTATSD_HOST);
 
     // Writer.Builder createMonitor will use the values of the JMX fetch & agent to fill-in defaults
     healthMetricsEnabled =
@@ -1338,7 +1340,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isJmxFetchIntegrationEnabled(SortedSet, boolean)}.
+   *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
   public static boolean jmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {

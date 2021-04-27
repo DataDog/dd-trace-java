@@ -9,6 +9,7 @@ import datadog.trace.api.StatsDClient;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class DDAgentStatsDClientManager implements StatsDClientManager {
   private static final DDAgentStatsDClientManager INSTANCE = new DDAgentStatsDClientManager();
@@ -20,12 +21,12 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     return INSTANCE;
   }
 
-  private final DDCache<String, DDAgentStatsDConnection> connectionPool =
-      DDCaches.newUnboundedCache(4);
+  private final ConcurrentHashMap<String, DDAgentStatsDConnection> connectionPool =
+      new ConcurrentHashMap<>(4);
 
   @Override
   public StatsDClient statsDClient(
-      final String host, final int port, final String namespace, final String[] constantTags) {
+      final String host, final Integer port, final String namespace, final String[] constantTags) {
     Function<String, String> nameMapping = Functions.<String>zero();
     Function<String[], String[]> tagMapping = Functions.<String[]>zero();
 
@@ -38,22 +39,27 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
     }
 
     if (USE_LOGGING_CLIENT) {
-      return new LoggingStatsDClient(host, port, nameMapping, tagMapping);
+      return new LoggingStatsDClient(nameMapping, tagMapping);
     } else {
       return new DDAgentStatsDClient(getConnection(host, port), nameMapping, tagMapping);
     }
   }
 
-  private DDAgentStatsDConnection getConnection(final String host, final int port) {
-    String connectionKey = "statsd:" + host + ':' + port;
-    return connectionPool.computeIfAbsent(
-        connectionKey,
-        new Function<String, DDAgentStatsDConnection>() {
-          @Override
-          public DDAgentStatsDConnection apply(final String unused) {
-            return new DDAgentStatsDConnection(host, port);
-          }
-        });
+  private DDAgentStatsDConnection getConnection(final String host, final Integer port) {
+    String connectionKey = getConnectionKey(host, port);
+    DDAgentStatsDConnection connection = connectionPool.get(connectionKey);
+    if (null == connection) {
+      DDAgentStatsDConnection newConnection = new DDAgentStatsDConnection(host, port);
+      connection = connectionPool.putIfAbsent(connectionKey, newConnection);
+      if (null == connection) {
+        connection = newConnection;
+      }
+    }
+    return connection;
+  }
+
+  private static String getConnectionKey(final String host, final Integer port) {
+    return (null != host ? host : "?") + ":" + (null != port ? port : "?");
   }
 
   /** Resolves metrics names by prepending a namespace prefix. */

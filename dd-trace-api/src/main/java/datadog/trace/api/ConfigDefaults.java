@@ -17,7 +17,9 @@ public final class ConfigDefaults {
   /* These fields are made public because they're referenced elsewhere internally.  They're not intended as public API. */
   public static final String DEFAULT_AGENT_HOST = "localhost";
   public static final int DEFAULT_TRACE_AGENT_PORT = 8126;
-  public static final String DEFAULT_AGENT_UNIX_DOMAIN_SOCKET = null;
+  public static final int DEFAULT_DOGSTATSD_PORT = 8125;
+  public static final String DEFAULT_TRACE_AGENT_SOCKET_PATH = "/var/run/datadog/apm.socket";
+  public static final String DEFAULT_DOGSTATSD_SOCKET_PATH = "/var/run/datadog/dsd.socket";
   public static final int DEFAULT_AGENT_TIMEOUT = 10; // timeout in seconds
   public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
 
@@ -45,7 +47,6 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 
   static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
-  static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
 
   static final boolean DEFAULT_HEALTH_METRICS_ENABLED = true;
   static final boolean DEFAULT_PERF_METRICS_ENABLED = false;
