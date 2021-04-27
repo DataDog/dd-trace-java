@@ -27,8 +27,13 @@ import org.apache.ignite.cache.query.Query;
 @AutoService(Instrumenter.class)
 public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheInstrumentation {
 
-  public IgniteCacheSyncInstrumentation() {
-    super();
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".IgniteQueryInfo",
+      packageName + ".IgniteQueryInfo$1",
+      packageName + ".IgniteCacheDecorator",
+    };
   }
 
   @Override

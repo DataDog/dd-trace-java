@@ -8,7 +8,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
-import datadog.trace.bootstrap.instrumentation.ignite.IgniteQueryInfo;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.cache.query.Query;
@@ -148,7 +147,9 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
 
   public AgentSpan onIgnite(final AgentSpan span, final Ignite ignite) {
 
-    if (ignite == null) return span;
+    if (ignite == null) {
+      return span;
+    }
 
     if (ignite.name() != null) {
       span.setTag("ignite.instance", ignite.name());
@@ -162,6 +163,7 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
     return span;
   }
 
+  @Override
   protected void processDatabaseType(AgentSpan span, String dbType) {
     span.setServiceName(dbType);
     span.setOperationName("ignite.cache");

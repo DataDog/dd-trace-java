@@ -32,7 +32,10 @@ public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrume
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".IgniteCacheDecorator", packageName + ".SpanFinishingCallback"
+      packageName + ".IgniteQueryInfo",
+      packageName + ".IgniteQueryInfo$1",
+      packageName + ".IgniteCacheDecorator",
+      packageName + ".SpanFinishingCallback",
     };
   }
 
