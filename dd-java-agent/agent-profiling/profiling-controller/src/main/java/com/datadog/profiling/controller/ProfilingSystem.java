@@ -192,8 +192,18 @@ public final class ProfilingSystem {
         log.debug("Creating profiler snapshot");
         Instant now = Instant.now();
         final RecordingData recordingData = recording.snapshot(lastSnapshot, now);
-        // The hope here is that we do not get chunk rotated after taking snapshot and before we
-        // take this timestamp otherwise we will start losing data
+        /*
+        Each request for the recording data stream for a time period will cause chunk materialization (in-memory data is transferred to on-disk chunks).
+        Typically this means that a call to `recording.snapshot()` will materialize a new chunk for time period '[lastSnapshot + delta1, now + delta2]'
+        where 'delta1' is the delay between calling `recording.snapshot()` and materializing the previous chunk and 'delta2' is the delay between
+        calling 'recording.snapshot()` and materializing the current chunk.
+        As a result, if we set `lastSnapshot = now` the subsequent call to `recording.snapshot()` will return data from the previous and current chunk
+        because the previous chunk is actually valid till `lastSnapshot + delta1'.
+        Since we can not infer the values of 'delta*' we are setting `lastSnapshot = Instant.now()` which will make sure that the data from the previous
+        chunk will not fit the time boundaries. The downside is that any delay between materializing the current chunk and obtaining this second timestamp
+        (eg. due to descheduling this thread) may lead to data loss if an extra chunk is materialized during this time due to crossing the chunk size limit.
+         */
+        lastSnapshot = Instant.now();
         lastSnapshot = now;
         if (recordingData != null) {
           dataListener.onNewData(recordingType, recordingData);

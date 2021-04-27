@@ -37,5 +37,10 @@ tasks.withType(Test).configureEach {
 
   onlyIf { !name.contains('IBM') }
 
-  jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archivePath}"
+  systemProperty "datadog.smoketest.profiling.shadowJar.path", tasks.shadowJar.archivePath
+  systemProperty "datadog.smoketest.profiling.java.path", executable
+  def matcher = name =~ /^.*testJava[a-zA-Z]*8.*/
+  if (!matcher.matches()) {
+    jvmArgs "--add-exports", "jdk.jfr/jdk.jfr.internal.consumer=ALL-UNNAMED"
+  }
 }

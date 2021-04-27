@@ -9,9 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.google.common.collect.Multimap;
 import datadog.trace.api.config.ProfilingConfig;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,10 +20,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.zip.GZIPInputStream;
+import net.jpountz.lz4.LZ4FrameInputStream;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
+import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -141,10 +142,6 @@ class ProfilingIntegrationTest {
       assertNotNull(firstStartTime);
       assertNotNull(firstEndTime);
 
-      long duration = firstEndTime.toEpochMilli() - firstStartTime.toEpochMilli();
-      assertTrue(duration > TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS - 2));
-      assertTrue(duration < TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS + 2));
-
       Map<String, String> requestTags =
           ProfilingTestUtils.parseTags(firstRequestParameters.get("tags[]"));
       assertEquals("smoke-test-java-app", requestTags.get("service"));
@@ -154,6 +151,12 @@ class ProfilingIntegrationTest {
 
       byte[] byteData = getParameter("chunk-data", byte[].class, firstRequestParameters);
       assertNotNull(byteData);
+
+      long duration = getRecordingDuration(byteData);
+      if (duration > -1) {
+        assertTrue(duration > TimeUnit.SECONDS.toNanos(PROFILING_UPLOAD_PERIOD_SECONDS - 2));
+        assertTrue(duration < TimeUnit.SECONDS.toNanos(PROFILING_UPLOAD_PERIOD_SECONDS + 2));
+      }
 
       assertFalse(logHasErrors(logFilePath, it -> false));
       IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
@@ -174,6 +177,13 @@ class ProfilingIntegrationTest {
 
       byteData = getParameter("chunk-data", byte[].class, firstRequestParameters);
       assertNotNull(byteData);
+
+      duration = getRecordingDuration(byteData);
+      if (duration > -1) {
+        assertTrue(duration > TimeUnit.SECONDS.toNanos(PROFILING_UPLOAD_PERIOD_SECONDS - 2));
+        assertTrue(duration < TimeUnit.SECONDS.toNanos(PROFILING_UPLOAD_PERIOD_SECONDS + 2));
+      }
+
       events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
       assertTrue(events.hasItems());
 
@@ -188,6 +198,52 @@ class ProfilingIntegrationTest {
       }
       targetProcess = null;
     }
+  }
+
+  private long getRecordingDuration(byte[] byteData) throws Exception {
+    byteData = unpack(byteData);
+    // Not checking the data for containing the JFR magic numbers for simplicity
+    // Need to check for the JFR format version - v0 does not store the recording duration
+    // Major version is stored as a raw short number at offset 4
+    if (byteData[4] == 0 && byteData[5] == 0) {
+      // unsupported duration
+      return -1;
+    }
+    // The duration value is stored as a raw long number at offset 40
+    int durationOffset = 40;
+    // The duratio value is in ticks - the number of ticks per second is stored at offset 56 as a
+    // raw long number
+    int tickMultiplierOffset = 56;
+    long duration = 0;
+    for (int i = 0; i < 8; i++) {
+      duration = duration << 8 | (((int) byteData[i + durationOffset]) & 0xff);
+    }
+    long tickMultiplier = 0;
+    for (int i = 0; i < 8; i++) {
+      tickMultiplier = tickMultiplier << 8 | (((int) byteData[i + tickMultiplierOffset]) & 0xff);
+    }
+
+    return (long) (duration * (1_000_000_000d / tickMultiplier));
+  }
+
+  private static byte[] unpack(byte[] data) throws Exception {
+    ByteArrayOutputStream baos = null;
+
+    try {
+      baos = new ByteArrayOutputStream();
+      InputStream is = null;
+      try {
+        is = new LZ4FrameInputStream(new ByteArrayInputStream(data));
+      } catch (Exception ignored) {
+        is = new GZIPInputStream(new ByteArrayInputStream(data));
+      }
+      IOUtils.copy(is, baos);
+    } finally {
+      if (baos != null) {
+        baos.close();
+      }
+    }
+    return baos.toByteArray();
   }
 
   @Test
