@@ -16,10 +16,20 @@ import org.slf4j.LoggerFactory;
 public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Writer {
 
   private static final Logger log = LoggerFactory.getLogger(ListWriter.class);
+
+  public static final Filter ACCEPT_ALL =
+      new Filter() {
+        @Override
+        public boolean accept(List<DDSpan> trace) {
+          return true;
+        }
+      };
+
   private final TraceProcessor processor = new TraceProcessor();
   private final List<CountDownLatch> latches = new ArrayList<>();
   private final AtomicInteger traceCount = new AtomicInteger();
   private final TraceStructureWriter structureWriter = new TraceStructureWriter(true);
+  private Filter filter = ACCEPT_ALL;
 
   public List<DDSpan> firstTrace() {
     return get(0);
@@ -27,6 +37,10 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
 
   @Override
   public void write(List<DDSpan> trace) {
+    if (!filter.accept(trace)) {
+      return;
+    }
+
     traceCount.incrementAndGet();
     synchronized (latches) {
       trace = processor.onTraceComplete(trace);
@@ -79,6 +93,14 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     }
   }
 
+  /**
+   * Set a filter to be applied to all incoming traces to determine whether they should be written
+   * or not.
+   */
+  public void setFilter(Filter filter) {
+    this.filter = filter;
+  }
+
   private boolean isReported(DDSpan span) {
     for (List<DDSpan> trace : this) {
       for (DDSpan aSpan : trace) {
@@ -100,6 +122,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
 
   @Override
   public boolean flush() {
+    filter = ACCEPT_ALL;
     return true;
   }
 
@@ -119,5 +142,10 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   @Override
   public String toString() {
     return "ListWriter { size=" + size() + " }";
+  }
+
+  /** Interface for filtering out select traces from being written. */
+  public interface Filter {
+    boolean accept(List<DDSpan> trace);
   }
 }
