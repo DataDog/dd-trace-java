@@ -26,8 +26,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     result == "bar"
 
     and: "operations are captured in traces"
-    assertTraces(2) {
-      clientProxyTrace(it, "map")
+    assertTraces(1) {
       hazelcastTrace(it, "Map.get $randomName")
     }
   }
@@ -44,8 +43,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     result as Set == ["bar"] as Set
 
     and: "operations are captured in traces"
-    assertTraces(2) {
-      clientProxyTrace(it, "map")
+    assertTraces(1) {
       hazelcastTrace(it, "Map.valuesWithPredicate $randomName")
     }
   }
@@ -66,8 +64,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     result == "bar"
 
     and: "operations are captured in traces"
-    assertTraces(2) {
-      clientProxyTrace(it, "map")
+    assertTraces(1) {
       trace(2) {
         basicSpan(it, "test")
         hazelcastSpan(it, "Map.get $randomName", false)
@@ -88,8 +85,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     result as Set == Arrays.asList("bar", "baz") as Set
 
     and: "operations are captured in traces"
-    assertTraces(2) {
-      clientProxyTrace(it, "multiMap")
+    assertTraces(1) {
       hazelcastTrace(it, "MultiMap.get $randomName")
     }
   }
@@ -106,8 +102,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     result == "foo"
 
     and: "operations are captured in traces"
-    assertTraces(2) {
-      clientProxyTrace(it, "queue")
+    assertTraces(1) {
       hazelcastTrace(it, "Queue.take $randomName")
     }
 
@@ -137,8 +132,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     }
 
     and: "operations are captured in traces"
-    assertTraces(3) {
-      clientProxyTrace(it, "topic")
+    assertTraces(2) {
       hazelcastTrace(it, "Topic.addMessageListener")
       hazelcastTrace(it, "Topic.publish $randomName")
     }
@@ -167,9 +161,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
     and: "operations are captured in traces"
     // warning: operations and order may vary significantly across version
-    assertTraces(6) {
-      clientProxyTrace(it, "ringbuffer")
-      clientProxyTrace(it, "reliableTopic")
+    assertTraces(4) {
       hazelcastTrace(it, "Ringbuffer.tailSequence _hz_rb_$randomName")
       hazelcastTrace(it, "Ringbuffer.capacity _hz_rb_$randomName")
       hazelcastTrace(it, "Ringbuffer.readMany _hz_rb_$randomName")
@@ -189,8 +181,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     result
 
     and: "operations are captured in traces"
-    assertTraces(2) {
-      clientProxyTrace(it, "set")
+    assertTraces(1) {
       hazelcastTrace(it, "Set.contains $randomName")
     }
   }
@@ -205,8 +196,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     !result
 
     and: "operations are captured in traces"
-    assertTraces(3) {
-      clientProxyTrace(it, "set")
+    assertTraces(2) {
       hazelcastTrace(it, "Set.add $randomName")
       hazelcastTrace(it, "Set.add $randomName")
     }
@@ -225,8 +215,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     result
 
     and: "operations are captured in traces"
-    assertTraces(2) {
-      clientProxyTrace(it, "list")
+    assertTraces(1) {
       hazelcastTrace(it, "List.contains $randomName")
     }
   }
@@ -241,8 +230,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
     then:
     def ex = thrown(IndexOutOfBoundsException)
-    assertTraces(2) {
-      clientProxyTrace(it, "list")
+    assertTraces(1) {
       trace(1) {
         span {
           serviceName "hazelcast-sdk"
@@ -279,8 +267,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     assert alreadyLocked
 
     and: "operations are captured in traces"
-    assertTraces(2) {
-      clientProxyTrace(it, "lock")
+    assertTraces(1) {
       hazelcastTrace(it, "Lock.isLocked $randomName")
     }
 

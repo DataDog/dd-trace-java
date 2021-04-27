@@ -11,6 +11,8 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.DDSpan
 import net.bytebuddy.utility.RandomString
 import spock.lang.Shared
 
@@ -20,6 +22,14 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
   @Shared String randomName
 
   final resourceNamePattern = ~/^(?<operation>(?<service>[A-Z]\w+)\.[A-Z]\w+)(?: (?<name>.+))?$/
+
+  /** Filter our Client operations. They can happen at seemingly random times and yield inconsistent test results. */
+  final ListWriter.Filter defaultFilter = new ListWriter.Filter() {
+    @Override
+    boolean accept(List<DDSpan> trace) {
+      return !(trace.size() == 1 && trace.get(0).getResourceName().startsWithAny("Client."))
+    }
+  }
 
   @Override
   protected void configurePreAgent() {
@@ -66,6 +76,7 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
   }
 
   def setup() {
+    TEST_WRITER.setFilter(defaultFilter)
     randomName = randomResourceName()
   }
 
@@ -94,10 +105,6 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
     writer.trace(1) {
       hazelcastSpan(it, name)
     }
-  }
-
-  void clientProxyTrace(ListWriterAssert writer, String serviceShortName) {
-    hazelcastTrace(writer, "Client.CreateProxy hz:impl:${serviceShortName}Service")
   }
 
   def hazelcastSpan(TraceAssert trace, String name, boolean isParent = true) {

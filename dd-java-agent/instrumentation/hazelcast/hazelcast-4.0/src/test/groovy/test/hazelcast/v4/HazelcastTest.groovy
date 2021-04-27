@@ -38,8 +38,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     result == "bar"
 
     and: "captured expected traces"
-    assertTraces(2) {
-      clientProxyTrace(it, "map")
+    assertTraces(1) {
       hazelcastTrace(it, "Map.Get ${randomName}")
     }
   }
@@ -57,8 +56,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
     and: "captured expected traces"
 
-    assertTraces(2) {
-      clientProxyTrace(it, "map")
+    assertTraces(1) {
       hazelcastTrace(it, "Map.ValuesWithPredicate ${randomName}")
     }
   }
@@ -78,8 +76,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     then:
     result == "bar"
 
-    assertTraces(2) {
-      clientProxyTrace(it, "map")
+    assertTraces(1) {
       trace(2) {
         basicSpan(it, "test")
         hazelcastSpan(it, "Map.Get ${randomName}", false)
@@ -99,8 +96,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     then:
     result as Set == Arrays.asList("bar", "baz") as Set
 
-    assertTraces(2) {
-      clientProxyTrace(it, "multiMap")
+    assertTraces(1) {
       hazelcastTrace(it, "MultiMap.Get ${randomName}")
     }
   }
@@ -116,8 +112,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     then:
     result == "foo"
 
-    assertTraces(2) {
-      clientProxyTrace(it, "queue")
+    assertTraces(1) {
       hazelcastTrace(it, "Queue.Take ${randomName}")
     }
 
@@ -146,8 +141,7 @@ class HazelcastTest extends AbstractHazelcastTest {
       message.messageObject == "hello"
     }
 
-    assertTraces(4) {
-      clientProxyTrace(it, "topic")
+    assertTraces(3) {
       hazelcastTrace(it, "Topic.AddMessageListener")
       hazelcastTrace(it, "Topic.Publish ${randomName}")
       hazelcastEventTrace(it)
@@ -168,8 +162,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
     then:
     result
-    assertTraces(2) {
-      clientProxyTrace(it, "set")
+    assertTraces(1) {
       hazelcastTrace(it, "Set.Contains ${randomName}")
     }
   }
@@ -182,8 +175,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
     then:
     !result
-    assertTraces(3) {
-      clientProxyTrace(it, "set")
+    assertTraces(2) {
       hazelcastTrace(it, "Set.Add ${randomName}")
       hazelcastTrace(it, "Set.Add ${randomName}")
     }
@@ -199,8 +191,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
     then:
     result
-    assertTraces(2) {
-      clientProxyTrace(it, "list")
+    assertTraces(1) {
       hazelcastTrace(it, "List.Contains ${randomName}")
     }
   }
@@ -215,8 +206,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
     then:
     def ex = thrown(IndexOutOfBoundsException)
-    assertTraces(2) {
-      clientProxyTrace(it, "list")
+    assertTraces(1) {
       trace(1) {
         span {
           serviceName "hazelcast-sdk"
@@ -259,13 +249,12 @@ class HazelcastTest extends AbstractHazelcastTest {
     and: "the sempahore operations are recorded in the trace"
     /* Note this could be finicky between versions since the CP* traces are an
      implementation detail */
-    assertTraces(6) {
+    assertTraces(5) {
       hazelcastTrace(it, "CPGroup.CreateCPGroup test")
       hazelcastTrace(it, "Semaphore.GetSemaphoreType test")
       hazelcastTrace(it, "CPSession.CreateSession sessionManager")
       hazelcastTrace(it, "Semaphore.Acquire test")
       hazelcastTrace(it, "Semaphore.AvailablePermits test")
-      hazelcastTrace(it, "Client.Statistics")
     }
 
     cleanup:
@@ -289,11 +278,8 @@ class HazelcastTest extends AbstractHazelcastTest {
     result == 15
 
     and: "confirm we received the expected traces"
-    assertTraces(4) {
-      clientProxyTrace(it, "list")
+    assertTraces(2) {
       hazelcastTrace(it, "List.AddAll sum")
-
-      clientProxyTrace(it, "executor")
       hazelcastTrace(it, "ExecutorService.SubmitToPartition ${randomName}")
     }
   }
