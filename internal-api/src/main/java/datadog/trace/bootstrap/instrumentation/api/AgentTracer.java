@@ -354,6 +354,11 @@ public class AgentTracer {
     }
 
     @Override
+    public boolean eligibleForDropping() {
+      return true;
+    }
+
+    @Override
     public Integer getSamplingPriority() {
       return (int) PrioritySampling.UNSET;
     }

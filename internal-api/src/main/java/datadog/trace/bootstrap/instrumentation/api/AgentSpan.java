@@ -74,6 +74,8 @@ public interface AgentSpan extends MutableSpan {
   @Override
   AgentSpan setResourceName(final CharSequence resourceName);
 
+  boolean eligibleForDropping();
+
   interface Context {
     DDId getTraceId();
 

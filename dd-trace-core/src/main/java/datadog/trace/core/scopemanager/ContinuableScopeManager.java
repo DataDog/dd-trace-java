@@ -239,16 +239,15 @@ public class ContinuableScopeManager implements AgentScopeManager {
      * I would hope this becomes unnecessary.
      */
     final void onProperClose() {
+      if (span.eligibleForDropping()) {
+        return;
+      }
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         try {
           listener.afterScopeClosed();
         } catch (Exception e) {
           log.debug("ScopeListener threw exception in close()", e);
         }
-      }
-
-      if (span instanceof NoopAgentSpan) {
-        return;
       }
 
       for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
@@ -319,16 +318,15 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     public void afterActivated() {
+      if (span.eligibleForDropping()) {
+        return;
+      }
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         try {
           listener.afterScopeActivated();
         } catch (Throwable e) {
           log.debug("ScopeListener threw exception in afterActivated()", e);
         }
-      }
-
-      if (span instanceof NoopAgentSpan) {
-        return;
       }
 
       for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {

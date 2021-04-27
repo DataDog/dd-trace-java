@@ -304,6 +304,17 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     return this;
   }
 
+  @Override
+  public boolean eligibleForDropping() {
+    switch (context.getSamplingPriority()) {
+      case PrioritySampling.USER_DROP:
+      case PrioritySampling.SAMPLER_DROP:
+        return !context.getErrorFlag() & !forceKeep;
+      default:
+        return false;
+    }
+  }
+
   /**
    * Set the sampling priority of the root span of this span's trace
    *
