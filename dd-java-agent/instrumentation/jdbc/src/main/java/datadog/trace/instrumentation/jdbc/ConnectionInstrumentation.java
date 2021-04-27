@@ -57,9 +57,6 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     "org.sqlite.jdbc4.JDBC4Connection",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsConnection",
-    "net.sourceforge.jtds.jdbcx.JtdsXAConnection",
-    "net.sourceforge.jtds.jdbcx.PooledConnection",
-    "net.sourceforge.jtds.jdbcx.proxy.ConnectionProxy",
     // for testing purposes
     "test.TestConnection",
     // this won't match any class unless the property is set
