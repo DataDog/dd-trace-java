@@ -178,6 +178,14 @@ class JDBCConnectionUrlParserTest extends AgentTestRunner {
     // https://github.com/open-telemetry/opentelemetry-java-instrumentation/issues/2741
     "jdbc:mysql:replication://lark-aurora-prod.cluster-cmowtuugqgqn.us-west-2.rds.amazonaws.com:3306,lark-aurora-prod.cluster-ro-cmowtuugqgqn.us-west-2.rds.amazonaws.com:3306/lark?autoReconnect=true&useUnicode=true&characterEncoding=UTF-8" | null     | "mysql"      | "replication" | null          | "lark-aurora-prod.cluster-cmowtuugqgqn.us-west-2.rds.amazonaws.com" | 3306  | null                               | "lark"
 
+    // http://jtds.sourceforge.net/faq.html#urlFormat
+    "jdbc:jtds:sqlserver://dbhostname.com:1433/databasename;user=user;password=pw"                                                                                                                                                              | null     | "jtds"       | "sqlserver"   | "user"        | "dbhostname.com"                                                    | 1433  | null                               | "databasename"
+    "jdbc:jtds:sqlserver://dbhostname.com/databasename;user=user;password=pw"                                                                                                                                                                   | null     | "jtds"       | "sqlserver"   | "user"        | "dbhostname.com"                                                    | 1433  | null                               | "databasename"
+    "jdbc:jtds:sqlserver://dbhostname.com;user=user;password=pw"                                                                                                                                                                                | null     | "jtds"       | "sqlserver"   | "user"        | "dbhostname.com"                                                    | 1433  | null                               | null
+    "jdbc:jtds:sqlserver://dbhostname.com"                                                                                                                                                                                                      | null     | "jtds"       | "sqlserver"   | null          | "dbhostname.com"                                                    | 1433  | null                               | null
+    "jdbc:jtds:sybase://dbhostname.com"                                                                                                                                                                                                         | null     | "jtds"       | "sybase"      | null          | "dbhostname.com"                                                    | 7100  | null                               | null
+
+
     expected = new DBInfo.Builder().type(type).subtype(subtype).user(user).instance(instance).db(db).host(host).port(port).build()
   }
 }
