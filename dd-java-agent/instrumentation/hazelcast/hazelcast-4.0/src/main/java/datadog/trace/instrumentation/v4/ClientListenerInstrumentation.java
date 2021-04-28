@@ -3,7 +3,9 @@ package datadog.trace.instrumentation.v4;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_SDK;
+import static datadog.trace.instrumentation.v4.HazelcastConstants.DEFAULT_ENABLED;
+import static datadog.trace.instrumentation.v4.HazelcastConstants.INSTRUMENTATION_NAME;
+import static datadog.trace.instrumentation.v4.HazelcastConstants.SPAN_NAME;
 import static datadog.trace.instrumentation.v4.HazelcastDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -17,7 +19,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.hazelcast.HazelcastConstants;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -29,12 +30,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class ClientListenerInstrumentation extends Instrumenter.Tracing {
 
   public ClientListenerInstrumentation() {
-    super(HazelcastConstants.INSTRUMENTATION_NAME);
+    super(INSTRUMENTATION_NAME);
   }
 
   @Override
   protected boolean defaultEnabled() {
-    return HazelcastConstants.DEFAULT_ENABLED;
+    return DEFAULT_ENABLED;
   }
 
   @Override
@@ -44,10 +45,7 @@ public class ClientListenerInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HazelcastDecorator",
-      "datadog.trace.instrumentation.hazelcast.HazelcastConstants"
-    };
+    return new String[] {packageName + ".HazelcastConstants", packageName + ".HazelcastDecorator"};
   }
 
   @Override
@@ -83,7 +81,7 @@ public class ClientListenerInstrumentation extends Instrumenter.Tracing {
         return null;
       }
 
-      final AgentSpan span = startSpan(HAZELCAST_SDK);
+      final AgentSpan span = startSpan(SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, operationName, null, correlationId);
 

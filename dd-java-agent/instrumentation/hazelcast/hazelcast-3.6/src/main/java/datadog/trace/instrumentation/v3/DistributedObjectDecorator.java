@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.v3;
 
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.COMPONENT_NAME;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_NAME;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_OPERATION;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_SERVICE;
+import static datadog.trace.instrumentation.v3.HazelcastConstants.COMPONENT_NAME;
+import static datadog.trace.instrumentation.v3.HazelcastConstants.HAZELCAST_NAME;
+import static datadog.trace.instrumentation.v3.HazelcastConstants.HAZELCAST_OPERATION;
+import static datadog.trace.instrumentation.v3.HazelcastConstants.HAZELCAST_SERVICE;
 
 import com.hazelcast.core.DistributedObject;
 import datadog.trace.api.Function;

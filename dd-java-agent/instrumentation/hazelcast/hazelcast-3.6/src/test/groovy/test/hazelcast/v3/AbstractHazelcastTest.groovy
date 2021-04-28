@@ -81,7 +81,7 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
     trace.span {
       serviceName "hazelcast-sdk"
       resourceName name
-      operationName "hazelcast.sdk"
+      operationName "hazelcast.invoke"
       spanType DDSpanTypes.HTTP_CLIENT
       errored false
       if (isParent) {

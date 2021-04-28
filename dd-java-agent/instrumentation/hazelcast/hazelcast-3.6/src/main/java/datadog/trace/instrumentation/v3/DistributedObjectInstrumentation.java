@@ -3,12 +3,10 @@ package datadog.trace.instrumentation.v3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_SDK;
 import static datadog.trace.instrumentation.v3.DistributedObjectDecorator.DECORATE;
-import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
+import static datadog.trace.instrumentation.v3.HazelcastConstants.SPAN_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
@@ -49,8 +47,8 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
       packageName + ".DistributedObjectDecorator",
       packageName + ".DistributedObjectDecorator$1",
       packageName + ".SpanFinishingExecutionCallback",
-      "datadog.trace.instrumentation.hazelcast.HazelcastConstants"
-    };
+      packageName + ".HazelcastConstants"
+  };
   }
 
   @Override
@@ -76,297 +74,136 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>(4);
 
-    // Map
     transformers.put(
         isMethod()
-            .and(
-                isDeclaredBy(
-                    namedOneOf(
-                        PROXY_PACKAGE + ".ClientMapProxy",
-                        PROXY_PACKAGE + ".ClientReplicatedMapProxy")))
             .and(isPublic())
             .and(
                 namedOneOf(
+                    "acquire",
+                    "add",
+                    "addAll",
+                    "addAndGet",
                     "addIndex",
                     "aggregate",
+                    "availablePermits",
+                    "awaitTermination",
+                    "capacity",
                     "clear",
+                    "contains",
+                    "containsAll",
+                    "containsEntry",
                     "containsKey",
                     "containsValue",
+                    "decrementAndGet",
                     "delete",
+                    "drainPermits",
+                    "drainTo",
+                    "element",
                     "entrySet",
+                    "estimate",
                     "evict",
                     "evictAll",
+                    "execute",
+                    "executeOnAllMembers",
                     "executeOnEntries",
                     "executeOnKey",
+                    "executeOnKeyOwner",
                     "executeOnKeys",
+                    "executeOnMember",
+                    "executeOnMembers",
                     "flush",
                     "forceUnlock",
                     "get",
                     "getAll",
+                    "getAndAdd",
+                    "getAndDecrement",
+                    "getAndIncrement",
+                    "getAndSubtract",
                     "getEntryView",
+                    "getLocalExecutorStats",
+                    "getLockCount",
                     "getQueryCache",
                     "getQueryCacheContext",
+                    "getRemainingLeaseTime",
+                    "headSequence",
+                    "increasePermits",
+                    "incrementAndGet",
+                    "indexOf",
+                    "init",
+                    "invokeAll",
+                    "invokeAny",
                     "isEmpty",
                     "isLocked",
+                    "isLockedByCurrentThread",
+                    "isShutdown",
+                    "isTerminated",
                     "iterator",
                     "keySet",
+                    "lastIndexOf",
+                    "listIterator",
                     "loadAll",
                     "lock",
+                    "newCondition",
+                    "newId",
+                    "offer",
+                    "peek",
+                    "poll",
                     "project",
+                    "publish",
                     "put",
                     "putAll",
                     "putIfAbsent",
                     "putTransient",
                     "readFromEventJournal",
+                    "readOne",
+                    "reducePermits",
+                    "release",
+                    "remainingCapacity",
                     "remove",
                     "removeAll",
                     "replace",
+                    "reset",
+                    "retainAll",
                     "set",
                     "setTtl",
+                    "shutdown",
+                    "shutdownNow",
                     "size",
+                    "subList",
                     "submitToKey",
                     "submitToKeys",
                     "subscribeToEventJournal",
+                    "subtractAndGet",
+                    "tailSequence",
+                    "take",
+                    "toArray",
+                    "tryAcquire",
                     "tryLock",
                     "tryPut",
                     "tryRemove",
-                    "unlock",
-                    "values")),
-        getClass().getName() + "$SyncAdvice");
-    transformers.put(
-        isMethod()
-            .and(isDeclaredBy(named(PROXY_PACKAGE + ".ClientMapProxy")))
-            .and(isPublic())
-            .and(namedOneOf("getAsync", "putAsync", "removeAsync", "setAsync"))
-            .and(returns(NameMatchers.named("com.hazelcast.core.ICompletableFuture"))),
-        getClass().getName() + "$CompletableFutureAdvice");
-
-    // MultiMap
-    transformers.put(
-        isMethod()
-            .and(isDeclaredBy(named(PROXY_PACKAGE + ".ClientMultiMapProxy")))
-            .and(isPublic())
-            .and(
-                namedOneOf(
-                    "aggregate",
-                    "clear",
-                    "containsEntry",
-                    "containsKey",
-                    "containsValue",
-                    "delete",
-                    "entrySet",
-                    "forceUnlock",
-                    "get",
-                    "isLocked",
-                    "keySet",
-                    "lock",
-                    "put",
-                    "remove",
-                    "size",
-                    "tryLock",
                     "unlock",
                     "valueCount",
                     "values")),
         getClass().getName() + "$SyncAdvice");
 
-    // Topic
+    // Async
     transformers.put(
         isMethod()
-            .and(
-                isDeclaredBy(
-                    namedOneOf(
-                        PROXY_PACKAGE + ".ClientTopicProxy",
-                        PROXY_PACKAGE + ".ClientReliableTopicProxy")))
-            .and(isPublic())
-            .and(namedOneOf("publish")),
-        getClass().getName() + "$SyncAdvice");
-
-    // Queue
-    transformers.put(
-        isMethod()
-            .and(isDeclaredBy(named(PROXY_PACKAGE + ".ClientQueueProxy")))
             .and(isPublic())
             .and(
                 namedOneOf(
-                    "add",
-                    "addAll",
-                    "clear",
-                    "contains",
-                    "containsAll",
-                    "drainTo",
-                    "element",
-                    "isEmpty",
-                    "iterator",
-                    "offer",
-                    "peek",
-                    "poll",
-                    "put",
-                    "remainingCapacity",
-                    "remove",
-                    "removeAll",
-                    "retainAll",
-                    "size",
-                    "take",
-                    "toArray")),
-        getClass().getName() + "$SyncAdvice");
-
-    // Set and List
-    transformers.put(
-        isMethod()
-            .and(
-                isDeclaredBy(
-                    namedOneOf(
-                        PROXY_PACKAGE + ".ClientSetProxy", PROXY_PACKAGE + ".ClientListProxy")))
-            .and(isPublic())
-            .and(
-                namedOneOf(
-                    "add",
-                    "addAll",
-                    "clear",
-                    "contains",
-                    "containsAll",
-                    "get",
-                    "indexOf",
-                    "isEmpty",
-                    "iterator",
-                    "lastIndexOf",
-                    "listIterator",
-                    "remove",
-                    "removeAll",
-                    "retainAll",
-                    "set",
-                    "size",
-                    "subList",
-                    "toArray")),
-        getClass().getName() + "$SyncAdvice");
-
-    // Lock (deprecated)
-    transformers.put(
-        isMethod()
-            .and(isDeclaredBy(named(PROXY_PACKAGE + ".ClientLockProxy")))
-            .and(isPublic())
-            .and(
-                namedOneOf(
-                    "forceUnlock",
-                    "getLockCount",
-                    "getRemainingLeaseTime",
-                    "isLocked",
-                    "isLockedByCurrentThread",
-                    "lock",
-                    "newCondition",
-                    "tryLock",
-                    "unlock")),
-        getClass().getName() + "$SyncAdvice");
-
-    // Ring Buffer
-    transformers.put(
-        isMethod()
-            .and(isDeclaredBy(named(PROXY_PACKAGE + ".ClientRingbufferProxy")))
-            .and(isPublic())
-            .and(
-                namedOneOf(
-                    "add",
-                    "capacity",
-                    "headSequence",
-                    "readOne",
-                    "remainingCapacity",
-                    "size",
-                    "tailSequence")),
-        getClass().getName() + "$SyncAdvice");
-    transformers.put(
-        isMethod()
-            .and(isDeclaredBy(named(PROXY_PACKAGE + ".ClientRingbufferProxy")))
-            .and(isPublic())
-            .and(namedOneOf("addAllAsync", "addAsync", "readManyAsync"))
+                    "addAllAsync",
+                    "addAsync",
+                    "estimateAsync",
+                    "getAsync",
+                    "putAsync",
+                    "readManyAsync",
+                    "removeAsync",
+                    "setAsync"))
             .and(returns(NameMatchers.named("com.hazelcast.core.ICompletableFuture"))),
         getClass().getName() + "$CompletableFutureAdvice");
-
-    // Executor Service
-    transformers.put(
-        isMethod()
-            .and(isDeclaredBy(named(PROXY_PACKAGE + ".ClientExecutorServiceProxy")))
-            .and(isPublic())
-            .and(
-                namedOneOf(
-                    "awaitTermination",
-                    "execute",
-                    "executeOnAllMembers",
-                    "executeOnKeyOwner",
-                    "executeOnMember",
-                    "executeOnMembers",
-                    "getLocalExecutorStats",
-                    "invokeAll",
-                    "invokeAny",
-                    "isShutdown",
-                    "isTerminated",
-                    "shutdown",
-                    "shutdownNow")),
-        getClass().getName() + "$SyncAdvice");
-
-    // ID Generators
-    transformers.put(
-        isMethod()
-            .and(
-                isDeclaredBy(
-                    namedOneOf(
-                        PROXY_PACKAGE + ".ClientRingbufferProxy",
-                        PROXY_PACKAGE + ".ClientIdGeneratorProxy")))
-            .and(isPublic())
-            .and(namedOneOf("newId")),
-        getClass().getName() + "$SyncAdvice");
-
-    // PN Counter
-    transformers.put(
-        isMethod()
-            .and(isDeclaredBy(named(PROXY_PACKAGE + ".ClientPNCounterProxy")))
-            .and(isPublic())
-            .and(
-                namedOneOf(
-                    "addAndGet",
-                    "decrementAndGet",
-                    "get",
-                    "getAndAdd",
-                    "getAndDecrement",
-                    "getAndIncrement",
-                    "getAndSubtract",
-                    "incrementAndGet",
-                    "reset",
-                    "subtractAndGet")),
-        getClass().getName() + "$SyncAdvice");
-
-    // Cardinality Estimator
-    transformers.put(
-        isMethod()
-            .and(isDeclaredBy(named(PROXY_PACKAGE + ".ClientCardinalityEstimatorProxy")))
-            .and(isPublic())
-            .and(namedOneOf("add", "estimate")),
-        getClass().getName() + "$SyncAdvice");
-    transformers.put(
-        isMethod()
-            .and(isDeclaredBy(named(PROXY_PACKAGE + ".ClientCardinalityEstimatorProxy")))
-            .and(isPublic())
-            .and(namedOneOf("addAsync", "estimateAsync"))
-            .and(returns(NameMatchers.named("com.hazelcast.core.ICompletableFuture"))),
-        getClass().getName() + "$CompletableFutureAdvice");
-
-    // Semaphore (Deprecated)
-    transformers.put(
-        isMethod()
-            .and(isDeclaredBy(named(PROXY_PACKAGE + ".ClientSemaphoreProxy")))
-            .and(isPublic())
-            .and(
-                namedOneOf(
-                    "acquire",
-                    "availablePermits",
-                    "drainPermits",
-                    "increasePermits",
-                    "init",
-                    "reducePermits",
-                    "release",
-                    "tryAcquire")),
-        getClass().getName() + "$SyncAdvice");
 
     return transformers;
   }
@@ -388,7 +225,7 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
         return null;
       }
 
-      final AgentSpan span = startSpan(HAZELCAST_SDK);
+      final AgentSpan span = startSpan(SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 
@@ -447,7 +284,7 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
         return null;
       }
 
-      final AgentSpan span = startSpan(HAZELCAST_SDK);
+      final AgentSpan span = startSpan(SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 

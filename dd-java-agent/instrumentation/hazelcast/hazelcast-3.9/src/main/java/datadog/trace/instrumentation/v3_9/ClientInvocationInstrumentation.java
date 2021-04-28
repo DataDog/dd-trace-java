@@ -4,8 +4,10 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_SDK;
 import static datadog.trace.instrumentation.v3_9.ClientInvocationDecorator.DECORATE;
+import static datadog.trace.instrumentation.v3_9.HazelcastConstants.DEFAULT_ENABLED;
+import static datadog.trace.instrumentation.v3_9.HazelcastConstants.INSTRUMENTATION_NAME;
+import static datadog.trace.instrumentation.v3_9.HazelcastConstants.SPAN_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -22,7 +24,6 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.hazelcast.HazelcastConstants;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,12 +36,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
 
   public ClientInvocationInstrumentation() {
-    super(HazelcastConstants.INSTRUMENTATION_NAME);
+    super(INSTRUMENTATION_NAME);
   }
 
   @Override
   protected boolean defaultEnabled() {
-    return HazelcastConstants.DEFAULT_ENABLED;
+    return DEFAULT_ENABLED;
   }
 
   @Override
@@ -48,7 +49,7 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
     return new String[] {
       packageName + ".ClientInvocationDecorator",
       packageName + ".SpanFinishingExecutionCallback",
-      "datadog.trace.instrumentation.hazelcast.HazelcastConstants"
+      packageName + ".HazelcastConstants"
     };
   }
 
@@ -67,7 +68,7 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(2);
+    final Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
 
     transformers.put(
         isMethod().and(named("invokeOnSelection")), getClass().getName() + "$InvocationAdvice");
@@ -106,7 +107,7 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
         return null;
       }
 
-      final AgentSpan span = startSpan(HAZELCAST_SDK);
+      final AgentSpan span = startSpan(SPAN_NAME);
       DECORATE.onHazelcastInstance(
           span, InstrumentationContext.get(ClientInvocation.class, String.class).get(that));
       DECORATE.afterStart(span);

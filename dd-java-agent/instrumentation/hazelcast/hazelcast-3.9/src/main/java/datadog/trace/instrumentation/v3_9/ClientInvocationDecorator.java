@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.v3_9;
 
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.COMPONENT_NAME;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_CORRELATION_ID;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_INSTANCE;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_NAME;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_OPERATION;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_SERVICE;
+import static datadog.trace.instrumentation.v3_9.HazelcastConstants.COMPONENT_NAME;
+import static datadog.trace.instrumentation.v3_9.HazelcastConstants.HAZELCAST_CORRELATION_ID;
+import static datadog.trace.instrumentation.v3_9.HazelcastConstants.HAZELCAST_INSTANCE;
+import static datadog.trace.instrumentation.v3_9.HazelcastConstants.HAZELCAST_NAME;
+import static datadog.trace.instrumentation.v3_9.HazelcastConstants.HAZELCAST_OPERATION;
+import static datadog.trace.instrumentation.v3_9.HazelcastConstants.HAZELCAST_SERVICE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;

@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.v3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.instrumentation.hazelcast.HazelcastConstants.HAZELCAST_INSTANCE;
+import static datadog.trace.instrumentation.v3.HazelcastConstants.HAZELCAST_INSTANCE;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -35,9 +35,9 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".HazelcastConstants",
       packageName + ".DistributedObjectDecorator",
-      packageName + ".DistributedObjectDecorator$1",
-      "datadog.trace.instrumentation.hazelcast.HazelcastConstants"
+      packageName + ".DistributedObjectDecorator$1"
     };
   }
 

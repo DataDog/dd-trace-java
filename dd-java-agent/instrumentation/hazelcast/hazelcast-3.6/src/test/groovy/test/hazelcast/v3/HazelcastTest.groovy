@@ -206,7 +206,7 @@ class HazelcastTest extends AbstractHazelcastTest {
       trace(1) {
         span {
           serviceName "hazelcast-sdk"
-          operationName "hazelcast.sdk"
+          operationName "hazelcast.invoke"
           resourceName "list[${randomName}].get"
           parent()
           spanType DDSpanTypes.HTTP_CLIENT

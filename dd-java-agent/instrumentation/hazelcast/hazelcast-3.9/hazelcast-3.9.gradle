@@ -18,8 +18,6 @@ testSets {
 }
 
 dependencies {
-  compile project(':dd-java-agent:instrumentation:hazelcast')
-
   compileOnly group: 'com.hazelcast', name: 'hazelcast-all', version: '3.9'
 
   testCompile group: 'com.hazelcast', name: 'hazelcast-all', version: '3.9'

@@ -18,8 +18,7 @@ testSets {
 }
 
 dependencies {
-  compile project(':dd-java-agent:instrumentation:hazelcast')
-
+  // Using 3.8 since it is the only version with async support; sync support works for 3.6+
   compileOnly group: 'com.hazelcast', name: 'hazelcast-all', version: '3.8'
 
   testCompile group: 'com.hazelcast', name: 'hazelcast-all', version: '3.8'
