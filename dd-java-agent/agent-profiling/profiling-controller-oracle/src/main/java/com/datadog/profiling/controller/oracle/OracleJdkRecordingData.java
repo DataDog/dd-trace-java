@@ -23,9 +23,13 @@ import java.time.Instant;
 import java.util.Date;
 import javax.annotation.Nonnull;
 import javax.management.ObjectName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Implementation for profiling recordings. */
 public class OracleJdkRecordingData extends RecordingData {
+  private static final Logger log = LoggerFactory.getLogger(OracleJdkRecordingData.class);
+
   private final ObjectName recordingId;
   private final String name;
 
@@ -37,10 +41,23 @@ public class OracleJdkRecordingData extends RecordingData {
       @Nonnull Instant start,
       @Nonnull Instant end,
       @Nonnull JfrMBeanHelper helper) {
-    super(start, end);
+    super(start, getEndTime(helper, recordingId, end));
     this.name = name;
     this.recordingId = recordingId;
     this.helper = helper;
+  }
+
+  private static Instant getEndTime(
+      JfrMBeanHelper helper, ObjectName recordingId, Instant defaultEndTime) {
+    try {
+      return helper.getDataEndTime(recordingId);
+    } catch (IOException e) {
+      log.debug(
+          "Unable to retrieve the data end time for recording {}. ({})",
+          recordingId.getKeyProperty("name"),
+          e.toString());
+    }
+    return defaultEndTime;
   }
 
   @Override

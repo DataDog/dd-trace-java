@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
@@ -15,16 +16,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.regex.Pattern;
-import javax.management.AttributeNotFoundException;
-import javax.management.InstanceAlreadyExistsException;
-import javax.management.InstanceNotFoundException;
-import javax.management.JMException;
-import javax.management.MBeanException;
-import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
-import javax.management.ObjectName;
-import javax.management.ReflectionException;
-import javax.management.RuntimeOperationsException;
+import javax.management.*;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.CompositeDataSupport;
 import javax.management.openmbean.CompositeType;
@@ -54,6 +46,9 @@ final class JfrMBeanHelper {
   public static final String CLOSE = "close";
   public static final String STOP = "stop";
   public static final String CLONE_RECORDING = "cloneRecording";
+
+  // various MBean attributes
+  private static final String DATA_END_TIME = "DataEndTime";
 
   // event settings attribute names
   private static final String KEY_ID = "id";
@@ -254,6 +249,17 @@ final class JfrMBeanHelper {
         recordingId.getKeyProperty("name"),
         cloned.getKeyProperty("name"));
     return cloned;
+  }
+
+  public Instant getDataEndTime(ObjectName recordingId) throws IOException {
+    log.debug(
+        "Retrieving DataEndTime attribute from recording {}", recordingId.getKeyProperty("name"));
+    try {
+      Date endTime = (Date) server.getAttribute(recordingId, DATA_END_TIME);
+      return Instant.ofEpochMilli(endTime.getTime());
+    } catch (JMException e) {
+      throw new IOException(e);
+    }
   }
 
   private Object invokeJfrOperation(String name, Object... parameters) throws IOException {
