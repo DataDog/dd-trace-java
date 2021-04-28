@@ -11,6 +11,7 @@ class LocalFSGitInfoExtractorTest extends DDSpecification {
   static gitInfoOneCommit
   static gitInfoOneCommitNoRef
   static gitInfoOneTag
+  static gitInfoEmptyPack
   static gitInfoPack
 
   static {
@@ -36,6 +37,8 @@ class LocalFSGitInfoExtractorTest extends DDSpecification {
       new PersonInfo("John Doe", "john@doe.com", 1613138422000L, 60),
       new PersonInfo("Jane Doe", "jane@doe.com", 1613138422000L, 60),
       "This is a commit message\n"))
+
+    gitInfoEmptyPack = new GitInfo("git@github.com:DataDog/dd-trace-dotnet.git", "master", null, CommitInfo.NOOP)
 
     gitInfoPack = new GitInfo("git@github.com:DataDog/dd-trace-dotnet.git", "master", null,
       new CommitInfo("5b6f3a6dab5972d73a56dff737bd08d995255c08",
@@ -63,6 +66,7 @@ class LocalFSGitInfoExtractorTest extends DDSpecification {
     resolve("ci/git/with_commits/git")         | gitInfoOneCommit
     resolve("ci/git/with_commits_no_refs/git") | gitInfoOneCommitNoRef
     resolve("ci/git/with_tag/git")             | gitInfoOneTag
+    resolve("ci/git/with_empty_pack/git")      | gitInfoEmptyPack
     resolve("ci/git/with_pack/git")            | gitInfoPack
   }
 

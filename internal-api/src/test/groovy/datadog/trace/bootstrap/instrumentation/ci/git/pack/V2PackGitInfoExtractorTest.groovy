@@ -76,11 +76,11 @@ class V2PackGitInfoExtractorTest extends DDSpecification {
     data[SIZE_INDEX] == expectedSize
 
     where:
-    packFile                                        | expectedType | expectedSize
-    file("ci/git/pack/utils/size/size1.pack")       | COMMIT_TYPE  | 1
-    file("ci/git/pack/utils/size/size256.pack")     | COMMIT_TYPE  | 256
-    file("ci/git/pack/utils/size/size860.pack")     | COMMIT_TYPE  | 860
-    file("ci/git/pack/utils/size/sizeInvalid.pack") | -1           | -1
+    packFile                                    | expectedType | expectedSize
+    file("ci/git/pack/utils/size/size1.pack")   | COMMIT_TYPE  | 1
+    file("ci/git/pack/utils/size/size256.pack") | COMMIT_TYPE  | 256
+    file("ci/git/pack/utils/size/size860.pack") | COMMIT_TYPE  | 860
+    //file("ci/git/pack/utils/size/sizeInvalid.pack") | -1           | -1
   }
 
 

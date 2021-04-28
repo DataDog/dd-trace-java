@@ -13,7 +13,9 @@ import static datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackUtils.s
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Extract Git information from Git Packfiles v2.
@@ -60,6 +62,7 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
   public static final short VERSION = 2;
 
   private static final int[] INVALID_TYPE_AND_SIZE = new int[] {-1, -1};
+  private static final int MAX_ALLOWED_SIZE = Character.MAX_VALUE; // 65535 or 2 bytes
 
   @Override
   public short getVersion() {
@@ -219,54 +222,70 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
    */
   protected int[] extractGitObjectTypeAndSize(final RandomAccessFile pack) throws IOException {
     // The type and size of the git object is stored in a variable length byte array.
-    // This makes sense because a blob object can have an arbitrary size,
-    // but for our use case, we're only interested in commits message (or tags).
-    // We consider that 2 bytes is more than enough to store the commit message.
-    final byte[] sizeParts = readBytes(pack, 2);
-
-    // If the second byte has the first bit == 1,
-    // it means that the size was stored in more than 2 bytes.
-    // so return invalid type and size.
-    if (((sizeParts[1] >> 7) & 1) == 1) {
-      return INVALID_TYPE_AND_SIZE;
-    }
+    // If the read byte has the first bit == 0, it means it's the final byte to read.
+    byte sizePart;
+    final List<Byte> sizeParts = new ArrayList<>();
+    do {
+      sizePart = readBytes(pack, 1)[0];
+      sizeParts.add(sizePart);
+    } while (((sizePart >> 7) & 1) == 1);
 
     // First bit indicates if the size continues in the following byte or not.
     // Next 3 bits are used to indicate the Git object type:
     // https://git-scm.com/docs/pack-format#_object_types
 
     // If type is not commit or tag, we consider it invalid.
-    final byte type = (byte) ((sizeParts[0] & 0x70) >> 4);
+    final byte type = (byte) ((sizeParts.get(0) & 0x70) >> 4);
     if (type != COMMIT_TYPE && type != TAG_TYPE) {
       return INVALID_TYPE_AND_SIZE;
     }
 
     // We build the size combining the bits from sizeParts
     // using bitwise operations (BigEndian).
+
     // Example:
     // - sizeParts = [-100, 53] => [10011100, 00110101]
     // - size = 00000000 00000000 00000000 00000000
-    int size = 0;
 
     // Clean first bit and add bits to size using OR.
     //    size       00000000 00000000 00000000 00000000
-    // OR sizePart[1] & 0x7F                    00110101
+    // OR sizePart.get(1) & 0x7F                00110101
     //    size       00000000 00000000 00000000 00110101
-    size |= (sizeParts[1] & 0x7F);
 
     // Move 4 bits to the left.
     // size 00000000 00000000 00000011 01010000
-    size <<= 4;
 
     // Clean four initial bits and add the result to size using OR.
     // size            00000000 00000000 00000011 01010000
-    // OR sizePart[0] & 0x0F                      00001100
+    // OR sizePart.get(0) & 0x0F                  00001100
     // size            00000000 00000000 00000011 01011100
-    size |= (sizeParts[0] & 0x0F);
 
     // Finally, in the example:
     // type: 001 -> commit
     // size: 860
+
+    int size = 0;
+    for (int i = (sizeParts.size() - 1); i >= 0; i--) {
+      if (i == 0) {
+        // The first part contains also the 3 bits for the type,
+        // so we move only 4 bits to the left.
+        size <<= 4;
+        size |= (sizeParts.get(i) & 0x0F);
+      } else {
+        // The rest of the parts don't have the 3 bits for the type,
+        // so we move 7 bits to the left.
+        size <<= 7;
+        size |= (sizeParts.get(i) & 0x7F);
+      }
+    }
+
+    // As the size can be any number, we need to protect ourselves
+    // to avoid reading potentially huge Git objects.
+    // We consider that 2 bytes is more than enough to store the commit message.
+    if (size > MAX_ALLOWED_SIZE) {
+      return INVALID_TYPE_AND_SIZE;
+    }
+
     return new int[] {type, size};
   }
 }
