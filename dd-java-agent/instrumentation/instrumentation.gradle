@@ -20,6 +20,9 @@ subprojects { Project subProj ->
   apply plugin: "net.bytebuddy.byte-buddy"
   apply plugin: 'muzzle'
 
+  // needs fetching this project's configurations.instrumentationMuzzle
+  evaluationDependsOn ':dd-java-agent:agent-tooling'
+
   subProj.byteBuddy {
     transformation {
       // Applying NoOp optimizes build by applying bytebuddy plugin to only compileJava task
