@@ -23,7 +23,7 @@ public interface OngoingRecording extends Closeable {
    * @return {@link RecordingData} with snapshot information
    */
   @Nonnull
-  RecordingData snapshot(@Nonnull final Instant start, @Nonnull final Instant end);
+  RecordingData snapshot(@Nonnull final Instant start);
 
   /** Close recording without capturing any data */
   @Override

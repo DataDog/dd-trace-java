@@ -25,7 +25,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
   }
 
   @Override
-  public OpenJdkRecordingData snapshot(final Instant start, final Instant end) {
+  public OpenJdkRecordingData snapshot(final Instant start) {
     if (recording.getState() != RecordingState.RUNNING) {
       throw new IllegalStateException("Cannot snapshot recording that is not running");
     }

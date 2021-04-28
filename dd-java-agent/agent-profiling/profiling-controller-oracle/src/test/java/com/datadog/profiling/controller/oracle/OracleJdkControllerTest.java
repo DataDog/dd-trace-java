@@ -38,7 +38,7 @@ class OracleJdkControllerTest {
       // sleep a while to allow a few events to be collected
       Thread.sleep(300);
       Instant end = Instant.now();
-      OracleJdkRecordingData snapshot = recording.snapshot(start, end);
+      OracleJdkRecordingData snapshot = recording.snapshot(start);
 
       assertNotNull(snapshot);
       assertEquals(start, snapshot.getStart());
@@ -68,7 +68,7 @@ class OracleJdkControllerTest {
     OracleJdkOngoingRecording recording = instance.createRecording(recordingName);
     assertNotNull(recording);
     recording.close();
-    assertThrows(Throwable.class, () -> recording.snapshot(start, Instant.now()));
+    assertThrows(Throwable.class, () -> recording.snapshot(start));
   }
 
   @Test
@@ -113,7 +113,7 @@ class OracleJdkControllerTest {
       assertNotNull(snapshot);
       assertEquals(recordingName, snapshot.getName());
 
-      assertThrows(Throwable.class, () -> recording.snapshot(start, Instant.now()));
+      assertThrows(Throwable.class, () -> recording.snapshot(start));
     }
   }
 

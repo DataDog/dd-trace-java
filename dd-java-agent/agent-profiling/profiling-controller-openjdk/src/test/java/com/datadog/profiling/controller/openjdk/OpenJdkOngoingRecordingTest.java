@@ -62,7 +62,7 @@ public class OpenJdkOngoingRecordingTest {
 
   @Test
   public void testSnapshot() {
-    final OpenJdkRecordingData recordingData = ongoingRecording.snapshot(start, end);
+    final OpenJdkRecordingData recordingData = ongoingRecording.snapshot(start);
     assertEquals(TEST_NAME, recordingData.getName());
     assertEquals(start, recordingData.getStart());
     assertEquals(recordingData.getRecording().getStopTime(), recordingData.getEnd());
@@ -82,7 +82,7 @@ public class OpenJdkOngoingRecordingTest {
     assertThrows(
         IllegalStateException.class,
         () -> {
-          ongoingRecording.snapshot(start, end);
+          ongoingRecording.snapshot(start);
         });
 
     verify(recording, never()).stop();

@@ -191,8 +191,7 @@ public final class ProfilingSystem {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
       try {
         log.debug("Creating profiler snapshot");
-        Instant now = Instant.now();
-        final RecordingData recordingData = recording.snapshot(lastSnapshot, now);
+        final RecordingData recordingData = recording.snapshot(lastSnapshot);
         if (recordingData != null) {
           // To make sure that we don't get data twice, we say that the next start should be
           // the last recording end time plus one nano second. The reason for this is that when
@@ -201,7 +200,7 @@ public final class ProfilingSystem {
           lastSnapshot = recordingData.getEnd().plus(ONE_NANO);
           dataListener.onNewData(recordingType, recordingData);
         } else {
-          lastSnapshot = now;
+          lastSnapshot = Instant.now();
         }
       } catch (final Exception e) {
         log.error("Exception in profiling thread, continuing", e);
