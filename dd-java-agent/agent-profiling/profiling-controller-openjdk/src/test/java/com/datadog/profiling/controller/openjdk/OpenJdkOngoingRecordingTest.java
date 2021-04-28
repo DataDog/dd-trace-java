@@ -65,7 +65,7 @@ public class OpenJdkOngoingRecordingTest {
     final OpenJdkRecordingData recordingData = ongoingRecording.snapshot(start, end);
     assertEquals(TEST_NAME, recordingData.getName());
     assertEquals(start, recordingData.getStart());
-    assertEquals(end, recordingData.getEnd());
+    assertEquals(recordingData.getRecording().getStopTime(), recordingData.getEnd());
     assertNotEquals(
         recording, recordingData.getRecording(), "make sure we didn't get our mocked recording");
 

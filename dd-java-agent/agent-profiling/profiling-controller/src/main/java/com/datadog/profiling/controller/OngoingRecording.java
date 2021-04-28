@@ -20,7 +20,6 @@ public interface OngoingRecording extends Closeable {
    * called.
    *
    * @param start start time of the snapshot
-   * @param end end time of the snapshot
    * @return {@link RecordingData} with snapshot information
    */
   @Nonnull

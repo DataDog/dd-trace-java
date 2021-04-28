@@ -74,6 +74,7 @@ public class ProfilingSystemTest {
   public void setup() {
     when(controller.createRecording(ProfilingSystem.RECORDING_NAME)).thenReturn(recording);
     when(threadLocalRandom.nextInt(eq(1), anyInt())).thenReturn(1);
+    when(recordingData.getEnd()).thenReturn(Instant.now());
   }
 
   @AfterEach

@@ -42,7 +42,8 @@ class OracleJdkControllerTest {
 
       assertNotNull(snapshot);
       assertEquals(start, snapshot.getStart());
-      assertEquals(end, snapshot.getEnd());
+      assertTrue(snapshot.getEnd().compareTo(end) >= 0);
+      assertTrue(snapshot.getEnd().compareTo(Instant.now()) <= 0);
       assertEquals(recordingName, snapshot.getName());
 
       try (InputStream is = snapshot.getStream()) {

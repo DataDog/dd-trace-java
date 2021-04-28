@@ -56,7 +56,9 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
       }
 
       targetName = helper.cloneRecording(targetName);
-      return new OracleJdkRecordingData(name, targetName, start, end, helper);
+      // Set the end time of the data to now, which is after the snapshot was made
+      // TODO get the recording end from the helper?
+      return new OracleJdkRecordingData(name, targetName, start, Instant.now(), helper);
     } catch (IOException e) {
       throw new RuntimeException("Unable to take snapshot for recording " + name, e);
     }
