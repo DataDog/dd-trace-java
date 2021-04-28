@@ -179,6 +179,7 @@ public final class ProfilingSystem {
   }
 
   private final class SnapshotRecording {
+    private final Duration ONE_NANO = Duration.ofNanos(1);
 
     private Instant lastSnapshot;
 
@@ -190,13 +191,16 @@ public final class ProfilingSystem {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
       try {
         log.debug("Creating profiler snapshot");
-        Instant now = Instant.now();
-        final RecordingData recordingData = recording.snapshot(lastSnapshot, now);
-        // The hope here is that we do not get chunk rotated after taking snapshot and before we
-        // take this timestamp otherwise we will start losing data
-        lastSnapshot = now;
+        final RecordingData recordingData = recording.snapshot(lastSnapshot);
         if (recordingData != null) {
+          // To make sure that we don't get data twice, we say that the next start should be
+          // the last recording end time plus one nano second. The reason for this is that when
+          // JFR is filtering the stream it will only discard earlier chunks that have an end
+          // time that is before (not before or equal to) the requested start time of the filter.
+          lastSnapshot = recordingData.getEnd().plus(ONE_NANO);
           dataListener.onNewData(recordingType, recordingData);
+        } else {
+          lastSnapshot = Instant.now();
         }
       } catch (final Exception e) {
         log.error("Exception in profiling thread, continuing", e);

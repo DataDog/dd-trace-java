@@ -25,14 +25,17 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
   }
 
   @Override
-  public OpenJdkRecordingData snapshot(final Instant start, final Instant end) {
+  public OpenJdkRecordingData snapshot(final Instant start) {
     if (recording.getState() != RecordingState.RUNNING) {
       throw new IllegalStateException("Cannot snapshot recording that is not running");
     }
 
     final Recording snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
     snapshot.setName(recording.getName()); // Copy name from original recording
-    return new OpenJdkRecordingData(snapshot, start, end);
+    // Since we just requested a snapshot, the end time of the snapshot will be
+    // very close to now, so use that end time to minimize the risk of gaps or
+    // overlaps in the data.
+    return new OpenJdkRecordingData(snapshot, start, snapshot.getStopTime());
   }
 
   @Override

@@ -74,6 +74,7 @@ public class ProfilingSystemTest {
   public void setup() {
     when(controller.createRecording(ProfilingSystem.RECORDING_NAME)).thenReturn(recording);
     when(threadLocalRandom.nextInt(eq(1), anyInt())).thenReturn(1);
+    when(recordingData.getEnd()).thenAnswer(mockInvocation -> Instant.now());
   }
 
   @AfterEach
@@ -209,7 +210,7 @@ public class ProfilingSystemTest {
   @Test
   public void testDoesntSendPeriodicRecordingIfPeriodicRecordingIsDisabled()
       throws InterruptedException, ConfigurationException {
-    when(recording.snapshot(any(), any())).thenReturn(recordingData);
+    when(recording.snapshot(any())).thenReturn(recordingData);
     final ProfilingSystem system =
         new ProfilingSystem(
             controller,
@@ -274,7 +275,7 @@ public class ProfilingSystemTest {
   public void testRecordingSnapshotError() throws ConfigurationException {
     final Duration uploadPeriod = Duration.ofMillis(300);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(recording.snapshot(any(), any()))
+    when(recording.snapshot(any()))
         .thenThrow(new RuntimeException("Test"))
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
@@ -302,7 +303,7 @@ public class ProfilingSystemTest {
   public void testRecordingSnapshotNoData() throws ConfigurationException {
     final Duration uploadPeriod = Duration.ofMillis(300);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(recording.snapshot(any(), any()))
+    when(recording.snapshot(any()))
         .thenReturn(null)
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
@@ -399,7 +400,7 @@ public class ProfilingSystemTest {
     return (InvocationOnMock invocation) -> {
       final RecordingData recordingData = mock(RecordingData.class);
       when(recordingData.getStart()).thenReturn(invocation.getArgument(0, Instant.class));
-      when(recordingData.getEnd()).thenReturn(invocation.getArgument(1, Instant.class));
+      when(recordingData.getEnd()).thenAnswer(mockInvocation -> Instant.now());
       generatedRecordingData.add(recordingData);
       return recordingData;
     };
