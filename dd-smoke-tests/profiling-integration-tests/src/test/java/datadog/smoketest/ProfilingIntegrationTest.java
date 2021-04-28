@@ -193,8 +193,9 @@ class ProfilingIntegrationTest {
       rangeStartAndEnd = getRangeStartAndEnd(events);
       Instant secondRangeStart = rangeStartAndEnd.getLeft();
       Instant secondRangeEnd = rangeStartAndEnd.getRight();
-      // As long as the OracleJdkOngoingRecording can't pull out the proper end time
-      // of the recording, we can't check these invariants =(
+      // So the OracleJdkOngoingRecording and underlying recording seems to
+      // either lose precision in the reported times, or filter a bit differently
+      // so we can't check these invariants =(
       if (!System.getProperty("java.vendor").contains("Oracle")
           || !System.getProperty("java.version").contains("1.8")) {
         assertTrue(

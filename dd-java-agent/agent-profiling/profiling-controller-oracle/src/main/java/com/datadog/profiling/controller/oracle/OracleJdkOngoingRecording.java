@@ -37,7 +37,8 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
       log.debug("Stopping recording {}", name);
       helper.stopRecording(recordingId);
       OracleJdkRecordingData data =
-          new OracleJdkRecordingData(name, recordingId, start, Instant.now(), helper);
+          new OracleJdkRecordingData(
+              name, recordingId, start, getEndTime(helper, recordingId, Instant.now()), helper);
       log.debug("Recording {} has been stopped and its data collected", name);
       return data;
     } catch (IOException e) {
@@ -56,9 +57,8 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
       }
 
       targetName = helper.cloneRecording(targetName);
-      // Set the end time of the data to now, which is after the snapshot was made
-      // TODO get the recording end from the helper?
-      return new OracleJdkRecordingData(name, targetName, start, Instant.now(), helper);
+      return new OracleJdkRecordingData(
+          name, targetName, start, getEndTime(helper, targetName, Instant.now()), helper);
     } catch (IOException e) {
       throw new RuntimeException("Unable to take snapshot for recording " + name, e);
     }
@@ -71,5 +71,18 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
     } catch (IOException e) {
       log.warn("Unable to close recording {}", name, e);
     }
+  }
+
+  private static Instant getEndTime(
+      JfrMBeanHelper helper, ObjectName recordingId, Instant defaultEndTime) {
+    try {
+      return helper.getDataEndTime(recordingId);
+    } catch (IOException e) {
+      log.debug(
+          "Unable to retrieve the data end time for recording {}. ({})",
+          recordingId.getKeyProperty("name"),
+          e.toString());
+    }
+    return defaultEndTime;
   }
 }
