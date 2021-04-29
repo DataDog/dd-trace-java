@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jaxrs1;
 
 import datadog.trace.agent.tooling.ClassHierarchyIterable;
+import datadog.trace.api.GenericClassValue;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -16,13 +17,9 @@ import javax.ws.rs.Path;
 public class JaxRsAnnotationsDecorator extends BaseDecorator {
   public static JaxRsAnnotationsDecorator DECORATE = new JaxRsAnnotationsDecorator();
 
-  private static final ClassValue<Map<Method, String>> RESOURCE_NAMES =
-      new ClassValue<Map<Method, String>>() {
-        @Override
-        protected Map<Method, String> computeValue(Class<?> type) {
-          return new ConcurrentHashMap<>();
-        }
-      };
+  private static final ClassValue<ConcurrentHashMap<Method, String>> RESOURCE_NAMES =
+      GenericClassValue.constructing(ConcurrentHashMap.class);
+
   public static final CharSequence JAX_RS_CONTROLLER = UTF8BytesString.create("jax-rs-controller");
 
   @Override

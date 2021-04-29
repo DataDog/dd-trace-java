@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.netty40;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 
+import datadog.trace.api.GenericClassValue;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
 import io.netty.util.AttributeKey;
@@ -10,12 +11,8 @@ import java.util.concurrent.ConcurrentMap;
 
 public final class AttributeKeys {
 
-  private static final ClassValue<ConcurrentMap<String, AttributeKey<?>>> MAPS =
-      new ClassValue<ConcurrentMap<String, AttributeKey<?>>>() {
-        protected ConcurrentMap<String, AttributeKey<?>> computeValue(Class<?> ignore) {
-          return new ConcurrentHashMap<>();
-        }
-      };
+  private static final ClassValue<ConcurrentHashMap<String, AttributeKey<?>>> MAPS =
+      GenericClassValue.constructing(ConcurrentHashMap.class);
 
   public static final AttributeKey<AgentSpan> SPAN_ATTRIBUTE_KEY = attributeKey(DD_SPAN_ATTRIBUTE);
 

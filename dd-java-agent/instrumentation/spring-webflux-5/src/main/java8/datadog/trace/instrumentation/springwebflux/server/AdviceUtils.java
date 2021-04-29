@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.springwebflux.server;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 
+import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -27,19 +28,17 @@ public class AdviceUtils {
       "datadog.trace.instrumentation.springwebflux.ParentSpan";
 
   private static final ClassValue<CharSequence> NAMES =
-      new ClassValue<CharSequence>() {
-        @Override
-        protected CharSequence computeValue(Class<?> type) {
-          String name = type.getName();
-          final int lambdaIdx = name.lastIndexOf("$$Lambda$");
-          if (lambdaIdx > -1) {
-            return UTF8BytesString.create(
-                name.substring(name.lastIndexOf('.') + 1, lambdaIdx) + ".lambda");
-          } else {
-            return DECORATE.spanNameForMethod(type, "handle");
-          }
-        }
-      };
+      GenericClassValue.of(
+          type -> {
+            String name = type.getName();
+            final int lambdaIdx = name.lastIndexOf("$$Lambda$");
+            if (lambdaIdx > -1) {
+              return UTF8BytesString.create(
+                  name.substring(name.lastIndexOf('.') + 1, lambdaIdx) + ".lambda");
+            } else {
+              return DECORATE.spanNameForMethod(type, "handle");
+            }
+          });
 
   private static final DDCache<Pair<String, String>, CharSequence> RESOURCE_NAMES =
       DDCaches.newFixedSizeCache(256);
