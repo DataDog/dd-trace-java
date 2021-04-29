@@ -50,7 +50,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
   static {
     // Prepared to be extended with more versions if needed.
     // Only v2 is supported because we don't expect packfiles v1 as that version is very old.
-    PACK_EXTRACTOR_BY_VERSION = new HashMap<>();
+    PACK_EXTRACTOR_BY_VERSION = new HashMap<>(1);
     PACK_EXTRACTOR_BY_VERSION.put(V2PackGitInfoExtractor.VERSION, new V2PackGitInfoExtractor());
   }
 
@@ -288,7 +288,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     }
   }
 
-  private byte typeToByte(final String type) {
+  private static byte typeToByte(final String type) {
     switch (type) {
       case "commit":
         return COMMIT_TYPE;

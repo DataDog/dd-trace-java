@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.ci.git.pack;
 
-public class GitPackObject {
+public final class GitPackObject {
 
   public static final int NOT_FOUND_SHA_INDEX = -1;
   public static final GitPackObject ERROR_PACK_OBJECT = new GitPackObject(0, (byte) 0, null, true);

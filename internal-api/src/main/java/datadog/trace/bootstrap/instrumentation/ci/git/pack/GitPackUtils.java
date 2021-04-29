@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Arrays;
 
-public class GitPackUtils {
+public final class GitPackUtils {
+
+  private GitPackUtils() {}
 
   // Version in a .idx file v1.
   private static final short V1_VERSION = 1;
@@ -23,14 +25,15 @@ public class GitPackUtils {
    * @throws IOException
    */
   public static short extractGitPackVersion(final File idxFile) throws IOException {
-    final RandomAccessFile raf = new RandomAccessFile(idxFile, "r");
-    final byte[] header = readBytes(raf, 4);
-    if (!Arrays.equals(header, HEADER)) {
-      return V1_VERSION;
-    }
+    try (final RandomAccessFile raf = new RandomAccessFile(idxFile, "r")) {
+      final byte[] header = readBytes(raf, 4);
+      if (!Arrays.equals(header, HEADER)) {
+        return V1_VERSION;
+      }
 
-    final int version = raf.readInt();
-    return (short) version;
+      final int version = raf.readInt();
+      return (short) version;
+    }
   }
 
   public static byte[] readBytes(final RandomAccessFile file, final int numBytes)

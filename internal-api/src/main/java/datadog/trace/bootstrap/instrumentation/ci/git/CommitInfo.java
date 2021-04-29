@@ -65,12 +65,17 @@ public class CommitInfo {
 
   @Override
   public String toString() {
-    final StringBuilder sb = new StringBuilder("CommitInfo{");
-    sb.append("sha='").append(sha).append('\'');
-    sb.append(", author=").append(author);
-    sb.append(", committer=").append(committer);
-    sb.append(", fullMessage='").append(fullMessage).append('\'');
-    sb.append('}');
-    return sb.toString();
+    return "CommitInfo{"
+        + "sha='"
+        + sha
+        + '\''
+        + ", author="
+        + author
+        + ", committer="
+        + committer
+        + ", fullMessage='"
+        + fullMessage
+        + '\''
+        + '}';
   }
 }

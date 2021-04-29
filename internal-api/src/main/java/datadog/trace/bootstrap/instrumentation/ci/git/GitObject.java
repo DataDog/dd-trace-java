@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.instrumentation.ci.git;
 import java.util.Arrays;
 import java.util.Objects;
 
-public class GitObject {
+public final class GitObject {
 
   public static final byte UNKNOWN_TYPE = 0;
 

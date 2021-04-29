@@ -29,9 +29,8 @@ Adding Git information to test spans (#1242)\n\n* Initial basic GitInfo implemen
       return null
     }
 
-    final ByteArrayOutputStream baos
+    final ByteArrayOutputStream baos = new ByteArrayOutputStream()
     try {
-      baos = new ByteArrayOutputStream()
       final Inflater ifr = new Inflater()
       ifr.setInput(deflated)
 
@@ -44,9 +43,7 @@ Adding Git information to test spans (#1242)\n\n* Initial basic GitInfo implemen
       final byte[] decompressed = baos.toByteArray()
       return new String(decompressed)
     } finally {
-      if (baos != null) {
-        baos.close()
-      }
+      baos.close()
     }
   }
 }

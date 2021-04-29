@@ -86,56 +86,58 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
       final int index = Integer.parseInt(indexHex, 16);
       final int previousIndex = index - 1;
 
-      final RandomAccessFile idx = new RandomAccessFile(idxFile, "r");
+      try (final RandomAccessFile idx = new RandomAccessFile(idxFile, "r")) {
+        // Skip header and version
+        seek(idx, 8, SeekOrigin.BEGIN);
 
-      // Skip header and version
-      seek(idx, 8, SeekOrigin.BEGIN);
+        int numObjectsPreviousIndex = 0;
+        if (previousIndex != -1) {
+          // Seek to previousIndex position.
+          seek(idx, 4L * previousIndex, SeekOrigin.CURRENT);
+          numObjectsPreviousIndex = idx.readInt();
+        }
 
-      int numObjectsPreviousIndex = 0;
-      if (previousIndex != -1) {
-        // Seek to previousIndex position.
-        seek(idx, 4L * previousIndex, SeekOrigin.CURRENT);
-        numObjectsPreviousIndex = idx.readInt();
+        // In the fanout table, every index has its objects + the previous ones.
+        // We need to subtract the previous index objects to know the correct
+        // actual number of objects for this specific index.
+        final int numObjectsIndex = idx.readInt() - numObjectsPreviousIndex;
+
+        // Seek to last position. The last position contains the number of all objects.
+        seek(idx, 4L * (255 - (index + 1)), SeekOrigin.CURRENT);
+        final int totalObjects = idx.readInt();
+
+        // Search the sha index in the second layer: the SHA listing.
+        final int shaIndex =
+            searchSha(idx, commitSha, totalObjects, numObjectsPreviousIndex, numObjectsIndex);
+        if (shaIndex == NOT_FOUND_SHA_INDEX) {
+          return NOT_FOUND_PACK_OBJECT;
+        }
+
+        // Third layer: 4 byte CRC for each object. We skip it.
+        seek(idx, 4L * totalObjects, SeekOrigin.CURRENT);
+
+        // Search packOffset in fourth and fifth layer.
+        final long packOffset = searchOffset(idx, shaIndex, totalObjects);
+
+        // Open pack file and seek to packOffset.
+        try (final RandomAccessFile pack = new RandomAccessFile(packFile, "r")) {
+          seek(pack, packOffset, SeekOrigin.BEGIN);
+
+          // Get the type and the size of the git object.
+          final int[] gitObjectTypeAndSize = extractGitObjectTypeAndSize(pack);
+          if (Arrays.equals(gitObjectTypeAndSize, INVALID_TYPE_AND_SIZE)) {
+            return ERROR_PACK_OBJECT;
+          }
+
+          // Return the GitPackObject with the extracted information.
+          return new GitPackObject(
+              shaIndex,
+              (byte) gitObjectTypeAndSize[TYPE_INDEX],
+              readBytes(pack, gitObjectTypeAndSize[SIZE_INDEX]),
+              false);
+        }
       }
 
-      // In the fanout table, every index has its objects + the previous ones.
-      // We need to subtract the previous index objects to know the correct
-      // actual number of objects for this specific index.
-      final int numObjectsIndex = idx.readInt() - numObjectsPreviousIndex;
-
-      // Seek to last position. The last position contains the number of all objects.
-      seek(idx, 4L * (255 - (index + 1)), SeekOrigin.CURRENT);
-      final int totalObjects = idx.readInt();
-
-      // Search the sha index in the second layer: the SHA listing.
-      final int shaIndex =
-          searchSha(idx, commitSha, totalObjects, numObjectsPreviousIndex, numObjectsIndex);
-      if (shaIndex == NOT_FOUND_SHA_INDEX) {
-        return NOT_FOUND_PACK_OBJECT;
-      }
-
-      // Third layer: 4 byte CRC for each object. We skip it.
-      seek(idx, 4L * totalObjects, SeekOrigin.CURRENT);
-
-      // Search packOffset in fourth and fifth layer.
-      final long packOffset = searchOffset(idx, shaIndex, totalObjects);
-
-      // Open pack file and seek to packOffset.
-      final RandomAccessFile pack = new RandomAccessFile(packFile, "r");
-      seek(pack, packOffset, SeekOrigin.BEGIN);
-
-      // Get the type and the size of the git object.
-      final int[] gitObjectTypeAndSize = extractGitObjectTypeAndSize(pack);
-      if (Arrays.equals(gitObjectTypeAndSize, INVALID_TYPE_AND_SIZE)) {
-        return ERROR_PACK_OBJECT;
-      }
-
-      // Return the GitPackObject with the extracted information.
-      return new GitPackObject(
-          shaIndex,
-          (byte) gitObjectTypeAndSize[TYPE_INDEX],
-          readBytes(pack, gitObjectTypeAndSize[SIZE_INDEX]),
-          false);
     } catch (final Exception e) {
       return ERROR_PACK_OBJECT;
     }
