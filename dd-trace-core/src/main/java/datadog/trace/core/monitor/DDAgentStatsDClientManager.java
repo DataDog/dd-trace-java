@@ -1,5 +1,6 @@
 package datadog.trace.core.monitor;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_PORT;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 
 import datadog.trace.api.Config;
@@ -10,6 +11,7 @@ import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class DDAgentStatsDClientManager implements StatsDClientManager {
   private static final DDAgentStatsDClientManager INSTANCE = new DDAgentStatsDClientManager();
@@ -19,6 +21,18 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
 
   public static StatsDClientManager statsDClientManager() {
     return INSTANCE;
+  }
+
+  private static final AtomicInteger defaultStatsDPort = new AtomicInteger(DEFAULT_DOGSTATSD_PORT);
+
+  public static void setDefaultStatsDPort(final int newPort) {
+    if (newPort > 0 && defaultStatsDPort.getAndSet(newPort) != newPort) {
+      INSTANCE.handleDefaultPortChange(newPort);
+    }
+  }
+
+  public static int getDefaultStatsDPort() {
+    return defaultStatsDPort.get();
   }
 
   private final ConcurrentHashMap<String, DDAgentStatsDConnection> connectionPool =
@@ -60,6 +74,12 @@ public final class DDAgentStatsDClientManager implements StatsDClientManager {
 
   private static String getConnectionKey(final String host, final Integer port) {
     return (null != host ? host : "?") + ":" + (null != port ? port : "?");
+  }
+
+  private void handleDefaultPortChange(final int newPort) {
+    for (DDAgentStatsDConnection connection : connectionPool.values()) {
+      connection.handleDefaultPortChange(newPort);
+    }
   }
 
   /** Resolves metrics names by prepending a namespace prefix. */

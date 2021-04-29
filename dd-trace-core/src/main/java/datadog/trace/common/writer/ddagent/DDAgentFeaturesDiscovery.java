@@ -4,6 +4,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.core.http.OkHttpUtils;
+import datadog.trace.core.monitor.DDAgentStatsDClientManager;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
 import java.io.IOException;
@@ -118,6 +119,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private boolean processInfoResponse(String response) {
     try {
       Map<String, Object> map = RESPONSE_ADAPTER.fromJson(response);
+      discoverStatsDPort(map);
       List<String> endpoints = ((List<String>) map.get("endpoints"));
       ListIterator<String> traceAgentSupportedEndpoints = endpoints.listIterator(endpoints.size());
       boolean traceEndpointFound = false;
@@ -160,6 +162,17 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       log.debug("Error parsing trace agent /info response", error);
     }
     return false;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static void discoverStatsDPort(final Map<String, Object> info) {
+    try {
+      Map<String, ?> config = (Map<String, ?>) info.get("config");
+      int statsdPort = ((Number) config.get("statsd_port")).intValue();
+      DDAgentStatsDClientManager.setDefaultStatsDPort(statsdPort);
+    } catch (Throwable ignore) {
+      log.debug("statsd_port missing from trace agent /info response", ignore);
+    }
   }
 
   public boolean supportsMetrics() {
