@@ -1,0 +1,44 @@
+muzzle {
+  pass {
+    group = "struts"
+    module = "struts"
+    versions = "[1.1,]"
+    skipVersions << "1.1" // 404: https://repo.maven.apache.org/maven2/javax/sql/jdbc-stdext/2.0/jdbc-stdext-2.0.jar
+    extraDependency "javax.servlet:servlet-api:2.2"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly(group: 'struts', name: 'struts', version: '1.1') {
+    exclude group: 'javax.sql', module: 'jdbc-stdext'
+  }
+  compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.2'
+
+  testCompile project(':dd-java-agent:instrumentation:tomcat-5.5')
+
+  testCompile(group: 'struts', name: 'struts', version: '1.1') {
+    exclude group: 'javax.sql', module: 'jdbc-stdext'
+  }
+
+  testCompile(project(':dd-java-agent:testing')) {
+    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+  }
+
+  // Use Tomcat 8.5 to enable Java 7 testing
+  testCompile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '8.5.65'
+  testCompile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '8.5.65'
+  testCompile group: 'javax.servlet.jsp', name: 'javax.servlet.jsp-api', version: '2.3.3'
+
+  latestDepTestCompile group: 'struts', name: 'struts', version: '+'
+}

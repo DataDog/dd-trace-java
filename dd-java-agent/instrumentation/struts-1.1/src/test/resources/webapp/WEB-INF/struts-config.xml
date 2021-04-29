@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE struts-config PUBLIC
+  "-//Apache Software Foundation//DTD Struts Configuration 1.1//EN"
+  "http://jakarta.apache.org/struts/dtds/struts-config_1_1.dtd">
+
+<struts-config>
+  <action-mappings>
+    <action path="/success" type="app.SuccessAction">
+      <forward name="success" path="/views/success.txt" />
+    </action>
+    <action path="/query" type="app.SuccessAction">
+      <forward name="success" path="/views/query.jsp" />
+    </action>
+    <action path="/error-status" type="app.ErrorAction">
+      <forward name="error-status" path="/views/error-status.jsp" />
+    </action>
+    <action path="/exception" type="app.ExceptionAction">
+      <forward name="exception" path="/views/exception.jsp" />
+    </action>
+    <action path="/custom-exception" type="app.CustomExceptionAction">
+      <exception key="custom.exception" type="java.util.InputMismatchException"
+        handler="app.CustomExceptionHandler" path="/views/custom-exception.jsp" />
+      <forward name="custom-exception" path="/views/custom-exception.jsp" />
+    </action>
+  </action-mappings>
+</struts-config>

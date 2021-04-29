@@ -466,7 +466,7 @@ class MuzzleDirective {
   String versions
   Set<String> skipVersions = new HashSet<>()
   List<String> additionalDependencies = new ArrayList<>()
-  List<RemoteRepository> additionalRepositories = new ArrayList<>();
+  List<RemoteRepository> additionalRepositories = new ArrayList<>()
   boolean assertPass
   boolean assertInverse = false
   boolean coreJdk = false
