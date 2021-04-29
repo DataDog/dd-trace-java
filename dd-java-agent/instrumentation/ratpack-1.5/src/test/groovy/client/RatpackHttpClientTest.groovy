@@ -22,6 +22,10 @@ class RatpackHttpClientTest extends HttpClientTest {
   def client = HttpClient.of {
     it.readTimeout(Duration.ofSeconds(2))
     // Connect timeout added in 1.5
+    try {
+      // required for testing 1.9+
+      it.execController(exec.controller)
+    } catch (Exception ignore) {}
   }
 
   @Override
