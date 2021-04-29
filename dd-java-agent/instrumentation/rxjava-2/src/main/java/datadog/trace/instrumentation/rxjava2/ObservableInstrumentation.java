@@ -16,10 +16,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.reactivex.Observable;
 import io.reactivex.Observer;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -47,16 +45,14 @@ public final class ObservableInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
+    transformation.applyAdvice(
         isMethod()
             .and(named("subscribe"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("io.reactivex.Observer"))),
         getClass().getName() + "$PropagateParentSpanAdvice");
-    return transformers;
   }
 
   public static class CaptureParentSpanAdvice {
