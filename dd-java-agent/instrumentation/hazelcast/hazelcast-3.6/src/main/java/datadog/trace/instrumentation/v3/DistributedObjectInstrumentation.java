@@ -48,7 +48,7 @@ public class DistributedObjectInstrumentation extends Instrumenter.Tracing {
       packageName + ".DistributedObjectDecorator$1",
       packageName + ".SpanFinishingExecutionCallback",
       packageName + ".HazelcastConstants"
-  };
+    };
   }
 
   @Override
