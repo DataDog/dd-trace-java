@@ -85,6 +85,9 @@ public final class PreparedStatementInstrumentation
     "org.sqlite.jdbc3.JDBC3PreparedStatement",
     "org.sqlite.jdbc4.JDBC4PreparedStatement",
     "org.sqlite.PrepStmt",
+    // jtds (for SQL Server and Sybase)
+    "net.sourceforge.jtds.jdbc.JtdsPreparedStatement",
+    "net.sourceforge.jtds.jdbc.JtdsCallableStatement",
     // for testing purposes
     "test.TestPreparedStatement",
     // this won't match any classes unless set
