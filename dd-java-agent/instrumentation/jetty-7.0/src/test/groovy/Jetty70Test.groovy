@@ -111,7 +111,10 @@ class Jetty70Test extends HttpServerTest<Server> {
           response.sendRedirect(endpoint.body)
           break
         case ERROR:
-          response.sendError(endpoint.status, endpoint.body)
+        // sendError in this version doesn't send the right body, so we do so manually.
+        // response.sendError(endpoint.status, endpoint.body)
+          response.status = endpoint.status
+          response.writer.print(endpoint.body)
           break
         case EXCEPTION:
           throw new Exception(endpoint.body)
