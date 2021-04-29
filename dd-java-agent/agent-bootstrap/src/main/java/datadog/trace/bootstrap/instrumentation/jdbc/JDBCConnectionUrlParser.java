@@ -736,7 +736,7 @@ public enum JDBCConnectionUrlParser {
           builder.port(Integer.parseInt(details.substring(portLoc + 1, dbLoc)));
         } catch (final NumberFormatException e) {
         }
-      } else if (dbLoc > 0){
+      } else if (dbLoc > 0) {
         hostEndLoc = dbLoc;
       } else if (paramLoc > 0) {
         hostEndLoc = paramLoc;
