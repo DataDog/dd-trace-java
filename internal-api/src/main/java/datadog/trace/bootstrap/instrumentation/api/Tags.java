@@ -13,6 +13,11 @@ public class Tags {
   public static final String HTTP_ROUTE = "http.route";
   public static final String HTTP_STATUS = "http.status_code";
   public static final String HTTP_METHOD = "http.method";
+  public static final String HTTP_FORWARDED = "http.forwarded";
+  public static final String HTTP_FORWARDED_PROTO = "http.forwarded.proto";
+  public static final String HTTP_FORWARDED_HOST = "http.forwarded.host";
+  public static final String HTTP_FORWARDED_IP = "http.forwarded.ip";
+  public static final String HTTP_FORWARDED_PORT = "http.forwarded.port";
   public static final String PEER_HOST_IPV4 = "peer.ipv4";
   public static final String PEER_HOST_IPV6 = "peer.ipv6";
   public static final String PEER_SERVICE = "peer.service";

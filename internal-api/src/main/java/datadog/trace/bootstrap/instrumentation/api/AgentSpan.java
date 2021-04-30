@@ -86,7 +86,13 @@ public interface AgentSpan extends MutableSpan {
     Iterable<Map.Entry<String, String>> baggageItems();
 
     interface Extracted extends Context {
-      String getForwardedFor();
+      String getForwarded();
+
+      String getForwardedProto();
+
+      String getForwardedHost();
+
+      String getForwardedIp();
 
       String getForwardedPort();
     }

@@ -65,7 +65,7 @@ class HaystackHttpExtractorTest extends DDSpecification {
     then:
     context != null
     !(context instanceof ExtractedContext)
-    context.forwardedFor == forwardedFor
+    context.forwardedIp == forwardedIp
     context.forwardedPort == forwardedPort
 
     when:
@@ -75,21 +75,21 @@ class HaystackHttpExtractorTest extends DDSpecification {
     context instanceof ExtractedContext
     context.traceId.toLong() == 1
     context.spanId.toLong() == 2
-    context.forwardedFor == forwardedFor
-    context.forwardedFor == forwardedFor
+    context.forwardedIp == forwardedIp
+    context.forwardedIp == forwardedIp
     context.forwardedPort == forwardedPort
 
     where:
-    forwardedFor = "1.2.3.4"
+    forwardedIp = "1.2.3.4"
     forwardedPort = "123"
     tagOnlyCtx = [
-      "X-Forwarded-For" : forwardedFor,
+      "X-Forwarded-For" : forwardedIp,
       "X-Forwarded-Port": forwardedPort
     ]
     fullCtx = [
       (TRACE_ID_KEY.toUpperCase()): 1,
       (SPAN_ID_KEY.toUpperCase()) : 2,
-      "x-forwarded-for"           : forwardedFor,
+      "x-forwarded-for"           : forwardedIp,
       "x-forwarded-port"          : forwardedPort
     ]
   }

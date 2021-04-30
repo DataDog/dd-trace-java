@@ -13,17 +13,26 @@ import java.util.Map;
  */
 public class TagContext implements AgentSpan.Context.Extracted {
   private final String origin;
-  private final String forwardedFor;
+  private final String forwarded;
+  private final String forwardedProto;
+  private final String forwardedHost;
+  private final String forwardedIp;
   private final String forwardedPort;
   private final Map<String, String> tags;
 
   public TagContext(
       final String origin,
-      String forwardedFor,
+      String forwarded,
+      String forwardedProto,
+      String forwardedHost,
+      String forwardedIp,
       String forwardedPort,
       final Map<String, String> tags) {
     this.origin = origin;
-    this.forwardedFor = forwardedFor;
+    this.forwarded = forwarded;
+    this.forwardedProto = forwardedProto;
+    this.forwardedHost = forwardedHost;
+    this.forwardedIp = forwardedIp;
     this.forwardedPort = forwardedPort;
     this.tags = tags;
   }
@@ -32,9 +41,22 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return origin;
   }
 
+  public String getForwarded() {
+    return forwarded;
+  }
+
   @Override
-  public String getForwardedFor() {
-    return forwardedFor;
+  public String getForwardedProto() {
+    return forwardedProto;
+  }
+
+  public String getForwardedHost() {
+    return forwardedHost;
+  }
+
+  @Override
+  public String getForwardedIp() {
+    return forwardedIp;
   }
 
   @Override
