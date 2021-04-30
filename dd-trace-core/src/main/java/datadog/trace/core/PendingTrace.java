@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.trace.api.DDId;
+import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.core.monitor.Recording;
@@ -139,11 +140,13 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   void registerSpan(final DDSpan span) {
+    SamplingCheckpointer.onSpanStart(span);
     ROOT_SPAN.compareAndSet(this, null, span);
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
   }
 
   void addFinishedSpan(final DDSpan span) {
+    SamplingCheckpointer.onSpanFinish(span);
     finishedSpans.addFirst(span);
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal

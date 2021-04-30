@@ -3,6 +3,7 @@ package datadog.trace.core.scopemanager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
 
+import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -414,6 +415,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     Continuation register() {
+      SamplingCheckpointer.onThreadMigration(spanUnderScope);
       trace.registerContinuation(this);
       return this;
     }
@@ -441,6 +443,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public AgentScope activate() {
+      SamplingCheckpointer.onAsyncResume(spanUnderScope);
       if (USED.compareAndSet(this, 0, 1)) {
         return scopeManager.handleSpan(this, spanUnderScope, source);
       } else {
@@ -528,6 +531,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public AgentScope activate() {
       if (tryActivate()) {
+        SamplingCheckpointer.onAsyncResume(spanUnderScope);
         return scopeManager.handleSpan(this, spanUnderScope, source);
       } else {
         return null;
