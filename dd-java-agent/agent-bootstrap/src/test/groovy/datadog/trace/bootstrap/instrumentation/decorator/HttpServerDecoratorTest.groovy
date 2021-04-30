@@ -83,11 +83,11 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     decorator.onRequest(span, conn, null, ctx)
 
     then:
-    1 * ctx.getForwarded() >> null
-    1 * ctx.getForwardedProto() >> null
-    1 * ctx.getForwardedHost() >> null
-    1 * ctx.getForwardedIp() >> null
-    1 * ctx.getForwardedPort() >> null
+    _ * ctx.getForwarded() >> null
+    _ * ctx.getForwardedProto() >> null
+    _ * ctx.getForwardedHost() >> null
+    _ * ctx.getForwardedIp() >> null
+    _ * ctx.getForwardedPort() >> null
     if (conn) {
       1 * span.setTag(Tags.PEER_PORT, 555)
       if (ipv4) {
@@ -102,11 +102,11 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     decorator.onRequest(span, conn, null, ctx)
 
     then:
-    2 * ctx.getForwarded() >> "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>"
-    2 * ctx.getForwardedProto() >> "https"
-    2 * ctx.getForwardedHost() >> "somehost"
-    2 * ctx.getForwardedIp() >> (ipv4 ? "10.1.1.1, 192.168.1.1" : "0::1")
-    2 * ctx.getForwardedPort() >> "123"
+    _ * ctx.getForwarded() >> "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>"
+    _ * ctx.getForwardedProto() >> "https"
+    _ * ctx.getForwardedHost() >> "somehost"
+    _ * ctx.getForwardedIp() >> (ipv4 ? "10.1.1.1, 192.168.1.1" : "0::1")
+    _ * ctx.getForwardedPort() >> "123"
     1 * span.setTag(Tags.HTTP_FORWARDED, "by=<identifier>;for=<identifier>;host=<host>;proto=<http|https>")
     1 * span.setTag(Tags.HTTP_FORWARDED_PROTO, "https")
     1 * span.setTag(Tags.HTTP_FORWARDED_HOST, "somehost")

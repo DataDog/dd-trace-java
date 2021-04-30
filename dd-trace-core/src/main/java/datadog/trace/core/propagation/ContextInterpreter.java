@@ -63,35 +63,27 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   protected final boolean handledForwarding(String key, String value) {
-    if (FORWARDED_KEY.equalsIgnoreCase(key)) {
-      if (null != value) {
+    if (null != value) {
+      if (FORWARDED_KEY.equalsIgnoreCase(key)) {
         forwarded = value;
+        return true;
       }
-      return true;
-    }
-    if (FORWARDED_PROTO_KEY.equalsIgnoreCase(key)) {
-      if (null != value) {
+      if (FORWARDED_PROTO_KEY.equalsIgnoreCase(key)) {
         forwardedProto = value;
+        return true;
       }
-      return true;
-    }
-    if (FORWARDED_HOST_KEY.equalsIgnoreCase(key)) {
-      if (null != value) {
+      if (FORWARDED_HOST_KEY.equalsIgnoreCase(key)) {
         forwardedHost = value;
+        return true;
       }
-      return true;
-    }
-    if (FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
-      if (null != value) {
+      if (FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
         forwardedIp = value;
+        return true;
       }
-      return true;
-    }
-    if (FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
-      if (null != value) {
+      if (FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
         forwardedPort = value;
+        return true;
       }
-      return true;
     }
     return false;
   }

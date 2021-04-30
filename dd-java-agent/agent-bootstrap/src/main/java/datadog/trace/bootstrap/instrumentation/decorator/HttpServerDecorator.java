@@ -53,20 +53,25 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       final AgentSpan.Context.Extracted context) {
 
     if (context != null) {
-      if (context.getForwarded() != null) {
-        span.setTag(Tags.HTTP_FORWARDED, context.getForwarded());
+      String forwarded = context.getForwarded();
+      if (forwarded != null) {
+        span.setTag(Tags.HTTP_FORWARDED, forwarded);
       }
-      if (context.getForwardedProto() != null) {
-        span.setTag(Tags.HTTP_FORWARDED_PROTO, context.getForwardedProto());
+      String forwardedProto = context.getForwardedProto();
+      if (forwardedProto != null) {
+        span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
       }
-      if (context.getForwardedHost() != null) {
-        span.setTag(Tags.HTTP_FORWARDED_HOST, context.getForwardedHost());
+      String forwardedHost = context.getForwardedHost();
+      if (forwardedHost != null) {
+        span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
       }
-      if (context.getForwardedIp() != null) {
-        span.setTag(Tags.HTTP_FORWARDED_IP, context.getForwardedIp());
+      String forwardedIp = context.getForwardedIp();
+      if (forwardedIp != null) {
+        span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
       }
-      if (context.getForwardedPort() != null) {
-        span.setTag(Tags.HTTP_FORWARDED_PORT, context.getForwardedPort());
+      String forwardedPort = context.getForwardedPort();
+      if (forwardedPort != null) {
+        span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
       }
     }
 
