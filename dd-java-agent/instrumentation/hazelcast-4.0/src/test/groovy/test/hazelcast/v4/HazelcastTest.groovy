@@ -7,12 +7,14 @@ import com.hazelcast.topic.MessageListener
 import com.hazelcast.query.Predicates
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import spock.util.concurrent.BlockingVariable
 
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class HazelcastTest extends AbstractHazelcastTest {
 
@@ -258,7 +260,11 @@ class HazelcastTest extends AbstractHazelcastTest {
     }
 
     cleanup:
-    semaphore?.release()
+    def cleanupSpan = runUnderTrace("cleanup") {
+      semaphore?.release()
+      activeSpan()
+    }
+    TEST_WRITER.waitUntilReported(cleanupSpan as DDSpan)
   }
 
   def "submit callable"() {
