@@ -5,9 +5,11 @@ import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetric
 import static datadog.trace.core.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
+import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -629,6 +631,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (scopeManager instanceof ContinuableScopeManager) {
       ((ContinuableScopeManager) scopeManager).addScopeListener(listener);
     }
+  }
+
+  @Override
+  public void registerCheckpointer(Checkpointer checkpointer) {
+    SamplingCheckpointer.register(checkpointer);
   }
 
   @Override

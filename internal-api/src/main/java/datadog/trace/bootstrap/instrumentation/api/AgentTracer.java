@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
+import datadog.trace.api.Checkpointer;
 import datadog.trace.api.DDId;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -115,6 +116,13 @@ public class AgentTracer {
     void close();
 
     void flush();
+
+    /**
+     * Registers the checkpointer
+     *
+     * @param checkpointer
+     */
+    void registerCheckpointer(Checkpointer checkpointer);
   }
 
   public interface SpanBuilder {
@@ -232,6 +240,9 @@ public class AgentTracer {
 
     @Override
     public void addScopeListener(final ScopeListener listener) {}
+
+    @Override
+    public void registerCheckpointer(Checkpointer checkpointer) {}
 
     @Override
     public TraceScope.Continuation capture() {
