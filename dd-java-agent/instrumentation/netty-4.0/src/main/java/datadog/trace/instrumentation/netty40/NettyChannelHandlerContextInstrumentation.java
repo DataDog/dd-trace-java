@@ -49,7 +49,6 @@ public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Trac
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".AttributeKeys",
-      packageName + ".AttributeKeys$1",
       packageName + ".client.NettyHttpClientDecorator",
       packageName + ".server.NettyHttpServerDecorator",
     };
