@@ -18,11 +18,13 @@ package com.datadog.profiling.controller.openjdk;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.jfr.JfpUtils;
+import com.datadog.profiling.controller.openjdk.events.AvailableProcessorsEvent;
 import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
+import jdk.jfr.FlightRecorder;
 import jdk.jfr.Recording;
 
 /**
@@ -55,6 +57,7 @@ public final class OpenJdkController implements Controller {
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
+    FlightRecorder.addPeriodicEvent(AvailableProcessorsEvent.class, AvailableProcessorsEvent::emit);
   }
 
   @Override

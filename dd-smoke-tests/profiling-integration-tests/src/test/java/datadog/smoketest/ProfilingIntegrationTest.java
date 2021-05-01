@@ -396,6 +396,19 @@ class ProfilingIntegrationTest {
     // check deadlock events
     assertTrue(events.apply(ItemFilters.type("datadog.Deadlock")).hasItems());
     assertTrue(events.apply(ItemFilters.type("datadog.DeadlockedThread")).hasItems());
+
+    // check available processor events
+    IItemCollection availableProcessorsEvents =
+        events.apply(ItemFilters.type("datadog.AvailableProcessors"));
+    assertTrue(availableProcessorsEvents.hasItems());
+    IAttribute<IQuantity> cpuCountAttr =
+        Attribute.attr("availableProcessors", "availableProcessors", UnitLookup.NUMBER);
+    long val =
+        ((IQuantity)
+                availableProcessorsEvents.getAggregate(
+                    Aggregators.min("datadog.AvailableProcessors", cpuCountAttr)))
+            .longValue();
+    System.out.println(val);
   }
 
   private static String getStringParameter(String name, Multimap<String, Object> parameters) {
