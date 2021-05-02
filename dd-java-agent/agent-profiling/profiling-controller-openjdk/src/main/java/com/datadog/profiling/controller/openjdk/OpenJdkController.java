@@ -24,7 +24,6 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
-import jdk.jfr.FlightRecorder;
 import jdk.jfr.Recording;
 
 /**
@@ -57,7 +56,8 @@ public final class OpenJdkController implements Controller {
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
-    FlightRecorder.addPeriodicEvent(AvailableProcessorsEvent.class, AvailableProcessorsEvent::emit);
+    // Register periodic events
+    AvailableProcessorsEvent.register();
   }
 
   @Override
