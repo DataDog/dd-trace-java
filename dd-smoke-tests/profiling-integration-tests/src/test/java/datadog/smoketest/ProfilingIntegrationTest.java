@@ -399,14 +399,14 @@ class ProfilingIntegrationTest {
 
     // check available processor events
     IItemCollection availableProcessorsEvents =
-        events.apply(ItemFilters.type("datadog.AvailableProcessors"));
+        events.apply(ItemFilters.type("datadog.AvailableProcessorCores"));
     assertTrue(availableProcessorsEvents.hasItems());
     IAttribute<IQuantity> cpuCountAttr =
-        Attribute.attr("availableProcessors", "availableProcessors", UnitLookup.NUMBER);
+        Attribute.attr("availableProcessorCores", "availableProcessorCores", UnitLookup.NUMBER);
     long val =
         ((IQuantity)
                 availableProcessorsEvents.getAggregate(
-                    Aggregators.min("datadog.AvailableProcessors", cpuCountAttr)))
+                    Aggregators.min("datadog.AvailableProcessorCores", cpuCountAttr)))
             .longValue();
     assertEquals(Runtime.getRuntime().availableProcessors(), val);
   }

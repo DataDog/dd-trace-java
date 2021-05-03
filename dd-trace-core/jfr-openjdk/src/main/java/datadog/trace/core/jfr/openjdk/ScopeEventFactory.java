@@ -12,7 +12,7 @@ import jdk.jfr.EventType;
 /** Event factory for {@link ScopeEvent} */
 public class ScopeEventFactory implements ExtendedScopeListener {
   private static final ThreadCpuTimeProvider THREAD_CPU_TIME_PROVIDER =
-      ConfigProvider.createDefault().getBoolean(ProfilingConfig.PROFILING_HOTSPTOTS_ENABLED, false)
+      ConfigProvider.createDefault().getBoolean(ProfilingConfig.PROFILING_HOTSTOTS_ENABLED, false)
           ? SystemAccess::getCurrentThreadCpuTime
           : () -> Long.MIN_VALUE;
 
