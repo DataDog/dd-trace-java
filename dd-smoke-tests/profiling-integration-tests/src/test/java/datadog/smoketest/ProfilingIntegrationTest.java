@@ -408,7 +408,7 @@ class ProfilingIntegrationTest {
                 availableProcessorsEvents.getAggregate(
                     Aggregators.min("datadog.AvailableProcessors", cpuCountAttr)))
             .longValue();
-    System.out.println(val);
+    assertEquals(Runtime.getRuntime().availableProcessors(), val);
   }
 
   private static String getStringParameter(String name, Multimap<String, Object> parameters) {
