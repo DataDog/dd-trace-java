@@ -23,7 +23,7 @@ class ScopeEventTest extends DDSpecification {
 
   def setup() {
     injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
-    injectSysConfig(ProfilingConfig.PROFILING_HOTSTOTS_ENABLED, "true")
+    injectSysConfig(ProfilingConfig.PROFILING_HOTSPOTS_ENABLED, "true")
     tracer = CoreTracer.builder().writer(new ListWriter()).build()
     GlobalTracer.forceRegister(tracer)
     tracer.addScopeListener(new ScopeEventFactory())
