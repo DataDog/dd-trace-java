@@ -17,10 +17,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.catalina.connector.CoyoteAdapter;
@@ -49,21 +46,19 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("service")
             .and(takesArgument(0, named("org.apache.coyote.Request")))
             .and(takesArgument(1, named("org.apache.coyote.Response"))),
         TomcatServerInstrumentation.class.getName() + "$ServiceAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("postParseRequest")
             .and(takesArgument(0, named("org.apache.coyote.Request")))
             .and(takesArgument(1, named("org.apache.catalina.connector.Request")))
             .and(takesArgument(2, named("org.apache.coyote.Response")))
             .and(takesArgument(3, named("org.apache.catalina.connector.Response"))),
         TomcatServerInstrumentation.class.getName() + "$PostParseAdvice");
-    return transformers;
   }
 
   public static class ServiceAdvice {

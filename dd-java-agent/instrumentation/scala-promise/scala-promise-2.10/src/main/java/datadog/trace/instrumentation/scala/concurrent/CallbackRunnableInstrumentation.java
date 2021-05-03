@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static java.util.Collections.unmodifiableMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -24,7 +23,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.impl.CallbackRunnable;
@@ -52,13 +50,11 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformations = new HashMap<>(4);
-    transformations.put(isConstructor(), getClass().getName() + "$Construct");
-    transformations.put(isMethod().and(named("run")), getClass().getName() + "$Run");
-    transformations.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    transformation.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
+    transformation.applyAdvice(
         isMethod().and(named("executeWithValue")), getClass().getName() + "$ExecuteWithValue");
-    return unmodifiableMap(transformations);
   }
 
   @Override

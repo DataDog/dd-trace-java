@@ -23,7 +23,6 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import javax.ws.rs.container.AsyncResponse;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -64,8 +63,8 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Tracing 
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(
                 hasSuperMethod(

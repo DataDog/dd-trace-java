@@ -6,13 +6,10 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
@@ -37,9 +34,9 @@ public class RequestImplInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
+  public void adviceTransformations(AdviceTransformation transformation) {
     // This advice should never match any methods, and is only here for Muzzle
-    return Collections.singletonMap(none(), packageName + ".RequestImplMuzzle");
+    transformation.applyAdvice(none(), packageName + ".RequestImplMuzzle");
   }
 
   @Override

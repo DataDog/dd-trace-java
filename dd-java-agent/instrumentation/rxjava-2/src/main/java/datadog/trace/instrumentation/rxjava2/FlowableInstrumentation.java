@@ -15,10 +15,8 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.reactivex.Flowable;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.reactivestreams.Subscriber;
@@ -47,16 +45,14 @@ public final class FlowableInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
+    transformation.applyAdvice(
         isMethod()
             .and(named("subscribe"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.reactivestreams.Subscriber"))),
         getClass().getName() + "$PropagateParentSpanAdvice");
-    return transformers;
   }
 
   public static class CaptureParentSpanAdvice {

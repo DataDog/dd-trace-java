@@ -15,10 +15,8 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -41,11 +39,9 @@ public final class SlickRunnableInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>(4);
-    transformers.put(isConstructor(), getClass().getName() + "$Construct");
-    transformers.put(named("run").and(takesNoArguments()), getClass().getName() + "$Run");
-    return transformers;
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    transformation.applyAdvice(named("run").and(takesNoArguments()), getClass().getName() + "$Run");
   }
 
   public static final class Construct {

@@ -16,10 +16,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.datanucleus.ExecutionContext;
@@ -57,32 +54,28 @@ public class ExecutionContextInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(namedOneOf("persistObject", "deleteObject", "refreshObject")),
         ExecutionContextInstrumentation.class.getName() + "$SingleObjectActionAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(namedOneOf("refreshAllObjects", "persistObjects", "deleteObjects", "findObjects")),
         ExecutionContextInstrumentation.class.getName() + "$MultiObjectActionAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("findObject"))
             .and(takesArguments(4))
             .and(takesArgument(3, String.class)),
         ExecutionContextInstrumentation.class.getName() + "$FindWithStringClassnameAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("findObject"))
             .and(takesArguments(4))
             .and(takesArgument(2, Class.class)),
         ExecutionContextInstrumentation.class.getName() + "$FindWithClassAdvice");
-
-    return transformers;
   }
 
   public static class MultiObjectActionAdvice {

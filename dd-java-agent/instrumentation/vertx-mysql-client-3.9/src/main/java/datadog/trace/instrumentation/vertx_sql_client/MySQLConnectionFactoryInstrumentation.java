@@ -9,7 +9,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -30,8 +29,8 @@ public class MySQLConnectionFactoryInstrumentation extends Instrumenter.Tracing 
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isConstructor().and(takesArgument(2, named("io.vertx.mysqlclient.MySQLConnectOptions"))),
         packageName + ".MySQLConnectionFactoryConstructorAdvice");
   }

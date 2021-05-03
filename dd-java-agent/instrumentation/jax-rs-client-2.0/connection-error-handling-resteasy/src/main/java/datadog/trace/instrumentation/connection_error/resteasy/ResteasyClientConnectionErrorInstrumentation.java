@@ -9,11 +9,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jaxrs.ClientTracingFilter;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.Future;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.resteasy.client.jaxrs.internal.ClientConfiguration;
@@ -42,18 +39,14 @@ public final class ResteasyClientConnectionErrorInstrumentation extends Instrume
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("invoke")),
         ResteasyClientConnectionErrorInstrumentation.class.getName() + "$InvokeAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("submit")).and(returns(Future.class)),
         ResteasyClientConnectionErrorInstrumentation.class.getName() + "$SubmitAdvice");
-
-    return transformers;
   }
 
   public static class InvokeAdvice {

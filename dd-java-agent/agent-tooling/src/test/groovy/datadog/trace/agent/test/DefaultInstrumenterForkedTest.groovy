@@ -168,8 +168,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
     }
 
     @Override
-    Map<ElementMatcher, String> transformers() {
-      return Collections.emptyMap()
+    void adviceTransformations(AdviceTransformation transformation) {
     }
   }
 }

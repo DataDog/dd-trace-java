@@ -14,8 +14,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.NewTaskForPlaceholder;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Executor;
 import java.util.concurrent.FutureTask;
@@ -50,9 +48,7 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>();
-
+  public void adviceTransformations(AdviceTransformation transformation) {
     Junction<MethodDescription> hasExecute =
         isMethod().and(named("execute").and(takesArgument(0, named(Runnable.class.getName()))));
 
@@ -60,12 +56,10 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
         isDeclaredBy(extendsClass(named("java.util.concurrent.AbstractExecutorService")));
 
     // executors that extend AbstractExecutorService should use 'newTaskFor' wrapper
-    transformers.put(hasExecute.and(hasNewTaskFor), getClass().getName() + "$NewTaskFor");
+    transformation.applyAdvice(hasExecute.and(hasNewTaskFor), getClass().getName() + "$NewTaskFor");
 
     // use simple wrapper for executors that don't extend AbstractExecutorService
-    transformers.put(hasExecute.and(not(hasNewTaskFor)), getClass().getName() + "$Wrap");
-
-    return transformers;
+    transformation.applyAdvice(hasExecute.and(not(hasNewTaskFor)), getClass().getName() + "$Wrap");
   }
 
   // We tolerate a bit of duplication between these advice classes because

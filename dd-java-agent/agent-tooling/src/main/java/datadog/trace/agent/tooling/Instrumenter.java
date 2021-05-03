@@ -294,19 +294,7 @@ public interface Instrumenter {
      * Instrumenters should register each advice transformation by calling {@link
      * AdviceTransformation#applyAdvice(ElementMatcher, String)} one or more times.
      */
-    // TODO: once everything is fully migrated, make this method abstract.
-    public void adviceTransformations(AdviceTransformation transformation) {
-      for (final Map.Entry<? extends ElementMatcher<? super MethodDescription>, String> entry :
-          transformers().entrySet()) {
-        transformation.applyAdvice(entry.getKey(), entry.getValue());
-      }
-    }
-
-    @Deprecated
-    protected Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-      throw new UnsupportedOperationException(
-          "Either transformers or adviceTransformations must be overridden.");
-    }
+    public abstract void adviceTransformations(AdviceTransformation transformation);
 
     /**
      * Context stores to define for this instrumentation. Are added to matching class loaders.

@@ -8,9 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.HashMap;
-import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -43,19 +40,15 @@ public class WebClientFilterInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-
+  public void adviceTransformations(AdviceTransformation transformation) {
     // This one can't possibly happen on multiple threads so makes sure we are always added to the
     // list initially
-    transformers.put(
+    transformation.applyAdvice(
         isConstructor(), packageName + ".WebClientFilterAdvices$AfterConstructorAdvice");
     // These methods are not thread safe already so doing our work here shouldn't change the
     // likelihood of ConcurrentModificationException happening
-    transformers.put(
+    transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("filter").or(named("filters"))),
         packageName + ".WebClientFilterAdvices$AfterFilterListModificationAdvice");
-
-    return transformers;
   }
 }

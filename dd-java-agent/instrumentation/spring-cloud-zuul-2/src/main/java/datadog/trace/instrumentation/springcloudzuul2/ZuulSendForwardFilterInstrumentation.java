@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.springcloudzuul2.ResourceNameCache.RESOURCE_NAME_CACHE;
 import static datadog.trace.instrumentation.springcloudzuul2.ResourceNameCache.RESOURCE_NAME_JOINER;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
@@ -13,10 +12,8 @@ import com.netflix.zuul.context.RequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -39,9 +36,8 @@ public class ZuulSendForwardFilterInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(named("run")).and(takesNoArguments()),
         ZuulSendForwardFilterInstrumentation.class.getName() + "$FilterInjectingAdvice");
   }

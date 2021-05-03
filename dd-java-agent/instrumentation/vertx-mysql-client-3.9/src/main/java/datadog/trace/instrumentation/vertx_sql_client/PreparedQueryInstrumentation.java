@@ -13,9 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.HashMap;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -48,28 +46,26 @@ public class PreparedQueryInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("execute"))
             .and(takesArguments(2))
             .and(takesArgument(1, named("io.vertx.core.Handler"))),
         packageName + ".QueryAdvice$Execute");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("executeBatch"))
             .and(takesArguments(2))
             .and(takesArgument(1, named("io.vertx.core.Handler"))),
         packageName + ".QueryAdvice$Execute");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(isVirtual())
             .and(named("copy"))
             .and(returns(named("io.vertx.sqlclient.impl.QueryBase"))),
         packageName + ".QueryAdvice$Copy");
-    return transformers;
   }
 }

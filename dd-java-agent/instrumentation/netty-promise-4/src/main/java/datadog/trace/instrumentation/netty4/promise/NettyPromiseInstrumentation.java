@@ -7,10 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -41,17 +38,15 @@ public class NettyPromiseInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(3);
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("addListener")
             .and(takesArgument(0, named("io.netty.util.concurrent.GenericFutureListener"))),
         NettyPromiseInstrumentation.class.getName() + "$WrapListenerAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("addListeners")
             .and(takesArgument(0, named("io.netty.util.concurrent.GenericFutureListener[]"))),
         NettyPromiseInstrumentation.class.getName() + "$WrapListenersAdvice");
-    return transformers;
   }
 
   public static class WrapListenerAdvice {

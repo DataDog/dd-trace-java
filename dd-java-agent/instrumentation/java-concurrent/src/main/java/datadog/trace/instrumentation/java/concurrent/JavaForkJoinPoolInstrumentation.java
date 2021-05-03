@@ -18,7 +18,6 @@ import datadog.trace.context.TraceScope;
 import java.util.Map;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -40,15 +39,16 @@ public class JavaForkJoinPoolInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
+  public void adviceTransformations(AdviceTransformation transformation) {
     if (Platform.isJavaVersionAtLeast(8)) {
-      return singletonMap(
+      transformation.applyAdvice(
           isMethod().and(namedOneOf("externalPush", "externalSubmit")),
           getClass().getName() + "$ExternalPush");
+    } else {
+      transformation.applyAdvice(
+          isMethod().and(namedOneOf("forkOrSubmit", "invoke")),
+          getClass().getName() + "$ExternalPush");
     }
-    return singletonMap(
-        isMethod().and(namedOneOf("forkOrSubmit", "invoke")),
-        getClass().getName() + "$ExternalPush");
   }
 
   public static final class ExternalPush {
