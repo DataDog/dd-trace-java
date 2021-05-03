@@ -11,6 +11,7 @@ import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
+import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.Implementation;
@@ -21,6 +22,7 @@ import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
+import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.pool.TypePool;
 
 /** Visit a class and add: a private instrumenationMuzzle field and getter */
@@ -126,7 +128,16 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
       final Set<String> referenceSources = new HashSet<>();
       final Map<String, Reference> references = new LinkedHashMap<>();
 
-      for (String adviceClass : instrumenter.transformers().values()) {
+      final Set<String> adviceClasses = new HashSet<>();
+      instrumenter.adviceTransformations(
+          new Instrumenter.AdviceTransformation() {
+            @Override
+            public void applyAdvice(
+                ElementMatcher<? super MethodDescription> matcher, String name) {
+              adviceClasses.add(name);
+            }
+          });
+      for (String adviceClass : adviceClasses) {
         if (referenceSources.add(adviceClass)) {
           for (Map.Entry<String, Reference> entry :
               ReferenceCreator.createReferencesFrom(
