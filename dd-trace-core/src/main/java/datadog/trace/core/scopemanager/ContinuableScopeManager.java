@@ -13,8 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,8 +35,8 @@ public class ContinuableScopeManager implements AgentScopeManager {
         }
       };
 
-  private final List<ScopeListener> scopeListeners;
-  private final List<ExtendedScopeListener> extendedScopeListeners;
+  private volatile ScopeListener[] scopeListeners;
+  private volatile ExtendedScopeListener[] extendedScopeListeners;
   private final int depthLimit;
   private final StatsDClient statsDClient;
   private final boolean strictMode;
@@ -53,8 +52,8 @@ public class ContinuableScopeManager implements AgentScopeManager {
     this.statsDClient = statsDClient;
     this.strictMode = strictMode;
     this.inheritAsyncPropagation = inheritAsyncPropagation;
-    this.scopeListeners = new CopyOnWriteArrayList<>();
-    this.extendedScopeListeners = new CopyOnWriteArrayList<>();
+    this.scopeListeners = new ScopeListener[0];
+    this.extendedScopeListeners = new ExtendedScopeListener[0];
   }
 
   @Override
@@ -150,7 +149,12 @@ public class ContinuableScopeManager implements AgentScopeManager {
     if (listener instanceof ExtendedScopeListener) {
       addExtendedScopeListener((ExtendedScopeListener) listener);
     } else {
-      scopeListeners.add(listener);
+      synchronized (this) {
+        ScopeListener[] current = scopeListeners;
+        ScopeListener[] newListeners = Arrays.copyOf(current, current.length + 1);
+        newListeners[current.length] = listener;
+        scopeListeners = newListeners;
+      }
       log.debug("Added scope listener {}", listener);
       AgentSpan activeSpan = activeSpan();
       if (activeSpan != null) {
@@ -161,7 +165,12 @@ public class ContinuableScopeManager implements AgentScopeManager {
   }
 
   private void addExtendedScopeListener(final ExtendedScopeListener listener) {
-    extendedScopeListeners.add(listener);
+    synchronized (this) {
+      ExtendedScopeListener[] current = extendedScopeListeners;
+      ExtendedScopeListener[] newListeners = Arrays.copyOf(current, current.length + 1);
+      newListeners[current.length] = listener;
+      extendedScopeListeners = newListeners;
+    }
     log.debug("Added scope listener {}", listener);
     AgentSpan activeSpan = activeSpan();
     if (activeSpan != null && !(activeSpan instanceof NoopAgentSpan)) {
@@ -258,7 +267,8 @@ public class ContinuableScopeManager implements AgentScopeManager {
      * I would hope this becomes unnecessary.
      */
     final void onProperClose() {
-      for (final ScopeListener listener : scopeManager.scopeListeners) {
+      ScopeListener[] listeners = scopeManager.scopeListeners;
+      for (final ScopeListener listener : listeners) {
         try {
           listener.afterScopeClosed();
         } catch (Exception e) {
@@ -270,7 +280,8 @@ public class ContinuableScopeManager implements AgentScopeManager {
         return;
       }
 
-      for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
+      ExtendedScopeListener[] extendedScopeListeners = scopeManager.extendedScopeListeners;
+      for (final ExtendedScopeListener listener : extendedScopeListeners) {
         try {
           listener.afterScopeClosed();
         } catch (Exception e) {
@@ -344,7 +355,8 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     public void afterActivated() {
-      for (final ScopeListener listener : scopeManager.scopeListeners) {
+      ScopeListener[] listeners = scopeManager.scopeListeners;
+      for (final ScopeListener listener : listeners) {
         try {
           listener.afterScopeActivated();
         } catch (Throwable e) {
@@ -356,7 +368,8 @@ public class ContinuableScopeManager implements AgentScopeManager {
         return;
       }
 
-      for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
+      ExtendedScopeListener[] extendedScopeListeners = scopeManager.extendedScopeListeners;
+      for (final ExtendedScopeListener listener : extendedScopeListeners) {
         try {
           listener.afterScopeActivated(span.getTraceId(), span.context().getSpanId());
         } catch (Throwable e) {
