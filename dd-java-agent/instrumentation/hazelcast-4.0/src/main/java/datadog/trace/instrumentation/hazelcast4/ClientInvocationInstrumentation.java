@@ -14,10 +14,8 @@ import com.hazelcast.client.impl.spi.impl.ClientInvocation;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -54,18 +52,15 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
-
-    transformers.put(isMethod().and(named("invokeOnSelection")), packageName + ".InvocationAdvice");
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        isMethod().and(named("invokeOnSelection")), packageName + ".InvocationAdvice");
+    transformation.applyAdvice(
         isConstructor()
             .and(
                 takesArgument(
                     0, named("com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl"))),
         getClass().getName() + "$ConstructAdvice");
-
-    return transformers;
   }
 
   public static class ConstructAdvice {
