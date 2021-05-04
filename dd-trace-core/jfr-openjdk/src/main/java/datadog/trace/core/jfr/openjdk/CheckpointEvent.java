@@ -1,6 +1,8 @@
 package datadog.trace.core.jfr.openjdk;
 
-import datadog.trace.api.Checkpointer;
+import static datadog.trace.api.Checkpointer.CPU;
+import static datadog.trace.api.Checkpointer.SPAN;
+
 import datadog.trace.core.util.SystemAccess;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
@@ -15,6 +17,8 @@ import jdk.jfr.StackTrace;
 @Category("Datadog")
 @StackTrace(false)
 public class CheckpointEvent extends Event {
+
+  private static final int RECORD_CPU_TIME = CPU | SPAN;
 
   @Label("Trace Id")
   private final long traceId;
@@ -32,7 +36,7 @@ public class CheckpointEvent extends Event {
     this.traceId = traceId;
     this.spanId = spanId;
     this.flags = flags;
-    if ((flags & Checkpointer.CPU) != 0 && isEnabled()) {
+    if ((flags & RECORD_CPU_TIME) != 0 && isEnabled()) {
       this.cpuTime = SystemAccess.getCurrentThreadCpuTime();
     } else {
       this.cpuTime = Long.MIN_VALUE;
