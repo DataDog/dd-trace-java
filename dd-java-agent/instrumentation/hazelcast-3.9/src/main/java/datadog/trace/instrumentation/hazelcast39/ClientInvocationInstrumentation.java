@@ -28,7 +28,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -67,12 +66,10 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
-
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(named("invokeOnSelection")), getClass().getName() + "$InvocationAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isConstructor()
             .and(
                 takesArgument(
@@ -81,8 +78,6 @@ public class ClientInvocationInstrumentation extends Instrumenter.Tracing {
                         "com.hazelcast.client.impl.HazelcastClientInstanceImpl",
                         "com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl"))),
         getClass().getName() + "$ConstructAdvice");
-
-    return transformers;
   }
 
   /** Advice for instrumenting distributed object client proxy classes. */
