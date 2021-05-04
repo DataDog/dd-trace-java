@@ -13,7 +13,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
-import java.util.ArrayDeque;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -201,6 +200,8 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     private final AgentSpan span;
 
+    private ContinuableScope prev;
+
     ContinuableScope(
         final ContinuableScopeManager scopeManager,
         final ContinuableScopeManager.Continuation continuation,
@@ -212,6 +213,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       this.scopeManager = scopeManager;
       this.continuation = continuation;
       this.flags = source;
+      this.prev = null;
     }
 
     @Override
@@ -373,16 +375,17 @@ public class ContinuableScopeManager implements AgentScopeManager {
    * cleanup() is called to ensure the invariant
    */
   static final class ScopeStack {
-    private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>();
+    private ContinuableScope top = null;
+    private int depth = 0;
     private ContinuableScope noopScope = null;
 
     /** top - accesses the top of the ScopeStack */
     final ContinuableScope top() {
-      return stack.peek();
+      return top;
     }
 
     void cleanup() {
-      ContinuableScope curScope = stack.peek();
+      ContinuableScope curScope = top;
       boolean changedTop = false;
       while (curScope != null) {
         if (curScope.alive()) {
@@ -399,31 +402,42 @@ public class ContinuableScopeManager implements AgentScopeManager {
           curScope.referenceCount = 1;
           noopScope = curScope;
         }
-        stack.poll();
+        curScope = top.prev;
+        top.prev = null; // break the reference chain
+        top = curScope;
+        depth--;
         changedTop = true;
-        curScope = stack.peek();
       }
     }
 
     /** Pushes a new scope unto the stack */
     final void push(final ContinuableScope scope) {
-      stack.push(scope);
+      scope.prev = top;
+      top = scope;
+      depth++;
       scope.afterActivated();
     }
 
     /** Fast check to see if the expectedScope is on top the stack */
     final boolean checkTop(final ContinuableScope expectedScope) {
-      return expectedScope.equals(stack.peek());
+      return expectedScope.equals(top);
     }
 
     /** Returns the current stack depth */
     final int depth() {
-      return stack.size();
+      return depth;
     }
 
     // DQH - regrettably needed for pre-existing tests
     final void clear() {
-      stack.clear();
+      ContinuableScope currScope = top;
+      while (null != currScope) {
+        ContinuableScope prev = currScope.prev;
+        currScope.prev = null; // break the reference chain
+        currScope = prev;
+      }
+      top = null;
+      depth = 0;
     }
 
     final ContinuableScope pushNoopScope(ContinuableScopeManager scopeManager) {
