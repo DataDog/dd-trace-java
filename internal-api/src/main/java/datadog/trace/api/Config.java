@@ -1329,8 +1329,14 @@ public class Config {
   }
 
   public boolean isRuleEnabled(final String name) {
-    return configProvider.getBoolean("trace." + name + ".enabled", true)
-        && configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", true);
+    return isRuleEnabled(name, true);
+  }
+
+  public boolean isRuleEnabled(final String name, boolean defaultEnabled) {
+    boolean enabled = configProvider.getBoolean("trace." + name + ".enabled", defaultEnabled);
+    boolean lowerEnabled =
+        configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", defaultEnabled);
+    return defaultEnabled ? enabled && lowerEnabled : enabled || lowerEnabled;
   }
 
   /**

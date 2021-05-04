@@ -11,14 +11,22 @@ public class RuleFlags {
     DB_STATEMENT("DBStatementRule"),
     FORCE_MANUAL_DROP("ForceManualDropTagInterceptor"),
     FORCE_MANUAL_KEEP("ForceManualKeepTagInterceptor"),
-    PEER_SERVICE("PeerServiceTagInterceptor"),
+    PEER_SERVICE("PeerServiceTagInterceptor", false),
     SERVICE_NAME("ServiceNameTagInterceptor"),
     SERVLET_CONTEXT("ServletContextTagInterceptor");
 
     private final String name;
 
+    private final boolean defaultEnabled;
+
     Feature(String name) {
       this.name = name;
+      this.defaultEnabled = true;
+    }
+
+    Feature(String name, boolean defaultEnabled) {
+      this.name = name;
+      this.defaultEnabled = defaultEnabled;
     }
   }
 
@@ -32,7 +40,7 @@ public class RuleFlags {
     Feature[] features = Feature.values();
     this.flags = new boolean[features.length];
     for (Feature feature : features) {
-      if (config.isRuleEnabled(feature.name)) {
+      if (config.isRuleEnabled(feature.name, feature.defaultEnabled)) {
         flags[feature.ordinal()] = true;
       }
     }
