@@ -105,6 +105,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     null
   }
 
+  boolean tagServerSpanWithRoute() {
+    false
+  }
+
+
+
   enum ServerEndpoint {
     SUCCESS("success", 200, "success"),
     REDIRECT("redirect", 302, "/redirected"),
@@ -626,6 +632,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
   void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+    boolean tagServerSpanWithRoute = tagServerSpanWithRoute()
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
@@ -646,6 +653,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" endpoint.status
+        if (tagServerSpanWithRoute) {
+          "$Tags.HTTP_ROUTE" String
+        }
         if (endpoint.query) {
           "$DDTags.HTTP_QUERY" endpoint.query
         }

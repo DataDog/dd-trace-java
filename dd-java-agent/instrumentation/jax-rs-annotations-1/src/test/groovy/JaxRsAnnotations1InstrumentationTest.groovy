@@ -32,6 +32,7 @@ class JaxRsAnnotations1InstrumentationTest extends AgentTestRunner {
           spanType "web"
           tags {
             "$Tags.COMPONENT" "jax-rs-controller"
+            "$Tags.HTTP_ROUTE" "/a"
             defaultTags()
           }
         }
@@ -54,6 +55,7 @@ class JaxRsAnnotations1InstrumentationTest extends AgentTestRunner {
           parent()
           tags {
             "$Tags.COMPONENT" "jax-rs"
+            "$Tags.HTTP_ROUTE" name.split(" ").last()
             defaultTags()
           }
         }

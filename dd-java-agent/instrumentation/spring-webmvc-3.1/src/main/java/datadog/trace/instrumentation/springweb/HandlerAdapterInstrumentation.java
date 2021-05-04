@@ -45,9 +45,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SpringWebHttpServerDecorator",
-      packageName + ".ServletRequestURIAdapter",
-      packageName + ".SpringWebHttpServerDecorator$1"
+      packageName + ".SpringWebHttpServerDecorator", packageName + ".ServletRequestURIAdapter",
     };
   }
 

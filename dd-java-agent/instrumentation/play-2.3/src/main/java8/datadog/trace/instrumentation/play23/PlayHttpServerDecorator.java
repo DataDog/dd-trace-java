@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.play23;
 
+import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -7,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
+import play.api.Routes;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
 import scala.Option;
@@ -61,10 +64,10 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
     if (request != null) {
       // more about routes here:
       // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md#router-tags-are-now-attributes
-      final Option pathOption = request.tags().get("ROUTE_PATTERN");
+      final Option pathOption = request.tags().get(Routes.ROUTE_PATTERN());
       if (!pathOption.isEmpty()) {
         final String path = (String) pathOption.get();
-        span.setResourceName(request.method() + " " + path);
+        ROUTE_HANDLER_DECORATOR.withRoute(span, request.method(), path);
       }
     }
     return span;
