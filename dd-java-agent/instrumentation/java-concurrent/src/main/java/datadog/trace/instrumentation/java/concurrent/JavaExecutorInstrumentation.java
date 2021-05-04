@@ -14,13 +14,10 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumentation {
@@ -31,12 +28,10 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("execute").and(takesArgument(0, Runnable.class)).and(takesArguments(1)),
         JavaExecutorInstrumentation.class.getName() + "$SetExecuteRunnableStateAdvice");
-    return transformers;
   }
 
   public static class SetExecuteRunnableStateAdvice {

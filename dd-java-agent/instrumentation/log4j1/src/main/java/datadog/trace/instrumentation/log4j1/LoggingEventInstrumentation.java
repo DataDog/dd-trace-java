@@ -13,11 +13,9 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.log4j.MDC;
@@ -45,17 +43,14 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(named("getMDC")).and(takesArgument(0, String.class)),
         LoggingEventInstrumentation.class.getName() + "$GetMdcAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod().and(named("getMDCCopy")).and(takesArguments(0)),
         LoggingEventInstrumentation.class.getName() + "$GetMdcCopyAdvice");
-
-    return transformers;
   }
 
   public static class GetMdcAdvice {

@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
@@ -19,7 +18,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.SharedSessionContract;
@@ -75,8 +73,8 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(returns(hasInterface(named("org.hibernate.procedure.ProcedureCall")))),
         SessionInstrumentation.class.getName() + "$GetProcedureCallAdvice");
   }

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springamqp;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -12,7 +11,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import java.util.TreeMap;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.amqp.core.Message;
@@ -30,8 +28,8 @@ public class BlockingQueueConsumerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("handle")
             .and(takesArgument(0, named("org.springframework.amqp.rabbit.support.Delivery"))),
         getClass().getName() + "$TransferState");

@@ -10,12 +10,9 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.description.NamedElement;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.LoggerFactory;
@@ -74,8 +71,7 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Tracing 
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return Collections.singletonMap(
-        isAnnotatedWith(methodTraceMatcher), packageName + ".TraceAdvice");
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(isAnnotatedWith(methodTraceMatcher), packageName + ".TraceAdvice");
   }
 }

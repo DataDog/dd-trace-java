@@ -1,11 +1,9 @@
 package datadog.trace.agent.tooling.muzzle;
 
-import static java.util.Collections.emptyMap;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -31,9 +29,7 @@ public abstract class TestInstrumentationClasses {
     }
 
     @Override
-    public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-      return emptyMap();
-    }
+    public void adviceTransformations(AdviceTransformation transformation) {}
   }
 
   public static class EmptyInst extends BaseInst {

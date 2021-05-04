@@ -16,10 +16,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.http.HttpResponse;
@@ -48,21 +45,19 @@ public final class SynapseServerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(named("run"))
             .and(takesNoArguments())
             .and(isDeclaredBy(named("org.apache.synapse.transport.passthru.ServerWorker"))),
         getClass().getName() + "$HandleRequestAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("start"))
             .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection")))
             .and(isDeclaredBy(named("org.apache.synapse.transport.passthru.SourceResponse"))),
         getClass().getName() + "$HandleAsyncResponseAdvice");
-    return transformers;
   }
 
   public static final class HandleRequestAdvice {

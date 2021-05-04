@@ -13,10 +13,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
-import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -38,8 +36,8 @@ public final class AkkaForkJoinPoolInstrumentation extends Instrumenter.Tracing 
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return Collections.singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(namedOneOf("externalPush", "fullExternalPush")),
         getClass().getName() + "$ExternalPush");
   }

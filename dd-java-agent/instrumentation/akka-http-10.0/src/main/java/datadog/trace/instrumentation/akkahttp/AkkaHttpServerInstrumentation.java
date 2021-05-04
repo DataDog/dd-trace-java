@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.akkahttp;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import akka.NotUsed;
@@ -12,9 +11,7 @@ import akka.stream.javadsl.BidiFlow;
 import akka.stream.scaladsl.Flow;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -79,8 +76,8 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("bindAndHandle").and(takesArgument(0, named("akka.stream.scaladsl.Flow"))),
         getClass().getName() + "$AkkaHttpBindAndHandleAdvice");
   }

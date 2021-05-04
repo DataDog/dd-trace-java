@@ -8,9 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.HashMap;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -45,15 +43,13 @@ public final class AxwayHTTPPluginInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("invokeDispose")), packageName + ".HTTPPluginAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("tryTransaction")), packageName + ".StateAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("sendResponse")),
         packageName + ".ServerTransactionAdvice");
-    return transformers;
   }
 }

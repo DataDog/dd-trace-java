@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -61,14 +60,13 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(named("close")).and(takesArguments(0)),
         SessionInstrumentation.class.getName() + "$SessionCloseAdvice");
 
     // Session synchronous methods we want to instrument.
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(
                 namedOneOf(
@@ -90,7 +88,7 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
         SessionInstrumentation.class.getName() + "$SessionMethodAdvice");
 
     // Handle the non-generic 'get' separately.
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("get"))
             .and(returns(named("java.lang.Object")))
@@ -99,21 +97,19 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
 
     // These methods return some object that we want to instrument, and so the Advice will pin the
     // current Span to the returned object using a ContextStore.
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(namedOneOf("beginTransaction", "getTransaction"))
             .and(returns(named("org.hibernate.Transaction"))),
         SessionInstrumentation.class.getName() + "$GetTransactionAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod().and(returns(hasInterface(named("org.hibernate.Query")))),
         SessionInstrumentation.class.getName() + "$GetQueryAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod().and(returns(hasInterface(named("org.hibernate.Criteria")))),
         SessionInstrumentation.class.getName() + "$GetCriteriaAdvice");
-
-    return transformers;
   }
 
   public static class SessionCloseAdvice {

@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static java.util.Collections.singletonMap;
-import static java.util.Collections.unmodifiableMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -24,11 +23,9 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -57,14 +54,12 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(8);
+  public void adviceTransformations(AdviceTransformation transformation) {
     // TODO should target some particular implementations to prevent this from happening all
     //  the way up the constructor chain (even though the advice applied is cheap)
-    transformers.put(isConstructor(), getClass().getName() + "$Construct");
-    transformers.put(isMethod().and(named("run")), getClass().getName() + "$Run");
-    transformers.put(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
-    return unmodifiableMap(transformers);
+    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    transformation.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
+    transformation.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
   }
 
   @Override

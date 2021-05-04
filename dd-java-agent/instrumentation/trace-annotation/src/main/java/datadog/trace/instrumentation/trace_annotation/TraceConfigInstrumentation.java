@@ -148,12 +148,12 @@ public class TraceConfigInstrumentation implements Instrumenter {
     }
 
     @Override
-    public Map<ElementMatcher<? super MethodDescription>, String> transformers() {
+    public void adviceTransformations(AdviceTransformation transformation) {
       boolean hasWildcard = false;
       for (String methodName : methodNames) {
         hasWildcard |= methodName.equals("*");
       }
-      return Collections.<ElementMatcher<? super MethodDescription>, String>singletonMap(
+      transformation.applyAdvice(
           hasWildcard
               ? not(
                   isHashCode()

@@ -13,10 +13,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.ignite.Ignite;
@@ -45,10 +43,8 @@ public class IgniteInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers =
-        new LinkedHashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(
@@ -60,14 +56,12 @@ public class IgniteInstrumentation extends Instrumenter.Tracing {
                     "getOrCreateNearCache"))
             .and(returns(hasInterface(named("org.apache.ignite.IgniteCache")))),
         IgniteInstrumentation.class.getName() + "$IgniteCacheAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(namedOneOf("createCaches", "getOrCreateCaches"))
             .and(returns(hasInterface(named("java.util.Collection")))),
         IgniteInstrumentation.class.getName() + "$IgniteCachesAdvice");
-
-    return transformers;
   }
 
   public static class IgniteCacheAdvice {

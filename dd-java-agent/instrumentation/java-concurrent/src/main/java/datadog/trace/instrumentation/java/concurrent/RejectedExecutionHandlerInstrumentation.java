@@ -19,7 +19,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -53,8 +52,8 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return Collections.singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             // JDK or netty
             .and(namedOneOf("rejectedExecution", "rejected"))

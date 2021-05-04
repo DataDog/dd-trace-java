@@ -4,15 +4,12 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Map;
 import javax.ws.rs.client.Client;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -46,8 +43,8 @@ public final class JaxRsClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("build").and(returns(hasInterface(named("javax.ws.rs.client.Client")))),
         JaxRsClientInstrumentation.class.getName() + "$ClientBuilderAdvice");
   }

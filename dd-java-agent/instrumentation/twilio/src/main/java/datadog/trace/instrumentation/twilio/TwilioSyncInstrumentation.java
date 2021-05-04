@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.TWILIO_SDK;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -19,9 +18,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /** Instrument the Twilio SDK to identify calls as a seperate service. */
@@ -62,16 +59,14 @@ public class TwilioSyncInstrumentation extends Instrumenter.Tracing {
 
   /** Return bytebuddy transformers for instrumenting the Twilio SDK. */
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-
+  public void adviceTransformations(AdviceTransformation transformation) {
     /*
        We are listing out the main service calls on the Creator, Deleter, Fetcher, Reader, and
        Updater abstract classes. The isDeclaredBy() matcher did not work in the unit tests and
        we found that there were certain methods declared on the base class (particularly Reader),
        which we weren't interested in annotating.
     */
-
-    return singletonMap(
+    transformation.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(not(isAbstract()))

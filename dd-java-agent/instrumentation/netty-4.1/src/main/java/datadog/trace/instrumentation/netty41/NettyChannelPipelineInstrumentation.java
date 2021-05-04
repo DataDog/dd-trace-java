@@ -30,10 +30,7 @@ import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.util.Attribute;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -77,22 +74,20 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(namedOneOf("addFirst", "addLast"))
             .and(takesArgument(2, named("io.netty.channel.ChannelHandler"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(namedOneOf("addBefore", "addAfter"))
             .and(takesArgument(3, named("io.netty.channel.ChannelHandler"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod().and(named("connect")).and(returns(named("io.netty.channel.ChannelFuture"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$ConnectAdvice");
-    return transformers;
   }
 
   /**

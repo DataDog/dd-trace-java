@@ -11,7 +11,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -34,8 +33,8 @@ public class CompletableFutureUniCompletionSubclassInstrumentation extends Instr
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("tryFire").and(takesArguments(int.class)), ADVICE_BASE + "UniSubTryFire");
   }
 }

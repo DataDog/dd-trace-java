@@ -16,7 +16,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.rmi.server.ObjID;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import sun.rmi.transport.Connection;
@@ -61,8 +60,8 @@ public class RmiClientContextInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isConstructor()
             .and(takesArgument(0, named("sun.rmi.transport.Connection")))
             .and(takesArgument(1, named("java.rmi.server.ObjID"))),
