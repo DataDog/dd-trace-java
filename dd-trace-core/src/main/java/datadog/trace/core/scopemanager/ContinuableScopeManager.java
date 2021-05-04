@@ -389,8 +389,9 @@ public class ContinuableScopeManager implements AgentScopeManager {
    */
   static final class ScopeStack {
     private ContinuableScope top = null;
+    private ContinuableScope noopScope1 = null;
+    private ContinuableScope noopScope2 = null;
     private int depth = 0;
-    private ContinuableScope noopScope = null;
 
     /** top - accesses the top of the ScopeStack */
     final ContinuableScope top() {
@@ -410,10 +411,14 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
         // no longer alive -- trigger listener & null out
         curScope.onProperClose();
-        if (null == noopScope && curScope.isNoop()) {
+        if (curScope.isNoop()) {
+          if (null == noopScope1) {
+            noopScope1 = curScope;
+          } else if (null == noopScope2) {
+            noopScope2 = curScope;
+          }
           // reset the reference count
           curScope.referenceCount = 1;
-          noopScope = curScope;
         }
         curScope = top.prev;
         top.prev = null; // break the reference chain
@@ -454,8 +459,12 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     final ContinuableScope pushNoopScope(ContinuableScopeManager scopeManager) {
-      ContinuableScope scope = noopScope;
-      noopScope = null;
+      ContinuableScope scope = noopScope1;
+      noopScope1 = null;
+      if (null == scope) {
+        scope = noopScope2;
+        noopScope2 = null;
+      }
       if (null == scope) {
         scope = ContinuableScope.createNoopScope(scopeManager);
       }
