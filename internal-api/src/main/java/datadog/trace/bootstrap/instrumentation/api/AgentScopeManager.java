@@ -16,4 +16,6 @@ public interface AgentScopeManager {
   AgentSpan activeSpan();
 
   TraceScope.Continuation captureSpan(AgentSpan span, ScopeSource source);
+
+  AgentScope activateNoopScope(ScopeSource source);
 }

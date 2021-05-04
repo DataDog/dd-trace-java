@@ -141,6 +141,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
     return active == null ? null : active.span();
   }
 
+  @Override
+  public AgentScope activateNoopScope(ScopeSource source) {
+    return scopeStack().pushNoopScope(this);
+  }
+
   /** Attach a listener to scope activation events */
   public void addScopeListener(final ScopeListener listener) {
     if (listener instanceof ExtendedScopeListener) {
@@ -171,6 +176,18 @@ public class ContinuableScopeManager implements AgentScopeManager {
   }
 
   private static final class ContinuableScope implements AgentScope {
+    private static final byte NOOP_BIT = (byte) (1 << 6);
+    private static final byte SOURCE_MASK = 0x3F;
+
+    static ContinuableScope createNoopScope(ContinuableScopeManager scopeManager) {
+      return new ContinuableScope(
+          scopeManager,
+          null,
+          new NoopAgentSpan(),
+          (byte) (ScopeSource.INSTRUMENTATION.id() | NOOP_BIT),
+          false);
+    }
+
     private final ContinuableScopeManager scopeManager;
 
     /** Continuation that created this scope. May be null. */
@@ -178,7 +195,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     /** Flag to propagate this scope across async boundaries. */
     private boolean isAsyncPropagating;
 
-    private final byte source;
+    private final byte flags;
 
     private short referenceCount = 1;
 
@@ -194,7 +211,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       this.span = span;
       this.scopeManager = scopeManager;
       this.continuation = continuation;
-      this.source = source;
+      this.flags = source;
     }
 
     @Override
@@ -210,7 +227,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
         scopeManager.statsDClient.incrementCounter("scope.close.error");
 
-        if (source == ScopeSource.MANUAL.id()) {
+        if (source() == ScopeSource.MANUAL.id()) {
           scopeManager.statsDClient.incrementCounter("scope.user.close.error");
 
           if (scopeManager.strictMode) {
@@ -274,6 +291,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
       return referenceCount > 0;
     }
 
+    final boolean isNoop() {
+      return (flags & NOOP_BIT) != 0;
+    }
+
     @Override
     public boolean isAsyncPropagating() {
       return isAsyncPropagating;
@@ -286,7 +307,9 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public void setAsyncPropagation(final boolean value) {
-      isAsyncPropagating = value;
+      if (!isNoop()) {
+        isAsyncPropagating = value;
+      }
     }
 
     /**
@@ -297,7 +320,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public ContinuableScopeManager.Continuation capture() {
       return isAsyncPropagating
-          ? new SingleContinuation(scopeManager, span, source).register()
+          ? new SingleContinuation(scopeManager, span, flags).register()
           : null;
     }
 
@@ -309,7 +332,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public ContinuableScopeManager.Continuation captureConcurrent() {
       return isAsyncPropagating
-          ? new ConcurrentContinuation(scopeManager, span, source).register()
+          ? new ConcurrentContinuation(scopeManager, span, flags).register()
           : null;
     }
 
@@ -339,6 +362,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
         }
       }
     }
+
+    private byte source() {
+      return (byte) (flags & SOURCE_MASK);
+    }
   }
 
   /**
@@ -347,6 +374,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
    */
   static final class ScopeStack {
     private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>();
+    private ContinuableScope noopScope = null;
 
     /** top - accesses the top of the ScopeStack */
     final ContinuableScope top() {
@@ -366,6 +394,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
         // no longer alive -- trigger listener & null out
         curScope.onProperClose();
+        if (null == noopScope && curScope.isNoop()) {
+          // reset the reference count
+          curScope.referenceCount = 1;
+          noopScope = curScope;
+        }
         stack.poll();
         changedTop = true;
         curScope = stack.peek();
@@ -391,6 +424,16 @@ public class ContinuableScopeManager implements AgentScopeManager {
     // DQH - regrettably needed for pre-existing tests
     final void clear() {
       stack.clear();
+    }
+
+    final ContinuableScope pushNoopScope(ContinuableScopeManager scopeManager) {
+      ContinuableScope scope = noopScope;
+      noopScope = null;
+      if (null == scope) {
+        scope = ContinuableScope.createNoopScope(scopeManager);
+      }
+      push(scope);
+      return scope;
     }
   }
 

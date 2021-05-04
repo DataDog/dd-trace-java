@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNoopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -10,8 +10,6 @@ import akka.dispatch.Envelope;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
@@ -63,10 +61,9 @@ public class AkkaActorCellInstrumentation extends Instrumenter.Tracing {
       if (scope != null) {
         return scope;
       }
-      // If there is no scope created from the envelope, we create our own noopSpan to make sure
+      // If there is no scope created from the envelope, we create our own noopScope to make sure
       // that we can close all scopes up until this position after exit.
-      AgentSpan span = new AgentTracer.NoopAgentSpan();
-      return activateSpan(span, false);
+      return activateNoopScope();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

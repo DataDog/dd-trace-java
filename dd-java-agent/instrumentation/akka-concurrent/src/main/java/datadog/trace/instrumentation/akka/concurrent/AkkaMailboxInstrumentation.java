@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNoopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
@@ -11,8 +11,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.context.TraceScope;
 import java.util.Collection;
@@ -67,10 +65,9 @@ public class AkkaMailboxInstrumentation extends Instrumenter.Tracing
   public static final class SuppressMailboxRunAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter() {
-      // Create our own noopSpan to make sure that we close all scopes up until this
+      // Create our own noopScope to make sure that we close all scopes up until this
       // position after exit
-      AgentSpan span = new AgentTracer.NoopAgentSpan();
-      return activateSpan(span, false);
+      return activateNoopScope();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -42,6 +42,10 @@ public class AgentTracer {
     return get().activateSpan(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
   }
 
+  public static AgentScope activateNoopScope() {
+    return get().activateNoopScope();
+  }
+
   public static TraceScope.Continuation captureSpan(final AgentSpan span) {
     return get().captureSpan(span, ScopeSource.INSTRUMENTATION);
   }
@@ -99,6 +103,8 @@ public class AgentTracer {
     AgentScope activateSpan(AgentSpan span, ScopeSource source);
 
     AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
+
+    AgentScope activateNoopScope();
 
     TraceScope.Continuation captureSpan(AgentSpan span, ScopeSource source);
 
@@ -176,6 +182,11 @@ public class AgentTracer {
     @Override
     public AgentScope activateSpan(
         final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
+      return NoopAgentScope.INSTANCE;
+    }
+
+    @Override
+    public AgentScope activateNoopScope() {
       return NoopAgentScope.INSTANCE;
     }
 

@@ -478,6 +478,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public AgentScope activateNoopScope() {
+    return scopeManager.activateNoopScope(ScopeSource.INSTRUMENTATION);
+  }
+
+  @Override
   public TraceScope.Continuation captureSpan(final AgentSpan span, ScopeSource source) {
     return scopeManager.captureSpan(span, source);
   }
