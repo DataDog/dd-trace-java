@@ -62,7 +62,6 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".AttributeKeys",
-      packageName + ".AttributeKeys$1",
       // client helpers
       packageName + ".client.NettyHttpClientDecorator",
       packageName + ".client.NettyResponseInjectAdapter",

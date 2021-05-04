@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jaxrs2;
 
 import datadog.trace.agent.tooling.ClassHierarchyIterable;
+import datadog.trace.api.GenericClassValue;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -29,13 +30,8 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
 
   public static final JaxRsAnnotationsDecorator DECORATE = new JaxRsAnnotationsDecorator();
 
-  private static final ClassValue<Map<Method, String>> RESOURCE_NAMES =
-      new ClassValue<Map<Method, String>>() {
-        @Override
-        protected Map<Method, String> computeValue(Class<?> type) {
-          return new ConcurrentHashMap<>();
-        }
-      };
+  private static final ClassValue<ConcurrentHashMap<Method, String>> RESOURCE_NAMES =
+      GenericClassValue.constructing(ConcurrentHashMap.class);
 
   @Override
   protected String[] instrumentationNames() {

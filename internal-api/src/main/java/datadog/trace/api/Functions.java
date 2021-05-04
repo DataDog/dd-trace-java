@@ -1,6 +1,9 @@
 package datadog.trace.api;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 
 public final class Functions {
 
@@ -168,6 +171,36 @@ public final class Functions {
     @Override
     public String apply(T key) {
       return key.toString();
+    }
+  }
+
+  public static <T> Function<?, T> newInstanceOf(Class<T> clazz) {
+    return new NewInstance<>(clazz);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static final class NewInstance<Object, T> implements Function<Object, T> {
+
+    private final MethodHandle methodHandle;
+
+    private NewInstance(Class<T> type) {
+      try {
+        this.methodHandle =
+            MethodHandles.lookup().findConstructor(type, MethodType.methodType(void.class));
+      } catch (NoSuchMethodException | IllegalAccessException e) {
+        throw new IllegalStateException(e);
+      }
+    }
+
+    @Override
+    public T apply(Object input) {
+      try {
+        // can't invokeExact because the return type is Object
+        // in this context
+        return (T) methodHandle.invoke();
+      } catch (Throwable throwable) {
+        return null;
+      }
     }
   }
 }

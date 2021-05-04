@@ -132,7 +132,7 @@ jobs:
         # This is used by rabbitmq instrumentation tests
       - image: rabbitmq
         # This is used by aerospike instrumentation tests
-      - image: aerospike
+      - image: aerospike:5.5.0.9
         # This is used by mongodb smoke tests
       - image: mongo
         # This is used by jdbc and vert.x tests

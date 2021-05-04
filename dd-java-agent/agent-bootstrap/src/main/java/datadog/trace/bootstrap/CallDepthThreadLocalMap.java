@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap;
 
+import datadog.trace.api.GenericClassValue;
+
 /**
  * Utility to track nested instrumentation.
  *
@@ -9,12 +11,7 @@ package datadog.trace.bootstrap;
 public class CallDepthThreadLocalMap {
 
   private static final ClassValue<ThreadLocalDepth> TLS =
-      new ClassValue<ThreadLocalDepth>() {
-        @Override
-        protected ThreadLocalDepth computeValue(Class<?> type) {
-          return new ThreadLocalDepth();
-        }
-      };
+      GenericClassValue.constructing(ThreadLocalDepth.class);
 
   public static int incrementCallDepth(final Class<?> k) {
     return TLS.get(k).get().increment();
@@ -44,7 +41,7 @@ public class CallDepthThreadLocalMap {
     }
   }
 
-  private static final class ThreadLocalDepth extends ThreadLocal<Depth> {
+  public static final class ThreadLocalDepth extends ThreadLocal<Depth> {
     @Override
     protected Depth initialValue() {
       return new Depth();

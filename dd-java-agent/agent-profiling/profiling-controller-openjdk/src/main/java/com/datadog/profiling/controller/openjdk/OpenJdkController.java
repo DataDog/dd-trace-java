@@ -18,6 +18,7 @@ package com.datadog.profiling.controller.openjdk;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.jfr.JfpUtils;
+import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
 import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
@@ -55,6 +56,8 @@ public final class OpenJdkController implements Controller {
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
+    // Register periodic events
+    AvailableProcessorCoresEvent.register();
   }
 
   @Override

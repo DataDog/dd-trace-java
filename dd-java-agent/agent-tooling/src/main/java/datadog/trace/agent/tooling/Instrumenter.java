@@ -150,7 +150,13 @@ public interface Instrumenter {
           filter(parentAgentBuilder).transform(defaultTransformers());
       agentBuilder = injectHelperClasses(agentBuilder);
       agentBuilder = contextProvider.instrumentationTransformer(agentBuilder);
-      agentBuilder = applyInstrumentationTransformers(agentBuilder);
+      AgentBuilder.Transformer transformer = transformer();
+      if (transformer != null) {
+        agentBuilder = agentBuilder.transform(transformer);
+      }
+      AdviceBuilder adviceBuilder = new AdviceBuilder(agentBuilder);
+      adviceTransformations(adviceBuilder);
+      agentBuilder = adviceBuilder.agentBuilder;
       agentBuilder = contextProvider.additionalInstrumentation(agentBuilder);
       return agentBuilder;
     }
@@ -185,21 +191,22 @@ public interface Instrumenter {
       return agentBuilder;
     }
 
-    private AgentBuilder.Identified.Extendable applyInstrumentationTransformers(
-        AgentBuilder.Identified.Extendable agentBuilder) {
-      AgentBuilder.Transformer transformer = transformer();
-      if (transformer != null) {
-        agentBuilder = agentBuilder.transform(transformer);
+    private static class AdviceBuilder implements AdviceTransformation {
+      AgentBuilder.Identified.Extendable agentBuilder;
+
+      public AdviceBuilder(AgentBuilder.Identified.Extendable agentBuilder) {
+        this.agentBuilder = agentBuilder;
       }
-      for (final Map.Entry<? extends ElementMatcher, String> entry : transformers().entrySet()) {
+
+      @Override
+      public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name) {
         agentBuilder =
             agentBuilder.transform(
                 new AgentBuilder.Transformer.ForAdvice()
                     .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
                     .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-                    .advice(entry.getKey(), entry.getValue()));
+                    .advice(matcher, name));
       }
-      return agentBuilder;
     }
 
     /** Matches classes for which instrumentation is not muzzled. */
@@ -278,12 +285,27 @@ public interface Instrumenter {
     /** @return A type matcher used to match the class under transform. */
     public abstract ElementMatcher<? super TypeDescription> typeMatcher();
 
-    /** @return A map of matcher->advice */
-    public abstract Map<? extends ElementMatcher<? super MethodDescription>, String> transformers();
-
     /** @return A transformer for further transformation of the class */
     public AgentBuilder.Transformer transformer() {
       return null;
+    }
+
+    /**
+     * Instrumenters should register each advice transformation by calling {@link
+     * AdviceTransformation#applyAdvice(ElementMatcher, String)} one or more times.
+     */
+    // TODO: once everything is fully migrated, make this method abstract.
+    public void adviceTransformations(AdviceTransformation transformation) {
+      for (final Map.Entry<? extends ElementMatcher<? super MethodDescription>, String> entry :
+          transformers().entrySet()) {
+        transformation.applyAdvice(entry.getKey(), entry.getValue());
+      }
+    }
+
+    @Deprecated
+    protected Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
+      throw new UnsupportedOperationException(
+          "Either transformers or adviceTransformations must be overridden.");
     }
 
     /**
@@ -370,5 +392,9 @@ public interface Instrumenter {
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.PROFILING);
     }
+  }
+
+  interface AdviceTransformation {
+    void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name);
   }
 }
