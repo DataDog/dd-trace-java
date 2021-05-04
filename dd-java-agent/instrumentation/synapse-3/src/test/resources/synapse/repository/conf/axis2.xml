@@ -59,9 +59,8 @@
   <!-- ================================================= -->
   <!-- Transport Ins -->
   <!-- ================================================= -->
-  <transportReceiver name="http"
-    class="datadog.trace.instrumentation.synapse3.TestPassThroughHttpListener">
-    <parameter name="port">-1</parameter>
+  <transportReceiver name="http" class="org.apache.synapse.transport.passthru.PassThroughHttpListener">
+    <parameter name="port">0</parameter>
     <parameter name="httpGetProcessor" locked="false">org.apache.synapse.transport.passthru.api.PassThroughNHttpGetProcessor</parameter>
   </transportReceiver>
 
