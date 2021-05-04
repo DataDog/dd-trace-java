@@ -2,8 +2,6 @@ package datadog.trace.api;
 
 import static datadog.trace.api.Checkpointer.CPU;
 import static datadog.trace.api.Checkpointer.END;
-import static datadog.trace.api.Checkpointer.ENQUEUED;
-import static datadog.trace.api.Checkpointer.IO;
 import static datadog.trace.api.Checkpointer.SPAN;
 import static datadog.trace.api.Checkpointer.THREAD_MIGRATION;
 
@@ -50,24 +48,12 @@ public final class SamplingCheckpointer {
     checkpoint(span, SPAN);
   }
 
-  public static void onEnqueue(AgentSpan span) {
-    checkpoint(span, ENQUEUED);
-  }
-
   public static void onCommenceWork(AgentSpan span) {
     checkpoint(span, CPU);
   }
 
   public static void onCompleteWork(AgentSpan span) {
     checkpoint(span, CPU | END);
-  }
-
-  public static void onCommenceIO(AgentSpan span) {
-    checkpoint(span, IO);
-  }
-
-  public static void onCompleteIO(AgentSpan span) {
-    checkpoint(span, IO | END);
   }
 
   public static void onThreadMigration(AgentSpan span) {

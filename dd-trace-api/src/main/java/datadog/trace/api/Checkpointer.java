@@ -13,22 +13,11 @@ public interface Checkpointer {
    */
   int CPU = 0x2;
   /**
-   * Indicates that the instrumentation expects IO to take place. The IO is considered to end when
-   * the next event for the same span without this flag set is received.
-   */
-  int IO = 0x4;
-  /**
-   * Indicates that the instrumentation expects the work associated with the span to be enqueued and
-   * become idle. The idle time is considered to end when the next event for the same span without
-   * this flag set is received.
-   */
-  int ENQUEUED = 0x8;
-  /**
    * Indicates that the instrumentation expects the span to make a thread migration and resume on
    * another thread. This does not mean that the work on the current thread will cease, unless it is
    * the last event for the span on the thread.
    */
-  int THREAD_MIGRATION = 0x10;
+  int THREAD_MIGRATION = 0x4;
 
   /**
    * Notifies the profiler that the span has reached a certain state
