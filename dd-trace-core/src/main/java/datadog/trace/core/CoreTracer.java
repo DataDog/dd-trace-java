@@ -653,10 +653,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (host == null) {
         host = config.getJmxFetchStatsdHost();
       }
-      if (host == null) {
-        host = config.getAgentHost();
-      }
-
       Integer port = config.getHealthMetricsStatsdPort();
       if (port == null) {
         port = config.getJmxFetchStatsdPort();
