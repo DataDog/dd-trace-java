@@ -13,6 +13,9 @@ import spock.lang.Requires
 
 import java.time.Duration
 
+import static datadog.trace.api.Checkpointer.CPU
+import static datadog.trace.api.Checkpointer.SPAN
+
 @Requires({
   jvm.java11Compatible
 })
@@ -280,5 +283,34 @@ class ScopeEventTest extends DDSpecification {
 
     cleanup:
     noProfilingTracer.close()
+  }
+
+  def "checkpoint events written when checkpointer registered"() {
+    setup:
+    SystemAccess.enableJmx()
+    def recording = JfrHelper.startRecording()
+    tracer.registerCheckpointer(new JFRCheckpointer())
+
+    when: "span goes through lifecycle without activation"
+    def span = tracer.startSpan("test")
+    span.migrateThread()
+    span.asyncResume()
+    span.finish()
+    then: "checkpoints emitted"
+    def events = JfrHelper.stopRecording(recording)
+    events.size() == 4
+    events.each {
+      assert it.eventType.name == "datadog.Checkpoint"
+      assert it.getLong("traceId") == span.getTraceId().toLong()
+      assert it.getLong("spanId") == span.getSpanId().toLong()
+      int flags = it.getInt("flags")
+      long cpuTime = it.getLong("cpuTime")
+      if ((flags & (CPU | SPAN)) != 0) {
+        assert cpuTime > 0
+      } else {
+        assert cpuTime == Long.MIN_VALUE
+      }
+
+    }
   }
 }
