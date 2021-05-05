@@ -443,8 +443,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     expect:
     if (bubblesResponse()) {
-      response.code() == ERROR.status
-      response.body().string() == ERROR.body
+      assert response.body().string() == ERROR.body
+      assert response.code() == ERROR.status
     }
 
     and:
