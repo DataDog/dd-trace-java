@@ -424,7 +424,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     Continuation register() {
-      SamplingCheckpointer.onThreadMigration(spanUnderScope);
+      spanUnderScope.migrateThread();
       trace.registerContinuation(this);
       return this;
     }
@@ -452,7 +452,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public AgentScope activate() {
-      SamplingCheckpointer.onAsyncResume(spanUnderScope);
+      spanUnderScope.asyncResume();
       if (USED.compareAndSet(this, 0, 1)) {
         return scopeManager.handleSpan(this, spanUnderScope, source);
       } else {
@@ -540,7 +540,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public AgentScope activate() {
       if (tryActivate()) {
-        SamplingCheckpointer.onAsyncResume(spanUnderScope);
+        spanUnderScope.asyncResume();
         return scopeManager.handleSpan(this, spanUnderScope, source);
       } else {
         return null;

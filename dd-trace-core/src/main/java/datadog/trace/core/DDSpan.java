@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.util.Clock;
@@ -28,6 +29,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     final DDSpan span = new DDSpan(timestampMicro, context);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
+    SamplingCheckpointer.onSpanStart(span);
     return span;
   }
 
@@ -84,6 +86,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     // ensure a min duration of 1
     if (this.durationNano.compareAndSet(0, Math.max(1, durationNano))) {
       log.debug("Finished span: {}", this);
+      SamplingCheckpointer.onSpanFinish(this);
       context.getTrace().addFinishedSpan(this);
     } else {
       log.debug("Already finished: {}", this);
@@ -313,6 +316,16 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
       default:
         return false;
     }
+  }
+
+  @Override
+  public void migrateThread() {
+    SamplingCheckpointer.onThreadMigration(this);
+  }
+
+  @Override
+  public void asyncResume() {
+    SamplingCheckpointer.onAsyncResume(this);
   }
 
   /**

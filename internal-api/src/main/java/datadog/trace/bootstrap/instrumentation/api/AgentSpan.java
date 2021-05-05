@@ -76,6 +76,12 @@ public interface AgentSpan extends MutableSpan {
 
   boolean eligibleForDropping();
 
+  /** mark that the span has been captured in some task which will resume asynchronously. */
+  void migrateThread();
+
+  /** mark that the work associated with the span has resumed on a new thread */
+  void asyncResume();
+
   interface Context {
     DDId getTraceId();
 

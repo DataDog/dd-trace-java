@@ -370,6 +370,12 @@ public class AgentTracer {
     }
 
     @Override
+    public void migrateThread() {}
+
+    @Override
+    public void asyncResume() {}
+
+    @Override
     public Integer getSamplingPriority() {
       return (int) PrioritySampling.UNSET;
     }
