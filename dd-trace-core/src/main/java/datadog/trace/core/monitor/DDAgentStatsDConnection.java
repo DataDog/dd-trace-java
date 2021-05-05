@@ -1,6 +1,5 @@
 package datadog.trace.core.monitor;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_SOCKET_PATH;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -24,6 +23,7 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
 
   private static final String UNIX_DOMAIN_SOCKET_PREFIX = "unix://";
 
+  private boolean usingDefaultPort;
   private volatile String host;
   private volatile Integer port;
 
@@ -116,7 +116,25 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
       port = 0; // tells dogstatsd client to treat host as a socket path
     }
     if (null == port) {
-      port = DEFAULT_DOGSTATSD_PORT;
+      port = DDAgentStatsDClientManager.getDefaultStatsDPort();
+      usingDefaultPort = true;
+    }
+  }
+
+  void handleDefaultPortChange(final int newPort) {
+    synchronized (this) {
+      if (NO_OP != statsd && usingDefaultPort && newPort != port) {
+        if (log.isDebugEnabled()) {
+          log.debug("Closing StatsD client - {}", statsDAddress(host, port));
+        }
+        try {
+          statsd.close();
+        } finally {
+          statsd = NO_OP;
+          port = null; // clear so it will pickup latest default
+          doConnect();
+        }
+      }
     }
   }
 
