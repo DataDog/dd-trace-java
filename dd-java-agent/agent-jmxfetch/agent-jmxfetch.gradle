@@ -2,6 +2,7 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'minimize'
 
 dependencies {
   compile('com.datadoghq:jmxfetch:0.43.1') {

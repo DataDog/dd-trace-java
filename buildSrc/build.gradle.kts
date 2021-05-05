@@ -10,6 +10,10 @@ gradlePlugin {
       id = "muzzle"
       implementationClass = "MuzzlePlugin"
     }
+    create("minimize-plugin") {
+      id = "minimize"
+      implementationClass = "MinimizePlugin"
+    }
   }
 }
 
@@ -30,6 +34,8 @@ dependencies {
   implementation("com.google.guava", "guava", "20.0")
   implementation("org.ow2.asm", "asm", "9.0")
   implementation("org.ow2.asm", "asm-tree", "9.0")
+
+  implementation("org.vafer", "jdependency", "2.6.0")
 
   testImplementation("org.spockframework", "spock-core", "2.0-M4-groovy-2.5")
   testImplementation("org.codehaus.groovy", "groovy-all", "2.5.13")

@@ -11,6 +11,7 @@ ext {
 apply from: "$rootDir/gradle/java.gradle"
 // We do not publish separate jar, but having version file is useful
 apply from: "$rootDir/gradle/version.gradle"
+apply plugin: 'minimize'
 
 dependencies {
   compile deps.slf4j
@@ -40,6 +41,14 @@ shadowJar {
     exclude(project(':internal-api'))
     exclude(dependency('org.slf4j::'))
   }
+}
+minimize {
+  additionalInclusions = [
+    // https://github.com/lz4/lz4-java/blob/55bede61a72803574c638a1ef1a70eadc6cefa6e/src/java/net/jpountz/lz4/LZ4Factory.java#L193-L196
+    ~'^net/jpountz/lz4/LZ4',
+    // https://github.com/lz4/lz4-java/blob/55bede61a72803574c638a1ef1a70eadc6cefa6e/src/java/net/jpountz/xxhash/XXHashFactory.java#L179-L182
+    ~'^net/jpountz/xxhash/(?:Streaming)?XXHash\\d{2}'
+  ]
 }
 
 jar {

@@ -1,6 +1,18 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.vafer.jdependency.Clazz
+import org.vafer.jdependency.Clazzpath
+import org.vafer.jdependency.ClazzpathUnit
 
 import java.util.concurrent.atomic.AtomicBoolean
+
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath group: 'org.vafer', name: 'jdependency', version: '2.6.0'
+  }
+}
 
 plugins {
   id "com.github.johnrengelman.shadow"
@@ -42,7 +54,7 @@ ext.generalShadowJarConfig = {
   }
 }
 
-def includeShadowJar(shadowJarTask, jarname) {
+def includeShadowJar(shadowJarTask, jarname, Closure customizeZipProcessing = null) {
   def opentracingFound = new AtomicBoolean()
   project.processResources {
     doFirst {
@@ -64,32 +76,101 @@ def includeShadowJar(shadowJarTask, jarname) {
       rename '(^.*)\\.class$', '$1.classdata'
       // Rename LICENSE file since it clashes with license dir on non-case sensitive FSs (i.e. Mac)
       rename '^LICENSE$', 'LICENSE.renamed'
+      if (customizeZipProcessing) {
+        customizeZipProcessing.delegate = it
+        customizeZipProcessing.call(it)
+      }
     }
   }
 
   project.processResources.dependsOn shadowJarTask
-  shadowJarTask.configure generalShadowJarConfig
 }
 
-def includeSubprojShadowJar(String projName, String jarname) {
+// these include the shared dependencies of the subprojects' shadowJars,
+// which are not included in those shadowJars themselves
+task sharedShadowJar(type: ShadowJar) {
+  configure generalShadowJarConfig
+  configurations = [project.configurations.sharedShadowInclude]
+  archiveClassifier = 'shared'
+
+  project.processResources.dependsOn it
+}
+// used to keep track of the shared classes that are actually used by the
+// subprojects' shadowJars. The scanning is done in scanUsedClassesFor* tasks
+def sharedClassesUsage = [
+  clazzpath: new Clazzpath(),
+
+  // Units for subprojects' shadowJars. Classes in these units will be deemed used
+  clazzpathUnits: [],
+
+  // the tasks of the subprojects' shadowJars.
+  // configureSharedShadowJar (and transitively, the shadowJar) tasks will depend on them
+  tasks: []]
+def includeSubprojShadowJar = { String projName, String jarname ->
   evaluationDependsOn projName
   def proj = project(projName)
-  includeShadowJar proj.tasks.shadowJar, jarname
+  def shadowJarTask = proj.tasks['shadowJar']
+
+  shadowJarTask.configure generalShadowJarConfig
+
+  def finalJarTask = proj.tasks.findByName('minShadowJar') ?
+    proj.tasks['minShadowJar'] : shadowJarTask
+
+  includeShadowJar finalJarTask, jarname
+
+  // register class uses for shared shadow jar minimization
+  project.tasks.sharedShadowJar.inputs.file finalJarTask.archiveFile
+  def scanTask = project.tasks.create("scanUsedClassesFor${jarname.capitalize()}") {
+    inputs.file(finalJarTask.archiveFile)
+
+    doFirst {
+      sharedClassesUsage.clazzpathUnits <<
+        sharedClassesUsage.clazzpath.addClazzpathUnit(finalJarTask.archiveFile.get().getAsFile())
+    }
+
+    dependsOn finalJarTask
+  }
+  sharedClassesUsage.tasks << scanTask
 }
 
 includeSubprojShadowJar ':dd-java-agent:instrumentation', 'inst'
 includeSubprojShadowJar ':dd-java-agent:agent-jmxfetch', 'metrics'
 includeSubprojShadowJar ':dd-java-agent:agent-profiling', 'profiling'
 
-task sharedShadowJar(type: ShadowJar) {
-  configurations = [project.configurations.sharedShadowInclude]
+task configureSharedShadowJar {
+  // late configuration of shared shadow jar, depending on the contents
+  // of the subprojects' shadow jars
+  doFirst {
+    def allDeps = tasks.sharedShadowJar.configurations.collectMany {
+      it.resolve()
+    } as Set
+    allDeps.each {
+      sharedClassesUsage.clazzpath.addClazzpathUnit(it)
+    }
+
+    Set<Clazz> unused = sharedClassesUsage.clazzpath.clazzes
+    sharedClassesUsage.clazzpathUnits.each { ClazzpathUnit subprojShadowJarUnit ->
+      unused.removeAll(subprojShadowJarUnit.clazzes)
+      unused.removeAll(subprojShadowJarUnit.transitiveDependencies)
+    }
+
+    includeShadowJar(sharedShadowJar, 'shared') {
+      exclude unused.collect {clazz ->
+        "${clazz.toString().replace('.', '/')}.class"
+      }
+    }
+  }
+
+  dependsOn sharedClassesUsage.tasks
+  sharedShadowJar.dependsOn it
 }
-includeShadowJar(sharedShadowJar, 'shared')
+
 
 shadowJar generalShadowJarConfig >> {
   configurations = [project.configurations.shadowInclude]
 
   archiveClassifier = ''
+  includeEmptyDirs = false
 
   manifest {
     attributes(
