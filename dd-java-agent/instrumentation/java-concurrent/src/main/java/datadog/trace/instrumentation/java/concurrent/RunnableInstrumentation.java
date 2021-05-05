@@ -19,7 +19,6 @@ import datadog.trace.context.TraceScope;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -44,8 +43,8 @@ public final class RunnableInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("run").and(takesArguments(0)).and(isPublic()),
         RunnableInstrumentation.class.getName() + "$RunnableAdvice");
   }

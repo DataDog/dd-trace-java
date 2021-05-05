@@ -7,16 +7,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.DATABASE_CONNECTION;
 import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.DECORATE;
-import static java.util.Collections.singletonMap;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 import javax.sql.DataSource;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -44,8 +41,8 @@ public final class DataSourceInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(named("getConnection"), GetConnectionAdvice.class.getName());
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(named("getConnection"), GetConnectionAdvice.class.getName());
   }
 
   public static class GetConnectionAdvice {

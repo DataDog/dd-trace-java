@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState;
 import java.net.HttpURLConnection;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -42,8 +41,8 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(isPublic()).and(namedOneOf("connect", "getOutputStream", "getInputStream")),
         HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
   }

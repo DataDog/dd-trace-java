@@ -13,11 +13,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.lang.IgniteFuture;
@@ -40,11 +36,8 @@ public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrume
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers =
-        new LinkedHashMap<>();
-
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(
@@ -60,7 +53,7 @@ public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrume
                     "putAllAsync",
                     "removeAllAsync")),
         IgniteCacheAsyncInstrumentation.class.getName() + "$IgniteAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(
@@ -79,8 +72,6 @@ public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrume
                     "clearAsync",
                     "invokeAsync")),
         IgniteCacheAsyncInstrumentation.class.getName() + "$KeyedAdvice");
-
-    return transformers;
   }
 
   public static class IgniteAdvice {

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.aws.v0;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
 import static datadog.trace.instrumentation.aws.v0.TracingRequestHandler.SCOPE_CONTEXT_KEY;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -15,9 +14,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -46,8 +43,8 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(not(isAbstract())).and(named("doExecute")),
         AWSHttpClientInstrumentation.class.getName() + "$HttpClientAdvice");
   }
@@ -85,8 +82,8 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
     }
 
     @Override
-    public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-      return singletonMap(
+    public void adviceTransformations(AdviceTransformation transformation) {
+      transformation.applyAdvice(
           isMethod().and(not(isAbstract())).and(named("doExecute")),
           RequestExecutorInstrumentation.class.getName() + "$RequestExecutorAdvice");
     }

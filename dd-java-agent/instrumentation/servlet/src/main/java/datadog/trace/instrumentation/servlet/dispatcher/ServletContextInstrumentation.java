@@ -13,7 +13,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import javax.servlet.RequestDispatcher;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -40,8 +39,8 @@ public final class ServletContextInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         returns(named("javax.servlet.RequestDispatcher"))
             .and(takesArgument(0, String.class))
             // javax.servlet.ServletContext.getRequestDispatcher

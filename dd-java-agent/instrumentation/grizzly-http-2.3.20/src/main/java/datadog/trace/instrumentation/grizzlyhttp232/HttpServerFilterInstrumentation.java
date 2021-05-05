@@ -6,9 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Collections;
-import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -39,8 +36,8 @@ public class HttpServerFilterInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return Collections.singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("prepareResponse")
             .and(takesArgument(0, named("org.glassfish.grizzly.filterchain.FilterChainContext")))
             .and(takesArgument(1, named("org.glassfish.grizzly.http.HttpRequestPacket")))

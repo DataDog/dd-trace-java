@@ -33,7 +33,6 @@ import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -72,8 +71,8 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         namedOneOf("forward", "include")
             .and(takesArguments(2))
             .and(takesArgument(0, named("javax.servlet.ServletRequest")))

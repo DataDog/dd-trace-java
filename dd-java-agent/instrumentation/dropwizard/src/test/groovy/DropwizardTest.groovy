@@ -137,6 +137,7 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
+        "$Tags.HTTP_ROUTE" "/${endpoint.rawPath()}"
         "$Tags.HTTP_STATUS" endpoint.status
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }

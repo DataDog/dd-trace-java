@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static java.util.Collections.unmodifiableMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -25,7 +24,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.impl.Promise.Transformation;
@@ -53,15 +51,13 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformations = new HashMap<>(8);
-    transformations.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isConstructor().and(takesArguments(4)), getClass().getName() + "$Construct");
-    transformations.put(
+    transformation.applyAdvice(
         isMethod().and(named("submitWithValue")), getClass().getName() + "$SubmitWithValue");
-    transformations.put(isMethod().and(named("run")), getClass().getName() + "$Run");
-    transformations.put(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
-    return unmodifiableMap(transformations);
+    transformation.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
+    transformation.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
   }
 
   @Override

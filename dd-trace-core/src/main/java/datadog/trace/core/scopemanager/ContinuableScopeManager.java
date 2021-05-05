@@ -179,7 +179,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     /** Flag to propagate this scope across async boundaries. */
     private boolean isAsyncPropagating;
 
-    private final byte source;
+    private byte flags;
 
     private short referenceCount = 1;
 
@@ -195,7 +195,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       this.span = span;
       this.scopeManager = scopeManager;
       this.continuation = continuation;
-      this.source = source;
+      this.flags = source;
     }
 
     @Override
@@ -211,7 +211,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
         scopeManager.statsDClient.incrementCounter("scope.close.error");
 
-        if (source == ScopeSource.MANUAL.id()) {
+        if (source() == ScopeSource.MANUAL.id()) {
           scopeManager.statsDClient.incrementCounter("scope.user.close.error");
 
           if (scopeManager.strictMode) {
@@ -248,7 +248,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
         }
       }
 
-      if (span instanceof NoopAgentSpan) {
+      if (!notifiedOnActivate()) {
         return;
       }
 
@@ -298,7 +298,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public ContinuableScopeManager.Continuation capture() {
       return isAsyncPropagating
-          ? new SingleContinuation(scopeManager, span, source).register()
+          ? new SingleContinuation(scopeManager, span, source()).register()
           : null;
     }
 
@@ -310,7 +310,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public ContinuableScopeManager.Continuation captureConcurrent() {
       return isAsyncPropagating
-          ? new ConcurrentContinuation(scopeManager, span, source).register()
+          ? new ConcurrentContinuation(scopeManager, span, source()).register()
           : null;
     }
 
@@ -328,9 +328,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
         }
       }
 
-      if (span instanceof NoopAgentSpan) {
+      if (span.eligibleForDropping()) {
         return;
       }
+      flags |= 0x80;
 
       for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
         try {
@@ -339,6 +340,14 @@ public class ContinuableScopeManager implements AgentScopeManager {
           log.debug("ExtendedScopeListener threw exception in afterActivated()", e);
         }
       }
+    }
+
+    private byte source() {
+      return (byte) (flags & 0x7F);
+    }
+
+    private boolean notifiedOnActivate() {
+      return flags < 0;
     }
   }
 

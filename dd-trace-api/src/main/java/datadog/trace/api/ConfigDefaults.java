@@ -34,6 +34,7 @@ public final class ConfigDefaults {
   static final String DEFAULT_PRIORITY_SAMPLING_FORCE = null;
   static final boolean DEFAULT_TRACE_RESOLVER_ENABLED = true;
   static final boolean DEFAULT_HTTP_SERVER_TAG_QUERY_STRING = false;
+  static final boolean DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING = true;
   static final boolean DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING = false;
   static final boolean DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;

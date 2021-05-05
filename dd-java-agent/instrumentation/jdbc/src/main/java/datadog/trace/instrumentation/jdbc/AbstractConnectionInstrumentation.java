@@ -16,8 +16,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class AbstractConnectionInstrumentation extends Instrumenter.Tracing {
   public AbstractConnectionInstrumentation(String instrumentationName, String... additionalNames) {
@@ -37,8 +35,8 @@ public abstract class AbstractConnectionInstrumentation extends Instrumenter.Tra
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         nameStartsWith("prepare")
             .and(takesArgument(0, String.class))
             // Also include CallableStatement, which is a sub type of PreparedStatement

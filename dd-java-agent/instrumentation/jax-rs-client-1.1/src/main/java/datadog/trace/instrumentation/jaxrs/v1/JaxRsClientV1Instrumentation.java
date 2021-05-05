@@ -11,7 +11,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.jaxrs.v1.InjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator.DECORATE;
 import static datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator.JAX_RS_CLIENT_CALL;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -22,9 +21,7 @@ import com.sun.jersey.api.client.ClientResponse;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -54,8 +51,8 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("handle")
             .and(takesArgument(0, extendsClass(named("com.sun.jersey.api.client.ClientRequest"))))
             .and(returns(extendsClass(named("com.sun.jersey.api.client.ClientResponse")))),

@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -25,8 +24,6 @@ import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class AbstractPreparedStatementInstrumentation extends Instrumenter.Tracing {
 
@@ -52,8 +49,8 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         nameStartsWith("execute").and(takesArguments(0)).and(isPublic()),
         AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
   }

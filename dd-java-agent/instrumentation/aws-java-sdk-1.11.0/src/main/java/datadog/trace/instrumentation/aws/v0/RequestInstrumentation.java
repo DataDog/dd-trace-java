@@ -16,7 +16,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -43,24 +42,22 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("setBucketName").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$BucketNameAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("setQueueUrl").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$QueueUrlAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("setQueueName").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$QueueNameAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("setStreamName").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$StreamNameAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("setTableName").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$TableNameAdvice");
-    return transformers;
   }
 
   @Override

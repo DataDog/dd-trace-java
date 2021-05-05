@@ -19,7 +19,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -53,8 +52,8 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(named("getMDCPropertyMap").or(named("getMdc"))).and(takesArguments(0)),
         LoggingEventInstrumentation.class.getName() + "$GetMdcAdvice");
   }

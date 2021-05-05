@@ -95,7 +95,6 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
     assert response.code() == 200
 
     func.call()
-
     Thread.sleep(1500)
 
     //resend the test agent results to query the snapshot comparison results that the test agent does

@@ -2,18 +2,14 @@ package datadog.trace.instrumentation.connection_error.jersey;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static java.util.Collections.unmodifiableMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static org.glassfish.jersey.client.WrappingResponseCallback.handleProcessingException;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.HashMap;
-import java.util.Map;
 import javax.ws.rs.ProcessingException;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.glassfish.jersey.client.ClientRequest;
@@ -35,21 +31,19 @@ public class ClientRuntimeInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>(4);
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(namedOneOf("submit", "createRunnableForAsyncProcessing"))
             .and(
                 takesArgument(0, named("org.glassfish.jersey.client.ClientRequest"))
                     .and(takesArgument(1, named("org.glassfish.jersey.client.ResponseCallback")))),
         "org.glassfish.jersey.client.WrappingResponseCallbackAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("invoke"))
             .and(takesArgument(0, named("org.glassfish.jersey.client.ClientRequest"))),
         getClass().getName() + "$HandleError");
-    return unmodifiableMap(transformers);
   }
 
   public static class HandleError {

@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.GRIZZLY_REQUEST;
 import static datadog.trace.instrumentation.grizzly.GrizzlyRequestExtractAdapter.GETTER;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -19,9 +18,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.glassfish.grizzly.http.server.Request;
@@ -54,8 +51,8 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(named("doHandle"))
             .and(takesArgument(0, named("org.glassfish.grizzly.http.server.Request")))

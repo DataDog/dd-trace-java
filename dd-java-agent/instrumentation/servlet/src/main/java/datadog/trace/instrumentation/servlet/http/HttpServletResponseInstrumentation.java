@@ -9,17 +9,14 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.DECORATE;
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.SERVLET_RESPONSE;
-import static java.util.Collections.singletonMap;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -52,8 +49,8 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Traci
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(namedOneOf("sendError", "sendRedirect"), SendAdvice.class.getName());
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(namedOneOf("sendError", "sendRedirect"), SendAdvice.class.getName());
   }
 
   public static class SendAdvice {

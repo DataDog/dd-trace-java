@@ -12,11 +12,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
-import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.http.HttpFields;
@@ -36,15 +33,13 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("setContextPath").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$SetContextPathAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("setServletPath").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$SetServletPathAdvice");
-    return transformers;
   }
 
   /**

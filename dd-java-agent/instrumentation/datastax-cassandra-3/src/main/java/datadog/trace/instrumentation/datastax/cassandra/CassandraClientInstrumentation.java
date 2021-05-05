@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.datastax.cassandra;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -9,9 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.datastax.driver.core.Session;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -40,8 +37,8 @@ public class CassandraClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(isPrivate()).and(named("newSession")).and(takesArguments(0)),
         CassandraClientInstrumentation.class.getName() + "$CassandraClientAdvice");
   }

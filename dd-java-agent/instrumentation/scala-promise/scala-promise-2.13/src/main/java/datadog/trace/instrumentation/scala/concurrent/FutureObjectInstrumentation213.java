@@ -9,10 +9,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.Future$;
@@ -43,8 +41,8 @@ public class FutureObjectInstrumentation213 extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return Collections.singletonMap(isTypeInitializer(), getClass().getName() + "$ClassInit");
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(isTypeInitializer(), getClass().getName() + "$ClassInit");
   }
 
   public static final class ClassInit {

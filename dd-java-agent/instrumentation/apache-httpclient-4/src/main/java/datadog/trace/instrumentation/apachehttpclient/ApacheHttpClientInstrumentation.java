@@ -14,10 +14,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -74,14 +71,13 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+  public void adviceTransformations(AdviceTransformation transformation) {
     // There are 8 execute(...) methods.  Depending on the version, they may or may not delegate to
     // eachother. Thus, all methods need to be instrumented.  Because of argument position and type,
     // some methods can share the same advice class.  The call depth tracking ensures only 1 span is
     // created
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(not(isAbstract()))
@@ -89,7 +85,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
             .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(not(isAbstract()))
@@ -98,7 +94,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
             .and(takesArgument(1, named("org.apache.http.protocol.HttpContext"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(not(isAbstract()))
@@ -107,7 +103,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
             .and(takesArgument(1, named("org.apache.http.client.ResponseHandler"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestWithHandlerAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(not(isAbstract()))
@@ -117,7 +113,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
             .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestWithHandlerAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(not(isAbstract()))
@@ -126,7 +122,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
             .and(takesArgument(1, named("org.apache.http.HttpRequest"))),
         ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(not(isAbstract()))
@@ -136,7 +132,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
             .and(takesArgument(2, named("org.apache.http.protocol.HttpContext"))),
         ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(not(isAbstract()))
@@ -146,7 +142,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
             .and(takesArgument(2, named("org.apache.http.client.ResponseHandler"))),
         ApacheHttpClientInstrumentation.class.getName() + "$RequestWithHandlerAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("execute"))
             .and(not(isAbstract()))
@@ -156,8 +152,6 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Tracing {
             .and(takesArgument(2, named("org.apache.http.client.ResponseHandler")))
             .and(takesArgument(3, named("org.apache.http.protocol.HttpContext"))),
         ApacheHttpClientInstrumentation.class.getName() + "$RequestWithHandlerAdvice");
-
-    return transformers;
   }
 
   public static class UriRequestAdvice {

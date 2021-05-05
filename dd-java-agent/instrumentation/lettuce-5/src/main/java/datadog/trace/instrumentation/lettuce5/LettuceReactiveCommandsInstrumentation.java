@@ -10,9 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.HashMap;
-import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -42,15 +39,14 @@ public class LettuceReactiveCommandsInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(named("createMono"))
             .and(takesArgument(0, named("java.util.function.Supplier")))
             .and(returns(named("reactor.core.publisher.Mono"))),
         packageName + ".rx.LettuceMonoCreationAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(nameStartsWith("create"))
             .and(nameEndsWith("Flux"))
@@ -58,7 +54,5 @@ public class LettuceReactiveCommandsInstrumentation extends Instrumenter.Tracing
             .and(takesArgument(0, named("java.util.function.Supplier")))
             .and(returns(named("reactor.core.publisher.Flux"))),
         packageName + ".rx.LettuceFluxCreationAdvice");
-
-    return transformers;
   }
 }

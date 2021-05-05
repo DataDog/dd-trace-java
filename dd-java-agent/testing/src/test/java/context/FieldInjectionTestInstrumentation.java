@@ -11,7 +11,6 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -27,21 +26,19 @@ public class FieldInjectionTestInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>(7);
-    transformers.put(named("isInstrumented"), MarkInstrumentedAdvice.class.getName());
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(named("isInstrumented"), MarkInstrumentedAdvice.class.getName());
+    transformation.applyAdvice(
         named("incrementContextCount"), StoreAndIncrementApiUsageAdvice.class.getName());
-    transformers.put(named("getContextCount"), GetApiUsageAdvice.class.getName());
-    transformers.put(named("putContextCount"), PutApiUsageAdvice.class.getName());
-    transformers.put(
+    transformation.applyAdvice(named("getContextCount"), GetApiUsageAdvice.class.getName());
+    transformation.applyAdvice(named("putContextCount"), PutApiUsageAdvice.class.getName());
+    transformation.applyAdvice(
         named("incorrectKeyClassUsage"), IncorrectKeyClassContextApiUsageAdvice.class.getName());
-    transformers.put(
+    transformation.applyAdvice(
         named("incorrectContextClassUsage"),
         IncorrectContextClassContextApiUsageAdvice.class.getName());
-    transformers.put(
+    transformation.applyAdvice(
         named("incorrectCallUsage"), IncorrectCallContextApiUsageAdvice.class.getName());
-    return transformers;
   }
 
   @Override
