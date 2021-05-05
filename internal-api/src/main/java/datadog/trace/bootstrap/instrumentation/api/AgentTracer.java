@@ -4,6 +4,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.DDId;
+import datadog.trace.api.SpanCheckpointer;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -88,7 +89,7 @@ public class AgentTracer {
   // Not intended to be constructed.
   private AgentTracer() {}
 
-  public interface TracerAPI extends datadog.trace.api.Tracer, AgentPropagation {
+  public interface TracerAPI extends datadog.trace.api.Tracer, AgentPropagation, SpanCheckpointer {
     AgentSpan startSpan(CharSequence spanName);
 
     AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
@@ -259,6 +260,27 @@ public class AgentTracer {
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return null;
     }
+
+    @Override
+    public void onComplexEvent(AgentSpan span, int flags) {}
+
+    @Override
+    public void onStart(AgentSpan span) {}
+
+    @Override
+    public void onCommenceWork(AgentSpan span) {}
+
+    @Override
+    public void onCompleteWork(AgentSpan span) {}
+
+    @Override
+    public void onThreadMigration(AgentSpan span) {}
+
+    @Override
+    public void onAsyncResume(AgentSpan span) {}
+
+    @Override
+    public void onFinish(AgentSpan span) {}
   }
 
   public static class NoopAgentSpan implements AgentSpan {

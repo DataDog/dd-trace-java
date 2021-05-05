@@ -10,7 +10,11 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class SamplingCheckpointer {
+public final class SamplingCheckpointer implements SpanCheckpointer {
+
+  public static SamplingCheckpointer create() {
+    return new SamplingCheckpointer(NoOpCheckpointer.NO_OP);
+  }
 
   private static final Logger log = LoggerFactory.getLogger(SamplingCheckpointer.class);
 
@@ -20,58 +24,58 @@ public final class SamplingCheckpointer {
 
   private volatile Checkpointer checkpointer;
 
-  private static final SamplingCheckpointer HOLDER =
-      new SamplingCheckpointer(NoOpCheckpointer.NO_OP);
-
-  private static volatile Checkpointer CHECKPOINTER = HOLDER.checkpointer;
-
   public SamplingCheckpointer(Checkpointer checkpointer) {
     this.checkpointer = checkpointer;
   }
 
-  public static void register(Checkpointer checkpointer) {
-    if (CAS.compareAndSet(HOLDER, NoOpCheckpointer.NO_OP, checkpointer)) {
-      CHECKPOINTER = HOLDER.checkpointer;
-    } else {
+  public void register(Checkpointer checkpointer) {
+    if (!CAS.compareAndSet(this, NoOpCheckpointer.NO_OP, checkpointer)) {
       log.debug(
           "failed to register checkpointer {} - {} already registered",
           checkpointer.getClass(),
-          CHECKPOINTER.getClass());
+          this.checkpointer.getClass());
     }
   }
 
-  public static void onComplexEvent(AgentSpan span, int flags) {
+  @Override
+  public void onComplexEvent(AgentSpan span, int flags) {
     checkpoint(span, flags);
   }
 
-  public static void onSpanStart(AgentSpan span) {
+  @Override
+  public void onStart(AgentSpan span) {
     checkpoint(span, SPAN);
   }
 
-  public static void onCommenceWork(AgentSpan span) {
+  @Override
+  public void onCommenceWork(AgentSpan span) {
     checkpoint(span, CPU);
   }
 
-  public static void onCompleteWork(AgentSpan span) {
+  @Override
+  public void onCompleteWork(AgentSpan span) {
     checkpoint(span, CPU | END);
   }
 
-  public static void onThreadMigration(AgentSpan span) {
+  @Override
+  public void onThreadMigration(AgentSpan span) {
     checkpoint(span, THREAD_MIGRATION);
   }
 
-  public static void onAsyncResume(AgentSpan span) {
+  @Override
+  public void onAsyncResume(AgentSpan span) {
     checkpoint(span, THREAD_MIGRATION | END);
   }
 
-  public static void onSpanFinish(AgentSpan span) {
+  @Override
+  public void onFinish(AgentSpan span) {
     checkpoint(span, SPAN | END);
   }
 
-  private static void checkpoint(AgentSpan span, int flags) {
+  private void checkpoint(AgentSpan span, int flags) {
     if (!span.eligibleForDropping()) {
       AgentSpan.Context context = span.context();
-      CHECKPOINTER.checkpoint(context.getTraceId(), context.getSpanId(), flags);
+      checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), flags);
     }
   }
 

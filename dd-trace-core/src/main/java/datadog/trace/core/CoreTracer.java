@@ -106,6 +106,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
   private final TraceProcessor traceProcessor = new TraceProcessor();
+  private final SamplingCheckpointer checkpointer = SamplingCheckpointer.create();
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -136,6 +137,41 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     final TraceScope activeScope = activeScope();
 
     return activeScope == null ? null : activeScope.capture();
+  }
+
+  @Override
+  public void onComplexEvent(AgentSpan span, int flags) {
+    checkpointer.onComplexEvent(span, flags);
+  }
+
+  @Override
+  public void onStart(AgentSpan span) {
+    checkpointer.onStart(span);
+  }
+
+  @Override
+  public void onCommenceWork(AgentSpan span) {
+    checkpointer.onCommenceWork(span);
+  }
+
+  @Override
+  public void onCompleteWork(AgentSpan span) {
+    checkpointer.onCompleteWork(span);
+  }
+
+  @Override
+  public void onThreadMigration(AgentSpan span) {
+    checkpointer.onThreadMigration(span);
+  }
+
+  @Override
+  public void onAsyncResume(AgentSpan span) {
+    checkpointer.onAsyncResume(span);
+  }
+
+  @Override
+  public void onFinish(AgentSpan span) {
+    checkpointer.onFinish(span);
   }
 
   public static class CoreTracerBuilder {
@@ -635,7 +671,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void registerCheckpointer(Checkpointer checkpointer) {
-    SamplingCheckpointer.register(checkpointer);
+    this.checkpointer.register(checkpointer);
   }
 
   @Override
