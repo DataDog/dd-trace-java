@@ -69,15 +69,10 @@ public final class SamplingCheckpointer {
   }
 
   private static void checkpoint(AgentSpan span, int flags) {
-    if (sample(span)) {
+    if (!span.eligibleForDropping()) {
       AgentSpan.Context context = span.context();
       CHECKPOINTER.checkpoint(context.getTraceId(), context.getSpanId(), flags);
     }
-  }
-
-  private static boolean sample(AgentSpan span) {
-    // FIXME use isEligibleForDropping once merged
-    return true;
   }
 
   private static final class NoOpCheckpointer implements Checkpointer {
