@@ -292,6 +292,11 @@ public class AgentTracer {
     }
 
     @Override
+    public DDId getSpanId() {
+      return DDId.ZERO;
+    }
+
+    @Override
     public AgentSpan setTag(final String key, final boolean value) {
       return this;
     }

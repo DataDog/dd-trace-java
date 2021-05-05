@@ -1,5 +1,6 @@
 package datadog.trace.core
 
+import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -11,6 +12,10 @@ import datadog.trace.core.propagation.TagContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import java.util.concurrent.TimeUnit
+
+import static datadog.trace.api.Checkpointer.END
+import static datadog.trace.api.Checkpointer.SPAN
+import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 
 class DDSpanTest extends DDCoreSpecification {
 
@@ -268,5 +273,46 @@ class DDSpanTest extends DDCoreSpecification {
     UTF8BytesString.create("fakeService") | false
     ""                                    | true
     null                                  | true
+  }
+
+  def "span start and finish emit checkpoints"() {
+    setup:
+    Checkpointer checkpointer = Mock()
+    tracer.registerCheckpointer(checkpointer)
+    DDSpanContext context =
+      new DDSpanContext(
+      DDId.from(1),
+      DDId.from(1),
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      Collections.<String, String> emptyMap(),
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE))
+
+    when:
+    DDSpan span = DDSpan.create(1, context)
+    then:
+    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), SPAN)
+
+    when:
+    span.migrateThread()
+    then:
+    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), THREAD_MIGRATION)
+    when:
+    span.asyncResume()
+    then:
+    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), THREAD_MIGRATION | END)
+
+    when:
+    span.finish()
+    then:
+    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), SPAN | END)
   }
 }

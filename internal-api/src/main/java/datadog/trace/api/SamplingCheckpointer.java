@@ -74,8 +74,7 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
 
   private void checkpoint(AgentSpan span, int flags) {
     if (!span.eligibleForDropping()) {
-      AgentSpan.Context context = span.context();
-      checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), flags);
+      checkpointer.checkpoint(span.getTraceId(), span.getSpanId(), flags);
     }
   }
 
