@@ -5,9 +5,11 @@ import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetric
 import static datadog.trace.core.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
+import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -104,6 +106,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
   private final TraceProcessor traceProcessor = new TraceProcessor();
+  private final SamplingCheckpointer checkpointer = SamplingCheckpointer.create();
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -134,6 +137,41 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     final TraceScope activeScope = activeScope();
 
     return activeScope == null ? null : activeScope.capture();
+  }
+
+  @Override
+  public void checkpoint(AgentSpan span, int flags) {
+    checkpointer.checkpoint(span, flags);
+  }
+
+  @Override
+  public void onStart(AgentSpan span) {
+    checkpointer.onStart(span);
+  }
+
+  @Override
+  public void onStartWork(AgentSpan span) {
+    checkpointer.onStartWork(span);
+  }
+
+  @Override
+  public void onFinishWork(AgentSpan span) {
+    checkpointer.onFinishWork(span);
+  }
+
+  @Override
+  public void onStartThreadMigration(AgentSpan span) {
+    checkpointer.onStartThreadMigration(span);
+  }
+
+  @Override
+  public void onFinishThreadMigration(AgentSpan span) {
+    checkpointer.onFinishThreadMigration(span);
+  }
+
+  @Override
+  public void onFinish(AgentSpan span) {
+    checkpointer.onFinish(span);
   }
 
   public static class CoreTracerBuilder {
@@ -629,6 +667,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (scopeManager instanceof ContinuableScopeManager) {
       ((ContinuableScopeManager) scopeManager).addScopeListener(listener);
     }
+  }
+
+  @Override
+  public void registerCheckpointer(Checkpointer checkpointer) {
+    this.checkpointer.register(checkpointer);
   }
 
   @Override

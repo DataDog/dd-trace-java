@@ -139,11 +139,13 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   void registerSpan(final DDSpan span) {
+    tracer.onStart(span);
     ROOT_SPAN.compareAndSet(this, null, span);
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
   }
 
   void addFinishedSpan(final DDSpan span) {
+    tracer.onFinish(span);
     finishedSpans.addFirst(span);
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal
