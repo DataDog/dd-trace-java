@@ -2,8 +2,10 @@ package datadog.trace.api;
 
 public interface Checkpointer {
 
-  /** Modifier tag to make an event an end event.
-   * The LSB is chosen to allow for good varint compression. */
+  /**
+   * Modifier tag to make an event an end event. The LSB is chosen to allow for good varint
+   * compression.
+   */
   int END = 0x1;
   /** Marks the start of a span */
   int SPAN = 0x2;
