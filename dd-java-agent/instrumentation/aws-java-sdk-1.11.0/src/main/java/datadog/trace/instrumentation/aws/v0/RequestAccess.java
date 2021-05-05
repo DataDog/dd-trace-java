@@ -1,17 +1,21 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import datadog.trace.api.Function;
+import datadog.trace.api.GenericClassValue;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 
 final class RequestAccess {
   private static final ClassValue<RequestAccess> REQUEST_ACCESS =
-      new ClassValue<RequestAccess>() {
-        @Override
-        protected RequestAccess computeValue(final Class<?> requestType) {
-          return new RequestAccess(requestType);
-        }
-      };
+      GenericClassValue.of(
+          // FIXME replace with RequestAccess::new when JDK8 is baseline
+          new Function<Class<?>, RequestAccess>() {
+            @Override
+            public RequestAccess apply(final Class<?> requestType) {
+              return new RequestAccess(requestType);
+            }
+          });
 
   static RequestAccess of(final Object request) {
     return REQUEST_ACCESS.get(request.getClass());
