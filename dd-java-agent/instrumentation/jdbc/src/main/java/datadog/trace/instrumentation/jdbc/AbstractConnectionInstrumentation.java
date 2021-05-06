@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
@@ -24,7 +25,7 @@ public abstract class AbstractConnectionInstrumentation extends Instrumenter.Tra
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("java.sql.PreparedStatement", DBQueryInfo.class.getName());
+    return singletonMap("java.sql.Statement", DBQueryInfo.class.getName());
   }
 
   @Override
@@ -50,8 +51,8 @@ public abstract class AbstractConnectionInstrumentation extends Instrumenter.Tra
         @Advice.This Connection connection,
         @Advice.Argument(0) final String sql,
         @Advice.Return final PreparedStatement statement) {
-      ContextStore<PreparedStatement, DBQueryInfo> contextStore =
-          InstrumentationContext.get(PreparedStatement.class, DBQueryInfo.class);
+      ContextStore<Statement, DBQueryInfo> contextStore =
+          InstrumentationContext.get(Statement.class, DBQueryInfo.class);
       if (null == contextStore.get(statement)) {
         DBQueryInfo info = DBQueryInfo.ofPreparedStatement(sql);
         contextStore.put(statement, info);
