@@ -227,8 +227,7 @@ public class AgentInstaller {
         final Throwable throwable,
         final List<Class<?>> types) {
       if (DEBUG) {
-        log.debug(
-            "Exception while retransforming " + batch.size() + " classes: " + batch, throwable);
+        log.debug("Exception while retransforming {} classes: {}", batch.size(), batch, throwable);
       }
       return Collections.emptyList();
     }
@@ -253,10 +252,10 @@ public class AgentInstaller {
         final Throwable throwable) {
       if (DEBUG) {
         log.debug(
-            "Failed to handle {} for transformation on classloader {}: {}",
+            "Failed to handle {} for transformation on classloader {}",
             typeName,
             classLoader,
-            throwable.getMessage());
+            throwable);
       }
     }
 
