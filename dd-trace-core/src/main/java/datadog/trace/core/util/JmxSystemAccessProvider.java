@@ -5,8 +5,9 @@ import java.lang.management.ThreadMXBean;
 
 /** System provider based on JMX MXBeans */
 final class JmxSystemAccessProvider implements SystemAccessProvider {
-  private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
-  private final boolean cpuTimeSupported = threadMXBean.isCurrentThreadCpuTimeSupported();
+  private static final ThreadMXBean THREAD_MX_BEAN = ManagementFactory.getThreadMXBean();
+  private static final boolean CPU_TIME_SUPPORTED =
+      THREAD_MX_BEAN.isCurrentThreadCpuTimeSupported();
 
   public static final JmxSystemAccessProvider INSTANCE = new JmxSystemAccessProvider();
 
@@ -16,6 +17,6 @@ final class JmxSystemAccessProvider implements SystemAccessProvider {
    */
   @Override
   public long getThreadCpuTime() {
-    return cpuTimeSupported ? threadMXBean.getCurrentThreadCpuTime() : Long.MIN_VALUE;
+    return CPU_TIME_SUPPORTED ? THREAD_MX_BEAN.getCurrentThreadCpuTime() : 0;
   }
 }
