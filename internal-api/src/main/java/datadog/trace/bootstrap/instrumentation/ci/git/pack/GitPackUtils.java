@@ -65,22 +65,4 @@ public final class GitPackUtils {
     final String name = idxFile.getName().substring(0, i);
     return new File(idxFile.getParent(), name + ".pack");
   }
-
-  public static void seek(final RandomAccessFile file, final long pos, final SeekOrigin origin)
-      throws IOException {
-    switch (origin) {
-      case BEGIN:
-        file.seek(pos);
-        break;
-      case CURRENT:
-        final long current = file.getFilePointer();
-        file.seek(pos + current);
-        break;
-    }
-  }
-
-  public enum SeekOrigin {
-    BEGIN,
-    CURRENT
-  }
 }

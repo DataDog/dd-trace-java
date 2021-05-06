@@ -5,17 +5,13 @@ import static datadog.trace.bootstrap.instrumentation.ci.git.GitObject.TAG_TYPE;
 import static datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackObject.ERROR_PACK_OBJECT;
 import static datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackObject.NOT_FOUND_PACK_OBJECT;
 import static datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackObject.NOT_FOUND_SHA_INDEX;
-import static datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackUtils.SeekOrigin;
 import static datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackUtils.hexToByteArray;
 import static datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackUtils.readBytes;
-import static datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackUtils.seek;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * Extract Git information from Git Packfiles v2.
@@ -88,12 +84,12 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
 
       try (final RandomAccessFile idx = new RandomAccessFile(idxFile, "r")) {
         // Skip header and version
-        seek(idx, 8, SeekOrigin.BEGIN);
+        idx.seek(8);
 
         int numObjectsPreviousIndex = 0;
         if (previousIndex != -1) {
           // Seek to previousIndex position.
-          seek(idx, 4L * previousIndex, SeekOrigin.CURRENT);
+          idx.seek((4L * previousIndex) + idx.getFilePointer());
           numObjectsPreviousIndex = idx.readInt();
         }
 
@@ -103,7 +99,7 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
         final int numObjectsIndex = idx.readInt() - numObjectsPreviousIndex;
 
         // Seek to last position. The last position contains the number of all objects.
-        seek(idx, 4L * (255 - (index + 1)), SeekOrigin.CURRENT);
+        idx.seek((4L * (255 - (index + 1))) + idx.getFilePointer());
         final int totalObjects = idx.readInt();
 
         // Search the sha index in the second layer: the SHA listing.
@@ -114,14 +110,14 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
         }
 
         // Third layer: 4 byte CRC for each object. We skip it.
-        seek(idx, 4L * totalObjects, SeekOrigin.CURRENT);
+        idx.seek((4L * totalObjects) + idx.getFilePointer());
 
         // Search packOffset in fourth and fifth layer.
         final long packOffset = searchOffset(idx, shaIndex, totalObjects);
 
         // Open pack file and seek to packOffset.
         try (final RandomAccessFile pack = new RandomAccessFile(packFile, "r")) {
-          seek(pack, packOffset, SeekOrigin.BEGIN);
+          pack.seek(packOffset);
 
           // Get the type and the size of the git object.
           final int[] gitObjectTypeAndSize = extractGitObjectTypeAndSize(pack);
@@ -163,7 +159,7 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
       throws IOException {
 
     // Skip all previous SHAs
-    seek(idx, 20L * (numObjectsPreviousIndex), GitPackUtils.SeekOrigin.CURRENT);
+    idx.seek((20L * numObjectsPreviousIndex) + idx.getFilePointer());
     final byte[] shaBytes = hexToByteArray(commitSha);
 
     // Search target SHA index in the SHA listing table.
@@ -173,7 +169,7 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
         final int shaIndex = numObjectsPreviousIndex + i;
 
         // If we find the SHA, we skip all SHA listing table.
-        seek(idx, 20L * (totalObjects - (shaIndex + 1)), SeekOrigin.CURRENT);
+        idx.seek((20L * (totalObjects - (shaIndex + 1))) + idx.getFilePointer());
         return shaIndex;
       }
     }
@@ -193,7 +189,7 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
   protected long searchOffset(
       final RandomAccessFile idx, final int shaIndex, final int totalObjects) throws IOException {
     // Fourth layer: 4 byte per object of offset in pack file
-    seek(idx, 4L * shaIndex, SeekOrigin.CURRENT);
+    idx.seek((4L * shaIndex) + idx.getFilePointer());
     int offset = idx.readInt();
 
     // Check the first bit.
@@ -206,10 +202,10 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
       // Clear first bit and look at it at the 5th layer
       offset &= 0x7FFFFFFF;
       // Skip complete fourth layer.
-      seek(idx, 4L * (totalObjects - (shaIndex + 1)), SeekOrigin.CURRENT);
+      idx.seek(4L * (totalObjects - (shaIndex + 1)) + idx.getFilePointer());
       // Use the offset from fourth layer, to find the actual pack file offset in the fifth layer.
       // In this case, the offset is 8 bytes long.
-      seek(idx, 8L * offset, SeekOrigin.CURRENT);
+      idx.seek((8L * offset) + idx.getFilePointer());
       return idx.readLong();
     }
   }
@@ -226,10 +222,18 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
     // The type and size of the git object is stored in a variable length byte array.
     // If the read byte has the first bit == 0, it means it's the final byte to read.
     byte sizePart;
-    final List<Byte> sizeParts = new ArrayList<>();
+    byte[] sizeParts = new byte[2]; // 2 bytes size is the most common use case.
+    int idx = 0;
     do {
       sizePart = readBytes(pack, 1)[0];
-      sizeParts.add(sizePart);
+      sizeParts[idx++] = sizePart;
+
+      if (idx == sizeParts.length && ((sizePart >> 7) & 1) == 1) {
+        final byte[] temp = new byte[sizeParts.length + 1];
+        System.arraycopy(sizeParts, 0, temp, 0, sizeParts.length);
+        sizeParts = temp;
+      }
+
     } while (((sizePart >> 7) & 1) == 1);
 
     // First bit indicates if the size continues in the following byte or not.
@@ -237,7 +241,7 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
     // https://git-scm.com/docs/pack-format#_object_types
 
     // If type is not commit or tag, we consider it invalid.
-    final byte type = (byte) ((sizeParts.get(0) & 0x70) >> 4);
+    final byte type = (byte) ((sizeParts[0] & 0x70) >> 4);
     if (type != COMMIT_TYPE && type != TAG_TYPE) {
       return INVALID_TYPE_AND_SIZE;
     }
@@ -267,17 +271,17 @@ public class V2PackGitInfoExtractor extends VersionedPackGitInfoExtractor {
     // size: 860
 
     int size = 0;
-    for (int i = (sizeParts.size() - 1); i >= 0; i--) {
+    for (int i = (sizeParts.length - 1); i >= 0; i--) {
       if (i == 0) {
         // The first part contains also the 3 bits for the type,
         // so we move only 4 bits to the left.
         size <<= 4;
-        size |= (sizeParts.get(i) & 0x0F);
+        size |= (sizeParts[i] & 0x0F);
       } else {
         // The rest of the parts don't have the 3 bits for the type,
         // so we move 7 bits to the left.
         size <<= 7;
-        size |= (sizeParts.get(i) & 0x7F);
+        size |= (sizeParts[i] & 0x7F);
       }
     }
 

@@ -28,8 +28,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
@@ -45,14 +43,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
 
   private static final int SHA_INDEX = 1;
 
-  private static final Map<Short, VersionedPackGitInfoExtractor> PACK_EXTRACTOR_BY_VERSION;
-
-  static {
-    // Prepared to be extended with more versions if needed.
-    // Only v2 is supported because we don't expect packfiles v1 as that version is very old.
-    PACK_EXTRACTOR_BY_VERSION = new HashMap<>(1);
-    PACK_EXTRACTOR_BY_VERSION.put(V2PackGitInfoExtractor.VERSION, new V2PackGitInfoExtractor());
-  }
+  private static final VersionedPackGitInfoExtractor V2_PACK_GIT_INFO_EXTRACTOR =
+      new V2PackGitInfoExtractor();
 
   /**
    * Extracts all git information available from the HEAD
@@ -171,8 +163,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
         packVersion = GitPackUtils.extractGitPackVersion(idxFile);
       }
 
-      final VersionedPackGitInfoExtractor gitPackExtractor =
-          PACK_EXTRACTOR_BY_VERSION.get(packVersion);
+      final VersionedPackGitInfoExtractor gitPackExtractor = lookupExtractor(packVersion);
       if (gitPackExtractor == null) {
         break;
       }
@@ -451,5 +442,13 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     }
 
     return content;
+  }
+
+  private static VersionedPackGitInfoExtractor lookupExtractor(final short packVersion) {
+    if (packVersion == V2PackGitInfoExtractor.VERSION) {
+      return V2_PACK_GIT_INFO_EXTRACTOR;
+    } else {
+      return null;
+    }
   }
 }

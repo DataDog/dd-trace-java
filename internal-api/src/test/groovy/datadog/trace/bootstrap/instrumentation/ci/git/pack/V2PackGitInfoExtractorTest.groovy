@@ -8,7 +8,6 @@ import java.nio.file.Paths
 import static datadog.trace.bootstrap.instrumentation.ci.git.GitObject.COMMIT_TYPE
 import static datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackObject.ERROR_PACK_OBJECT
 import static datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackObject.NOT_FOUND_PACK_OBJECT
-import static datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackUtils.seek
 import static datadog.trace.bootstrap.instrumentation.ci.git.pack.VersionedPackGitInfoExtractor.SIZE_INDEX
 import static datadog.trace.bootstrap.instrumentation.ci.git.pack.VersionedPackGitInfoExtractor.TYPE_INDEX
 
@@ -35,7 +34,7 @@ class V2PackGitInfoExtractorTest extends DDSpecification {
   def "test search correct sha index"() {
     setup:
     def idx = new RandomAccessFile(idxFile, "r")
-    seek(idx, 8L + (256 * 4), GitPackUtils.SeekOrigin.BEGIN)
+    idx.seek(8L + (256 * 4))
 
     when:
     def shaIndex = sut.searchSha(idx, commitSha, totalObjects, previousObjects, indexObjects)
