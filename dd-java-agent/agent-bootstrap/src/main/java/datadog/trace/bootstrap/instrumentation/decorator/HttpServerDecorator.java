@@ -51,11 +51,28 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       final CONNECTION connection,
       final REQUEST request,
       final AgentSpan.Context.Extracted context) {
-    String forwarded = null;
-    String forwardedPort = null;
+
     if (context != null) {
-      forwarded = context.getForwardedFor();
-      forwardedPort = context.getForwardedPort();
+      String forwarded = context.getForwarded();
+      if (forwarded != null) {
+        span.setTag(Tags.HTTP_FORWARDED, forwarded);
+      }
+      String forwardedProto = context.getForwardedProto();
+      if (forwardedProto != null) {
+        span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
+      }
+      String forwardedHost = context.getForwardedHost();
+      if (forwardedHost != null) {
+        span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
+      }
+      String forwardedIp = context.getForwardedIp();
+      if (forwardedIp != null) {
+        span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
+      }
+      String forwardedPort = context.getForwardedPort();
+      if (forwardedPort != null) {
+        span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
+      }
     }
 
     if (request != null) {
@@ -78,18 +95,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       // TODO set resource name from URL.
     }
 
-    final String ip = forwarded != null || connection == null ? forwarded : peerHostIP(connection);
-    if (ip != null) {
-      if (ip.indexOf(':') > 0) {
-        span.setTag(Tags.PEER_HOST_IPV6, ip);
-      } else {
-        span.setTag(Tags.PEER_HOST_IPV4, ip);
+    if (connection != null) {
+      final String ip = peerHostIP(connection);
+      if (ip != null) {
+        if (ip.indexOf(':') > 0) {
+          span.setTag(Tags.PEER_HOST_IPV6, ip);
+        } else {
+          span.setTag(Tags.PEER_HOST_IPV4, ip);
+        }
       }
-    }
-
-    if (forwardedPort != null) {
-      setPeerPort(span, forwardedPort);
-    } else if (connection != null) {
       setPeerPort(span, peerPort(connection));
     }
     return span;

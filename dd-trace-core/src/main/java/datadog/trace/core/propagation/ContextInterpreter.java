@@ -1,8 +1,10 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.FORWARDED_FOR_KEY;
+import static datadog.trace.core.propagation.HttpCodec.FORWARDED_HOST_KEY;
+import static datadog.trace.core.propagation.HttpCodec.FORWARDED_KEY;
 import static datadog.trace.core.propagation.HttpCodec.FORWARDED_PORT_KEY;
-import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
+import static datadog.trace.core.propagation.HttpCodec.FORWARDED_PROTO_KEY;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.Functions;
@@ -24,7 +26,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected Map<String, String> tags;
   protected Map<String, String> baggage;
   protected String origin;
-  protected String forwardedFor;
+  protected String forwarded;
+  protected String forwardedProto;
+  protected String forwardedHost;
+  protected String forwardedIp;
   protected String forwardedPort;
   protected boolean valid;
 
@@ -58,19 +63,27 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   protected final boolean handledForwarding(String key, String value) {
-    if (FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
-      String firstValue = firstHeaderValue(value);
-      if (null != firstValue) {
-        forwardedFor = firstValue;
+    if (null != value) {
+      if (FORWARDED_KEY.equalsIgnoreCase(key)) {
+        forwarded = value;
+        return true;
       }
-      return true;
-    }
-    if (FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
-      String firstValue = firstHeaderValue(value);
-      if (null != firstValue) {
-        forwardedPort = firstValue;
+      if (FORWARDED_PROTO_KEY.equalsIgnoreCase(key)) {
+        forwardedProto = value;
+        return true;
       }
-      return true;
+      if (FORWARDED_HOST_KEY.equalsIgnoreCase(key)) {
+        forwardedHost = value;
+        return true;
+      }
+      if (FORWARDED_FOR_KEY.equalsIgnoreCase(key)) {
+        forwardedIp = value;
+        return true;
+      }
+      if (FORWARDED_PORT_KEY.equalsIgnoreCase(key)) {
+        forwardedPort = value;
+        return true;
+      }
     }
     return false;
   }
@@ -80,7 +93,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     spanId = DDId.ZERO;
     samplingPriority = defaultSamplingPriority();
     origin = null;
-    forwardedFor = null;
+    forwarded = null;
+    forwardedProto = null;
+    forwardedHost = null;
+    forwardedIp = null;
     forwardedPort = null;
     tags = Collections.emptyMap();
     baggage = Collections.emptyMap();
@@ -97,17 +113,24 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
                 spanId,
                 samplingPriority,
                 origin,
-                forwardedFor,
+                forwarded,
+                forwardedProto,
+                forwardedHost,
+                forwardedIp,
                 forwardedPort,
                 baggage,
                 tags);
         context.lockSamplingPriority();
         return context;
       } else if (origin != null
-          || forwardedFor != null
+          || forwarded != null
+          || forwardedProto != null
+          || forwardedHost != null
+          || forwardedIp != null
           || forwardedPort != null
           || !tags.isEmpty()) {
-        return new TagContext(origin, forwardedFor, forwardedPort, tags);
+        return new TagContext(
+            origin, forwarded, forwardedProto, forwardedHost, forwardedIp, forwardedPort, tags);
       }
     }
     return null;

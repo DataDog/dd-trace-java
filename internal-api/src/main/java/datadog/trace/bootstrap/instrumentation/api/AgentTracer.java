@@ -595,7 +595,22 @@ public class AgentTracer {
     }
 
     @Override
-    public String getForwardedFor() {
+    public String getForwarded() {
+      return null;
+    }
+
+    @Override
+    public String getForwardedProto() {
+      return null;
+    }
+
+    @Override
+    public String getForwardedHost() {
+      return null;
+    }
+
+    @Override
+    public String getForwardedIp() {
       return null;
     }
 
