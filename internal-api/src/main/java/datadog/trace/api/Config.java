@@ -26,6 +26,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_FORCE_FIRST;
@@ -103,6 +104,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTO
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPOTS_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
@@ -329,6 +331,7 @@ public class Config {
 
   private final boolean profilingEnabled;
   private final boolean profilingAgentless;
+  private final boolean profilingLegacyTracingIntegrationEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -651,6 +654,9 @@ public class Config {
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, DEFAULT_PROFILING_AGENTLESS);
+    profilingLegacyTracingIntegrationEnabled =
+        configProvider.getBoolean(
+            PROFILING_LEGACY_TRACING_INTEGRATION, DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION);
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -1866,5 +1872,9 @@ public class Config {
         + ", configProvider="
         + configProvider
         + '}';
+  }
+
+  public boolean isProfilingLegacyTracingIntegrationEnabled() {
+    return profilingLegacyTracingIntegrationEnabled;
   }
 }

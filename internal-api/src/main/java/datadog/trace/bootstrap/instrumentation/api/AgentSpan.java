@@ -8,6 +8,8 @@ public interface AgentSpan extends MutableSpan {
 
   DDId getTraceId();
 
+  DDId getSpanId();
+
   @Override
   AgentSpan setTag(String key, boolean value);
 
@@ -75,6 +77,12 @@ public interface AgentSpan extends MutableSpan {
   AgentSpan setResourceName(final CharSequence resourceName);
 
   boolean eligibleForDropping();
+
+  /** mark that the span has been captured in some task which will resume asynchronously. */
+  void startThreadMigration();
+
+  /** mark that the work associated with the span has resumed on a new thread */
+  void finishThreadMigration();
 
   interface Context {
     DDId getTraceId();

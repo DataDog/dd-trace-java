@@ -10,9 +10,12 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.getResourceName;
 import static datadog.trace.util.Strings.toEnvVar;
 
+import datadog.trace.api.Checkpointer;
+import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
@@ -462,15 +465,27 @@ public class Agent {
               @Override
               public void withTracer(Tracer tracer) {
                 try {
-                  log.debug("Registering scope event factory");
-                  ScopeListener scopeListener =
-                      (ScopeListener)
-                          AGENT_CLASSLOADER
-                              .loadClass("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
-                              .getDeclaredConstructor()
-                              .newInstance();
-                  tracer.addScopeListener(scopeListener);
-                  log.debug("Scope event factory {} has been registered", scopeListener);
+                  if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
+                    log.debug("Registering scope event factory");
+                    ScopeListener scopeListener =
+                        (ScopeListener)
+                            AGENT_CLASSLOADER
+                                .loadClass("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
+                                .getDeclaredConstructor()
+                                .newInstance();
+                    tracer.addScopeListener(scopeListener);
+                    log.debug("Scope event factory {} has been registered", scopeListener);
+                  } else if (tracer instanceof AgentTracer.TracerAPI) {
+                    log.debug("Registering checkpointer");
+                    Checkpointer checkpointer =
+                        (Checkpointer)
+                            AGENT_CLASSLOADER
+                                .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
+                                .getDeclaredConstructor()
+                                .newInstance();
+                    ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
+                    log.debug("Checkpointer {} has been registered", checkpointer);
+                  }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
                     e = e.getCause();
