@@ -1,6 +1,5 @@
 // Set properties before any plugins get loaded
 ext {
-  jmcVersion = '8.0.0-SNAPSHOT'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -25,8 +24,6 @@ dependencies {
   compile project(':internal-api')
 
   compile project(':dd-java-agent:agent-profiling:profiling-controller')
-
-  compile "org.openjdk.jmc:common:$jmcVersion"
 
   compile deps.okhttp
   compile group: 'com.github.jnr', name: 'jnr-posix', version: '3.0.52'
