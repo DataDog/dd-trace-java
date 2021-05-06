@@ -11,6 +11,7 @@ import jdk.jfr.Event;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.StackTrace;
+import jdk.jfr.Timespan;
 
 @Name("datadog.Checkpoint")
 @Label("Checkpoint")
@@ -31,6 +32,7 @@ public class CheckpointEvent extends Event {
   private final int flags;
 
   @Label("Thread CPU Time")
+  @Timespan
   private final long cpuTime;
 
   public CheckpointEvent(long traceId, long spanId, int flags) {
