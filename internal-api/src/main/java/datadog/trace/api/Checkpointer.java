@@ -7,20 +7,20 @@ public interface Checkpointer {
    * compression.
    */
   int END = 0x1;
-  /** Marks the start of a span */
-  int SPAN = 0x2;
   /**
    * Indicates that the instrumentation expects synchronous CPU bound work to take place. The CPU
    * work is considered to end when the next event for the same span without this flag set is
    * received.
    */
-  int CPU = 0x4;
+  int CPU = 0x2;
+  /** Marks the start of a span */
+  int SPAN = 0x4 | CPU;
   /**
    * Indicates that the instrumentation expects the span to make a thread migration and resume on
    * another thread. This does not mean that the work on the current thread will cease, unless it is
    * the last event for the span on the thread.
    */
-  int THREAD_MIGRATION = 0x8;
+  int THREAD_MIGRATION = 0x8 | CPU;
 
   /**
    * Notifies the profiler that the span has reached a certain state
