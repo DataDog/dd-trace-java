@@ -14,7 +14,6 @@ import okhttp3.RequestBody;
 import okio.BufferedSink;
 import okio.Okio;
 import okio.Source;
-import org.openjdk.jmc.common.io.IOToolkit;
 
 /**
  * A specialized {@linkplain RequestBody} subclass performing on-the fly compression of the uploaded
@@ -69,8 +68,6 @@ final class CompressingRequestBody extends RequestBody {
 
   // https://github.com/lz4/lz4/blob/dev/doc/lz4_Frame_format.md#general-structure-of-lz4-frame-format
   private static final int[] LZ4_MAGIC = new int[] {0x04, 0x22, 0x4D, 0x18};
-
-  // JMC's IOToolkit hides this from us...
   private static final int ZIP_MAGIC[] = new int[] {80, 75, 3, 4};
   private static final int GZ_MAGIC[] = new int[] {31, 139};
 
@@ -270,7 +267,7 @@ final class CompressingRequestBody extends RequestBody {
     checkMarkSupported(is);
     is.mark(GZ_MAGIC.length);
     try {
-      return IOToolkit.hasMagic(is, GZ_MAGIC);
+      return hasMagic(is, GZ_MAGIC);
     } finally {
       is.reset();
     }
@@ -287,7 +284,7 @@ final class CompressingRequestBody extends RequestBody {
     checkMarkSupported(is);
     is.mark(ZIP_MAGIC.length);
     try {
-      return IOToolkit.hasMagic(is, ZIP_MAGIC);
+      return hasMagic(is, ZIP_MAGIC);
     } finally {
       is.reset();
     }
@@ -304,7 +301,7 @@ final class CompressingRequestBody extends RequestBody {
     checkMarkSupported(is);
     is.mark(LZ4_MAGIC.length);
     try {
-      return IOToolkit.hasMagic(is, LZ4_MAGIC);
+      return hasMagic(is, LZ4_MAGIC);
     } finally {
       is.reset();
     }
@@ -344,5 +341,15 @@ final class CompressingRequestBody extends RequestBody {
         LZ4FrameOutputStream.BLOCKSIZE.SIZE_64KB,
         // copy of the default flag(s) used by LZ4FrameOutputStream
         LZ4FrameOutputStream.FLG.Bits.BLOCK_INDEPENDENCE);
+  }
+
+  private static boolean hasMagic(InputStream is, int[] magic) throws IOException {
+    for (int element : magic) {
+      int b = is.read();
+      if (b != element) {
+        return false;
+      }
+    }
+    return true;
   }
 }
