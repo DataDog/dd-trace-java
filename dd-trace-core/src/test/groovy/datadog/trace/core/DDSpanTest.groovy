@@ -13,6 +13,7 @@ import datadog.trace.core.test.DDCoreSpecification
 
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.api.Checkpointer.CPU
 import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
@@ -309,6 +310,11 @@ class DDSpanTest extends DDCoreSpecification {
     span.finishThreadMigration()
     then:
     1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), THREAD_MIGRATION | END)
+
+    when:
+    span.finishWork()
+    then:
+    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), CPU | END)
 
     when:
     span.finish()

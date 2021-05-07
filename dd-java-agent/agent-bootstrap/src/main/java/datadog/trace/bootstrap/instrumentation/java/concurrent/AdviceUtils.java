@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,9 @@ public class AdviceUtils {
   }
 
   public static void endTaskScope(final TraceScope scope) {
+    if (scope instanceof AgentScope) {
+      ((AgentScope) scope).span().finishWork();
+    }
     if (scope != null) {
       scope.close();
     }
