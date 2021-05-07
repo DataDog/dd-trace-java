@@ -87,8 +87,9 @@ class MuzzlePlugin implements Plugin<Project> {
         assertionMethod.invoke(null, instrumentationCL)
       }
     }
-    compileMuzzle.dependsOn(bootstrapProject.tasks.compileJava)
-    compileMuzzle.dependsOn(toolingProject.tasks.compileJava)
+    [bootstrapProject, toolingProject]*.afterEvaluate {
+      compileMuzzle.dependsOn it.tasks.compileJava
+    }
     project.afterEvaluate {
       compileMuzzle.dependsOn(project.tasks.compileJava)
       if (project.tasks.getNames().contains('compileScala')) {
