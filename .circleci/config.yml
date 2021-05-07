@@ -2,7 +2,6 @@ version: 2.1
 
 defaults: &defaults
   working_directory: ~/dd-trace-java
-  resource_class: xlarge
   docker:
     - image: &default_container datadog/dd-trace-java-docker-build:latest
 
@@ -66,6 +65,7 @@ commands:
 jobs:
   build:
     <<: *defaults
+    resource_class: xlarge
 
     steps:
       - setup_code
@@ -76,10 +76,10 @@ jobs:
       - run:
           name: Build Project
           command: >-
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=2G -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileLatestDepTestGroovy compileTestScala compileLatestDepTestScala compileTestJava compileLatestDepTestJava
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
-            --max-workers=7
+            --max-workers=8
 
       - run:
           name: Collect Libs
@@ -119,6 +119,53 @@ jobs:
 
   default_test_job: &default_test_job
     <<: *defaults
+    resource_class: xlarge
+
+    docker:
+      - image: *default_container
+        # This is used by mongodb smoke tests
+      - image: mongo
+
+    parameters:
+      testTask:
+        type: string
+      prefixTestTask:
+        default: false
+        type: boolean
+
+    steps:
+      - setup_code
+
+      - restore_cache:
+          <<: *cache_keys
+
+      - run:
+          name: Run Tests
+          command: >-
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=400M -Ddatadog.forkedMinHeapSize=128M"
+            ./gradlew <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >> -PskipInstTests
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=8
+
+      - run:
+          name: Collect Reports
+          when: on_fail
+          command: .circleci/collect_reports.sh
+
+      - store_artifacts:
+          path: ./reports
+
+      - run:
+          name: Collect Test Results
+          when: always
+          command: .circleci/collect_results.sh
+
+      - store_test_results:
+          path: ./results
+
+  default_inst_test_job: &default_inst_test_job
+    <<: *default_test_job
+    resource_class: xlarge
 
     docker:
       - image: *default_container
@@ -128,7 +175,7 @@ jobs:
       - image: rabbitmq
         # This is used by aerospike instrumentation tests
       - image: aerospike:5.5.0.9
-        # This is used by mongodb smoke tests
+        # This is used by mongodb instrumentation tests
       - image: mongo
         # This is used by jdbc and vert.x tests
       - image: mysql
@@ -160,10 +207,10 @@ jobs:
       - run:
           name: Run Tests
           command: >-
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=400M -Ddatadog.forkedMinHeapSize=128M"
+            ./gradlew :dd-java-agent:instrumentation:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
             << pipeline.parameters.gradle_flags >>
-            --max-workers=6
+            --max-workers=8
 
       - run:
           name: Collect Reports
@@ -183,6 +230,7 @@ jobs:
 
   agent_integration_tests:
     <<: *default_test_job
+    resource_class: medium
     docker:
       - image: *default_container
       - image: datadog/agent:7.25.0
@@ -194,6 +242,7 @@ jobs:
 
   check:
     <<: *defaults
+    resource_class: medium+
 
     steps:
       - setup_code
@@ -204,20 +253,20 @@ jobs:
       - run:
           name: Build Project
           command: >-
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=2G -Ddatadog.forkedMinHeapSize=64M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1800M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
             ./gradlew build -PskipTests
             << pipeline.parameters.gradle_flags >>
-            --max-workers=7
+            --max-workers=3
 
       - run:
           name: Test Published Dependencies
           command: |
             mvn_local_repo=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
             rm -rf "${mvn_local_repo}/com/datadoghq"
-            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=2G -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=7
+            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            ./gradlew publishToMavenLocal << pipeline.parameters.gradle_flags >> --max-workers=3
             cd test-published-dependencies
-            ../gradlew check
+            ../gradlew check --max-workers=3
 
       - run:
           name: Collect Reports
@@ -229,7 +278,8 @@ jobs:
 
   muzzle:
     <<: *defaults
-    parallelism: 8
+    resource_class: medium
+    parallelism: 4
     steps:
       - setup_code
 
@@ -247,16 +297,16 @@ jobs:
             SKIP_BUILDSCAN="true"
             ./gradlew writeMuzzleTasksToFile
             << pipeline.parameters.gradle_flags >>
-            --max-workers=8
+            --max-workers=3
 
       - run:
           name: Verify Muzzle
           command: >-
             SKIP_BUILDSCAN="true"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
             ./gradlew `circleci tests split --split-by=timings workspace/build/muzzleTasks | xargs`
             << pipeline.parameters.gradle_flags >>
-            --max-workers=16
+            --max-workers=6
 
       - run:
           name: Collect Reports
@@ -289,10 +339,25 @@ workflows:
           name: test_8
           testTask: test jacocoTestReport jacocoTestCoverageVerification
 
-      - default_test_job:
+      - default_inst_test_job:
           requires:
             - build
-          name: test_latest8
+          prefixTestTask: true
+          name: test_<< matrix.testTask >>_inst
+          matrix:
+            parameters:
+              testTask: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15" ]
+
+      - default_inst_test_job:
+          requires:
+            - build
+          name: test_8_inst
+          testTask: test
+
+      - default_inst_test_job:
+          requires:
+            - build
+          name: test_8_inst_latest
           testTask: latestDepTest
 
       - agent_integration_tests:
