@@ -40,7 +40,9 @@ dependencies {
     force = true
   }
 
-  oldPostgresTestCompile group: 'org.postgresql', name: 'postgresql', version: '9.4-1201-jdbc41'
+  oldPostgresTestCompile(group: 'org.postgresql', name: 'postgresql', version: '9.4-1201-jdbc41') {
+    force =true
+  }
 
   testCompile group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
   testCompile group: 'org.postgresql', name: 'postgresql', version: '42.2.18'
@@ -59,3 +61,4 @@ dependencies {
 }
 
 test.dependsOn oldH2Test
+test.dependsOn oldPostgresTest
