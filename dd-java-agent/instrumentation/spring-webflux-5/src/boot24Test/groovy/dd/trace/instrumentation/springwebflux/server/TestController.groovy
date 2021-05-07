@@ -28,7 +28,7 @@ class TestController {
 
   @GetMapping("/foo-delayed")
   Mono<FooModel> getFooDelayed() {
-    return Mono.just(new FooModel(3L, "delayed")).delayElement(Duration.ofMillis(100))
+    return Mono.just(new FooModel(3L, "delayed")).delayElement(Duration.ofMillis(1))
   }
 
   @GetMapping("/foo-failfast/{id}")
@@ -53,7 +53,7 @@ class TestController {
 
   @GetMapping("/foo-delayed-mono/{id}")
   Mono<FooModel> getFooDelayedMono(@PathVariable("id") long id) {
-    return Mono.just(id).delayElement(Duration.ofMillis(100)).map { i -> tracedMethod(i) }
+    return Mono.just(id).delayElement(Duration.ofMillis(1)).map { i -> tracedMethod(i) }
   }
 
   @Trace()

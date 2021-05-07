@@ -533,9 +533,10 @@ class SpringWebfluxTest extends AgentTestRunner {
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
     when:
-    def responses = (0..requestsCount - 1).collect { client.newCall(request).execute() }
+    def responses = (1..requestsCount).collect { client.newCall(request).execute() }
 
     then:
+    responses.size() == requestsCount
     responses.every { it.code == 200 }
     responses.every { it.body().string() == expectedResponseBody }
     assertTraces(responses.size()) {
