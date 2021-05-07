@@ -194,7 +194,6 @@ public class DDAgentWriter implements Writer {
         new TraceProcessingWorker(
             traceBufferSize,
             healthMetrics,
-            monitoring,
             dispatcher,
             featureDiscovery,
             null == prioritization ? FAST_LANE : prioritization,
