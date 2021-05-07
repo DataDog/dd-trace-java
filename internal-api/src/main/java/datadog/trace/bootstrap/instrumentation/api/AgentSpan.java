@@ -84,6 +84,9 @@ public interface AgentSpan extends MutableSpan {
   /** mark that the work associated with the span has resumed on a new thread */
   void finishThreadMigration();
 
+  /** Mark the end of a task associated with the span */
+  void finishWork();
+
   interface Context {
     DDId getTraceId();
 

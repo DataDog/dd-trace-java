@@ -323,6 +323,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     context.getTracer().onFinishThreadMigration(this);
   }
 
+  @Override
+  public void finishWork() {
+    context.getTracer().onFinishWork(this);
+  }
+
   /**
    * Set the sampling priority of the root span of this span's trace
    *

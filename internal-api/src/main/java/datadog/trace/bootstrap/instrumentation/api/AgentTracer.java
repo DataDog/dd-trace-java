@@ -403,6 +403,9 @@ public class AgentTracer {
     public void finishThreadMigration() {}
 
     @Override
+    public void finishWork() {}
+
+    @Override
     public Integer getSamplingPriority() {
       return (int) PrioritySampling.UNSET;
     }
