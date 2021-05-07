@@ -5,10 +5,12 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.core.DDSpanContext;
 import java.util.Iterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
@@ -60,7 +62,17 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
     try {
       if (val != null) {
         final Context spanContext = propagate().extract(val.headers(), GETTER);
-        final AgentSpan span = startSpan(operationName, spanContext);
+        final AgentSpan span;
+
+        if (spanContext instanceof DDSpanContext
+            && !Config.get()
+                .getServiceName()
+                .equals(((DDSpanContext) spanContext).getServiceName())) {
+          // ignore context and start a new trace if it's consumed by different service
+          span = startSpan(operationName);
+        } else {
+          span = startSpan(operationName, spanContext);
+        }
         if (val.value() == null) {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
         }
