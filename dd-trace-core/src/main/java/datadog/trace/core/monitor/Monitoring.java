@@ -52,13 +52,6 @@ public final class Monitoring {
         });
   }
 
-  public Recording newCPUTimer(final String name) {
-    if (!enabled || !isJavaVersionAtLeast(8)) {
-      return NoOpRecording.NO_OP;
-    }
-    return new CPUTimer(name, statsd, flushAfterNanos);
-  }
-
   public Counter newCounter(final String name) {
     if (!enabled) {
       return NoOpCounter.NO_OP;

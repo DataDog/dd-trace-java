@@ -8,8 +8,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.monitor.Monitoring;
-import datadog.trace.core.monitor.Recording;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +37,6 @@ public class TraceProcessingWorker implements AutoCloseable {
   public TraceProcessingWorker(
       final int capacity,
       final HealthMetrics healthMetrics,
-      final Monitoring monitoring,
       final PayloadDispatcher dispatcher,
       final DroppingPolicy droppingPolicy,
       final Prioritization prioritization,
@@ -52,13 +49,7 @@ public class TraceProcessingWorker implements AutoCloseable {
         prioritization.create(primaryQueue, secondaryQueue, droppingPolicy);
     this.serializingHandler =
         new TraceSerializingHandler(
-            primaryQueue,
-            secondaryQueue,
-            healthMetrics,
-            monitoring,
-            dispatcher,
-            flushInterval,
-            timeUnit);
+            primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);
     this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
   }
 
@@ -118,20 +109,17 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
     private long lastTicks;
-    private final Recording dutyCycleTimer;
 
     public TraceSerializingHandler(
         final MpscBlockingConsumerArrayQueue<Object> primaryQueue,
         final MpscBlockingConsumerArrayQueue<Object> secondaryQueue,
         final HealthMetrics healthMetrics,
-        final Monitoring monitoring,
         final PayloadDispatcher payloadDispatcher,
         final long flushInterval,
         final TimeUnit timeUnit) {
       this.primaryQueue = primaryQueue;
       this.secondaryQueue = secondaryQueue;
       this.healthMetrics = healthMetrics;
-      this.dutyCycleTimer = monitoring.newCPUTimer("tracer.duty.cycle");
       this.doTimeFlush = flushInterval > 0;
       this.payloadDispatcher = payloadDispatcher;
       if (doTimeFlush) {
@@ -177,14 +165,11 @@ public class TraceProcessingWorker implements AutoCloseable {
 
     private void runDutyCycle() throws InterruptedException {
       Thread thread = Thread.currentThread();
-      dutyCycleTimer.start();
       while (!thread.isInterrupted()) {
         consumeFromPrimaryQueue();
         consumeFromSecondaryQueue();
         flushIfNecessary();
-        dutyCycleTimer.reset();
       }
-      dutyCycleTimer.stop();
     }
 
     private void consumeFromPrimaryQueue() throws InterruptedException {

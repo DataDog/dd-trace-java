@@ -39,7 +39,6 @@ class TraceProcessingWorkerTest extends DDSpecification {
     setup:
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(HealthMetrics),
-      monitoring,
       flushCountingPayloadDispatcher(flushCount), {
         false
       },
@@ -63,7 +62,6 @@ class TraceProcessingWorkerTest extends DDSpecification {
     setup:
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(HealthMetrics),
-      monitoring,
       flushCountingPayloadDispatcher(flushCount),
       {
         false
@@ -89,7 +87,6 @@ class TraceProcessingWorkerTest extends DDSpecification {
     setup:
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(HealthMetrics),
-      monitoring,
       flushCountingPayloadDispatcher(flushCount),
       {
         false
@@ -131,7 +128,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
       errorReported.incrementAndGet()
     }
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
-      monitoring, throwingDispatcher, {
+      throwingDispatcher, {
         false
       }, FAST_LANE,
       100, TimeUnit.SECONDS) // prevent heartbeats from helping the flush happen
@@ -160,7 +157,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
       acceptedCount.getAndIncrement()
     }
     HealthMetrics healthMetrics = Mock(HealthMetrics)
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
       countingDispatcher, {
         false
       }, FAST_LANE, 100, TimeUnit.SECONDS)
@@ -212,7 +209,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     setup:
     PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
     HealthMetrics healthMetrics = Mock(HealthMetrics)
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
       countingDispatcher, {
         false
       }, FAST_LANE, 100, TimeUnit.SECONDS)
