@@ -34,7 +34,11 @@ class B3HttpExtractorTest extends DDSpecification {
     context.traceId == DDId.from("$traceId")
     context.spanId == DDId.from("$spanId")
     context.baggage == [:]
-    context.tags == ["some-tag": "my-interesting-info"]
+    context.tags == [
+      "b3.traceid": context.traceId.toHexStringOrOriginal(),
+      "b3.spanid" : context.spanId.toHexStringOrOriginal(),
+      "some-tag"  : "my-interesting-info"
+    ]
     context.samplingPriority == expectedSamplingPriority
     context.origin == null
 
@@ -55,31 +59,34 @@ class B3HttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    def context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
     if (expectedTraceId) {
+      assert context instanceof ExtractedContext
       assert context.traceId == expectedTraceId
       assert context.spanId == expectedSpanId
+      assert context.tags["b3.traceid"] == expectedTraceId.toHexStringOrOriginal()
+      assert context.tags["b3.spanid"] == expectedSpanId.toHexStringOrOriginal()
     } else {
-      assert context == null
+      assert context == null || (context instanceof TagContext && !(context instanceof ExtractedContext))
     }
 
     where:
-    traceId                            | spanId             | expectedTraceId                  | expectedSpanId
-    "-1"                               | "1"                | null                             | null
-    "1"                                | "-1"               | null                             | null
-    "0"                                | "1"                | null                             | null
-    "00001"                            | "00001"            | DDId.ONE                         | DDId.ONE
-    "463ac35c9f6413ad"                 | "463ac35c9f6413ad" | DDId.from("5060571933882717101") | DDId.from("5060571933882717101")
-    "463ac35c9f6413ad48485a3953bb6124" | "1"                | DDId.from("5208512171318403364") | DDId.ONE
-    "f" * 16                           | "1"                | DDId.MAX                         | DDId.ONE
-    "a" * 16 + "f" * 16                | "1"                | DDId.MAX                         | DDId.ONE
-    "1" + "f" * 32                     | "1"                | null                             | null
-    "0" + "f" * 32                     | "1"                | null                             | null
-    "1"                                | "f" * 16           | DDId.ONE                         | DDId.MAX
-    "1"                                | "1" + "f" * 16     | null                             | null
-    "1"                                | "000" + "f" * 16   | DDId.ONE                         | DDId.MAX
+    traceId                            | spanId             | expectedTraceId                                                       | expectedSpanId
+    "-1"                               | "1"                | null                                                                  | null
+    "1"                                | "-1"               | null                                                                  | null
+    "0"                                | "1"                | null                                                                  | null
+    "00001"                            | "00001"            | DDId.fromHexTruncatedWithOriginal("00001")                            | DDId.fromHexTruncatedWithOriginal("00001")
+    "463ac35c9f6413ad"                 | "463ac35c9f6413ad" | DDId.from("5060571933882717101")                                      | DDId.from("5060571933882717101")
+    "463ac35c9f6413ad48485a3953bb6124" | "1"                | DDId.fromHexTruncatedWithOriginal("463ac35c9f6413ad48485a3953bb6124") | DDId.ONE
+    "f" * 16                           | "1"                | DDId.MAX                                                              | DDId.ONE
+    "a" * 16 + "f" * 16                | "1"                | DDId.fromHexTruncatedWithOriginal("a" * 16 + "f" * 16)                | DDId.ONE
+    "1" + "f" * 32                     | "1"                | null                                                                  | null
+    "0" + "f" * 32                     | "1"                | null                                                                  | null
+    "1"                                | "f" * 16           | DDId.ONE                                                              | DDId.MAX
+    "1"                                | "1" + "f" * 16     | null                                                                  | null
+    "1"                                | "000" + "f" * 16   | DDId.ONE                                                              | DDId.fromHexWithOriginal("000" + "f" * 16)
   }
 
   def "extract header tags with no propagation"() {
