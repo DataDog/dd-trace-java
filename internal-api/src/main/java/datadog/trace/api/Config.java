@@ -1116,6 +1116,10 @@ public class Config {
     return profilingHotspotsEnabled;
   }
 
+  public boolean isProfilingLegacyTracingIntegrationEnabled() {
+    return profilingLegacyTracingIntegrationEnabled;
+  }
+
   public boolean isKafkaClientPropagationEnabled() {
     return kafkaClientPropagationEnabled;
   }
@@ -1872,9 +1876,5 @@ public class Config {
         + ", configProvider="
         + configProvider
         + '}';
-  }
-
-  public boolean isProfilingLegacyTracingIntegrationEnabled() {
-    return profilingLegacyTracingIntegrationEnabled;
   }
 }
