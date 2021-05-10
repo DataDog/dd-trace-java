@@ -154,9 +154,24 @@ task configureSharedShadowJar {
       unused.removeAll(subprojShadowJarUnit.transitiveDependencies)
     }
 
+    def manualInclusions = [
+      // https://github.com/jnr/jffi/blob/96a2e8ae0c11eb86d9c718ad0d0421e6360f1a8b/src/main/java/com/kenai/jffi/internal/StubLoader.java#L51
+      ~'\\Acom/kenai/jffi/Version\\.class\\z',
+      // https://github.com/jnr/jffi/blob/39cfdaff1b7882823dd21f17a11ca68fbf974a92/src/main/java/com/kenai/jffi/Init.java#L51
+      ~'\\Acom/kenai/jffi/internal/StubLoader\\.class\\z',
+      // https://github.com/jnr/jnr-ffi/blob/a6271ada96075823b6e4417698cdae8d041e8d6b/src/main/java/jnr/ffi/provider/FFIProvider.java#L68
+      ~'\\Ajnr/ffi/provider/jffi/Provider\\.class\\z',
+      // https://github.com/jnr/jnr-ffi/blob/a6271ada96075823b6e4417698cdae8d041e8d6b/src/main/java/jnr/ffi/provider/jffi/NativeRuntime.java#L95
+      ~'\\Ajnr/ffi/provider/jffi/platform/.+/TypeAliases\\.class\\z',
+      // see ConstantResolver / ConstantSet
+      ~'\\Ajnr/constants/',
+    ]
+
     includeShadowJar(sharedShadowJar, 'shared') {
-      exclude unused.collect {clazz ->
+      exclude unused.collect { clazz ->
         "${clazz.toString().replace('.', '/')}.class"
+      }.findAll { entryName ->
+        !manualInclusions.any { entryName =~ it }
       }
     }
   }
