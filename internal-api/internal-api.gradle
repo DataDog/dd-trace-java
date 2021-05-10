@@ -44,6 +44,7 @@ excludedClassesCoverage += [
 dependencies {
   // references TraceScope and Continuation from public api
   compile project(':dd-trace-api')
+  compile deps.slf4j
 
   testCompile project(":utils:test-utils")
 }
