@@ -14,8 +14,6 @@ import spock.lang.Requires
 import java.time.Duration
 
 import static datadog.trace.api.Checkpointer.CPU
-import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 
 @Requires({
   jvm.java11Compatible
@@ -28,6 +26,7 @@ class ScopeEventTest extends DDSpecification {
   def setup() {
     injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
     injectSysConfig(ProfilingConfig.PROFILING_HOTSPOTS_ENABLED, "true")
+    injectSysConfig(ProfilingConfig.PROFILING_CHECKPOINTS_RECORD_CPU_TIME, "true")
     tracer = CoreTracer.builder().writer(new ListWriter()).build()
     GlobalTracer.forceRegister(tracer)
     tracer.addScopeListener(new ScopeEventFactory())
@@ -306,7 +305,7 @@ class ScopeEventTest extends DDSpecification {
       assert it.getLong("spanId") == span.getSpanId().toLong()
       int flags = it.getInt("flags")
       long cpuTime = it.getLong("cpuTime")
-      if ((flags & (CPU | SPAN | THREAD_MIGRATION)) != 0) {
+      if ((flags & CPU) != 0) {
         assert cpuTime > 0
       } else {
         assert cpuTime == 0L

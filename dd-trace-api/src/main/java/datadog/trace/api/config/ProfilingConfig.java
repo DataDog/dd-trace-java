@@ -45,6 +45,8 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
       "profiling.legacy.tracing.integration";
+  public static final String PROFILING_CHECKPOINTS_RECORD_CPU_TIME =
+      "profiling.checkpoints.record.cpu.time";
 
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
