@@ -8,6 +8,7 @@ import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClientErrorHandler;
 import datadog.trace.api.Config;
+import datadog.trace.api.IOLogger;
 import datadog.trace.api.Platform;
 import datadog.trace.util.AgentTaskScheduler;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   private static final Logger log = LoggerFactory.getLogger(DDAgentStatsDConnection.class);
+  private static final IOLogger ioLogger = new IOLogger(log);
 
   private static final com.timgroup.statsd.StatsDClient NO_OP = new NoOpStatsDClient();
 
@@ -39,8 +41,9 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   @Override
   public void handle(final Exception e) {
     errorCount.incrementAndGet();
-    log.error(
-        "{} in StatsD client - {}", e.getClass().getSimpleName(), statsDAddress(host, port), e);
+    String message =
+        e.getClass().getSimpleName() + " in StatsD client - " + statsDAddress(host, port);
+    ioLogger.error(message, e);
   }
 
   public void acquire() {

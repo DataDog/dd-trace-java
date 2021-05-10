@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
+import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
@@ -358,11 +359,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             ? Config.get().getIdGenerationStrategy()
             : idGenerationStrategy;
 
-    if (statsDClient == null) {
+    if (statsDClient != null) {
+      this.statsDClient = statsDClient;
+    } else if (writer == null || writer instanceof DDAgentWriter) {
       this.statsDClient = createStatsDClient(config);
     } else {
-      this.statsDClient = statsDClient;
+      // avoid creating internal StatsD client when using external trace writer
+      this.statsDClient = StatsDClient.NO_OP;
     }
+
     this.monitoring =
         config.isHealthMetricsEnabled()
             ? new Monitoring(this.statsDClient, 10, TimeUnit.SECONDS)
