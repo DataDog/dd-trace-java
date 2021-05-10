@@ -19,7 +19,7 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn shadowJar
+  dependsOn "shadowJar"
 
   jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archivePath}"
 }

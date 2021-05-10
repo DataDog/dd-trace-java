@@ -19,13 +19,13 @@ testSets {
   }
 }
 
-compileTestGroovy {
-  dependsOn compileTestScala
+tasks.named("compileTestGroovy").configure {
+  dependsOn "compileTestScala"
   classpath += files(compileTestScala.destinationDir)
 }
 
-compileLatestDepTestGroovy {
-  dependsOn compileLatestDepTestScala
+tasks.named("compileLatestDepTestGroovy").configure {
+  dependsOn "compileLatestDepTestScala"
   classpath += files(compileLatestDepTestScala.destinationDir)
 }
 

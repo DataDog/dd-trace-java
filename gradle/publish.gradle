@@ -58,7 +58,7 @@ publishing {
 
 if (project.plugins.hasPlugin('com.github.johnrengelman.shadow')) {
   // Disable gradle module metadata to avoid publishing contradictory info.
-  tasks.withType(GenerateModuleMetadata) {
+  tasks.withType(GenerateModuleMetadata).configureEach {
     enabled = false
   }
 }

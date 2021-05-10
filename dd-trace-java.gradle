@@ -83,7 +83,7 @@ allprojects {
   }
 }
 
-task writeMuzzleTasksToFile {
+tasks.register('writeMuzzleTasksToFile') {
   doLast {
     def muzzleFile = file("${buildDir}/muzzleTasks")
     assert muzzleFile.parentFile.mkdirs() || muzzleFile.parentFile.directory

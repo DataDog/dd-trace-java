@@ -24,7 +24,7 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn shadowJar
+  dependsOn "shadowJar"
 
   jvmArgs "-Ddatadog.smoketest.fieldinjection.shadowJar.path=${tasks.shadowJar.archivePath}"
 }
