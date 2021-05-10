@@ -35,25 +35,25 @@ dependencies {
   //  compileOnly group: 'org.springframework', name: 'spring-webmvc', version: '2.5.6'
   //  compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.4'
 
-  testCompile(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:testing')) {
     exclude(module: 'jetty-server') // incompatable servlet api
   }
 
   // Include servlet instrumentation for verifying the tomcat requests
-  testCompile project(':dd-java-agent:instrumentation:servlet')
-  testCompile project(':dd-java-agent:instrumentation:servlet:request-3')
+  testImplementation project(':dd-java-agent:instrumentation:servlet')
+  testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
 
-  testCompile group: 'javax.validation', name: 'validation-api', version: '1.1.0.Final'
-  testCompile group: 'org.hibernate', name: 'hibernate-validator', version: '5.4.2.Final'
+  testImplementation group: 'javax.validation', name: 'validation-api', version: '1.1.0.Final'
+  testImplementation group: 'org.hibernate', name: 'hibernate-validator', version: '5.4.2.Final'
 
-  testCompile group: 'org.spockframework', name: 'spock-spring', version: "$versions.spock"
+  testImplementation group: 'org.spockframework', name: 'spock-spring', version: "$versions.spock"
 
-  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.17.RELEASE'
-  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.17.RELEASE'
-  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '1.5.17.RELEASE'
-  testCompile group: 'org.springframework.security.oauth', name: 'spring-security-oauth2', version: '2.0.16.RELEASE'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.17.RELEASE'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.17.RELEASE'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '1.5.17.RELEASE'
+  testImplementation group: 'org.springframework.security.oauth', name: 'spring-security-oauth2', version: '2.0.16.RELEASE'
 
   // For spring security
-  testCompile "jakarta.xml.bind:jakarta.xml.bind-api:2.3.2"
-  testCompile "org.glassfish.jaxb:jaxb-runtime:2.3.2"
+  testImplementation "jakarta.xml.bind:jakarta.xml.bind-api:2.3.2"
+  testImplementation "org.glassfish.jaxb:jaxb-runtime:2.3.2"
 }

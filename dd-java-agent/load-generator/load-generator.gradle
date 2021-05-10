@@ -1,11 +1,11 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  compile project(':dd-trace-api')
-  compile project(':dd-trace-ot')
+  implementation project(':dd-trace-api')
+  implementation project(':dd-trace-ot')
 
-  compile 'info.picocli:picocli:4.0.4'
-  compile deps.guava
+  implementation 'info.picocli:picocli:4.0.4'
+  implementation deps.guava
 }
 
 tasks.register('launch', JavaExec) {

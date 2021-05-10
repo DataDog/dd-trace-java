@@ -28,12 +28,12 @@ testSets {
 dependencies {
   compileOnly group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
 
-  testCompile deps.scala
-  testCompile group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
-  testCompile project(':dd-java-agent:instrumentation:akka-concurrent')
-  testCompile project(':dd-java-agent:instrumentation:scala-concurrent')
-  testCompile project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
-  testCompile project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
+  testImplementation deps.scala
+  testImplementation group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
+  testImplementation project(':dd-java-agent:instrumentation:akka-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
+  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
 
-  latestDepTestCompile group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: '+'
+  latestDepTestImplementation group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: '+'
 }

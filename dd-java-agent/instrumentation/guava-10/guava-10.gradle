@@ -19,7 +19,7 @@ testSets {
 dependencies {
   compileOnly group: 'com.google.guava', name: 'guava', version: '10.0'
 
-  testCompile group: 'com.google.guava', name: 'guava', version: '10.0'
+  testImplementation group: 'com.google.guava', name: 'guava', version: '10.0'
 
-  latestDepTestCompile group: 'com.google.guava', name: 'guava', version: '+'
+  latestDepTestImplementation group: 'com.google.guava', name: 'guava', version: '+'
 }

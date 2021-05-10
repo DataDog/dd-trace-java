@@ -13,13 +13,13 @@ apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
 
 dependencies {
-  compile deps.slf4j
-  compile project(':internal-api')
+  api deps.slf4j
+  api project(':internal-api')
 
-  compile project(':dd-java-agent:agent-profiling:profiling-uploader')
-  compile project(':dd-java-agent:agent-profiling:profiling-controller')
-  compile project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
-  compile project(':dd-java-agent:agent-profiling:profiling-controller-oracle')
+  api project(':dd-java-agent:agent-profiling:profiling-uploader')
+  api project(':dd-java-agent:agent-profiling:profiling-controller')
+  api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
+  api project(':dd-java-agent:agent-profiling:profiling-controller-oracle')
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8

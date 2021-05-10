@@ -23,13 +23,13 @@ jar {
 }
 
 dependencies {
-  compile project(':dd-trace-api')
+  implementation project(':dd-trace-api')
 
-  testCompile project(':dd-smoke-tests')
-  testCompile project(':dd-java-agent:agent-profiling:profiling-testing')
-  testCompile deps.junit5
-  testCompile deps.mockito
-  testCompile deps.jmc
+  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-java-agent:agent-profiling:profiling-testing')
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+  testImplementation deps.jmc
 }
 
 tasks.withType(Test).configureEach {

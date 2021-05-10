@@ -12,9 +12,9 @@ jar {
 }
 
 dependencies {
-  compile project(':dd-trace-api')
+  implementation project(':dd-trace-api')
 
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }
 
 tasks.withType(Test).configureEach {

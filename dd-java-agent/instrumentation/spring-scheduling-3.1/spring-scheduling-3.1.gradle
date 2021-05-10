@@ -26,19 +26,19 @@ dependencies {
   // @Async requires proxying and older versions can't read classfile versions > 51
   // we muzzle older versions of spring anyway
   compileOnly group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
-  testCompile group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
+  testImplementation group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
 
-  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
 
-  testCompile group: 'net.javacrumbs.shedlock', name: 'shedlock-spring', version: '4.21.0'
-  testCompile group: 'net.javacrumbs.shedlock', name: 'shedlock-provider-jdbc-template', version: '4.21.0'
-  testCompile group: 'com.h2database', name: 'h2', version: '1.4.199'
-  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.4.0'
+  testImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-spring', version: '4.21.0'
+  testImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-provider-jdbc-template', version: '4.21.0'
+  testImplementation group: 'com.h2database', name: 'h2', version: '1.4.199'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.4.0'
 
-  latestDepTestCompile group: 'org.springframework', name: 'spring-context', version: '5.+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '5.+'
 
-  latestDepTestCompile group: 'net.javacrumbs.shedlock', name: 'shedlock-spring', version: '4.+'
-  latestDepTestCompile group: 'net.javacrumbs.shedlock', name: 'shedlock-provider-jdbc-template', version: '4.+'
-  latestDepTestCompile group: 'com.h2database', name: 'h2', version: '+'
-  latestDepTestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.+'
+  latestDepTestImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-spring', version: '4.+'
+  latestDepTestImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-provider-jdbc-template', version: '4.+'
+  latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.+'
 }

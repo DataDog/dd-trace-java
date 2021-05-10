@@ -9,9 +9,9 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
 
 dependencies {
-  compile deps.slf4j
-  compile project(':dd-trace-core')
-  testCompile project(':dd-java-agent:testing')
+  api deps.slf4j
+  api project(':dd-trace-core')
+  testImplementation project(':dd-java-agent:testing')
 }
 
 /*

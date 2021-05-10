@@ -20,6 +20,6 @@ testSets {
 dependencies {
   compileOnly group: 'javax.xml.ws', name: 'jaxws-api', version: '2.0'
 
-  testCompile group: 'javax.xml.ws', name: 'jaxws-api', version: '2.0'
-  latestDepTestCompile group: 'javax.xml.ws', name: 'jaxws-api', version: '+'
+  testImplementation group: 'javax.xml.ws', name: 'jaxws-api', version: '2.0'
+  latestDepTestImplementation group: 'javax.xml.ws', name: 'jaxws-api', version: '+'
 }
