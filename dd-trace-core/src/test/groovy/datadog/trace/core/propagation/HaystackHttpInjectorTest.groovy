@@ -7,6 +7,7 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
+import static datadog.trace.core.propagation.HaystackHttpCodec.CONVERT_UUID_TO_HEX_STRING
 import static datadog.trace.core.propagation.HaystackHttpCodec.DD_PARENT_ID_BAGGAGE_KEY
 import static datadog.trace.core.propagation.HaystackHttpCodec.DD_SPAN_ID_BAGGAGE_KEY
 import static datadog.trace.core.propagation.HaystackHttpCodec.DD_TRACE_ID_BAGGAGE_KEY
@@ -70,11 +71,10 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
     setup:
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
-    def haystackUuid = traceUuid
     final DDSpanContext mockedContext =
       new DDSpanContext(
-      DDId.from(traceId),
-      DDId.from(spanId),
+      DDId.fromStringWithOriginal(traceUuid, CONVERT_UUID_TO_HEX_STRING),
+      DDId.fromStringWithOriginal(spanUuid, CONVERT_UUID_TO_HEX_STRING),
       DDId.ZERO,
       null,
       "fakeService",
@@ -82,7 +82,7 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       samplingPriority,
       origin,
-      ["k1" : "v1", "k2" : "v2", (HAYSTACK_TRACE_ID_BAGGAGE_KEY) : haystackUuid],
+      ["k1" : "v1", "k2" : "v2"],
       false,
       "fakeType",
       0,
@@ -106,9 +106,9 @@ class HaystackHttpInjectorTest extends DDCoreSpecification {
 
     where:
     traceId               | spanId                | samplingPriority              | origin | traceUuid                              | spanUuid
-    "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"
-    "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"
-    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-ffff-ffffffffffff" | "44617461-646f-6721-ffff-fffffffffffe"
-    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-ffff-fffffffffffe" | "44617461-646f-6721-ffff-ffffffffffff"
+    "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-0000-000000000001" | "45617461-646f-6721-0000-000000000002"
+    "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-0000-000000000001" | "45617461-646f-6721-0000-000000000002"
+    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-ffff-ffffffffffff" | "45617461-646f-6721-ffff-fffffffffffe"
+    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-ffff-fffffffffffe" | "45617461-646f-6721-ffff-ffffffffffff"
   }
 }

@@ -3,6 +3,7 @@ package datadog.trace.core.propagation;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.DDId;
+import datadog.trace.api.compat.Function;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -49,30 +50,25 @@ public class HaystackHttpCodec {
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       try {
         // Given that Haystack uses a 128-bit UUID/GUID for all ID representations, need to convert
-        // from 64-bit BigInteger
-        //  also record the original DataDog IDs into Baggage payload
-        //
-        // If the original trace has originated within Haystack system and we have it saved in
-        // Baggage, and it is equal
-        //  to the converted value in BigInteger, use that instead.
-        //  this will preserve the complete UUID/GUID without losing the most significant bit part
-        String originalHaystackTraceId =
-            getBaggageItemIgnoreCase(context.getBaggageItems(), HAYSTACK_TRACE_ID_BAGGAGE_KEY);
-        String injectedTraceId;
-        if (originalHaystackTraceId != null
-            && convertUUIDToBigInt(originalHaystackTraceId).equals(context.getTraceId())) {
-          injectedTraceId = originalHaystackTraceId;
-        } else {
-          injectedTraceId = convertBigIntToUUID(context.getTraceId());
-        }
+        // from 64-bit Datadog DDId.
+        // Also record the original Datadog IDs into the Baggage payload
+        String injectedTraceId =
+            context.getTraceId().toStringOrOriginal(CONVERT_DDID_TO_UUID_STRING);
         setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
+        // TODO Is this really necessary since the original Haystack Id is preserved?
         context.setTag(HAYSTACK_TRACE_ID_BAGGAGE_KEY, injectedTraceId);
         setter.set(
             carrier, DD_TRACE_ID_BAGGAGE_KEY, HttpCodec.encode(context.getTraceId().toString()));
-        setter.set(carrier, SPAN_ID_KEY, convertBigIntToUUID(context.getSpanId()));
+        setter.set(
+            carrier,
+            SPAN_ID_KEY,
+            context.getSpanId().toStringOrOriginal(CONVERT_DDID_TO_UUID_STRING));
         setter.set(
             carrier, DD_SPAN_ID_BAGGAGE_KEY, HttpCodec.encode(context.getSpanId().toString()));
-        setter.set(carrier, PARENT_ID_KEY, convertBigIntToUUID(context.getParentId()));
+        setter.set(
+            carrier,
+            PARENT_ID_KEY,
+            context.getParentId().toStringOrOriginal(CONVERT_DDID_TO_UUID_STRING));
         setter.set(
             carrier, DD_PARENT_ID_BAGGAGE_KEY, HttpCodec.encode(context.getParentId().toString()));
 
@@ -173,14 +169,17 @@ public class HaystackHttpCodec {
           if (null != firstValue) {
             switch (classification) {
               case TRACE_ID:
-                traceId = convertUUIDToBigInt(value);
+                traceId = DDId.fromStringWithOriginal(value, CONVERT_UUID_TO_HEX_STRING);
+                // TODO Can this be safely removed or is external code depending on it?
                 addBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, HttpCodec.decode(value));
                 break;
               case SPAN_ID:
-                spanId = convertUUIDToBigInt(value);
+                spanId = DDId.fromStringWithOriginal(value, CONVERT_UUID_TO_HEX_STRING);
+                // TODO Can this be safely removed or is external code depending on it?
                 addBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, HttpCodec.decode(value));
                 break;
               case PARENT_ID:
+                // TODO Can this be safely removed or is external code depending on it?
                 addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, HttpCodec.decode(value));
                 break;
               case TAGS:
@@ -225,40 +224,49 @@ public class HaystackHttpCodec {
     }
   }
 
-  private static String convertBigIntToUUID(DDId id) {
-    // This is not a true/real UUID, as we don't care about the version and variant markers
-    //  the creation is just taking the least significant bits and doing static most significant
-    // ones.
-    //  this is done for the purpose of being able to maintain cardinality and idempotence of the
-    // conversion
-    String idHex = String.format("%016x", id.toLong());
-    return DATADOG + "-" + idHex.substring(0, 4) + "-" + idHex.substring(4);
-  }
+  // Test reachable
+  static final Function<DDId, String> CONVERT_DDID_TO_UUID_STRING =
+      new Function<DDId, String>() {
+        @Override
+        public String apply(DDId id) {
+          // This is not a true/real UUID, as we don't care about the version and variant markers
+          // the creation is just taking the least significant bits and doing static most
+          // significant ones.
+          // This is done for the purpose of being able to maintain cardinality and idempotence of
+          // the conversion.
+          String idHex = String.format("%016x", id.toLong());
+          return DATADOG + "-" + idHex.substring(0, 4) + "-" + idHex.substring(4);
+        }
+      };
 
-  @SuppressForbidden
-  private static DDId convertUUIDToBigInt(String value) {
-    try {
-      if (value.contains("-")) {
-        String[] strings = value.split("-");
-        // We are only interested in the least significant bit component, dropping the most
-        // significant one.
-        if (strings.length == 5) {
-          String idHex = strings[3] + strings[4];
-          return DDId.fromHex(idHex);
+  // Test reachable
+  static final Function<String, String> CONVERT_UUID_TO_HEX_STRING =
+      new Function<String, String>() {
+        @SuppressForbidden
+        @Override
+        public String apply(String value) {
+          try {
+            if (value.contains("-")) {
+              String[] strings = value.split("-");
+              // We are only interested in the least significant bit component, dropping the most
+              // significant one.
+              if (strings.length == 5) {
+                return strings[3] + strings[4];
+              }
+              throw new NumberFormatException("Invalid UUID format: " + value);
+            } else {
+              // This could be a regular hex id without separators
+              int length = value.length();
+              if (length == 32) {
+                return value.substring(16);
+              } else {
+                return value;
+              }
+            }
+          } catch (final Exception e) {
+            throw new IllegalArgumentException(
+                "Exception when converting UUID to DDId: " + value, e);
+          }
         }
-        throw new NumberFormatException("Invalid UUID format: " + value);
-      } else {
-        // This could be a regular hex id without separators
-        int length = value.length();
-        if (length == 32) {
-          return DDId.fromHex(value.substring(16));
-        } else {
-          return DDId.fromHex(value);
-        }
-      }
-    } catch (final Exception e) {
-      throw new IllegalArgumentException(
-          "Exception when converting UUID to BigInteger: " + value, e);
-    }
-  }
+      };
 }

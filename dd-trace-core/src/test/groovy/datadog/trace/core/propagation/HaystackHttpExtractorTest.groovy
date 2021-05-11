@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
+import static datadog.trace.core.propagation.HaystackHttpCodec.CONVERT_DDID_TO_UUID_STRING
 import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY
@@ -30,6 +31,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
 
     then:
     context.traceId == DDId.from(traceId)
+    context.traceId.toStringOrOriginal(CONVERT_DDID_TO_UUID_STRING) == traceUuid
+    context.spanId.toStringOrOriginal(CONVERT_DDID_TO_UUID_STRING) == spanUuid
     context.spanId == DDId.from(spanId)
     context.baggage == ["k1": "v1", "k2": "v2", "Haystack-Trace-ID": traceUuid, "Haystack-Span-ID": spanUuid]
     context.tags == ["some-tag": "my-interesting-info"]
@@ -38,10 +41,10 @@ class HaystackHttpExtractorTest extends DDSpecification {
 
     where:
     traceId               | spanId                | samplingPriority              | origin | traceUuid                              | spanUuid
-    "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"
-    "2"                   | "3"                   | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-0000-000000000002" | "44617461-646f-6721-0000-000000000003"
-    "${TRACE_ID_MAX}"     | "${TRACE_ID_MAX - 6}" | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-ffff-ffffffffffff" | "44617461-646f-6721-ffff-fffffffffff9"
-    "${TRACE_ID_MAX - 1}" | "${TRACE_ID_MAX - 7}" | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-ffff-fffffffffffe" | "44617461-646f-6721-ffff-fffffffffff8"
+    "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null   | "45617461-646f-6721-0000-000000000001" | "48617461-646f-6721-0000-000000000002"
+    "2"                   | "3"                   | PrioritySampling.SAMPLER_KEEP | null   | "46617461-646f-6721-0000-000000000002" | "47617461-646f-6721-0000-000000000003"
+    "${TRACE_ID_MAX}"     | "${TRACE_ID_MAX - 6}" | PrioritySampling.SAMPLER_KEEP | null   | "47617461-646f-6721-ffff-ffffffffffff" | "46617461-646f-6721-ffff-fffffffffff9"
+    "${TRACE_ID_MAX - 1}" | "${TRACE_ID_MAX - 7}" | PrioritySampling.SAMPLER_KEEP | null   | "48617461-646f-6721-ffff-fffffffffffe" | "45617461-646f-6721-ffff-fffffffffff8"
   }
 
   def "extract header tags with no propagation"() {
@@ -165,6 +168,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
     if (expectedTraceId) {
       assert context.traceId == expectedTraceId
       assert context.spanId == expectedSpanId
+      assert context.traceId.toStringOrOriginal(CONVERT_DDID_TO_UUID_STRING) == traceId
+      assert context.spanId.toStringOrOriginal(CONVERT_DDID_TO_UUID_STRING) == spanId
     } else {
       assert context == null
     }
@@ -177,7 +182,7 @@ class HaystackHttpExtractorTest extends DDSpecification {
     "00001"                                | "00001"                                | DDId.ONE                       | DDId.ONE
     "463ac35c9f6413ad"                     | "463ac35c9f6413ad"                     | DDId.from(5060571933882717101) | DDId.from(5060571933882717101)
     "463ac35c9f6413ad48485a3953bb6124"     | "1"                                    | DDId.from(5208512171318403364) | DDId.ONE
-    "44617461-646f-6721-463a-c35c9f6413ad" | "44617461-646f-6721-463a-c35c9f6413ad" | DDId.from(5060571933882717101) | DDId.from(5060571933882717101)
+    "74617461-646f-6721-463a-c35c9f6413ad" | "47617461-646f-6721-463a-c35c9f6413ad" | DDId.from(5060571933882717101) | DDId.from(5060571933882717101)
     "f" * 16                               | "1"                                    | DDId.MAX                       | DDId.ONE
     "a" * 16 + "f" * 16                    | "1"                                    | DDId.MAX                       | DDId.ONE
     "1" + "f" * 32                         | "1"                                    | null                           | DDId.ONE

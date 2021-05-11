@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.trace.api.compat.Function;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -83,6 +84,22 @@ public class DDId {
     int len = s.length();
     int trimmed = Math.min(s.length(), 16);
     return new DDIdOriginal(parseUnsignedLongHex(s, len - trimmed, trimmed), s);
+  }
+
+  /**
+   * Create a new {@code DDId} from the given {@code String} by converting that into an unsigned 64
+   * bit hex representation of an id, while retaining the original {@code String} representation for
+   * use in headers.
+   *
+   * @param s String in hex of unsigned 64 bit id
+   * @param converter Function that translates the String s into a hex String representing the
+   *     unsigned 64 bit id.
+   * @return DDId
+   * @throws NumberFormatException
+   */
+  public static DDId fromStringWithOriginal(String s, Function<String, String> converter)
+      throws NumberFormatException {
+    return new DDIdOriginal(parseUnsignedLongHex(converter.apply(s)), s);
   }
 
   private final long id;
@@ -284,6 +301,18 @@ public class DDId {
   }
 
   /**
+   * Returns the converted {@code String} representation, of the unsigned 64 bit id, or the original
+   * {@code String} used to create this {@code DDId}. The converted {@code String} will NOT be
+   * cached.
+   *
+   * @param converter Function that translates the DDId into a custom String representation
+   * @return non zero padded hex String
+   */
+  public String toStringOrOriginal(Function<DDId, String> converter) {
+    return converter.apply(this);
+  }
+
+  /**
    * Returns the id as a long representing the bits of the unsigned 64 bit id. This means that
    * values larger than Long.MAX_VALUE will be represented as negative numbers.
    *
@@ -307,6 +336,11 @@ public class DDId {
 
     @Override
     public String toHexStringOrOriginal() {
+      return this.original;
+    }
+
+    @Override
+    public String toStringOrOriginal(Function<DDId, String> converter) {
       return this.original;
     }
   }

@@ -1,6 +1,5 @@
 package datadog.trace.api
 
-
 import datadog.trace.test.util.DDSpecification
 
 class DDIdTest extends DDSpecification {
@@ -162,5 +161,51 @@ class DDIdTest extends DDSpecification {
     "0" * 4 + "8" + "0" * 15       | DDId.from(Long.MIN_VALUE)
     "1" * 8 + "0" * 8 + "cafebabe" | DDId.from(3405691582)
     "1" * 12 + "0123456789abcdef"  | DDId.from(81985529216486895)
+  }
+
+  def "convert ids from custom String while keeping the original"() {
+    when:
+    final ddid = DDId.fromStringWithOriginal(stringId, this.&convertTo)
+
+    then:
+    ddid == expectedId
+    ddid.toStringOrOriginal(this.&convertFrom) == stringId
+
+    where:
+    stringId                       | expectedId
+    "0-0-0"                        | DDId.ZERO
+    "00-01"                        | DDId.ONE
+    "f-" * 16                      | DDId.MAX
+    "7-" + "f" * 15                | DDId.from(Long.MAX_VALUE)
+    "8-" + "0" * 15                | DDId.from(Long.MIN_VALUE)
+    "0" * 4 + "8" + "0" * 15       | DDId.from(Long.MIN_VALUE)
+  }
+
+  def "convert ids to custom String"() {
+    when:
+    final ddid = DDId.fromHex(hexId)
+
+    then:
+    ddid == expectedId
+    ddid.toStringOrOriginal(this.&convertFrom) == expectedString
+
+    where:
+    hexId                    | expectedId                   | expectedString
+    "0"                      | DDId.ZERO                    | "0"
+    "1"                      | DDId.ONE                     | "1"
+    "f" * 16                 | DDId.MAX                     | "1777777777777777777777"
+    "7" + "f" * 15           | DDId.from(Long.MAX_VALUE)    | "777777777777777777777"
+    "8" + "0" * 15           | DDId.from(Long.MIN_VALUE)    | "1000000000000000000000"
+    "0" * 4 + "8" + "0" * 15 | DDId.from(Long.MIN_VALUE)    | "1000000000000000000000"
+    "cafebabe"               | DDId.from(3405691582)        | "31277535276"
+    "123456789abcdef"        | DDId.from(81985529216486895) | "4432126361152746757"
+  }
+
+  String convertTo(String original) {
+    return original.replaceAll("-", "")
+  }
+
+  String convertFrom(DDId id) {
+    Long.toOctalString(id.toLong())
   }
 }
