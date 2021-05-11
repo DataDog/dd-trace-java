@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
+
 import datadog.trace.agent.test.AgentTestRunner
 import listener.Config
-import org.apache.activemq.ActiveMQMessageConsumer
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.jms.core.JmsTemplate
-import org.springframework.jms.listener.adapter.MessagingMessageListenerAdapter
 import spock.lang.Retry
 
 import javax.jms.ConnectionFactory
@@ -39,10 +38,9 @@ class SpringListenerJMS1Test extends AgentTestRunner {
     template.convertAndSend("SpringListenerJMS1", "a message")
 
     expect:
-    assertTraces(3) {
+    assertTraces(2) {
       producerTrace(it, "Queue SpringListenerJMS1")
-      consumerTrace(it, "Queue SpringListenerJMS1", false, ActiveMQMessageConsumer, trace(0)[0])
-      consumerTrace(it, "Queue SpringListenerJMS1", true, MessagingMessageListenerAdapter, trace(0)[0])
+      consumerTrace(it, "Queue SpringListenerJMS1", trace(0)[0])
     }
 
     cleanup:
