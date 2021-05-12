@@ -46,13 +46,13 @@ class PlayServerTest extends HttpServerTest<TestServer> {
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint == ERROR || endpoint == EXCEPTION
       childOfPrevious()
+      statusCode Integer
       tags {
         "$Tags.COMPONENT" PlayHttpServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" { it == (endpoint == FORWARDED ? endpoint.body : "127.0.0.1") }
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_METHOD" String
-        "$Tags.HTTP_STATUS" Integer
         // BUG
         //        "$Tags.HTTP_ROUTE" String
         if (endpoint == EXCEPTION) {

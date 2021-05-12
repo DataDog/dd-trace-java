@@ -26,6 +26,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
           resourceName "GET /$jspWebappContext/$forwardFromFileName"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -33,7 +34,6 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$forwardFromFileName"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$forwardFromFileName"
             defaultTags()
@@ -125,6 +125,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
           resourceName "GET /$jspWebappContext/forwards/forwardToHtml.jsp"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -132,7 +133,6 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToHtml.jsp"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToHtml.jsp"
             defaultTags()
@@ -191,6 +191,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
           resourceName "GET /$jspWebappContext/forwards/forwardToIncludeMulti.jsp"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -198,7 +199,6 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToIncludeMulti.jsp"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToIncludeMulti.jsp"
             defaultTags()
@@ -341,6 +341,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
           resourceName "GET /$jspWebappContext/forwards/forwardToJspForward.jsp"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -348,7 +349,6 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToJspForward.jsp"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToJspForward.jsp"
             defaultTags()
@@ -463,6 +463,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
           resourceName "GET /$jspWebappContext/forwards/forwardToCompileError.jsp"
           spanType DDSpanTypes.HTTP_SERVER
           errored true
+          statusCode 500
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -470,7 +471,6 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToCompileError.jsp"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 500
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToCompileError.jsp"
             errorTags(JasperException, String)
@@ -546,6 +546,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
           resourceName "404"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
+          statusCode 404
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -553,7 +554,6 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToNonExistent.jsp"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 404
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToNonExistent.jsp"
             defaultTags()

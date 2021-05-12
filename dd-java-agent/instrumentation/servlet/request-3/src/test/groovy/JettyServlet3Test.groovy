@@ -159,6 +159,7 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
       } else {
         parent()
       }
+      statusCode { it == endpoint.status || !bubblesResponse }
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -166,7 +167,6 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" { it == endpoint.status || !bubblesResponse }
         if (endpoint == FORWARDED) {
           "$Tags.HTTP_FORWARDED_IP" endpoint.body
         }

@@ -101,6 +101,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           errored false
+          statusCode STATUS
           tags {
             "$Tags.COMPONENT" "http-url-connection"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -108,7 +109,6 @@ class HttpUrlConnectionTest extends HttpClientTest {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$url"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" STATUS
             defaultTags()
           }
         }
@@ -121,6 +121,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           errored false
+          statusCode STATUS
           tags {
             "$Tags.COMPONENT" "http-url-connection"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -128,7 +129,6 @@ class HttpUrlConnectionTest extends HttpClientTest {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$url"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" STATUS
             defaultTags()
           }
         }
@@ -191,6 +191,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           errored false
+          statusCode STATUS
           tags {
             "$Tags.COMPONENT" "http-url-connection"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -198,7 +199,6 @@ class HttpUrlConnectionTest extends HttpClientTest {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$url"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" STATUS
             defaultTags()
           }
         }
@@ -211,6 +211,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           errored false
+          statusCode STATUS
           tags {
             "$Tags.COMPONENT" "http-url-connection"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -218,7 +219,6 @@ class HttpUrlConnectionTest extends HttpClientTest {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$url"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" STATUS
             defaultTags()
           }
         }
@@ -266,6 +266,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           errored false
+          statusCode STATUS
           tags {
             "$Tags.COMPONENT" "http-url-connection"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -273,7 +274,6 @@ class HttpUrlConnectionTest extends HttpClientTest {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$url"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" STATUS
             defaultTags()
           }
         }
@@ -337,6 +337,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
           errored false
+          statusCode STATUS
           tags {
             "$Tags.COMPONENT" "http-url-connection"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -344,7 +345,6 @@ class HttpUrlConnectionTest extends HttpClientTest {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$url"
             "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" STATUS
             defaultTags()
           }
         }

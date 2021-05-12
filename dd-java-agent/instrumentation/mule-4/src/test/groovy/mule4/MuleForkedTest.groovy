@@ -97,11 +97,11 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
           operationName "grizzly.request"
           resourceName "GET /client-request"
           spanType DDSpanTypes.HTTP_SERVER
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "grizzly-filterchain-server"
             "$Tags.SPAN_KIND" "server"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_URL" "${address.resolve("/client-request")}"
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
@@ -113,11 +113,11 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
           operationName "http.request"
           resourceName "GET /remote-client-request"
           spanType DDSpanTypes.HTTP_CLIENT
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "grizzly-http-async-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_URL" "${requestServer.address.resolve("/remote-client-request")}"
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
@@ -150,11 +150,11 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
           operationName "grizzly.request"
           resourceName "PUT /pfe-request"
           spanType DDSpanTypes.HTTP_SERVER
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "grizzly-filterchain-server"
             "$Tags.SPAN_KIND" "server"
             "$Tags.HTTP_METHOD" "PUT"
-            "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_URL" "${address.resolve("/pfe-request")}"
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
@@ -167,11 +167,11 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             operationName "http.request"
             resourceName "GET /remote-pfe-request"
             spanType DDSpanTypes.HTTP_CLIENT
+            statusCode 200
             tags {
               "$Tags.COMPONENT" "grizzly-http-async-client"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
               "$Tags.HTTP_METHOD" "GET"
-              "$Tags.HTTP_STATUS" 200
               "$Tags.HTTP_URL" "${requestServer.address.resolve("/remote-pfe-request")}"
               "$Tags.PEER_HOSTNAME" "localhost"
               "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?

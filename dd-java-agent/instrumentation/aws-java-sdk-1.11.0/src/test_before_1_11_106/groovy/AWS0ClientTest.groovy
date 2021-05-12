@@ -98,12 +98,12 @@ class AWS0ClientTest extends AgentTestRunner {
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
           parent()
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.HTTP_URL" "$server.address/"
             "$Tags.HTTP_METHOD" "$method"
-            "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" server.address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" { it.contains(service) }
@@ -122,6 +122,7 @@ class AWS0ClientTest extends AgentTestRunner {
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
           childOf(span(0))
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -129,7 +130,6 @@ class AWS0ClientTest extends AgentTestRunner {
             "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
-            "$Tags.HTTP_STATUS" 200
             defaultTags()
           }
         }

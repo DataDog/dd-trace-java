@@ -63,12 +63,12 @@ class LagomTest extends AgentTestRunner {
           resourceName "GET /echo"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
+          statusCode 101
           tags {
             "$Tags.COMPONENT" "akka-http-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.HTTP_URL" "ws://localhost:${server.port()}/echo"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 101
             defaultTags()
           }
         }
@@ -105,12 +105,12 @@ class LagomTest extends AgentTestRunner {
           resourceName "GET /error"
           spanType DDSpanTypes.HTTP_SERVER
           errored true
+          statusCode 500
           tags {
             "$Tags.COMPONENT" "akka-http-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.HTTP_URL" "ws://localhost:${server.port()}/error"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 500
             defaultTags()
           }
         }

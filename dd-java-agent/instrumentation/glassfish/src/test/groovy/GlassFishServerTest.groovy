@@ -125,12 +125,12 @@ class GlassFishServerTest extends HttpServerTest<GlassFish> {
       } else {
         parent()
       }
+      statusCode endpoint.status
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" Integer
-        "$Tags.HTTP_STATUS" endpoint.status
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         if (endpoint == FORWARDED) {

@@ -175,6 +175,7 @@ class SynapseServerTest extends AgentTestRunner {
         childOf((DDSpan) parentSpan)
       }
       topLevel parentSpan == null
+      statusCode statusCode
       tags {
         "$Tags.COMPONENT" "synapse-server"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -182,7 +183,6 @@ class SynapseServerTest extends AgentTestRunner {
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "/services/SimpleStockQuoteService"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" statusCode
         defaultTags()
       }
     }

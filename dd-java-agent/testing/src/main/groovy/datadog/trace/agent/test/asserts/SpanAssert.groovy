@@ -73,8 +73,14 @@ class SpanAssert {
     checked.resourceName = true
   }
 
-  def statusCode(int statusCode) {
-    assert span.httpStatusCode == statusCode
+  def statusCode(Object value) {
+    if (value instanceof Class) {
+      assert ((Class) value).isInstance(span.httpStatusCode)
+    } else if (value instanceof Closure) {
+      assert ((Closure) value).call(span.httpStatusCode)
+    } else {
+      assert span.httpStatusCode == value
+    }
     checked.statusCode = true
   }
 

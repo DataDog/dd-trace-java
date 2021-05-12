@@ -69,6 +69,7 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
           resourceName "$method $uri.path"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
+          statusCode Integer
           tags {
             "$Tags.COMPONENT" "google-http-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -76,7 +77,6 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" String
             "$Tags.HTTP_METHOD" String
-            "$Tags.HTTP_STATUS" Integer
             "$DDTags.ERROR_MSG" "Server Error"
             defaultTags()
           }

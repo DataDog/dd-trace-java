@@ -27,6 +27,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
       resourceName "$testSuite.$testName"
       spanType DDSpanTypes.TEST
       errored exception != null
+      statusCode testStatus
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST
@@ -34,7 +35,6 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         "$Tags.TEST_SUITE" testSuite
         "$Tags.TEST_NAME" testName
         "$Tags.TEST_FRAMEWORK" testFramework
-        "$Tags.TEST_STATUS" testStatus
         if (testTags) {
           testTags.each { key, val -> tag(key, val) }
         }

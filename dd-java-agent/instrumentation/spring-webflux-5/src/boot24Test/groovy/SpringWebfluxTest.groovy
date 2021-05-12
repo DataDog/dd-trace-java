@@ -54,6 +54,7 @@ class SpringWebfluxTest extends AgentTestRunner {
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           parent()
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -61,7 +62,6 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
             defaultTags()
           }
@@ -128,6 +128,7 @@ class SpringWebfluxTest extends AgentTestRunner {
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           parent()
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -135,7 +136,6 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
             defaultTags()
           }
@@ -277,6 +277,7 @@ class SpringWebfluxTest extends AgentTestRunner {
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           parent()
+          statusCode 404
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -284,7 +285,6 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 404
             "$Tags.HTTP_ROUTE" "/**"
             defaultTags()
           }
@@ -328,6 +328,7 @@ class SpringWebfluxTest extends AgentTestRunner {
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           parent()
+          statusCode 202
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -335,7 +336,6 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 202
             "$Tags.HTTP_ROUTE" "/echo"
             defaultTags()
           }
@@ -387,6 +387,7 @@ class SpringWebfluxTest extends AgentTestRunner {
           spanType DDSpanTypes.HTTP_SERVER
           errored true
           parent()
+          statusCode 500
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -394,7 +395,6 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 500
             "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
             defaultTags()
           }
@@ -461,6 +461,7 @@ class SpringWebfluxTest extends AgentTestRunner {
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           parent()
+          statusCode 307
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -468,7 +469,6 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 307
             "$Tags.HTTP_ROUTE" "/double-greet-redirect"
             defaultTags()
           }
@@ -496,6 +496,7 @@ class SpringWebfluxTest extends AgentTestRunner {
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           parent()
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -503,7 +504,6 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" finalUrl
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "/double-greet"
             defaultTags()
           }
@@ -548,6 +548,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             operationName "netty.request"
             spanType DDSpanTypes.HTTP_SERVER
             parent()
+            statusCode 200
             tags {
               "$Tags.COMPONENT" "netty"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -555,7 +556,6 @@ class SpringWebfluxTest extends AgentTestRunner {
               "$Tags.PEER_PORT" Integer
               "$Tags.HTTP_URL" url
               "$Tags.HTTP_METHOD" "GET"
-              "$Tags.HTTP_STATUS" 200
               "$Tags.HTTP_ROUTE" String
               defaultTags()
             }

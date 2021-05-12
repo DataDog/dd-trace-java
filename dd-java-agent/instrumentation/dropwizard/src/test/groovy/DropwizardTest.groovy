@@ -130,6 +130,7 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
       } else {
         parent()
       }
+      statusCode endpoint.status
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -138,7 +139,6 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_ROUTE" "/${endpoint.rawPath()}"
-        "$Tags.HTTP_STATUS" endpoint.status
         if (endpoint == FORWARDED) {
           "$Tags.HTTP_FORWARDED_IP" endpoint.body
         }

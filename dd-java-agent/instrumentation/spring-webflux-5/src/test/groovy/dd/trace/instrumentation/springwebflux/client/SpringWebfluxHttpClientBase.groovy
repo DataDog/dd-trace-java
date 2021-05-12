@@ -72,6 +72,9 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
         resourceName "$method $uri.path"
         spanType DDSpanTypes.HTTP_CLIENT
         errored exception != null
+        if (status) {
+          statusCode status
+        }
         tags {
           "$Tags.COMPONENT" NettyHttpClientDecorator.DECORATE.component()
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -80,9 +83,6 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
           "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
           "$Tags.HTTP_URL" "${uri.resolve(uri.path)}"
           "$Tags.HTTP_METHOD" method
-          if (status) {
-            "$Tags.HTTP_STATUS" status
-          }
           if (tagQueryString) {
             "$DDTags.HTTP_QUERY" uri.query
             "$DDTags.HTTP_FRAGMENT" { it == null || it == uri.fragment } // Optional

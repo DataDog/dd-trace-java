@@ -72,6 +72,7 @@ class ReactorNettyTest extends AgentTestRunner {
       resourceName "$method $uri.path"
       spanType DDSpanTypes.HTTP_CLIENT
       errored false
+      statusCode status
       tags {
         "$Tags.COMPONENT" "netty-client"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -81,7 +82,6 @@ class ReactorNettyTest extends AgentTestRunner {
         "$Tags.PEER_PORT" uri.port
         "$Tags.HTTP_URL" "${uri.resolve(uri.path)}"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" status
         defaultTags()
       }
     }

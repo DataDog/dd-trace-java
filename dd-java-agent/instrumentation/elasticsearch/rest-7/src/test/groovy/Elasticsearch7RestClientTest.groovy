@@ -103,12 +103,12 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
           operationName "http.request"
           spanType DDSpanTypes.HTTP_CLIENT
           childOf span(0)
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "apache-httpasyncclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.HTTP_URL" "_cluster/health"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             defaultTags()
           }
         }

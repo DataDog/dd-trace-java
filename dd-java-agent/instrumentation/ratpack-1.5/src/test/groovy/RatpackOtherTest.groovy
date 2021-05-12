@@ -68,6 +68,7 @@ class RatpackOtherTest extends AgentTestRunner {
           spanType DDSpanTypes.HTTP_SERVER
           parent()
           errored false
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -75,7 +76,6 @@ class RatpackOtherTest extends AgentTestRunner {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "${app.address.resolve(path)}"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "/$route"
             defaultTags()
           }
@@ -86,6 +86,7 @@ class RatpackOtherTest extends AgentTestRunner {
           spanType DDSpanTypes.HTTP_SERVER
           childOf(span(0))
           errored false
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "ratpack"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -93,7 +94,6 @@ class RatpackOtherTest extends AgentTestRunner {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "${app.address.resolve(path)}"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "/$route"
             defaultTags()
           }

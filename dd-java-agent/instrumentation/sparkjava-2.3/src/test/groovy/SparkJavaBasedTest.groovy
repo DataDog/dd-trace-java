@@ -51,6 +51,7 @@ class SparkJavaBasedTest extends AgentTestRunner {
           spanType DDSpanTypes.HTTP_SERVER
           errored false
           parent()
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "jetty-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -58,7 +59,6 @@ class SparkJavaBasedTest extends AgentTestRunner {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/param/asdf1234"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" String
             defaultTags()
           }

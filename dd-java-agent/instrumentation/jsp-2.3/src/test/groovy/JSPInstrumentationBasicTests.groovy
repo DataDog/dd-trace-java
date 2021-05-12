@@ -28,6 +28,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
           resourceName "GET /$jspWebappContext/$jspFileName"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -35,7 +36,6 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$jspFileName"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$jspFileName"
             defaultTags()
@@ -101,6 +101,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
           resourceName "GET /$jspWebappContext/getQuery.jsp"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -108,7 +109,6 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/getQuery.jsp"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/getQuery.jsp"
             defaultTags()
@@ -171,6 +171,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
           resourceName "POST /$jspWebappContext/post.jsp"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -178,7 +179,6 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/post.jsp"
             "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/post.jsp"
             defaultTags()
@@ -238,6 +238,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
           resourceName "GET /$jspWebappContext/$jspFileName"
           spanType DDSpanTypes.HTTP_SERVER
           errored true
+          statusCode 500
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -245,7 +246,6 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$jspFileName"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 500
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$jspFileName"
             "error.type" { String tagExceptionType ->
@@ -324,6 +324,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
           resourceName "GET /$jspWebappContext/includes/includeHtml.jsp"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -331,7 +332,6 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/includes/includeHtml.jsp"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/includes/includeHtml.jsp"
             defaultTags()
@@ -390,6 +390,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
           resourceName "GET /$jspWebappContext/includes/includeMulti.jsp"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -397,7 +398,6 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/includes/includeMulti.jsp"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/includes/includeMulti.jsp"
             defaultTags()
@@ -510,6 +510,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
           resourceName "GET /$jspWebappContext/$jspFileName"
           spanType DDSpanTypes.HTTP_SERVER
           errored true
+          statusCode 500
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -517,7 +518,6 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$jspFileName"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 500
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$jspFileName"
             errorTags(JasperException, String)
@@ -572,6 +572,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
           resourceName "GET /$jspWebappContext/$staticFile"
           spanType DDSpanTypes.HTTP_SERVER
           errored false
+          statusCode 200
           tags {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -579,7 +580,6 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$staticFile"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$staticFile"
             defaultTags()

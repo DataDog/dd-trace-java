@@ -286,13 +286,13 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          statusCode Integer
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" String
             "$Tags.HTTP_URL" String
             "$Tags.HTTP_METHOD" String
-            "$Tags.HTTP_STATUS" Integer
             defaultTags()
           }
         }
@@ -390,13 +390,13 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          statusCode Integer
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" String
             "$Tags.HTTP_URL" String
             "$Tags.HTTP_METHOD" String
-            "$Tags.HTTP_STATUS" Integer
             defaultTags()
           }
         }
@@ -406,13 +406,13 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          statusCode 500
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "api.twilio.com"
             "$Tags.HTTP_URL" "https://api.twilio.com/2010-04-01/Accounts/abc/Messages.json"
             "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 500
             defaultTags()
           }
         }
@@ -535,13 +535,13 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          statusCode Integer
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" String
             "$Tags.HTTP_URL" String
             "$Tags.HTTP_METHOD" String
-            "$Tags.HTTP_STATUS" Integer
             defaultTags()
           }
         }
@@ -551,13 +551,13 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          statusCode 500
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "api.twilio.com"
             "$Tags.HTTP_URL" "https://api.twilio.com/2010-04-01/Accounts/abc/Messages.json"
             "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 500
             defaultTags()
           }
         }

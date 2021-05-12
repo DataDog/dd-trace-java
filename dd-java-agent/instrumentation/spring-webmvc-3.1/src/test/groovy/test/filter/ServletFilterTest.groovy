@@ -157,6 +157,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
       } else {
         parent()
       }
+      statusCode endpoint.status
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -164,7 +165,6 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" endpoint.status
         "$Tags.HTTP_ROUTE" String
         if (endpoint == FORWARDED) {
           "$Tags.HTTP_FORWARDED_IP" endpoint.body

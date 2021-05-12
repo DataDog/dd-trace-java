@@ -164,6 +164,9 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
       } else {
         parent()
       }
+      if (endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR) {
+        statusCode { it == endpoint.status || !bubblesResponse }
+      }
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -174,9 +177,7 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
         if (endpoint == FORWARDED) {
           "$Tags.HTTP_FORWARDED_IP" endpoint.body
         }
-        if (endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR) {
-          "$Tags.HTTP_STATUS" { it == endpoint.status || !bubblesResponse }
-        } else {
+        if (!(endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR)) {
           "timeout" 1_000
         }
         if (context) {
