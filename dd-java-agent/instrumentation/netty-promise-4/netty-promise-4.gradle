@@ -29,4 +29,6 @@ dependencies {
   latestDepTestCompile group: 'io.netty', name: 'netty-common', version: '+'
 }
 
-tasks.latestDepTest.dependsOn tasks.latestDep4Test
+tasks.named("latestDepTest").configure {
+  dependsOn "latestDep4Test"
+}

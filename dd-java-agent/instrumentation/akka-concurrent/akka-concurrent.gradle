@@ -27,7 +27,7 @@ testSets {
   }
 }
 
-compileAkka23TestGroovy {
+tasks.named("compileAkka23TestGroovy").configure {
   classpath += files(sourceSets.akka23Test.scala.classesDirectory)
 }
 
@@ -50,7 +50,7 @@ sourceSets {
     }
   }
 }
-compileLatestDepTestGroovy {
+tasks.named("compileLatestDepTestGroovy").configure {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
 
@@ -75,4 +75,6 @@ dependencies {
 }
 
 // Run 2.3 tests along with the rest of unit tests
-test.dependsOn akka23Test
+tasks.named("test").configure {
+  dependsOn "akka23Test"
+}

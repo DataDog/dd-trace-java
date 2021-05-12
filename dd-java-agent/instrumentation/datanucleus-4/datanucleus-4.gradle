@@ -47,7 +47,7 @@ def datanucleusVersion = '4.0.5'
 // LatestDepTest can't be used because the enhancer class generates incompatible code
 // Specifically, org.datanucleus.enhancer.Persistable changes package
 // Only one version can be set as the script classpath in the 'buildScript' block
-task enhance {
+tasks.register('enhance') {
   doLast {
     def outputUrls = (sourceSets.test.output.classesDirs.files + sourceSets.test.output.resourcesDir)
       .collect { it.toURI().toURL() } as URL[]
@@ -61,11 +61,11 @@ task enhance {
     enhancer.enhance()
   }
 
-  dependsOn testClasses
+  dependsOn "testClasses"
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn enhance
+  dependsOn "enhance"
 }
 
 dependencies {

@@ -8,7 +8,7 @@ dependencies {
   compile deps.guava
 }
 
-task launch(type: JavaExec) {
+tasks.register('launch', JavaExec) {
   classpath = sourceSets.main.runtimeClasspath
   main = 'datadog.loadgenerator.LoadGenerator'
   jvmArgs = [
@@ -17,5 +17,5 @@ task launch(type: JavaExec) {
   ]
   systemProperties System.properties
 
-  dependsOn project(':dd-java-agent').shadowJar
+  dependsOn project(':dd-java-agent').tasks.named("shadowJar")
 }

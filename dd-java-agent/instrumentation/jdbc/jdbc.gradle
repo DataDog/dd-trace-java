@@ -41,7 +41,7 @@ dependencies {
   }
 
   oldPostgresTestCompile(group: 'org.postgresql', name: 'postgresql', version: '9.4-1201-jdbc41') {
-    force =true
+    force = true
   }
 
   testCompile group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
@@ -60,5 +60,7 @@ dependencies {
   latestDepTestCompile group: 'com.mchange', name: 'c3p0', version: '+'
 }
 
-test.dependsOn oldH2Test
-test.dependsOn oldPostgresTest
+tasks.named("test").configure {
+  dependsOn "oldH2Test"
+  dependsOn "oldPostgresTest"
+}

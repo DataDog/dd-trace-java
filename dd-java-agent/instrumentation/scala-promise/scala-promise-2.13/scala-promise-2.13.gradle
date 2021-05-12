@@ -51,20 +51,20 @@ sourceSets {
   latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy").configure {
   classpath += files(sourceSets.test.scala.classesDirectory)
 }
 
-compileLatestDepTestGroovy {
+tasks.named("compileLatestDepTestGroovy").configure {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
 
-compileLatestDepForkedTestGroovy {
+tasks.named("compileLatestDepForkedTestGroovy").configure {
   classpath += files(sourceSets.latestDepForkedTest.scala.classesDirectory)
 }
 
-latestDepTest {
-  dependsOn latestDepForkedTest
+tasks.named("latestDepTest").configure {
+  dependsOn "latestDepForkedTest"
 }
 
 dependencies {

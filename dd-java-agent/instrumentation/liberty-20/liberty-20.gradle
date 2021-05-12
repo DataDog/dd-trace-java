@@ -18,7 +18,7 @@ dependencies {
 }
 
 //unzips the dependencies from the 'zipped' configuration so 'compileOnly' can reference it
-task installOpenLibertyDeps(type: Sync) {
+tasks.register('installOpenLibertyDeps', Sync) {
   def extractDir = "${buildDir}/openliberty-jars"
   ext.extractedJars = fileTree(extractDir) {
     include "**/*.jar"

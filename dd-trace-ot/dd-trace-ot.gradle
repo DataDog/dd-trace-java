@@ -68,8 +68,9 @@ dependencies {
   }
 }
 
-test.finalizedBy ot31CompatabilityTest
-test.finalizedBy ot33CompatabilityTest
+tasks.named("test").configure {
+  finalizedBy "ot31CompatabilityTest", "ot33CompatabilityTest"
+}
 
 jar {
   archiveClassifier = 'unbundled'

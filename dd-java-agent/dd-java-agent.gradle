@@ -42,7 +42,7 @@ ext.generalShadowJarConfig = {
   }
 }
 
-def includeShadowJar(shadowJarTask, jarname) {
+def includeShadowJar(TaskProvider<ShadowJar> shadowJarTask, String jarname) {
   def opentracingFound = new AtomicBoolean()
   project.processResources {
     doFirst {
@@ -59,7 +59,7 @@ def includeShadowJar(shadowJarTask, jarname) {
       }
     }
 
-    from(zipTree(shadowJarTask.archiveFile)) {
+    from(zipTree(shadowJarTask.get().archiveFile)) {
       into jarname
       rename '(^.*)\\.class$', '$1.classdata'
       // Rename LICENSE file since it clashes with license dir on non-case sensitive FSs (i.e. Mac)
@@ -67,21 +67,23 @@ def includeShadowJar(shadowJarTask, jarname) {
     }
   }
 
-  project.processResources.dependsOn shadowJarTask
+  project.tasks.named("processResources").configure {
+    dependsOn shadowJarTask
+  }
   shadowJarTask.configure generalShadowJarConfig
 }
 
 def includeSubprojShadowJar(String projName, String jarname) {
   evaluationDependsOn projName
   def proj = project(projName)
-  includeShadowJar proj.tasks.shadowJar, jarname
+  includeShadowJar proj.tasks.named("shadowJar"), jarname
 }
 
 includeSubprojShadowJar ':dd-java-agent:instrumentation', 'inst'
 includeSubprojShadowJar ':dd-java-agent:agent-jmxfetch', 'metrics'
 includeSubprojShadowJar ':dd-java-agent:agent-profiling', 'profiling'
 
-task sharedShadowJar(type: ShadowJar) {
+def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   configurations = [project.configurations.sharedShadowInclude]
 }
 includeShadowJar(sharedShadowJar, 'shared')
@@ -100,6 +102,11 @@ shadowJar generalShadowJarConfig >> {
       "Can-Retransform-Classes": true,
       )
   }
+}
+
+subprojects { Project subProj ->
+  // Don't need javadoc task run for internal projects.
+  subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 }
 
 // We don't want bundled dependencies to show up in the pom.
@@ -151,17 +158,19 @@ tasks.withType(Test).configureEach {
     exclude 'datadog/trace/agent/integration/classloading/ShadowPackageRenamingTest.class'
   }
 
-  dependsOn shadowJar
+  dependsOn "shadowJar"
 }
 
-task('checkAgentJarSize') {
+tasks.register('checkAgentJarSize').configure {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
     assert shadowJar.archiveFile.get().getAsFile().length() < 14 * 1024 * 1024
   }
 
-  dependsOn shadowJar
+  dependsOn "shadowJar"
 }
 
-check.dependsOn 'checkAgentJarSize'
+tasks.named('check').configure {
+  dependsOn 'checkAgentJarSize'
+}

@@ -49,10 +49,12 @@ tasks.register("copyMetricConfigs", Exec) {
     // Ensure the resources directory is available.
     file(sourceSets.main.output.resourcesDir).mkdirs()
   }
+  dependsOn "submodulesUpdate"
+  // In CI, there seems to be a race condition where processResources overwrites the copied metric config files.
+  // Ensure that task runs last to avoid this problem.
+  mustRunAfter "processResources"
 }
 
-copyMetricConfigs.dependsOn submodulesUpdate
-processResources.finalizedBy copyMetricConfigs
-copyMetricConfigs.mustRunAfter processResources
-// In CI, there seems to be a race condition where processResources overwrites the copied metric config files.
-// Ensure that task runs last to avoid this problem.
+tasks.named("processResources").configure {
+  finalizedBy copyMetricConfigs
+}
