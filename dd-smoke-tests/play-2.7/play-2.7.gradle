@@ -25,7 +25,7 @@ tasks.register('sbtStage', Exec) {
   inputs.dir("$appDir/project")
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy").configure {
   dependsOn 'sbtStage'
   outputs.upToDateWhen {
     !sbtStage.didWork

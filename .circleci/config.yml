@@ -108,10 +108,10 @@ jobs:
       - run:
           name: Build Project
           command: >-
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=2G -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileLatestDepTestGroovy compileTestScala compileLatestDepTestScala compileTestJava compileLatestDepTestJava
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
-            --max-workers=7
+            --max-workers=8
 
       - save_cache:
           key: dd-trace-java-v3-{{ .Branch }}-{{ epoch }}
@@ -123,8 +123,6 @@ jobs:
 
     docker:
       - image: *default_container
-        # This is used by mongodb smoke tests
-      - image: mongo
 
     parameters:
       testTask:
@@ -143,7 +141,7 @@ jobs:
           name: Run Tests
           command: >-
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=400M -Ddatadog.forkedMinHeapSize=128M"
-            ./gradlew <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >> -PskipInstTests
+            ./gradlew <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >> -PskipInstTests -PskipSmokeTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
 
@@ -211,6 +209,52 @@ jobs:
             ./gradlew :dd-java-agent:instrumentation:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
+
+      - run:
+          name: Collect Reports
+          when: on_fail
+          command: .circleci/collect_reports.sh
+
+      - store_artifacts:
+          path: ./reports
+
+      - run:
+          name: Collect Test Results
+          when: always
+          command: .circleci/collect_results.sh
+
+      - store_test_results:
+          path: ./results
+
+  default_smoke_test_job: &default_inst_test_job
+    <<: *default_test_job
+    resource_class: medium
+
+    docker:
+      - image: *default_container
+        # This is used by mongodb smoke tests
+      - image: mongo
+
+    parameters:
+      testTask:
+        type: string
+      prefixTestTask:
+        default: false
+        type: boolean
+
+    steps:
+      - setup_code
+
+      - restore_cache:
+          <<: *cache_keys
+
+      - run:
+          name: Run Tests
+          command: >-
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=400M -Ddatadog.forkedMinHeapSize=128M"
+            ./gradlew stagePlayBinaryDist :dd-smoke-test:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=2
 
       - run:
           name: Collect Reports
@@ -359,6 +403,21 @@ workflows:
             - build
           name: test_8_inst_latest
           testTask: latestDepTest
+
+      - default_smoke_test_job:
+          requires:
+            - build
+          prefixTestTask: true
+          name: test_<< matrix.testTask >>_smoke
+          matrix:
+            parameters:
+              testTask: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15" ]
+
+      - default_smoke_test_job:
+          requires:
+            - build
+          name: test_8_smoke
+          testTask: test
 
       - agent_integration_tests:
           requires:

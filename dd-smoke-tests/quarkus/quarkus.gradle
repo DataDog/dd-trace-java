@@ -23,7 +23,7 @@ quarkusBuild {
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy").configure {
   dependsOn 'quarkusBuild'
   outputs.upToDateWhen {
     !quarkusBuild.didWork

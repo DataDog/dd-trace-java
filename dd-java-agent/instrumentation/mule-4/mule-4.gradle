@@ -63,7 +63,7 @@ sourceSets {
   }
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy").configure {
   dependsOn 'mvnPackage', 'extractMuleServices'
 }
 
