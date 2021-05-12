@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 
@@ -57,6 +58,8 @@ public class DDSpanContext implements AgentSpan.Context {
 
   private final long threadId;
   private final UTF8BytesString threadName;
+
+  private volatile short statusCode;
 
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
@@ -254,6 +257,10 @@ public class DDSpanContext implements AgentSpan.Context {
     SAMPLING_PRIORITY_UPDATER.set(this, USER_KEEP);
   }
 
+  public void setHttpStatusCode(short statusCode) {
+    this.statusCode = statusCode;
+  }
+
   /** @return if sampling priority was set by this method invocation */
   public boolean setSamplingPriority(final int newPriority) {
     if (newPriority == PrioritySampling.UNSET) {
@@ -446,7 +453,13 @@ public class DDSpanContext implements AgentSpan.Context {
 
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
     synchronized (unsafeTags) {
-      consumer.accept(new Metadata(threadId, threadName, unsafeTags, baggageItems));
+      consumer.accept(
+          new Metadata(
+              threadId,
+              threadName,
+              unsafeTags,
+              baggageItems,
+              statusCode == 0 ? null : HTTP_STATUSES.get(statusCode)));
     }
   }
 
@@ -483,5 +496,9 @@ public class DDSpanContext implements AgentSpan.Context {
       s.append(" tags=").append(new TreeMap<>(getTags()));
     }
     return s.toString();
+  }
+
+  public short getHttpStatusCode() {
+    return statusCode;
   }
 }

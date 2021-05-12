@@ -235,6 +235,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
           ++i;
         }
       }
+      UTF8BytesString httpStatus = metadata.getHttpStatusCode();
+      if (null != httpStatus) {
+        ++size;
+      }
       writable.startMap(size);
       int i = 0;
       for (final Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
@@ -244,6 +248,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
           writeDictionaryEncoded(writable, entry.getValue());
         }
         ++i;
+      }
+      if (null != httpStatus) {
+        writeDictionaryEncoded(writable, HTTP_STATUS);
+        writeDictionaryEncoded(writable, httpStatus);
       }
       writeDictionaryEncoded(writable, THREAD_NAME);
       writeDictionaryEncoded(writable, metadata.getThreadName());

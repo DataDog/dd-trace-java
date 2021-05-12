@@ -66,7 +66,7 @@ class TraceProcessorTest extends DDCoreSpecification {
     processor.onTraceComplete(trace)
 
     then:
-    span.getResourceName() == "404"
+    span.getResourceName() as String == "404"
   }
 
   def "resource name set with url path #url to #resourceName"() {

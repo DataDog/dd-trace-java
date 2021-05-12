@@ -127,7 +127,7 @@ class RadixTreeCacheTest extends DDSpecification {
 
   def "cache HTTP statuses"() {
     expect:
-    Integer.valueOf(status) == RadixTreeCache.HTTP_STATUSES.get(status)
+    Integer.toString(status) == RadixTreeCache.HTTP_STATUSES.get(status) as String
     where:
     status << [0, 200, 201, 404, 329, 599, 700]
   }

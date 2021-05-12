@@ -73,6 +73,11 @@ class SpanAssert {
     checked.resourceName = true
   }
 
+  def statusCode(int statusCode) {
+    assert span.httpStatusCode == statusCode
+    checked.statusCode = true
+  }
+
   def resourceName(Closure<Boolean> eval) {
     assert eval(span.resourceName.toString())
     checked.resourceName = true

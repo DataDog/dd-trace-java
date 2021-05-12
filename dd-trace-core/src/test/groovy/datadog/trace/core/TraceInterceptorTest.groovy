@@ -155,14 +155,14 @@ class TraceInterceptorTest extends DDCoreSpecification {
     def tags = span.context().tags
 
     tags["boolean-tag"] == true
-    tags["number-tag"] == 5.0
+    span.context().unsafeMetrics["number-tag"] == 5.0
     tags["string-tag"] == "howdy"
 
     tags["thread.name"] != null
     tags["thread.id"] != null
     tags["runtime-id"] != null
     tags["language"] != null
-    tags.size() == 7
+    tags.size() == 6
   }
 
   def "register interceptor through bridge"() {

@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator._500;
 import static datadog.trace.instrumentation.servlet2.HttpServletRequestExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.servlet2.Servlet2Decorator.DECORATE;
 import static datadog.trace.instrumentation.servlet2.Servlet2Decorator.SERVLET_REQUEST;
@@ -16,7 +15,6 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.security.Principal;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -102,7 +100,7 @@ public class Servlet2Advice {
           && InstrumentationContext.get(ServletResponse.class, Integer.class).get(response)
               == HttpServletResponse.SC_OK) {
         // exception was thrown but status code wasn't set
-        span.setTag(Tags.HTTP_STATUS, _500);
+        span.setHttpStatusCode(500);
       }
       DECORATE.onError(span, throwable);
     }

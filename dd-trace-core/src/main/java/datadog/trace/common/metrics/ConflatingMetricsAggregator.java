@@ -13,7 +13,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.util.AgentTaskScheduler;
@@ -173,7 +172,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             SERVICE_NAMES.computeIfAbsent(span.getServiceName(), UTF8_ENCODE),
             span.getOperationName(),
             span.getType(),
-            span.getTag(Tags.HTTP_STATUS, ZERO));
+            span.getHttpStatusCode());
     boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {

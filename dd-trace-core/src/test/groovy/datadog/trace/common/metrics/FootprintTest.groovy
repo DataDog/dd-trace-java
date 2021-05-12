@@ -54,7 +54,7 @@ class FootprintTest extends DDSpecification {
       boolean isError = ThreadLocalRandom.current().nextInt(traceCount) < errorThreshold
       aggregator.publish([
         new SimpleSpan(serviceName, operation, resourceName, type, true, true, isError, System.nanoTime(),
-        isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01))
+        isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01), 200)
       ])
     }
     aggregator.report()

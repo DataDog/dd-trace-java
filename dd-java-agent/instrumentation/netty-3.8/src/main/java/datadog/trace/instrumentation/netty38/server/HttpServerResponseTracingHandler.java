@@ -1,13 +1,11 @@
 package datadog.trace.instrumentation.netty38.server;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator._500;
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.DECORATE;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -43,7 +41,7 @@ public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHan
         ctx.sendDownstream(msg);
       } catch (final Throwable throwable) {
         DECORATE.onError(span, throwable);
-        span.setTag(Tags.HTTP_STATUS, _500);
+        span.setHttpStatusCode(500);
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         throw throwable;
       }

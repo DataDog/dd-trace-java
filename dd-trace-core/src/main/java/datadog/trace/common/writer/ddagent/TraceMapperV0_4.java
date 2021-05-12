@@ -74,6 +74,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
           ++i;
         }
       }
+      UTF8BytesString httpStatus = metadata.getHttpStatusCode();
+      if (null != httpStatus) {
+        ++size;
+      }
       writable.startMap(size);
       int i = 0;
       for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
@@ -83,6 +87,11 @@ public final class TraceMapperV0_4 implements TraceMapper {
           writable.writeString(entry.getValue(), null);
         }
         ++i;
+      }
+      // http status is special because it must be a string for metrics purposes
+      if (null != httpStatus) {
+        writable.writeUTF8(HTTP_STATUS);
+        writable.writeUTF8(httpStatus);
       }
       writable.writeUTF8(THREAD_NAME);
       writable.writeUTF8(metadata.getThreadName());

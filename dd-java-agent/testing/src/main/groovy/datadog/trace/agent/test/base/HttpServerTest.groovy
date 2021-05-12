@@ -639,6 +639,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       resourceName endpoint.resource(method, address, testPathParam())
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint.errored
+      statusCode endpoint.status
       if (parentID != null) {
         traceId traceID
         parentId parentID
@@ -652,7 +653,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" endpoint.status
         if (endpoint == FORWARDED) {
           "$Tags.HTTP_FORWARDED_IP" endpoint.body
         }

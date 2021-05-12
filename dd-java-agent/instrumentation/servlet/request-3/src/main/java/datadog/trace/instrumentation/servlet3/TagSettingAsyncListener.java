@@ -1,12 +1,10 @@
 package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.TIMEOUT;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator._500;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.servlet.AsyncEvent;
@@ -65,9 +63,10 @@ public class TagSettingAsyncListener implements AsyncListener {
         if (((HttpServletResponse) event.getSuppliedResponse()).getStatus()
             == HttpServletResponse.SC_OK) {
           // exception is thrown in filter chain, but status code is incorrect
-          span.setTag(Tags.HTTP_STATUS, _500);
+          span.setHttpStatusCode(500);
         }
       }
+
       DECORATE.onError(span, event.getThrowable());
       DECORATE.beforeFinish(span);
       span.finish();

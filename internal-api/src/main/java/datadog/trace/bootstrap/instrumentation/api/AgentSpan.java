@@ -52,6 +52,10 @@ public interface AgentSpan extends MutableSpan {
 
   AgentSpan addThrowable(Throwable throwable);
 
+  AgentSpan setHttpStatusCode(int statusCode);
+
+  short getHttpStatusCode();
+
   @Override
   AgentSpan getLocalRootSpan();
 

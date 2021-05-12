@@ -1,5 +1,6 @@
 package datadog.trace.common.writer.ddagent
 
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.FlushingBuffer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
@@ -190,11 +191,15 @@ class TraceMapperV04PayloadTest extends DDSpecification {
               meta.put(unpacker.unpackString(), unpacker.unpackString())
             }
             for (Map.Entry<String, String> entry : meta.entrySet()) {
-              Object tag = expectedSpan.getTag(entry.getKey())
-              if (null != tag) {
-                assertEquals(String.valueOf(tag), entry.getValue())
+              if (Tags.HTTP_STATUS.equals(entry.getKey())) {
+                assertEquals(String.valueOf(expectedSpan.getHttpStatusCode()), entry.getValue())
               } else {
-                assertEquals(expectedSpan.getBaggage().get(entry.getKey()), entry.getValue())
+                Object tag = expectedSpan.getTag(entry.getKey())
+                if (null != tag) {
+                  assertEquals(String.valueOf(tag), entry.getValue())
+                } else {
+                  assertEquals(expectedSpan.getBaggage().get(entry.getKey()), entry.getValue())
+                }
               }
             }
           }

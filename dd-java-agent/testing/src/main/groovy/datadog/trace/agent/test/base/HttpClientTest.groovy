@@ -521,6 +521,9 @@ abstract class HttpClientTest extends AgentTestRunner {
       resourceName "$method $uri.path"
       spanType DDSpanTypes.HTTP_CLIENT
       errored exception != null
+      if (status) {
+        statusCode status
+      }
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -529,9 +532,6 @@ abstract class HttpClientTest extends AgentTestRunner {
         "$Tags.PEER_PORT" { it == uri.port || it == proxy.port || it == 443 || it == null }
         "$Tags.HTTP_URL" "${uri.resolve(uri.path)}" // remove fragment
         "$Tags.HTTP_METHOD" method
-        if (status) {
-          "$Tags.HTTP_STATUS" status
-        }
         if (tagQueryString) {
           "$DDTags.HTTP_QUERY" uri.query
           "$DDTags.HTTP_FRAGMENT" { it == null || it == uri.fragment } // Optional
