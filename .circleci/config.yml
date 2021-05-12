@@ -7,29 +7,23 @@ defaults: &defaults
     - image: &default_container datadog/dd-trace-java-docker-build:latest
 
 # The caching setup of the build dependencies is somewhat involved because of how CircleCI works.
-#
 # 1) Caches are immutable, so you can not reuse a cache key (the save will simply be ignored)
-# 2) You can only use the built in environment variables in the cache keys via {{ .Environment.variableName }}
+# 2) Cache keys are prefix matched, and the most recently updated cache that matches will be picked
 #
-# To work around that, unique cache key information is written to files and the file hash is used to select
-# the appropriate cache to restore/save.
-#
-# The basic scheme is to write a unique date that rolls over daily (UTC is used here), for the main branch
-# and the _circle_ci_cache_base_id, which is used as fallback for new PR branches. For a PR branch, the
-# branch name, PR number, and the rolling cache id is used to save the cache, and will be a starting point
-# for new commits.
+# There is a weekly job that runs on Monday mornings that builds a new cache from scratch.
 #
 # The cache is also saved using the unique git revision to enable the dependent build steps to get a fully populated
 # cache to work from.
 cache_keys: &cache_keys
   keys:
-    # There is a weekly job that runs on Sundays that builds from a clean cache
     # Dependent steps will find this cache
-    - dd-trace-java-v2-{{ .Branch }}-{{ .Revision }}
+    - dd-trace-java-v3-{{ .Branch }}-{{ .Revision }}
     # New branch commits will find this cache
-    - dd-trace-java-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}
+    - dd-trace-java-v3-{{ .Branch }}-
     # New branches fall back on main build caches
-    - dd-trace-java-v2-master-{{ checksum "_circle_ci_cache_base_id" }}
+    - dd-trace-java-v3-master-
+    # Fall back on the previous cache scheme to not start from scratch for this PR
+    - dd-trace-java-v2-master-
 
 save_cache_paths: &save_cache_paths
   paths:
@@ -66,19 +60,6 @@ commands:
               git checkout "pr/${CIRCLE_PR_NUMBER}/merge"
             fi
 
-            # Have the caches rotate every day ("Year-Month-Day")
-            BASE_CACHE_ID=$(date -u +"%Y-%m-%d")
-            if [ "$CIRCLE_BRANCH" == "master" ];
-            then
-              # If we're on a the main branch, then start from a rolling cache id
-              echo "${BASE_CACHE_ID}" >| _circle_ci_cache_id
-            else
-              # If we're on a PR branch, then we use the name of the branch and the PR number as a
-              # stable identifier for the branch cache that we add the rolling cache id to
-              echo "${CIRCLE_BRANCH}-${CIRCLE_PR_NUMBER}-${BASE_CACHE_ID}" >| _circle_ci_cache_id
-            fi
-            # Have new branches start from the main rolling cache id
-            echo "${BASE_CACHE_ID}" >| _circle_ci_cache_base_id
       - attach_workspace:
           at: .
 
@@ -115,11 +96,7 @@ jobs:
             - workspace
 
       - save_cache:
-          key: dd-trace-java-v2-{{ .Branch }}-{{ .Revision }}
-          <<: *save_cache_paths
-
-      - save_cache:
-          key: dd-trace-java-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}
+          key: dd-trace-java-v3-{{ .Branch }}-{{ .Revision }}
           <<: *save_cache_paths
 
   build_clean_cache:
@@ -137,11 +114,7 @@ jobs:
             --max-workers=7
 
       - save_cache:
-          key: dd-trace-java-v2-{{ .Branch }}-{{ .Revision }}
-          <<: *save_cache_paths
-
-      - save_cache:
-          key: dd-trace-java-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}
+          key: dd-trace-java-v3-{{ .Branch }}-{{ epoch }}
           <<: *save_cache_paths
 
   default_test_job: &default_test_job
@@ -341,24 +314,11 @@ workflows:
                 - project/*
                 - release/*
 
-  daily:
-    triggers:
-      - schedule:
-          # Run this job at 00:05 UTC daily, except Sunday
-          cron: "5 0 * * 1,2,3,4,5,6"
-          filters:
-            branches:
-              only:
-                - master
-    jobs:
-      # This will rebuild a main cache with a new timestamp based on the cache for the last revision
-      - build
-
   weekly:
     triggers:
       - schedule:
-          # Run this job at 00:05 UTC on Sunday
-          cron: "5 0 * * 0"
+          # Run this job at 00:05 UTC on Monday
+          cron: "5 0 * * 1"
           filters:
             branches:
               only:
