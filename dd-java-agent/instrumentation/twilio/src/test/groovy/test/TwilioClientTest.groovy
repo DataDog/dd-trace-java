@@ -286,7 +286,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
-          statusCode Integer
+          statusCode { it != 0 }
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -390,7 +390,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
-          statusCode Integer
+          statusCode { it != 0 }
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -535,7 +535,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
-          statusCode Integer
+          statusCode { it != 0 }
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

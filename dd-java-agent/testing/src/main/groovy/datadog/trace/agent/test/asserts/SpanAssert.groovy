@@ -74,12 +74,10 @@ class SpanAssert {
   }
 
   def statusCode(Object value) {
-    if (value instanceof Class) {
-      assert ((Class) value).isInstance(span.httpStatusCode)
-    } else if (value instanceof Closure) {
+    if (value instanceof Closure) {
       assert ((Closure) value).call(span.httpStatusCode)
     } else {
-      assert span.httpStatusCode == value
+      assert value instanceof Number && span.httpStatusCode == (value as Number).shortValue()
     }
     checked.statusCode = true
   }

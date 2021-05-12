@@ -120,7 +120,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint == ERROR || endpoint == EXCEPTION
       childOfPrevious()
-      statusCode Integer
+      statusCode { it != 0 }
       tags {
         "$Tags.COMPONENT" RatpackServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER

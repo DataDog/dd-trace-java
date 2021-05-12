@@ -122,7 +122,7 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint == ERROR || endpoint == EXCEPTION
       childOfPrevious()
-      statusCode Integer
+      statusCode { it != 0 }
       tags {
         "$Tags.COMPONENT" VertxRouterDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -159,7 +159,7 @@ class VertxChainingHttpServerForkedTest extends VertxHttpServerForkedTest {
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint == ERROR || endpoint == EXCEPTION
       childOfPrevious()
-      statusCode Integer
+      statusCode { it != 0 }
       tags {
         "$Tags.COMPONENT" VertxRouterDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER

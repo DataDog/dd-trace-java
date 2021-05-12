@@ -88,7 +88,7 @@ class PlayServerTest extends HttpServerTest<Server> {
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint == ERROR || endpoint == EXCEPTION
       childOfPrevious()
-      statusCode Integer
+      statusCode { it != 0 }
       tags {
         "$Tags.COMPONENT" PlayHttpServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
