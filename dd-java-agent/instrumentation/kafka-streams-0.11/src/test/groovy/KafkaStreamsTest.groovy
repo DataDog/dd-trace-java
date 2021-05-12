@@ -146,10 +146,13 @@ class KafkaStreamsTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            defaultTags(true)
+          }
+          metrics {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            defaultTags(true)
+            defaultMetrics()
           }
         }
       }
@@ -183,10 +186,13 @@ class KafkaStreamsTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 0
             "asdf" "testing"
             defaultTags(true)
+          }
+          metrics {
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" 0
+            defaultMetrics()
           }
         }
       }
@@ -202,11 +208,14 @@ class KafkaStreamsTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            defaultTags(true)
+          }
+          metrics {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "testing" 123
-            defaultTags(true)
+            defaultMetrics()
           }
         }
       }
