@@ -180,7 +180,6 @@ class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> 
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
         if (endpoint == FORWARDED) {
@@ -196,6 +195,10 @@ class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> 
           "$DDTags.HTTP_QUERY" endpoint.query
         }
         defaultTags(true)
+      }
+      metrics {
+        "$Tags.PEER_PORT" Integer
+        defaultMetrics()
       }
     }
   }

@@ -90,11 +90,14 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" tcpPublishAddress.host
             "$Tags.PEER_HOST_IPV4" tcpPublishAddress.address
-            "$Tags.PEER_PORT" tcpPublishAddress.port
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" tcpPublishAddress.port
+            defaultMetrics()
           }
         }
       }
@@ -187,12 +190,15 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" tcpPublishAddress.host
             "$Tags.PEER_HOST_IPV4" tcpPublishAddress.address
-            "$Tags.PEER_PORT" tcpPublishAddress.port
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "CreateIndexAction"
             "elasticsearch.request" "CreateIndexRequest"
             "elasticsearch.request.indices" indexName
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" tcpPublishAddress.port
+            defaultMetrics()
           }
         }
       }
@@ -207,11 +213,14 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" tcpPublishAddress.host
             "$Tags.PEER_HOST_IPV4" tcpPublishAddress.address
-            "$Tags.PEER_PORT" tcpPublishAddress.port
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "ClusterHealthAction"
             "elasticsearch.request" "ClusterHealthRequest"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" tcpPublishAddress.port
+            defaultMetrics()
           }
         }
       }
@@ -226,15 +235,18 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" tcpPublishAddress.host
             "$Tags.PEER_HOST_IPV4" tcpPublishAddress.address
-            "$Tags.PEER_PORT" tcpPublishAddress.port
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "GetAction"
             "elasticsearch.request" "GetRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
-            "elasticsearch.version"(-1)
             defaultTags()
+          }
+          metrics {
+            "elasticsearch.version"(-1)
+            "$Tags.PEER_PORT" tcpPublishAddress.port
+            defaultMetrics()
           }
         }
       }
@@ -249,13 +261,16 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" tcpPublishAddress.host
             "$Tags.PEER_HOST_IPV4" tcpPublishAddress.address
-            "$Tags.PEER_PORT" tcpPublishAddress.port
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "IndexAction"
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" indexType
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" tcpPublishAddress.port
+            defaultMetrics()
           }
         }
       }
@@ -287,15 +302,18 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" tcpPublishAddress.host
             "$Tags.PEER_HOST_IPV4" tcpPublishAddress.address
-            "$Tags.PEER_PORT" tcpPublishAddress.port
             "$Tags.DB_TYPE" "elasticsearch"
             "elasticsearch.action" "GetAction"
             "elasticsearch.request" "GetRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
-            "elasticsearch.version" 1
             defaultTags()
+          }
+          metrics {
+            "elasticsearch.version" 1
+            "$Tags.PEER_PORT" tcpPublishAddress.port
+            defaultMetrics()
           }
         }
       }

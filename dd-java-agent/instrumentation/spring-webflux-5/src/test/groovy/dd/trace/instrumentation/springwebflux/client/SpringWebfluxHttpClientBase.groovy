@@ -79,7 +79,6 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
           "$Tags.COMPONENT" NettyHttpClientDecorator.DECORATE.component()
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
           "$Tags.PEER_HOSTNAME" "localhost"
-          "$Tags.PEER_PORT" uri.port
           "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
           "$Tags.HTTP_URL" "${uri.resolve(uri.path)}"
           "$Tags.HTTP_METHOD" method
@@ -91,6 +90,10 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
             errorTags(exception.class, exception.message)
           }
           defaultTags()
+        }
+        metrics {
+          "$Tags.PEER_PORT" uri.port
+          defaultMetrics()
         }
       }
     }

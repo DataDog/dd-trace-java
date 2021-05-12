@@ -79,10 +79,13 @@ class ReactorNettyTest extends AgentTestRunner {
         "$Tags.PEER_HOSTNAME" uri.host
 
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        "$Tags.PEER_PORT" uri.port
         "$Tags.HTTP_URL" "${uri.resolve(uri.path)}"
         "$Tags.HTTP_METHOD" method
         defaultTags()
+      }
+      metrics {
+        "$Tags.PEER_PORT" uri.port
+        defaultMetrics()
       }
     }
   }

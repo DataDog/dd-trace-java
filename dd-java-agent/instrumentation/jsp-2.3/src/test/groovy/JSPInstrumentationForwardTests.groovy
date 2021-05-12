@@ -31,12 +31,15 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$forwardFromFileName"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$forwardFromFileName"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -130,12 +133,15 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToHtml.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToHtml.jsp"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -196,12 +202,15 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToIncludeMulti.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToIncludeMulti.jsp"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -346,12 +355,15 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToJspForward.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToJspForward.jsp"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -468,13 +480,16 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToCompileError.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToCompileError.jsp"
             errorTags(JasperException, String)
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -551,12 +566,15 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToNonExistent.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToNonExistent.jsp"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {

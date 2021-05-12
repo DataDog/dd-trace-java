@@ -649,7 +649,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_PORT" Integer
         "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
@@ -669,6 +668,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         defaultTags(true)
       }
       metrics {
+        "$Tags.PEER_PORT" Integer
         defaultMetrics()
       }
     }

@@ -90,11 +90,14 @@ class Elasticsearch7RestClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "elasticsearch-java"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" httpTransportAddress.address
-            "$Tags.PEER_PORT" httpTransportAddress.port
             "$Tags.HTTP_URL" "_cluster/health"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.DB_TYPE" "elasticsearch"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" httpTransportAddress.port
+            defaultMetrics()
           }
         }
         span {

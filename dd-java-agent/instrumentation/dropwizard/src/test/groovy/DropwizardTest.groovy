@@ -135,7 +135,6 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" { it == (endpoint == FORWARDED ? endpoint.body : "127.0.0.1") }
-        "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_ROUTE" "/${endpoint.rawPath()}"
@@ -151,6 +150,10 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
           "$DDTags.HTTP_QUERY" endpoint.query
         }
         defaultTags(true)
+      }
+      metrics {
+        "$Tags.PEER_PORT" Integer
+        defaultMetrics()
       }
     }
   }

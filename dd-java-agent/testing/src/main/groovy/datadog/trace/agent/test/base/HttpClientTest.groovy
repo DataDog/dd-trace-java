@@ -529,7 +529,6 @@ abstract class HttpClientTest extends AgentTestRunner {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.PEER_HOSTNAME" uri.host
         "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
-        "$Tags.PEER_PORT" { it == uri.port || it == proxy.port || it == 443 || it == null }
         "$Tags.HTTP_URL" "${uri.resolve(uri.path)}" // remove fragment
         "$Tags.HTTP_METHOD" method
         if (tagQueryString) {
@@ -542,6 +541,7 @@ abstract class HttpClientTest extends AgentTestRunner {
         defaultTags()
       }
       metrics {
+        "$Tags.PEER_PORT" { it == uri.port || it == proxy.port || it == 443 || it == null }
         defaultMetrics()
       }
     }

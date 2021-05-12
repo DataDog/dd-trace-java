@@ -125,7 +125,6 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
         "$Tags.COMPONENT" RatpackServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" "127.0.0.1" // This span ignores "x-forwards-from".
-        "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_METHOD" String
         "$Tags.HTTP_ROUTE" String
@@ -136,6 +135,10 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
           "$DDTags.HTTP_QUERY" endpoint.query
         }
         defaultTags()
+      }
+      metrics {
+        "$Tags.PEER_PORT" Integer
+        defaultMetrics()
       }
     }
   }

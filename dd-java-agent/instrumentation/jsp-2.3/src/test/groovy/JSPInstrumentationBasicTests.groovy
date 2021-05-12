@@ -33,12 +33,15 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$jspFileName"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$jspFileName"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -106,12 +109,15 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/getQuery.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/getQuery.jsp"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -176,12 +182,15 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/post.jsp"
             "$Tags.HTTP_METHOD" "POST"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/post.jsp"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -243,7 +252,6 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$jspFileName"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
@@ -256,6 +264,10 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             }
             "error.stack" String
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -329,12 +341,15 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/includes/includeHtml.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/includes/includeHtml.jsp"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -395,12 +410,15 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/includes/includeMulti.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/includes/includeMulti.jsp"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -515,13 +533,16 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$jspFileName"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$jspFileName"
             errorTags(JasperException, String)
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -577,12 +598,15 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.COMPONENT" "java-web-servlet"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$staticFile"
             "$Tags.HTTP_METHOD" "GET"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$staticFile"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
       }

@@ -104,7 +104,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_URL" "${address.resolve("/client-request")}"
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
             defaultTags()
           }
         }
@@ -120,7 +119,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_URL" "${requestServer.address.resolve("/remote-client-request")}"
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
             defaultTags()
           }
         }
@@ -157,7 +155,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             "$Tags.HTTP_METHOD" "PUT"
             "$Tags.HTTP_URL" "${address.resolve("/pfe-request")}"
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
             defaultTags()
           }
         }
@@ -174,7 +171,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
               "$Tags.HTTP_METHOD" "GET"
               "$Tags.HTTP_URL" "${requestServer.address.resolve("/remote-pfe-request")}"
               "$Tags.PEER_HOSTNAME" "localhost"
-              "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
               defaultTags()
             }
           }

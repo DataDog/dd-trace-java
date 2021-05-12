@@ -228,7 +228,6 @@ class CassandraClientTest extends AgentTestRunner {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.PEER_HOSTNAME" "localhost"
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        "$Tags.PEER_PORT" port
         "$Tags.DB_TYPE" "cassandra"
         "$Tags.DB_INSTANCE" keyspace
 
@@ -236,6 +235,10 @@ class CassandraClientTest extends AgentTestRunner {
           errorTags(throwable)
         }
         defaultTags()
+      }
+      metrics {
+        "$Tags.PEER_PORT" port
+        defaultMetrics()
       }
     }
   }

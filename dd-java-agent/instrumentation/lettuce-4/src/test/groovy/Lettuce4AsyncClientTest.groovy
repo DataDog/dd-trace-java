@@ -122,10 +122,13 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" HOST
-            "$Tags.PEER_PORT" port
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" port
+            defaultMetrics()
           }
         }
       }
@@ -160,11 +163,14 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" HOST
-            "$Tags.PEER_PORT" incorrectPort
             "$Tags.DB_TYPE" "redis"
-            "db.redis.dbIndex" 0
             errorTags RedisConnectionException, String
             defaultTags()
+          }
+          metrics {
+            "db.redis.dbIndex" 0
+            "$Tags.PEER_PORT" incorrectPort
+            defaultMetrics()
           }
         }
       }

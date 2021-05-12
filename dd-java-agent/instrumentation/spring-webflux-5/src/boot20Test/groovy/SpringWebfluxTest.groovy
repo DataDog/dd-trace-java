@@ -59,12 +59,15 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             // BUG
             if (!testName.startsWith("functional")) { "$Tags.HTTP_ROUTE" "$urlPathWithVariables" }
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -134,12 +137,15 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             // BUG
             if (!testName.startsWith("functional")) { "$Tags.HTTP_ROUTE" "$urlPathWithVariables" }
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -284,12 +290,15 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             // BUG
             "$Tags.HTTP_ROUTE" "/**"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -336,11 +345,14 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "POST"
             // BUG "$Tags.HTTP_ROUTE" "/echo"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -395,12 +407,15 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             // BUG
             if (!testName.startsWith("functional")) { "$Tags.HTTP_ROUTE" "$urlPathWithVariables" }
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -470,11 +485,14 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             // BUG "$Tags.HTTP_ROUTE" "/double-greet-redirect"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -505,11 +523,14 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" finalUrl
             "$Tags.HTTP_METHOD" "GET"
             // BUG "$Tags.HTTP_ROUTE" "/double-greet"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
         span {
@@ -556,12 +577,15 @@ class SpringWebfluxTest extends AgentTestRunner {
               "$Tags.COMPONENT" "netty"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
               "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-              "$Tags.PEER_PORT" Integer
               "$Tags.HTTP_URL" url
               "$Tags.HTTP_METHOD" "GET"
               // BUG
               if (!testName.startsWith("functional")) { "$Tags.HTTP_ROUTE" "$urlPathWithVariables" }
               defaultTags()
+            }
+            metrics {
+              "$Tags.PEER_PORT" Integer
+              defaultMetrics()
             }
           }
           span {

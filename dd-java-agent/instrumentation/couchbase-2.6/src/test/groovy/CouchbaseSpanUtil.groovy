@@ -24,7 +24,6 @@ class CouchbaseSpanUtil {
 
         // Because of caching, not all requests hit the server so these tags may be absent
         "$Tags.PEER_HOSTNAME" { it == "localhost" || it == "127.0.0.1" || it == null }
-        "$Tags.PEER_PORT" { it == null || Number }
 
         "$Tags.DB_TYPE" "couchbase"
         if (bucketName != null) {
@@ -39,6 +38,10 @@ class CouchbaseSpanUtil {
         // that do have operation ids
         "couchbase.operation_id" { it == null || String }
         defaultTags()
+      }
+      metrics {
+        "$Tags.PEER_PORT" { it == null || Number }
+        defaultMetrics()
       }
     }
   }

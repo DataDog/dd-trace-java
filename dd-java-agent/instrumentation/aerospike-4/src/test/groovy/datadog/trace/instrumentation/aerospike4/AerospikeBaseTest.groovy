@@ -69,10 +69,13 @@ abstract class AerospikeBaseTest extends AgentTestRunner {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.PEER_HOSTNAME" aerospikeHost
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        "$Tags.PEER_PORT" aerospikePort
         "$Tags.DB_TYPE" "aerospike"
         "$Tags.DB_INSTANCE" "test"
         defaultTags()
+      }
+      metrics {
+        "$Tags.PEER_PORT" aerospikePort
+        defaultMetrics()
       }
     }
   }

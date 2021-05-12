@@ -106,10 +106,13 @@ class HttpUrlConnectionTest extends HttpClientTest {
             "$Tags.COMPONENT" "http-url-connection"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$url"
             "$Tags.HTTP_METHOD" "GET"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
           }
         }
         span {
@@ -126,10 +129,13 @@ class HttpUrlConnectionTest extends HttpClientTest {
             "$Tags.COMPONENT" "http-url-connection"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$url"
             "$Tags.HTTP_METHOD" "GET"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
           }
         }
       }
@@ -196,10 +202,13 @@ class HttpUrlConnectionTest extends HttpClientTest {
             "$Tags.COMPONENT" "http-url-connection"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$url"
             "$Tags.HTTP_METHOD" "GET"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
           }
         }
         span {
@@ -216,10 +225,13 @@ class HttpUrlConnectionTest extends HttpClientTest {
             "$Tags.COMPONENT" "http-url-connection"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$url"
             "$Tags.HTTP_METHOD" "GET"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
           }
         }
       }
@@ -271,10 +283,13 @@ class HttpUrlConnectionTest extends HttpClientTest {
             "$Tags.COMPONENT" "http-url-connection"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$url"
             "$Tags.HTTP_METHOD" "GET"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
           }
         }
       }
@@ -342,10 +357,13 @@ class HttpUrlConnectionTest extends HttpClientTest {
             "$Tags.COMPONENT" "http-url-connection"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$url"
             "$Tags.HTTP_METHOD" "POST"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
           }
         }
       }

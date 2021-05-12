@@ -180,10 +180,13 @@ class SynapseServerTest extends AgentTestRunner {
         "$Tags.COMPONENT" "synapse-server"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "/services/SimpleStockQuoteService"
         "$Tags.HTTP_METHOD" method
         defaultTags()
+      }
+      metrics {
+        "$Tags.PEER_PORT" Integer
+        defaultMetrics()
       }
     }
   }

@@ -130,7 +130,6 @@ class GlassFishServerTest extends HttpServerTest<GlassFish> {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         if (endpoint == FORWARDED) {
@@ -147,6 +146,10 @@ class GlassFishServerTest extends HttpServerTest<GlassFish> {
           "$DDTags.HTTP_QUERY" endpoint.query
         }
         defaultTags(true)
+      }
+      metrics {
+        "$Tags.PEER_PORT" Integer
+        defaultMetrics()
       }
     }
   }
