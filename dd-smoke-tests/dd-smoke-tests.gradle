@@ -11,12 +11,15 @@ def smokeTestLimit = gradle.sharedServices.registerIfAbsent("smokeTestLimit", Bu
   maxParallelUsages = 1
 }
 
+Project parent_project = project
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 
-  subProj.tasks.withType(Test).configureEach {
+  subProj.tasks.withType(Test).configureEach { subTask ->
     dependsOn project(':dd-java-agent').tasks.named("shadowJar")
+
+    onlyIf { !project.rootProject.hasProperty("skipSmokeTests") }
 
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
@@ -27,5 +30,12 @@ subprojects { Project subProj ->
 
     // Only one smoke test at a time
     usesService(smokeTestLimit)
+
+    // Make it so all smoke tests can be run with a single command.
+    if (parent_project.hasProperty(subTask.name)) {
+      parent_project.tasks.named(subTask.name).configure {
+        dependsOn(subTask)
+      }
+    }
   }
 }

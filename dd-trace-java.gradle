@@ -29,6 +29,8 @@ def isCI = System.getenv("CI") != null
 apply from: "$rootDir/gradle/scm.gradle"
 apply from: "$rootDir/gradle/spotless.gradle"
 
+def compileTask = tasks.register("compile")
+
 allprojects {
   group = 'com.datadoghq'
   version = scmVersion.version
@@ -39,6 +41,10 @@ allprojects {
 
   apply from: "$rootDir/gradle/dependencies.gradle"
   apply from: "$rootDir/gradle/util.gradle"
+
+  compileTask.configure {
+    dependsOn tasks.withType(AbstractCompile)
+  }
 }
 
 repositories {

@@ -15,7 +15,9 @@ plugins {
 }
 apply from: "$rootDir/gradle/java.gradle"
 
-Project instr_project = project
+tasks.register("latestDepTest")
+
+Project parent_project = project
 subprojects { Project subProj ->
   apply plugin: "net.bytebuddy.byte-buddy"
   apply plugin: 'muzzle'
@@ -74,13 +76,19 @@ subprojects { Project subProj ->
       testCompileOnly deps.autoserviceAnnotation
     }
 
-    // Make it so all instrumentation subproject tests can be run with a single command.
-    instr_project.tasks.named("test").configure {
-      dependsOn(subProj.tasks.named("test"))
+    subProj.tasks.withType(Test).configureEach { subTask ->
+      onlyIf { !project.rootProject.hasProperty("skipInstTests") }
+
+      // Make it so all instrumentation subproject tests can be run with a single command.
+      if (parent_project.hasProperty(subTask.name)) {
+        parent_project.tasks.named(subTask.name).configure {
+          dependsOn(subTask)
+        }
+      }
     }
   }
 
-  instr_project.dependencies {
+  parent_project.dependencies {
     compile(project(subProj.getPath()))
   }
 }
