@@ -100,8 +100,11 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
         "hazelcast.operation" matcher.group("operation")
         "hazelcast.service" matcher.group("service")
         "hazelcast.instance" client.name
-        "hazelcast.correlationId" Long
         defaultTags()
+      }
+      metrics {
+        "hazelcast.correlationId" Long
+        defaultMetrics()
       }
     }
   }

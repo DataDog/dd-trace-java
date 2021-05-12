@@ -94,8 +94,11 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
           "hazelcast.operation" "Event.Handle"
           "hazelcast.service" "Event"
-          "hazelcast.correlationId" Long
           defaultTags()
+        }
+        metrics {
+          "hazelcast.correlationId" Long
+          defaultMetrics()
         }
       }
     }
@@ -129,8 +132,11 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
         "hazelcast.operation" matcher.group("operation")
         "hazelcast.service" matcher.group("service")
         "hazelcast.instance" client.name
-        "hazelcast.correlationId" Long
         defaultTags()
+      }
+      metrics {
+        "hazelcast.correlationId" Long
+        defaultMetrics()
       }
     }
   }

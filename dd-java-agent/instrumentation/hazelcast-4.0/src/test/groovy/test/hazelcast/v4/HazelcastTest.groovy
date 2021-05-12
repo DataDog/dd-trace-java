@@ -224,9 +224,12 @@ class HazelcastTest extends AbstractHazelcastTest {
             "hazelcast.name" randomName
             "hazelcast.operation" "List.Get"
             "hazelcast.instance" client.getName()
-            "hazelcast.correlationId" Long
             errorTags(ex)
             defaultTags()
+          }
+          metrics {
+            "hazelcast.correlationId" Long
+            defaultMetrics()
           }
         }
       }
