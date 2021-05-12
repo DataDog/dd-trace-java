@@ -23,7 +23,7 @@ defaults: &defaults
 # cache to work from.
 cache_keys: &cache_keys
   keys:
-    # Rev the version when the cache gets too big, and don't forget to change the save_cache steps
+    # There is a weekly job that runs on Sundays that builds from a clean cache
     # Dependent steps will find this cache
     - dd-trace-java-v2-{{ .Branch }}-{{ .Revision }}
     # New branch commits will find this cache
@@ -113,6 +113,28 @@ jobs:
           paths:
             - .gradle
             - workspace
+
+      - save_cache:
+          key: dd-trace-java-v2-{{ .Branch }}-{{ .Revision }}
+          <<: *save_cache_paths
+
+      - save_cache:
+          key: dd-trace-java-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}
+          <<: *save_cache_paths
+
+  build_clean_cache:
+    <<: *defaults
+
+    steps:
+      - setup_code
+
+      - run:
+          name: Build Project
+          command: >-
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=2G -Ddatadog.forkedMinHeapSize=64M"
+            ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileLatestDepTestGroovy compileTestScala compileLatestDepTestScala compileTestJava compileLatestDepTestJava
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=7
 
       - save_cache:
           key: dd-trace-java-v2-{{ .Branch }}-{{ .Revision }}
@@ -314,13 +336,16 @@ workflows:
             - build
           filters:
             branches:
-              ignore: master
+              ignore:
+                - master
+                - project/*
+                - release/*
 
   daily:
     triggers:
       - schedule:
-          # Run this job at 00:05 UTC daily
-          cron: "5 0 * * *"
+          # Run this job at 00:05 UTC daily, except Sunday
+          cron: "5 0 * * 1,2,3,4,5,6"
           filters:
             branches:
               only:
@@ -328,3 +353,16 @@ workflows:
     jobs:
       # This will rebuild a main cache with a new timestamp based on the cache for the last revision
       - build
+
+  weekly:
+    triggers:
+      - schedule:
+          # Run this job at 00:05 UTC on Sunday
+          cron: "5 0 * * 0"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      # This will rebuild a main cache with a new timestamp from a clean slate
+      - build_clean_cache
