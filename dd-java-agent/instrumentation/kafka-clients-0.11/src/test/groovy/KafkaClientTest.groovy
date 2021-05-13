@@ -346,7 +346,7 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-
+            "tombstone" true
             defaultTags(true)
           }
           metrics {
@@ -609,10 +609,6 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 2
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             defaultTags(true)
           }
           metrics {
@@ -637,10 +633,6 @@ class KafkaClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 2
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
             defaultTags(true)
           }
           metrics {
