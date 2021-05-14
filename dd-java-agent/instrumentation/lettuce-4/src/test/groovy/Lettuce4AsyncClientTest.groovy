@@ -123,10 +123,10 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" HOST
             "$Tags.DB_TYPE" "redis"
-            "db.redis.dbIndex" 0
             defaultTags()
           }
           metrics {
+            "db.redis.dbIndex" 0
             "$Tags.PEER_PORT" port
             defaultMetrics()
           }
