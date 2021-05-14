@@ -67,9 +67,5 @@ spotless {
   }
 }
 
-tasks.register('formatCode') {
-  dependsOn 'spotlessApply'
-}
-check.configure {
-  dependsOn 'spotlessCheck'
-}
+task formatCode(dependsOn: ['spotlessApply'])
+check.dependsOn 'spotlessCheck'
