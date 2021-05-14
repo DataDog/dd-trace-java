@@ -205,9 +205,6 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
       childOfPrevious()
       tags {
         "$Tags.COMPONENT" AsyncDispatcherDecorator.DECORATE.component()
-        if (endpoint == TIMEOUT || endpoint == TIMEOUT_ERROR) {
-          "timeout" SERVLET_TIMEOUT
-        }
         if (context) {
           "servlet.context" "/$context"
         }
@@ -218,6 +215,12 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
           "error.stack" String
         }
         defaultTags()
+      }
+      metrics {
+        if (endpoint == TIMEOUT || endpoint == TIMEOUT_ERROR) {
+          "timeout" SERVLET_TIMEOUT
+        }
+        defaultMetrics()
       }
     }
   }
