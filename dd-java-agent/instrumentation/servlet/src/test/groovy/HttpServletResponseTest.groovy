@@ -89,12 +89,12 @@ class HttpServletResponseTest extends AgentTestRunner {
           operationName "servlet.request"
           spanType "web"
           errored true
+          statusCode { it != 0 }
           tags {
             "component" "java-web-servlet"
             "http.method" "GET"
             "http.url" "/"
             "span.kind" "server"
-            "http.status_code" Integer
             defaultTags()
             errorTags(ex.class, ex.message)
           }
