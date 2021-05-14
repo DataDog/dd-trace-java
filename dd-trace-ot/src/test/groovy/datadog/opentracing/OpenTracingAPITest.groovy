@@ -103,8 +103,11 @@ class OpenTracingAPITest extends DDSpecification {
           tags {
             "$datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT" "test-component"
             "someBoolean" true
-            "someNumber" 1
             defaultTags()
+          }
+          metrics {
+            "someNumber" 1
+            defaultMetrics()
           }
         }
       }
