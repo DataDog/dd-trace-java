@@ -230,7 +230,7 @@ class Elasticsearch53TransportClientTest extends AgentTestRunner {
             defaultTags()
           }
           metrics {
-            "elasticsearch.version" -1
+            "elasticsearch.version"(-1)
             "$Tags.PEER_PORT" tcpPublishAddress.port
             defaultMetrics()
           }
