@@ -215,12 +215,15 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" indexType
+            defaultTags()
+          }
+          metrics {
             "elasticsearch.request.write.version"(-3)
             "elasticsearch.response.status" 201
             "elasticsearch.shard.replication.failed" 0
             "elasticsearch.shard.replication.successful" 1
             "elasticsearch.shard.replication.total" 2
-            defaultTags()
+            defaultMetrics()
           }
         }
       }
@@ -253,10 +256,13 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
             "elasticsearch.action" "RefreshAction"
             "elasticsearch.request" "RefreshRequest"
             "elasticsearch.request.indices" indexName
+            defaultTags()
+          }
+          metrics {
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultMetrics()
           }
         }
       }
