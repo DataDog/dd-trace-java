@@ -281,10 +281,13 @@ class JMS2Test extends AgentTestRunner {
         tags {
           "${Tags.COMPONENT}" "jms"
           "${Tags.SPAN_KIND}" "consumer"
+          defaultTags(true)
+        }
+        metrics {
           if (!messageListener && !isTimestampDisabled) {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
           }
-          defaultTags(true)
+          defaultMetrics()
         }
       }
     }
