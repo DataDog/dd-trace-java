@@ -162,20 +162,20 @@ class SynapseServerTest extends AgentTestRunner {
     statusCode == 500
   }
 
-  def httpSpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null) {
+  def httpSpan(TraceAssert trace, int index, String method, int httpStatus, Object parentSpan = null) {
     trace.span {
       serviceName expectedServiceName()
       operationName "http.request"
       resourceName "${method} /services/SimpleStockQuoteService"
       spanType DDSpanTypes.HTTP_SERVER
-      errored statusCode >= 500
+      errored httpStatus >= 500
       if (parentSpan == null) {
         parent()
       } else {
         childOf((DDSpan) parentSpan)
       }
       topLevel parentSpan == null
-      statusCode statusCode
+      statusCode httpStatus
       tags {
         "$Tags.COMPONENT" "synapse-server"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
