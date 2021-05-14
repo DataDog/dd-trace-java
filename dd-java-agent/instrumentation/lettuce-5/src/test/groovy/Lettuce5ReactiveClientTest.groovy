@@ -231,8 +231,11 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "redis-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
-            "db.command.results.count" 157
             defaultTags()
+          }
+          metrics {
+            "db.command.results.count" 157
+            defaultMetrics()
           }
         }
       }
@@ -258,8 +261,11 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" "redis"
             "db.command.cancelled" true
-            "db.command.results.count" 2
             defaultTags()
+          }
+          metrics {
+            "db.command.results.count" 2
+            defaultMetrics()
           }
         }
       }
