@@ -185,18 +185,6 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
 
     final int firstDollar = name.indexOf('$');
     if (firstDollar > -1) {
-      // clojure class patterns
-      if (name.startsWith("loader__", firstDollar + 1)) {
-        return true;
-      }
-      int dollar = firstDollar;
-      while (dollar > -1) {
-        if (name.startsWith("fn__", dollar + 1) || name.startsWith("reify__", dollar + 1)) {
-          return true;
-        }
-        dollar = name.indexOf('$', dollar + 1);
-      }
-
       if (name.contains("$JaxbAccessor")
           || name.contains("CGLIB$$")
           || name.contains("$__sisu")

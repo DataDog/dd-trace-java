@@ -13,12 +13,12 @@ def appDir = "$projectDir/application"
 def jarName = "demo-open-liberty-app.jar"
 
 // compile the Open liberty spring boot server
-task mvnStage(type:Exec) {
+tasks.register('mvnStage', Exec) {
   workingDir "$appDir"
   commandLine './mvnw', 'package'
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy").configure {
   dependsOn 'mvnStage'
   outputs.upToDateWhen {
     !mvnStage.didWork

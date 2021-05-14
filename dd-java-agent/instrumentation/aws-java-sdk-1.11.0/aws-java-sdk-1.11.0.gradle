@@ -77,4 +77,6 @@ dependencies {
   latestDepTestCompile group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '+'
 }
 
-test.dependsOn test_before_1_11_106
+tasks.named("test").configure {
+  dependsOn "test_before_1_11_106"
+}

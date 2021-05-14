@@ -123,7 +123,7 @@ dependencies {
 
 def generateTestingJar(String interfaceName, String backend, List<Configuration> configurationsList) {
   def name = interfaceName + "Interface" + backend + "Backend"
-  tasks.create(name: name, type: ShadowJar) {
+  tasks.register(name, ShadowJar).configure {
     from sourceSets.main.output
     from sourceSets.logging.output
 

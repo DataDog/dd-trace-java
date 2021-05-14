@@ -63,7 +63,7 @@ sourceSets {
   }
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy").configure {
   dependsOn 'mvnPackage', 'extractMuleServices'
 }
 
@@ -87,7 +87,7 @@ dependencies {
 }
 
 // extract the enabled services into the mule base directory
-task extractMuleServices(type: Sync) {
+tasks.register('extractMuleServices', Sync) {
   dependsOn configurations.muleServices
 
   configurations.muleServices.resolvedConfiguration.resolvedArtifacts.findAll {
@@ -103,7 +103,7 @@ task extractMuleServices(type: Sync) {
 }
 
 // build the mule application via maven
-task mvnPackage(type: Exec) {
+tasks.register('mvnPackage', Exec) {
   workingDir "$appDir"
   commandLine 'mvn', "-Ddatadog.builddir=$buildDir", "-Ddatadog.name=mule-test-application", "-Ddatadog.version=$version", 'package'
   outputs.dir("$buildDir/target")
@@ -113,7 +113,7 @@ task mvnPackage(type: Exec) {
 }
 
 // generate a properties file so the test knows where to run mule, and what jar to deploy
-task generateAppResources {
+tasks.register('generateAppResources') {
   outputs.dir generatedResourcesDir
   doLast {
     def generated = new File(generatedResourcesDir, "test-build.properties")
@@ -123,7 +123,7 @@ task generateAppResources {
   }
 }
 
-tasks.test {
+tasks.named("test").configure {
   outputs.upToDateWhen {
     !mvnPackage.didWork && !extractMuleServices.didWork
   }

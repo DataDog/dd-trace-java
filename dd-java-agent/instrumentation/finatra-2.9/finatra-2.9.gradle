@@ -48,14 +48,16 @@ dependencies {
   latestDepTestCompile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.0'
 }
 
-compileLatestDepTestGroovy {
+tasks.named("compileLatestDepTestGroovy").configure {
   classpath = classpath.plus(files(compileLatestDepTestScala.destinationDir))
-  dependsOn compileLatestDepTestScala
+  dependsOn "compileLatestDepTestScala"
 }
 
-compileLatestPre207TestGroovy {
+tasks.named("compileLatestPre207TestGroovy").configure {
   classpath = classpath.plus(files(compileLatestPre207TestScala.destinationDir))
-  dependsOn compileLatestPre207TestScala
+  dependsOn "compileLatestPre207TestScala"
 }
 
-latestDepTest.finalizedBy latestPre207Test
+tasks.named("latestDepTest").configure {
+  finalizedBy latestPre207Test
+}

@@ -25,7 +25,7 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
 [JavaCompile, GroovyCompile].each {
-  tasks.withType(it) {
+  tasks.withType(it).configureEach {
     doFirst {
       if (!System.env.JAVA_11_HOME) {
         throw new GradleException('JAVA_11_HOME must be set to build profiling helpers')
