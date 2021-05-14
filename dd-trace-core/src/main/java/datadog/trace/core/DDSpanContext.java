@@ -407,7 +407,11 @@ public class DDSpanContext implements AgentSpan.Context {
     synchronized (unsafeTags) {
       for (final Map.Entry<String, ? extends Object> tag : map.entrySet()) {
         if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
-          unsafeSetTag(tag.getKey(), tag.getValue());
+          if (tag.getValue() instanceof Number) {
+            setMetric(tag.getKey(), (Number) tag.getValue());
+          } else {
+            unsafeSetTag(tag.getKey(), tag.getValue());
+          }
         }
       }
     }

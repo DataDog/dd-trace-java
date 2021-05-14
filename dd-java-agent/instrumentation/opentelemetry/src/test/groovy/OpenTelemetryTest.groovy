@@ -68,16 +68,19 @@ class OpenTelemetryTest extends AgentTestRunner {
           tags {
             if (tagSpan) {
               "string" "b"
-              "number" 2
               "boolean" false
             } else if (tagBuilder) {
               "string" "a"
-              "number" 1
               "boolean" true
             }
             defaultTags()
           }
           metrics {
+            if (tagSpan) {
+              "number" 2
+            } else if (tagBuilder) {
+              "number" 1
+            }
             defaultMetrics()
           }
         }

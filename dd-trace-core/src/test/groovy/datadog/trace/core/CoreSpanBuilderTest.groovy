@@ -40,6 +40,8 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     def tags = [
       "1": true,
       "2": "fakeString",
+    ]
+    def metrics = [
       "3": 42.0,
     ]
 
@@ -49,6 +51,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     tags.each {
       builder = builder.withTag(it.key, it.value)
     }
+    metrics.each {
+      builder = builder.withTag(it.key, it.value)
+    }
 
     when:
     DDSpan span = builder.start()
@@ -56,6 +61,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     then:
     span.getOperationName() == expectedName
     span.tags.subMap(tags.keySet()) == tags
+    span.unsafeMetrics.subMap(metrics.keySet()) == metrics
 
 
     when:
