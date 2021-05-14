@@ -227,10 +227,13 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
             "elasticsearch.action" "RefreshAction"
             "elasticsearch.request" "RefreshRequest"
             "elasticsearch.request.indices" indexName
+            defaultTags()
+          }
+          metrics {
             "elasticsearch.shard.broadcast.failed" 0
             "elasticsearch.shard.broadcast.successful" 5
             "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
+            defaultMetrics()
           }
         }
       }
