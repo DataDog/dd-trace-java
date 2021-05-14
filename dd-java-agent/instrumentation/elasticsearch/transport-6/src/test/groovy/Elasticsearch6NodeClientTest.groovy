@@ -193,8 +193,11 @@ class Elasticsearch6NodeClientTest extends AgentTestRunner {
             "elasticsearch.request.indices" indexName
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
-            "elasticsearch.version"(-1)
             defaultTags()
+          }
+          metrics {
+            "elasticsearch.version"(-1)
+            defaultMetrics()
           }
         }
       }
@@ -212,12 +215,15 @@ class Elasticsearch6NodeClientTest extends AgentTestRunner {
             "elasticsearch.request" "IndexRequest"
             "elasticsearch.request.indices" indexName
             "elasticsearch.request.write.type" indexType
+            defaultTags()
+          }
+          metrics {
             "elasticsearch.request.write.version"(-3)
             "elasticsearch.response.status" 201
             "elasticsearch.shard.replication.total" 2
             "elasticsearch.shard.replication.successful" 1
             "elasticsearch.shard.replication.failed" 0
-            defaultTags()
+            defaultMetrics()
           }
         }
       }
@@ -252,8 +258,11 @@ class Elasticsearch6NodeClientTest extends AgentTestRunner {
             "elasticsearch.request.indices" indexName
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
-            "elasticsearch.version" 1
             defaultTags()
+          }
+          metrics {
+            "elasticsearch.version" 1
+            defaultMetrics()
           }
         }
       }

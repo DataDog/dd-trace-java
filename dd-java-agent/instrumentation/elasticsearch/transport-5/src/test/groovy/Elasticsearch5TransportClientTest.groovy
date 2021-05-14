@@ -226,10 +226,10 @@ class Elasticsearch5TransportClientTest extends AgentTestRunner {
             "elasticsearch.request.indices" indexName
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
-            "elasticsearch.version"(-1)
             defaultTags()
           }
           metrics {
+            "elasticsearch.version"(-1)
             "$Tags.PEER_PORT" tcpPublishAddress.port
             defaultMetrics()
           }

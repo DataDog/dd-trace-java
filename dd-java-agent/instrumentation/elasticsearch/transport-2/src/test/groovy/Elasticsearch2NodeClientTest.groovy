@@ -208,8 +208,11 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.request.indices" indexName
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
-            "elasticsearch.version"(-1)
             defaultTags()
+          }
+          metrics {
+            "elasticsearch.version"(-1)
+            defaultMetrics()
           }
         }
       }
@@ -267,8 +270,11 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
             "elasticsearch.request.indices" indexName
             "elasticsearch.type" indexType
             "elasticsearch.id" "1"
-            "elasticsearch.version" 1
             defaultTags()
+          }
+          metrics {
+            "elasticsearch.version" 1
+            defaultMetrics()
           }
         }
       }
