@@ -66,7 +66,8 @@ public final class OpenJdkController implements Controller {
     // Toggle settings based on JDK version
     if (Boolean.parseBoolean(recordingSettings.get("jdk.OldObjectSample#enabled"))) {
       if (!isJavaVersionAtLeast(17)) {
-        log.debug("Inexpensive memory leak detection is not supported for this JDK. Disabling OldObjectSample JFR event.");
+        log.debug(
+            "Inexpensive memory leak detection is not supported for this JDK. Disabling OldObjectSample JFR event.");
         recordingSettings.put("jdk.OldObjectSample#enabled", "false");
       }
     }
