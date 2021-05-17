@@ -101,6 +101,7 @@ jobs:
 
   build_clean_cache:
     <<: *defaults
+    resource_class: xlarge
 
     steps:
       - setup_code
