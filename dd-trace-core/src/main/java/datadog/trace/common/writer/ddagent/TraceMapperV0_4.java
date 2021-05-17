@@ -6,7 +6,6 @@ import static datadog.trace.core.serialization.Util.writeLongAsString;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
@@ -34,7 +33,6 @@ public final class TraceMapperV0_4 implements TraceMapper {
   public static final byte[] METRICS = "metrics".getBytes(ISO_8859_1);
   public static final byte[] META = "meta".getBytes(ISO_8859_1);
 
-  static final byte[] EMPTY = ByteBuffer.allocate(1).put((byte) 0x90).array();
   private final int size;
 
   public TraceMapperV0_4(int size) {
@@ -57,48 +55,55 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     @Override
     public void accept(Metadata metadata) {
-      // since tags can "override" baggage, we need to count the non overlapping ones
-      int size = metadata.getTags().size() + 2;
-      // assume we can't have more than 64 baggage items,
-      // and that iteration order is stable to avoid looking
-      // up in the tags more than necessary
-      long overlaps = 0L;
-      if (!metadata.getBaggage().isEmpty()) {
-        int i = 0;
-        for (Map.Entry<String, String> key : metadata.getBaggage().entrySet()) {
-          if (!metadata.getTags().containsKey(key.getKey())) {
-            size++;
-          } else {
-            overlaps |= (1L << i);
-          }
-          ++i;
+      int metaSize = 2 + metadata.getBaggage().size() + metadata.getTags().size();
+      int metricsSize =
+          (metadata.hasSamplingPriority() ? 1 : 0)
+              + (metadata.measured() ? 1 : 0)
+              + (metadata.topLevel() ? 1 : 0);
+      for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
+        if (tag.getValue() instanceof Number) {
+          ++metricsSize;
+          --metaSize;
         }
       }
-      writable.startMap(size);
-      int i = 0;
-      for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        // tags and baggage may intersect, but tags take priority
-        if ((overlaps & (1L << i)) == 0) {
+      writable.writeUTF8(METRICS);
+      writable.startMap(metricsSize);
+      if (metadata.hasSamplingPriority()) {
+        writable.writeUTF8(SAMPLING_PRIORITY_KEY);
+        writable.writeInt(metadata.samplingPriority());
+      }
+      if (metadata.measured()) {
+        writable.writeUTF8(InstrumentationTags.DD_MEASURED);
+        writable.writeInt(1);
+      }
+      if (metadata.topLevel()) {
+        writable.writeUTF8(InstrumentationTags.DD_TOP_LEVEL);
+        writable.writeInt(1);
+      }
+      for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
+        if (entry.getValue() instanceof Number) {
           writable.writeString(entry.getKey(), null);
-          writable.writeString(entry.getValue(), null);
+          writable.writeObject(entry.getValue(), null);
         }
-        ++i;
+      }
+
+      writable.writeUTF8(META);
+      writable.startMap(metaSize);
+      // we don't need to deduplicate any overlap between tags and baggage here
+      // since they will be accumulated into maps in the same order downstream,
+      // we just need to be sure that the size is the same as the number of elements
+      for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
+        writable.writeString(entry.getKey(), null);
+        writable.writeString(entry.getValue(), null);
       }
       writable.writeUTF8(THREAD_NAME);
       writable.writeUTF8(metadata.getThreadName());
       writable.writeUTF8(THREAD_ID);
       writeLongAsString(metadata.getThreadId(), writable, numberByteArray);
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        writable.writeString(entry.getKey(), null);
-        if (entry.getValue() instanceof Long || entry.getValue() instanceof Integer) {
-          // TODO it would be nice not to need to do this, either because
-          //  the agent would accept variably typed tag values, or numeric
-          //  tags get moved to the metrics
-          writeLongAsString(((Number) entry.getValue()).longValue(), writable, numberByteArray);
-        } else if (entry.getValue() instanceof UTF8BytesString) {
-          writable.writeUTF8((UTF8BytesString) entry.getValue());
-        } else {
-          writable.writeString(String.valueOf(entry.getValue()), null);
+        if (!(entry.getValue() instanceof Number)) {
+          writable.writeString(entry.getKey(), null);
+          writable.writeObject(entry.getValue(), null);
         }
       }
     }
@@ -141,37 +146,8 @@ public final class TraceMapperV0_4 implements TraceMapper {
       /* 10 */
       writable.writeUTF8(ERROR);
       writable.writeInt(span.getError());
-      /* 11 */
-      writeMetrics(span, writable);
-      /* 12 */
-      writable.writeUTF8(META);
+      /* 11, 12 */
       span.processTagsAndBaggage(metaWriter.withWritable(writable));
-    }
-  }
-
-  private static void writeMetrics(CoreSpan<?> span, Writable writable) {
-    writable.writeUTF8(METRICS);
-    Map<CharSequence, Number> metrics = span.getUnsafeMetrics();
-    int elementCount = metrics.size();
-    elementCount += (span.hasSamplingPriority() ? 1 : 0);
-    elementCount += (span.isMeasured() ? 1 : 0);
-    elementCount += (span.isTopLevel() ? 1 : 0);
-    writable.startMap(elementCount);
-    if (span.hasSamplingPriority()) {
-      writable.writeUTF8(SAMPLING_PRIORITY_KEY);
-      writable.writeInt(span.samplingPriority());
-    }
-    if (span.isMeasured()) {
-      writable.writeUTF8(InstrumentationTags.DD_MEASURED);
-      writable.writeInt(1);
-    }
-    if (span.isTopLevel()) {
-      writable.writeUTF8(InstrumentationTags.DD_TOP_LEVEL);
-      writable.writeInt(1);
-    }
-    for (Map.Entry<CharSequence, Number> metric : metrics.entrySet()) {
-      writable.writeString(metric.getKey(), null);
-      writable.writeObject(metric.getValue(), null);
     }
   }
 

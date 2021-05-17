@@ -311,9 +311,12 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.samplingPriority == extractedContext.samplingPriority
     span.context().origin == extractedContext.origin
     span.context().baggageItems == extractedContext.baggage
-    span.context().tags == extractedContext.tags + [(RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
-      (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
-      (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
+    // check the extracted context has been copied into the span tags
+    for (Map.Entry<String, Object> tag : extractedContext.tags) {
+      span.context().tags.get(tag.getKey()) == tag.getValue()
+    }
+    span.getTag(THREAD_ID) == thread.id
+    span.getTag(THREAD_NAME) == thread.name
 
     where:
     extractedContext                                                                                                                                                  | _

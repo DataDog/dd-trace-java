@@ -355,16 +355,6 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   // Getters
 
-  /**
-   * Span metrics.
-   *
-   * @return metrics for this span
-   */
-  @Override
-  public Map<CharSequence, Number> getUnsafeMetrics() {
-    return context.getUnsafeMetrics();
-  }
-
   @Override
   public long getStartTime() {
     return startTimeNano > 0 ? startTimeNano : TimeUnit.MICROSECONDS.toNanos(startTimeMicro);

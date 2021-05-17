@@ -80,7 +80,7 @@ public class DDSpanContext implements AgentSpan.Context {
   /** True indicates that the span reports an error */
   private volatile boolean errorFlag;
 
-  private volatile boolean measuredFlag;
+  private volatile boolean measured;
 
   private volatile boolean topLevel;
   /**
@@ -95,8 +95,6 @@ public class DDSpanContext implements AgentSpan.Context {
   private volatile int samplingPriorityV1 = PrioritySampling.UNSET;
   /** The origin of the trace. (eg. Synthetics) */
   private final String origin;
-  /** Metrics on the span - access synchronized on the spanId */
-  private volatile Map<CharSequence, Number> metrics = EMPTY_METRICS;
 
   public DDSpanContext(
       final DDId traceId,
@@ -214,12 +212,12 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   public boolean isMeasured() {
-    return measuredFlag;
+    return measured;
   }
 
   public void setMeasured(boolean measured) {
-    if (measured != measuredFlag) {
-      measuredFlag = measured;
+    if (measured != this.measured) {
+      this.measured = measured;
     }
   }
 
@@ -353,23 +351,9 @@ public class DDSpanContext implements AgentSpan.Context {
     return trace.getTracer();
   }
 
-  public Map<CharSequence, Number> getUnsafeMetrics() {
-    return metrics;
-  }
-
   public void setMetric(final CharSequence key, final Number value) {
-    if (metrics == EMPTY_METRICS) {
-      // synchronize on spanId to not contend with sample rates being set
-      synchronized (spanId) {
-        if (metrics == EMPTY_METRICS) {
-          metrics = new HashMap<>(4);
-          metrics.put(key, value instanceof Float ? value.doubleValue() : value);
-          return;
-        }
-      }
-    }
-    synchronized (spanId) {
-      metrics.put(key, value instanceof Float ? value.doubleValue() : value);
+    synchronized (unsafeTags) {
+      unsafeSetTag(key.toString(), value);
     }
   }
 
@@ -440,13 +424,24 @@ public class DDSpanContext implements AgentSpan.Context {
       Map<String, Object> tags = new HashMap<>(unsafeTags);
       tags.put(DDTags.THREAD_ID, threadId);
       tags.put(DDTags.THREAD_NAME, threadName.toString());
+      if (samplingPriorityV1 != UNSET) {
+        tags.put(SAMPLE_RATE_KEY, samplingPriorityV1);
+      }
       return Collections.unmodifiableMap(tags);
     }
   }
 
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
     synchronized (unsafeTags) {
-      consumer.accept(new Metadata(threadId, threadName, unsafeTags, baggageItems));
+      consumer.accept(
+          new Metadata(
+              threadId,
+              threadName,
+              unsafeTags,
+              baggageItems,
+              samplingPriorityV1,
+              measured,
+              topLevel));
     }
   }
 
@@ -467,14 +462,6 @@ public class DDSpanContext implements AgentSpan.Context {
             .append("/")
             .append(getResourceName())
             .append(" metrics=");
-
-    synchronized (spanId) {
-      Map<CharSequence, Number> metricsSnapshot = new TreeMap<>(getUnsafeMetrics());
-      if (samplingPriorityV1 != PrioritySampling.UNSET) {
-        metricsSnapshot.put(PRIORITY_SAMPLING_KEY, samplingPriorityV1);
-      }
-      s.append(metricsSnapshot);
-    }
     if (errorFlag) {
       s.append(" *errored*");
     }

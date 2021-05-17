@@ -64,9 +64,11 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
     writer.value(span.getError());
     writer.name("metrics");
     writer.beginObject();
-    for (final Map.Entry<CharSequence, Number> entry : span.getUnsafeMetrics().entrySet()) {
-      writer.name(entry.getKey().toString());
-      writer.value(entry.getValue());
+    for (final Map.Entry<String, Object> entry : span.getTags().entrySet()) {
+      if (entry.getValue() instanceof Number) {
+        writer.name(entry.getKey());
+        writer.value((Number) entry.getValue());
+      }
     }
     writer.endObject();
     writer.name("meta");
@@ -79,8 +81,10 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
       }
     }
     for (final Map.Entry<String, Object> entry : tags.entrySet()) {
-      writer.name(entry.getKey());
-      writer.value(String.valueOf(entry.getValue()));
+      if (!(entry.getValue() instanceof Number)) {
+        writer.name(entry.getKey());
+        writer.value(String.valueOf(entry.getValue()));
+      }
     }
     writer.endObject();
     writer.endObject();

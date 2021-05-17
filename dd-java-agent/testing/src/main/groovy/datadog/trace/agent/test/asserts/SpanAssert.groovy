@@ -8,7 +8,6 @@ import groovy.transform.stc.SimpleType
 import java.util.regex.Pattern
 
 import static TagsAssert.assertTags
-import static datadog.trace.agent.test.asserts.MetricsAssert.assertMetrics
 
 class SpanAssert {
   private final DDSpan span
@@ -166,10 +165,5 @@ class SpanAssert {
   void tags(@ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])
     @DelegatesTo(value = TagsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     assertTags(span, spec)
-  }
-
-  void metrics(@ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.MetricsAssert'])
-    @DelegatesTo(value = MetricsAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
-    assertMetrics(span, spec)
   }
 }

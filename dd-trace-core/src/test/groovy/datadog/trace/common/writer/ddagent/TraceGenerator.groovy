@@ -11,6 +11,8 @@ import datadog.trace.core.MetadataConsumer
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+
 class TraceGenerator {
 
   static List<List<CoreSpan>> generateRandomTraces(int howMany, boolean lowCardinality) {
@@ -46,10 +48,9 @@ class TraceGenerator {
       tags.put("tag." + i, ThreadLocalRandom.current().nextBoolean() ? "foo" : randomString(2000))
       tags.put("tag.1." + i, lowCardinality ? "y" : UUID.randomUUID())
     }
-    Map<String, Number> metrics = new HashMap<>()
     int metricCount = ThreadLocalRandom.current().nextInt(0, 20)
     for (int i = 0; i < metricCount; ++i) {
-      metrics.put("metric." + i, ThreadLocalRandom.current().nextBoolean()
+      tags.put("metric." + i, ThreadLocalRandom.current().nextBoolean()
         ? ThreadLocalRandom.current().nextInt()
         : ThreadLocalRandom.current().nextDouble())
     }
@@ -63,7 +64,6 @@ class TraceGenerator {
       TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()),
       ThreadLocalRandom.current().nextLong(500, 10_000_000),
       ThreadLocalRandom.current().nextInt(2),
-      metrics,
       baggage,
       tags,
       "type-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100),
@@ -99,7 +99,6 @@ class TraceGenerator {
     private final long start
     private final long duration
     private final int error
-    private final Map<String, Number> metrics
     private final String type
     private final boolean measured
     private final Metadata metadata
@@ -114,7 +113,6 @@ class TraceGenerator {
     long start,
     long duration,
     int error,
-    Map<String, Number> metrics,
     Map<String, String> baggage,
     Map<String, Object> tags,
     String type,
@@ -128,11 +126,10 @@ class TraceGenerator {
       this.start = start
       this.duration = duration
       this.error = error
-      this.metrics = metrics
       this.type = type
       this.measured = measured
       this.metadata = new Metadata(Thread.currentThread().getId(),
-        UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage)
+        UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, UNSET, measured, topLevel)
     }
 
     @Override
@@ -260,11 +257,6 @@ class TraceGenerator {
       return false
     }
 
-    @Override
-    Map<String, Number> getUnsafeMetrics() {
-      return metrics
-    }
-
     Map<String, String> getBaggage() {
       return metadata.getBaggage()
     }
@@ -320,7 +312,7 @@ class TraceGenerator {
 
     @Override
     int samplingPriority() {
-      return 0
+      return UNSET
     }
 
     @Override

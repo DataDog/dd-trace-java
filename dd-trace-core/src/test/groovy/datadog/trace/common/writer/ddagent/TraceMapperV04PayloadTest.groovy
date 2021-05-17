@@ -178,9 +178,9 @@ class TraceMapperV04PayloadTest extends DDSpecification {
             }
             for (Map.Entry<String, Number> metric : metrics.entrySet()) {
               if (metric.getValue() instanceof Double) {
-                assertEquals(expectedSpan.getUnsafeMetrics().get(metric.getKey()).doubleValue(), metric.getValue().doubleValue(), 0.001)
+                assertEquals(((Number)expectedSpan.getTag(metric.getKey())).doubleValue(), metric.getValue().doubleValue(), 0.001)
               } else {
-                assertEquals(expectedSpan.getUnsafeMetrics().get(metric.getKey()), metric.getValue())
+                assertEquals(expectedSpan.getTag(metric.getKey()), metric.getValue())
               }
             }
             assertEquals("meta", unpacker.unpackString())

@@ -315,7 +315,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     def span = tracer.buildSpan("test").start()
 
     then:
-    span.getUnsafeMetrics() == [:]
+    span.getTag(ANALYTICS_SAMPLE_RATE) == null
 
     when:
     span.setTag(ANALYTICS_SAMPLE_RATE, rate)
@@ -323,7 +323,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     writer.waitForTraces(1)
 
     then:
-    span.getUnsafeMetrics().get(ANALYTICS_SAMPLE_RATE) == result
+    span.getTag(ANALYTICS_SAMPLE_RATE) == result
 
     cleanup:
     tracer.close()

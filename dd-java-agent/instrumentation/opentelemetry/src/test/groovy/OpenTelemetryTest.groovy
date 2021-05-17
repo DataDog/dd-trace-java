@@ -77,9 +77,6 @@ class OpenTelemetryTest extends AgentTestRunner {
             }
             defaultTags()
           }
-          metrics {
-            defaultMetrics()
-          }
         }
       }
     }
@@ -124,9 +121,6 @@ class OpenTelemetryTest extends AgentTestRunner {
             errorTags(exception.class)
             defaultTags()
           }
-          metrics {
-            defaultMetrics()
-          }
         }
       }
     }
@@ -169,9 +163,6 @@ class OpenTelemetryTest extends AgentTestRunner {
           errored false
           tags {
             defaultTags(expectedId != null)
-          }
-          metrics {
-            defaultMetrics()
           }
         }
       }

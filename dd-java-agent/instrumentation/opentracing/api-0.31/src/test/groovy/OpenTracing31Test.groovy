@@ -94,9 +94,6 @@ class OpenTracing31Test extends AgentTestRunner {
             }
             defaultTags(addReference != null)
           }
-          metrics {
-            defaultMetrics()
-          }
         }
       }
     }

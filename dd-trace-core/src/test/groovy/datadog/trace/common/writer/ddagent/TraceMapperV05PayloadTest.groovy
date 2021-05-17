@@ -51,7 +51,6 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       0,
       Collections.emptyMap(),
       Collections.emptyMap(),
-      Collections.emptyMap(),
       UUID.randomUUID().toString(),
       false))
     int traceSize = calculateSize(repeatedTrace)
@@ -243,10 +242,10 @@ class TraceMapperV05PayloadTest extends DDSpecification {
               }
             }
             for (Map.Entry<String, Number> metric : metrics.entrySet()) {
-              if (metric.getValue() instanceof Double) {
-                assertEquals(expectedSpan.getUnsafeMetrics().get(metric.getKey()).doubleValue(), metric.getValue().doubleValue(), 0.001)
+              if (metric.getValue() instanceof Double || metric.getValue() instanceof Float) {
+                assertEquals(metric.getKey(), ((Number)expectedSpan.getTag(metric.getKey())).doubleValue(), metric.getValue().doubleValue(), 0.001)
               } else {
-                assertEquals(expectedSpan.getUnsafeMetrics().get(metric.getKey()), metric.getValue())
+                assertEquals(metric.getKey(), expectedSpan.getTag(metric.getKey()), metric.getValue())
               }
             }
             String type = dictionary[unpacker.unpackInt()]

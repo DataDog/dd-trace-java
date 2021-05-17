@@ -94,9 +94,6 @@ class OpenTracing32Test extends AgentTestRunner {
             }
             defaultTags(addReference != null)
           }
-          metrics {
-            defaultMetrics()
-          }
         }
       }
     }

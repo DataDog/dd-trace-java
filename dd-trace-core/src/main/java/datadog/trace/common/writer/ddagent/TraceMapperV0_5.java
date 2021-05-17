@@ -1,8 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.core.http.OkHttpUtils.msgpackRequestBodyOf;
-import static datadog.trace.core.serialization.Util.integerToStringBuffer;
-import static datadog.trace.core.serialization.Util.writeLongAsString;
 
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -24,9 +22,6 @@ import java.util.Map;
 import okhttp3.RequestBody;
 
 public final class TraceMapperV0_5 implements TraceMapper {
-
-  static final byte[] EMPTY =
-      ByteBuffer.allocate(3).put((byte) 0x92).put((byte) 0x90).put((byte) 0x90).array();
 
   private final WritableFormatter dictionaryWriter;
   private final DictionaryMapper dictionaryMapper = new DictionaryMapper();
@@ -76,37 +71,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
       writable.writeLong(span.getDurationNano());
       /* 9  */
       writable.writeInt(span.getError());
-      /* 10  */
+      /* 10, 11  */
       span.processTagsAndBaggage(metaWriter.withWritable(writable));
-      /* 11  */
-      writeMetrics(span, writable);
       /* 12 */
       writeDictionaryEncoded(writable, span.getType());
-    }
-  }
-
-  private void writeMetrics(CoreSpan<?> span, Writable writable) {
-    Map<CharSequence, Number> metrics = span.getUnsafeMetrics();
-    int elementCount = metrics.size();
-    elementCount += (span.hasSamplingPriority() ? 1 : 0);
-    elementCount += (span.isMeasured() ? 1 : 0);
-    elementCount += (span.isTopLevel() ? 1 : 0);
-    writable.startMap(elementCount);
-    if (span.hasSamplingPriority()) {
-      writeDictionaryEncoded(writable, SAMPLING_PRIORITY_KEY);
-      writable.writeInt(span.samplingPriority());
-    }
-    if (span.isMeasured()) {
-      writeDictionaryEncoded(writable, InstrumentationTags.DD_MEASURED);
-      writable.writeInt(1);
-    }
-    if (span.isTopLevel()) {
-      writeDictionaryEncoded(writable, InstrumentationTags.DD_TOP_LEVEL);
-      writable.writeInt(1);
-    }
-    for (Map.Entry<CharSequence, Number> metric : metrics.entrySet()) {
-      writeDictionaryEncoded(writable, metric.getKey());
-      writable.writeObject(metric.getValue(), null);
     }
   }
 
@@ -148,16 +116,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   private static class DictionaryMapper implements Mapper<Object> {
 
-    private final byte[] numberByteArray = integerToStringBuffer();
-
     @Override
     public void map(final Object data, final Writable packer) {
       if (data instanceof UTF8BytesString) {
         packer.writeObject(data, null);
-      } else if (data instanceof Long || data instanceof Integer) {
-        writeLongAsString(((Number) data).longValue(), packer, numberByteArray);
       } else {
-        assert null != data : "enclosing mapper should not provide null values";
         packer.writeString(String.valueOf(data), null);
       }
     }
@@ -218,40 +181,53 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
     @Override
     public void accept(Metadata metadata) {
-      // since tags can "override" baggage, we need to count the non overlapping ones
-      int size = metadata.getTags().size() + 2;
-      // assume we can't have more than 64 baggage items,
-      // and that iteration order is stable to avoid looking
-      // up in the tags more than necessary
-      long overlaps = 0L;
-      if (!metadata.getBaggage().isEmpty()) {
-        int i = 0;
-        for (final Map.Entry<String, String> key : metadata.getBaggage().entrySet()) {
-          if (!metadata.getTags().containsKey(key.getKey())) {
-            size++;
-          } else {
-            overlaps |= (1L << i);
-          }
-          ++i;
+      int metaSize = 2 + metadata.getBaggage().size() + metadata.getTags().size();
+      int metricsSize =
+          (metadata.hasSamplingPriority() ? 1 : 0)
+              + (metadata.measured() ? 1 : 0)
+              + (metadata.topLevel() ? 1 : 0);
+      for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
+        if (tag.getValue() instanceof Number) {
+          ++metricsSize;
+          --metaSize;
         }
       }
-      writable.startMap(size);
-      int i = 0;
-      for (final Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        // tags and baggage may intersect, but tags take priority
-        if ((overlaps & (1L << i)) == 0) {
-          writeDictionaryEncoded(writable, entry.getKey());
-          writeDictionaryEncoded(writable, entry.getValue());
-        }
-        ++i;
+      writable.startMap(metaSize);
+      // we don't need to deduplicate any overlap between tags and baggage here
+      // since they will be accumulated into maps in the same order downstream,
+      // we just need to be sure that the size is the same as the number of elements
+      for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
+        writeDictionaryEncoded(writable, entry.getKey());
+        writeDictionaryEncoded(writable, entry.getValue());
       }
       writeDictionaryEncoded(writable, THREAD_NAME);
       writeDictionaryEncoded(writable, metadata.getThreadName());
       writeDictionaryEncoded(writable, THREAD_ID);
       writeDictionaryEncoded(writable, String.valueOf(metadata.getThreadId()));
-      for (final Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        writeDictionaryEncoded(writable, entry.getKey());
-        writeDictionaryEncoded(writable, entry.getValue());
+      for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
+        if (!(entry.getValue() instanceof Number)) {
+          writeDictionaryEncoded(writable, entry.getKey());
+          writeDictionaryEncoded(writable, entry.getValue());
+        }
+      }
+      writable.startMap(metricsSize);
+      if (metadata.hasSamplingPriority()) {
+        writeDictionaryEncoded(writable, SAMPLING_PRIORITY_KEY);
+        writable.writeInt(metadata.samplingPriority());
+      }
+      if (metadata.measured()) {
+        writeDictionaryEncoded(writable, InstrumentationTags.DD_MEASURED);
+        writable.writeInt(1);
+      }
+      if (metadata.topLevel()) {
+        writeDictionaryEncoded(writable, InstrumentationTags.DD_TOP_LEVEL);
+        writable.writeInt(1);
+      }
+      for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
+        if (entry.getValue() instanceof Number) {
+          writeDictionaryEncoded(writable, entry.getKey());
+          writable.writeObject(entry.getValue(), null);
+        }
       }
     }
   }

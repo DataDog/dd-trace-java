@@ -107,7 +107,7 @@ class TraceProcessorTest extends DDCoreSpecification {
 
     then:
     span.isMeasured()
-    span.unsafeMetrics.get(InstrumentationTags.DD_MEASURED) == null
+    span.getTag(InstrumentationTags.DD_MEASURED) == null
     span.tags.get(InstrumentationTags.DD_MEASURED) == null
   }
 }

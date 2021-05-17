@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import datadog.trace.api.DDId;
-import java.util.Map;
 
 public interface CoreSpan<T extends CoreSpan<T>> {
 
@@ -61,8 +60,6 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   boolean isTopLevel();
 
   boolean isForceKeep();
-
-  Map<CharSequence, Number> getUnsafeMetrics();
 
   CharSequence getType();
 
