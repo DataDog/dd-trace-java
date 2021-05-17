@@ -17,6 +17,7 @@ muzzle {
     group = "io.netty"
     module = "netty-all"
     versions = "[,]"
+    excludeDependency 'io.netty:netty-tcnative'
   }
 }
 
