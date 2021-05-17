@@ -67,7 +67,7 @@ public final class OpenJdkController implements Controller {
     if (Boolean.parseBoolean(recordingSettings.get("jdk.OldObjectSample#enabled"))) {
       if (!isJavaVersionAtLeast(17)) {
         log.debug(
-            "Inexpensive memory leak detection is not supported for this JDK. Disabling OldObjectSample JFR event.");
+            "Inexpensive live object profiling is not supported for this JDK. Disabling OldObjectSample JFR event.");
         recordingSettings.put("jdk.OldObjectSample#enabled", "false");
       }
     }
