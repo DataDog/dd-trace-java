@@ -76,6 +76,7 @@ jobs:
       - run:
           name: Build Project
           command: >-
+            MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
@@ -109,6 +110,7 @@ jobs:
       - run:
           name: Build Project
           command: >-
+            MAVEN_OPTS="-Xms64M -Xmx256M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
