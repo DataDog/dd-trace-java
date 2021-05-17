@@ -42,7 +42,7 @@ class TraceProcessorTest extends DDCoreSpecification {
     setup:
     injectSysConfig("trace.${featureAlias}.enabled", "false")
     def processor = new TraceProcessor()
-    span.setTag(Tags.HTTP_STATUS, 404)
+    span.setHttpStatusCode(404)
     span.setTag(Tags.HTTP_METHOD, method)
     span.setTag(Tags.HTTP_URL, url)
 
@@ -60,13 +60,13 @@ class TraceProcessorTest extends DDCoreSpecification {
 
   def "set 404 as a resource on a 404 issue"() {
     setup:
-    span.setTag(Tags.HTTP_STATUS, 404)
+    span.setHttpStatusCode(404)
 
     when:
     processor.onTraceComplete(trace)
 
     then:
-    span.getResourceName() == "404"
+    span.getResourceName() as String == "404"
   }
 
   def "resource name set with url path #url to #resourceName"() {
@@ -75,7 +75,7 @@ class TraceProcessorTest extends DDCoreSpecification {
       span.setTag(Tags.HTTP_METHOD, method)
     }
     span.setTag(Tags.HTTP_URL, url)
-    span.setTag(Tags.HTTP_STATUS, status)
+    span.setHttpStatusCode(status)
 
     when:
     processor.onTraceComplete(trace)

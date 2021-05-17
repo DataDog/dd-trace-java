@@ -181,7 +181,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
     @Override
     public void accept(Metadata metadata) {
-      int metaSize = 2 + metadata.getBaggage().size() + metadata.getTags().size();
+      int metaSize =
+          2
+              + metadata.getBaggage().size()
+              + metadata.getTags().size()
+              + (null == metadata.getHttpStatusCode() ? 0 : 1);
       int metricsSize =
           (metadata.hasSamplingPriority() ? 1 : 0)
               + (metadata.measured() ? 1 : 0)
@@ -204,6 +208,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
       writeDictionaryEncoded(writable, metadata.getThreadName());
       writeDictionaryEncoded(writable, THREAD_ID);
       writeDictionaryEncoded(writable, String.valueOf(metadata.getThreadId()));
+      if (null != metadata.getHttpStatusCode()) {
+        writeDictionaryEncoded(writable, HTTP_STATUS);
+        writeDictionaryEncoded(writable, metadata.getHttpStatusCode());
+      }
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
         if (!(entry.getValue() instanceof Number)) {
           writeDictionaryEncoded(writable, entry.getKey());

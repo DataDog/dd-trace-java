@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent
 
 import datadog.trace.api.DDId
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.FlushingBuffer
 import datadog.trace.core.serialization.msgpack.MsgPackWriter
@@ -52,7 +53,8 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       Collections.emptyMap(),
       Collections.emptyMap(),
       UUID.randomUUID().toString(),
-      false))
+      false,
+      0))
     int traceSize = calculateSize(repeatedTrace)
     // 30KB body
     int bufferSize = 30 << 10
@@ -198,11 +200,15 @@ class TraceMapperV05PayloadTest extends DDSpecification {
               meta.put(dictionary[unpacker.unpackInt()], dictionary[unpacker.unpackInt()])
             }
             for (Map.Entry<String, String> entry : meta.entrySet()) {
-              Object tag = expectedSpan.getTag(entry.getKey())
-              if (null != tag) {
-                assertEquals(String.valueOf(tag), entry.getValue())
+              if (Tags.HTTP_STATUS.equals(entry.getKey())) {
+                assertEquals(String.valueOf(expectedSpan.getHttpStatusCode()), entry.getValue())
               } else {
-                assertEquals(expectedSpan.getBaggage().get(entry.getKey()), entry.getValue())
+                Object tag = expectedSpan.getTag(entry.getKey())
+                if (null != tag) {
+                  assertEquals(String.valueOf(tag), entry.getValue())
+                } else {
+                  assertEquals(expectedSpan.getBaggage().get(entry.getKey()), entry.getValue())
+                }
               }
             }
             int metricsSize = unpacker.unpackMapHeader()

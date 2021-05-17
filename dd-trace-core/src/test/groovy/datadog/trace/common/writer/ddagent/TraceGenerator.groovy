@@ -67,7 +67,8 @@ class TraceGenerator {
       baggage,
       tags,
       "type-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100),
-      ThreadLocalRandom.current().nextBoolean())
+      ThreadLocalRandom.current().nextBoolean(),
+      200)
   }
 
   private static String randomString(int maxLength) {
@@ -102,6 +103,7 @@ class TraceGenerator {
     private final String type
     private final boolean measured
     private final Metadata metadata
+    private short httpStatusCode
 
     PojoSpan(
     String serviceName,
@@ -116,7 +118,8 @@ class TraceGenerator {
     Map<String, String> baggage,
     Map<String, Object> tags,
     String type,
-    boolean measured) {
+    boolean measured,
+    int statusCode) {
       this.serviceName = UTF8BytesString.create(serviceName)
       this.operationName = UTF8BytesString.create(operationName)
       this.resourceName = UTF8BytesString.create(resourceName)
@@ -129,7 +132,9 @@ class TraceGenerator {
       this.type = type
       this.measured = measured
       this.metadata = new Metadata(Thread.currentThread().getId(),
-        UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, UNSET, measured, topLevel)
+        UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, UNSET, measured, topLevel,
+        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)))
+      this.httpStatusCode = (short)statusCode
     }
 
     @Override
@@ -255,6 +260,11 @@ class TraceGenerator {
     @Override
     boolean isForceKeep() {
       return false
+    }
+
+    @Override
+    short getHttpStatusCode() {
+      return httpStatusCode
     }
 
     Map<String, String> getBaggage() {

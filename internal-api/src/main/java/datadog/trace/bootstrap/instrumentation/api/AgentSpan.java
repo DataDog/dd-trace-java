@@ -63,6 +63,10 @@ public interface AgentSpan extends MutableSpan {
 
   AgentSpan setBaggageItem(String key, String value);
 
+  AgentSpan setHttpStatusCode(int statusCode);
+
+  short getHttpStatusCode();
+
   void finish();
 
   void finish(long finishMicros);

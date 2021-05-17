@@ -8,6 +8,7 @@ import java.util.Map;
 public final class Metadata {
   private final long threadId;
   private final UTF8BytesString threadName;
+  private final UTF8BytesString httpStatusCode;
   private final Map<String, Object> tags;
   private final Map<String, String> baggage;
 
@@ -22,14 +23,20 @@ public final class Metadata {
       Map<String, String> baggage,
       int samplingPriority,
       boolean measured,
-      boolean topLevel) {
+      boolean topLevel,
+      UTF8BytesString httpStatusCode) {
     this.threadId = threadId;
     this.threadName = threadName;
+    this.httpStatusCode = httpStatusCode;
     this.tags = tags;
     this.baggage = baggage;
     this.samplingPriority = samplingPriority;
     this.measured = measured;
     this.topLevel = topLevel;
+  }
+
+  public UTF8BytesString getHttpStatusCode() {
+    return httpStatusCode;
   }
 
   public long getThreadId() {

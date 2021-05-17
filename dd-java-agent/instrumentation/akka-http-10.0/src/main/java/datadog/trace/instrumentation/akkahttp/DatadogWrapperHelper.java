@@ -11,7 +11,6 @@ import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 public class DatadogWrapperHelper {
   public static AgentScope createSpan(final HttpRequest request) {
@@ -36,7 +35,7 @@ public class DatadogWrapperHelper {
 
   public static void finishSpan(final AgentSpan span, final Throwable t) {
     DECORATE.onError(span, t);
-    span.setTag(Tags.HTTP_STATUS, 500);
+    span.setHttpStatusCode(500);
     DECORATE.beforeFinish(span);
 
     span.finish();

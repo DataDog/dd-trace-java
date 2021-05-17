@@ -13,6 +13,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   private final boolean measured
   private final boolean topLevel
   private final boolean error
+  private final short statusCode
 
   private final long duration
   private final long startTime
@@ -25,7 +26,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   boolean topLevel,
   boolean error,
   long startTime,
-  long duration) {
+  long duration,
+  int statusCode) {
     this.serviceName = serviceName
     this.operationName = operationName
     this.resourceName = resourceName
@@ -35,6 +37,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
     this.error = error
     this.startTime = startTime
     this.duration = duration
+    this.statusCode = (short)statusCode
   }
 
   @Override
@@ -85,6 +88,11 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   @Override
   int getError() {
     return error ? 1 : 0
+  }
+
+  @Override
+  short getHttpStatusCode() {
+    return statusCode
   }
 
   @Override

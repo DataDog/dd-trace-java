@@ -24,6 +24,8 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   int getError();
 
+  short getHttpStatusCode();
+
   T setMeasured(boolean measured);
 
   T setErrorMessage(final String errorMessage);

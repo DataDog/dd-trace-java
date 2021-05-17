@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 
@@ -10,6 +11,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import java.util.Collections;
@@ -39,7 +41,6 @@ public class DDSpanContext implements AgentSpan.Context {
   private static final DDCache<String, UTF8BytesString> THREAD_NAMES =
       DDCaches.newFixedSizeCache(256);
 
-  private static final Map<CharSequence, Number> EMPTY_METRICS = Collections.emptyMap();
   private static final Map<String, String> EMPTY_BAGGAGE = Collections.emptyMap();
 
   /** The collection of all span related to this one */
@@ -57,6 +58,8 @@ public class DDSpanContext implements AgentSpan.Context {
 
   private final long threadId;
   private final UTF8BytesString threadName;
+
+  private volatile short httpStatusCode;
 
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
@@ -351,6 +354,14 @@ public class DDSpanContext implements AgentSpan.Context {
     return trace.getTracer();
   }
 
+  public void setHttpStatusCode(short statusCode) {
+    this.httpStatusCode = statusCode;
+  }
+
+  public short getHttpStatusCode() {
+    return httpStatusCode;
+  }
+
   public void setMetric(final CharSequence key, final Number value) {
     synchronized (unsafeTags) {
       unsafeSetTag(key.toString(), value);
@@ -401,6 +412,8 @@ public class DDSpanContext implements AgentSpan.Context {
       case DDTags.THREAD_NAME:
         // maintain previously observable type of the thread name :|
         return threadName.toString();
+      case Tags.HTTP_STATUS:
+        return 0 == httpStatusCode ? null : (int) httpStatusCode;
       default:
         synchronized (unsafeTags) {
           return unsafeGetTag(key);
@@ -427,6 +440,9 @@ public class DDSpanContext implements AgentSpan.Context {
       if (samplingPriorityV1 != UNSET) {
         tags.put(SAMPLE_RATE_KEY, samplingPriorityV1);
       }
+      if (httpStatusCode != 0) {
+        tags.put(Tags.HTTP_STATUS, (int) httpStatusCode);
+      }
       return Collections.unmodifiableMap(tags);
     }
   }
@@ -441,7 +457,8 @@ public class DDSpanContext implements AgentSpan.Context {
               baggageItems,
               samplingPriorityV1,
               measured,
-              topLevel));
+              topLevel,
+              httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode)));
     }
   }
 
