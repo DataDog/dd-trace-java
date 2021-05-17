@@ -289,7 +289,7 @@ jobs:
 
   check:
     <<: *defaults
-    resource_class: medium+
+    resource_class: large
 
     steps:
       - setup_code
@@ -300,7 +300,8 @@ jobs:
       - run:
           name: Build Project
           command: >-
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1800M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            MAVEN_OPTS="-Xms64M -Xmx256M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
             ./gradlew build -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=3
