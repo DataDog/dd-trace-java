@@ -15,10 +15,17 @@ plugins {
 }
 apply from: "$rootDir/gradle/java.gradle"
 
-Project instr_project = project
+tasks.register("latestDepTest")
+
+Project parent_project = project
 subprojects { Project subProj ->
   apply plugin: "net.bytebuddy.byte-buddy"
   apply plugin: 'muzzle'
+
+  subProj.tasks.withType(Javadoc).configureEach { enabled = false }
+
+  // needs fetching this project's configurations.instrumentationMuzzle
+  evaluationDependsOn ':dd-java-agent:agent-tooling'
 
   subProj.byteBuddy {
     transformation {
@@ -69,11 +76,19 @@ subprojects { Project subProj ->
       testCompileOnly deps.autoserviceAnnotation
     }
 
-    // Make it so all instrumentation subproject tests can be run with a single command.
-    instr_project.tasks.test.dependsOn(subProj.tasks.test)
+    subProj.tasks.withType(Test).configureEach { subTask ->
+      onlyIf { !project.rootProject.hasProperty("skipInstTests") }
+
+      // Make it so all instrumentation subproject tests can be run with a single command.
+      if (parent_project.hasProperty(subTask.name)) {
+        parent_project.tasks.named(subTask.name).configure {
+          dependsOn(subTask)
+        }
+      }
+    }
   }
 
-  instr_project.dependencies {
+  parent_project.dependencies {
     compile(project(subProj.getPath()))
   }
 }
@@ -84,7 +99,7 @@ dependencies {
   }
 }
 
-shadowJar {
+tasks.named('shadowJar').configure {
   duplicatesStrategy = DuplicatesStrategy.FAIL
   dependencies deps.sharedInverse
   dependencies {

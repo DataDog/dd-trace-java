@@ -51,7 +51,7 @@ tasks.register("unzip", Copy) {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn unzip
+  dependsOn "unzip"
 
   jvmArgs "-Ddatadog.smoketest.wildflyDir=${buildDir}/${serverName}-${serverModule}-${serverVersion}"
 }

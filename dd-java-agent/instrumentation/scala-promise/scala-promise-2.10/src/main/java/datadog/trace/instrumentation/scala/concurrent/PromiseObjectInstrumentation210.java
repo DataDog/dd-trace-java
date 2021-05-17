@@ -14,7 +14,6 @@ import datadog.trace.instrumentation.scala.PromiseHelper;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.impl.CallbackRunnable;
@@ -44,8 +43,8 @@ public class PromiseObjectInstrumentation210 extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return Collections.singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(named("scala$concurrent$impl$Promise$$resolveTry")),
         getClass().getName() + "$ResolveTry");
   }

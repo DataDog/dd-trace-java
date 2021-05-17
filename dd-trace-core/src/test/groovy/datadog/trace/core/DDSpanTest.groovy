@@ -1,5 +1,6 @@
 package datadog.trace.core
 
+import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -11,6 +12,11 @@ import datadog.trace.core.propagation.TagContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import java.util.concurrent.TimeUnit
+
+import static datadog.trace.api.Checkpointer.CPU
+import static datadog.trace.api.Checkpointer.END
+import static datadog.trace.api.Checkpointer.SPAN
+import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 
 class DDSpanTest extends DDCoreSpecification {
 
@@ -193,9 +199,9 @@ class DDSpanTest extends DDCoreSpecification {
     child.@origin == null // Access field directly instead of getter.
 
     where:
-    extractedContext                                                                     | _
-    new TagContext("some-origin", null, null, [:])                                       | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), 0, "some-origin", null, null, [:], [:]) | _
+    extractedContext                                                                                       | _
+    new TagContext("some-origin", null, null, null, null, null, [:])                                       | _
+    new ExtractedContext(DDId.ONE, DDId.from(2), 0, "some-origin", null, null, null, null, null, [:], [:]) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -212,9 +218,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                     | isTraceRootSpan
-    null                                                                                 | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", null, null, [:], [:]) | false
+    extractedContext                                                                                       | isTraceRootSpan
+    null                                                                                                   | true
+    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", null, null, null, null, null, [:], [:]) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
@@ -234,9 +240,9 @@ class DDSpanTest extends DDCoreSpecification {
     root.finish()
 
     where:
-    extractedContext                                                                     | isTraceRootSpan
-    null                                                                                 | true
-    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", null, null, [:], [:]) | false
+    extractedContext                                                                                       | isTraceRootSpan
+    null                                                                                                   | true
+    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", null, null, null, null, null, [:], [:]) | false
   }
 
   def "infer top level from parent service name"() {
@@ -268,5 +274,51 @@ class DDSpanTest extends DDCoreSpecification {
     UTF8BytesString.create("fakeService") | false
     ""                                    | true
     null                                  | true
+  }
+
+  def "span start and finish emit checkpoints"() {
+    setup:
+    Checkpointer checkpointer = Mock()
+    tracer.registerCheckpointer(checkpointer)
+    DDSpanContext context =
+      new DDSpanContext(
+      DDId.from(1),
+      DDId.from(1),
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      Collections.<String, String> emptyMap(),
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE))
+
+    when:
+    DDSpan span = DDSpan.create(1, context)
+    then:
+    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), SPAN)
+
+    when:
+    span.startThreadMigration()
+    then:
+    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), THREAD_MIGRATION)
+    when:
+    span.finishThreadMigration()
+    then:
+    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), THREAD_MIGRATION | END)
+
+    when:
+    span.finishWork()
+    then:
+    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), CPU | END)
+
+    when:
+    span.finish()
+    then:
+    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), SPAN | END)
   }
 }

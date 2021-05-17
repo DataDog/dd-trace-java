@@ -20,6 +20,7 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_TESTS_ENABLED = "trace.tests.enabled";
 
   public static final String HTTP_SERVER_TAG_QUERY_STRING = "http.server.tag.query-string";
+  public static final String HTTP_SERVER_ROUTE_BASED_NAMING = "http.server.route-based-naming";
   public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";
   public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN = "trace.http.client.split-by-domain";
   public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE = "trace.db.client.split-by-instance";

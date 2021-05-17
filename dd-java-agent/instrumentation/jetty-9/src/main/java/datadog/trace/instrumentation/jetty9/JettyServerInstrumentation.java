@@ -18,8 +18,6 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -49,9 +47,8 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         takesNoArguments()
             .and(
                 named("handle")
@@ -70,11 +67,10 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing {
                                   }
                                 }))),
         JettyServerInstrumentation.class.getName() + "$HandleAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         // name changed to recycle in 9.3.0
         namedOneOf("reset", "recycle").and(takesNoArguments()),
         JettyServerInstrumentation.class.getName() + "$ResetAdvice");
-    return transformers;
   }
 
   public static class HandleAdvice {

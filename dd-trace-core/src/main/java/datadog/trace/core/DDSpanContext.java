@@ -349,7 +349,6 @@ public class DDSpanContext implements AgentSpan.Context {
     return trace;
   }
 
-  @Deprecated
   public CoreTracer getTracer() {
     return trace.getTracer();
   }

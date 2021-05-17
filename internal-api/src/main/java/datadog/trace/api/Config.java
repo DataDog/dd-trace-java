@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
@@ -12,10 +11,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
@@ -27,6 +26,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_FORCE_FIRST;
@@ -62,6 +62,8 @@ import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
+import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
+import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_START_DELAY;
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
@@ -102,6 +104,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTO
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPOTS_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
@@ -118,6 +121,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
@@ -270,6 +274,7 @@ public class Config {
   private final BitSet httpServerErrorStatuses;
   private final BitSet httpClientErrorStatuses;
   private final boolean httpServerTagQueryString;
+  private final boolean httpServerRouteBasedNaming;
   private final boolean httpClientTagQueryString;
   private final boolean httpClientSplitByDomain;
   private final boolean dbClientSplitByInstance;
@@ -326,6 +331,7 @@ public class Config {
 
   private final boolean profilingEnabled;
   private final boolean profilingAgentless;
+  private final boolean profilingLegacyTracingIntegrationEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -434,7 +440,7 @@ public class Config {
 
     String agentHostFromEnvironment = null;
     int agentPortFromEnvironment = -1;
-    String unixDomainFromEnvironment = null;
+    String unixSocketFromEnvironment = null;
     boolean rebuildAgentUrl = false;
 
     final String agentUrlFromEnvironment = configProvider.getString(TRACE_AGENT_URL);
@@ -444,7 +450,7 @@ public class Config {
         agentHostFromEnvironment = parsedAgentUrl.getHost();
         agentPortFromEnvironment = parsedAgentUrl.getPort();
         if ("unix".equals(parsedAgentUrl.getScheme())) {
-          unixDomainFromEnvironment = parsedAgentUrl.getPath();
+          unixSocketFromEnvironment = parsedAgentUrl.getPath();
         }
       } catch (URISyntaxException e) {
         log.warn("{} not configured correctly: {}. Ignoring", TRACE_AGENT_URL, e.getMessage());
@@ -456,20 +462,19 @@ public class Config {
       rebuildAgentUrl = true;
     }
 
-    // The extra code is to detect when defaults are used for agent configuration
-    final boolean agentHostConfiguredUsingDefault;
+    if (agentPortFromEnvironment < 0) {
+      agentPortFromEnvironment = configProvider.getInteger(TRACE_AGENT_PORT, -1, AGENT_PORT_LEGACY);
+      rebuildAgentUrl = true;
+    }
+
     if (agentHostFromEnvironment == null) {
       agentHost = DEFAULT_AGENT_HOST;
-      agentHostConfiguredUsingDefault = true;
     } else {
       agentHost = agentHostFromEnvironment;
-      agentHostConfiguredUsingDefault = false;
     }
 
     if (agentPortFromEnvironment < 0) {
-      agentPort =
-          configProvider.getInteger(TRACE_AGENT_PORT, DEFAULT_TRACE_AGENT_PORT, AGENT_PORT_LEGACY);
-      rebuildAgentUrl = true;
+      agentPort = DEFAULT_TRACE_AGENT_PORT;
     } else {
       agentPort = agentPortFromEnvironment;
     }
@@ -480,23 +485,21 @@ public class Config {
       agentUrl = agentUrlFromEnvironment;
     }
 
-    if (unixDomainFromEnvironment == null) {
-      unixDomainFromEnvironment = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
+    if (unixSocketFromEnvironment == null) {
+      unixSocketFromEnvironment = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
+      String unixPrefix = "unix://";
+      // handle situation where someone passes us a unix:// URL instead of a socket path
+      if (unixSocketFromEnvironment != null && unixSocketFromEnvironment.startsWith(unixPrefix)) {
+        unixSocketFromEnvironment = unixSocketFromEnvironment.substring(unixPrefix.length());
+      }
     }
 
-    final boolean socketConfiguredUsingDefault;
-    if (unixDomainFromEnvironment == null) {
-      agentUnixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
-      socketConfiguredUsingDefault = true;
-    } else {
-      agentUnixDomainSocket = unixDomainFromEnvironment;
-      socketConfiguredUsingDefault = false;
-    }
+    agentUnixDomainSocket = unixSocketFromEnvironment;
 
     agentConfiguredUsingDefault =
-        agentHostConfiguredUsingDefault
-            && socketConfiguredUsingDefault
-            && agentPort == DEFAULT_TRACE_AGENT_PORT;
+        agentHostFromEnvironment == null
+            && agentPortFromEnvironment < 0
+            && unixSocketFromEnvironment == null;
 
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
 
@@ -535,6 +538,10 @@ public class Config {
     httpServerTagQueryString =
         configProvider.getBoolean(
             HTTP_SERVER_TAG_QUERY_STRING, DEFAULT_HTTP_SERVER_TAG_QUERY_STRING);
+
+    httpServerRouteBasedNaming =
+        configProvider.getBoolean(
+            HTTP_SERVER_ROUTE_BASED_NAMING, DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING);
 
     httpClientTagQueryString =
         configProvider.getBoolean(
@@ -592,9 +599,14 @@ public class Config {
     jmxFetchInitialRefreshBeansPeriod =
         configProvider.getInteger(JMX_FETCH_INITIAL_REFRESH_BEANS_PERIOD);
     jmxFetchRefreshBeansPeriod = configProvider.getInteger(JMX_FETCH_REFRESH_BEANS_PERIOD);
-    jmxFetchStatsdHost = configProvider.getString(JMX_FETCH_STATSD_HOST);
-    jmxFetchStatsdPort =
-        configProvider.getInteger(JMX_FETCH_STATSD_PORT, DEFAULT_JMX_FETCH_STATSD_PORT);
+
+    jmxFetchStatsdPort = configProvider.getInteger(JMX_FETCH_STATSD_PORT, DOGSTATSD_PORT);
+    jmxFetchStatsdHost =
+        configProvider.getString(
+            JMX_FETCH_STATSD_HOST,
+            // default to agent host if an explicit port has been set
+            null != jmxFetchStatsdPort && jmxFetchStatsdPort > 0 ? agentHost : null,
+            DOGSTATSD_HOST);
 
     // Writer.Builder createMonitor will use the values of the JMX fetch & agent to fill-in defaults
     healthMetricsEnabled =
@@ -642,6 +654,9 @@ public class Config {
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, DEFAULT_PROFILING_AGENTLESS);
+    profilingLegacyTracingIntegrationEnabled =
+        configProvider.getBoolean(
+            PROFILING_LEGACY_TRACING_INTEGRATION, DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION);
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -855,6 +870,10 @@ public class Config {
 
   public boolean isHttpServerTagQueryString() {
     return httpServerTagQueryString;
+  }
+
+  public boolean isHttpServerRouteBasedNaming() {
+    return httpServerRouteBasedNaming;
   }
 
   public boolean isHttpClientTagQueryString() {
@@ -1097,6 +1116,10 @@ public class Config {
     return profilingHotspotsEnabled;
   }
 
+  public boolean isProfilingLegacyTracingIntegrationEnabled() {
+    return profilingLegacyTracingIntegrationEnabled;
+  }
+
   public boolean isKafkaClientPropagationEnabled() {
     return kafkaClientPropagationEnabled;
   }
@@ -1329,8 +1352,14 @@ public class Config {
   }
 
   public boolean isRuleEnabled(final String name) {
-    return configProvider.getBoolean("trace." + name + ".enabled", true)
-        && configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", true);
+    return isRuleEnabled(name, true);
+  }
+
+  public boolean isRuleEnabled(final String name, boolean defaultEnabled) {
+    boolean enabled = configProvider.getBoolean("trace." + name + ".enabled", defaultEnabled);
+    boolean lowerEnabled =
+        configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", defaultEnabled);
+    return defaultEnabled ? enabled && lowerEnabled : enabled || lowerEnabled;
   }
 
   /**
@@ -1338,7 +1367,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isJmxFetchIntegrationEnabled(SortedSet, boolean)}.
+   *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
   public static boolean jmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -1671,6 +1700,8 @@ public class Config {
         + httpClientErrorStatuses
         + ", httpServerTagQueryString="
         + httpServerTagQueryString
+        + ", httpServerRouteBasedNaming="
+        + httpServerRouteBasedNaming
         + ", httpClientTagQueryString="
         + httpClientTagQueryString
         + ", httpClientSplitByDomain="

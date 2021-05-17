@@ -18,11 +18,9 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -40,23 +38,21 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(8);
-    transformers.put(named("execute").and(isMethod()), getClass().getName() + "$Execute");
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(named("execute").and(isMethod()), getClass().getName() + "$Execute");
+    transformation.applyAdvice(
         named("beforeExecute")
             .and(isMethod())
             .and(takesArgument(1, named(Runnable.class.getName()))),
         getClass().getName() + "$BeforeExecute");
-    transformers.put(
+    transformation.applyAdvice(
         named("afterExecute")
             .and(isMethod())
             .and(takesArgument(0, named(Runnable.class.getName()))),
         getClass().getName() + "$AfterExecute");
-    transformers.put(
+    transformation.applyAdvice(
         named("remove").and(isMethod()).and(returns(Runnable.class)),
         getClass().getName() + "$Remove");
-    return Collections.unmodifiableMap(transformers);
   }
 
   @Override

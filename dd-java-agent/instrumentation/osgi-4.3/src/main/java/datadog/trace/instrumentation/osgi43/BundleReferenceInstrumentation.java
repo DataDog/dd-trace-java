@@ -15,10 +15,7 @@ import datadog.trace.bootstrap.AgentClassLoading;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.osgi.framework.BundleReference;
@@ -50,19 +47,18 @@ public final class BundleReferenceInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(named("getResource"))
             .and(takesArguments(1).and(takesArgument(0, String.class))),
         BundleReferenceInstrumentation.class.getName() + "$WidenGetResourceAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("getResourceAsStream"))
             .and(takesArguments(1).and(takesArgument(0, String.class))),
         BundleReferenceInstrumentation.class.getName() + "$WidenGetResourceAsStreamAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("loadClass"))
             .and(
@@ -73,7 +69,6 @@ public final class BundleReferenceInstrumentation extends Instrumenter.Tracing {
                             .and(takesArgument(0, String.class))
                             .and(takesArgument(1, boolean.class)))),
         BundleReferenceInstrumentation.class.getName() + "$WidenLoadClassAdvice");
-    return transformers;
   }
 
   /**

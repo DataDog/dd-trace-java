@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.servlet.SpanNameCache.SERVLET_PREFIX;
 import static datadog.trace.instrumentation.servlet.SpanNameCache.SPAN_NAME_CACHE;
 import static datadog.trace.instrumentation.servlet.http.HttpServletDecorator.DECORATE;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -20,9 +19,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -60,8 +57,8 @@ public final class HttpServletInstrumentation extends Instrumenter.Tracing {
    * advice is always called after Servlet3Instrumentation which is instrumenting the public method.
    */
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("service")
             .or(nameStartsWith("do")) // doGet, doPost, etc
             .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))

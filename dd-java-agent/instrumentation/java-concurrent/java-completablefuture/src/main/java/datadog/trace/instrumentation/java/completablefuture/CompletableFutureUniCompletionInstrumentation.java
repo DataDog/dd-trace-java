@@ -15,7 +15,6 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -68,8 +67,8 @@ public class CompletableFutureUniCompletionInstrumentation extends Instrumenter.
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return Collections.singletonMap(isConstructor(), ADVICE_BASE + "UniConstructor");
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(isConstructor(), ADVICE_BASE + "UniConstructor");
   }
 
   @Override

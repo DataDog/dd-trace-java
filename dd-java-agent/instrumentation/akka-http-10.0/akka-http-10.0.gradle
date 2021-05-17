@@ -119,21 +119,23 @@ dependencies {
   lagomTestCompile group: 'com.lightbend.lagom', name: 'lagom-javadsl-testkit_2.11', version: '1.4.0'
 }
 
-test.dependsOn baseTest
-test.dependsOn version101Test
-test.dependsOn lagomTest
+tasks.named("test").configure {
+  dependsOn "baseTest"
+  dependsOn "version101Test"
+  dependsOn "lagomTest"
+}
 
 compileBaseTestGroovy {
   classpath = classpath.plus(files(compileBaseTestScala.destinationDir))
-  dependsOn compileBaseTestScala
+  dependsOn "compileBaseTestScala"
 }
 
 compileVersion101TestGroovy {
   classpath = classpath.plus(files(compileVersion101TestScala.destinationDir))
-  dependsOn compileVersion101TestScala
+  dependsOn "compileVersion101TestScala"
 }
 
 compileLatestDepTestGroovy {
   classpath = classpath.plus(files(compileLatestDepTestScala.destinationDir))
-  dependsOn compileLatestDepTestScala
+  dependsOn "compileLatestDepTestScala"
 }

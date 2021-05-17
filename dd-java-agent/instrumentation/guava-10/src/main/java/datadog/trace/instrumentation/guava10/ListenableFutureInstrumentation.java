@@ -17,7 +17,6 @@ import datadog.trace.context.TraceScope;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
@@ -48,8 +47,8 @@ public class ListenableFutureInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("addListener").and(ElementMatchers.takesArguments(Runnable.class, Executor.class)),
         ListenableFutureInstrumentation.class.getName() + "$AddListenerAdvice");
   }

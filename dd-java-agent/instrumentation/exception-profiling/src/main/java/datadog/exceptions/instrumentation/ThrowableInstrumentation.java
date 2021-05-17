@@ -6,9 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Collections;
-import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -38,10 +35,9 @@ public final class ThrowableInstrumentation extends Instrumenter.Profiling {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
+  public void adviceTransformations(AdviceTransformation transformation) {
     if (hasJfr) {
-      return Collections.singletonMap(isConstructor(), packageName + ".ThrowableInstanceAdvice");
+      transformation.applyAdvice(isConstructor(), packageName + ".ThrowableInstanceAdvice");
     }
-    return Collections.emptyMap();
   }
 }

@@ -33,7 +33,7 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn shadowJar
+  dependsOn "shadowJar"
 
   onlyIf { !name.contains('IBM') }
 

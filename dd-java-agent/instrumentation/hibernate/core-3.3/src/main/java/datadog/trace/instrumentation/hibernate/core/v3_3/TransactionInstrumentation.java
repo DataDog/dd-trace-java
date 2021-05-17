@@ -16,7 +16,6 @@ import datadog.trace.instrumentation.hibernate.SessionState;
 import java.lang.reflect.Method;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.Transaction;
@@ -46,8 +45,8 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(named("commit")).and(takesArguments(0)),
         TransactionInstrumentation.class.getName() + "$TransactionCommitAdvice");
   }

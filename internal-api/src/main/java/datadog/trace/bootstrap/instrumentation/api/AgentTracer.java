@@ -2,7 +2,9 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
+import datadog.trace.api.Checkpointer;
 import datadog.trace.api.DDId;
+import datadog.trace.api.SpanCheckpointer;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -87,7 +89,7 @@ public class AgentTracer {
   // Not intended to be constructed.
   private AgentTracer() {}
 
-  public interface TracerAPI extends datadog.trace.api.Tracer, AgentPropagation {
+  public interface TracerAPI extends datadog.trace.api.Tracer, AgentPropagation, SpanCheckpointer {
     AgentSpan startSpan(CharSequence spanName);
 
     AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
@@ -115,6 +117,13 @@ public class AgentTracer {
     void close();
 
     void flush();
+
+    /**
+     * Registers the checkpointer
+     *
+     * @param checkpointer
+     */
+    void registerCheckpointer(Checkpointer checkpointer);
   }
 
   public interface SpanBuilder {
@@ -234,6 +243,9 @@ public class AgentTracer {
     public void addScopeListener(final ScopeListener listener) {}
 
     @Override
+    public void registerCheckpointer(Checkpointer checkpointer) {}
+
+    @Override
     public TraceScope.Continuation capture() {
       return null;
     }
@@ -248,6 +260,27 @@ public class AgentTracer {
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return null;
     }
+
+    @Override
+    public void checkpoint(AgentSpan span, int flags) {}
+
+    @Override
+    public void onStart(AgentSpan span) {}
+
+    @Override
+    public void onStartWork(AgentSpan span) {}
+
+    @Override
+    public void onFinishWork(AgentSpan span) {}
+
+    @Override
+    public void onStartThreadMigration(AgentSpan span) {}
+
+    @Override
+    public void onFinishThreadMigration(AgentSpan span) {}
+
+    @Override
+    public void onFinish(AgentSpan span) {}
   }
 
   public static class NoopAgentSpan implements AgentSpan {
@@ -255,6 +288,11 @@ public class AgentTracer {
 
     @Override
     public DDId getTraceId() {
+      return DDId.ZERO;
+    }
+
+    @Override
+    public DDId getSpanId() {
       return DDId.ZERO;
     }
 
@@ -352,6 +390,20 @@ public class AgentTracer {
     public AgentSpan setResourceName(final CharSequence resourceName) {
       return this;
     }
+
+    @Override
+    public boolean eligibleForDropping() {
+      return true;
+    }
+
+    @Override
+    public void startThreadMigration() {}
+
+    @Override
+    public void finishThreadMigration() {}
+
+    @Override
+    public void finishWork() {}
 
     @Override
     public Integer getSamplingPriority() {
@@ -546,7 +598,22 @@ public class AgentTracer {
     }
 
     @Override
-    public String getForwardedFor() {
+    public String getForwarded() {
+      return null;
+    }
+
+    @Override
+    public String getForwardedProto() {
+      return null;
+    }
+
+    @Override
+    public String getForwardedHost() {
+      return null;
+    }
+
+    @Override
+    public String getForwardedIp() {
       return null;
     }
 

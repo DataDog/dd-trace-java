@@ -8,10 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import java.util.HashMap;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class NonStandardExecutorInstrumentation extends AbstractExecutorInstrumentation {
@@ -26,17 +23,15 @@ public final class NonStandardExecutorInstrumentation extends AbstractExecutorIn
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put( // kotlinx.coroutines.scheduling.CoroutineScheduler
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice( // kotlinx.coroutines.scheduling.CoroutineScheduler
         named("dispatch")
             .and(takesArgument(0, Runnable.class))
             .and(takesArgument(1, named("kotlinx.coroutines.scheduling.TaskContext"))),
         JavaExecutorInstrumentation.class.getName() + "$SetExecuteRunnableStateAdvice");
 
-    transformers.put( // org.eclipse.jetty.util.thread.QueuedThreadPool
+    transformation.applyAdvice( // org.eclipse.jetty.util.thread.QueuedThreadPool
         named("dispatch").and(takesArguments(1)).and(takesArgument(0, Runnable.class)),
         JavaExecutorInstrumentation.class.getName() + "$SetExecuteRunnableStateAdvice");
-    return transformers;
   }
 }

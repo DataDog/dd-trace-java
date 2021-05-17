@@ -89,6 +89,11 @@ class FinatraServer270Test extends HttpServerTest<HttpServer> {
     return "finatra.request"
   }
 
+  @Override
+  boolean tagServerSpanWithRoute() {
+    return true
+  }
+
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     def errorEndpoint = endpoint == EXCEPTION || endpoint == ERROR
     trace.span {

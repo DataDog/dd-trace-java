@@ -19,11 +19,14 @@ public class ExtractedContext extends TagContext {
       final DDId spanId,
       final int samplingPriority,
       final String origin,
-      String fowardedFor,
-      String forwardedPort,
+      final String forwarded,
+      final String forwardedProto,
+      final String forwardedHost,
+      final String forwardedIp,
+      final String forwardedPort,
       final Map<String, String> baggage,
       final Map<String, String> tags) {
-    super(origin, fowardedFor, forwardedPort, tags);
+    super(origin, forwarded, forwardedProto, forwardedHost, forwardedIp, forwardedPort, tags);
     this.traceId = traceId;
     this.spanId = spanId;
     this.samplingPriority = samplingPriority;

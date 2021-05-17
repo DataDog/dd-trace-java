@@ -7,26 +7,22 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class AbstractPreparedStatementInstrumentation extends Instrumenter.Tracing {
 
@@ -45,15 +41,14 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>(4);
-    contextStore.put("java.sql.PreparedStatement", DBQueryInfo.class.getName());
-    contextStore.put("java.sql.Statement", Boolean.class.getName());
+    contextStore.put("java.sql.Statement", DBQueryInfo.class.getName());
     contextStore.put("java.sql.Connection", DBInfo.class.getName());
     return contextStore;
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         nameStartsWith("execute").and(takesArguments(0)).and(isPublic()),
         AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
   }
@@ -61,17 +56,15 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
   public static class PreparedStatementAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.This final PreparedStatement statement) {
-      ContextStore<Statement, Boolean> interceptionTracker =
-          InstrumentationContext.get(Statement.class, Boolean.class);
-      if (Boolean.TRUE.equals(interceptionTracker.get(statement))) {
+    public static AgentScope onEnter(@Advice.This final Statement statement) {
+      int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
+      if (depth > 0) {
         return null;
       }
-      interceptionTracker.put(statement, Boolean.TRUE);
       try {
         Connection connection = statement.getConnection();
         DBQueryInfo queryInfo =
-            InstrumentationContext.get(PreparedStatement.class, DBQueryInfo.class).get(statement);
+            InstrumentationContext.get(Statement.class, DBQueryInfo.class).get(statement);
         if (null == queryInfo) {
           logMissingQueryInfo(statement);
           return null;
@@ -92,9 +85,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.This PreparedStatement statement,
-        @Advice.Enter final AgentScope scope,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
@@ -102,7 +93,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
       DECORATE.beforeFinish(scope.span());
       scope.close();
       scope.span().finish();
-      InstrumentationContext.get(Statement.class, Boolean.class).put(statement, null);
+      CallDepthThreadLocalMap.reset(Statement.class);
     }
   }
 }

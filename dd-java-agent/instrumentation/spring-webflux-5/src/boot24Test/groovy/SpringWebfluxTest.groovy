@@ -62,6 +62,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
             defaultTags()
           }
         }
@@ -135,6 +136,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
             defaultTags()
           }
         }
@@ -283,6 +285,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 404
+            "$Tags.HTTP_ROUTE" "/**"
             defaultTags()
           }
         }
@@ -333,6 +336,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 202
+            "$Tags.HTTP_ROUTE" "/echo"
             defaultTags()
           }
         }
@@ -391,6 +395,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
+            "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
             defaultTags()
           }
         }
@@ -464,6 +469,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 307
+            "$Tags.HTTP_ROUTE" "/double-greet-redirect"
             defaultTags()
           }
         }
@@ -498,6 +504,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" finalUrl
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_ROUTE" "/double-greet"
             defaultTags()
           }
         }
@@ -526,9 +533,10 @@ class SpringWebfluxTest extends AgentTestRunner {
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
     when:
-    def responses = (0..requestsCount - 1).collect { client.newCall(request).execute() }
+    def responses = (1..requestsCount).collect { client.newCall(request).execute() }
 
     then:
+    responses.size() == requestsCount
     responses.every { it.code == 200 }
     responses.every { it.body().string() == expectedResponseBody }
     assertTraces(responses.size()) {
@@ -548,6 +556,7 @@ class SpringWebfluxTest extends AgentTestRunner {
               "$Tags.HTTP_URL" url
               "$Tags.HTTP_METHOD" "GET"
               "$Tags.HTTP_STATUS" 200
+              "$Tags.HTTP_ROUTE" String
               defaultTags()
             }
           }

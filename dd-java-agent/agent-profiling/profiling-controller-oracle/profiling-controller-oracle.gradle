@@ -34,12 +34,12 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
 // Oracle JDK requires extra JVM arguments to enable JFR
-tasks.withType(Test).all {
-  it.onlyIf {
+tasks.withType(Test).configureEach {
+  onlyIf {
     it.name.contains('ORACLE8')
   }
 
-  it.jvmArgs += [
+  jvmArgs += [
     "-XX:+IgnoreUnrecognizedVMOptions",
     "-XX:+UnlockCommercialFeatures",
     "-XX:+FlightRecorder"

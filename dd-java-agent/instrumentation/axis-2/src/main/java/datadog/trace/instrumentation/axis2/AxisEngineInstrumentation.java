@@ -17,10 +17,7 @@ import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.axis2.context.MessageContext;
@@ -46,24 +43,22 @@ public final class AxisEngineInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(namedOneOf("receive", "send", "sendFault"))
             .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
         getClass().getName() + "$HandleMessageAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(namedOneOf("resumeReceive", "resumeSend", "resumeSendFault"))
             .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
         getClass().getName() + "$ResumeMessageAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("invoke"))
             .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
         getClass().getName() + "$InvokeMessageAdvice");
-    return transformers;
   }
 
   public static final class HandleMessageAdvice {

@@ -17,14 +17,11 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
-import java.util.Map;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageProducer;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -57,18 +54,16 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("send").and(takesArgument(0, named("javax.jms.Message"))).and(isPublic()),
         JMSMessageProducerInstrumentation.class.getName() + "$ProducerAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("send")
             .and(takesArgument(0, named("javax.jms.Destination")))
             .and(takesArgument(1, named("javax.jms.Message")))
             .and(isPublic()),
         JMSMessageProducerInstrumentation.class.getName() + "$ProducerWithDestinationAdvice");
-    return transformers;
   }
 
   public static class ProducerAdvice {

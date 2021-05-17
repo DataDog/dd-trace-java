@@ -24,6 +24,7 @@ class TagInterceptorTest extends DDCoreSpecification {
 
   def "set service name"() {
     setup:
+    injectSysConfig("dd.trace.PeerServiceTagInterceptor.enabled", "true")
     def tracer = tracerBuilder()
       .serviceName("wrong-service")
       .writer(new LoggingWriter())
@@ -213,6 +214,7 @@ class TagInterceptorTest extends DDCoreSpecification {
 
   def "split-by-tags then peer-service via builder"() {
     setup:
+    injectSysConfig("dd.trace.PeerServiceTagInterceptor.enabled", "$enabled")
     def tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION)
 
     when:
@@ -223,14 +225,18 @@ class TagInterceptorTest extends DDCoreSpecification {
     span.finish()
 
     then:
-    span.serviceName == "peer-service"
+    (span.serviceName == "peer-service") == enabled
 
     cleanup:
     tracer.close()
+
+    where:
+    enabled << [true, false]
   }
 
   def "split-by-tags then peer-service via setTag"() {
     setup:
+    injectSysConfig("dd.trace.PeerServiceTagInterceptor.enabled", "true")
     def tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION)
 
     when:

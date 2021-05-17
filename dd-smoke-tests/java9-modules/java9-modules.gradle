@@ -48,7 +48,7 @@ if (JavaVersion.VERSION_1_9.compareTo(JavaVersion.current()) > 0) {
 // java.gradle generates a test task per jdk and assigns the test task its own java executable
 // For each Test task, this loop creates a jlink image using the test's executable
 // At the end, we have 1 jlink image per JVM: each one used by a testXXXGenerated task
-tasks.withType(Test).each {
+tasks.withType(Test).configureEach {
   def javaExecutable = it.executable
   def javaVersion = getJavaExecutableVersion(javaExecutable)
 
@@ -63,7 +63,7 @@ tasks.withType(Test).each {
   def jdkModulesPath = specificJDKHome + "/jmods"
   def generatedImageDir = "${buildDir}/${it.name}image"
 
-  it.doFirst {
+  doFirst {
     delete generatedImageDir
 
     // Run the jlink command to create the image
@@ -74,8 +74,8 @@ tasks.withType(Test).each {
     }
   }
 
-  it.jvmArgs "-Ddatadog.smoketest.module.image=${generatedImageDir}"
-  it.dependsOn jar
+  jvmArgs "-Ddatadog.smoketest.module.image=${generatedImageDir}"
+  dependsOn "jar"
 }
 
 dependencies {

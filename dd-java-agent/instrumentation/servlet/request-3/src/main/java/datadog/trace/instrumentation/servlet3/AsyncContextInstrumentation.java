@@ -12,7 +12,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator.DECORATE;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DD_CONTEXT_PATH_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DD_SERVLET_PATH_ATTRIBUTE;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
@@ -20,11 +19,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletRequest;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -52,8 +49,8 @@ public final class AsyncContextInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("dispatch")),
         AsyncContextInstrumentation.class.getName() + "$DispatchAdvice");
   }

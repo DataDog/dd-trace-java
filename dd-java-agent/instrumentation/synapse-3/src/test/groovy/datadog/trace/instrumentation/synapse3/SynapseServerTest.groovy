@@ -12,14 +12,20 @@ import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import org.apache.axis2.description.TransportInDescription
+import org.apache.axis2.transport.TransportListener
+import org.apache.http.impl.nio.reactor.DefaultListeningIOReactor
+import org.apache.http.nio.reactor.ListenerEndpoint
 import org.apache.synapse.ServerConfigurationInformation
 import org.apache.synapse.ServerContextInformation
 import org.apache.synapse.ServerManager
+import org.apache.synapse.transport.passthru.PassThroughHttpListener
 import spock.lang.Requires
 import spock.lang.Shared
 
+import java.lang.reflect.Field
+
 import static datadog.trace.api.Platform.isJavaVersionAtLeast
-import static datadog.trace.instrumentation.synapse3.TestPassThroughHttpListener.PORT
 
 @Requires({
   isJavaVersionAtLeast(8)
@@ -36,6 +42,9 @@ class SynapseServerTest extends AgentTestRunner {
   @Shared
   OkHttpClient client
 
+  @Shared
+  int port
+
   def setupSpec() {
     def testResourceDir = System.getProperty('user.dir') + '/src/test/resources/'
     ServerConfigurationInformation config = new ServerConfigurationInformation()
@@ -49,7 +58,28 @@ class SynapseServerTest extends AgentTestRunner {
     server.init(config, new ServerContextInformation(config))
     server.start()
 
+    port = getPort(server)
+    assert port > 0
+
     client = OkHttpUtils.client()
+  }
+
+  def getPort(ServerManager server) {
+    Map<String, TransportInDescription> trpIns = server.getServerContextInformation().
+      getSynapseConfiguration().getAxisConfiguration().getTransportsIn()
+    assert trpIns.size() == 1
+
+    TransportListener listener = trpIns.get("http").getReceiver()
+    assert listener instanceof PassThroughHttpListener
+
+    Field ioReactorField = PassThroughHttpListener.getDeclaredField("ioReactor")
+    ioReactorField.setAccessible(true)
+    DefaultListeningIOReactor ioReactor = (DefaultListeningIOReactor)ioReactorField.get(listener)
+    Set<ListenerEndpoint> endPoints = ioReactor.getEndpoints()
+    assert endPoints.size() == 1
+
+    InetSocketAddress address = (InetSocketAddress)endPoints[0].getAddress()
+    return address.getPort()
   }
 
   def cleanupSpec() {
@@ -66,7 +96,7 @@ class SynapseServerTest extends AgentTestRunner {
   def "test plain request is traced"() {
     setup:
     def request = new Request.Builder()
-      .url("http://127.0.0.1:${PORT}/services/SimpleStockQuoteService?wsdl")
+      .url("http://127.0.0.1:${port}/services/SimpleStockQuoteService?wsdl")
       .get()
       .build()
 
@@ -85,7 +115,7 @@ class SynapseServerTest extends AgentTestRunner {
   def "test passthru request is traced"() {
     setup:
     def request = new Request.Builder()
-      .url("http://127.0.0.1:${PORT}/services/SimpleStockQuoteService")
+      .url("http://127.0.0.1:${port}/services/SimpleStockQuoteService")
       .header('Content-Type', 'text/xml')
       .header('WSAction', 'urn:getRandomQuote')
       .header('SOAPAction', 'urn:getRandomQuote')
@@ -110,7 +140,7 @@ class SynapseServerTest extends AgentTestRunner {
   def "test error status is captured"() {
     setup:
     def request = new Request.Builder()
-      .url("http://127.0.0.1:${PORT}/services/SimpleStockQuoteService")
+      .url("http://127.0.0.1:${port}/services/SimpleStockQuoteService")
       .header('Content-Type', 'text/xml')
       .header('WSAction', 'urn:getQuoteError')
       .header('SOAPAction', 'urn:getQuoteError')

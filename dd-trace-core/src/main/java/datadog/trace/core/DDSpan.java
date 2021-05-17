@@ -1,5 +1,8 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -302,6 +305,27 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   public final DDSpan setResourceName(final CharSequence resourceName) {
     context.setResourceName(resourceName);
     return this;
+  }
+
+  @Override
+  public boolean eligibleForDropping() {
+    int samplingPriority = context.getSamplingPriority();
+    return samplingPriority == USER_DROP || samplingPriority == SAMPLER_DROP;
+  }
+
+  @Override
+  public void startThreadMigration() {
+    context.getTracer().onStartThreadMigration(this);
+  }
+
+  @Override
+  public void finishThreadMigration() {
+    context.getTracer().onFinishThreadMigration(this);
+  }
+
+  @Override
+  public void finishWork() {
+    context.getTracer().onFinishWork(this);
   }
 
   /**

@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_CONSUME;
 import static datadog.trace.instrumentation.kafka_streams.TextMapExtractAdapter.GETTER;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPackagePrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -21,9 +20,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.context.TraceScope;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
@@ -56,8 +53,8 @@ public class KafkaStreamsProcessorInstrumentation {
     }
 
     @Override
-    public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-      return singletonMap(
+    public void adviceTransformations(AdviceTransformation transformation) {
+      transformation.applyAdvice(
           isMethod()
               .and(isPackagePrivate())
               .and(named("nextRecord"))
@@ -104,8 +101,8 @@ public class KafkaStreamsProcessorInstrumentation {
     }
 
     @Override
-    public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-      return singletonMap(
+    public void adviceTransformations(AdviceTransformation transformation) {
+      transformation.applyAdvice(
           isMethod().and(isPublic()).and(named("process")).and(takesArguments(0)),
           StopInstrumentation.class.getName() + "$StopSpanAdvice");
     }

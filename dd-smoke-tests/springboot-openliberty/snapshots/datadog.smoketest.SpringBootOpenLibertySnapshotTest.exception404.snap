@@ -75,6 +75,7 @@
                "duration" 75162908
                "meta" {"env" "smoketest"
                        "version" "99"
+                       "http.route" "/error"
                        "thread.name" "Default Executor-thread-13"
                        "thread.id" "62"
                        "error.msg" "No converter for [class java.util.LinkedHashMap] with preset Content-Type 'text/html;charset=UTF-8'"

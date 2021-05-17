@@ -20,10 +20,8 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
@@ -65,12 +63,11 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
-    transformers.put(isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
-    transformers.put(isMethod().and(named("fork")), getClass().getName() + "$Fork");
-    transformers.put(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
-    return transformers;
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
+    transformation.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
+    transformation.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
   }
 
   public static final class Exec {

@@ -9,10 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import com.google.auto.service.AutoService;
 import com.netflix.hystrix.HystrixInvokableInfo;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import rx.Observable;
@@ -52,15 +49,13 @@ public class HystrixInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher.Junction<MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("getExecutionObservable").and(returns(named("rx.Observable"))),
         HystrixInstrumentation.class.getName() + "$ExecuteAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("getFallbackObservable").and(returns(named("rx.Observable"))),
         HystrixInstrumentation.class.getName() + "$FallbackAdvice");
-    return transformers;
   }
 
   public static class ExecuteAdvice {

@@ -62,6 +62,8 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            // BUG
+            if (!testName.startsWith("functional")) { "$Tags.HTTP_ROUTE" "$urlPathWithVariables" }
             defaultTags()
           }
         }
@@ -135,6 +137,8 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            // BUG
+            if (!testName.startsWith("functional")) { "$Tags.HTTP_ROUTE" "$urlPathWithVariables" }
             defaultTags()
           }
         }
@@ -283,6 +287,8 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 404
+            // BUG
+            "$Tags.HTTP_ROUTE" "/**"
             defaultTags()
           }
         }
@@ -333,6 +339,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 202
+            // BUG "$Tags.HTTP_ROUTE" "/echo"
             defaultTags()
           }
         }
@@ -391,6 +398,8 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
+            // BUG
+            if (!testName.startsWith("functional")) { "$Tags.HTTP_ROUTE" "$urlPathWithVariables" }
             defaultTags()
           }
         }
@@ -464,6 +473,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 307
+            // BUG "$Tags.HTTP_ROUTE" "/double-greet-redirect"
             defaultTags()
           }
         }
@@ -498,6 +508,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" finalUrl
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            // BUG "$Tags.HTTP_ROUTE" "/double-greet"
             defaultTags()
           }
         }
@@ -548,6 +559,8 @@ class SpringWebfluxTest extends AgentTestRunner {
               "$Tags.HTTP_URL" url
               "$Tags.HTTP_METHOD" "GET"
               "$Tags.HTTP_STATUS" 200
+              // BUG
+              if (!testName.startsWith("functional")) { "$Tags.HTTP_ROUTE" "$urlPathWithVariables" }
               defaultTags()
             }
           }

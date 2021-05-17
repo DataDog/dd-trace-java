@@ -8,6 +8,7 @@ import datadog.trace.test.util.DDSpecification
 import spock.lang.Ignore
 import spock.lang.Subject
 
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 
@@ -44,13 +45,13 @@ class HealthMetricsTest extends DDSpecification {
 
   def "test onPublish"() {
     setup:
-    def statsD = Mock(StatsDClient)
-    def healthMetrics = new HealthMetrics(statsD, 100, TimeUnit.MILLISECONDS)
+    def latch = new CountDownLatch(trace.isEmpty() ? 1 : 2)
+    def healthMetrics = new HealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
     healthMetrics.onPublish(trace, samplingPriority)
-    Thread.sleep(110)
+    latch.await(10, TimeUnit.SECONDS)
 
     then:
     1 * statsD.count('queue.enqueued.traces', 1, "priority:" + priorityName)
@@ -71,13 +72,13 @@ class HealthMetricsTest extends DDSpecification {
 
   def "test onFailedPublish"() {
     setup:
-    def statsD = Mock(StatsDClient)
-    def healthMetrics = new HealthMetrics(statsD, 100, TimeUnit.MILLISECONDS)
+    def latch = new CountDownLatch(1)
+    def healthMetrics = new HealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)
     healthMetrics.start()
 
     when:
     healthMetrics.onFailedPublish(samplingPriority)
-    Thread.sleep(110)
+    latch.await(10, TimeUnit.SECONDS)
 
     then:
     1 * statsD.count('queue.dropped.traces', 1, _)
@@ -186,5 +187,105 @@ class HealthMetricsTest extends DDSpecification {
 
     traceCount = ThreadLocalRandom.current().nextInt(1, 100)
     sendSize = ThreadLocalRandom.current().nextInt(1, 100)
+  }
+
+  private static class Latched implements StatsDClient {
+    final StatsDClient delegate
+    final CountDownLatch latch
+
+    Latched(StatsDClient delegate, CountDownLatch latch) {
+      this.delegate = delegate
+      this.latch = latch
+    }
+
+    @Override
+    void incrementCounter(String metricName, String... tags) {
+      try {
+        delegate.incrementCounter(metricName, tags)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
+    void count(String metricName, long delta, String... tags) {
+      try {
+        delegate.count(metricName, delta, tags)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
+    void gauge(String metricName, long value, String... tags) {
+      try {
+        delegate.gauge(metricName, value, tags)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
+    void gauge(String metricName, double value, String... tags) {
+      try {
+        delegate.gauge(metricName, value, tags)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
+    void histogram(String metricName, long value, String... tags) {
+      try {
+        delegate.histogram(metricName, value, tags)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
+    void histogram(String metricName, double value, String... tags) {
+      try {
+        delegate.histogram(metricName, value, tags)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
+    void serviceCheck(String serviceCheckName, String status, String message, String... tags) {
+      try {
+        delegate.serviceCheck(serviceCheckName, status, message, tags)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
+    void error(Exception error) {
+      try {
+        delegate.error(error)
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
+    int getErrorCount() {
+      try {
+        return delegate.getErrorCount()
+      } finally {
+        latch.countDown()
+      }
+    }
+
+    @Override
+    void close() {
+      try {
+        delegate.close()
+      } finally {
+        latch.countDown()
+      }
+    }
   }
 }

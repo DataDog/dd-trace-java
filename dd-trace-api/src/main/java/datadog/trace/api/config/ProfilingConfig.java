@@ -43,6 +43,11 @@ public final class ProfilingConfig {
   public static final String PROFILING_EXCLUDE_AGENT_THREADS = "profiling.exclude.agent-threads";
   public static final String PROFILING_HOTSPOTS_ENABLED = "profiling.hotspots.enabled";
 
+  public static final String PROFILING_LEGACY_TRACING_INTEGRATION =
+      "profiling.legacy.tracing.integration";
+  public static final String PROFILING_CHECKPOINTS_RECORD_CPU_TIME =
+      "profiling.checkpoints.record.cpu.time";
+
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
 

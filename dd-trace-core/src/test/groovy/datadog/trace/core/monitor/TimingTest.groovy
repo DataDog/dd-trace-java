@@ -2,13 +2,10 @@ package datadog.trace.core.monitor
 
 import datadog.trace.api.Platform
 import datadog.trace.api.StatsDClient
-import datadog.trace.core.util.SystemAccess
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
-import org.junit.Assume
 import spock.lang.Requires
 
-import static java.lang.management.ManagementFactory.getThreadMXBean
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 @Requires({
@@ -78,7 +75,6 @@ class TimingTest extends DDSpecification {
     Monitoring.DISABLED.newTimer("foo") instanceof NoOpRecording
     Monitoring.DISABLED.newTimer("foo", "tag") instanceof NoOpRecording
     Monitoring.DISABLED.newThreadLocalTimer("foo") instanceof NoOpRecording
-    Monitoring.DISABLED.newCPUTimer("foo") instanceof NoOpRecording
   }
 
   def "no ops are safe to use"() {
@@ -94,30 +90,8 @@ class TimingTest extends DDSpecification {
     recording << [
       Monitoring.DISABLED.newTimer("foo"),
       Monitoring.DISABLED.newTimer("foo", "tag"),
-      Monitoring.DISABLED.newThreadLocalTimer("foo"),
-      Monitoring.DISABLED.newCPUTimer("foo")
+      Monitoring.DISABLED.newThreadLocalTimer("foo")
     ]
-  }
-
-  def "cpu timing records CPU time when enabled"() {
-    setup:
-    Assume.assumeTrue(getThreadMXBean().isCurrentThreadCpuTimeSupported())
-    StatsDClient statsd = Mock(StatsDClient)
-    Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
-    def timer = monitoring.newCPUTimer("my_timer")
-    when:
-    SystemAccess.enableJmx()
-    Recording recording = timer.start()
-    Thread.sleep(200)
-    recording.close()
-    then:
-    1 * statsd.gauge("my_timer", { it > MILLISECONDS.toMicros(200) }, { it[0] == "stat:p50" && it[1].startsWith("thread:") })
-    1 * statsd.gauge("my_timer", { it > MILLISECONDS.toMicros(200) }, { it[0] == "stat:p99" && it[1].startsWith("thread:") })
-    1 * statsd.gauge("my_timer", { it > MILLISECONDS.toMicros(200) }, { it[0] == "stat:max" && it[1].startsWith("thread:") })
-    1 * statsd.gauge("my_timer.cpu", { it > 0 }, { it[0].startsWith("thread:") })
-    0 * _
-    cleanup:
-    SystemAccess.disableJmx()
   }
 }
 
