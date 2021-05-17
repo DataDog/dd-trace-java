@@ -64,7 +64,7 @@ public final class OpenJdkController implements Controller {
     }
 
     // Toggle settings based on JDK version
-    if (recordingSettings.get("jdk.OldObjectSample#enabled") == "true") {
+    if (recordingSettings.getOrDefault("jdk.OldObjectSample#enabled", "false").equals("true")) {
       if (!isJavaVersionAtLeast(17)) {
         log.debug("This JDK doesn't support OldObjectSample JFR event, disabling it.");
         recordingSettings.put("jdk.OldObjectSample#enabled", "false");
