@@ -68,6 +68,7 @@ public class Agent {
   private static ClassLoader AGENT_CLASSLOADER = null;
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
   private static ClassLoader PROFILING_CLASSLOADER = null;
+  private static ClassLoader APPSEC_CLASSLOADER = null;
 
   private static volatile AgentTaskScheduler.Task<URL> PROFILER_INIT_AFTER_JMX = null;
 
@@ -108,6 +109,12 @@ public class Agent {
      */
     AgentTaskScheduler.initialize();
     startDatadogAgent(inst, bootstrapURL);
+
+    if (isJavaVersionAtLeast(8)) {
+      startAppSec(bootstrapURL);
+    } else {
+      log.debug("AppSec System requires Java 8 or later to run");
+    }
 
     final EnumSet<Library> libraries = detectLibraries(log);
 
@@ -471,6 +478,24 @@ public class Agent {
     final Method statsDClientManagerMethod =
         statsdClientManagerClass.getMethod("statsDClientManager");
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
+  }
+
+  private static void startAppSec(final URL bootstrapURL) {
+    if (APPSEC_CLASSLOADER == null) {
+      try {
+        final ClassLoader appSecClassLoader =
+          createDelegateClassLoader("appsec", bootstrapURL, PARENT_CLASSLOADER);
+
+          final Class<?> appSecSysClass =
+            appSecClassLoader.loadClass("com.datadog.appsec.AppSecSystem");
+          final Method appSecInstallerMethod =
+            appSecSysClass.getMethod("start");
+          appSecInstallerMethod.invoke(null);
+        APPSEC_CLASSLOADER = appSecClassLoader;
+      } catch (final Throwable ex) {
+        log.error("Throwable thrown while starting the AppSec Agent", ex);
+      }
+    }
   }
 
   private static void startProfilingAgent(final URL bootstrapURL, final boolean isStartingFirst) {
