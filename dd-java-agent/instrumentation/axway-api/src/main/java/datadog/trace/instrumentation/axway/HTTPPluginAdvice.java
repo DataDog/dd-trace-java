@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.SERVE
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
 
 public class HTTPPluginAdvice {
@@ -43,7 +42,7 @@ public class HTTPPluginAdvice {
         // work.
         int respCode =
             InstrumentationContext.get(SERVER_TRANSACTION_CLASS, int.class).get(serverTransaction);
-        span.setTag(Tags.HTTP_STATUS, respCode);
+        span.setHttpStatusCode(respCode);
       }
       if (throwable != null) {
         DECORATE.onError(span, throwable);

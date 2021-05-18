@@ -1,12 +1,14 @@
 package datadog.trace.core.processor.rule;
 
+import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.processor.TraceProcessor;
 
 public class URLAsResourceNameRule implements TraceProcessor.Rule {
 
-  private static final Integer NOT_FOUND = 404;
+  private static final UTF8BytesString NOT_FOUND = RadixTreeCache.HTTP_STATUSES.get(404);
 
   private static final String FEATURE_ALIAS_STATUS_404_RULE = "Status404Rule";
   private static final String FEATURE_ALIAS_STATUS_404_DECORATOR = "Status404Decorator";
@@ -38,9 +40,8 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
     if (span.isResourceNameSet()) {
       return;
     }
-    final Object httpStatus = span.unsafeGetTag(Tags.HTTP_STATUS);
-    if (!status404Disabled && (NOT_FOUND.equals(httpStatus) || "404".equals(httpStatus))) {
-      span.setResourceName("404");
+    if (!status404Disabled && span.getHttpStatusCode() == 404) {
+      span.setResourceName(NOT_FOUND);
       return;
     }
     final Object url = span.unsafeGetTag(Tags.HTTP_URL);

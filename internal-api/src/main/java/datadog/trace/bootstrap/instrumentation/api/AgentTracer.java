@@ -466,6 +466,16 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentSpan setHttpStatusCode(int statusCode) {
+      return this;
+    }
+
+    @Override
+    public short getHttpStatusCode() {
+      return 0;
+    }
+
+    @Override
     public AgentSpan getLocalRootSpan() {
       return this;
     }

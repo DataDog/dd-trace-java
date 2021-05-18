@@ -219,9 +219,6 @@ class TestHttpServer implements AutoCloseable {
           "path" String
           defaultTags(parentSpan != null)
         }
-        metrics {
-          defaultMetrics()
-        }
       }
     }
   }
