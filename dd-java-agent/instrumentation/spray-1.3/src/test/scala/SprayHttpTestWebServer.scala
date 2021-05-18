@@ -11,7 +11,7 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Trace
 import groovy.lang.Closure
 import spray.can.Http
-import spray.http.{HttpResponse, StatusCodes}
+import spray.http.HttpResponse
 import spray.routing.{HttpServiceActor, RequestContext}
 
 import scala.concurrent.Await
@@ -35,8 +35,7 @@ class SprayHttpTestWebServer extends HttpServer {
         IO(Http) ? Http.Bind(service, interface = "localhost", port = port),
         10 seconds
       )
-
-      println(s"server started on port: $port")
+      println(s"SprayHttpTestWebServer started on port: $port")
     }
   }
 
@@ -50,47 +49,14 @@ class SprayHttpTestWebServer extends HttpServer {
 
 class ServiceActor extends HttpServiceActor with ActorLogging {
   def receive = runRoute {
-    path("test") {
-      get { ctx =>
-        tracedMethod()
-        ctx.complete("Hello unit test.")
+    path(SUCCESS.rawPath()) {
+      get { ctx: RequestContext =>
+        HttpServerTest.controller(
+          SUCCESS,
+          new ControllerHttpResponseToClosureAdapter(ctx, SUCCESS)
+        )
       }
     } ~
-      path("throw-handler") {
-        get { ctx =>
-          sys.error("Oh no handler")
-        }
-      } ~
-      path("server-error") {
-        get { ctx =>
-          ctx.complete(
-            HttpResponse(StatusCodes.InternalServerError, "Bad things happen")
-          )
-        }
-      } ~
-      path("timeout") {
-        get { ctx =>
-          Thread.sleep(10000)
-          ctx.complete("Hello very slow unit test.")
-        }
-      } ~
-      // todo: spray.routing.FutureDirectives
-//      path(SUCCESS.rawPath()) {
-//        import scala.concurrent.ExecutionContext.Implicits.global
-//        onSuccess(Future {
-//          "sucess-future"
-//        }) {
-//          result => complete(result)
-//        }
-//      } ~
-      path(SUCCESS.rawPath()) {
-        get { ctx: RequestContext =>
-          HttpServerTest.controller(
-            SUCCESS,
-            new ControllerHttpResponseToClosureAdapter(ctx, SUCCESS)
-          )
-        }
-      } ~
       path(FORWARDED.rawPath()) {
         get { ctx: RequestContext =>
           HttpServerTest.controller(
@@ -133,12 +99,21 @@ class ServiceActor extends HttpServiceActor with ActorLogging {
           )
         }
       }
-// actually not found path:
-//      path(NOT_FOUND.rawPath()) {
-//        get { ctx =>
-//          ctx.complete(NOT_FOUND.getBody)
-//        }
-//      }
+    // actually not found path:
+    //      path(NOT_FOUND.rawPath()) {
+    //        get { ctx =>
+    //          ctx.complete(NOT_FOUND.getBody)
+    //        }
+    //      }
+    // todo: spray.routing.FutureDirectives
+    //      path(SUCCESS.rawPath()) {
+    //        import scala.concurrent.ExecutionContext.Implicits.global
+    //        onSuccess(Future {
+    //          "sucess-future"
+    //        }) {
+    //          result => complete(result)
+    //        }
+    //      } ~
   }
   @Trace
   def tracedMethod(): Unit = {}

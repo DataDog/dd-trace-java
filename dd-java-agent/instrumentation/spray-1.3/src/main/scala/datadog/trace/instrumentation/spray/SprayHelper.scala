@@ -1,11 +1,7 @@
 package datadog.trace.instrumentation.spray
 
-import datadog.trace.api.cache.RadixTreeCache
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
-  activeScope,
-  activeSpan
-}
-import datadog.trace.bootstrap.instrumentation.api.{AgentSpan, Tags}
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeScope, activeSpan}
 import datadog.trace.context.TraceScope
 import datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECORATE
 import spray.http.HttpResponse
@@ -26,10 +22,7 @@ object SprayHelper {
       log.debug(s"wrap context message $ctx $message")
       message match {
         case response: HttpResponse =>
-          span.setTag(
-            Tags.HTTP_STATUS,
-            RadixTreeCache.HTTP_STATUSES.get(response.status.intValue)
-          )
+          span.setHttpStatusCode(response.status.intValue)
           if (404 == response.status.intValue) {
             span.setResourceName("404")
           } else if (response.status.intValue >= 500) {
