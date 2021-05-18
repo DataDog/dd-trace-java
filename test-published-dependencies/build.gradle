@@ -2,7 +2,7 @@ plugins {
   id 'java'
   id 'application'
 
-  id 'com.diffplug.spotless' version '5.11.0'
+  id 'com.diffplug.spotless' version '5.12.5'
   id 'pl.allegro.tech.build.axion-release' version '1.10.3'
 }
 

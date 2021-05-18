@@ -117,8 +117,7 @@ class DDSpanContextTest extends DDCoreSpecification {
     context.setMetric("test", value)
 
     then:
-    def metrics = context.getUnsafeMetrics()
-    type.isInstance(metrics["test"])
+    type.isInstance(context.getTag("test"))
 
     where:
     type    | value
@@ -127,13 +126,13 @@ class DDSpanContextTest extends DDCoreSpecification {
     Integer | Integer.MIN_VALUE
     Short   | Short.MAX_VALUE
     Short   | Short.MIN_VALUE
-    Double  | Float.MAX_VALUE
-    Double  | Float.MIN_VALUE
+    Float   | Float.MAX_VALUE
+    Float   | Float.MIN_VALUE
     Double  | Double.MAX_VALUE
     Double  | Double.MIN_VALUE
-    Double  | 1f
+    Float   | 1f
     Double  | 1d
-    Double  | 0.5f
+    Float   | 0.5f
     Double  | 0.5d
     Integer | 0x55
   }
@@ -169,6 +168,8 @@ class DDSpanContextTest extends DDCoreSpecification {
     def sourceWithoutCommonTags = new HashMap(source)
     sourceWithoutCommonTags.remove("runtime-id")
     sourceWithoutCommonTags.remove("language")
+    sourceWithoutCommonTags.remove("_dd.agent_psr")
+    sourceWithoutCommonTags.remove("_sample_rate")
 
     assert sourceWithoutCommonTags == comparison
   }

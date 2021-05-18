@@ -95,7 +95,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
 
     then:
     if (status) {
-      1 * span.setTag(Tags.HTTP_STATUS, status)
+      1 * span.setHttpStatusCode(status)
     }
     if (error) {
       1 * span.setError(true)

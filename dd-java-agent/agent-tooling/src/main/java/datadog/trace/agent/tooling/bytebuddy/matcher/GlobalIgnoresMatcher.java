@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import datadog.trace.agent.tooling.bytebuddy.DDRediscoveryStrategy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -47,6 +48,8 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
    * Be very careful about the types of matchers used in this section as they are called on every
    * class load, so they must be fast. Generally speaking try to only use name matchers as they
    * don't have to load additional info.
+   *
+   * @see DDRediscoveryStrategy#shouldRetransformBootstrapClass(String)
    */
   @Override
   public boolean matches(final T target) {
@@ -116,6 +119,10 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
         if (name.startsWith("jdk.")) {
           return true;
         }
+        /**
+         * Any changes involving bootstrap types should also be reflected in {@link
+         * DDRediscoveryStrategy#shouldRetransformBootstrapClass(String)}
+         */
         if (name.startsWith("java.")) {
           // allow exception profiling instrumentation
           if (name.equals("java.lang.Throwable")) {
@@ -173,6 +180,10 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
       case 'r' - 'a':
         break;
       case 's' - 'a':
+        /**
+         * Any changes involving bootstrap types should also be reflected in {@link
+         * DDRediscoveryStrategy#shouldRetransformBootstrapClass(String)}
+         */
         if (name.startsWith("sun.")) {
           return !name.startsWith("sun.net.www.protocol.")
               && !name.startsWith("sun.rmi.server")

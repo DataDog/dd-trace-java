@@ -3,6 +3,7 @@ package datadog.trace.core.taginterceptor;
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_DROP;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.PEER_SERVICE;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.RESOURCE_NAME;
@@ -71,6 +72,9 @@ public class TagInterceptor {
         return interceptAnalyticsSampleRate(span, value);
       case Tags.ERROR:
         return interceptError(span, value);
+      case HTTP_STATUS:
+        // not set internally but may come from manual instrumentation
+        return interceptHttpStatusCode(span, value);
       default:
         return intercept(span, tag, value);
     }
@@ -169,6 +173,19 @@ public class TagInterceptor {
       } else {
         span.setServiceName(contextName);
       }
+    }
+    return false;
+  }
+
+  private boolean interceptHttpStatusCode(DDSpanContext span, Object statusCode) {
+    if (statusCode instanceof Number) {
+      span.setHttpStatusCode(((Number) statusCode).shortValue());
+      return true;
+    }
+    try {
+      span.setHttpStatusCode(Short.parseShort(String.valueOf(statusCode)));
+      return true;
+    } catch (Throwable ignore) {
     }
     return false;
   }

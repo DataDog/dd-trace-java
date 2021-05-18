@@ -5,7 +5,9 @@ import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
+import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.core.DDSpan
+import datadog.trace.core.DDSpanContext
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 
@@ -40,6 +42,9 @@ class TagsAssert {
     assertedTags.add("thread.id")
     assertedTags.add(DDTags.RUNTIME_ID_TAG)
     assertedTags.add(DDTags.LANGUAGE_TAG_KEY)
+    assertedTags.add(RateByServiceSampler.SAMPLING_AGENT_RATE)
+    assertedTags.add(DDSpanContext.PRIORITY_SAMPLING_KEY)
+    assertedTags.add("_sample_rate")
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null

@@ -165,9 +165,6 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       switch (key) {
         case "meta":
           int packedSize = unpacker.unpackMapHeader()
-          int expectedSize = expected.size()
-        // filter out "thread.name" and "thread.id"
-          assert packedSize - 2 == expectedSize
           Map<String, String> unpackedMeta = [:]
           for (int j = 0; j < packedSize; j++) {
             def k = unpacker.unpackString()
@@ -239,9 +236,6 @@ class DDSpanSerializationTest extends DDCoreSpecification {
     }
 
     int packedSize = unpacker.unpackMapHeader()
-    int expectedSize = expected.size()
-    // filter out "thread.name" and "thread.id"
-    assert packedSize - 2 == expectedSize
     Map<String, String> unpackedMeta = [:]
     for (int j = 0; j < packedSize; j++) {
       def k = dictionary[unpacker.unpackInt()]
