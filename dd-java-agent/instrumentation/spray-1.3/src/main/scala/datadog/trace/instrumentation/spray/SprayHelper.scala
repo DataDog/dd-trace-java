@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
   activeScope,
   activeSpan
 }
-import datadog.trace.context.TraceScope
 import datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECORATE
 import spray.http.HttpResponse
 import spray.routing.{RequestContext, Route}
