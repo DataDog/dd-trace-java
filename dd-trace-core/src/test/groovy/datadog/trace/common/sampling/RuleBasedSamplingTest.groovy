@@ -64,9 +64,9 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     ((PrioritySampler) sampler).setSamplingPriority(span)
 
     then:
-    span.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == expectedRuleRate
-    span.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
-    span.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
+    span.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == expectedRuleRate
+    span.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == expectedRateLimit
+    span.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == expectedAgentRate
     span.getSamplingPriority() == expectedPriority
 
     cleanup:
@@ -162,14 +162,14 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     ((PrioritySampler) sampler).setSamplingPriority(span2)
 
     then:
-    span1.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span1.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span1.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span1.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
+    span1.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span1.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
     span1.getSamplingPriority() == SAMPLER_KEEP
 
-    span2.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span2.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span2.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span2.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
+    span2.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span2.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
     span2.getSamplingPriority() == SAMPLER_DROP
 
     cleanup:
@@ -200,14 +200,14 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     ((PrioritySampler) sampler).setSamplingPriority(span2)
 
     then:
-    span1.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span1.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span1.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span1.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
+    span1.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span1.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
     span1.getSamplingPriority() == SAMPLER_KEEP
 
-    span2.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
-    span2.getUnsafeMetrics().get(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
-    span2.getUnsafeMetrics().get(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
+    span2.getTag(RuleBasedSampler.SAMPLING_RULE_RATE) == 1.0
+    span2.getTag(RuleBasedSampler.SAMPLING_LIMIT_RATE) == 1.0
+    span2.getTag(RateByServiceSampler.SAMPLING_AGENT_RATE) == null
     span2.getSamplingPriority() == SAMPLER_DROP
 
     cleanup:

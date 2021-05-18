@@ -12,11 +12,15 @@ public class CommitInfo {
   private final PersonInfo committer;
   private final String fullMessage;
 
-  public CommitInfo(String sha) {
+  public CommitInfo(final String sha) {
     this(sha, PersonInfo.NOOP, PersonInfo.NOOP, null);
   }
 
-  public CommitInfo(String sha, PersonInfo author, PersonInfo committer, String fullMessage) {
+  public CommitInfo(
+      final String sha,
+      final PersonInfo author,
+      final PersonInfo committer,
+      final String fullMessage) {
     this.sha = sha;
     this.author = author;
     this.committer = committer;
@@ -40,10 +44,14 @@ public class CommitInfo {
   }
 
   @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    CommitInfo that = (CommitInfo) o;
+  public boolean equals(final Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    final CommitInfo that = (CommitInfo) o;
     return Objects.equals(sha, that.sha)
         && Objects.equals(author, that.author)
         && Objects.equals(committer, that.committer)
@@ -53,5 +61,21 @@ public class CommitInfo {
   @Override
   public int hashCode() {
     return Objects.hash(sha, author, committer, fullMessage);
+  }
+
+  @Override
+  public String toString() {
+    return "CommitInfo{"
+        + "sha='"
+        + sha
+        + '\''
+        + ", author="
+        + author
+        + ", committer="
+        + committer
+        + ", fullMessage='"
+        + fullMessage
+        + '\''
+        + '}';
   }
 }

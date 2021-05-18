@@ -138,11 +138,12 @@ class DDAgentApiTest extends DDCoreSpecification {
     [[buildSpan(1L, "service.name", "my-service")]]     | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
-      "meta"     : ["thread.name": Thread.currentThread().getName(), "thread.id": "${Thread.currentThread().id}"],
+      "meta"     : ["thread.name": Thread.currentThread().getName()],
       "metrics"  : [
         (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
         (InstrumentationTags.DD_TOP_LEVEL as String): 1,
         (RateByServiceSampler.SAMPLING_AGENT_RATE)  : 1.0,
+        "thread.id": Thread.currentThread().id
       ],
       "name"     : "fakeOperation",
       "parent_id": 0,
@@ -156,11 +157,12 @@ class DDAgentApiTest extends DDCoreSpecification {
     [[buildSpan(100L, "resource.name", "my-resource")]] | [[new TreeMap<>([
       "duration" : 10,
       "error"    : 0,
-      "meta"     : ["thread.name": Thread.currentThread().getName(), "thread.id": "${Thread.currentThread().id}"],
+      "meta"     : ["thread.name": Thread.currentThread().getName()],
       "metrics"  : [
         (DDSpanContext.PRIORITY_SAMPLING_KEY)       : 1,
         (InstrumentationTags.DD_TOP_LEVEL as String): 1,
         (RateByServiceSampler.SAMPLING_AGENT_RATE)  : 1.0,
+        "thread.id": Thread.currentThread().id
       ],
       "name"     : "fakeOperation",
       "parent_id": 0,

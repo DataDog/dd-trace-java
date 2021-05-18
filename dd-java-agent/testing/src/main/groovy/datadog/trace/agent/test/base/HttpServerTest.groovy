@@ -612,9 +612,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
         defaultTags()
       }
-      metrics {
-        defaultMetrics()
-      }
     }
   }
 
@@ -667,9 +664,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         //          "$DDTags.HTTP_FRAGMENT" endpoint.fragment
         //        }
         defaultTags(true)
-      }
-      metrics {
-        defaultMetrics()
       }
     }
   }
