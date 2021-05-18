@@ -182,14 +182,15 @@ public final class TraceMapperV0_5 implements TraceMapper {
     @Override
     public void accept(Metadata metadata) {
       int metaSize =
-          2
-              + metadata.getBaggage().size()
+          metadata.getBaggage().size()
               + metadata.getTags().size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1);
+              + (null == metadata.getHttpStatusCode() ? 0 : 1)
+              + 1;
       int metricsSize =
           (metadata.hasSamplingPriority() ? 1 : 0)
               + (metadata.measured() ? 1 : 0)
-              + (metadata.topLevel() ? 1 : 0);
+              + (metadata.topLevel() ? 1 : 0)
+              + 1;
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
         if (tag.getValue() instanceof Number) {
           ++metricsSize;
@@ -206,8 +207,6 @@ public final class TraceMapperV0_5 implements TraceMapper {
       }
       writeDictionaryEncoded(writable, THREAD_NAME);
       writeDictionaryEncoded(writable, metadata.getThreadName());
-      writeDictionaryEncoded(writable, THREAD_ID);
-      writeDictionaryEncoded(writable, String.valueOf(metadata.getThreadId()));
       if (null != metadata.getHttpStatusCode()) {
         writeDictionaryEncoded(writable, HTTP_STATUS);
         writeDictionaryEncoded(writable, metadata.getHttpStatusCode());
@@ -231,6 +230,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
         writeDictionaryEncoded(writable, InstrumentationTags.DD_TOP_LEVEL);
         writable.writeInt(1);
       }
+      writeDictionaryEncoded(writable, THREAD_ID);
+      writable.writeLong(metadata.getThreadId());
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
         if (entry.getValue() instanceof Number) {
           writeDictionaryEncoded(writable, entry.getKey());

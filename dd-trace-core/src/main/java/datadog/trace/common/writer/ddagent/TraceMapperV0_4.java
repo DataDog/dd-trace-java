@@ -1,8 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.core.http.OkHttpUtils.msgpackRequestBodyOf;
-import static datadog.trace.core.serialization.Util.integerToStringBuffer;
-import static datadog.trace.core.serialization.Util.writeLongAsString;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -45,7 +43,6 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
   private static final class MetaWriter extends MetadataConsumer {
 
-    private final byte[] numberByteArray = integerToStringBuffer();
     private Writable writable;
 
     MetaWriter withWritable(Writable writable) {
@@ -56,14 +53,15 @@ public final class TraceMapperV0_4 implements TraceMapper {
     @Override
     public void accept(Metadata metadata) {
       int metaSize =
-          2
-              + metadata.getBaggage().size()
+          metadata.getBaggage().size()
               + metadata.getTags().size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1);
+              + (null == metadata.getHttpStatusCode() ? 0 : 1)
+              + 1;
       int metricsSize =
           (metadata.hasSamplingPriority() ? 1 : 0)
               + (metadata.measured() ? 1 : 0)
-              + (metadata.topLevel() ? 1 : 0);
+              + (metadata.topLevel() ? 1 : 0)
+              + 1;
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
         if (tag.getValue() instanceof Number) {
           ++metricsSize;
@@ -84,6 +82,8 @@ public final class TraceMapperV0_4 implements TraceMapper {
         writable.writeUTF8(InstrumentationTags.DD_TOP_LEVEL);
         writable.writeInt(1);
       }
+      writable.writeUTF8(THREAD_ID);
+      writable.writeLong(metadata.getThreadId());
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
         if (entry.getValue() instanceof Number) {
           writable.writeString(entry.getKey(), null);
@@ -102,8 +102,6 @@ public final class TraceMapperV0_4 implements TraceMapper {
       }
       writable.writeUTF8(THREAD_NAME);
       writable.writeUTF8(metadata.getThreadName());
-      writable.writeUTF8(THREAD_ID);
-      writeLongAsString(metadata.getThreadId(), writable, numberByteArray);
       if (null != metadata.getHttpStatusCode()) {
         writable.writeUTF8(HTTP_STATUS);
         writable.writeUTF8(metadata.getHttpStatusCode());
