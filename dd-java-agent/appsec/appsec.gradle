@@ -1,0 +1,17 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+repositories {
+  ivy {
+    artifactPattern 'http://sqreen-ci-java.s3-website-us-east-1.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
+    ivyPattern 'http://sqreen-ci-java.s3-website-us-east-1.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
+  }
+}
+
+dependencies {
+  compile deps.slf4j
+  compile project(':internal-api')
+  compile group: 'io.sqreen', name: 'libsqreen', version: '1.1.2.2'
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
