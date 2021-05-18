@@ -1000,6 +1000,27 @@ class ScopeManagerTest extends DDCoreSpecification {
     1 * checkpointer.checkpoint(span.getTraceId(), span.context().getSpanId(), SPAN | END)
   }
 
+  def "close if active"() {
+    setup:
+    def parent = tracer.buildSpan("parent").start()
+    def child = tracer.buildSpan("child").start()
+    when:
+    tracer.activateSpan(parent)
+    then:
+    !tracer.deactivate(child)
+    tracer.deactivate(parent)
+    !tracer.deactivate(parent)
+    when:
+    tracer.activateSpan(parent)
+    tracer.activateSpan(child)
+    then:
+    !tracer.deactivate(parent)
+    tracer.deactivate(child)
+    !tracer.deactivate(child)
+    tracer.deactivate(parent)
+    !tracer.deactivate(parent)
+  }
+
   boolean spanFinished(AgentSpan span) {
     return ((DDSpan) span)?.isFinished()
   }

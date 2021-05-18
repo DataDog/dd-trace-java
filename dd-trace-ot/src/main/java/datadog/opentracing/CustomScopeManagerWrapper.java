@@ -54,6 +54,11 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
   }
 
   @Override
+  public boolean closeIfActive(AgentSpan span) {
+    return false;
+  }
+
+  @Override
   public TraceScope active() {
     return new CustomScopeManagerScope(delegate.active());
   }

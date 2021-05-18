@@ -102,6 +102,8 @@ public class AgentTracer {
 
     AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating);
 
+    boolean deactivate(AgentSpan span);
+
     TraceScope.Continuation captureSpan(AgentSpan span, ScopeSource source);
 
     AgentSpan activeSpan();
@@ -186,6 +188,11 @@ public class AgentTracer {
     public AgentScope activateSpan(
         final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
       return NoopAgentScope.INSTANCE;
+    }
+
+    @Override
+    public boolean deactivate(AgentSpan span) {
+      return false;
     }
 
     @Override

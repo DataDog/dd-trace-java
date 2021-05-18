@@ -76,6 +76,19 @@ public class ContinuableScopeManager implements AgentScopeManager {
     return continuation;
   }
 
+  @Override
+  public boolean closeIfActive(AgentSpan span) {
+    ContinuableScope scope = scopeStack().top();
+    if (null != scope) {
+      if (scope.span.equals(span)) {
+        // TODO consider adding a short cut here
+        scope.close();
+        return true;
+      }
+    }
+    return false;
+  }
+
   private AgentScope activate(
       final AgentSpan span,
       final byte source,

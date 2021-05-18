@@ -1,6 +1,7 @@
 package datadog.opentracing
 
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
@@ -160,6 +161,14 @@ class CustomScopeManagerTest extends DDSpecification {
 
     where:
     concurrent << [false, true]
+  }
+
+  def "internal api leaked onto OT API yields default value"() {
+    setup:
+    CustomScopeManagerWrapper wrapper = new CustomScopeManagerWrapper(Mock(ScopeManager), Mock(TypeConverter))
+
+    expect:
+    !wrapper.closeIfActive(Mock(AgentSpan))
   }
 
   def "TraceScope interactions from CoreTracer side"() {

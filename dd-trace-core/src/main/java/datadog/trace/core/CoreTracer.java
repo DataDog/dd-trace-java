@@ -510,6 +510,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
   }
 
+  public boolean deactivate(AgentSpan span) {
+    return scopeManager.closeIfActive(span);
+  }
+
   @Override
   public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
     return scopeManager.activate(span, source);
