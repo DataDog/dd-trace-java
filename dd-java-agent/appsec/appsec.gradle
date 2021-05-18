@@ -1,3 +1,7 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 repositories {
@@ -15,3 +19,24 @@ dependencies {
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
+
+configurations {
+  // exclude bootstrap dependencies from shadowJar
+  runtime.exclude module: deps.slf4j
+  runtime.exclude group: 'org.slf4j'
+}
+
+shadowJar {
+  dependencies deps.sharedInverse
+  dependencies {
+    exclude(project(':dd-java-agent:agent-bootstrap'))
+    exclude(project(':dd-java-agent:agent-logging'))
+    exclude(project(':dd-trace-api'))
+    exclude(project(':internal-api'))
+    exclude(dependency('org.slf4j::'))
+  }
+}
+
+jar {
+  classifier = 'unbundled'
+}

@@ -82,6 +82,7 @@ def includeSubprojShadowJar(String projName, String jarname) {
 includeSubprojShadowJar ':dd-java-agent:instrumentation', 'inst'
 includeSubprojShadowJar ':dd-java-agent:agent-jmxfetch', 'metrics'
 includeSubprojShadowJar ':dd-java-agent:agent-profiling', 'profiling'
+includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   configurations = [project.configurations.sharedShadowInclude]
