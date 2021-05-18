@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.spray
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeScope, activeSpan}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
+  activeScope,
+  activeSpan
+}
 import datadog.trace.context.TraceScope
 import datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECORATE
 import spray.http.HttpResponse
@@ -32,8 +35,9 @@ object SprayHelper {
           log.debug(s"Unexpected message to Spray response processing func: $x")
       }
       val scope = activeScope()
-      if (scope.isInstanceOf[TraceScope])
+      if (scope != null) {
         scope.setAsyncPropagation(false)
+      }
       span.finish()
       message
     })
