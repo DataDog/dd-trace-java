@@ -29,8 +29,7 @@ public final class TracingHandler implements Handler {
         ctx.getDirectChannelAccess().getChannel().attr(SERVER_ATTRIBUTE_KEY);
     final AgentSpan nettySpan = spanAttribute.get();
 
-    // Relying on executor instrumentation to assume the netty span is in context as the parent.
-    final AgentSpan ratpackSpan = startSpan(RATPACK_HANDLER);
+    final AgentSpan ratpackSpan = startSpan(RATPACK_HANDLER, nettySpan.context());
     ratpackSpan.setMeasured(true);
     DECORATE.afterStart(ratpackSpan);
     DECORATE.onRequest(ratpackSpan, request, request, null);

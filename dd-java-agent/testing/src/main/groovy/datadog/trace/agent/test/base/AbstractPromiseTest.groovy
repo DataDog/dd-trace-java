@@ -4,7 +4,7 @@ import datadog.trace.agent.test.AgentTestRunner
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static org.junit.Assume.*
+import static org.junit.Assume.assumeTrue
 
 // TODO: add a test for a longer chain of promises
 abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
@@ -62,7 +62,7 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
     }
 
     where:
-    value << [true, false]
+    value << [true, false, true, false, true, false]
   }
 
   def "test call with parent delayed complete"() {
@@ -110,7 +110,7 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
     }
 
     where:
-    value << [true, false]
+    value << [true, false, true, false, true, false]
   }
 
   def "test call with parent complete separate thread"() {
@@ -143,7 +143,7 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
     }
 
     where:
-    value << [true, false]
+    value << [true, false, true, false, true, false]
   }
 
   def "test call with no parent (completing scope)"() {
@@ -177,6 +177,6 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
     }
 
     where:
-    value << [true, false]
+    value << [true, false, true, false, true, false]
   }
 }
