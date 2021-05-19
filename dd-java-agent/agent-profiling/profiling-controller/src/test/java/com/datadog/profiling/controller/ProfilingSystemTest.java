@@ -19,10 +19,7 @@ import static com.datadog.profiling.controller.RecordingType.CONTINUOUS;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -34,6 +31,9 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.Appender;
 import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
 import java.time.Instant;
@@ -46,11 +46,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.internal.verification.VerificationModeFactory;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.mockito.stubbing.Answer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @ExtendWith(MockitoExtension.class)
 // Proper unused stub detection doesn't work in junit5 yet,
@@ -70,16 +74,90 @@ public class ProfilingSystemTest {
   @Mock private RecordingData recordingData;
   @Mock private RecordingDataListener listener;
 
+  private Appender<ILoggingEvent> mockedAppender;
+
+  @SuppressWarnings("unchecked")
   @BeforeEach
   public void setup() {
     when(controller.createRecording(ProfilingSystem.RECORDING_NAME)).thenReturn(recording);
     when(threadLocalRandom.nextInt(eq(1), anyInt())).thenReturn(1);
     when(recordingData.getEnd()).thenAnswer(mockInvocation -> Instant.now());
+
+    mockedAppender = (Appender<ILoggingEvent>) Mockito.mock(Appender.class);
+    ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME))
+        .addAppender(mockedAppender);
   }
 
   @AfterEach
   public void tearDown() {
     scheduler.shutdown(5, SECONDS);
+    ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME))
+        .detachAppender(mockedAppender);
+  }
+
+  private void assertLog(Level level, String message) {
+    ArgumentCaptor<ILoggingEvent> argumentCaptor = ArgumentCaptor.forClass(ILoggingEvent.class);
+    Mockito.verify(mockedAppender, VerificationModeFactory.atLeastOnce())
+        .doAppend(argumentCaptor.capture());
+
+    for (ILoggingEvent event : argumentCaptor.getAllValues()) {
+      if (message.contains(event.getFormattedMessage()) && level.equals(event.getLevel())) {
+        return;
+      }
+    }
+    fail("Log does not contain the expected message '" + message + "' at level '" + level + "'");
+  }
+
+  @Test
+  void testInvalidOracleJdk() throws Exception {
+    // Simulate the message part
+    when(controller.createRecording(ProfilingSystem.RECORDING_NAME))
+        .thenThrow(
+            new RuntimeException(new RuntimeException("com.oracle.jrockit:type=FlightRecorder")));
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ofMillis(5),
+            Duration.ofMillis(1),
+            true);
+    system.start();
+    assertLog(
+        Level.WARN,
+        "Oracle JDK 8 is being used, where the Flight Recorder is a commercial feature. Please, make sure you have a valid license to use Flight Recorder  (for example Oracle Java SE Advanced) and then add ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’ to your launcher script. Alternatively, use an OpenJDK 8 distribution from another vendor, where the Flight Recorder is free.");
+  }
+
+  @Test
+  void testRuntimeException() throws Exception {
+    // Simulate the message part
+    when(controller.createRecording(ProfilingSystem.RECORDING_NAME))
+        .thenThrow(new RuntimeException(new RuntimeException()));
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ofMillis(5),
+            Duration.ofMillis(1),
+            true);
+    assertThrows(RuntimeException.class, () -> system.start());
+  }
+
+  @Test
+  void testOtherException() throws Exception {
+    // Simulate the message part
+    when(controller.createRecording(ProfilingSystem.RECORDING_NAME))
+        .thenThrow(new IllegalArgumentException());
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ofMillis(5),
+            Duration.ofMillis(1),
+            true);
+    assertThrows(IllegalArgumentException.class, () -> system.start());
   }
 
   @Test
