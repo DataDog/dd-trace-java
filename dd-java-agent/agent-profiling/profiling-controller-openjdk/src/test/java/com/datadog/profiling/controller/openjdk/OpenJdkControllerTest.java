@@ -48,7 +48,6 @@ public class OpenJdkControllerTest {
       if (!isJavaVersionAtLeast(17)) {
         assertEquals(Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")), false);
       }
-      assertEquals(false, true);
     }
   }
 }
