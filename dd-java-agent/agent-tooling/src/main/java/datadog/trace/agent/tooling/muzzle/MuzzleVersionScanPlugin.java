@@ -131,7 +131,6 @@ public class MuzzleVersionScanPlugin {
         final int scalaParentIndex = helperName.indexOf("$anonfun$");
         if (scalaParentIndex > 0) {
           nestedClassIndex = scalaParentIndex;
-          System.out.println("Parent class of scala $anonfun$ updated");
         }
         final String parent = helperName.substring(0, nestedClassIndex);
         if (!helperClassNames.contains(parent)) {

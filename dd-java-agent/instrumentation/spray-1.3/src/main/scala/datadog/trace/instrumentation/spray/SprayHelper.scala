@@ -1,10 +1,7 @@
 package datadog.trace.instrumentation.spray
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
-  activeScope,
-  activeSpan
-}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECORATE
 import spray.http.HttpResponse
 import spray.routing.{RequestContext, Route}
@@ -23,19 +20,9 @@ object SprayHelper {
       DECORATE.onRequest(span, ctx, ctx.request, null)
       log.debug(s"wrap context message $ctx $message")
       message match {
-        case response: HttpResponse =>
-          span.setHttpStatusCode(response.status.intValue)
-          if (404 == response.status.intValue) {
-            span.setResourceName("404")
-          } else if (response.status.intValue >= 500) {
-            span.setError(true)
-          }
+        case response: HttpResponse => DECORATE.onResponse(span, response)
         case x =>
           log.debug(s"Unexpected message to Spray response processing func: $x")
-      }
-      val scope = activeScope()
-      if (scope != null) {
-        scope.setAsyncPropagation(false)
       }
       span.finish()
       message

@@ -28,7 +28,6 @@ public class SprayHttpServerRunSealedRouteAdvice {
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
-    span.setResourceName(ctx.request().method().name() + " " + ctx.unmatchedPath().toString());
     ctx = SprayHelper.wrapRequestContext(ctx, scope.span());
     return scope;
   }
@@ -36,11 +35,9 @@ public class SprayHttpServerRunSealedRouteAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void exit(
       @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-    System.out.println("throwable: " + throwable);
     if (throwable != null) {
       DECORATE.onError(scope, throwable);
     }
-    DECORATE.beforeFinish(scope);
     scope.close();
   }
 }

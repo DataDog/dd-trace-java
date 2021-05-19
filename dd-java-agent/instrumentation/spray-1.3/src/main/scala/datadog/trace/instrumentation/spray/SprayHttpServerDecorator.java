@@ -34,7 +34,8 @@ public class SprayHttpServerDecorator
 
   @Override
   protected int peerPort(RequestContext requestContext) {
-    // this is server port requestContext.request().uri().effectivePort();
+    // this is server port: requestContext.request().uri().effectivePort();
+    // todo: add support of client/peer port
     return 0;
   }
 
