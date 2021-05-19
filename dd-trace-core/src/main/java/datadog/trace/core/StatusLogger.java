@@ -100,6 +100,8 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.isLogsInjectionEnabled());
     writer.name("profiling_enabled");
     writer.value(config.isProfilingEnabled());
+    writer.name("appsec_enabled");
+    writer.value(config.isAppSecEnabled());
     writer.name("dd_version");
     writer.value(DDTraceApiInfo.VERSION);
     writer.name("health_checks_enabled");
