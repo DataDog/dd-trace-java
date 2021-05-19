@@ -2,8 +2,8 @@ import com.google.common.io.Files
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.hornetq.api.core.TransportConfiguration
 import org.hornetq.api.core.client.HornetQClient
@@ -17,7 +17,6 @@ import org.hornetq.core.remoting.impl.invm.InVMConnectorFactory
 import org.hornetq.core.remoting.impl.netty.NettyAcceptorFactory
 import org.hornetq.core.server.HornetQServer
 import org.hornetq.core.server.HornetQServers
-import org.hornetq.jms.client.HornetQMessageConsumer
 import org.hornetq.jms.client.HornetQTextMessage
 import spock.lang.Shared
 
@@ -88,12 +87,14 @@ class JMS2Test extends AgentTestRunner {
     producer.send(message)
 
     TextMessage receivedMessage = consumer.receive()
+    // required to finish auto-acknowledged spans
+    consumer.receiveNoWait()
 
     expect:
     receivedMessage.text == messageText
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, false, HornetQMessageConsumer, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(0)[0])
     }
 
     cleanup:
@@ -128,7 +129,7 @@ class JMS2Test extends AgentTestRunner {
     expect:
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, true, consumer.messageListener.class, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(0)[0])
     }
     // This check needs to go after all traces have been accounted for
     messageRef.get().text == messageText
@@ -151,28 +152,12 @@ class JMS2Test extends AgentTestRunner {
 
     // Receive with timeout
     TextMessage receivedMessage = consumer.receiveNoWait()
+    // required to finish auto-acknowledged spans
+    consumer.receiveNoWait()
 
     expect:
     receivedMessage == null
-    assertTraces(1) {
-      trace(1) {
-        // Consumer trace
-        span {
-          parent()
-          serviceName "jms"
-          operationName "jms.consume"
-          resourceName "JMS receiveNoWait"
-          spanType DDSpanTypes.MESSAGE_PRODUCER
-          errored false
-
-          tags {
-            "$Tags.COMPONENT" "jms"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            defaultTags()
-          }
-        }
-      }
-    }
+    assertTraces(0) {}
 
     cleanup:
     consumer.close()
@@ -189,28 +174,12 @@ class JMS2Test extends AgentTestRunner {
 
     // Receive with timeout
     TextMessage receivedMessage = consumer.receive(1)
+    // required to finish auto-acknowledged spans
+    consumer.receiveNoWait()
 
     expect:
     receivedMessage == null
-    assertTraces(1) {
-      trace(1) {
-        // Consumer trace
-        span {
-          parent()
-          serviceName "jms"
-          operationName "jms.consume"
-          resourceName "JMS receive"
-          spanType DDSpanTypes.MESSAGE_PRODUCER
-          errored false
-
-          tags {
-            "$Tags.COMPONENT" "jms"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            defaultTags()
-          }
-        }
-      }
-    }
+    assertTraces(0) {}
 
     cleanup:
     consumer.close()
@@ -231,11 +200,13 @@ class JMS2Test extends AgentTestRunner {
     producer.send(message)
 
     consumer.receive()
+    // required to finish auto-acknowledged spans
+    consumer.receiveNoWait()
 
     expect:
     assertTraces(2) {
       producerTrace(it, "Queue someQueue")
-      consumerTrace(it, "Queue someQueue", false, HornetQMessageConsumer, trace(0)[0], isTimeStampDisabled)
+      consumerTrace(it, "Queue someQueue", trace(0)[0], isTimeStampDisabled)
     }
 
     cleanup:
@@ -263,25 +234,20 @@ class JMS2Test extends AgentTestRunner {
     }
   }
 
-  static consumerTrace(ListWriterAssert writer, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan, boolean isTimestampDisabled = false) {
+  static consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
     writer.trace(1) {
       span {
         childOf parentSpan
         serviceName "jms"
-        if (messageListener) {
-          operationName "jms.onMessage"
-          resourceName "Received from $jmsResourceName"
-        } else {
-          operationName "jms.consume"
-          resourceName "Consumed from $jmsResourceName"
-        }
+        operationName "jms.consume"
+        resourceName "Consumed from $jmsResourceName"
         spanType DDSpanTypes.MESSAGE_CONSUMER
         errored false
 
         tags {
           "${Tags.COMPONENT}" "jms"
           "${Tags.SPAN_KIND}" "consumer"
-          if (!messageListener && !isTimestampDisabled) {
+          if (!isTimestampDisabled) {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
           }
           defaultTags(true)

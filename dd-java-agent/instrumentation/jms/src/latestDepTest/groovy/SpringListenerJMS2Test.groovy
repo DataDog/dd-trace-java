@@ -15,12 +15,11 @@
  */
 
 
+
 import datadog.trace.agent.test.AgentTestRunner
 import listener.Config
-import org.hornetq.jms.client.HornetQMessageConsumer
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.jms.core.JmsTemplate
-import org.springframework.jms.listener.adapter.MessagingMessageListenerAdapter
 
 import javax.jms.ConnectionFactory
 
@@ -37,10 +36,9 @@ class SpringListenerJMS2Test extends AgentTestRunner {
     template.convertAndSend("SpringListenerJMS2", "a message")
 
     expect:
-    assertTraces(3) {
+    assertTraces(2) {
       producerTrace(it, "Queue SpringListenerJMS2")
-      consumerTrace(it, "Queue SpringListenerJMS2", false, HornetQMessageConsumer, trace(0)[0])
-      consumerTrace(it, "Queue SpringListenerJMS2", true, MessagingMessageListenerAdapter, trace(0)[0])
+      consumerTrace(it, "Queue SpringListenerJMS2", trace(0)[0])
     }
   }
 }
