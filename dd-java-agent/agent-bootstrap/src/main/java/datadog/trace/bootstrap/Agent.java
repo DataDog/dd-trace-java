@@ -110,10 +110,12 @@ public class Agent {
     AgentTaskScheduler.initialize();
     startDatadogAgent(inst, bootstrapURL);
 
-    if (isJavaVersionAtLeast(8)) {
-      startAppSec(bootstrapURL);
-    } else {
-      log.debug("AppSec System requires Java 8 or later to run");
+    if (isAppSecEnabled()) {
+      if (isJavaVersionAtLeast(8)) {
+        startAppSec(bootstrapURL);
+      } else {
+        log.debug("AppSec System requires Java 8 or later to run");
+      }
     }
 
     final EnumSet<Library> libraries = detectLibraries(log);
@@ -475,13 +477,12 @@ public class Agent {
     if (APPSEC_CLASSLOADER == null) {
       try {
         final ClassLoader appSecClassLoader =
-          createDelegateClassLoader("appsec", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("appsec", bootstrapURL, PARENT_CLASSLOADER);
 
-          final Class<?> appSecSysClass =
+        final Class<?> appSecSysClass =
             appSecClassLoader.loadClass("com.datadog.appsec.AppSecSystem");
-          final Method appSecInstallerMethod =
-            appSecSysClass.getMethod("start");
-          appSecInstallerMethod.invoke(null);
+        final Method appSecInstallerMethod = appSecSysClass.getMethod("start");
+        appSecInstallerMethod.invoke(null);
         APPSEC_CLASSLOADER = appSecClassLoader;
       } catch (final Throwable ex) {
         log.error("Throwable thrown while starting the AppSec Agent", ex);
@@ -688,6 +689,17 @@ public class Agent {
     }
     // assume false unless it's explicitly set to "true"
     return "true".equalsIgnoreCase(profilingEnabled);
+  }
+
+  /** @return {@code true} if appsec is enabled */
+  private static boolean isAppSecEnabled() {
+    final String appSecEnabledSysprop = "dd.appsec.beta";
+    String appSecEnabled = System.getProperty(appSecEnabledSysprop);
+    if (appSecEnabled == null) {
+      appSecEnabled = ddGetEnv(appSecEnabledSysprop);
+    }
+    // assume false unless it's explicitly set to "true"
+    return "true".equalsIgnoreCase(appSecEnabled);
   }
 
   /** @return configured JMX start delay in seconds */
