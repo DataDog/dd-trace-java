@@ -2,6 +2,7 @@ package com.datadog.profiling.controller.openjdk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
+import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.jfr.JfpUtils;
@@ -31,13 +32,23 @@ public class OpenJdkControllerTest {
 
   @Test
   public void testCreateContinuousRecording() throws IOException {
-    final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording();
-    assertEquals(TEST_NAME, recording.getName());
-    assertEquals(
-        JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP, JfpUtilsTest.OVERRIDES),
-        recording.getSettings());
-    assertEquals(OpenJdkController.RECORDING_MAX_SIZE, recording.getMaxSize());
-    assertEquals(OpenJdkController.RECORDING_MAX_AGE, recording.getMaxAge());
-    recording.close();
+    try(final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
+      assertEquals(TEST_NAME, recording.getName());
+      assertEquals(
+          JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP, JfpUtilsTest.OVERRIDES),
+          recording.getSettings());
+      assertEquals(OpenJdkController.RECORDING_MAX_SIZE, recording.getMaxSize());
+      assertEquals(OpenJdkController.RECORDING_MAX_AGE, recording.getMaxAge());
+    }
+  }
+
+  @Test
+  public void testOldObjectSampleIsDisabledOnUnsupportedVersion() {
+    try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
+      if (!isJavaVersionAtLeast(17)) {
+        assertEquals(Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")), false);
+      }
+      assertEquals(false, true);
+    }
   }
 }
