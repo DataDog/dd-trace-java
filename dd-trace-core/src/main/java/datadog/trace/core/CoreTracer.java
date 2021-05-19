@@ -175,6 +175,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     checkpointer.onFinish(span);
   }
 
+  @Override
+  public void onRootSpanPublished(AgentSpan root) {
+    checkpointer.onRootSpanPublished(root);
+  }
+
   public static class CoreTracerBuilder {
 
     private Config config;
@@ -620,6 +625,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       spanToSample.forceKeep(forceKeep);
       if (forceKeep || sampler.sample(spanToSample)) {
         writer.write(writtenTrace);
+        if (null != rootSpan) {
+          onRootSpanPublished(rootSpan);
+        }
       } else {
         // with span streaming this won't work - it needs to be changed
         // to track an effective sampling rate instead, however, tests

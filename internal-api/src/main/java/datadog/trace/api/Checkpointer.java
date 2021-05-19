@@ -30,4 +30,6 @@ public interface Checkpointer {
    * @param flags a description of the event
    */
   void checkpoint(DDId traceId, DDId spanId, int flags);
+
+  void onRootSpanPublished(String route, DDId traceId);
 }

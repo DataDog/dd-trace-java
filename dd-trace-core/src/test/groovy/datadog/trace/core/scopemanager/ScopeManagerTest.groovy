@@ -454,7 +454,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentSpan firstSpan = tracer.buildSpan("foo").start()
     AgentScope firstScope = tracer.activateSpan(firstSpan)
 
-    AgentSpan secondSpan = tracer.buildSpan("foo").start()
+    AgentSpan secondSpan = tracer.buildSpan("bar").start()
     AgentScope secondScope = tracer.activateSpan(secondSpan)
 
     firstSpan.finish()
@@ -473,6 +473,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     1 * checkpointer.checkpoint(_, _, SPAN | END) // span ended by test
+    1 * checkpointer.onRootSpanPublished("foo", _)
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
 
