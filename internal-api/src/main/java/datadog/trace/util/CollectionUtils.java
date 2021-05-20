@@ -9,13 +9,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public final class CollectionUtils {
 
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
-  private static final MethodHandle IMMUTABLE_COPY_OF_SET = findCopyOf(Set.class);
-  private static final MethodHandle IMMUTABLE_COPY_OF_LIST = findCopyOf(List.class);
+  private static final MethodHandle IMMUTABLE_COPY_OF_SET = findCopyOf(Set.class, Collection.class);
+  private static final MethodHandle IMMUTABLE_COPY_OF_LIST =
+      findCopyOf(List.class, Collection.class);
+  private static final MethodHandle IMMUTABLE_COPY_OF_MAP = findCopyOf(Map.class, Map.class);
 
   /**
    * Converts the input to an immutable set if available on the current platform. Otherwise returns
@@ -55,10 +58,30 @@ public final class CollectionUtils {
     return input instanceof List ? (List<T>) input : new ArrayList<>(input);
   }
 
-  private static MethodHandle findCopyOf(Class<?> clazz) {
+  /**
+   * Converts the input to an immutable map if available on the current platform. Otherwise returns
+   * the input.
+   *
+   * @param input the input.
+   * @param <K> the key type
+   * @param <V> the value type
+   * @return an immutable copy of the input if possible.
+   */
+  @SuppressWarnings("unchecked")
+  public static <K, V> Map<K, V> tryMakeImmutableMap(Map<K, V> input) {
+    if (null != IMMUTABLE_COPY_OF_MAP) {
+      try {
+        return (Map<K, V>) IMMUTABLE_COPY_OF_MAP.invokeExact(input);
+      } catch (Throwable ignore) {
+      }
+    }
+    return input;
+  }
+
+  private static MethodHandle findCopyOf(Class<?> clazz, Class<?> arg) {
     if (isJavaVersionAtLeast(10)) {
       try {
-        return LOOKUP.findStatic(clazz, "copyOf", MethodType.methodType(clazz, Collection.class));
+        return LOOKUP.findStatic(clazz, "copyOf", MethodType.methodType(clazz, arg));
       } catch (NoSuchMethodException | IllegalAccessException ignore) {
       }
     }
