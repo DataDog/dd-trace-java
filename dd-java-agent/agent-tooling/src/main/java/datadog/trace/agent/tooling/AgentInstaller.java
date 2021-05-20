@@ -54,7 +54,9 @@ public class AgentInstaller {
      * be enabled independently we need to install the agent when either of them
      * is active.
      */
-    if (Config.get().isTraceEnabled() || Config.get().isProfilingEnabled() || Config.get().isAppSecEnabled()) {
+    if (Config.get().isTraceEnabled()
+        || Config.get().isProfilingEnabled()
+        || Config.get().isAppSecEnabled()) {
       installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
       if (DEBUG) {
         log.debug("Class instrumentation installed");
