@@ -16,4 +16,6 @@ public interface SpanCheckpointer {
   void onFinishThreadMigration(AgentSpan span);
 
   void onFinish(AgentSpan span);
+
+  void onRootSpanPublished(AgentSpan root);
 }

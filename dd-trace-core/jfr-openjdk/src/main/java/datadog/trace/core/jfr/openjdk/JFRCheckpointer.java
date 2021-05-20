@@ -20,10 +20,16 @@ public final class JFRCheckpointer implements Checkpointer {
     // loads
     // JFR classes - which may not be present on some JVMs
     EventType.getEventType(CheckpointEvent.class);
+    EventType.getEventType(RouteEvent.class);
   }
 
   @Override
   public void checkpoint(DDId traceId, DDId spanId, int flags) {
     new CheckpointEvent(traceId.toLong(), spanId.toLong(), flags & MASK).commit();
+  }
+
+  @Override
+  public void onRootSpanPublished(String route, DDId traceId) {
+    new RouteEvent(route, traceId.toLong()).commit();
   }
 }

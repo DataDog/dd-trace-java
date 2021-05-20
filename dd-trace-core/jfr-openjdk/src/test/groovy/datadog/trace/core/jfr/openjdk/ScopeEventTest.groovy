@@ -292,25 +292,29 @@ class ScopeEventTest extends DDSpecification {
     tracer.registerCheckpointer(new JFRCheckpointer())
 
     when: "span goes through lifecycle without activation"
-    def span = tracer.startSpan("test")
+    AgentSpan span = tracer.startSpan("test")
     span.startThreadMigration()
     span.finishThreadMigration()
+    span.setResourceName("foo")
     span.finish()
     then: "checkpoints emitted"
     def events = JfrHelper.stopRecording(recording)
-    events.size() == 4
+    events.size() == 5
     events.each {
-      assert it.eventType.name == "datadog.Checkpoint"
+      assert it.eventType.name in ["datadog.Checkpoint", "datadog.Route"]
       assert it.getLong("traceId") == span.getTraceId().toLong()
-      assert it.getLong("spanId") == span.getSpanId().toLong()
-      int flags = it.getInt("flags")
-      long cpuTime = it.getLong("cpuTime")
-      if ((flags & CPU) != 0) {
-        assert cpuTime > 0
+      if (it.eventType.name == "datadog.Checkpoint") {
+        assert it.getLong("spanId") == span.getSpanId().toLong()
+        int flags = it.getInt("flags")
+        long cpuTime = it.getLong("cpuTime")
+        if ((flags & CPU) != 0) {
+          assert cpuTime > 0
+        } else {
+          assert cpuTime == 0L
+        }
       } else {
-        assert cpuTime == 0L
+        it.getString("route") == "foo"
       }
-
     }
   }
 }
