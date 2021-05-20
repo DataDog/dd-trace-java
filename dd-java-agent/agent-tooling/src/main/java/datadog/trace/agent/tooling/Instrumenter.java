@@ -47,7 +47,7 @@ public interface Instrumenter {
   /**
    * Since several subsystems are sharing the same instrumentation infractructure in order to enable
    * only the applicable {@link Instrumenter instrumenters} on startup each {@linkplain
-   * Instrumenter} type must declare its target system. Currently only tree systems are supported
+   * Instrumenter} type must declare its target system. Currently only three systems are supported
    *
    * <ul>
    *   <li>{@link TargetSystem#TRACING tracing}
