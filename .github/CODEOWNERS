@@ -3,5 +3,5 @@
 
 * @DataDog/apm-java
 
-dd-java-agent/agent-profiling/  @DataDog/profiling
-dd-smoke-tests/profiling-integration-tests/ @DataDog/profiling
+dd-java-agent/agent-profiling/  @DataDog/profiling-java
+dd-smoke-tests/profiling-integration-tests/ @DataDog/profiling-java
