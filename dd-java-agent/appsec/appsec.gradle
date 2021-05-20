@@ -27,6 +27,7 @@ configurations {
 }
 
 shadowJar {
+  exclude '**/*-dbgsym.zip'
   dependencies deps.sharedInverse
   dependencies {
     exclude(project(':dd-java-agent:agent-bootstrap'))
