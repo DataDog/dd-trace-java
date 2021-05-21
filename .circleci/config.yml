@@ -37,6 +37,10 @@ save_cache_paths: &save_cache_paths
     # Cached dependencies for sbt handled by coursier
     - ~/.cache/coursier
 
+test_matrix: &test_matrix
+  parameters:
+    testTask: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15" ]
+
 parameters:
   gradle_flags:
     # Using no-daemon is important for the caches to be in a consistent state
@@ -120,7 +124,7 @@ jobs:
           key: dd-trace-java-v3-{{ .Branch }}-{{ epoch }}
           <<: *save_cache_paths
 
-  default_test_job: &default_test_job
+  base_tests: &base_tests
     <<: *defaults
     resource_class: xlarge
 
@@ -141,7 +145,7 @@ jobs:
           <<: *cache_keys
 
       - run:
-          name: Run Tests
+          name: Run tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
@@ -150,7 +154,7 @@ jobs:
             --max-workers=8
 
       - run:
-          name: Collect Reports
+          name: Collect reports
           when: on_fail
           command: .circleci/collect_reports.sh
 
@@ -158,15 +162,20 @@ jobs:
           path: ./reports
 
       - run:
-          name: Collect Test Results
+          name: Collect test results
           when: always
           command: .circleci/collect_results.sh
 
       - store_test_results:
           path: ./results
 
-  default_inst_test_job: &default_inst_test_job
-    <<: *default_test_job
+      - run:
+          name: Upload test results to Datadog
+          when: always
+          command: datadog-ci junit upload --service dd-trace-java ./results
+
+  instrumentation_tests:
+    <<: *base_tests
     resource_class: xlarge
 
     docker:
@@ -207,16 +216,16 @@ jobs:
           <<: *cache_keys
 
       - run:
-          name: Run Tests
+          name: Run tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew :dd-java-agent:instrumentation:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
             << pipeline.parameters.gradle_flags >>
-            --max-workers=8
+            --max-workers=7
 
       - run:
-          name: Collect Reports
+          name: Collect reports
           when: on_fail
           command: .circleci/collect_reports.sh
 
@@ -224,15 +233,20 @@ jobs:
           path: ./reports
 
       - run:
-          name: Collect Test Results
+          name: Collect test results
           when: always
           command: .circleci/collect_results.sh
 
       - store_test_results:
           path: ./results
 
-  default_smoke_test_job: &default_inst_test_job
-    <<: *default_test_job
+      - run:
+          name: Upload test results to Datadog
+          when: always
+          command: datadog-ci junit upload --service dd-trace-java ./results
+
+  smoke_tests:
+    <<: *base_tests
     resource_class: medium
 
     docker:
@@ -260,7 +274,7 @@ jobs:
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew stagePlayBinaryDist :dd-smoke-test:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
             << pipeline.parameters.gradle_flags >>
-            --max-workers=2
+            --max-workers=1
 
       - run:
           name: Collect Reports
@@ -271,16 +285,40 @@ jobs:
           path: ./reports
 
       - run:
-          name: Collect Test Results
+          name: Collect test results
           when: always
           command: .circleci/collect_results.sh
 
       - store_test_results:
           path: ./results
 
+      - run:
+          name: Upload test results to Datadog
+          when: always
+          command: datadog-ci junit upload --service dd-trace-java ./results
+
+  # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
+  # doesn't consume so many resources. The execution time for this including spin up seems to
+  # be around 6 seconds.
+  fan_in:
+    resource_class: small
+
+    docker:
+      - image: alpine
+
+    parameters:
+      testTask:
+        type: string
+
+    steps:
+      - run:
+          name: All tests for << parameters.testTask >> passed!
+          command: echo 'All tests passed!'
+
   agent_integration_tests:
-    <<: *default_test_job
+    <<: *base_tests
     resource_class: medium
+
     docker:
       - image: *default_container
       - image: datadog/agent:7.25.0
@@ -375,56 +413,70 @@ workflows:
     jobs:
       - build
 
-      - default_test_job:
+      - base_tests:
           requires:
             - build
           prefixTestTask: true
-          name: test_<< matrix.testTask >>
+          name: z_test_<< matrix.testTask >>_base
           matrix:
-            parameters:
-              testTask: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15" ]
+            <<: *test_matrix
 
-      - default_test_job:
+      - base_tests:
           requires:
             - build
-          name: test_8
+          name: z_test_8_base
           testTask: test jacocoTestReport jacocoTestCoverageVerification
 
-      - default_inst_test_job:
+      - instrumentation_tests:
           requires:
             - build
           prefixTestTask: true
-          name: test_<< matrix.testTask >>_inst
+          name: z_test_<< matrix.testTask >>_inst
           matrix:
-            parameters:
-              testTask: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15" ]
+            <<: *test_matrix
 
-      - default_inst_test_job:
+      - instrumentation_tests:
           requires:
             - build
-          name: test_8_inst
+          name: z_test_8_inst
           testTask: test
 
-      - default_inst_test_job:
+      - instrumentation_tests:
           requires:
             - build
           name: test_8_inst_latest
           testTask: latestDepTest
 
-      - default_smoke_test_job:
+      - smoke_tests:
           requires:
             - build
           prefixTestTask: true
-          name: test_<< matrix.testTask >>_smoke
+          name: z_test_<< matrix.testTask >>_smoke
           matrix:
-            parameters:
-              testTask: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15" ]
+            <<: *test_matrix
 
-      - default_smoke_test_job:
+      - smoke_tests:
           requires:
             - build
-          name: test_8_smoke
+          name: z_test_8_smoke
           testTask: test
+
+      - fan_in:
+          requires:
+            - z_test_<< matrix.testTask >>_base
+            - z_test_<< matrix.testTask >>_inst
+            - z_test_<< matrix.testTask >>_smoke
+          name: test_<< matrix.testTask >>
+          matrix:
+            <<: *test_matrix
+
+      - fan_in:
+          requires:
+            - z_test_8_base
+            - z_test_8_inst
+            - z_test_8_smoke
+          name: test_8
+          testTask: "8"
 
       - agent_integration_tests:
           requires:
