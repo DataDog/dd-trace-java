@@ -5,7 +5,7 @@ import datadog.trace.util.AgentTaskScheduler.Task;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -40,20 +40,31 @@ public final class AdaptiveSampler {
   private static final int CARRIED_OVER_BUDGET_LOOK_BACK = 16;
 
   private static final class Counts {
-    private final LongAdder testCounter = new LongAdder();
-    private final AtomicLong sampleCounter = new AtomicLong(0L);
+    private final LongAdder testCount = new LongAdder();
+    private static final AtomicLongFieldUpdater<Counts> SAMPLE_COUNT =
+        AtomicLongFieldUpdater.newUpdater(Counts.class, "sampleCount");
+    private volatile long sampleCount = 0L;
 
     void addTest() {
-      testCounter.increment();
+      testCount.increment();
     }
 
     boolean addSample(final long limit) {
-      return sampleCounter.getAndUpdate(s -> s + (s < limit ? 1 : 0)) < limit;
+      return SAMPLE_COUNT.getAndAccumulate(this, limit, (prev, lim) -> Math.min(prev + 1, lim))
+          < limit;
     }
 
     void reset() {
-      testCounter.reset();
-      sampleCounter.set(0);
+      testCount.reset();
+      SAMPLE_COUNT.set(this, 0);
+    }
+
+    long sampleCount() {
+      return SAMPLE_COUNT.get(this);
+    }
+
+    long testCount() {
+      return testCount.sum();
     }
   }
 
@@ -159,8 +170,8 @@ public final class AdaptiveSampler {
        */
       countsSlotIdx = (countsSlotIdx++) % 2;
       countsRef.set(countsSlots[countsSlotIdx]);
-      final long totalCount = counts.testCounter.sum();
-      final long sampledCount = counts.sampleCounter.get();
+      final long totalCount = counts.testCount();
+      final long sampledCount = counts.sampleCount();
 
       samplesBudget = calculateBudgetEma(sampledCount);
 
