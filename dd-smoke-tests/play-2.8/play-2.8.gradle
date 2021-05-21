@@ -11,7 +11,7 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'Play Integration 2.8 Tests.'
 
 dependencies {
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }
 
 def appDir = "$projectDir/application"

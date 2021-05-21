@@ -5,11 +5,11 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  compile project(':dd-trace-api')
-  compile project(':dd-trace-ot')
-  compile deps.slf4j
+  implementation project(':dd-trace-api')
+  implementation project(':dd-trace-ot')
+  implementation deps.slf4j
 
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }
 
 tasks.withType(Test).configureEach {

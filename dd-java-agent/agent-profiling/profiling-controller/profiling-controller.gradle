@@ -15,13 +15,13 @@ excludedClassesCoverage += [
 ]
 
 dependencies {
-  compile deps.slf4j
-  compile project(':internal-api')
+  api deps.slf4j
+  api project(':internal-api')
 
-  testCompile deps.junit5
-  testCompile deps.guava
-  testCompile deps.mockito
-  testCompile group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
+  testImplementation deps.junit5
+  testImplementation deps.guava
+  testImplementation deps.mockito
+  testImplementation group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8

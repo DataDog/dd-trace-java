@@ -38,20 +38,20 @@ def scalaVersion = '2.12'
 dependencies {
   compileOnly group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '1.0.2'
 
-  compile project(':dd-java-agent:instrumentation:play-ws')
-  testCompile project(path: ':dd-java-agent:instrumentation:play-ws', configuration: 'testArtifacts')
+  implementation project(':dd-java-agent:instrumentation:play-ws')
+  testImplementation project(path: ':dd-java-agent:instrumentation:play-ws', configuration: 'testArtifacts')
 
   // These are to ensure cross compatibility
-  testCompile project(':dd-java-agent:instrumentation:netty-4.0')
-  testCompile project(':dd-java-agent:instrumentation:netty-4.1')
-  testCompile project(':dd-java-agent:instrumentation:akka-http-10.0')
-  testCompile project(':dd-java-agent:instrumentation:akka-concurrent')
-  testCompile project(':dd-java-agent:instrumentation:akka-init')
-  testCompile project(':dd-java-agent:instrumentation:scala-concurrent')
-  testCompile project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
-  testCompile project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
+  testImplementation project(':dd-java-agent:instrumentation:netty-4.0')
+  testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:akka-http-10.0')
+  testImplementation project(':dd-java-agent:instrumentation:akka-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:akka-init')
+  testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
+  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.13')
 
-  testCompile group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '1.0.2'
+  testImplementation group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '1.0.2'
 
-  latestDepTestCompile group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '1.+'
+  latestDepTestImplementation group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '1.+'
 }

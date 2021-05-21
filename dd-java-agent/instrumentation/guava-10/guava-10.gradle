@@ -19,7 +19,8 @@ testSets {
 dependencies {
   compileOnly group: 'com.google.guava', name: 'guava', version: '10.0'
 
-  testCompile group: 'com.google.guava', name: 'guava', version: '10.0'
+  testImplementation group: 'com.google.guava', name: 'guava', version: '16.0'
+  // ^ first version with com.google.common.reflect.ClassPath.getAllClasses()
 
-  latestDepTestCompile group: 'com.google.guava', name: 'guava', version: '+'
+  latestDepTestImplementation group: 'com.google.guava', name: 'guava', version: '+'
 }

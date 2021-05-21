@@ -25,10 +25,10 @@ dependencies {
   compileOnly group: 'org.springframework.amqp', name: 'spring-rabbit', version: '2.0.0.RELEASE'
   compileOnly group: 'org.springframework.amqp', name: 'spring-amqp', version: '2.0.0.RELEASE'
 
-  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
-  testCompile project(':dd-java-agent:instrumentation:rabbitmq-amqp-2.7')
-  testCompile group: 'org.testcontainers', name: 'rabbitmq', version: '1.15.2'
-  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.4.0'
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:rabbitmq-amqp-2.7')
+  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: '1.15.2'
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.4.0'
 
-  latestDepTestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '+'
 }

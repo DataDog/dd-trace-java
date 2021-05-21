@@ -11,6 +11,6 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   compileOnly group: 'javax.jws', name: 'javax.jws-api', version: '1.1'
 
-  testCompile group: 'javax.jws', name: 'javax.jws-api', version: '1.1'
+  testImplementation group: 'javax.jws', name: 'javax.jws-api', version: '1.1'
 }
 
