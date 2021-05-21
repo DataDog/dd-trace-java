@@ -1,10 +1,8 @@
 package datadog.trace.instrumentation.spray;
 
-import datadog.trace.bootstrap.instrumentation.api.DefaultURIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
-import java.net.URI;
 import spray.http.HttpRequest;
 import spray.http.HttpResponse;
 import spray.routing.RequestContext;
@@ -24,7 +22,7 @@ public class SprayHttpServerDecorator
 
   @Override
   protected URIDataAdapter url(HttpRequest request) {
-    return new DefaultURIDataAdapter(URI.create(request.uri().toString()));
+    return new SprayURIAdapter(request.uri());
   }
 
   @Override
@@ -34,8 +32,7 @@ public class SprayHttpServerDecorator
 
   @Override
   protected int peerPort(RequestContext requestContext) {
-    // this is server port: requestContext.request().uri().effectivePort();
-    // todo: add support of client/peer port
+    // TODO : add support of client/peer port
     return 0;
   }
 

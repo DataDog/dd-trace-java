@@ -8,7 +8,6 @@ import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
 import datadog.trace.agent.test.base.{HttpServer, HttpServerTest}
 import datadog.trace.agent.test.utils.PortUtils
-import datadog.trace.api.Trace
 import groovy.lang.Closure
 import spray.can.Http
 import spray.http.HttpResponse
@@ -115,8 +114,6 @@ class ServiceActor extends HttpServiceActor with ActorLogging {
     //        }
     //      } ~
   }
-  @Trace
-  def tracedMethod(): Unit = {}
 }
 
 class ControllerHttpResponseToClosureAdapter(
