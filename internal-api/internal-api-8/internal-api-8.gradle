@@ -1,3 +1,7 @@
+plugins {
+  id 'me.champeau.jmh'
+}
+
 ext {
   enableJunitPlatform = true
   minJavaVersionForTests = JavaVersion.VERSION_1_8
@@ -19,4 +23,9 @@ dependencies {
   testCompile deps.mockito
   testCompile deps.slf4j
   testCompile project(":utils:test-utils")
+}
+
+jmh {
+  jmhVersion = '1.28'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }
