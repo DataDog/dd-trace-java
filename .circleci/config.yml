@@ -145,7 +145,7 @@ jobs:
           <<: *cache_keys
 
       - run:
-          name: Run Tests
+          name: Run tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
@@ -154,7 +154,7 @@ jobs:
             --max-workers=8
 
       - run:
-          name: Collect Reports
+          name: Collect reports
           when: on_fail
           command: .circleci/collect_reports.sh
 
@@ -162,12 +162,17 @@ jobs:
           path: ./reports
 
       - run:
-          name: Collect Test Results
+          name: Collect test results
           when: always
           command: .circleci/collect_results.sh
 
       - store_test_results:
           path: ./results
+
+      - run:
+          name: Upload test results to Datadog
+          when: always
+          command: datadog-ci junit upload --service dd-trace-java ./results
 
   instrumentation_tests:
     <<: *base_tests
@@ -211,16 +216,16 @@ jobs:
           <<: *cache_keys
 
       - run:
-          name: Run Tests
+          name: Run tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew :dd-java-agent:instrumentation:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
             << pipeline.parameters.gradle_flags >>
-            --max-workers=8
+            --max-workers=7
 
       - run:
-          name: Collect Reports
+          name: Collect reports
           when: on_fail
           command: .circleci/collect_reports.sh
 
@@ -228,12 +233,17 @@ jobs:
           path: ./reports
 
       - run:
-          name: Collect Test Results
+          name: Collect test results
           when: always
           command: .circleci/collect_results.sh
 
       - store_test_results:
           path: ./results
+
+      - run:
+          name: Upload test results to Datadog
+          when: always
+          command: datadog-ci junit upload --service dd-trace-java ./results
 
   smoke_tests:
     <<: *base_tests
@@ -264,7 +274,7 @@ jobs:
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew stagePlayBinaryDist :dd-smoke-test:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
             << pipeline.parameters.gradle_flags >>
-            --max-workers=2
+            --max-workers=1
 
       - run:
           name: Collect Reports
@@ -275,12 +285,17 @@ jobs:
           path: ./reports
 
       - run:
-          name: Collect Test Results
+          name: Collect test results
           when: always
           command: .circleci/collect_results.sh
 
       - store_test_results:
           path: ./results
+
+      - run:
+          name: Upload test results to Datadog
+          when: always
+          command: datadog-ci junit upload --service dd-trace-java ./results
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
   # doesn't consume so many resources. The execution time for this including spin up seems to

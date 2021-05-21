@@ -7,7 +7,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
-import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 import javax.jms.Destination;
 import javax.jms.JMSException;
@@ -21,7 +20,6 @@ public final class JMSDecorator extends ClientDecorator {
 
   public static final CharSequence JMS = UTF8BytesString.create("jms");
   public static final CharSequence JMS_CONSUME = UTF8BytesString.create("jms.consume");
-  public static final CharSequence JMS_ONMESSAGE = UTF8BytesString.create("jms.onMessage");
   public static final CharSequence JMS_PRODUCE = UTF8BytesString.create("jms.produce");
 
   private final String spanKind;
@@ -76,14 +74,6 @@ public final class JMSDecorator extends ClientDecorator {
     } catch (final JMSException ignored) {
     }
     span.setMeasured(true);
-  }
-
-  public void onReceive(final AgentSpan span, final Method method) {
-    span.setResourceName("JMS " + method.getName());
-  }
-
-  public void onReceive(final AgentSpan span, final Message message) {
-    span.setResourceName("Received from " + toResourceName(message, null));
   }
 
   public void onProduce(

@@ -10,8 +10,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import org.jctools.maps.NonBlockingHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +22,7 @@ final class Aggregator implements Runnable {
   private final Queue<Batch> batchPool;
   private final BlockingQueue<Batch> inbox;
   private final LRUCache<MetricKey, AggregateMetric> aggregates;
-  private final ConcurrentHashMap<MetricKey, Batch> pending;
+  private final NonBlockingHashMap<MetricKey, Batch> pending;
   private final Set<MetricKey> commonKeys;
   private final MetricWriter writer;
   // the reporting interval controls how much history will be buffered
@@ -36,7 +36,7 @@ final class Aggregator implements Runnable {
       MetricWriter writer,
       Queue<Batch> batchPool,
       BlockingQueue<Batch> inbox,
-      ConcurrentHashMap<MetricKey, Batch> pending,
+      NonBlockingHashMap<MetricKey, Batch> pending,
       final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,

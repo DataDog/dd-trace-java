@@ -1,6 +1,7 @@
 package datadog.trace.api
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.Checkpointer.CPU
@@ -19,10 +20,12 @@ class SamplingCheckpointerTest extends DDSpecification {
     }
     DDId traceId = DDId.from(1)
     DDId spanId = DDId.from(2)
+    String resource = "foo"
     AgentSpan span = Stub(AgentSpan)
     span.eligibleForDropping() >> drop
     span.getTraceId() >> traceId
     span.getSpanId() >> spanId
+    span.getResourceName() >> UTF8BytesString.create(resource)
     int count = register ? drop ? 0 : 1 : 0
 
     when:
@@ -66,6 +69,11 @@ class SamplingCheckpointerTest extends DDSpecification {
     then:
     count * checkpointer.checkpoint(traceId, spanId, SPAN | END)
     0 * _
+
+    when:
+    sut.onRootSpanPublished(span)
+    then:
+    count * checkpointer.onRootSpanPublished(resource, traceId)
 
     where:
     drop | register

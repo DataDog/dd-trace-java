@@ -74,11 +74,21 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
     checkpoint(span, SPAN | END);
   }
 
+  @Override
+  public void onRootSpanPublished(AgentSpan root) {
+    if (!root.eligibleForDropping()) {
+      checkpointer.onRootSpanPublished(root.getResourceName().toString(), root.getTraceId());
+    }
+  }
+
   private static final class NoOpCheckpointer implements Checkpointer {
 
     static final NoOpCheckpointer NO_OP = new NoOpCheckpointer();
 
     @Override
     public void checkpoint(DDId traceId, DDId spanId, int flags) {}
+
+    @Override
+    public void onRootSpanPublished(String route, DDId traceId) {}
   }
 }
