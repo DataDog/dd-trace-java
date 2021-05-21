@@ -1,11 +1,12 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.apache.activemq.ActiveMQConnectionFactory
-import org.apache.activemq.ActiveMQMessageConsumer
 import org.apache.activemq.command.ActiveMQTextMessage
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
 import spock.lang.Shared
@@ -26,13 +27,16 @@ class JMS1Test extends AgentTestRunner {
   @Shared
   Session session
 
+  @Shared
+  Connection connection
+
   ActiveMQTextMessage message = session.createTextMessage(messageText)
 
   def setupSpec() {
     broker.start()
     final ActiveMQConnectionFactory connectionFactory = broker.createConnectionFactory()
 
-    final Connection connection = connectionFactory.createConnection()
+    connection = connectionFactory.createConnection()
     connection.start()
     session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
   }
@@ -49,17 +53,81 @@ class JMS1Test extends AgentTestRunner {
     producer.send(message)
 
     TextMessage receivedMessage = consumer.receive()
+    // required to finish auto-acknowledged spans
+    consumer.receiveNoWait()
 
     expect:
     receivedMessage.text == messageText
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, false, ActiveMQMessageConsumer, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(0)[0])
     }
 
     cleanup:
     producer.close()
     consumer.close()
+
+    where:
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
+  def "receiving a message from #jmsResourceName in a transacted session"() {
+    setup:
+    def transactedSession = connection.createSession(true, Session.SESSION_TRANSACTED)
+    def producer = session.createProducer(destination)
+    def consumer = transactedSession.createConsumer(destination)
+
+    producer.send(message)
+
+    TextMessage receivedMessage = consumer.receive()
+    transactedSession.commit()
+
+    expect:
+    receivedMessage.text == messageText
+    assertTraces(2) {
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+    }
+
+    cleanup:
+    producer.close()
+    consumer.close()
+    transactedSession.close()
+
+    where:
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
+  def "receiving a message from #jmsResourceName with manual acknowledgement"() {
+    setup:
+    def session = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
+    def producer = session.createProducer(destination)
+    def consumer = session.createConsumer(destination)
+
+    producer.send(message)
+
+    TextMessage receivedMessage = consumer.receive()
+    receivedMessage.acknowledge()
+
+    expect:
+    receivedMessage.text == messageText
+    assertTraces(2) {
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+    }
+
+    cleanup:
+    producer.close()
+    consumer.close()
+    session.close()
 
     where:
     destination                      | jmsResourceName
@@ -89,7 +157,7 @@ class JMS1Test extends AgentTestRunner {
     expect:
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, true, consumer.messageListener.class, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(0)[0])
     }
     // This check needs to go after all traces have been accounted for
     messageRef.get().text == messageText
@@ -112,28 +180,12 @@ class JMS1Test extends AgentTestRunner {
 
     // Receive with timeout
     TextMessage receivedMessage = consumer.receiveNoWait()
+    // required to finish auto-acknowledged spans
+    consumer.receiveNoWait()
 
     expect:
     receivedMessage == null
-    assertTraces(1) {
-      trace(1) {
-        // Consumer trace
-        span {
-          parent()
-          serviceName "jms"
-          operationName "jms.consume"
-          resourceName "JMS receiveNoWait"
-          spanType DDSpanTypes.MESSAGE_CONSUMER
-          errored false
-
-          tags {
-            "$Tags.COMPONENT" "jms"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            defaultTags()
-          }
-        }
-      }
-    }
+    assertTraces(0) {}
 
     cleanup:
     consumer.close()
@@ -150,28 +202,12 @@ class JMS1Test extends AgentTestRunner {
 
     // Receive with timeout
     TextMessage receivedMessage = consumer.receive(100)
+    // required to finish auto-acknowledged spans
+    consumer.receiveNoWait()
 
     expect:
     receivedMessage == null
-    assertTraces(1) {
-      trace(1) {
-        // Consumer trace
-        span {
-          parent()
-          serviceName "jms"
-          operationName "jms.consume"
-          resourceName "JMS receive"
-          spanType DDSpanTypes.MESSAGE_CONSUMER
-          errored false
-
-          tags {
-            "$Tags.COMPONENT" "jms"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            defaultTags()
-          }
-        }
-      }
-    }
+    assertTraces(0) {}
 
     cleanup:
     consumer.close()
@@ -196,6 +232,8 @@ class JMS1Test extends AgentTestRunner {
     producer.send(message)
 
     TextMessage receivedMessage = consumer.receive()
+    // required to finish auto-acknowledged spans
+    consumer.receiveNoWait()
 
     then:
     receivedMessage.text == messageText
@@ -247,11 +285,13 @@ class JMS1Test extends AgentTestRunner {
 
     boolean isTimeStampDisabled = producer.getDisableMessageTimestamp()
     consumer.receive()
+    // required to finish auto-acknowledged spans
+    consumer.receiveNoWait()
 
     expect:
     assertTraces(2) {
       producerTrace(it, "Queue someQueue")
-      consumerTrace(it, "Queue someQueue", false, ActiveMQMessageConsumer, trace(0)[0], isTimeStampDisabled)
+      consumerTrace(it, "Queue someQueue", trace(0)[0], isTimeStampDisabled)
     }
 
     cleanup:
@@ -260,49 +300,94 @@ class JMS1Test extends AgentTestRunner {
 
   }
 
+  def "traceable work between two receive calls has jms.consume parent"() {
+    setup:
+    def producer = session.createProducer(destination)
+    def consumer = session.createConsumer(destination)
+
+    producer.send(message)
+
+    TextMessage receivedMessage = consumer.receive()
+    doStuff()
+    // required to finish auto-acknowledged spans
+    consumer.receiveNoWait()
+
+    expect:
+    receivedMessage.text == messageText
+    assertTraces(2) {
+      producerTrace(it, jmsResourceName)
+      trace(2) {
+        consumerSpan(it, jmsResourceName, trace(0)[0])
+        span {
+          operationName "do.stuff"
+          childOf(trace(1)[0])
+        }
+      }
+    }
+
+    cleanup:
+    producer.close()
+    consumer.close()
+
+    where:
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
   static producerTrace(ListWriterAssert writer, String jmsResourceName) {
     writer.trace(1) {
-      span {
-        serviceName "jms"
-        operationName "jms.produce"
-        resourceName "Produced for $jmsResourceName"
-        spanType DDSpanTypes.MESSAGE_PRODUCER
-        errored false
-        parent()
+      producerSpan(it, jmsResourceName)
+    }
+  }
 
-        tags {
-          "$Tags.COMPONENT" "jms"
-          "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-          defaultTags()
-        }
+  static producerSpan(TraceAssert traceAssert, String jmsResourceName) {
+    return traceAssert.span {
+      serviceName "jms"
+      operationName "jms.produce"
+      resourceName "Produced for $jmsResourceName"
+      spanType DDSpanTypes.MESSAGE_PRODUCER
+      errored false
+      parent()
+
+      tags {
+        "$Tags.COMPONENT" "jms"
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+        defaultTags()
       }
     }
   }
 
-  static consumerTrace(ListWriterAssert writer, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan, boolean isTimestampDisabled = false) {
+  static consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
     writer.trace(1) {
-      span {
-        serviceName "jms"
-        if (messageListener) {
-          operationName "jms.onMessage"
-          resourceName "Received from $jmsResourceName"
-        } else {
-          operationName "jms.consume"
-          resourceName "Consumed from $jmsResourceName"
-        }
-        spanType DDSpanTypes.MESSAGE_CONSUMER
-        errored false
-        childOf parentSpan
+      consumerSpan(it, jmsResourceName, parentSpan, isTimestampDisabled)
+    }
+  }
 
-        tags {
-          "$Tags.COMPONENT" "jms"
-          "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-          if (!messageListener && !isTimestampDisabled) {
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
-          }
-          defaultTags(true)
+  static consumerSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
+    return traceAssert.span {
+      serviceName "jms"
+      operationName "jms.consume"
+      resourceName "Consumed from $jmsResourceName"
+      spanType DDSpanTypes.MESSAGE_CONSUMER
+      errored false
+      childOf parentSpan
+
+      tags {
+        "$Tags.COMPONENT" "jms"
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+        if (!isTimestampDisabled) {
+          "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         }
+        defaultTags(true)
       }
     }
+  }
+
+  @Trace(operationName = "do.stuff")
+  def doStuff() {
+
   }
 }

@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
 import org.apache.activemq.ActiveMQConnectionFactory
-import org.apache.activemq.ActiveMQMessageConsumer
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
 import org.springframework.jms.core.JmsTemplate
 import spock.lang.Retry
@@ -49,7 +48,7 @@ class SpringTemplateJMS1Test extends AgentTestRunner {
     receivedMessage.text == messageText
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, false, ActiveMQMessageConsumer, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(0)[0])
     }
 
     where:
@@ -77,9 +76,9 @@ class SpringTemplateJMS1Test extends AgentTestRunner {
     receivedMessage.text == "responded!"
     assertTraces(4) {
       producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, false, ActiveMQMessageConsumer, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(0)[0])
       producerTrace(it, "Temporary Queue") // receive doesn't propagate the trace, so this is a root
-      consumerTrace(it, "Temporary Queue", false, ActiveMQMessageConsumer, trace(2)[0])
+      consumerTrace(it, "Temporary Queue", trace(2)[0])
     }
 
     where:
