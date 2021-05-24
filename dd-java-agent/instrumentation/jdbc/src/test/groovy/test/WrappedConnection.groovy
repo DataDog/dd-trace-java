@@ -36,7 +36,7 @@ class WrappedConnection implements Connection {
   }
 
   Statement createStatement() throws SQLException {
-    return delegate.createStatement()
+    return new WrappedStatement(delegate.createStatement(), this)
   }
 
   PreparedStatement prepareStatement(String sql) throws SQLException {
