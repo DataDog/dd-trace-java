@@ -210,6 +210,34 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !(features as DroppingPolicy).active()
   }
 
+  def "discovery of metrics endpoint after agent upgrade does not enable dropping"() {
+    // discovery of the metrics endpoint would lead to code being deoptimised on the application threads
+    // so the user needs to restart applications to start producing metrics after the agent upgrade
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
+
+    when: "/info unavailable"
+    features.discover()
+
+    then: "metrics endpoint not probed, metrics and dropping not supported"
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.6/stats" })
+    !features.supportsDropping()
+    !features.supportsMetrics()
+    !(features as DroppingPolicy).active()
+
+    when: "/info and v0.6/stats become available to an already configured tracer"
+    features.discover()
+
+    then: "metrics endpoint not probed, metrics and dropping not supported"
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
+    features.supportsDropping()
+    !features.supportsMetrics()
+    !(features as DroppingPolicy).active()
+  }
+
   def countingNotFound(Request request, CountDownLatch latch) {
     latch.countDown()
     return notFound(request)
