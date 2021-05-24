@@ -2,6 +2,7 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -128,6 +129,9 @@ public class HaystackHttpCodec {
     public boolean accept(String key, String value) {
       if (null == key || key.isEmpty()) {
         return true;
+      }
+      if (Config.get().isLogExtractHeaderNames()) {
+        log.debug("Header: {}", key);
       }
       char first = Character.toLowerCase(key.charAt(0));
       String lowerCaseKey = null;

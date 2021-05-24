@@ -33,6 +33,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_FORCE_FIR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_COMPRESSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -158,6 +159,7 @@ import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY;
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
+import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.config.TracerConfig.PROXY_NO_PROXY;
@@ -287,6 +289,7 @@ public class Config {
   private final boolean traceStrictWritesEnabled;
   private final boolean runtimeContextFieldInjection;
   private final boolean serialVersionUIDFieldInjection;
+  private final boolean logExtractHeaderNames;
   private final Set<PropagationStyle> propagationStylesToExtract;
   private final Set<PropagationStyle> propagationStylesToInject;
 
@@ -575,6 +578,11 @@ public class Config {
     serialVersionUIDFieldInjection =
         configProvider.getBoolean(
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
+
+    logExtractHeaderNames =
+        configProvider.getBoolean(
+            PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED,
+            DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
 
     propagationStylesToExtract =
         getPropagationStyleSetSettingFromEnvironmentOrDefault(
@@ -919,6 +927,10 @@ public class Config {
 
   public boolean isSerialVersionUIDFieldInjection() {
     return serialVersionUIDFieldInjection;
+  }
+
+  public boolean isLogExtractHeaderNames() {
+    return logExtractHeaderNames;
   }
 
   public Set<PropagationStyle> getPropagationStylesToExtract() {
