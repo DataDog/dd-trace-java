@@ -23,6 +23,10 @@ public class AppSecSystem {
     try {
       // Read config from yaml file
       AppSecConfig appSecConf = ConfigFactory.fromYamlFile(new File(config.getAppSecConfigFile()));
+
+      // Convert config to legacy json
+      String json = ConfigFactory.toLegacyFormat(appSecConf);
+      log.info("Legacy AppSec Config: {}", json);
     } catch (IOException e) {
       e.printStackTrace();
     }
