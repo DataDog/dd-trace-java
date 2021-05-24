@@ -2,13 +2,13 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.Functions.PATH_BASED_RESOURCE_NAME;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
+import static datadog.trace.api.http.UrlBasedResourceNameCalculator.SIMPLE_PATH_NORMALIZER;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.normalize.PathNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -81,7 +81,8 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
           if (shouldSetResourceName() && !span.hasResourceName()) {
             span.setResourceName(
                 RESOURCE_NAMES.computeIfAbsent(
-                    Pair.of(method, PathNormalizer.normalize(path)), PATH_BASED_RESOURCE_NAME));
+                    Pair.of(method, SIMPLE_PATH_NORMALIZER.normalize(path)),
+                    PATH_BASED_RESOURCE_NAME));
           }
         } else if (shouldSetResourceName() && !span.hasResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);

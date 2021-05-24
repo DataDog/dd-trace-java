@@ -1,36 +1,39 @@
-package datadog.trace.api.normalize
+package datadog.trace.api.http
 
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Shared
 
-class PathNormalizerTest extends DDSpecification {
+class SimplePathNormalizerTest extends DDSpecification {
+  @Shared
+  SimplePathNormalizer simplePathNormalizer = new SimplePathNormalizer()
 
   def "pulls path from url #input"() {
     when:
-    def path = PathNormalizer.normalize(input) as String
-    def pathEncoded = PathNormalizer.normalize(input, true) as String
+    def path = simplePathNormalizer.normalize(input) as String
+    def pathEncoded = simplePathNormalizer.normalize(input, true) as String
 
     then:
     path == expected
     pathEncoded == expected
 
     where:
-    input                                                            | expected
-    ""                                                               | "/"
-    "/"                                                              | "/"
-    "/search"                                                        | "/search"
-    "/users/?/:name"                                                 | "/users/?/:name"
-    "abc"                                                            | "abc"
-    "abc%de"                                                         | "abc%de"
-    "   "                                                            | "/"
-    "   /:userId"                                                    | "/:userId"
-    "\t/90"                                                          | "/?"
-    "\t/:userId"                                                     | "/:userId"
+    input            | expected
+    ""               | "/"
+    "/"              | "/"
+    "/search"        | "/search"
+    "/users/?/:name" | "/users/?/:name"
+    "abc"            | "abc"
+    "abc%de"         | "abc%de"
+    "   "            | "/"
+    "   /:userId"    | "/:userId"
+    "\t/90"          | "/?"
+    "\t/:userId"     | "/:userId"
   }
 
   def "should replace all digits"() {
     when:
-    def norm = PathNormalizer.normalize(input) as String
-    def normEncoded = PathNormalizer.normalize(input, true) as String
+    def norm = simplePathNormalizer.normalize(input) as String
+    def normEncoded = simplePathNormalizer.normalize(input, true) as String
 
     then:
     norm == output
@@ -48,8 +51,8 @@ class PathNormalizerTest extends DDSpecification {
 
   def "should replace segments with mixed-characters"() {
     when:
-    def norm = PathNormalizer.normalize(input) as String
-    def normEncoded = PathNormalizer.normalize(input, true) as String
+    def norm = simplePathNormalizer.normalize(input) as String
+    def normEncoded = simplePathNormalizer.normalize(input, true) as String
 
     then:
     norm == output
@@ -66,8 +69,8 @@ class PathNormalizerTest extends DDSpecification {
 
   def "should leave other segments alone"() {
     when:
-    def norm = PathNormalizer.normalize(input) as String
-    def normEncoded = PathNormalizer.normalize(input, true) as String
+    def norm = simplePathNormalizer.normalize(input) as String
+    def normEncoded = simplePathNormalizer.normalize(input, true) as String
 
     then:
     norm == input
@@ -87,7 +90,7 @@ class PathNormalizerTest extends DDSpecification {
 
   def "should handle encoded strings"() {
     when:
-    def normEncoded = PathNormalizer.normalize(input, true) as String
+    def normEncoded = simplePathNormalizer.normalize(input, true) as String
 
     then:
     normEncoded == output

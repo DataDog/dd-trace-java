@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.elasticsearch;
 
 import static datadog.trace.api.Functions.PATH_BASED_RESOURCE_NAME;
+import static datadog.trace.api.http.UrlBasedResourceNameCalculator.SIMPLE_PATH_NORMALIZER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.api.normalize.PathNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -79,7 +79,7 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
     span.setTag(Tags.HTTP_URL, endpoint);
     span.setResourceName(
         RESOURCE_NAMES.computeIfAbsent(
-            Pair.of(method, PathNormalizer.normalize(endpoint)), PATH_BASED_RESOURCE_NAME));
+            Pair.of(method, SIMPLE_PATH_NORMALIZER.normalize(endpoint)), PATH_BASED_RESOURCE_NAME));
     return span;
   }
 

@@ -875,7 +875,7 @@ class ConfigTest extends DDSpecification {
     defaultValue = 10.0
   }
 
-  def "verify mapping configs on tracer"() {
+  def "verify mapping configs on tracer for #mapString"() {
     setup:
     System.setProperty(PREFIX + SERVICE_MAPPING, mapString)
     System.setProperty(PREFIX + SPAN_TAGS, mapString)

@@ -177,6 +177,7 @@ import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.config.TracerConfig.TRACE_RESOLVER_ENABLED;
@@ -284,6 +285,7 @@ public class Config {
   private final boolean httpServerRawQueryString;
   private final boolean httpServerRawResource;
   private final boolean httpServerRouteBasedNaming;
+  private final Map<String, String> httpServerPathResourceNameMapping;
   private final boolean httpClientTagQueryString;
   private final boolean httpClientSplitByDomain;
   private final boolean dbClientSplitByInstance;
@@ -541,6 +543,9 @@ public class Config {
 
     excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
     headerTags = configProvider.getMergedMap(HEADER_TAGS);
+
+    httpServerPathResourceNameMapping =
+        configProvider.getOrderedMap(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING);
 
     httpServerErrorStatuses =
         configProvider.getIntegerRange(
@@ -889,6 +894,10 @@ public class Config {
 
   public Map<String, String> getHeaderTags() {
     return headerTags;
+  }
+
+  public Map<String, String> getHttpServerPathResourceNameMapping() {
+    return httpServerPathResourceNameMapping;
   }
 
   public BitSet getHttpServerErrorStatuses() {
@@ -1762,6 +1771,8 @@ public class Config {
         + httpServerRawResource
         + ", httpServerRouteBasedNaming="
         + httpServerRouteBasedNaming
+        + ", httpServerPathResourceNameMapping="
+        + httpServerPathResourceNameMapping
         + ", httpClientTagQueryString="
         + httpClientTagQueryString
         + ", httpClientSplitByDomain="
