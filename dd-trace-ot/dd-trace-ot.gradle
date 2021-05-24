@@ -40,17 +40,19 @@ dependencies {
   compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
   compile deps.slf4j
+  compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.12.12'
   compile deps.okio
+  compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.12.12'
 
-  testCompile project(":dd-java-agent:testing")
+  testImplementation project(":dd-java-agent:testing")
 
-  ot31CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
-  ot31CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
-  ot31CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-noop', version: '0.31.0'
+  ot31CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
+  ot31CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
+  ot31CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-noop', version: '0.31.0'
 
-  ot33CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-api', version: '0.33.0'
-  ot33CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.33.0'
-  ot33CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-noop', version: '0.33.0'
+  ot33CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-api', version: '0.33.0'
+  ot33CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.33.0'
+  ot33CompatabilityTestImplementation group: 'io.opentracing', name: 'opentracing-noop', version: '0.33.0'
 }
 
 [configurations.ot31CompatabilityTestCompile, configurations.ot31CompatabilityTestRuntime].each {

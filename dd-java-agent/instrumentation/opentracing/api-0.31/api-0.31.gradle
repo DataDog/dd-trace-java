@@ -10,9 +10,9 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  compile project(':dd-java-agent:instrumentation:opentracing')
+  implementation project(':dd-java-agent:instrumentation:opentracing')
 
   compileOnly group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
-  testCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
+  testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 }

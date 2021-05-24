@@ -79,5 +79,5 @@ tasks.withType(Test).configureEach {
 }
 
 dependencies {
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }

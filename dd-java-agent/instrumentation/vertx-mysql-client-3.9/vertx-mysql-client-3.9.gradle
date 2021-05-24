@@ -30,11 +30,11 @@ testSets {
 dependencies {
   main_java8CompileOnly group: 'io.vertx', name: 'vertx-mysql-client', version: '3.9.0'
 
-  testCompile group: 'io.vertx', name: 'vertx-mysql-client', version: '3.9.0'
+  testImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '3.9.0'
 
   // This is needed for the test container to start
-  testCompile group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
-  testCompile "org.testcontainers:mysql:1.15.1"
+  testImplementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.23'
+  testImplementation "org.testcontainers:mysql:1.15.1"
 
-  latestDepTestCompile group: 'io.vertx', name: 'vertx-mysql-client', version: '3.+'
+  latestDepTestImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '3.+'
 }

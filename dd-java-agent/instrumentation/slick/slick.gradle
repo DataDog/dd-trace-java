@@ -34,14 +34,14 @@ dependencies {
   compileOnly deps.scala
   compileOnly group: 'com.typesafe.slick', name: 'slick_2.11', version: '3.2.0'
 
-  testCompile project(':dd-java-agent:instrumentation:java-concurrent')
-  testCompile project(':dd-java-agent:instrumentation:java-concurrent:java-completablefuture')
-  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
-  testCompile project(':dd-java-agent:instrumentation:jdbc')
-  testCompile deps.scala
-  testCompile group: 'com.typesafe.slick', name: 'slick_2.11', version: '3.2.0'
-  testCompile group: 'com.h2database', name: 'h2', version: '1.4.197'
+  testImplementation project(':dd-java-agent:instrumentation:java-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:java-concurrent:java-completablefuture')
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:jdbc')
+  testImplementation deps.scala
+  testImplementation group: 'com.typesafe.slick', name: 'slick_2.11', version: '3.2.0'
+  testImplementation group: 'com.h2database', name: 'h2', version: '1.4.197'
 
-  latestDepTestCompile group: 'com.typesafe.slick', name: 'slick_2.13', version: '+'
-  latestDepTestCompile group: 'org.scala-lang', name: 'scala-library', version: '+'
+  latestDepTestImplementation group: 'com.typesafe.slick', name: 'slick_2.13', version: '+'
+  latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '+'
 }

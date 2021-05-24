@@ -24,10 +24,10 @@ configurations.all {
 dependencies {
   compileOnly group: 'org.apache.axis2', name: 'axis2-kernel', version: '1.3'
 
-  testCompile group: 'org.apache.axis2', name: 'axis2-kernel', version: '1.3'
+  testImplementation group: 'org.apache.axis2', name: 'axis2-kernel', version: '1.3'
 
-  latestDepTestCompile group: 'org.apache.axis2', name: 'axis2-kernel', version: '+'
-  latestDepTestCompile group: 'org.apache.axis2', name: 'axis2-transport-local', version: '+'
-  latestDepTestCompile group: 'org.apache.axis2', name: 'axis2-transport-http', version: '+'
-  latestDepTestCompile group: 'org.apache.axis2', name: 'axis2-adb', version: '+'
+  latestDepTestImplementation group: 'org.apache.axis2', name: 'axis2-kernel', version: '+'
+  latestDepTestImplementation group: 'org.apache.axis2', name: 'axis2-transport-local', version: '+'
+  latestDepTestImplementation group: 'org.apache.axis2', name: 'axis2-transport-http', version: '+'
+  latestDepTestImplementation group: 'org.apache.axis2', name: 'axis2-adb', version: '+'
 }

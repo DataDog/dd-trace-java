@@ -16,6 +16,6 @@ dependencies {
 
   compile group: 'com.datadoghq', name: 'sketches-java', version: '0.6.1'
 
-  testCompile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.14.0'
-  testCompile project(':utils:test-utils')
+  testImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.14.0'
+  testImplementation project(':utils:test-utils')
 }

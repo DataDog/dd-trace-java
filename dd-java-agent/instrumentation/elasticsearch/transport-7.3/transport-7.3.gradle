@@ -33,20 +33,20 @@ testSets {
 dependencies {
   compileOnly group: 'org.elasticsearch.client', name: 'transport', version: '7.3.0'
 
-  compile project(':dd-java-agent:instrumentation:elasticsearch')
+  implementation project(':dd-java-agent:instrumentation:elasticsearch')
 
   // Ensure no cross interference
-  testCompile project(':dd-java-agent:instrumentation:elasticsearch:rest-5')
-  testCompile project(':dd-java-agent:instrumentation:elasticsearch:rest-6.4')
-  testCompile project(':dd-java-agent:instrumentation:apache-httpasyncclient-4')
-  testCompile project(':dd-java-agent:instrumentation:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:elasticsearch:rest-5')
+  testImplementation project(':dd-java-agent:instrumentation:elasticsearch:rest-6.4')
+  testImplementation project(':dd-java-agent:instrumentation:apache-httpasyncclient-4')
+  testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
 
-  testCompile group: 'org.elasticsearch.plugin', name: 'transport-netty4-client', version: '7.3.0'
-  testCompile group: 'org.elasticsearch.client', name: 'transport', version: '7.3.0'
+  testImplementation group: 'org.elasticsearch.plugin', name: 'transport-netty4-client', version: '7.3.0'
+  testImplementation group: 'org.elasticsearch.client', name: 'transport', version: '7.3.0'
 
-  testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.11.0'
-  testCompile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.11.0'
+  testImplementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.11.0'
+  testImplementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.11.0'
 
-  latestDepTestCompile group: 'org.elasticsearch.plugin', name: 'transport-netty4-client', version: '7.10.+'
-  latestDepTestCompile group: 'org.elasticsearch.client', name: 'transport', version: '7.10.+'
+  latestDepTestImplementation group: 'org.elasticsearch.plugin', name: 'transport-netty4-client', version: '7.10.+'
+  latestDepTestImplementation group: 'org.elasticsearch.client', name: 'transport', version: '7.10.+'
 }
