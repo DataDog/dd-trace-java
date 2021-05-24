@@ -9,6 +9,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -135,6 +136,20 @@ public final class ConfigProvider {
       merged.putAll(ConfigConverter.parseMap(value, key));
     }
     return merged;
+  }
+
+  public final Map<String, String> getOrderedMap(String key) {
+    LinkedHashMap<String, String> map = new LinkedHashMap<>();
+    // System properties take precendence over env
+    // prior art:
+    // https://docs.spring.io/spring-boot/docs/1.5.6.RELEASE/reference/html/boot-features-external-config.html
+    for (int i = sources.length - 1; 0 <= i; i--) {
+      String value = sources[i].get(key);
+      if (value != null) {
+        ConfigConverter.loadMap(map, value, key);
+      }
+    }
+    return map;
   }
 
   public BitSet getIntegerRange(final String key, final BitSet defaultValue) {

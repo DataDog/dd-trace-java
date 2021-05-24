@@ -1,25 +1,9 @@
-package datadog.trace.api.normalize;
+package datadog.trace.api.http;
 
-public final class PathNormalizer {
+final class SimplePathNormalizer extends PathNormalizer {
 
-  /**
-   * Normalize a path by removing likely numeric segments and whitespace. Expects a decoded path.
-   */
-  public static String normalize(String path) {
-    return normalize(path, false);
-  }
-
-  /**
-   * Normalize a path by removing likely numeric segments and whitespace.
-   *
-   * <p>If the path to normalize is encoded, we simply skip over %-encoded characters without
-   * validating the actual characters.
-   *
-   * @param path the path to normalize
-   * @param encoded if we should treat this as an encoded path and skip over %-encoded characters
-   * @return the normalized path
-   */
-  public static String normalize(String path, boolean encoded) {
+  @Override
+  public String normalize(String path, boolean encoded) {
     if (null == path || path.isEmpty()) {
       return "/";
     }
