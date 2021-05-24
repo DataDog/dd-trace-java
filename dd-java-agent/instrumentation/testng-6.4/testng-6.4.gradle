@@ -11,7 +11,9 @@ muzzle {
 dependencies {
   compileOnly group: 'org.testng', name: 'testng', version: '6.4'
 
-  testCompile(group: 'org.testng', name: 'testng', version: '6.4') {
-    force = true
+  testImplementation(group: 'org.testng', name: 'testng') {
+    version {
+      strictly '6.4'
+    }
   }
 }

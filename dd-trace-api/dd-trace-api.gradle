@@ -17,6 +17,6 @@ excludedClassesCoverage += [
 
 description = 'dd-trace-api'
 dependencies {
-  testCompile deps.guava
-  testCompile project(':utils:test-utils')
+  testImplementation deps.guava
+  testImplementation project(':utils:test-utils')
 }

@@ -1,7 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  testCompile group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '1.50.5'
+  testImplementation group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '1.50.5'
 }
 
 // Forcing strict test execution order (no parallel execution) to ensure proper mongo executable initialization.

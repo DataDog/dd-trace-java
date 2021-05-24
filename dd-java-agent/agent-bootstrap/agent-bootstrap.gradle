@@ -16,14 +16,14 @@ minimumBranchCoverage = 0.0
 minimumInstructionCoverage = 0.0
 
 dependencies {
-  compile project(':dd-java-agent:agent-logging')
-  compile project(':dd-trace-api')
-  compile project(':internal-api')
-  implementation project(':internal-api:internal-api-8')
-  compile deps.slf4j
+  api project(':dd-trace-api')
+  api project(':internal-api')
+  api project(':internal-api:internal-api-8')
+  api project(':dd-java-agent:agent-logging')
+  api deps.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.
 
-  testCompile project(':dd-java-agent:testing')
+  testImplementation project(':dd-java-agent:testing')
 }
 
 // Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)

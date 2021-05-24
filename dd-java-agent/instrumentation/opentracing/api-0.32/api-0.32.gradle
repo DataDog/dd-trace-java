@@ -18,11 +18,11 @@ testSets {
 }
 
 dependencies {
-  compile project(':dd-java-agent:instrumentation:opentracing')
+  implementation project(':dd-java-agent:instrumentation:opentracing')
 
   compileOnly group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 
-  testCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+  testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 
-  latestDepTestCompile group: 'io.opentracing', name: 'opentracing-util', version: '+'
+  latestDepTestImplementation group: 'io.opentracing', name: 'opentracing-util', version: '+'
 }

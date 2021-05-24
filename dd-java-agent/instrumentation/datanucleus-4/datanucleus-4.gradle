@@ -73,10 +73,10 @@ dependencies {
   compileOnly group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: datanucleusVersion
   compileOnly group: 'org.datanucleus', name: 'javax.jdo', version: '3.2.0-m1'
 
-  testCompile project(':dd-java-agent:instrumentation:jdbc')
-  testCompile group: 'org.datanucleus', name: 'datanucleus-core', version: datanucleusVersion
-  testCompile group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: datanucleusVersion
-  testCompile group: 'org.datanucleus', name: 'datanucleus-rdbms', version: datanucleusVersion
-  testCompile group: 'org.datanucleus', name: 'javax.jdo', version: '3.2.0-m1'
-  testCompile group: 'com.h2database', name: 'h2', version: '1.3.169'
+  testImplementation project(':dd-java-agent:instrumentation:jdbc')
+  testImplementation group: 'org.datanucleus', name: 'datanucleus-core', version: datanucleusVersion
+  testImplementation group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: datanucleusVersion
+  testImplementation group: 'org.datanucleus', name: 'datanucleus-rdbms', version: datanucleusVersion
+  testImplementation group: 'org.datanucleus', name: 'javax.jdo', version: '3.2.0-m1'
+  testImplementation group: 'com.h2database', name: 'h2', version: '1.3.169'
 }

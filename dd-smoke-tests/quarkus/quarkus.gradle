@@ -5,7 +5,7 @@ ext {
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }
 
 def appDir = "$projectDir/application"

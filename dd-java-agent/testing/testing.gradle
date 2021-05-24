@@ -24,27 +24,28 @@ excludedClassesCoverage += [
 ]
 
 dependencies {
-  compile deps.bytebuddy
-  compile deps.bytebuddyagent
-  compile deps.slf4j
-  compile deps.spock
-  compile deps.testLogging
-  compile deps.guava
+  api deps.bytebuddy
+  api deps.bytebuddyagent
+  api deps.slf4j
+  api deps.spock
+  api deps.testLogging
+  api deps.guava
 
-  compile group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.30.v20200428' // 9.2 last to support java 7
-  compile group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: versions.okhttp
+  api group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.30.v20200428'
+  // ^ 9.2 last to support java 7
+  api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: versions.okhttp
 
-  compile project(':dd-java-agent:agent-tooling')
-  compile project(':utils:test-utils')
+  api project(':dd-java-agent:agent-tooling')
+  api project(':utils:test-utils')
 
-  compile deps.groovy
+  api deps.groovy
 
-  testCompile project(':utils:test-utils')
-  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':utils:test-utils')
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
 
-  testCompile group: 'cglib', name: 'cglib', version: '3.2.5'
+  testImplementation group: 'cglib', name: 'cglib', version: '3.2.5'
   // test instrumenting java 1.1 bytecode
-  testCompile group: 'net.sf.jt400', name: 'jt400', version: '6.1'
+  testImplementation group: 'net.sf.jt400', name: 'jt400', version: '6.1'
 
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor deps.autoserviceProcessor

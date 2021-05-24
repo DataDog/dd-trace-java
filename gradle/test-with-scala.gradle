@@ -4,7 +4,7 @@ apply plugin: 'scala'
 
 dependencies {
   compileOnly deps.scala
-  testCompile deps.scala
+  testImplementation deps.scala
 }
 
 tasks.named("compileTestGroovy").configure {
