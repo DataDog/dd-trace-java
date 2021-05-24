@@ -2,6 +2,7 @@ package datadog.trace.core
 
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
+import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
@@ -320,5 +321,15 @@ class DDSpanTest extends DDCoreSpecification {
     span.finish()
     then:
     1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), SPAN | END)
+  }
+
+  def "broken pipe exception does not create error span"() {
+    when:
+    def span = tracer.buildSpan("root").start()
+    span.addThrowable(new IOException("Broken pipe"))
+    then:
+    !span.isError()
+    span.getTag(DDTags.ERROR_STACK) == null
+    span.getTag(DDTags.ERROR_MSG) == "Broken pipe"
   }
 }
