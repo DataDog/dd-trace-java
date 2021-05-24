@@ -6,6 +6,7 @@ import static datadog.trace.core.propagation.HttpCodec.FORWARDED_KEY;
 import static datadog.trace.core.propagation.HttpCodec.FORWARDED_PORT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.FORWARDED_PROTO_KEY;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
@@ -33,6 +34,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected String forwardedPort;
   protected boolean valid;
 
+  protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
 
   protected String toLowerCase(String key) {

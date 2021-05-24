@@ -2,7 +2,6 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -77,7 +76,7 @@ class DatadogHttpCodec {
       if (null == key || key.isEmpty()) {
         return true;
       }
-      if (Config.get().isLogExtractHeaderNames()) {
+      if (LOG_EXTRACT_HEADER_NAMES) {
         log.debug("Header: {}", key);
       }
       String lowerCaseKey = null;
