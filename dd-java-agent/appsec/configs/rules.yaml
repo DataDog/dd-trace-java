@@ -1,0 +1,40 @@
+rules:
+  - name: ZGrab Scrapper detection
+    steps:
+      - operation: match_regex
+        targets:
+          user_params:
+            - http.header.user_agent
+          regex: 'zgrab'
+    action: block
+  - name: Run libinjection SQL on some sensitive routes
+    action: block
+    steps:
+      - operation: match_regex
+        targets:
+          user_params:
+            - http.url
+            - http.route
+          regex: '^/sensitive/path/'
+      - operation: has_sqli_pattern
+        targets:
+          user_params:
+            - http.query
+            - http.path_params
+        transformers:
+          - removeNulls
+  - name: Run libinjection XSS on some sensitive routes
+    action: block
+    steps:
+      - operation: match_regex
+        targets:
+          user_params:
+            - http.url
+            - http.route
+          regex: '^/sensitive/path/'
+      - operation: has_xss_pattern
+        targets:
+          user_params:
+            - http.body
+        transformers:
+          - removeNulls

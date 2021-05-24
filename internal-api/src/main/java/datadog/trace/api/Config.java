@@ -60,6 +60,7 @@ import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_CONFIG_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
@@ -353,6 +354,7 @@ public class Config {
   private final boolean profilingHotspotsEnabled;
 
   private final boolean appSecEnabled;
+  private final String appSecConfigFile;
 
   private final boolean kafkaClientPropagationEnabled;
   private final boolean kafkaClientBase64DecodingEnabled;
@@ -731,6 +733,7 @@ public class Config {
     profilingHotspotsEnabled = configProvider.getBoolean(PROFILING_HOTSPOTS_ENABLED, false);
 
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
+    appSecConfigFile = configProvider.getString(APPSEC_CONFIG_FILE);
 
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
@@ -1128,6 +1131,10 @@ public class Config {
 
   public boolean isAppSecEnabled() {
     return appSecEnabled;
+  }
+
+  public String getAppSecConfigFile() {
+    return appSecConfigFile;
   }
 
   public boolean isKafkaClientPropagationEnabled() {
