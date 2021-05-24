@@ -4,7 +4,6 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.processor.TraceProcessor;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -15,7 +14,6 @@ import okio.BufferedSink;
 import okio.Okio;
 
 public class PrintingWriter implements Writer {
-  private final TraceProcessor processor = new TraceProcessor();
   private final BufferedSink sink;
   private final JsonAdapter<Map<String, List<List<DDSpan>>>> jsonAdapter;
 
@@ -36,8 +34,7 @@ public class PrintingWriter implements Writer {
 
   @Override
   public void write(final List<DDSpan> trace) {
-    final List<DDSpan> processedTrace = processor.onTraceComplete(trace);
-    final List<List<DDSpan>> tracesList = Collections.singletonList(processedTrace);
+    final List<List<DDSpan>> tracesList = Collections.singletonList(trace);
     try {
       synchronized (sink) {
         jsonAdapter.toJson(sink, Collections.singletonMap("traces", tracesList));

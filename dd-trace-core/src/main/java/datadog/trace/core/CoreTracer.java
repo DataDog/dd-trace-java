@@ -32,7 +32,6 @@ import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
-import datadog.trace.core.processor.TraceProcessor;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
@@ -107,7 +106,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
-  private final TraceProcessor traceProcessor = new TraceProcessor();
   private final SamplingCheckpointer checkpointer = SamplingCheckpointer.create();
 
   /**
@@ -615,8 +613,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     if (!writtenTrace.isEmpty()) {
-      writtenTrace = traceProcessor.onTraceComplete(writtenTrace);
-
       boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
       DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();

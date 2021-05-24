@@ -46,7 +46,9 @@ public class HandlerAdapterAdvice {
     final AgentSpan parentSpan = exchange.getAttribute(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
     final PathPattern bestPattern =
         exchange.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-    if (parentSpan != null && bestPattern != null) {
+    if (parentSpan != null
+        && bestPattern != null
+        && !bestPattern.getPatternString().equals("/**")) {
       ROUTE_HANDLER_DECORATOR.withRoute(
           parentSpan, exchange.getRequest().getMethodValue(), bestPattern.getPatternString());
     }
