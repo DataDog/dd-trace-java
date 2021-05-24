@@ -15,6 +15,8 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashSet;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,22 +117,42 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
      */
     {
       if (dbInfo == null) {
+        // first look for injected DBInfo in wrapped delegates
+        Connection conn = connection;
+        Set<Connection> connections = new HashSet<>();
+        connections.add(conn);
         try {
-          final DatabaseMetaData metaData = connection.getMetaData();
-          final String url = metaData.getURL();
-          if (url != null) {
-            try {
-              dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
-            } catch (final Throwable ex) {
-              // getClientInfo is likely not allowed.
-              dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, null);
+          while (dbInfo == null) {
+            Connection delegate = conn.unwrap(Connection.class);
+            if (delegate == null || !connections.add(delegate)) {
+              // cycle detected, stop looking
+              break;
             }
-          } else {
+            dbInfo = contextStore.get(delegate);
+            conn = delegate;
+          }
+        } catch (Throwable ignore) {
+        }
+        if (dbInfo == null) {
+          // couldn't find DBInfo anywhere, so fall back to default
+          try {
+            final DatabaseMetaData metaData = connection.getMetaData();
+            final String url = metaData.getURL();
+            if (url != null) {
+              try {
+                dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, connection.getClientInfo());
+              } catch (final Throwable ex) {
+                // getClientInfo is likely not allowed.
+                dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, null);
+              }
+            } else {
+              dbInfo = DBInfo.DEFAULT;
+            }
+          } catch (final SQLException se) {
             dbInfo = DBInfo.DEFAULT;
           }
-        } catch (final SQLException se) {
-          dbInfo = DBInfo.DEFAULT;
         }
+        // store the DBInfo on the outermost connection instance to avoid future searches
         contextStore.put(connection, dbInfo);
       }
     }
