@@ -7,9 +7,15 @@ set -e
 #Enable '**' support
 shopt -s globstar
 
+if [[ $# -ne 1 ]]; then
+  WORKSPACE="workspace"
+else
+  WORKSPACE="$1"
+fi
+
 TEST_RESULTS_DIR=./results
 mkdir -p $TEST_RESULTS_DIR >/dev/null 2>&1
 
-echo "saving test results"
+echo "saving test results from $WORKSPACE"
 mkdir -p $TEST_RESULTS_DIR/results
-find workspace/**/build/test-results -name \*.xml -exec cp {} $TEST_RESULTS_DIR \;
+find $WORKSPACE/**/build/test-results -name \*.xml -exec cp {} $TEST_RESULTS_DIR \;

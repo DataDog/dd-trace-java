@@ -6,10 +6,16 @@
 set -x
 set -e
 
+if [[ $# -ne 1 ]]; then
+  WORKSPACE="workspace"
+else
+  WORKSPACE="$1"
+fi
+
 LIBS_DIR=./libs/
 mkdir -p $LIBS_DIR >/dev/null 2>&1
 
-for lib_path in workspace/*/build/libs; do
+for lib_path in $WORKSPACE/*/build/libs; do
     echo "saving libs in $lib_path"
     cp $lib_path/*.jar $LIBS_DIR/
 done

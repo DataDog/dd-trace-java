@@ -18,9 +18,10 @@ gradleEnterprise {
 
 // Don't pollute the dependency cache with the build cache
 if (isCI) {
+  def workspaceDest = System.getProperty("datadog.workspace", "workspace")
   buildCache {
     local {
-      directory = "$rootDir/workspace/build-cache"
+      directory = "$rootDir/$workspaceDest/build-cache"
     }
   }
 }
