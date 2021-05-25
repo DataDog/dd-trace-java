@@ -28,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
@@ -185,6 +186,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     return null;
   }
 
+  private static final Pattern SPACE_PATTERN = Pattern.compile(" ");
+
   private CommitInfo parseCommit(
       final String gitFolder, final String sha, final GitObject gitObject)
       throws IOException, DataFormatException {
@@ -203,7 +206,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
 
       // Here, objectSha = "object $sha1". E.g: "object 44c242675ddf69b7b1f440b4a5d8d24e908d8bef"
       // Split by " " and get the sha in the second position of the array
-      final String[] objectShaChunks = objectSha.split(" ");
+      final String[] objectShaChunks = SPACE_PATTERN.split(objectSha);
       if (objectShaChunks.length < 2) {
         return CommitInfo.NOOP;
       }
@@ -245,7 +248,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       // ((byte)32)
       // metadata[0] contains the type (e.g. commit)
       // metadata[1] contains the size (e.g. 261)
-      final String[] metadata = new String(metadataBytes).split(" ");
+      final String[] metadata = SPACE_PATTERN.split(new String(metadataBytes));
       if (metadata.length != 2) {
         // Unexpected metadata format.
         return GitObject.NOOP;

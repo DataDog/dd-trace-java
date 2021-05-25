@@ -10,21 +10,23 @@ import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.net.URI;
+import java.util.regex.Pattern;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
 
+  private static final Pattern REQUEST_PATTERN = Pattern.compile("Request", Pattern.LITERAL);
+  private static final Pattern AMAZON_PATTERN = Pattern.compile("Amazon", Pattern.LITERAL);
+
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
 
-  @SuppressForbidden
   private final QualifiedClassNameCache cache =
       new QualifiedClassNameCache(
           new Function<Class<?>, CharSequence>() {
             @Override
             public String apply(Class<?> input) {
-              return input.getSimpleName().replace("Request", "");
+              return REQUEST_PATTERN.matcher(input.getSimpleName()).replaceAll("");
             }
           },
           Functions.SuffixJoin.of(
@@ -32,7 +34,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
               new Function<CharSequence, CharSequence>() {
                 @Override
                 public CharSequence apply(CharSequence serviceName) {
-                  return String.valueOf(serviceName).replace("Amazon", "").trim();
+                  return AMAZON_PATTERN.matcher(String.valueOf(serviceName)).replaceAll("").trim();
                 }
               }));
 
