@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
@@ -14,6 +15,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.NewTaskForPlaceholder;
+import datadog.trace.context.TraceScope;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Executor;
 import java.util.concurrent.FutureTask;
@@ -82,7 +84,10 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
       if (task instanceof RunnableFuture || null == task || exclude(RUNNABLE, task)) {
         // no wrapping required
       } else if (task instanceof Comparable) {
-        task = new ComparableRunnable(task);
+        TraceScope scope = activeScope();
+        if (null != scope) {
+          task = new ComparableRunnable(task, scope.capture());
+        }
       } else {
         task = NewTaskForPlaceholder.newTaskFor(executor, task, null);
       }
@@ -106,7 +111,10 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
       if (task instanceof RunnableFuture || null == task || exclude(RUNNABLE, task)) {
         // no wrapping required
       } else if (task instanceof Comparable) {
-        task = new ComparableRunnable(task);
+        TraceScope scope = activeScope();
+        if (null != scope) {
+          task = new ComparableRunnable(task, scope.capture());
+        }
       } else {
         task = new FutureTask<>(task, null);
       }

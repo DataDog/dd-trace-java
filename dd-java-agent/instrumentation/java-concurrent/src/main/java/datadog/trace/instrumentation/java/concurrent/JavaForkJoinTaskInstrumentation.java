@@ -38,7 +38,7 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Tracing
     implements ExcludeFilterProvider {
 
   public JavaForkJoinTaskInstrumentation() {
-    super(AbstractExecutorInstrumentation.EXEC_NAME);
+    super("java_concurrent", "fjp");
   }
 
   @Override

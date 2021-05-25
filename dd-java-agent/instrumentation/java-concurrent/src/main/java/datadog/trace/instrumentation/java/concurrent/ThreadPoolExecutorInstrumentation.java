@@ -3,8 +3,6 @@ package datadog.trace.instrumentation.java.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
-import static datadog.trace.instrumentation.java.concurrent.AbstractExecutorInstrumentation.EXEC_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -12,14 +10,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -29,7 +25,7 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
     implements ExcludeFilterProvider {
 
   public ThreadPoolExecutorInstrumentation() {
-    super(EXEC_NAME);
+    super("java_concurrent", "tpe");
   }
 
   @Override
@@ -65,17 +61,9 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
   }
 
   public static final class Execute {
-    @SuppressWarnings({"rawtypes", "unchecked"})
     @Advice.OnMethodEnter
     public static void wrap(@Advice.Argument(readOnly = false, value = 0) Runnable task) {
-      if (task instanceof RunnableFuture || null == task || exclude(RUNNABLE, task)) {
-        return;
-      }
-      if (task instanceof Comparable) {
-        task = new ComparableRunnable(task);
-      } else {
-        task = new Wrapper<>(task);
-      }
+      task = Wrapper.wrap(task);
     }
   }
 
