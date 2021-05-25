@@ -1,0 +1,7 @@
+<!DOCTYPE data SYSTEM "sample.dtd" [
+	<!ENTITY bar SYSTEM "sample.txt">
+]>
+<data>
+	<name>&foo;</name>
+	<email>&bar;</email>
+</data>
