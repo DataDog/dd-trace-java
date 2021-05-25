@@ -15,7 +15,7 @@ def mainFilterFile = files("$rootDir/gradle/forbiddenApiFilters/main.txt")
 
 forbiddenApis {
   signaturesFiles = mainFilterFile
-  ignoreFailures = true
+  ignoreFailures = false
 }
 
 // disable forbiddenApis for all test tasks
