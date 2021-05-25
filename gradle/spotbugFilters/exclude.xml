@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <FindBugsFilter>
-  <!-- ignore any generated files -->
   <Match>
-    <Package name="example" />
+    <Package name="io.sqreen.testapp.sampleapp" />
   </Match>
 </FindBugsFilter>
