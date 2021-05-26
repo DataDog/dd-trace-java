@@ -7,6 +7,7 @@ muzzle {
     group = 'org.glassfish.main.extras'
     module = 'glassfish-embedded-all'
     versions = "[3.0,)"
+    skipVersions += "6.1.0" // missing dependencies
     assertInverse = true
   }
 }
@@ -27,5 +28,5 @@ dependencies {
   testImplementation deps.guava
   testImplementation group: 'org.glassfish.main.extras', name: 'glassfish-embedded-all', version: '4.0'
 
-  latestDepTestImplementation group: 'org.glassfish.main.extras', name: 'glassfish-embedded-all', version: '+'
+  latestDepTestImplementation group: 'org.glassfish.main.extras', name: 'glassfish-embedded-all', version: '5+'
 }
