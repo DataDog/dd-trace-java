@@ -32,6 +32,7 @@ final class JfrMBeanHelper {
   private static final Logger log = LoggerFactory.getLogger(JfrMBeanHelper.class);
 
   private static final Pattern WHITESPACE_SPLITTER = Pattern.compile("\\s+");
+  private static final Pattern HASHTAG_SPLITTER = Pattern.compile("#", Pattern.LITERAL);
   private static final String MC_BEAN_CLASS = "com.sun.management.MissionControl";
   private static final ObjectName MC_BEAN_NAME =
       getObjectName("com.sun.management:type=MissionControl");
@@ -281,7 +282,7 @@ final class JfrMBeanHelper {
       Map<String, Integer> typeIdMap = getEventIdKeyMap();
       Map<Integer, Map<String, String>> eventSettingsMap = new HashMap<>();
       for (Map.Entry<String, String> entry : settings.entrySet()) {
-        String[] nameAttr = entry.getKey().split("#");
+        String[] nameAttr = HASHTAG_SPLITTER.split(entry.getKey());
         String eventTypeName = JdkTypeIDs_Old.translateTo(nameAttr[0]);
         Integer typeId = typeIdMap.get(eventTypeName);
         if (typeId != null) {

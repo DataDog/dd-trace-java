@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -42,6 +43,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final String[] traceEndpoints;
   private final String[] metricsEndpoints = {V6_METRICS_ENDPOINT};
   private final boolean metricsEnabled;
+  private final AtomicLong discoveryCounter = new AtomicLong(0);
 
   private volatile String traceEndpoint;
   private volatile String metricsEndpoint;
@@ -65,6 +67,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   public void discover() {
+    long sequence = discoveryCounter.getAndIncrement();
     // 1. try to fetch info about the agent, if the endpoint is there
     // 2. try to parse the response, if it can be parsed, finish
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
@@ -75,7 +78,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
               .newCall(new Request.Builder().url(agentBaseUrl.resolve("info").url()).build())
               .execute()) {
         if (response.isSuccessful()) {
-          fallback = !processInfoResponse(response.body().string());
+          fallback = !processInfoResponse(sequence == 0, response.body().string());
         }
       } catch (Throwable error) {
         errorQueryingEndpoint("info", error);
@@ -116,14 +119,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   @SuppressWarnings("unchecked")
-  private boolean processInfoResponse(String response) {
+  private boolean processInfoResponse(boolean firstAttempt, String response) {
     try {
       Map<String, Object> map = RESPONSE_ADAPTER.fromJson(response);
       discoverStatsDPort(map);
       List<String> endpoints = ((List<String>) map.get("endpoints"));
       ListIterator<String> traceAgentSupportedEndpoints = endpoints.listIterator(endpoints.size());
       boolean traceEndpointFound = false;
-      boolean metricsEndpointFound = !metricsEnabled;
+      boolean metricsEndpointFound = !metricsEnabled || !firstAttempt;
       while ((!traceEndpointFound || !metricsEndpointFound)
           && traceAgentSupportedEndpoints.hasPrevious()) {
         String traceAgentSupportedEndpoint = traceAgentSupportedEndpoints.previous();
@@ -131,7 +134,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
             && traceAgentSupportedEndpoint.length() > 1) {
           traceAgentSupportedEndpoint = traceAgentSupportedEndpoint.substring(1);
         }
-        if (!metricsEndpointFound) {
+        if (firstAttempt && !metricsEndpointFound) {
           for (int i = metricsEndpoints.length - 1; i >= 0; --i) {
             if (metricsEndpoints[i].equalsIgnoreCase(traceAgentSupportedEndpoint)) {
               this.metricsEndpoint = traceAgentSupportedEndpoint;
@@ -179,7 +182,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return metricsEnabled && null != metricsEndpoint;
   }
 
-  public boolean supportsDropping() {
+  boolean supportsDropping() {
     return supportsDropping;
   }
 
