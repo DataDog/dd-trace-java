@@ -47,4 +47,5 @@ dependencies {
   api deps.slf4j
 
   testImplementation project(":utils:test-utils")
+  testImplementation("org.assertj:assertj-core:2.9.1")
 }
