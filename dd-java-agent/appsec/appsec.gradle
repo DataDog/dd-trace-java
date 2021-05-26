@@ -14,7 +14,7 @@ repositories {
 dependencies {
   compile deps.slf4j
   compile project(':internal-api')
-  compile group: 'io.sqreen', name: 'libsqreen', version: '1.1.2.2'
+  compile group: 'io.sqreen', name: 'libsqreen', version: '2.0'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
@@ -39,5 +39,27 @@ shadowJar {
 }
 
 jar {
-  classifier = 'unbundled'
+  archiveClassifier = 'unbundled'
+}
+
+task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
+  description = "Run AppSec sample app with instrumentation"
+  group = 'application'
+
+  def agentShadowJar = project(':dd-java-agent').tasks['shadowJar']
+
+  def jvmArgs = '-Ddd.appsec.beta=true'
+  if (project.hasProperty('jvmArgs')) {
+    jvmArgs += " ${project.'jvmArgs'}"
+  }
+
+  doFirst {
+    startParameter = startParameter.newInstance()
+    startParameter.projectProperties = [
+      testExecutable: System.getenv('TEST_EXECUTABLE') ?: '',
+      jvmArgs       : "-javaagent:${agentShadowJar.archiveFile.get().asFile} $jvmArgs",
+      debugJvm      : project.hasProperty('debugJvm') ? project.debugJvm : 'false',
+    ]
+  }
+  tasks = ['weblog:weblog-spring-app:bootRun']
 }
