@@ -2,8 +2,14 @@ package datadog.trace.bootstrap.instrumentation.ci.git;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.regex.Pattern;
 
 public class GitUtils {
+
+  private static final Pattern ORIGIN_PATTERN = Pattern.compile("origin/", Pattern.LITERAL);
+  private static final Pattern REFS_HEADS_PATTERN = Pattern.compile("refs/heads/", Pattern.LITERAL);
+  private static final Pattern REFS_TAGS_PATTERN = Pattern.compile("refs/tags/", Pattern.LITERAL);
+  private static final Pattern TAGS_PATTERN = Pattern.compile("tags/", Pattern.LITERAL);
 
   /**
    * Normalizes the Git references origin/my-branch -> my-branch refs/heads/my-branch -> my-branch
@@ -19,15 +25,15 @@ public class GitUtils {
 
     String ref = rawRef;
     if (ref.startsWith("origin")) {
-      ref = ref.replace("origin/", "");
+      ref = ORIGIN_PATTERN.matcher(ref).replaceAll("");
     } else if (ref.startsWith("refs/heads")) {
-      ref = ref.replace("refs/heads/", "");
+      ref = REFS_HEADS_PATTERN.matcher(ref).replaceAll("");
     }
 
     if (ref.startsWith("refs/tags")) {
-      return ref.replace("refs/tags/", "");
+      return REFS_TAGS_PATTERN.matcher(ref).replaceAll("");
     } else if (ref.startsWith("tags")) {
-      return ref.replace("tags/", "");
+      return TAGS_PATTERN.matcher(ref).replaceAll("");
     }
 
     return ref;
@@ -48,7 +54,7 @@ public class GitUtils {
     try {
       final URI url = new URI(urlStr);
       final String userInfo = url.getRawUserInfo();
-      return urlStr.replace(userInfo + "@", "");
+      return Pattern.compile(userInfo + "@", Pattern.LITERAL).matcher(urlStr).replaceAll("");
     } catch (final URISyntaxException ex) {
       return urlStr;
     }

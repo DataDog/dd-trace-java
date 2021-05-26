@@ -58,7 +58,6 @@ class BaseDecoratorTest extends DDSpecification {
 
     then:
     if (error) {
-      1 * span.setError(true)
       1 * span.addThrowable(error)
     }
     0 * _

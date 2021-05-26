@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
@@ -45,6 +46,7 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
   static final String SERVER_TRANSACTION_CLASSNAME = "com.vordel.dwe.http.ServerTransaction";
   static final Class<Object> SERVER_TRANSACTION_CLASS = getServerTransactionClass();
 
+  @SuppressForbidden
   private static Class<Object> getServerTransactionClass() {
     try {
       return (Class<Object>) Class.forName(SERVER_TRANSACTION_CLASSNAME);
