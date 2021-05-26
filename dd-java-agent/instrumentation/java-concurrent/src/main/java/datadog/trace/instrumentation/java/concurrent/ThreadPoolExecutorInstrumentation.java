@@ -23,6 +23,7 @@ import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracing
@@ -34,7 +35,9 @@ public final class ThreadPoolExecutorInstrumentation extends Instrumenter.Tracin
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return extendsClass(named("java.util.concurrent.ThreadPoolExecutor"));
+    return ElementMatchers.<TypeDescription>not(
+            named("java.util.concurrent.ScheduledThreadPoolExecutor"))
+        .and(extendsClass(named("java.util.concurrent.ThreadPoolExecutor")));
   }
 
   @Override
