@@ -42,7 +42,7 @@ dependencies {
   compile deps.slf4j
   compile deps.okhttp
 
-  compile group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'
+  compileOnly group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'
   compile group: 'com.github.jnr', name: 'jnr-unixsocket', version: "${versions.jnr_unixsocket}"
   compile group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
 

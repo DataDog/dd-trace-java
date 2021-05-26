@@ -8,6 +8,7 @@ dependencies {
     exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
     exclude group: 'org.apache.logging.log4j', module: 'log4j-core'
     exclude group: 'org.slf4j', module: 'slf4j-api'
+    exclude group: 'org.yaml', module: 'snakeyaml'
   }
   compile deps.slf4j
   compile project(':internal-api')

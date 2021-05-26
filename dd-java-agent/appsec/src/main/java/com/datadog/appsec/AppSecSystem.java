@@ -1,16 +1,17 @@
 package com.datadog.appsec;
 
 import com.datadog.appsec.config.AppSecConfig;
-import com.datadog.appsec.config.ConfigFactory;
+import com.datadog.appsec.config.AppSecConfigFactory;
 import datadog.trace.api.Config;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AppSecSystem {
 
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
+
+  private AppSecSystem() {}
 
   public static void start() {
     Config config = Config.get();
@@ -22,12 +23,13 @@ public class AppSecSystem {
 
     try {
       // Read config from yaml file
-      AppSecConfig appSecConf = ConfigFactory.fromYamlFile(new File(config.getAppSecConfigFile()));
+      AppSecConfig appSecConfig =
+          AppSecConfigFactory.fromYamlFile(new File(config.getAppSecConfigFile()));
 
       // Convert config to legacy json
-      String json = ConfigFactory.toLegacyFormat(appSecConf);
-      log.info("Legacy AppSec Config: {}", json);
-    } catch (IOException e) {
+      String json = AppSecConfigFactory.toLegacyFormat(appSecConfig);
+
+    } catch (FileNotFoundException e) {
       e.printStackTrace();
     }
   }

@@ -15,7 +15,8 @@ dependencies {
   compile deps.slf4j
   compile project(':internal-api')
   compile group: 'io.sqreen', name: 'libsqreen', version: '1.1.2.2'
-  compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: '2.12.3'
+  compileOnly group: 'org.yaml', name: 'snakeyaml', version: '1.28'
+  compileOnly group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
