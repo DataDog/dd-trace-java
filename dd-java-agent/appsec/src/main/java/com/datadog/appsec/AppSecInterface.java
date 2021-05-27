@@ -9,10 +9,10 @@ public class AppSecInterface {
 
   @SuppressWarnings("rawtypes")
   public void subscribeCallback(Callback cb) {
-    Collection<Address> addresses = cb.getRequiredAddresses();
+    Set<Address> addresses = cb.getRequiredAddresses();
     if (addresses != null) {
       addresses.forEach(addr -> {
-        Collection<Callback> callbacks = subscriptions.computeIfAbsent(addr, k -> new LinkedHashSet<>());
+        Set<Callback> callbacks = subscriptions.computeIfAbsent(addr, k -> new LinkedHashSet<>());
         callbacks.add(cb);
       });
     }
@@ -20,7 +20,7 @@ public class AppSecInterface {
 
   public void unsubscribeCallback(Callback cb) {
     cb.getRequiredAddresses().forEach(addr -> {
-      Collection<Callback> callbacks = subscriptions.get(addr);
+      Set<Callback> callbacks = subscriptions.get(addr);
       if (callbacks != null) {
         callbacks.remove(cb);
         // If no more callbacks left - remove address
