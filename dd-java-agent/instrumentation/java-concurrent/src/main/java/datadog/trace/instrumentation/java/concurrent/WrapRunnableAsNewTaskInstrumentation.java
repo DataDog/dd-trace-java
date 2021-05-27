@@ -12,11 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.NewTaskForPlaceholder;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Executor;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -44,7 +43,9 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
         "java.util.concurrent.AbstractExecutorService",
         "java.util.concurrent.CompletableFuture$ThreadPerTaskExecutor",
         "java.util.concurrent.SubmissionPublisher$ThreadPerTaskExecutor",
-        "org.glassfish.grizzly.threadpool.GrizzlyExecutorService");
+        "org.glassfish.grizzly.threadpool.GrizzlyExecutorService",
+        "org.eclipse.jetty.util.thread.QueuedThreadPool",
+        "org.eclipse.jetty.util.thread.ReservedThreadExecutor");
   }
 
   @Override
@@ -82,7 +83,7 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
       if (task instanceof RunnableFuture || null == task || exclude(RUNNABLE, task)) {
         // no wrapping required
       } else if (task instanceof Comparable) {
-        task = new ComparableRunnable(task);
+        task = Wrapper.wrap(task);
       } else {
         task = NewTaskForPlaceholder.newTaskFor(executor, task, null);
       }
@@ -96,26 +97,22 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
     }
   }
 
-  /** More general wrapper that uses {@link FutureTask} instead of calling 'newTaskFor'. */
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  /** More general wrapper that uses {@link Wrapper} instead of calling 'newTaskFor'. */
+  @SuppressWarnings("rawtypes")
   public static final class Wrap {
     @Advice.OnMethodEnter
-    public static void execute(
-        @Advice.This Executor executor,
-        @Advice.Argument(value = 0, readOnly = false) Runnable task) {
-      if (task instanceof RunnableFuture || null == task || exclude(RUNNABLE, task)) {
-        // no wrapping required
-      } else if (task instanceof Comparable) {
-        task = new ComparableRunnable(task);
-      } else {
-        task = new FutureTask<>(task, null);
-      }
+    public static void execute(@Advice.Argument(value = 0, readOnly = false) Runnable task) {
+      task = Wrapper.wrap(task);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void cancel(@Advice.Argument(0) Runnable task, @Advice.Thrown Throwable error) {
-      if (null != error && task instanceof RunnableFuture) {
-        ((RunnableFuture) task).cancel(true);
+      if (null != error) {
+        if (task instanceof RunnableFuture) {
+          ((RunnableFuture) task).cancel(true);
+        } else if (task instanceof Wrapper) {
+          ((Wrapper) task).cancel();
+        }
       }
     }
   }

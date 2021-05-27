@@ -42,9 +42,7 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Traci
         "kotlinx.coroutines.scheduling.CoroutineScheduler",
         "play.api.libs.streams.Execution$trampoline$",
         "scala.concurrent.Future$InternalCallbackExecutor$",
-        "scala.concurrent.impl.ExecutionContextImpl",
-        "org.eclipse.jetty.util.thread.QueuedThreadPool",
-        "org.eclipse.jetty.util.thread.ReservedThreadExecutor"
+        "scala.concurrent.impl.ExecutionContextImpl"
       };
 
       final Set<String> executors = new HashSet<>(Config.get().getTraceExecutors());
