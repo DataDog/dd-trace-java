@@ -42,7 +42,6 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
         "io.netty.util.concurrent.SingleThreadEventExecutor",
         "java.util.concurrent.AbstractExecutorService",
         "java.util.concurrent.CompletableFuture$ThreadPerTaskExecutor",
-        "java.util.concurrent.SubmissionPublisher$ThreadPerTaskExecutor",
         "org.glassfish.grizzly.threadpool.GrizzlyExecutorService",
         "org.eclipse.jetty.util.thread.QueuedThreadPool",
         "org.eclipse.jetty.util.thread.ReservedThreadExecutor");
