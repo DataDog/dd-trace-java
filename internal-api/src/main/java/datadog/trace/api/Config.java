@@ -119,6 +119,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_ROUTE_BASED_NAMING;
@@ -381,6 +382,7 @@ public class Config {
   private final String jdbcConnectionClassName;
 
   private final Set<String> grpcIgnoredOutboundMethods;
+  private final boolean grpcServerTrimPackageResource;
 
   private String env;
   private String version;
@@ -741,6 +743,8 @@ public class Config {
 
     grpcIgnoredOutboundMethods =
         tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
+    grpcServerTrimPackageResource =
+        configProvider.getBoolean(GRPC_SERVER_TRIM_PACKAGE_RESOURCE, false);
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
@@ -1191,6 +1195,10 @@ public class Config {
 
   public Set<String> getGrpcIgnoredOutboundMethods() {
     return grpcIgnoredOutboundMethods;
+  }
+
+  public boolean isGrpcServerTrimPackageResource() {
+    return grpcServerTrimPackageResource;
   }
 
   /** @return A map of tags to be applied only to the local application root span. */

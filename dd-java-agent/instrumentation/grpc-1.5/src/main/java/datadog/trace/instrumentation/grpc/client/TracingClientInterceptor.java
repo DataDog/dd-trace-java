@@ -37,9 +37,9 @@ public class TracingClientInterceptor implements ClientInterceptor {
     }
 
     final AgentSpan span = startSpan(GRPC_CLIENT).setMeasured(true);
-    span.setResourceName(method.getFullMethodName());
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
+      DECORATE.onCall(span, method);
 
       final ClientCall<ReqT, RespT> result;
       try {

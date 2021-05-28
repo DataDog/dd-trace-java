@@ -33,8 +33,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     final Context spanContext = propagate().extract(headers, GETTER);
     final AgentSpan span = startSpan(GRPC_SERVER, spanContext).setMeasured(true);
-    span.setResourceName(call.getMethodDescriptor().getFullMethodName());
     DECORATE.afterStart(span);
+    DECORATE.onCall(span, call);
 
     final ServerCall.Listener<ReqT> result;
     try (AgentScope scope = activateSpan(span)) {

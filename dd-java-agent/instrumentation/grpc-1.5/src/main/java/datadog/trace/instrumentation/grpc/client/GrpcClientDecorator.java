@@ -4,6 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
+import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 
 public class GrpcClientDecorator extends ClientDecorator {
@@ -30,6 +31,12 @@ public class GrpcClientDecorator extends ClientDecorator {
   @Override
   protected String service() {
     return null;
+  }
+
+  public <RespT, ReqT> AgentSpan onCall(
+      final AgentSpan span, final MethodDescriptor<ReqT, RespT> method) {
+    span.setResourceName(method.getFullMethodName());
+    return span;
   }
 
   public AgentSpan onClose(final AgentSpan span, final Status status) {
