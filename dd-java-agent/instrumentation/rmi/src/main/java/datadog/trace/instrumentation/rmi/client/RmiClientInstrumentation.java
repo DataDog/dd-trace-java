@@ -5,22 +5,30 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.rmi.RmiClientDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.rmi.RmiClientDecorator.RMI_INVOKE;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class RmiClientInstrumentation extends Instrumenter.Tracing {
+public final class RmiClientInstrumentation extends Instrumenter.Tracing
+    implements ExcludeFilterProvider {
 
   public RmiClientInstrumentation() {
     super("rmi", "rmi-client");
@@ -29,6 +37,12 @@ public final class RmiClientInstrumentation extends Instrumenter.Tracing {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return extendsClass(named("sun.rmi.server.UnicastRef"));
+  }
+
+  @Override
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+    return singletonMap(
+        RUNNABLE, Arrays.asList("sun.rmi.transport.tcp.TCPTransport$ConnectionHandler"));
   }
 
   @Override
