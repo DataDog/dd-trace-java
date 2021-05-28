@@ -11,9 +11,13 @@ public class AppSecInterface {
   public void subscribeCallback(Callback cb) {
     Set<Address> addresses = cb.getRequiredAddresses();
     if (addresses != null) {
+      int addressCount = subscriptions.size();
       addresses.forEach(addr -> {
         Set<Callback> callbacks = subscriptions.computeIfAbsent(addr, k -> new LinkedHashSet<>());
         callbacks.add(cb);
+        if (addressCount != subscriptions.size()) {
+          // Resubscribe to Instrumentation Gateway to update list of expected addresses
+        }
       });
     }
   }
@@ -26,6 +30,7 @@ public class AppSecInterface {
         // If no more callbacks left - remove address
         if (callbacks.isEmpty()) {
           subscriptions.remove(addr);
+          // Resubscribe to Instrumentation Gateway to update list of expected addresses
         }
       }
     });
