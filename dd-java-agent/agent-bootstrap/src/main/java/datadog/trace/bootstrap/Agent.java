@@ -15,6 +15,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
+import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
@@ -110,9 +111,12 @@ public class Agent {
     AgentTaskScheduler.initialize();
     startDatadogAgent(inst, bootstrapURL);
 
+    // TODO: must be passed to other parts as well
+    InstrumentationGateway gw = new InstrumentationGateway();
+
     if (isAppSecEnabled()) {
       if (isJavaVersionAtLeast(8)) {
-        startAppSec(bootstrapURL);
+        startAppSec(gw, bootstrapURL);
       } else {
         log.debug("AppSec System requires Java 8 or later to run");
       }
@@ -473,7 +477,7 @@ public class Agent {
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
   }
 
-  private static void startAppSec(final URL bootstrapURL) {
+  private static void startAppSec(InstrumentationGateway gw, final URL bootstrapURL) {
     if (APPSEC_CLASSLOADER == null) {
       try {
         final ClassLoader appSecClassLoader =
@@ -482,7 +486,7 @@ public class Agent {
         final Class<?> appSecSysClass =
             appSecClassLoader.loadClass("com.datadog.appsec.AppSecSystem");
         final Method appSecInstallerMethod = appSecSysClass.getMethod("start");
-        appSecInstallerMethod.invoke(null);
+        appSecInstallerMethod.invoke(null, gw);
         APPSEC_CLASSLOADER = appSecClassLoader;
       } catch (final Throwable ex) {
         log.error("Throwable thrown while starting the AppSec Agent", ex);

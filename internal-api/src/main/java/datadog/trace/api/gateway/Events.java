@@ -12,20 +12,20 @@ public final class Events {
       new ET<>("request.started");
 
   /** A request ended * */
-  public static final EventType<Function<RequestContext, Flow<Void>>> REQUEST_ENDED =
+  public static final EventType<Function<? extends RequestContext, Flow<Void>>> REQUEST_ENDED =
       new ET<>("request.ended");
 
   /** A request header as a key and values separated by , */
-  public static final EventType<TriConsumer<RequestContext, String, String>> REQUEST_HEADER =
-      new ET<>("server.request.header");
+  public static final EventType<TriConsumer<? extends RequestContext, String, String>>
+      REQUEST_HEADER = new ET<>("server.request.header");
 
   /** All request headers have been provided */
-  public static final EventType<Function<RequestContext, Flow<Void>>> REQUEST_HEADER_DONE =
-      new ET<>("server.request.header.done");
+  public static final EventType<Function<? extends RequestContext, Flow<Void>>>
+      REQUEST_HEADER_DONE = new ET<>("server.request.header.done");
 
   /** The unparsed request uri, incl. the query string. */
-  public static final EventType<BiFunction<RequestContext, String, Flow<Void>>> REQUEST_URI_RAW =
-      new ET<>("server.request.uri.raw");
+  public static final EventType<BiFunction<? extends RequestContext, String, Flow<Void>>>
+      REQUEST_URI_RAW = new ET<>("server.request.uri.raw");
 
   public static final int MAX_EVENTS = nextId.get();
 
