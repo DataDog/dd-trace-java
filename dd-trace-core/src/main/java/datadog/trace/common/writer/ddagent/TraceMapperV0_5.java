@@ -185,6 +185,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
           metadata.getBaggage().size()
               + metadata.getTags().size()
               + (null == metadata.getHttpStatusCode() ? 0 : 1)
+              + (null == metadata.getOrigin() ? 0 : 1)
               + 1;
       int metricsSize =
           (metadata.hasSamplingPriority() ? 1 : 0)
@@ -210,6 +211,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
       if (null != metadata.getHttpStatusCode()) {
         writeDictionaryEncoded(writable, HTTP_STATUS);
         writeDictionaryEncoded(writable, metadata.getHttpStatusCode());
+      }
+      if (null != metadata.getOrigin()) {
+        writeDictionaryEncoded(writable, ORIGIN_KEY);
+        writeDictionaryEncoded(writable, metadata.getOrigin());
       }
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
         if (!(entry.getValue() instanceof Number)) {

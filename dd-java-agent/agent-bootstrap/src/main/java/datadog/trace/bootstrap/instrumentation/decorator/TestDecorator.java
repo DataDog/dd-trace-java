@@ -1,9 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.ci.CIProviderInfo;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -21,6 +23,7 @@ public abstract class TestDecorator extends BaseDecorator {
   public static final String TEST_PASS = "pass";
   public static final String TEST_FAIL = "fail";
   public static final String TEST_SKIP = "skip";
+  public static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
 
   private final boolean isCI;
   private final Map<String, String> ciTags;
@@ -76,6 +79,10 @@ public abstract class TestDecorator extends BaseDecorator {
     return System.getProperty("os.version");
   }
 
+  protected UTF8BytesString origin() {
+    return CIAPP_TEST_ORIGIN;
+  }
+
   @Override
   protected CharSequence spanType() {
     return DDSpanTypes.TEST;
@@ -93,6 +100,7 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(Tags.OS_ARCHITECTURE, osArch());
     span.setTag(Tags.OS_PLATFORM, osPlatform());
     span.setTag(Tags.OS_VERSION, osVersion());
+    span.setTag(DDTags.ORIGIN_KEY, CIAPP_TEST_ORIGIN);
 
     for (final Map.Entry<String, String> ciTag : ciTags.entrySet()) {
       span.setTag(ciTag.getKey(), ciTag.getValue());
