@@ -1390,8 +1390,9 @@ public class Config {
     return isEnabled(Arrays.asList(integrationNames), "", ".analytics.enabled", defaultEnabled);
   }
 
-  public <T extends Enum<T>> T getEnumValue(String name, Class<T> type, T defaultValue) {
-    return configProvider.getEnum(PREFIX + name, type, defaultValue);
+  public <T extends Enum<T>> T getEnumValue(
+      final String name, final Class<T> type, final T defaultValue) {
+    return configProvider.getEnum(name, type, defaultValue);
   }
 
   private static boolean isDebugMode() {
