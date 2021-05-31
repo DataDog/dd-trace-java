@@ -10,13 +10,13 @@ class CircleCIInfo extends CIProviderInfo {
   public static final String CIRCLECI_PROVIDER_NAME = "circleci";
   public static final String CIRCLECI_PIPELINE_ID = "CIRCLE_WORKFLOW_ID";
   public static final String CIRCLECI_PIPELINE_NAME = "CIRCLE_PROJECT_REPONAME";
-  public static final String CIRCLECI_PIPELINE_NUMBER = "CIRCLE_BUILD_NUM";
   public static final String CIRCLECI_BUILD_URL = "CIRCLE_BUILD_URL";
   public static final String CIRCLECI_WORKSPACE_PATH = "CIRCLE_WORKING_DIRECTORY";
   public static final String CIRCLECI_GIT_REPOSITORY_URL = "CIRCLE_REPOSITORY_URL";
   public static final String CIRCLECI_GIT_COMMIT = "CIRCLE_SHA1";
   public static final String CIRCLECI_GIT_BRANCH = "CIRCLE_BRANCH";
   public static final String CIRCLECI_GIT_TAG = "CIRCLE_TAG";
+  public static final String CIRCLECI_JOB_NAME = "CIRCLE_JOB";
 
   @Override
   protected GitInfo buildCIGitInfo() {
@@ -30,12 +30,13 @@ class CircleCIInfo extends CIProviderInfo {
 
   @Override
   protected CIInfo buildCIInfo() {
+    final String pipelineId = System.getenv(CIRCLECI_PIPELINE_ID);
     return CIInfo.builder()
         .ciProviderName(CIRCLECI_PROVIDER_NAME)
-        .ciPipelineId(System.getenv(CIRCLECI_PIPELINE_ID))
+        .ciPipelineId(pipelineId)
         .ciPipelineName(System.getenv(CIRCLECI_PIPELINE_NAME))
-        .ciPipelineNumber(System.getenv(CIRCLECI_PIPELINE_NUMBER))
-        .ciPipelineUrl(System.getenv(CIRCLECI_BUILD_URL))
+        .ciPipelineUrl(buildPipelineUrl(pipelineId))
+        .ciJobName(System.getenv(CIRCLECI_JOB_NAME))
         .ciJobUrl(System.getenv(CIRCLECI_BUILD_URL))
         .ciWorkspace(expandTilde(System.getenv(CIRCLECI_WORKSPACE_PATH)))
         .build();
@@ -47,5 +48,13 @@ class CircleCIInfo extends CIProviderInfo {
     }
 
     return normalizeRef(System.getenv(CIRCLECI_GIT_BRANCH));
+  }
+
+  private String buildPipelineUrl(final String pipelineId) {
+    if (pipelineId == null) {
+      return null;
+    }
+
+    return String.format("https://app.circle.com/pipelines/workflows/%s", pipelineId);
   }
 }
