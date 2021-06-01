@@ -39,7 +39,8 @@ save_cache_paths: &save_cache_paths
 
 test_matrix: &test_matrix
   parameters:
-    testTask: [ "7", "IBM8", "ZULU8","ORACLE8", "11", "ZULU11", "ZULU13", "15" ]
+    # "8" is the default and defined independently
+    testTask: [ "7", "11", "15", "16", "IBM8", "ZULU8","ORACLE8", "ZULU11", "ZULU13" ]
 
 parameters:
   gradle_flags:
