@@ -48,11 +48,13 @@ public final class AgentBootstrap {
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     try {
-
       final URL bootstrapURL = installBootstrapJar(inst);
 
       final Class<?> agentClass =
           ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
+      if (agentClass.getClassLoader() != null) {
+        throw new Exception("DD Java Agent NOT added to bootstrap classpath.");
+      }
       final Method startMethod = agentClass.getMethod("start", Instrumentation.class, URL.class);
       startMethod.invoke(null, inst, bootstrapURL);
     } catch (final Throwable ex) {
