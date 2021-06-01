@@ -6,8 +6,14 @@ public interface Flow<T> {
   T getResult();
 
   interface Action {
+    boolean isBlocking();
+
     enum Noop implements Action {
       INSTANCE;
+
+      public boolean isBlocking() {
+        return false;
+      }
     }
 
     final class Throw implements Action {
@@ -15,6 +21,10 @@ public interface Flow<T> {
 
       public Throw(Exception exception) {
         this.exception = exception;
+      }
+
+      public boolean isBlocking() {
+        return true;
       }
 
       public Exception getBlockingException() {
@@ -27,6 +37,10 @@ public interface Flow<T> {
 
       public ForcedReturnValue(Object retVal) {
         this.retVal = retVal;
+      }
+
+      public boolean isBlocking() {
+        return true;
       }
 
       public Object getRetVal() {
@@ -43,6 +57,11 @@ public interface Flow<T> {
 
       public Object[] getNewArguments() {
         return newArguments;
+      }
+
+      @Override
+      public boolean isBlocking() {
+        return true;
       }
     }
   }

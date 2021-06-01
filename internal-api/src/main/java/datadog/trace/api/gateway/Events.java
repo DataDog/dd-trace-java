@@ -8,7 +8,7 @@ public final class Events {
   private static final AtomicInteger nextId = new AtomicInteger(0);
 
   /** A request started * */
-  public static final EventType<Supplier<Flow<RequestContext>>> REQUEST_STARTED =
+  public static final EventType<Supplier<Flow<? extends RequestContext>>> REQUEST_STARTED =
       new ET<>("request.started");
 
   /** A request ended * */

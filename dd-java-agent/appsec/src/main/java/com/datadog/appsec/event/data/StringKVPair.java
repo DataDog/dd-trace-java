@@ -35,8 +35,8 @@ public class StringKVPair implements List<String> {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    StringKVPair cookie = (StringKVPair) o;
-    return Objects.equals(key, cookie.key) && Objects.equals(value, cookie.value);
+    StringKVPair otherPair = (StringKVPair) o;
+    return Objects.equals(key, otherPair.key) && Objects.equals(value, otherPair.value);
   }
 
   @Override
@@ -185,20 +185,20 @@ public class StringKVPair implements List<String> {
       throw new IndexOutOfBoundsException();
     }
     return new ListIterator<String>() {
-      private int pos = index;
+      private int nextPos = index;
 
       @Override
       public boolean hasNext() {
-        return pos < 2;
+        return nextPos < 2;
       }
 
       @Override
       public String next() {
-        if (pos == 0) {
-          pos++;
+        if (nextPos == 0) {
+          nextPos++;
           return key;
-        } else if (pos == 1) {
-          pos++;
+        } else if (nextPos == 1) {
+          nextPos++;
           return value;
         } else {
           throw new NoSuchElementException();
@@ -207,16 +207,13 @@ public class StringKVPair implements List<String> {
 
       @Override
       public boolean hasPrevious() {
-        return pos > 0;
+        return nextPos > 0;
       }
 
       @Override
       public String previous() {
-        if (pos == 2) {
-          pos--;
-          return value;
-        } else if (pos == 1) {
-          pos--;
+        if (nextPos == 2) {
+          nextPos--;
           return key;
         } else {
           throw new NoSuchElementException();
@@ -225,12 +222,12 @@ public class StringKVPair implements List<String> {
 
       @Override
       public int nextIndex() {
-        return pos;
+        return nextPos;
       }
 
       @Override
       public int previousIndex() {
-        return pos - 1;
+        return nextPos - 1;
       }
 
       @Override

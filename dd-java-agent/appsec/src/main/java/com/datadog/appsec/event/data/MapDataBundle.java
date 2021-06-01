@@ -2,7 +2,7 @@ package com.datadog.appsec.event.data;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -13,12 +13,16 @@ public class MapDataBundle implements DataBundle {
     this.map = map;
   }
 
+  public static <T> MapDataBundle ofDelegate(Map<Address<?>, Object> delegate) {
+    return new MapDataBundle(delegate);
+  }
+
   public static <T> MapDataBundle of(Address<T> addr, T value) {
     return new MapDataBundle(Collections.singletonMap(addr, value));
   }
 
   public static <T, U> MapDataBundle of(Address<T> addr1, T value1, Address<U> addr2, U value2) {
-    HashMap<Address<?>, Object> map = new HashMap<>();
+    Map<Address<?>, Object> map = new IdentityHashMap<>();
     map.put(addr1, value1);
     map.put(addr2, value2);
     return new MapDataBundle(map);
@@ -26,7 +30,7 @@ public class MapDataBundle implements DataBundle {
 
   public static <T, U, V> MapDataBundle of(
       Address<T> addr1, T value1, Address<U> addr2, U value2, Address<V> addr3, V value3) {
-    HashMap<Address<?>, Object> map = new HashMap<>();
+    Map<Address<?>, Object> map = new IdentityHashMap<>();
     map.put(addr1, value1);
     map.put(addr2, value2);
     map.put(addr3, value3);
@@ -42,7 +46,7 @@ public class MapDataBundle implements DataBundle {
       V value3,
       Address<W> addr4,
       W value4) {
-    HashMap<Address<?>, Object> map = new HashMap<>();
+    Map<Address<?>, Object> map = new IdentityHashMap<>();
     map.put(addr1, value1);
     map.put(addr2, value2);
     map.put(addr3, value3);

@@ -1,11 +1,11 @@
-package com.datadog.appsec;
+package com.datadog.appsec.gateway;
 
+import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.CaseInsensitiveMap;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
 import java.io.Closeable;
-import java.net.HttpCookie;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -15,6 +15,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// TODO: different methods to be called by different parts perhaps splitting it would make sense
+// or at least create separate interfaces
 public class AppSecRequestContext
     implements DataBundle, datadog.trace.api.gateway.RequestContext, Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(AppSecSystem.class);
@@ -22,9 +24,10 @@ public class AppSecRequestContext
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
 
   private String savedRawURI;
-  private CaseInsensitiveMap<List<String>> collectedHeaders;
-  private List<HttpCookie> collectedCookies;
+  private CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
+  private List<StringKVPair> collectedCookies = new ArrayList<StringKVPair>(4);
 
+  // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
     for (Map.Entry<Address<?>, Object> entry : newData) {
       Object prev = persistentData.putIfAbsent(entry.getKey(), entry.getValue());
@@ -33,6 +36,8 @@ public class AppSecRequestContext
       }
     }
   }
+
+  /* Implementation of DataBundle */
 
   @Override
   public boolean hasAddress(Address<?> addr) {
@@ -59,11 +64,16 @@ public class AppSecRequestContext
     return persistentData.entrySet().iterator();
   }
 
-  public String getSavedRawURI() {
+  /* Interface for use of GatewayBridge */
+
+  String getSavedRawURI() {
+    if (collectedHeaders == null) {
+      throw new IllegalStateException("Headers finished, collection not possible anymore");
+    }
     return savedRawURI;
   }
 
-  public void setRawURI(String savedRawURI) {
+  void setRawURI(String savedRawURI) {
     if (collectedHeaders == null) {
       LOG.warn("Saw raw URI after headers have finished");
       return;
@@ -71,7 +81,7 @@ public class AppSecRequestContext
     this.savedRawURI = savedRawURI;
   }
 
-  public void addHeader(String name, String value) {
+  void addHeader(String name, String value) {
     if (collectedHeaders == null) {
       LOG.warn("Header provided after headers ended");
       return;
@@ -84,7 +94,7 @@ public class AppSecRequestContext
     strings.add(value);
   }
 
-  public void addCookie(HttpCookie cookie) {
+  void addCookie(StringKVPair cookie) {
     if (collectedCookies == null) {
       LOG.warn("Cookie provided after headers ended");
       return;
@@ -92,22 +102,24 @@ public class AppSecRequestContext
     collectedCookies.add(cookie);
   }
 
-  public void finishHeaders() {
+  void finishHeaders() {
     this.savedRawURI = null;
     this.collectedHeaders = null;
     this.collectedCookies = null;
   }
 
-  public CaseInsensitiveMap<List<String>> getCollectedHeaders() {
+  CaseInsensitiveMap<List<String>> getCollectedHeaders() {
+    if (collectedHeaders == null) {
+      throw new IllegalStateException("Headers finished, collection not possible anymore");
+    }
     return collectedHeaders;
   }
 
-  public List<StringKVPair> getCollectedCookies() {
-    ArrayList<StringKVPair> cookies = new ArrayList<>(collectedCookies.size());
-    for (HttpCookie collectedCookie : collectedCookies) {
-      cookies.add(new StringKVPair(collectedCookie.getName(), collectedCookie.getValue()));
+  List<StringKVPair> getCollectedCookies() {
+    if (collectedCookies == null) {
+      throw new IllegalStateException("Headers finished, collection not possible anymore");
     }
-    return cookies;
+    return collectedCookies;
   }
 
   @Override
