@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent
 
 import datadog.trace.api.DDId
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.FlushingBuffer
@@ -54,7 +55,8 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       Collections.emptyMap(),
       UUID.randomUUID().toString(),
       false,
-      0))
+      0,
+      null))
     int traceSize = calculateSize(repeatedTrace)
     // 30KB body
     int bufferSize = 30 << 10
@@ -202,6 +204,10 @@ class TraceMapperV05PayloadTest extends DDSpecification {
             for (Map.Entry<String, String> entry : meta.entrySet()) {
               if (Tags.HTTP_STATUS.equals(entry.getKey())) {
                 assertEquals(String.valueOf(expectedSpan.getHttpStatusCode()), entry.getValue())
+
+              } else if(DDTags.ORIGIN_KEY.equals(entry.getKey())) {
+                assertEquals(expectedSpan.getOrigin(), entry.getValue())
+
               } else {
                 Object tag = expectedSpan.getTag(entry.getKey())
                 if (null != tag) {

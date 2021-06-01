@@ -1,5 +1,6 @@
 package datadog.trace.common.writer.ddagent
 
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.FlushingBuffer
@@ -193,6 +194,8 @@ class TraceMapperV04PayloadTest extends DDSpecification {
             for (Map.Entry<String, String> entry : meta.entrySet()) {
               if (Tags.HTTP_STATUS.equals(entry.getKey())) {
                 assertEquals(String.valueOf(expectedSpan.getHttpStatusCode()), entry.getValue())
+              } else if(DDTags.ORIGIN_KEY.equals(entry.getKey())) {
+                assertEquals(expectedSpan.getOrigin(), entry.getValue())
               } else {
                 Object tag = expectedSpan.getTag(entry.getKey())
                 if (null != tag) {

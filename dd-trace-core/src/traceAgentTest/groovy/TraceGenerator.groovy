@@ -188,6 +188,11 @@ class TraceGenerator {
     }
 
     @Override
+    CharSequence getOrigin(){
+      return null
+    }
+
+    @Override
     PojoSpan setMeasured(boolean measured) {
       return this
     }
