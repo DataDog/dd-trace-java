@@ -43,6 +43,8 @@ public final class TraceInstrumentationConfig {
       "kafka.client.base64.decoding.enabled";
 
   public static final String GRPC_IGNORED_OUTBOUND_METHODS = "trace.grpc.ignored.outbound.methods";
+  public static final String GRPC_SERVER_TRIM_PACKAGE_RESOURCE =
+      "trace.grpc.server.trim-package-resource";
   public static final String HYSTRIX_TAGS_ENABLED = "hystrix.tags.enabled";
   public static final String HYSTRIX_MEASURED_ENABLED = "hystrix.measured.enabled";
 
