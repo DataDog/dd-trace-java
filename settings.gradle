@@ -55,8 +55,6 @@ include ':dd-java-agent:appsec'
 include ':dd-java-agent:appsec:weblog:weblog-common'
 include ':dd-java-agent:appsec:weblog:weblog-spring-app'
 
-include ':dd-java-agent:appsec'
-
 // misc
 include ':dd-java-agent:testing'
 include ':utils:container-utils'

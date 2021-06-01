@@ -3,23 +3,19 @@ package com.datadog.appsec.event;
 import datadog.trace.api.gateway.Flow;
 
 public class ChangeableFlow implements Flow<Void> {
-  Action blockingAction;
+  Action action = Action.Noop.INSTANCE;
 
-  public boolean shouldBlock() {
-    return blockingAction != null;
+  public boolean isBlocking() {
+    return action.isBlocking();
   }
 
-  public void setBlockingAction(Action blockingAction) {
-    this.blockingAction = blockingAction;
-  }
-
-  public Action getBlockingAction() {
-    return blockingAction;
+  public void setAction(Action blockingAction) {
+    this.action = blockingAction;
   }
 
   @Override
   public Action getAction() {
-    return null;
+    return action;
   }
 
   @Override

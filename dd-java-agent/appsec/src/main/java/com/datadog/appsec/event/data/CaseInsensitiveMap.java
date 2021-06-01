@@ -13,9 +13,9 @@ public class CaseInsensitiveMap<V> implements Map<String, V> {
     this.delegate = new HashMap();
   }
 
-  public CaseInsensitiveMap(Map<String, V> delegate) {
+  public CaseInsensitiveMap(Map<String, V> mapToCopy) {
     this();
-    putAll(delegate);
+    putAll(mapToCopy);
   }
 
   private static String lower(final Object key) {
@@ -44,7 +44,7 @@ public class CaseInsensitiveMap<V> implements Map<String, V> {
 
   @Override
   public boolean containsValue(Object value) {
-    return this.delegate.containsKey(value);
+    return this.delegate.containsValue(value);
   }
 
   @Override

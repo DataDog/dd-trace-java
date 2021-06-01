@@ -1,16 +1,15 @@
 package com.datadog.appsec.gateway;
 
-import com.datadog.appsec.AppSecRequestContext;
 import com.datadog.appsec.event.EventProducerService;
+import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.MapDataBundle;
+import com.datadog.appsec.event.data.StringKVPair;
 import datadog.trace.api.Function;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
-import java.net.HttpCookie;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -37,13 +36,24 @@ public class GatewayBridge {
   public void init() {
     // TODO: awkward use of flow and double callback
     subscriptionService.registerCallback(
-        Events.REQUEST_STARTED, () -> RequestContextFactory.INSTANCE);
+        Events.REQUEST_STARTED,
+        () -> {
+          RequestContextSupplier requestContextSupplier = new RequestContextSupplier();
+          AppSecRequestContext ctx = requestContextSupplier.getResult();
+          Flow flow = producerService.publishEvent(ctx, EventType.REQUEST_START);
+          if (flow.getAction().isBlocking()) {
+            LOG.warn("Blocking not allowed on REQUEST_STARTED event");
+          }
+          return requestContextSupplier;
+        });
 
     subscriptionService.registerCallback(
         Events.REQUEST_ENDED,
         (AppSecRequestContext ctx) -> {
+          Flow flow = producerService.publishEvent(ctx, EventType.REQUEST_END);
+
           ctx.close();
-          return NoopFlow.INSTANCE;
+          return flow;
         });
 
     subscriptionService.registerCallback(Events.REQUEST_HEADER, new NewHeaderCallback());
@@ -58,17 +68,17 @@ public class GatewayBridge {
         });
   }
 
-  private enum RequestContextFactory implements Flow<RequestContext> {
-    INSTANCE;
+  private static class RequestContextSupplier implements Flow<AppSecRequestContext> {
+    private final AppSecRequestContext appSecRequestContext = new AppSecRequestContext();
 
     @Override
     public Action getAction() {
-      return null;
+      return Action.Noop.INSTANCE;
     }
 
     @Override
-    public RequestContext getResult() {
-      return new AppSecRequestContext();
+    public AppSecRequestContext getResult() {
+      return appSecRequestContext;
     }
   }
 
@@ -77,13 +87,9 @@ public class GatewayBridge {
     @Override
     public void accept(AppSecRequestContext ctx, String name, String value) {
       if (name.equalsIgnoreCase("cookie")) {
-        try {
-          List<HttpCookie> cookies = HttpCookie.parse(value);
-          for (HttpCookie cookie : cookies) {
-            ctx.addCookie(cookie);
-          }
-        } catch (IllegalArgumentException iae) {
-          LOG.info("Illegal cookie value", iae);
+        List<StringKVPair> cookies = CookieCutter.parseCookieHeader(value);
+        for (StringKVPair cookie : cookies) {
+          ctx.addCookie(cookie);
         }
       } else {
         ctx.addHeader(name, value);
@@ -105,20 +111,16 @@ public class GatewayBridge {
     public Flow<Void> apply(AppSecRequestContext ctx) {
       String savedRawURI = ctx.getSavedRawURI();
       Map<String, List<String>> queryParams = EMPTY_QUERY_PARAMS;
-      if (savedRawURI != null) {
+      if (savedRawURI == null) {
         LOG.info("No saved RAW URI");
         savedRawURI = "/";
-        int i = savedRawURI.indexOf("?");
-        if (i != -1) {
-          String qs = savedRawURI.substring(i);
-          // ideally we'd have the query string as parsed by the server
-          // or at the very least the encoding used by the server
-          try {
-            queryParams = parseQueryStringParams(qs, StandardCharsets.UTF_8);
-          } catch (IllegalArgumentException iae) {
-            queryParams = parseQueryStringParams(qs, StandardCharsets.ISO_8859_1);
-          }
-        }
+      }
+      int i = savedRawURI.indexOf("?");
+      if (i != -1) {
+        String qs = savedRawURI.substring(i + 1);
+        // ideally we'd have the query string as parsed by the server
+        // or at the very least the encoding used by the server
+        queryParams = parseQueryStringParams(qs, StandardCharsets.UTF_8);
       }
 
       EventProducerService.DataSubscriberInfo dataSubscribers =
@@ -128,10 +130,6 @@ public class GatewayBridge {
               KnownAddresses.REQUEST_COOKIES,
               KnownAddresses.REQUEST_URI_RAW,
               KnownAddresses.REQUEST_QUERY);
-
-      if (dataSubscribers.isEmpty()) {
-        return NoopFlow.INSTANCE;
-      }
 
       MapDataBundle bundle =
           MapDataBundle.of(
@@ -146,7 +144,7 @@ public class GatewayBridge {
 
       ctx.finishHeaders();
 
-      return producerService.publishDataEvent(dataSubscribers, ctx, bundle);
+      return producerService.publishDataEvent(dataSubscribers, ctx, bundle, false);
     }
 
     private static Map<String, List<String>> parseQueryStringParams(
@@ -178,7 +176,6 @@ public class GatewayBridge {
       return decodeString(str, charset, queryString, Integer.MAX_VALUE);
     }
 
-    // can throw IllegalArgumentException
     private static String decodeString(
         String str, Charset charset, boolean queryString, int limit) {
       byte[] bytes = str.getBytes(charset);

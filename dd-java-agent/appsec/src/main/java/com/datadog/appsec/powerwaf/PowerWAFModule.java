@@ -1,13 +1,13 @@
 package com.datadog.appsec.powerwaf;
 
 import com.datadog.appsec.AppSecModule;
-import com.datadog.appsec.AppSecRequestContext;
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.event.ChangeableFlow;
 import com.datadog.appsec.event.OrderedCallback;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
+import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.google.auto.service.AutoService;
 import datadog.trace.api.gateway.Flow;
 import io.sqreen.powerwaf.Powerwaf;
@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -74,13 +75,17 @@ public class PowerWAFModule implements AppSecModule {
   private final PowerwafContext ctx;
 
   public PowerWAFModule() {
+    this("waf.json");
+  }
+
+  public PowerWAFModule(String resourceName) {
     PowerwafContext ctx = null;
 
     if (!LibSqreenInitialization.ONLINE) {
       LOG.warn("In-app WAF initialization failed");
     } else {
       try {
-        String wafDef = loadWAFJson();
+        String wafDef = loadWAFJson(resourceName);
         String uniqueId = UUID.randomUUID().toString();
         ctx = Powerwaf.createContext(uniqueId, Collections.singletonMap(RULE_NAME, wafDef));
       } catch (IOException e) {
@@ -130,20 +135,19 @@ public class PowerWAFModule implements AppSecModule {
 
       if (actionWithData.action != Powerwaf.Action.OK) {
         LOG.warn("WAF signalled action {}: {}", actionWithData.action, actionWithData.data);
+        flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
       }
-
-      flow.setBlockingAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
     }
   }
 
-  private final class DataBundleMapWrapper implements Map<String, Object> {
+  private static final class DataBundleMapWrapper implements Map<String, Object> {
     private final DataBundle dataBundle;
 
     private DataBundleMapWrapper(DataBundle dataBundle) {
       this.dataBundle = dataBundle;
     }
 
-    // powerwaf only calls entrySet().iterator()
+    // powerwaf only calls entrySet().iterator() and size()
     @Override
     public Set<Entry<String, Object>> entrySet() {
       try {
@@ -156,9 +160,10 @@ public class PowerWAFModule implements AppSecModule {
 
     private class SetIteratorInvocationHandler implements InvocationHandler {
       @Override
-      public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        if (method.getName().equals("iterator")) {
-          throw new UnsupportedOperationException();
+      public Object invoke(Object proxy, Method method, Object[] args) {
+        if (!method.getName().equals("iterator")) {
+          throw new UnsupportedOperationException(
+              "Only supported method is 'iterator'; got " + method.getName());
         }
 
         final Iterator<Address<?>> addrIterator = dataBundle.getAllAddresses().iterator();
@@ -168,13 +173,7 @@ public class PowerWAFModule implements AppSecModule {
           private Address<?> next = computeNextAddress();
 
           private Address<?> computeNextAddress() {
-            while (addrIterator.hasNext()) {
-              Address<?> next = addrIterator.next();
-              if (ADDRESSES_OF_INTEREST.contains(next)) {
-                return next;
-              }
-            }
-            return null;
+            return addrIterator.hasNext() ? addrIterator.next() : null;
           }
 
           @Override
@@ -184,9 +183,15 @@ public class PowerWAFModule implements AppSecModule {
 
           @Override
           public Entry<String, Object> next() {
+            if (next == null) {
+              throw new NoSuchElementException();
+            }
             // the usage pattern in powerwaf allows object recycling here
             entry.key = next.getKey();
-            entry.value = dataBundle.get(next);
+            entry.value =
+                ADDRESSES_OF_INTEREST.contains(next)
+                    ? dataBundle.get(next)
+                    : Collections.emptyMap();
             next = computeNextAddress();
             return entry;
           }
@@ -194,12 +199,12 @@ public class PowerWAFModule implements AppSecModule {
       }
     }
 
-    /* unimplemented map methods */
     @Override
     public int size() {
-      throw new UnsupportedOperationException();
+      return dataBundle.size();
     }
 
+    /* unimplemented map methods */
     @Override
     public boolean isEmpty() {
       throw new UnsupportedOperationException();
@@ -271,18 +276,21 @@ public class PowerWAFModule implements AppSecModule {
     }
   }
 
-  private String loadWAFJson() throws IOException {
-    try (InputStream is = getClass().getClassLoader().getResourceAsStream("waf.json")) {
-      InputStreamReader reader = new InputStreamReader(is, Charset.forName("UTF-8"));
-      StringBuilder sbuf = new StringBuilder();
-      char[] buf = new char[8192];
-      int read;
-      do {
-        read = reader.read(buf);
-        sbuf.append(buf, 0, read);
-      } while (read > 0);
-      String str = sbuf.toString();
-      return str;
+  private String loadWAFJson(String resourceName) throws IOException {
+    try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourceName)) {
+      if (is == null) {
+        throw new IOException("Resource " + resourceName + " not found");
+      }
+      try (InputStreamReader reader = new InputStreamReader(is, Charset.forName("UTF-8"))) {
+        StringBuilder sbuf = new StringBuilder();
+        char[] buf = new char[8192];
+        int read;
+        while ((read = reader.read(buf)) > 0) {
+          sbuf.append(buf, 0, read);
+        }
+        String str = sbuf.toString();
+        return str;
+      }
     }
   }
 }

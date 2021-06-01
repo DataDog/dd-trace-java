@@ -12,22 +12,18 @@ repositories {
 }
 
 dependencies {
-  compile deps.slf4j
-  compile project(':internal-api')
-  compile group: 'io.sqreen', name: 'libsqreen', version: '2.0'
+  api deps.slf4j
+  implementation project(':internal-api')
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '2.0'
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
+
+  testImplementation deps.bytebuddy
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
-
-configurations {
-  // exclude bootstrap dependencies from shadowJar
-  runtime.exclude module: deps.slf4j
-  runtime.exclude group: 'org.slf4j'
-}
 
 shadowJar {
   exclude '**/*-dbgsym.zip'
@@ -65,4 +61,18 @@ task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
     ]
   }
   tasks = ['weblog:weblog-spring-app:bootRun']
+}
+
+ext {
+  minimumBranchCoverage = 0.6
+  minimumInstructionCoverage = 0.8
+  excludedClassesCoverage = ['com.datadog.appsec.powerwaf.LibSqreenInitialization' // can't cover error conditions
+  ]
+  excludedClassesBranchCoverage = ['com.datadog.appsec.gateway.GatewayBridge']
+  excludedClassesInstructionCoverage = []
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs += ['-Ddd.appsec.beta=true']
 }

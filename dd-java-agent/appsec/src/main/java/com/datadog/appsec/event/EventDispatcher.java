@@ -1,9 +1,10 @@
 package com.datadog.appsec.event;
 
-import com.datadog.appsec.AppSecRequestContext;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
+import com.datadog.appsec.gateway.AppSecRequestContext;
+import datadog.trace.api.gateway.Flow;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
@@ -26,13 +27,13 @@ public class EventDispatcher implements EventProducerService, EventConsumerServi
     int eventCount = EventType.values().length;
     eventListeners = new ArrayList<>(eventCount);
     for (int i = 0; i < eventCount; i++) {
-      eventListeners.set(i, new ArrayList<>(2));
+      eventListeners.add(new ArrayList<>(2));
     }
 
     final int addressCount = Address.instanceCount();
     dataListenerSubs = new ArrayList<>(addressCount);
     for (int i = 0; i < addressCount; i++) {
-      dataListenerSubs.set(i, EMPTY_INT_ARRAY);
+      dataListenerSubs.add(EMPTY_INT_ARRAY);
     }
   }
 
@@ -68,7 +69,7 @@ public class EventDispatcher implements EventProducerService, EventConsumerServi
   }
 
   @Override
-  public ChangeableFlow publishEvent(AppSecRequestContext ctx, EventType event) {
+  public Flow publishEvent(AppSecRequestContext ctx, EventType event) {
     List<EventListener> eventListeners = this.eventListeners.get(event.serial);
     ChangeableFlow flow = new ChangeableFlow();
     for (EventListener listener : eventListeners) {
@@ -77,7 +78,7 @@ public class EventDispatcher implements EventProducerService, EventConsumerServi
       } catch (RuntimeException rte) {
         LOG.warn("AppSec callback exception", rte);
       }
-      if (flow.shouldBlock()) {
+      if (flow.isBlocking()) {
         break;
       }
     }
@@ -108,8 +109,14 @@ public class EventDispatcher implements EventProducerService, EventConsumerServi
   }
 
   @Override
-  public ChangeableFlow publishDataEvent(
-      DataSubscriberInfo subscribers, AppSecRequestContext ctx, DataBundle newData) {
+  public Flow publishDataEvent(
+      DataSubscriberInfo subscribers,
+      AppSecRequestContext ctx,
+      DataBundle newData,
+      boolean transyent) {
+    if (!transyent) {
+      ctx.addAll(newData);
+    }
     ChangeableFlow flow = new ChangeableFlow();
     for (int idx : ((DataSubscriberInfoImpl) subscribers).listenerIndices) {
       try {
@@ -117,7 +124,7 @@ public class EventDispatcher implements EventProducerService, EventConsumerServi
       } catch (RuntimeException rte) {
         LOG.warn("AppSec callback exception", rte);
       }
-      if (flow.shouldBlock()) {
+      if (flow.isBlocking()) {
         break;
       }
     }
