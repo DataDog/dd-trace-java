@@ -307,6 +307,10 @@ for (def env : System.getenv().entrySet()) {
         jvmArgs '-XX:CompileCommand=exclude,net.bytebuddy.description.type.TypeDescription$Generic$Visitor$Substitutor::onParameterizedType'
       }
 
+      if (javaName == "16") {
+        jvmArgs '--illegal-access=permit'
+      }
+
       onlyIf { isJavaVersionAllowed(javaVersion) || isJdkForced(javaName) }
       if (applyCodeCoverage) {
         jacoco {
