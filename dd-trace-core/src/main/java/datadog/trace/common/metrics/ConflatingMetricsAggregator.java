@@ -143,6 +143,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       published = inbox.offer(REPORT);
       ++attempts;
     } while (!published && attempts < 10);
+    if (!published) {
+      throw new AssertionError("aggregator publish failed");
+    }
   }
 
   @Override
