@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.util.Clock;
@@ -349,6 +350,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public void finishWork() {
     context.getTracer().onFinishWork(this);
+  }
+
+  @Override
+  public RequestContext getRequestContext() {
+    return context.getRequestContext();
   }
 
   /**

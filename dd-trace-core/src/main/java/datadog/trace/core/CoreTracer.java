@@ -13,6 +13,8 @@ import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.gateway.InstrumentationGateway;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -134,6 +136,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final HttpCodec.Injector injector;
   private final HttpCodec.Extractor extractor;
 
+  private final InstrumentationGateway instrumentationGateway;
+
   @Override
   public TraceScope.Continuation capture() {
     final TraceScope activeScope = activeScope();
@@ -199,6 +203,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private StatsDClient statsDClient;
     private TagInterceptor tagInterceptor;
     private boolean strictTraceWrites;
+    private InstrumentationGateway instrumentationGateway;
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -280,6 +285,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return this;
     }
 
+    public CoreTracerBuilder instrumentationGateway(InstrumentationGateway instrumentationGateway) {
+      this.instrumentationGateway = instrumentationGateway;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -294,8 +304,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       serviceName(config.getServiceName());
       // Explicitly skip setting writer to avoid allocating resources prematurely.
       sampler(Sampler.Builder.<DDSpan>forConfig(config));
+      instrumentationGateway(new InstrumentationGateway());
       injector(HttpCodec.createInjector(config));
-      extractor(HttpCodec.createExtractor(config, config.getHeaderTags()));
+      extractor(HttpCodec.createExtractor(config, config.getHeaderTags(), instrumentationGateway));
       // Explicitly skip setting scope manager because it depends on statsDClient
       localRootSpanTags(config.getLocalRootSpanTags());
       defaultSpanTags(config.getMergedSpanTags());
@@ -324,7 +335,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           partialFlushMinSpans,
           statsDClient,
           tagInterceptor,
-          strictTraceWrites);
+          strictTraceWrites,
+          instrumentationGateway);
     }
   }
 
@@ -345,7 +357,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final int partialFlushMinSpans,
       final StatsDClient statsDClient,
       final TagInterceptor tagInterceptor,
-      final boolean strictTraceWrites) {
+      final boolean strictTraceWrites,
+      final InstrumentationGateway instrumentationGateway) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -426,6 +439,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.tagInterceptor =
         null == tagInterceptor ? new TagInterceptor(new RuleFlags(config)) : tagInterceptor;
+
+    this.instrumentationGateway = instrumentationGateway;
 
     shutdownCallback = new ShutdownHook(this);
     try {
@@ -689,6 +704,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public InstrumentationGateway instrumentationGateway() {
+    return instrumentationGateway;
+  }
+
+  @Override
   public void close() {
     pendingTraceBuffer.close();
     writer.close();
@@ -875,6 +895,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> rootSpanTags;
 
       final DDSpanContext context;
+      final RequestContext requestContext;
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
@@ -906,7 +927,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         if (serviceName == null) {
           serviceName = parentServiceName;
         }
-
+        requestContext = ddsc.getRequestContext();
       } else {
         if (parentContext instanceof ExtractedContext) {
           // Propagate external trace
@@ -925,11 +946,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         // Get header tags and set origin whether propagating or not.
         if (parentContext instanceof TagContext) {
-          coreTags = ((TagContext) parentContext).getTags();
-          origin = ((TagContext) parentContext).getOrigin();
+          TagContext tc = (TagContext) parentContext;
+          coreTags = tc.getTags();
+          origin = tc.getOrigin();
+          requestContext = tc.getRequestContext();
         } else {
           coreTags = null;
           origin = null;
+          requestContext = null;
         }
 
         rootSpanTags = localRootSpanTags;
@@ -965,7 +989,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               errorFlag,
               spanType,
               tagsSize,
-              parentTrace);
+              parentTrace,
+              requestContext);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

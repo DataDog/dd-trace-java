@@ -4,11 +4,18 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Events;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.BitSet;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,6 +91,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
             span.setTag(DDTags.HTTP_QUERY, url.query());
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
+          onRequestForInstrumentationGateway(span, url);
         }
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
@@ -175,4 +183,25 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   //    }
   //    return super.onError(span, throwable);
   //  }
+
+  private static void onRequestForInstrumentationGateway(
+      @Nonnull final AgentSpan span, @Nonnull final URIDataAdapter url) {
+    // TODO:appsec there must be some better way to do this?
+    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+    RequestContext requestContext = span.getRequestContext();
+    if (null != cbp && null != requestContext) {
+      BiFunction<RequestContext, String, Flow<Void>> callback =
+          cbp.getCallback(Events.REQUEST_URI_RAW);
+      if (null != callback) {
+        // TODO:appsec pull this out and add it to the URIDataAdapter
+        String query = url.query();
+        StringBuilder uri = new StringBuilder();
+        uri.append(url.path());
+        if (null != query && !query.isEmpty()) {
+          uri.append('?').append(query);
+        }
+        callback.apply(requestContext, uri.toString());
+      }
+    }
+  }
 }

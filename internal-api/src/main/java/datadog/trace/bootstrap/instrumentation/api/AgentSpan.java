@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDId;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
 import java.util.Map;
 
@@ -91,6 +92,9 @@ public interface AgentSpan extends MutableSpan {
   /** Mark the end of a task associated with the span */
   void finishWork();
 
+  /** RequestContext for the Instrumentation Gateway */
+  RequestContext getRequestContext();
+
   interface Context {
     DDId getTraceId();
 
@@ -99,6 +103,9 @@ public interface AgentSpan extends MutableSpan {
     AgentTrace getTrace();
 
     Iterable<Map.Entry<String, String>> baggageItems();
+
+    /** RequestContext for the Instrumentation Gateway */
+    RequestContext getRequestContext();
 
     interface Extracted extends Context {
       String getForwarded();
