@@ -704,6 +704,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public InstrumentationGateway instrumentationGateway() {
+    return instrumentationGateway;
+  }
+
+  @Override
   public void close() {
     pendingTraceBuffer.close();
     writer.close();
