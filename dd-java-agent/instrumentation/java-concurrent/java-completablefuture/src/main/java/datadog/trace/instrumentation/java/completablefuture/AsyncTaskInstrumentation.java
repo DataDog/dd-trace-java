@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.java.completablefuture;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
@@ -29,7 +29,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 /**
  * Instruments classes used internally by {@code CompletableFuture} which are double instrumented as
  * {@code Runnable} and {@code ForkJoinTask} and can't be excluded because they can be used in
- * either context. This double instrumentation otherwsie leads to excess scope creation and
+ * either context. This double instrumentation otherwise leads to excess scope creation and
  * duplicate checkpoint emission.
  */
 @AutoService(Instrumenter.class)
@@ -73,13 +73,8 @@ public final class AsyncTaskInstrumentation extends Instrumenter.Tracing
 
   public static class Construct {
     @Advice.OnMethodExit
-    public static void construct(@Advice.This ForkJoinTask<?> zis) {
-      TraceScope scope = activeScope();
-      if (null != scope) {
-        InstrumentationContext.get(ForkJoinTask.class, State.class)
-            .putIfAbsent(zis, State.FACTORY)
-            .captureAndSetContinuation(scope);
-      }
+    public static void construct(@Advice.This ForkJoinTask<?> task) {
+      capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
     }
   }
 

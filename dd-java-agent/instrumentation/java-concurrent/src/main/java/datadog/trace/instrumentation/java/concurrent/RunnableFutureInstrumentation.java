@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.java.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
@@ -111,12 +111,7 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodExit
     public static <T> void captureScope(@Advice.This RunnableFuture<T> task) {
-      TraceScope activeScope = activeScope();
-      if (null != activeScope) {
-        InstrumentationContext.get(RunnableFuture.class, State.class)
-            .putIfAbsent(task, State.FACTORY)
-            .captureAndSetContinuation(activeScope);
-      }
+      capture(InstrumentationContext.get(RunnableFuture.class, State.class), task, true);
     }
   }
 

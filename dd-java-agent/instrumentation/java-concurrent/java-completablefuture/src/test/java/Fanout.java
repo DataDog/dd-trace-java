@@ -1,3 +1,5 @@
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+
 import datadog.trace.api.Trace;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -19,9 +21,29 @@ public class Fanout {
 
   public void execute() {
     try {
-      Runnable task = traceChild ? this::tracedWork : this::untracedWork;
       Stream<CompletableFuture<?>> futures =
-          IntStream.range(0, tasks).mapToObj(i -> CompletableFuture.runAsync(task, executor));
+          IntStream.range(0, tasks)
+              .mapToObj(
+                  i ->
+                      CompletableFuture.runAsync(
+                          traceChild ? this::tracedWork : this::untracedWork, executor));
+      // Wait for those threads to finish work
+      CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).get();
+    } catch (InterruptedException | ExecutionException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public void executeTwoLevels() {
+    try {
+      Stream<CompletableFuture<?>> futures =
+          IntStream.range(0, tasks)
+              .mapToObj(
+                  i ->
+                      CompletableFuture.runAsync(
+                              traceChild ? this::tracedWork : this::untracedWork, executor)
+                          .thenRunAsync(
+                              traceChild ? this::tracedWork : this::untracedWork, executor));
       // Wait for those threads to finish work
       CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).get();
     } catch (InterruptedException | ExecutionException e) {
@@ -30,19 +52,11 @@ public class Fanout {
   }
 
   private void untracedWork() {
-    try {
-      Thread.sleep(10);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
+    assert null != activeScope();
   }
 
   @Trace
   private void tracedWork() {
-    try {
-      Thread.sleep(10);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
+    assert null != activeScope();
   }
 }

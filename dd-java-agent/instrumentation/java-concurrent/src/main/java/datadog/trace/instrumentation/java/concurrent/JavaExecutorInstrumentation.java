@@ -55,7 +55,9 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
           task = newTask;
           final ContextStore<Runnable, State> contextStore =
               InstrumentationContext.get(Runnable.class, State.class);
-          return ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
+          State state = ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
+          state.startThreadMigration();
+          return state;
         }
       }
       return null;

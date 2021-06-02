@@ -1,6 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
+
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
@@ -14,21 +17,6 @@ import org.slf4j.LoggerFactory;
 public final class ConcurrentState {
 
   private static final Logger log = LoggerFactory.getLogger(ConcurrentState.class);
-
-  private static final class ContinuationClaim implements TraceScope.Continuation {
-
-    @Override
-    public TraceScope activate() {
-      throw new IllegalStateException();
-    }
-
-    @Override
-    public void cancel() {
-      throw new IllegalStateException();
-    }
-  }
-
-  private static final TraceScope.Continuation CLAIMED = new ContinuationClaim();
 
   public static ContextStore.Factory<ConcurrentState> FACTORY =
       new ContextStore.Factory<ConcurrentState>() {
@@ -47,7 +35,7 @@ public final class ConcurrentState {
 
   private ConcurrentState() {}
 
-  public static <K> void captureScope(
+  public static <K> ConcurrentState captureScope(
       ContextStore<K, ConcurrentState> contextStore, K key, TraceScope scope) {
     if (scope != null) {
       final ConcurrentState state = contextStore.putIfAbsent(key, FACTORY);
@@ -57,7 +45,9 @@ public final class ConcurrentState {
             key,
             scope);
       }
+      return state;
     }
+    return null;
   }
 
   public static <K> TraceScope activateAndContinueContinuation(
@@ -125,6 +115,13 @@ public final class ConcurrentState {
       // We should never be able to reuse this state
       CONTINUATION.compareAndSet(this, continuation, CLAIMED);
       continuation.cancel();
+    }
+  }
+
+  public void startThreadMigration() {
+    TraceScope.Continuation continuation = CONTINUATION.get(this);
+    if (continuation instanceof AgentScope.Continuation) {
+      ((AgentScope.Continuation) continuation).migrate();
     }
   }
 }
