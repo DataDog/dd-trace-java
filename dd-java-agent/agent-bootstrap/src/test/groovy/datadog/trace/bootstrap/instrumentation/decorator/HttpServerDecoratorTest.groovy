@@ -27,6 +27,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * span.setTag(Tags.HTTP_URL, url)
       1 * span.hasResourceName() >> false
       1 * span.setResourceName({ it as String == req.method + " " + req.path })
+      1 * span.getRequestContext()
     }
     0 * _
 
@@ -51,6 +52,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     then:
     if (expectedUrl) {
       1 * span.setTag(Tags.HTTP_URL, expectedUrl)
+      1 * span.getRequestContext()
     }
     if (expectedUrl && tagQueryString) {
       1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)

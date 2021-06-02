@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.DDId;
 import datadog.trace.api.SpanCheckpointer;
+import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -125,6 +126,8 @@ public class AgentTracer {
      * @param checkpointer
      */
     void registerCheckpointer(Checkpointer checkpointer);
+
+    InstrumentationGateway instrumentationGateway();
   }
 
   public interface SpanBuilder {
@@ -285,6 +288,11 @@ public class AgentTracer {
 
     @Override
     public void onRootSpanPublished(AgentSpan root) {}
+
+    @Override
+    public InstrumentationGateway instrumentationGateway() {
+      return null;
+    }
   }
 
   public static class NoopAgentSpan implements AgentSpan {
