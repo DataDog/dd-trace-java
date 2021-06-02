@@ -8,6 +8,14 @@ public interface Flow<T> {
   interface Action {}
 
   class ResultFlow<R> implements Flow<R> {
+    @SuppressWarnings("rawtypes")
+    private static final ResultFlow EMPTY = new ResultFlow<>(null);
+
+    @SuppressWarnings("unchecked")
+    public static <R> ResultFlow<R> empty() {
+      return (ResultFlow<R>) EMPTY;
+    }
+
     private final R result;
 
     public ResultFlow(R result) {

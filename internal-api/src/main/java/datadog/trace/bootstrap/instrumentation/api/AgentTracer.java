@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.DDId;
 import datadog.trace.api.SpanCheckpointer;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -409,6 +410,11 @@ public class AgentTracer {
     public void finishWork() {}
 
     @Override
+    public RequestContext getRequestContext() {
+      return null;
+    }
+
+    @Override
     public Integer getSamplingPriority() {
       return (int) PrioritySampling.UNSET;
     }
@@ -635,6 +641,11 @@ public class AgentTracer {
 
     @Override
     public String getForwardedPort() {
+      return null;
+    }
+
+    @Override
+    public RequestContext getRequestContext() {
       return null;
     }
   }
