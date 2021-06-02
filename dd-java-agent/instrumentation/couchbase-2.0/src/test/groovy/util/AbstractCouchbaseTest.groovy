@@ -115,11 +115,19 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
 
   protected void cleanupCluster(CouchbaseAsyncCluster cluster, CouchbaseEnvironment environment) {
     def cleanupSpan = runUnderTrace("cleanup") {
-      cluster?.disconnect()?.timeout(10, TimeUnit.SECONDS)?.toBlocking()?.single()
-      environment.shutdown()
+      try {
+        cluster?.disconnect()?.timeout(10, TimeUnit.SECONDS)?.toBlocking()?.single()
+        environment.shutdown()
+      } catch (Throwable ex) {
+        // ignore
+      }
       activeSpan()
     }
-    TEST_WRITER.waitUntilReported(cleanupSpan)
+    try {
+      TEST_WRITER.waitUntilReported(cleanupSpan)
+    } catch (Throwable ex) {
+      // ignore
+    }
   }
 
   protected void cleanupCluster(CouchbaseCluster cluster, CouchbaseEnvironment environment) {
