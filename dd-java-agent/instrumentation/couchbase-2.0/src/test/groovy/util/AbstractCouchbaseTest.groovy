@@ -123,7 +123,11 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
       }
       activeSpan()
     }
-    TEST_WRITER.waitUntilReported(cleanupSpan)
+    try {
+      TEST_WRITER.waitUntilReported(cleanupSpan)
+    } catch (Throwable ex) {
+      // ignore
+    }
   }
 
   protected void cleanupCluster(CouchbaseCluster cluster, CouchbaseEnvironment environment) {
