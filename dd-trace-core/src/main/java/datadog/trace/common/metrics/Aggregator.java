@@ -58,32 +58,36 @@ final class Aggregator implements Runnable {
 
   @Override
   public void run() {
-    Thread currentThread = Thread.currentThread();
-    while (!currentThread.isInterrupted()) {
-      try {
-        Batch batch = inbox.take();
-        if (batch == POISON_PILL) {
-          report(wallClockTime());
-          break;
-        } else if (batch == REPORT) {
-          report(wallClockTime());
-        } else {
-          MetricKey key = batch.getKey();
-          // important that it is still *this* batch pending, must not remove otherwise
-          pending.remove(key, batch);
-          AggregateMetric aggregate = aggregates.get(key);
-          if (null == aggregate) {
-            aggregate = new AggregateMetric();
-            aggregates.put(key, aggregate);
+    try {
+      Thread currentThread = Thread.currentThread();
+      while (!currentThread.isInterrupted()) {
+        try {
+          Batch batch = inbox.take();
+          if (batch == POISON_PILL) {
+            report(wallClockTime());
+            break;
+          } else if (batch == REPORT) {
+            report(wallClockTime());
+          } else {
+            MetricKey key = batch.getKey();
+            // important that it is still *this* batch pending, must not remove otherwise
+            pending.remove(key, batch);
+            AggregateMetric aggregate = aggregates.get(key);
+            if (null == aggregate) {
+              aggregate = new AggregateMetric();
+              aggregates.put(key, aggregate);
+            }
+            batch.contributeTo(aggregate);
+            dirty = true;
+            // return the batch for reuse
+            batchPool.offer(batch);
           }
-          batch.contributeTo(aggregate);
-          dirty = true;
-          // return the batch for reuse
-          batchPool.offer(batch);
+        } catch (InterruptedException e) {
+          currentThread.interrupt();
         }
-      } catch (InterruptedException e) {
-        currentThread.interrupt();
       }
+    } catch (Throwable t) {
+      t.printStackTrace(System.err);
     }
   }
 
