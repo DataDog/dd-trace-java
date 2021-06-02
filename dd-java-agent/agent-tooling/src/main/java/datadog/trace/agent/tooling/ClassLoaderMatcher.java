@@ -113,7 +113,7 @@ public final class ClassLoaderMatcher {
         final ClassLoader loader, final Class<?> expectedClass) {
       try {
         return loader.loadClass(expectedClass.getName()) == expectedClass;
-      } catch (final ClassNotFoundException e) {
+      } catch (final Throwable ignored) {
         return false;
       }
     }
@@ -154,6 +154,8 @@ public final class ClassLoaderMatcher {
           }
         }
         return true;
+      } catch (final Throwable ignored) {
+        return false;
       } finally {
         PROBING_CLASSLOADER.end();
       }
