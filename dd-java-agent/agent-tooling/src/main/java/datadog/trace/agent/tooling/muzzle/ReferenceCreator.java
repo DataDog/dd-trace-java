@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling.muzzle;
 import static datadog.trace.util.Strings.getClassName;
 import static datadog.trace.util.Strings.getResourceName;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -83,8 +82,8 @@ public class ReferenceCreator extends ClassVisitor {
           }
         }
 
-      } catch (final IOException e) {
-        throw new IllegalStateException("Error reading class " + className, e);
+      } catch (final Throwable t) {
+        throw new IllegalStateException("Error reading class " + className, t);
       }
     }
     return references;
