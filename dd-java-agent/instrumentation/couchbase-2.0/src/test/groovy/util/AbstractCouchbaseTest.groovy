@@ -123,11 +123,7 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
       }
       activeSpan()
     }
-    try {
-      TEST_WRITER.waitUntilReported(cleanupSpan)
-    } catch (Throwable ex) {
-      // ignore
-    }
+    TEST_WRITER.waitUntilReported(cleanupSpan as DDSpan, 60, TimeUnit.SECONDS)
   }
 
   protected void cleanupCluster(CouchbaseCluster cluster, CouchbaseEnvironment environment) {
@@ -136,7 +132,7 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
       environment.shutdown()
       activeSpan()
     }
-    TEST_WRITER.waitUntilReported(cleanupSpan)
+    TEST_WRITER.waitUntilReported(cleanupSpan as DDSpan)
   }
 
   void assertCouchbaseCall(TraceAssert trace, String name, String bucketName = null, Object parentSpan = null) {
