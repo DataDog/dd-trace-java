@@ -9,12 +9,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class HystrixObservableChainTest extends HystrixTestRunner {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
   def "test command #action"() {
     setup:
 
