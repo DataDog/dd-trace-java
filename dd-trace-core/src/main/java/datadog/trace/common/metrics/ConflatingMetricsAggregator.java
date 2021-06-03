@@ -136,13 +136,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   @Override
-  public void report() {
+  public boolean report() {
     boolean published;
     int attempts = 0;
     do {
       published = inbox.offer(REPORT);
       ++attempts;
     } while (!published && attempts < 10);
+    return published;
   }
 
   @Override

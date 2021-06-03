@@ -57,7 +57,13 @@ class FootprintTest extends DDSpecification {
         isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01), 200)
       ])
     }
-    aggregator.report()
+    if (!aggregator.report()) {
+      int attempts = 0
+      while (++attempts < 10 && !aggregator.report()) {
+        Thread.sleep(10)
+      }
+      assert attempts < 10
+    }
     assert latch.await(30, SECONDS)
 
     then:
