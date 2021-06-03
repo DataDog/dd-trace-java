@@ -55,6 +55,6 @@ class CircleCIInfo extends CIProviderInfo {
       return null;
     }
 
-    return String.format("https://app.circle.com/pipelines/workflows/%s", pipelineId);
+    return String.format("https://app.circleci.com/pipelines/workflows/%s", pipelineId);
   }
 }
