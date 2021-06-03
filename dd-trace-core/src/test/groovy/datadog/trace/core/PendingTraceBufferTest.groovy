@@ -77,7 +77,6 @@ class PendingTraceBufferTest extends DDSpecification {
     trace.pendingReferenceCount == 1
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
-    1 * tracer.onStartThreadMigration(span)
     1 * tracer.onFinish(span)
     0 * _
 
@@ -140,7 +139,6 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * tracer.mapServiceName(_)
     _ * tracer.onStart(_)
-    _ * tracer.onStartThreadMigration(_)
     _ * tracer.onFinish(_)
     0 * _
 
@@ -154,7 +152,6 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * tracer.mapServiceName(_)
     1 * tracer.onStart(_)
-    1 * tracer.onStartThreadMigration(_)
     1 * tracer.onFinish(_)
     0 * _
   }

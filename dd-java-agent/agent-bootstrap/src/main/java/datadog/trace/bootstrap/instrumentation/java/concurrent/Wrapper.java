@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
 
 public class Wrapper<T extends Runnable> implements Runnable {
@@ -15,6 +16,9 @@ public class Wrapper<T extends Runnable> implements Runnable {
     TraceScope scope = activeScope();
     if (null != scope) {
       continuation = scope.capture();
+      if (scope instanceof AgentScope) {
+        ((AgentScope) scope).span().startThreadMigration();
+      }
     }
     this.continuation = continuation;
   }
@@ -22,7 +26,13 @@ public class Wrapper<T extends Runnable> implements Runnable {
   @Override
   public void run() {
     try (TraceScope scope = activate()) {
+      if (scope instanceof AgentScope) {
+        ((AgentScope) scope).span().finishThreadMigration();
+      }
       delegate.run();
+      if (scope instanceof AgentScope) {
+        ((AgentScope) scope).span().finishWork();
+      }
     }
   }
 
