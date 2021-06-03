@@ -104,7 +104,6 @@ public class LibertyDecorator
 
   public AgentSpan onError(AgentSpan span, WebAppErrorReport report, Throwable servletThrowable) {
     span.setError(true);
-    span.setHttpStatusCode(report.getErrorCode());
     // make sure the two reported throwables are different throwables
     if (report.getCause() != null
         && (servletThrowable == null || servletThrowable.getCause() != report.getCause())) {
