@@ -1,6 +1,6 @@
 [[{"name" "servlet.request"
    "service" "smoke-test-java-app"
-   "resource" "500"
+   "resource" "GET /randomEndpoint"
    "type" "web"
    "error" 1
    "span_id" 0
