@@ -8,6 +8,7 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import groovy.text.GStringTemplateEngine
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -30,7 +31,7 @@ import static datadog.trace.api.Platform.isJavaVersionAtLeast
 @Requires({
   isJavaVersionAtLeast(8)
 })
-class SynapseServerTest extends AgentTestRunner {
+class SynapseTest extends AgentTestRunner {
 
   String expectedServiceName() {
     CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
@@ -60,6 +61,15 @@ class SynapseServerTest extends AgentTestRunner {
 
     port = getPort(server)
     assert port > 0
+
+    def synapseConfig = server.getServerContextInformation().getSynapseConfiguration()
+
+    def proxyService = synapseConfig.getProxyService('StockQuoteProxy')
+    def proxyEndpoint = proxyService.getTargetInLineEndpoint()
+    proxyEndpoint.definition.address = new GStringTemplateEngine()
+      .createTemplate(proxyEndpoint.definition.address)
+      .make([serverPort:port])
+    proxyService.start(synapseConfig)
 
     client = OkHttpUtils.client()
   }
@@ -106,7 +116,7 @@ class SynapseServerTest extends AgentTestRunner {
     then:
     assertTraces(1) {
       trace(1) {
-        httpSpan(it, 0, 'GET', statusCode)
+        serverSpan(it, 0, 'GET', statusCode)
       }
     }
     statusCode == 200
@@ -131,7 +141,7 @@ class SynapseServerTest extends AgentTestRunner {
     then:
     assertTraces(1) {
       trace(1) {
-        httpSpan(it, 0, 'POST', statusCode)
+        serverSpan(it, 0, 'POST', statusCode)
       }
     }
     statusCode == 200
@@ -156,17 +166,74 @@ class SynapseServerTest extends AgentTestRunner {
     then:
     assertTraces(1) {
       trace(1) {
-        httpSpan(it, 0, 'POST', statusCode)
+        serverSpan(it, 0, 'POST', statusCode)
       }
     }
     statusCode == 500
   }
 
-  def httpSpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null) {
+  def "test client request is traced"() {
+    setup:
+    def request = new Request.Builder()
+      .url("http://127.0.0.1:${port}/services/StockQuoteProxy")
+      .header('Content-Type', 'text/xml')
+      .header('WSAction', 'urn:getRandomQuote')
+      .header('SOAPAction', 'urn:getRandomQuote')
+      .post(RequestBody.create(MediaType.get('text/xml'), '''
+          <s11:Envelope xmlns:s11='http://schemas.xmlsoap.org/soap/envelope/'>
+            <s11:Body/>
+          </s11:Envelope>'''))
+      .build()
+
+    when:
+    int statusCode = client.newCall(request).execute().code()
+
+    then:
+    assertTraces(2) {
+      def parentSpan = null
+      trace(2) {
+        proxySpan(it, 0, 'POST', statusCode)
+        clientSpan(it, 1, 'POST', statusCode, span(0))
+        parentSpan = span(1)
+      }
+      trace(1) {
+        serverSpan(it, 0, 'POST', statusCode, parentSpan, true)
+      }
+    }
+    statusCode == 200
+  }
+
+  def serverSpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null, boolean distributedRootSpan = false) {
     trace.span {
       serviceName expectedServiceName()
       operationName "http.request"
       resourceName "${method} /services/SimpleStockQuoteService"
+      spanType DDSpanTypes.HTTP_SERVER
+      errored statusCode >= 500
+      if (parentSpan == null) {
+        parent()
+      } else {
+        childOf((DDSpan) parentSpan)
+      }
+      topLevel parentSpan == null || distributedRootSpan
+      tags {
+        "$Tags.COMPONENT" "synapse-server"
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+        "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+        "$Tags.PEER_PORT" Integer
+        "$Tags.HTTP_URL" "/services/SimpleStockQuoteService"
+        "$Tags.HTTP_METHOD" method
+        "$Tags.HTTP_STATUS" statusCode
+        defaultTags(distributedRootSpan)
+      }
+    }
+  }
+
+  def proxySpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null) {
+    trace.span {
+      serviceName expectedServiceName()
+      operationName "http.request"
+      resourceName "${method} /services/StockQuoteProxy"
       spanType DDSpanTypes.HTTP_SERVER
       errored statusCode >= 500
       if (parentSpan == null) {
@@ -180,6 +247,30 @@ class SynapseServerTest extends AgentTestRunner {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" Integer
+        "$Tags.HTTP_URL" "/services/StockQuoteProxy"
+        "$Tags.HTTP_METHOD" method
+        "$Tags.HTTP_STATUS" statusCode
+        defaultTags()
+      }
+    }
+  }
+
+  def clientSpan(TraceAssert trace, int index, String method, int statusCode, Object parentSpan = null) {
+    trace.span {
+      serviceName expectedServiceName()
+      operationName "http.request"
+      resourceName "${method} /services/SimpleStockQuoteService"
+      spanType DDSpanTypes.HTTP_CLIENT
+      errored statusCode >= 500
+      if (parentSpan == null) {
+        parent()
+      } else {
+        childOf((DDSpan) parentSpan)
+      }
+      topLevel parentSpan == null
+      tags {
+        "$Tags.COMPONENT" "synapse-client"
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
         "$Tags.HTTP_URL" "/services/SimpleStockQuoteService"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" statusCode
@@ -187,4 +278,5 @@ class SynapseServerTest extends AgentTestRunner {
       }
     }
   }
+
 }
