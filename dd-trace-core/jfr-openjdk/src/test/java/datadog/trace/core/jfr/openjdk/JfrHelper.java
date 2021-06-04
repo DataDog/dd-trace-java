@@ -1,28 +1,34 @@
 package datadog.trace.core.jfr.openjdk;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
-import jdk.jfr.Recording;
+import java.util.stream.Collectors;
 import jdk.jfr.consumer.RecordingFile;
+import jdk.jfr.Recording;
+
+import com.datadog.profiling.controller.Controller;
+import com.datadog.profiling.controller.ControllerFactory;
+import com.datadog.profiling.controller.OngoingRecording;
+import com.datadog.profiling.controller.RecordingInputStream;
+import datadog.trace.api.Config;
 
 public class JfrHelper {
 
-  public static Object startRecording() {
-    final Recording recording = new Recording();
-    recording.start();
-    return recording;
+  @SuppressWarnings("deprecation") // Config in datadog.trace.api has been deprecated
+  public static Object startRecording() throws Exception {
+    Controller controller = ControllerFactory.createController(Config.get());
+    return controller.createRecording("recording");
   }
 
   public static List<?> stopRecording(final Object object) throws IOException {
-    final Recording recording = (Recording) object;
-    final Path output = Files.createTempFile("recording", ".jfr");
-    output.toFile().deleteOnExit();
-    recording.dump(output);
-    recording.stop();
-    recording.close();
+    final RecordingInputStream stream = ((OngoingRecording) object).stop().getStream();
+    final File output = Files.createTempFile("recording", ".jfr").toFile();
+    output.deleteOnExit();
+    stream.transferTo(new FileOutputStream(output));
 
-    return RecordingFile.readAllEvents(output);
+    return RecordingFile.readAllEvents(output.toPath());
   }
 }

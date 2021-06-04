@@ -11,6 +11,8 @@ apply plugin: 'idea'
 dependencies {
   compile deps.slf4j
   compile project(':dd-trace-core')
+  testCompile project(':dd-java-agent:agent-profiling:profiling-controller')
+  testCompile project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
   testCompile project(':dd-java-agent:testing')
 }
 
