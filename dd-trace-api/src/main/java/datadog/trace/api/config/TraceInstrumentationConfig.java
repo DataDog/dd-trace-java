@@ -52,6 +52,8 @@ public final class TraceInstrumentationConfig {
 
   public static final String OSGI_SEARCH_DEPTH = "osgi.search.depth";
 
+  public static final String PLAY_REPORT_HTTP_STATUS = "trace.play.report-http-status";
+
   public static final String SERVLET_PRINCIPAL_ENABLED = "trace.servlet.principal.enabled";
   public static final String SERVLET_ASYNC_TIMEOUT_ERROR = "trace.servlet.async-timeout.error";
 

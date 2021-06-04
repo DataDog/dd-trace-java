@@ -135,6 +135,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_P
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
+import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
@@ -361,6 +362,9 @@ public class Config {
   private final boolean igniteCacheIncludeKeys;
 
   private final int osgiSearchDepth;
+
+  // TODO: remove at a future point.
+  private final boolean playReportHttpStatus;
 
   private final boolean servletPrincipalEnabled;
   private final boolean servletAsyncTimeoutError;
@@ -752,6 +756,8 @@ public class Config {
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
 
     osgiSearchDepth = configProvider.getInteger(OSGI_SEARCH_DEPTH, 1);
+
+    playReportHttpStatus = configProvider.getBoolean(PLAY_REPORT_HTTP_STATUS, false);
 
     servletPrincipalEnabled = configProvider.getBoolean(SERVLET_PRINCIPAL_ENABLED, false);
 
@@ -1147,6 +1153,10 @@ public class Config {
 
   public int getOsgiSearchDepth() {
     return osgiSearchDepth;
+  }
+
+  public boolean getPlayReportHttpStatus() {
+    return playReportHttpStatus;
   }
 
   public boolean isServletPrincipalEnabled() {
