@@ -37,7 +37,7 @@ public class InstrumentationGatewayTest {
     // check event with registered callback
     Supplier<Flow<RequestContext>> cback = gateway.getCallback(Events.REQUEST_STARTED);
     assertThat(cback).isEqualTo(callback);
-    Flow<? extends RequestContext> flow = cback.get();
+    Flow<RequestContext> flow = cback.get();
     assertThat(flow.getAction()).isNull();
     RequestContext ctxt = flow.getResult();
     assertThat(ctxt).isEqualTo(context);
@@ -93,5 +93,38 @@ public class InstrumentationGatewayTest {
     // check that we can cancel a callback
     subscription.cancel();
     assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isNull();
+  }
+
+  @Test
+  public void testNoopAction() {
+    assertThat(Flow.Action.Noop.INSTANCE.isBlocking()).isFalse();
+  }
+
+  @Test
+  public void testThrownAction() {
+    Flow.Action.Throw thrown = new Flow.Action.Throw(new Exception("my message"));
+    assertThat(thrown.isBlocking()).isTrue();
+    assertThat(thrown.getBlockingException().getMessage()).isEqualTo("my message");
+  }
+
+  @Test
+  public void testReplacedArgumentsAction() {
+    Flow.Action.ReplacedArguments replacedArguments =
+        new Flow.Action.ReplacedArguments(new Object[] {"new arg"}, true);
+    assertThat(replacedArguments.isBlocking()).isTrue();
+    assertThat(replacedArguments.getNewArguments()[0]).isEqualTo("new arg");
+    replacedArguments = new Flow.Action.ReplacedArguments(new Object[] {"new arg"}, false);
+    assertThat(replacedArguments.isBlocking()).isFalse();
+  }
+
+  @Test
+  public void test() {
+    Flow.Action.ForcedReturnValue forcedReturnValue =
+        new Flow.Action.ForcedReturnValue("new retval", true);
+    assertThat(forcedReturnValue.getRetVal()).isEqualTo("new retval");
+    assertThat(forcedReturnValue.isBlocking()).isTrue();
+
+    forcedReturnValue = new Flow.Action.ForcedReturnValue("new retval", false);
+    assertThat(forcedReturnValue.isBlocking()).isFalse();
   }
 }
