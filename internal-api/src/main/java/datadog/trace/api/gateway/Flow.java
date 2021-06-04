@@ -34,13 +34,15 @@ public interface Flow<T> {
 
     final class ForcedReturnValue implements Action {
       private final Object retVal;
+      private final boolean blocking;
 
-      public ForcedReturnValue(Object retVal) {
+      public ForcedReturnValue(Object retVal, boolean blocking) {
         this.retVal = retVal;
+        this.blocking = blocking;
       }
 
       public boolean isBlocking() {
-        return true;
+        return blocking;
       }
 
       public Object getRetVal() {
@@ -50,9 +52,11 @@ public interface Flow<T> {
 
     final class ReplacedArguments implements Action {
       private final Object[] newArguments;
+      private final boolean blocking;
 
-      public ReplacedArguments(Object[] newArguments) {
+      public ReplacedArguments(Object[] newArguments, boolean blocking) {
         this.newArguments = newArguments;
+        this.blocking = blocking;
       }
 
       public Object[] getNewArguments() {
@@ -61,7 +65,7 @@ public interface Flow<T> {
 
       @Override
       public boolean isBlocking() {
-        return true;
+        return this.blocking;
       }
     }
   }
