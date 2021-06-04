@@ -19,7 +19,8 @@ public class DisableAsyncPropagationWithinConstructorInstrumentation extends Ins
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return namedOneOf("rx.schedulers.CachedThreadScheduler$CachedWorkerPool");
+    return namedOneOf(
+        "rx.schedulers.CachedThreadScheduler$CachedWorkerPool", "rx.internal.util.ObjectPool");
   }
 
   @Override
