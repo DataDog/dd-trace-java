@@ -5,7 +5,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.stream.Collectors;
 import jdk.jfr.consumer.RecordingFile;
 import jdk.jfr.Recording;
 
