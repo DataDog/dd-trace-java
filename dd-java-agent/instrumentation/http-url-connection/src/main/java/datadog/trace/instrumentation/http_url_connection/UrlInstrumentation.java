@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.api.normalize.PathNormalizer;
 import datadog.trace.bootstrap.InternalJarURLHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -76,6 +77,9 @@ public class UrlInstrumentation extends Instrumenter.Tracing {
           span.setTag(Tags.PEER_HOSTNAME, host);
           if (Config.get().isHttpClientSplitByDomain() && null != host && !host.isEmpty()) {
             span.setServiceName(host);
+          }
+          if (!span.hasResourceName()) {
+            span.setResourceName(PathNormalizer.normalize(url.getPath()));
           }
 
           span.setError(true);

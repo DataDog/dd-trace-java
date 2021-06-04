@@ -38,4 +38,12 @@ public class RouteHandlerDecorator {
     }
     return span;
   }
+
+  public final boolean hasRouteBasedResourceName(AgentSpan span) {
+    if (Config.get().isHttpServerRouteBasedNaming()) {
+      CharSequence route = (CharSequence) span.getTag(Tags.HTTP_ROUTE);
+      return route != null && span.getResourceName().toString().endsWith(route.toString());
+    }
+    return false;
+  }
 }

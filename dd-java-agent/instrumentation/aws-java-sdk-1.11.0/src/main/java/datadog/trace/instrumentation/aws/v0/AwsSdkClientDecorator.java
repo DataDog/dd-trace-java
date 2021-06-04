@@ -90,6 +90,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   }
 
   @Override
+  protected boolean shouldSetResourceName() {
+    return false;
+  }
+
+  @Override
   protected String service() {
     return COMPONENT_NAME.toString();
   }
