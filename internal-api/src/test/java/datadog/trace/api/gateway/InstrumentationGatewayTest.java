@@ -13,7 +13,7 @@ public class InstrumentationGatewayTest {
 
   private InstrumentationGateway gateway;
   private RequestContext context;
-  private Supplier<Flow<? extends RequestContext>> callback;
+  private Supplier<Flow<RequestContext>> callback;
   private Subscription subscription;
 
   @Before
@@ -21,7 +21,7 @@ public class InstrumentationGatewayTest {
     gateway = new InstrumentationGateway();
     context = new RequestContext() {};
     callback =
-        new Supplier<Flow<? extends RequestContext>>() {
+        new Supplier<Flow<RequestContext>>() {
           @Override
           public Flow<RequestContext> get() {
             return new Flow.ResultFlow<>(context);
@@ -35,7 +35,7 @@ public class InstrumentationGatewayTest {
     // check event without registered callback
     assertThat(gateway.getCallback(Events.REQUEST_ENDED)).isNull();
     // check event with registered callback
-    Supplier<Flow<? extends RequestContext>> cback = gateway.getCallback(Events.REQUEST_STARTED);
+    Supplier<Flow<RequestContext>> cback = gateway.getCallback(Events.REQUEST_STARTED);
     assertThat(cback).isEqualTo(callback);
     Flow<? extends RequestContext> flow = cback.get();
     assertThat(flow.getAction()).isNull();

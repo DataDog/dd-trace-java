@@ -35,33 +35,48 @@ class AppSecRequestContextSpecification extends Specification {
   }
 
   void 'it is closeable'() {
+    def ctx = new AppSecRequestContext()
+
     expect:
-    assert new AppSecRequestContext().respondsTo('close')
+    assert ctx.respondsTo('close')
+
+    when:
+    ctx.close()
+
+    then:
+    notThrown(Exception)
   }
 
-  void 'adding headers and uri after time is forbidden'() {
+  void 'adding headers after they are said to be finished is forbidden'() {
     AppSecRequestContext ctx = new AppSecRequestContext()
 
     when:
-    ctx.rawURI = '/b'
     ctx.finishHeaders()
-    ctx.savedRawURI
 
-    then:
-    thrown(IllegalStateException)
-
-    when:
+    and:
     ctx.addHeader('a', 'b')
-    ctx.collectedHeaders
 
     then:
+    ctx.finishedHeaders == true
     thrown(IllegalStateException)
 
     when:
-    ctx.collectedCookies
+    ctx.addCookie(new StringKVPair('a', 'b'))
 
     then:
     thrown(IllegalStateException)
+  }
+
+  void 'adding uri a second time is forbidden'() {
+    AppSecRequestContext ctx = new AppSecRequestContext()
+
+    when:
+    ctx.rawURI = '/a'
+    ctx.rawURI = '/b'
+
+    then:
+    thrown(IllegalStateException)
+    ctx.savedRawURI == '/a'
   }
 
   void 'saves cookies and other headers'() {

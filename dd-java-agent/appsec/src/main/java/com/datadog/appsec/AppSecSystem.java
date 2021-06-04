@@ -36,7 +36,8 @@ public class AppSecSystem {
   }
 
   private static void loadModules(EventDispatcher eventDispatcher) {
-    ServiceLoader<AppSecModule> modules = ServiceLoader.load(AppSecModule.class);
+    ServiceLoader<AppSecModule> modules =
+        ServiceLoader.load(AppSecModule.class, AppSecSystem.class.getClassLoader());
     for (AppSecModule module : modules) {
       log.info("Starting appsec module {}", module.getName());
       for (AppSecModule.EventSubscription sub : module.getEventSubscriptions()) {

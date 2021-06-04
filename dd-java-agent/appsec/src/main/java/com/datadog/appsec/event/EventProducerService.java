@@ -14,7 +14,7 @@ public interface EventProducerService {
    *
    * @return the resulting action
    */
-  Flow publishEvent(AppSecRequestContext ctx, EventType event);
+  Flow<Void> publishEvent(AppSecRequestContext ctx, EventType event);
 
   /**
    * Determines the data callbacks for the given addresses. The return value can be cached if it's
@@ -43,7 +43,7 @@ public interface EventProducerService {
    *
    * @return the resulting action
    */
-  Flow publishDataEvent(
+  Flow<Void> publishDataEvent(
       DataSubscriberInfo subscribers,
       AppSecRequestContext ctx,
       DataBundle newData,

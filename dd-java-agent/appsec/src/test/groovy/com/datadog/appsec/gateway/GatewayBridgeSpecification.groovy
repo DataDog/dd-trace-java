@@ -1,6 +1,5 @@
 package com.datadog.appsec.gateway
 
-
 import com.datadog.appsec.event.EventDispatcher
 import com.datadog.appsec.event.EventProducerService
 import com.datadog.appsec.event.EventType
@@ -31,10 +30,10 @@ class GatewayBridgeSpecification extends Specification {
   GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher)
 
   Supplier<Flow<RequestContext>> requestStartedCB
-  Function<? extends RequestContext, Flow<Void>> requestEndedCB
-  TriConsumer<? extends RequestContext, String, String> headerCB
-  Function<? extends RequestContext, Flow<Void>> headersDoneCB
-  BiFunction<? extends RequestContext, String, Flow<Void>> requestURICB
+  Function<RequestContext, Flow<Void>> requestEndedCB
+  TriConsumer<RequestContext, String, String> headerCB
+  Function<RequestContext, Flow<Void>> headersDoneCB
+  BiFunction<RequestContext, String, Flow<Void>> requestURICB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -100,6 +99,7 @@ class GatewayBridgeSpecification extends Specification {
     DataBundle bundle
 
     when:
+    ctx.rawURI = '/'
     eventDispatcher.getDataSubscribers(_, _) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
@@ -109,7 +109,24 @@ class GatewayBridgeSpecification extends Specification {
     headerCB.accept(ctx, 'header', 'value')
 
     then:
+    thrown(IllegalStateException)
     assert bundle.get(KnownAddresses.HEADERS_NO_COOKIES).isEmpty()
+  }
+
+  void 'setting headers then request uri triggers initial data event'() {
+    DataBundle bundle
+
+    when:
+    eventDispatcher.getDataSubscribers(_, _) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    { bundle = it[2]; NoopFlow.INSTANCE }
+
+    and:
+    headersDoneCB.apply(ctx)
+    requestURICB.apply(ctx, '/a')
+
+    then:
+    bundle.get(KnownAddresses.REQUEST_URI_RAW) == '/a'
   }
 
   void 'the raw request uri is provided and decoded'() {
