@@ -6,7 +6,7 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Open Liberty Smoke Tests'
 
 dependencies {
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }
 
 def appDir = "$projectDir/application"

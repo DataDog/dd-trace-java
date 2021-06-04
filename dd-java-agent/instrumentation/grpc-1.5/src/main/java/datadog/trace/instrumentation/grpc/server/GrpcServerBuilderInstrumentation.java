@@ -43,6 +43,7 @@ public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".GrpcServerDecorator",
+      packageName + ".GrpcServerDecorator$1",
       packageName + ".GrpcExtractAdapter",
       packageName + ".TracingServerInterceptor",
       packageName + ".TracingServerInterceptor$TracingServerCall",

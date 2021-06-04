@@ -77,6 +77,11 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   }
 
   public void waitUntilReported(final DDSpan span) throws InterruptedException, TimeoutException {
+    waitUntilReported(span, 20, TimeUnit.SECONDS);
+  }
+
+  public void waitUntilReported(final DDSpan span, int timeout, TimeUnit unit)
+      throws InterruptedException, TimeoutException {
     while (true) {
       final CountDownLatch latch = new CountDownLatch(size() + 1);
       synchronized (latches) {
@@ -85,7 +90,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
       if (isReported(span)) {
         return;
       }
-      if (!latch.await(20, TimeUnit.SECONDS)) {
+      if (!latch.await(timeout, unit)) {
         String msg = "Timeout waiting for span to be reported: " + span;
         log.warn(msg);
         throw new TimeoutException(msg);

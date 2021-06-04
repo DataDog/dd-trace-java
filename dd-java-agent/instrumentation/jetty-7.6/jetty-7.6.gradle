@@ -22,15 +22,15 @@ dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.6.0.v20120127'
 
   // Don't want to conflict with jetty from the test server.
-  testCompile(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
 
-  testCompile group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.6.0.v20120127'
-  testCompile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '7.6.0.v20120127'
-  testCompile group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '7.6.0.v20120127'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.6.0.v20120127'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '7.6.0.v20120127'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '7.6.0.v20120127'
 
-  latestDepTestCompile group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.+'
-  latestDepTestCompile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '8.+'
-  latestDepTestCompile group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '8.+'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.+'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '8.+'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '8.+'
 }

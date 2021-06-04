@@ -11,6 +11,7 @@ public class RouteOnSuccessOrError implements BiConsumer<HandlerFunction<?>, Thr
 
   private static final Pattern SPECIAL_CHARACTERS_REGEX = Pattern.compile("[\\(\\)&|]");
   private static final Pattern SPACES_REGEX = Pattern.compile("[ \\t]+");
+  private static final Pattern ROUTER_FUNCION_REGEX = Pattern.compile("\\s*->.*$");
 
   private final RouterFunction routerFunction;
   private final ServerRequest serverRequest;
@@ -48,7 +49,7 @@ public class RouteOnSuccessOrError implements BiConsumer<HandlerFunction<?>, Thr
         "org.springframework.web.reactive.function.server.RequestPredicates$$Lambda$")) {
       return null;
     } else {
-      return routerFunctionString.replaceFirst("\\s*->.*$", "");
+      return ROUTER_FUNCION_REGEX.matcher(routerFunctionString).replaceFirst("");
     }
   }
 

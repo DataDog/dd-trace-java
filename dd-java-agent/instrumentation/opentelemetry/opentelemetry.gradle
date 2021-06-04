@@ -27,6 +27,6 @@ dependencies {
   compileOnly group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.2'
   compileOnly group: 'com.google.auto.value', name: 'auto-value-annotations', version: '1.6.6'
 
-  testCompile group: 'io.opentelemetry', name: 'opentelemetry-api', version: otelVersion
-  latestDepTestCompile group: 'io.opentelemetry', name: 'opentelemetry-api', version: '0.7+'
+  testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: otelVersion
+  latestDepTestImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '0.7+'
 }

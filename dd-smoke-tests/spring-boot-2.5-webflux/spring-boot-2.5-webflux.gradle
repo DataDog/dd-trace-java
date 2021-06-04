@@ -18,7 +18,7 @@ jar {
 }
 
 shadowJar {
-  configurations = [project.configurations.compile, project.configurations.main_java8Compile]
+  configurations = [project.configurations.runtimeClasspath, project.configurations.main_java8RuntimeClasspath]
 }
 
 // Only needed until the final release of 2.5.0
@@ -28,8 +28,8 @@ repositories {
 }
 
 dependencies {
-  main_java8Compile group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.5.0+'
-  testCompile project(':dd-smoke-tests')
+  main_java8Implementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.5.0+'
+  testImplementation project(':dd-smoke-tests')
 }
 
 tasks.withType(Test).configureEach {

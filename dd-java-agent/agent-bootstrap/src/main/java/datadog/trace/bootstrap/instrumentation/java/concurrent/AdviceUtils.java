@@ -1,15 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Helper utils for Runnable/Callable instrumentation */
 public class AdviceUtils {
-
-  private static final Logger log = LoggerFactory.getLogger(AdviceUtils.class);
 
   /**
    * Start scope for a given task
@@ -46,6 +44,17 @@ public class AdviceUtils {
     State state = contextStore.get(task);
     if (null != state) {
       state.closeContinuation();
+    }
+  }
+
+  public static <T> void capture(
+      ContextStore<T, State> contextStore, T task, boolean startThreadMigration) {
+    TraceScope activeScope = activeScope();
+    if (null != activeScope) {
+      State state = contextStore.putIfAbsent(task, State.FACTORY);
+      if (state.captureAndSetContinuation(activeScope) && startThreadMigration) {
+        state.startThreadMigration();
+      }
     }
   }
 }

@@ -1,9 +1,9 @@
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  compile deps.slf4j
+  implementation deps.slf4j
 
-  testCompile deps.junit5
+  testImplementation deps.junit5
 }
 
 excludedClassesCoverage += ['com.datadog.profiling.controller.jfr.JdkTypeIDs']

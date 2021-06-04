@@ -37,9 +37,9 @@ class ScopeEventTest extends DDSpecification {
     tracer?.close()
   }
 
-  def filterEvents(events, eventTypeName) {
+  def filterEvents(events, eventTypeNames) {
     return events.stream()
-                 .filter({it.eventType.name == eventTypeName})
+                 .filter({it.eventType.name in eventTypeNames})
                  .collect(Collectors.toList())
   }
 
@@ -54,7 +54,7 @@ class ScopeEventTest extends DDSpecification {
     AgentScope scope = tracer.activateSpan(span)
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
-    def events = filterEvents(JfrHelper.stopRecording(recording), "datadog.Scope")
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
     span.finish()
 
     then:
@@ -76,7 +76,7 @@ class ScopeEventTest extends DDSpecification {
     AgentScope scope = tracer.activateSpan(span)
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
-    def events = filterEvents(JfrHelper.stopRecording(recording), "datadog.Scope")
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
     span.finish()
 
     then:
@@ -101,7 +101,7 @@ class ScopeEventTest extends DDSpecification {
     TraceScope scope = continuation.activate()
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
-    def events = filterEvents(JfrHelper.stopRecording(recording), "datadog.Scope")
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
     span.finish()
 
     then:
@@ -132,7 +132,7 @@ class ScopeEventTest extends DDSpecification {
     scope.close()
     span.finish()
 
-    def events = filterEvents(JfrHelper.stopRecording(recording), "datadog.Scope")
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
 
     then:
     events.size() == 2
@@ -186,7 +186,7 @@ class ScopeEventTest extends DDSpecification {
     scope3.close()
     span3.finish()
 
-    def events = filterEvents(JfrHelper.stopRecording(recording), "datadog.Scope")
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
 
     then:
     events.size() == 4
@@ -240,7 +240,7 @@ class ScopeEventTest extends DDSpecification {
     scope2.close()
     span2.finish()
 
-    def events = filterEvents(JfrHelper.stopRecording(recording), "datadog.Scope")
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
 
     then:
     events.size() == 2
@@ -273,7 +273,7 @@ class ScopeEventTest extends DDSpecification {
     scope.close()
     span.finish()
 
-    def events = filterEvents(JfrHelper.stopRecording(recording), "datadog.Scope")
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
 
     then:
     events.isEmpty()
@@ -289,24 +289,28 @@ class ScopeEventTest extends DDSpecification {
     tracer.registerCheckpointer(new JFRCheckpointer())
 
     when: "span goes through lifecycle without activation"
-    def span = tracer.startSpan("test")
+    AgentSpan span = tracer.startSpan("test")
     span.startThreadMigration()
     span.finishThreadMigration()
+    span.setResourceName("foo")
     span.finish()
     then: "checkpoints emitted"
-    def events = filterEvents(JfrHelper.stopRecording(recording), "datadog.Checkpoint")
-    events.size() == 4
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Checkpoint", "datadog.Route"])
+    events.size() == 5
     events.each {
       assert it.getLong("traceId") == span.getTraceId().toLong()
-      assert it.getLong("spanId") == span.getSpanId().toLong()
-      int flags = it.getInt("flags")
-      long cpuTime = it.getLong("cpuTime")
-      if ((flags & CPU) != 0) {
-        assert cpuTime > 0
+      if (it.eventType.name == "datadog.Checkpoint") {
+        assert it.getLong("spanId") == span.getSpanId().toLong()
+        int flags = it.getInt("flags")
+        long cpuTime = it.getLong("cpuTime")
+        if ((flags & CPU) != 0) {
+          assert cpuTime > 0
+        } else {
+          assert cpuTime == 0L
+        }
       } else {
-        assert cpuTime == 0L
+        it.getString("route") == "foo"
       }
-
     }
   }
 }

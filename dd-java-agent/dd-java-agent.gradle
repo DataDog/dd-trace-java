@@ -120,16 +120,17 @@ tasks.withType(GenerateMavenPom).configureEach { task ->
 }
 
 dependencies {
-  testCompile(project(':dd-java-agent:agent-bootstrap')) {
+  testImplementation(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
   }
-  testCompile project(':dd-trace-api')
-  testCompile project(':dd-trace-core')
-  testCompile project(':utils:test-utils')
+  testImplementation project(':dd-trace-api')
+  testImplementation project(':dd-trace-core')
+  testImplementation project(':utils:test-utils')
 
-  testCompile deps.testLogging
-  testCompile deps.guava
-  testCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
+  testImplementation deps.testLogging
+  testImplementation deps.guava
+  testImplementation deps.okhttp
+  testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
   // Includes for the top level shadow jar
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')

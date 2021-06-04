@@ -25,7 +25,7 @@ testSets {
 dependencies {
   main_java8CompileOnly group: 'com.hazelcast', name: 'hazelcast-all', version: '4.0'
 
-  testCompile group: 'com.hazelcast', name: 'hazelcast-all', version: '4.0'
+  testImplementation group: 'com.hazelcast', name: 'hazelcast-all', version: '4.0'
 
-  latestDepTestCompile group: 'com.hazelcast', name: 'hazelcast-all', version: '+'
+  latestDepTestImplementation group: 'com.hazelcast', name: 'hazelcast-all', version: '+'
 }

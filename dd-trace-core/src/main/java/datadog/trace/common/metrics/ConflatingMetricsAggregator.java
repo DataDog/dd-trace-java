@@ -20,8 +20,8 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import org.jctools.maps.NonBlockingHashMap;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.jctools.queues.SpmcArrayQueue;
 import org.slf4j.Logger;
@@ -38,8 +38,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private final Set<String> ignoredResources;
   private final Queue<Batch> batchPool;
-  private final ConcurrentHashMap<MetricKey, Batch> pending;
-  private final ConcurrentHashMap<MetricKey, MetricKey> keys;
+  private final NonBlockingHashMap<MetricKey, Batch> pending;
+  private final NonBlockingHashMap<MetricKey, MetricKey> keys;
   private final Thread thread;
   private final BlockingQueue<Batch> inbox;
   private final Sink sink;
@@ -100,8 +100,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.ignoredResources = ignoredResources;
     this.inbox = new MpscBlockingConsumerArrayQueue<>(queueSize);
     this.batchPool = new SpmcArrayQueue<>(maxAggregates);
-    this.pending = new ConcurrentHashMap<>(maxAggregates * 4 / 3, 0.75f);
-    this.keys = new ConcurrentHashMap<>();
+    this.pending = new NonBlockingHashMap<>(maxAggregates * 4 / 3);
+    this.keys = new NonBlockingHashMap<>();
     this.sink = sink;
     this.aggregator =
         new Aggregator(
@@ -136,13 +136,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   @Override
-  public void report() {
+  public boolean report() {
     boolean published;
     int attempts = 0;
     do {
       published = inbox.offer(REPORT);
       ++attempts;
     } while (!published && attempts < 10);
+    return published;
   }
 
   @Override

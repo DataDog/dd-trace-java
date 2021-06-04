@@ -172,14 +172,20 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public DDSpan addThrowable(final Throwable error) {
-    setError(true);
+    String message = error.getMessage();
+    if (!"broken pipe".equalsIgnoreCase(message)) {
+      // broken pipes happen when clients abort connections,
+      // which might happen because the application is overloaded
+      // or warming up - capturing the stack trace and keeping
+      // the trace may exacerbate existing problems.
+      setError(true);
+      final StringWriter errorString = new StringWriter();
+      error.printStackTrace(new PrintWriter(errorString));
+      setTag(DDTags.ERROR_STACK, errorString.toString());
+    }
 
-    setTag(DDTags.ERROR_MSG, error.getMessage());
+    setTag(DDTags.ERROR_MSG, message);
     setTag(DDTags.ERROR_TYPE, error.getClass().getName());
-
-    final StringWriter errorString = new StringWriter();
-    error.printStackTrace(new PrintWriter(errorString));
-    setTag(DDTags.ERROR_STACK, errorString.toString());
 
     return this;
   }

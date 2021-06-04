@@ -1,6 +1,6 @@
 import java.time.Duration
 
-apply plugin: 'java'
+apply plugin: 'java-library'
 apply plugin: 'groovy'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
@@ -65,7 +65,7 @@ if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJav
 
   dependencies {
     compileOnly sourceSets."main_$name".compileClasspath
-    compile sourceSets."main_$name".output
+    implementation sourceSets."main_$name".output
   }
 
   jar {
@@ -131,10 +131,10 @@ tasks.register("packageSources", Jar) {
 artifacts.archives packageSources
 
 dependencies {
-  testCompile deps.spock
-  testCompile deps.groovy
-  testCompile deps.testLogging
-  testCompile group: 'info.solidsoft.spock', name: 'spock-global-unroll', version: '0.5.1'
+  testImplementation deps.spock
+  testImplementation deps.groovy
+  testImplementation deps.testLogging
+  testImplementation group: 'info.solidsoft.spock', name: 'spock-global-unroll', version: '0.5.1'
 }
 
 jar {
@@ -179,8 +179,8 @@ project.afterEvaluate {
   if (project.plugins.hasPlugin('org.unbroken-dome.test-sets') && configurations.hasProperty("latestDepTestRuntime")) {
     tasks.withType(Test).configureEach {
       doFirst {
-        def testArtifacts = configurations.testRuntime.resolvedConfiguration.resolvedArtifacts
-        def latestTestArtifacts = configurations.latestDepTestRuntime.resolvedConfiguration.resolvedArtifacts
+        def testArtifacts = configurations.testRuntimeClasspath.resolvedConfiguration.resolvedArtifacts
+        def latestTestArtifacts = configurations.latestDepTestRuntimeClasspath.resolvedConfiguration.resolvedArtifacts
         assert testArtifacts != latestTestArtifacts: "latestDepTest dependencies are identical to test"
       }
     }
@@ -205,7 +205,7 @@ if (project.plugins.hasPlugin('com.github.johnrengelman.shadow')) {
 
 if (project.hasProperty("removeJarVersionNumbers") && removeJarVersionNumbers) {
   tasks.withType(AbstractArchiveTask).configureEach {
-    version = null
+    archiveVersion = null
   }
 }
 

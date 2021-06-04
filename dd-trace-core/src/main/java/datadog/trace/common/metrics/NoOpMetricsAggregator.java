@@ -11,7 +11,9 @@ public final class NoOpMetricsAggregator implements MetricsAggregator {
   public void start() {}
 
   @Override
-  public void report() {}
+  public boolean report() {
+    return false;
+  }
 
   @Override
   public boolean publish(List<? extends CoreSpan<?>> trace) {

@@ -25,13 +25,19 @@ dependencies {
   main_java8CompileOnly group: 'org.junit.platform', name: 'junit-platform-launcher', version: "$platformVersion"
   main_java8CompileOnly group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: "$jupiterVersion"
 
-  testCompile(group: 'org.junit.platform', name: 'junit-platform-engine', version: "$platformVersion") {
-    force = true
+  testImplementation(group: 'org.junit.platform', name: 'junit-platform-engine') {
+    version {
+      strictly platformVersion
+    }
   }
-  testCompile(group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: "$jupiterVersion") {
-    force = true
+  testImplementation(group: 'org.junit.jupiter', name: 'junit-jupiter-engine') {
+    version {
+      strictly jupiterVersion
+    }
   }
-  testCompile(group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: "$jupiterVersion") {
-    force = true
+  testImplementation(group: 'org.junit.jupiter', name: 'junit-jupiter-params') {
+    version {
+      strictly jupiterVersion
+    }
   }
 }

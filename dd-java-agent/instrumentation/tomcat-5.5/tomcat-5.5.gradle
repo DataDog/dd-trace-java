@@ -50,26 +50,26 @@ dependencies {
   // https://tomcat.apache.org/whichversion.html
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.4'
 
-  testCompile(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
 
   // Required jars for embedded tomcat:
-  testCompile group: 'tomcat', name: 'catalina', version: tomcatVersion
-  testCompile group: 'tomcat', name: 'tomcat-coyote', version: tomcatVersion
-  testCompile group: 'tomcat', name: 'tomcat-http', version: tomcatVersion
-  testCompile group: 'tomcat', name: 'tomcat-util', version: tomcatVersion
-  testCompile group: 'tomcat', name: 'naming-resources', version: tomcatVersion
-  testCompile group: 'tomcat', name: 'naming-factory', version: tomcatVersion
-  testCompile group: 'commons-modeler', name: 'commons-modeler', version: '2.0.1'
-  testCompile group: 'javax.servlet', name: 'servlet-api', version: '2.4'
+  testImplementation group: 'tomcat', name: 'catalina', version: tomcatVersion
+  testImplementation group: 'tomcat', name: 'tomcat-coyote', version: tomcatVersion
+  testImplementation group: 'tomcat', name: 'tomcat-http', version: tomcatVersion
+  testImplementation group: 'tomcat', name: 'tomcat-util', version: tomcatVersion
+  testImplementation group: 'tomcat', name: 'naming-resources', version: tomcatVersion
+  testImplementation group: 'tomcat', name: 'naming-factory', version: tomcatVersion
+  testImplementation group: 'commons-modeler', name: 'commons-modeler', version: '2.0.1'
+  testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.4'
 
-  latestDepTestCompile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '+'
+  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '+'
 }
 
 // Exclude all the dependencies from test for latestDepTest since the names are completely different.
 configurations {
-  latestDepTestCompile {
+  latestDepTestImplementation {
     exclude group: 'tomcat', module: 'catalina'
     exclude group: 'tomcat', module: 'tomcat-coyote'
     exclude group: 'tomcat', module: 'tomcat-util'

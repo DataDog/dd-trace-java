@@ -4,6 +4,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.core.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
+import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
@@ -175,6 +176,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     checkpointer.onFinish(span);
   }
 
+  @Override
+  public void onRootSpanPublished(AgentSpan root) {
+    checkpointer.onRootSpanPublished(root);
+  }
+
   public static class CoreTracerBuilder {
 
     private Config config;
@@ -230,22 +236,22 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     public CoreTracerBuilder localRootSpanTags(Map<String, String> localRootSpanTags) {
-      this.localRootSpanTags = localRootSpanTags;
+      this.localRootSpanTags = tryMakeImmutableMap(localRootSpanTags);
       return this;
     }
 
     public CoreTracerBuilder defaultSpanTags(Map<String, String> defaultSpanTags) {
-      this.defaultSpanTags = defaultSpanTags;
+      this.defaultSpanTags = tryMakeImmutableMap(defaultSpanTags);
       return this;
     }
 
     public CoreTracerBuilder serviceNameMappings(Map<String, String> serviceNameMappings) {
-      this.serviceNameMappings = serviceNameMappings;
+      this.serviceNameMappings = tryMakeImmutableMap(serviceNameMappings);
       return this;
     }
 
     public CoreTracerBuilder taggedHeaders(Map<String, String> taggedHeaders) {
-      this.taggedHeaders = taggedHeaders;
+      this.taggedHeaders = tryMakeImmutableMap(taggedHeaders);
       return this;
     }
 
@@ -620,6 +626,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       spanToSample.forceKeep(forceKeep);
       if (forceKeep || sampler.sample(spanToSample)) {
         writer.write(writtenTrace);
+        if (null != rootSpan) {
+          onRootSpanPublished(rootSpan);
+        }
       } else {
         // with span streaming this won't work - it needs to be changed
         // to track an effective sampling rate instead, however, tests

@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
-import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
 import static datadog.trace.core.scopemanager.EVENT.CLOSE
 import static datadog.trace.test.util.GCUtils.awaitGC
@@ -454,7 +453,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentSpan firstSpan = tracer.buildSpan("foo").start()
     AgentScope firstScope = tracer.activateSpan(firstSpan)
 
-    AgentSpan secondSpan = tracer.buildSpan("foo").start()
+    AgentSpan secondSpan = tracer.buildSpan("bar").start()
     AgentScope secondScope = tracer.activateSpan(secondSpan)
 
     firstSpan.finish()
@@ -473,6 +472,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     1 * checkpointer.checkpoint(_, _, SPAN | END) // span ended by test
+    1 * checkpointer.onRootSpanPublished("foo", _)
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
 
@@ -948,56 +948,6 @@ class ScopeManagerTest extends DDCoreSpecification {
     false               | true
     true                | false
     true                | true
-  }
-
-  def "continuation capture and activation emits checkpoints"() {
-    setup:
-    def span = tracer.buildSpan("test").start()
-
-    when:
-    def scope = tracer.activateSpan(span)
-    def continuation = scope.capture()
-
-    then:
-    1 * checkpointer.checkpoint(span.getTraceId(), span.context().getSpanId(), THREAD_MIGRATION)
-    0 * _
-
-    when:
-    continuation.activate()
-
-    then:
-    1 * checkpointer.checkpoint(span.getTraceId(), span.context().getSpanId(), THREAD_MIGRATION | END)
-    0 * _
-
-    when:
-    span.finish()
-    then:
-    1 * checkpointer.checkpoint(span.getTraceId(), span.context().getSpanId(), SPAN | END)
-  }
-
-  def "concurrent continuation capture and activation emits checkpoints"() {
-    setup:
-    def span = tracer.buildSpan("test").start()
-
-    when:
-    def scope = tracer.activateSpan(span)
-    def continuation = scope.captureConcurrent()
-
-    then:
-    1 * checkpointer.checkpoint(span.getTraceId(), span.context().getSpanId(), THREAD_MIGRATION)
-    0 * _
-
-    when:
-    continuation.activate()
-
-    then:
-    1 * checkpointer.checkpoint(span.getTraceId(), span.context().getSpanId(), THREAD_MIGRATION | END)
-    0 * _
-
-    when:
-    span.finish()
-    then:
-    1 * checkpointer.checkpoint(span.getTraceId(), span.context().getSpanId(), SPAN | END)
   }
 
   boolean spanFinished(AgentSpan span) {

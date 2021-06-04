@@ -3,12 +3,14 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'dd-smoke-tests'
 
 dependencies {
-  compile deps.spock
-  compile project(':dd-java-agent:testing')
+  api deps.spock
+  api deps.okhttp
+  api project(':dd-java-agent:testing')
+  api project(':utils:test-utils')
 }
 
 def smokeTestLimit = gradle.sharedServices.registerIfAbsent("smokeTestLimit", BuildService) {
-  maxParallelUsages = 1
+  maxParallelUsages = 2
 }
 
 Project parent_project = project

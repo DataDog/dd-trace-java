@@ -119,6 +119,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_ROUTE_BASED_NAMING;
@@ -178,7 +179,8 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
-import static datadog.trace.util.CollectionUtils.immutableSet;
+import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
+import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.Strings.toEnvVar;
 
@@ -380,6 +382,7 @@ public class Config {
   private final String jdbcConnectionClassName;
 
   private final Set<String> grpcIgnoredOutboundMethods;
+  private final boolean grpcServerTrimPackageResource;
 
   private String env;
   private String version;
@@ -524,7 +527,7 @@ public class Config {
     spanTags = configProvider.getMergedMap(SPAN_TAGS);
     jmxTags = configProvider.getMergedMap(JMX_TAGS);
 
-    excludedClasses = configProvider.getList(TRACE_CLASSES_EXCLUDE);
+    excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
     headerTags = configProvider.getMergedMap(HEADER_TAGS);
 
     httpServerErrorStatuses =
@@ -555,8 +558,7 @@ public class Config {
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_INSTANCE, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE);
 
-    splitByTags =
-        Collections.unmodifiableSet(new LinkedHashSet<>(configProvider.getList(SPLIT_BY_TAGS)));
+    splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
     scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
@@ -593,8 +595,9 @@ public class Config {
         runtimeMetricsEnabled
             && configProvider.getBoolean(JMX_FETCH_ENABLED, DEFAULT_JMX_FETCH_ENABLED);
     jmxFetchConfigDir = configProvider.getString(JMX_FETCH_CONFIG_DIR);
-    jmxFetchConfigs = configProvider.getList(JMX_FETCH_CONFIG);
-    jmxFetchMetricsConfigs = configProvider.getList(JMX_FETCH_METRICS_CONFIGS);
+    jmxFetchConfigs = tryMakeImmutableList(configProvider.getList(JMX_FETCH_CONFIG));
+    jmxFetchMetricsConfigs =
+        tryMakeImmutableList(configProvider.getList(JMX_FETCH_METRICS_CONFIGS));
     jmxFetchCheckPeriod = configProvider.getInteger(JMX_FETCH_CHECK_PERIOD);
     jmxFetchInitialRefreshBeansPeriod =
         configProvider.getInteger(JMX_FETCH_INITIAL_REFRESH_BEANS_PERIOD);
@@ -641,7 +644,7 @@ public class Config {
 
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
 
-    traceExecutors = configProvider.getList(TRACE_EXECUTORS);
+    traceExecutors = tryMakeImmutableList(configProvider.getList(TRACE_EXECUTORS));
 
     traceAnalyticsEnabled =
         configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
@@ -739,7 +742,9 @@ public class Config {
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
 
     grpcIgnoredOutboundMethods =
-        new HashSet<>(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
+        tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
+    grpcServerTrimPackageResource =
+        configProvider.getBoolean(GRPC_SERVER_TRIM_PACKAGE_RESOURCE, false);
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
@@ -1192,6 +1197,10 @@ public class Config {
     return grpcIgnoredOutboundMethods;
   }
 
+  public boolean isGrpcServerTrimPackageResource() {
+    return grpcServerTrimPackageResource;
+  }
+
   /** @return A map of tags to be applied only to the local application root span. */
   public Map<String, String> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
@@ -1214,7 +1223,7 @@ public class Config {
   }
 
   public Set<String> getMetricsIgnoredResources() {
-    return immutableSet(new HashSet<>(configProvider.getList(TRACER_METRICS_IGNORED_RESOURCES)));
+    return tryMakeImmutableSet(configProvider.getList(TRACER_METRICS_IGNORED_RESOURCES));
   }
 
   public String getEnv() {
@@ -1389,8 +1398,9 @@ public class Config {
     return isEnabled(Arrays.asList(integrationNames), "", ".analytics.enabled", defaultEnabled);
   }
 
-  public <T extends Enum<T>> T getEnumValue(String name, Class<T> type, T defaultValue) {
-    return configProvider.getEnum(PREFIX + name, type, defaultValue);
+  public <T extends Enum<T>> T getEnumValue(
+      final String name, final Class<T> type, final T defaultValue) {
+    return configProvider.getEnum(name, type, defaultValue);
   }
 
   private static boolean isDebugMode() {

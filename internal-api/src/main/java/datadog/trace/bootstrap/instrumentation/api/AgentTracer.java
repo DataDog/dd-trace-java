@@ -281,6 +281,9 @@ public class AgentTracer {
 
     @Override
     public void onFinish(AgentSpan span) {}
+
+    @Override
+    public void onRootSpanPublished(AgentSpan root) {}
   }
 
   public static class NoopAgentSpan implements AgentSpan {
@@ -582,6 +585,9 @@ public class AgentTracer {
 
     @Override
     public void cancel() {}
+
+    @Override
+    public void migrate() {}
   }
 
   public static class NoopContext implements Context.Extracted {
