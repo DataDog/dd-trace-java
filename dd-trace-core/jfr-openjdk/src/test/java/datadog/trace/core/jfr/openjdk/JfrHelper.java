@@ -1,18 +1,16 @@
 package datadog.trace.core.jfr.openjdk;
 
+import com.datadog.profiling.controller.Controller;
+import com.datadog.profiling.controller.ControllerFactory;
+import com.datadog.profiling.controller.OngoingRecording;
+import com.datadog.profiling.controller.RecordingInputStream;
+import datadog.trace.api.Config;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 import jdk.jfr.consumer.RecordingFile;
-import jdk.jfr.Recording;
-
-import com.datadog.profiling.controller.Controller;
-import com.datadog.profiling.controller.ControllerFactory;
-import com.datadog.profiling.controller.OngoingRecording;
-import com.datadog.profiling.controller.RecordingInputStream;
-import datadog.trace.api.Config;
 
 public class JfrHelper {
 

@@ -39,8 +39,8 @@ class ScopeEventTest extends DDSpecification {
 
   def filterEvents(events, eventTypeNames) {
     return events.stream()
-                 .filter({it.eventType.name in eventTypeNames})
-                 .collect(Collectors.toList())
+      .filter({it.eventType.name in eventTypeNames})
+      .collect(Collectors.toList())
   }
 
   // TODO more tests around CPU time (mocking out the SystemAccess class)
