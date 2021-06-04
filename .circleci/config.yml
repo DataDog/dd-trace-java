@@ -66,6 +66,19 @@ commands:
       - attach_workspace:
           at: .
 
+  early_return_for_forked_pull_requests:
+    description: >-
+      If this build is from a fork, stop executing the current job and return success.
+      This is useful to avoid steps that will fail due to missing credentials.
+    steps:
+      - run:
+          name: Early return if this build is from a forked PR
+          command: |
+            if [ -n "$CIRCLE_PR_NUMBER" ]; then
+              echo "Nothing to do for forked PRs, so marking this step successful"
+              circleci step halt
+            fi
+
 jobs:
   build:
     <<: *defaults
@@ -169,10 +182,12 @@ jobs:
       - store_test_results:
           path: ./results
 
+      - early_return_for_forked_pull_requests
+
       - run:
           name: Upload test results to Datadog
           when: always
-          command: datadog-ci junit upload --service dd-trace-java ./results
+          command: set +o pipefail && datadog-ci junit upload --service dd-trace-java ./results || true
 
   instrumentation_tests:
     <<: *base_tests
@@ -240,10 +255,12 @@ jobs:
       - store_test_results:
           path: ./results
 
+      - early_return_for_forked_pull_requests
+
       - run:
           name: Upload test results to Datadog
           when: always
-          command: datadog-ci junit upload --service dd-trace-java ./results
+          command: set +o pipefail && datadog-ci junit upload --service dd-trace-java ./results || true
 
   smoke_tests:
     <<: *base_tests
@@ -292,10 +309,12 @@ jobs:
       - store_test_results:
           path: ./results
 
+      - early_return_for_forked_pull_requests
+
       - run:
           name: Upload test results to Datadog
           when: always
-          command: datadog-ci junit upload --service dd-trace-java ./results
+          command: set +o pipefail && datadog-ci junit upload --service dd-trace-java ./results || true
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
   # doesn't consume so many resources. The execution time for this including spin up seems to
