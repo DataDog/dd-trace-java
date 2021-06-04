@@ -8,9 +8,11 @@ public interface URIDataAdapter {
 
   int port();
 
+  /** @return the raw, unencoded path */
   String path();
 
   String fragment();
 
+  /** @return the raw, unencoded query string */
   String query();
 }

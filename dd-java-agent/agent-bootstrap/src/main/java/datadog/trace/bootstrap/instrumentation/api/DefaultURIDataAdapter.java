@@ -27,7 +27,7 @@ public class DefaultURIDataAdapter implements URIDataAdapter {
 
   @Override
   public String path() {
-    return uri.getPath();
+    return uri.getRawPath();
   }
 
   @Override
@@ -37,6 +37,6 @@ public class DefaultURIDataAdapter implements URIDataAdapter {
 
   @Override
   public String query() {
-    return uri.getQuery();
+    return uri.getRawQuery();
   }
 }
