@@ -32,8 +32,8 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     0 * _
 
     where:
-    req                                                                                       | url
-    null                                                                                      | _
+    req                                                                    | url
+    null                                                                   | _
     [method: "test-method", url: URI.create("http://test-url?some=query"), path: '/']         | "http://test-url/"
     [method: "test-method", url: URI.create("http://a:80/"), path: '/']                       | "http://a/"
     [method: "test-method", url: URI.create("https://10.0.0.1:443"), path: '/']               | "https://10.0.0.1/"
