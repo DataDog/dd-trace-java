@@ -19,8 +19,6 @@ public class ExcludeFilter {
 
   public enum ExcludeType {
     RUNNABLE,
-    CALLABLE,
-    FUTURE,
     FORK_JOIN_TASK,
     RUNNABLE_FUTURE,
     EXECUTOR;
@@ -29,14 +27,12 @@ public class ExcludeFilter {
       switch (typeName) {
         case "java.lang.Runnable":
           return RUNNABLE;
-        case "java.util.concurrent.Callable":
-          return CALLABLE;
-        case "java.util.concurrent.Future":
-          return FUTURE;
         case "java.util.concurrent.ForkJoinTask":
           return FORK_JOIN_TASK;
         case "java.util.concurrent.RunnableFuture":
           return RUNNABLE_FUTURE;
+        case "java.util.concurrent.Executor":
+          return EXECUTOR;
         default:
           return null;
       }
