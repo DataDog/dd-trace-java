@@ -10,7 +10,6 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
 
   // test dependencies required for testing the executors we permit
-  testImplementation 'org.eclipse.jetty:jetty-util:9.4.31.v20200723'
   testImplementation 'org.apache.tomcat.embed:tomcat-embed-core:7.0.0'
   testImplementation deps.guava
   testImplementation group: 'io.netty', name: 'netty-all', version: '4.1.9.Final'
