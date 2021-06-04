@@ -10,7 +10,6 @@ import datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator
 import datadog.trace.instrumentation.play23.PlayHttpServerDecorator
 import play.api.test.TestServer
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -44,7 +43,7 @@ class PlayServerTest extends HttpServerTest<TestServer> {
       serviceName expectedServiceName()
       operationName "play.request"
       spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint == ERROR || endpoint == EXCEPTION
+      errored endpoint == EXCEPTION
       childOfPrevious()
       tags {
         "$Tags.COMPONENT" PlayHttpServerDecorator.DECORATE.component()
@@ -52,7 +51,6 @@ class PlayServerTest extends HttpServerTest<TestServer> {
         "$Tags.PEER_HOST_IPV4" { it == (endpoint == FORWARDED ? endpoint.body : "127.0.0.1") }
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_METHOD" String
-        "$Tags.HTTP_STATUS" Integer
         // BUG
         //        "$Tags.HTTP_ROUTE" String
         if (endpoint == EXCEPTION) {
