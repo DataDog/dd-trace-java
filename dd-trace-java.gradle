@@ -19,7 +19,7 @@ plugins {
   id 'io.github.gradle-nexus.publish-plugin' version '1.0.0'
 
   id "com.github.johnrengelman.shadow" version "5.2.0" apply false
-  id "me.champeau.jmh" version "0.6.2" apply false
+  id "me.champeau.jmh" version "0.6.5" apply false
 }
 
 description = 'dd-trace-java'
