@@ -23,9 +23,11 @@ public class AppSecRequestContext
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
 
+  // assume this will always be accessed by the same thread
   private String savedRawURI;
   private CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
   private List<StringKVPair> collectedCookies = new ArrayList<StringKVPair>(4);
+  private boolean finishedHeaders;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -67,24 +69,19 @@ public class AppSecRequestContext
   /* Interface for use of GatewayBridge */
 
   String getSavedRawURI() {
-    if (collectedHeaders == null) {
-      throw new IllegalStateException("Headers finished, collection not possible anymore");
-    }
     return savedRawURI;
   }
 
   void setRawURI(String savedRawURI) {
-    if (collectedHeaders == null) {
-      LOG.warn("Saw raw URI after headers have finished");
-      return;
+    if (this.savedRawURI != null) {
+      throw new IllegalStateException("Raw URI set already");
     }
     this.savedRawURI = savedRawURI;
   }
 
   void addHeader(String name, String value) {
-    if (collectedHeaders == null) {
-      LOG.warn("Header provided after headers ended");
-      return;
+    if (finishedHeaders) {
+      throw new IllegalStateException("Headers were said to be finished before");
     }
     List<String> strings = collectedHeaders.get(name);
     if (strings == null) {
@@ -95,30 +92,25 @@ public class AppSecRequestContext
   }
 
   void addCookie(StringKVPair cookie) {
-    if (collectedCookies == null) {
-      LOG.warn("Cookie provided after headers ended");
-      return;
+    if (finishedHeaders) {
+      throw new IllegalStateException("Headers were said to be finished before");
     }
     collectedCookies.add(cookie);
   }
 
   void finishHeaders() {
-    this.savedRawURI = null;
-    this.collectedHeaders = null;
-    this.collectedCookies = null;
+    this.finishedHeaders = true;
+  }
+
+  boolean isFinishedHeaders() {
+    return finishedHeaders;
   }
 
   CaseInsensitiveMap<List<String>> getCollectedHeaders() {
-    if (collectedHeaders == null) {
-      throw new IllegalStateException("Headers finished, collection not possible anymore");
-    }
     return collectedHeaders;
   }
 
   List<StringKVPair> getCollectedCookies() {
-    if (collectedCookies == null) {
-      throw new IllegalStateException("Headers finished, collection not possible anymore");
-    }
     return collectedCookies;
   }
 
