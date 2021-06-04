@@ -41,7 +41,6 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
         "io.netty.util.concurrent.GlobalEventExecutor",
         "io.netty.util.concurrent.SingleThreadEventExecutor",
         "java.util.concurrent.AbstractExecutorService",
-        "java.util.concurrent.CompletableFuture$ThreadPerTaskExecutor",
         "org.glassfish.grizzly.threadpool.GrizzlyExecutorService");
   }
 
@@ -71,24 +70,30 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
    * only be applied to types that extend {@link AbstractExecutorService} otherwise we'll get class
    * verification errors about this call in the transformed executor.
    */
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings("rawtypes")
   public static final class NewTaskFor {
     @Advice.OnMethodEnter
-    public static void execute(
+    public static boolean execute(
         @Advice.This Executor executor,
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
       if (task instanceof RunnableFuture || null == task || exclude(RUNNABLE, task)) {
+        return false;
         // no wrapping required
       } else if (task instanceof Comparable) {
         task = Wrapper.wrap(task);
       } else {
         task = NewTaskForPlaceholder.newTaskFor(executor, task, null);
       }
+      return true;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void cancel(@Advice.Argument(0) Runnable task, @Advice.Thrown Throwable error) {
-      if (null != error && task instanceof RunnableFuture) {
+    public static void cancel(
+        @Advice.Enter boolean wrapped,
+        @Advice.Argument(0) Runnable task,
+        @Advice.Thrown Throwable error) {
+      // don't cancel unless we did the wrapping
+      if (wrapped && null != error && task instanceof RunnableFuture) {
         ((RunnableFuture) task).cancel(true);
       }
     }
@@ -104,12 +109,8 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void cancel(@Advice.Argument(0) Runnable task, @Advice.Thrown Throwable error) {
-      if (null != error) {
-        if (task instanceof RunnableFuture) {
-          ((RunnableFuture) task).cancel(true);
-        } else if (task instanceof Wrapper) {
-          ((Wrapper) task).cancel();
-        }
+      if (null != error && task instanceof Wrapper) {
+        ((Wrapper) task).cancel();
       }
     }
   }
