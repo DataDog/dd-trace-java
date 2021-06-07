@@ -360,4 +360,17 @@ class DeterministicSamplerTest extends DDSpecification {
     true     | "9908585559158765387"
     true     | "9956202364908137547"
   }
+
+  def "test cutoff calculation"() {
+    when:
+    long cutoff = DeterministicSampler.cutoff(rate / 10000F)
+    then:
+    Math.abs(cutoff - new BigDecimal(rate / 10000D)
+      .multiply(new BigDecimal(BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE)))
+      .toBigInteger()
+      .longValue() + Long.MIN_VALUE) <= 1
+
+    where:
+    rate << (0..10000)
+  }
 }
