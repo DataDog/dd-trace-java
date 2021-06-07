@@ -19,4 +19,4 @@ os.arch:$(java_prop os.arch),os.name:$(java_prop os.name),os.version:$(java_prop
 
 echo $TAGS
 
-datadog-ci junit upload --service $SERVICE_NAME --tags "${TAGS}" ./results
+DD_TAGS="${TAGS}" datadog-ci junit upload --service $SERVICE_NAME ./results
