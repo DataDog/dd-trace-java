@@ -12,9 +12,7 @@ class EventDispatcherSpecification extends Specification {
   EventDispatcher dispatcher = new EventDispatcher()
   AppSecRequestContext ctx = Mock()
 
-  void 'notifies about events in order with same flow'() {
-    Flow savedFlow1, savedFlow2
-
+  void 'notifies about events in order'() {
     given:
     EventListener eventListener1 = Mock()
     EventListener eventListener2 = Mock()
@@ -28,11 +26,10 @@ class EventDispatcherSpecification extends Specification {
     dispatcher.publishEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * eventListener2.onEvent(_, ctx, EventType.REQUEST_END) >> { savedFlow1 = it.first }
+    1 * eventListener2.onEvent(ctx, EventType.REQUEST_END)
 
     then:
-    1 * eventListener1.onEvent(_, ctx, EventType.REQUEST_END) >> { savedFlow2 = it.first }
-    savedFlow1.is(savedFlow2)
+    1 * eventListener1.onEvent(ctx, EventType.REQUEST_END)
   }
 
   void 'notifies about data in order with the same flow'() {
@@ -83,29 +80,6 @@ class EventDispatcherSpecification extends Specification {
     then:
     assert !subscribers.empty
     1 * listener.onDataAvailable(_ as Flow, ctx, db)
-  }
-
-  void 'blocking interrupts event listener calls'() {
-    def exception = new RuntimeException()
-
-    given:
-    EventListener listener1 = Mock()
-    EventListener listener2 = Mock()
-
-    dispatcher.subscribeEvent(EventType.REQUEST_END, listener1)
-    dispatcher.subscribeEvent(EventType.REQUEST_END, listener2)
-
-    when:
-    ChangeableFlow resultFlow = dispatcher.publishEvent(ctx, EventType.REQUEST_END)
-
-    then:
-    1 * listener1.onEvent(_ as ChangeableFlow, ctx, EventType.REQUEST_END) >> {
-      ChangeableFlow flow = it.first()
-      flow.action = new Flow.Action.Throw(exception)
-    }
-    0 * listener2.onEvent(_ as ChangeableFlow, ctx, EventType.REQUEST_END)
-    assert resultFlow.blocking
-    assert resultFlow.action.blockingException.is(exception)
   }
 
   void 'blocking interrupts data listener calls'() {

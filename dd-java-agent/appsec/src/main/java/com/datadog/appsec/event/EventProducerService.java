@@ -11,10 +11,8 @@ public interface EventProducerService {
    *
    * <p>This method does not throw. If one of the callbacks throws, the exception is caught and the
    * processing continues.
-   *
-   * @return the resulting action
    */
-  Flow<Void> publishEvent(AppSecRequestContext ctx, EventType event);
+  void publishEvent(AppSecRequestContext ctx, EventType event);
 
   /**
    * Determines the data callbacks for the given addresses. The return value can be cached if it's

@@ -50,10 +50,8 @@ public class GatewayBridge {
         () -> {
           RequestContextSupplier requestContextSupplier = new RequestContextSupplier();
           AppSecRequestContext ctx = requestContextSupplier.getResult();
-          Flow flow = producerService.publishEvent(ctx, EventType.REQUEST_START);
-          if (flow.getAction().isBlocking()) {
-            LOG.warn("Blocking not allowed on REQUEST_STARTED event");
-          }
+          producerService.publishEvent(ctx, EventType.REQUEST_START);
+
           return requestContextSupplier;
         });
 
@@ -61,10 +59,10 @@ public class GatewayBridge {
         Events.REQUEST_ENDED,
         (RequestContext ctx_) -> {
           AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
-          Flow flow = producerService.publishEvent(ctx, EventType.REQUEST_END);
+          producerService.publishEvent(ctx, EventType.REQUEST_END);
 
           ctx.close();
-          return flow;
+          return NoopFlow.INSTANCE;
         });
 
     subscriptionService.registerCallback(Events.REQUEST_HEADER, new NewHeaderCallback());
