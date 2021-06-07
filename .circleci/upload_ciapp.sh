@@ -17,4 +17,6 @@ runtime.name:$(java_prop java.runtime.name),runtime.vendor:$(java_prop java.vend
 os.arch:$(java_prop os.arch),os.name:$(java_prop os.name),os.version:$(java_prop os.version)\
 "
 
+echo $TAGS
+
 datadog-ci junit upload --service $SERVICE_NAME --tags "${TAGS}" ./results
