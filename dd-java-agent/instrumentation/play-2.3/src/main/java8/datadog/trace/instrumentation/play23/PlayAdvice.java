@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.play23.PlayHeaders.GETTER;
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.PLAY_REQUEST;
+import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.REPORT_HTTP_STATUS;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -55,7 +56,9 @@ public class PlayAdvice {
           ((Action) thisAction).executionContext());
     } else {
       DECORATE.onError(playControllerSpan, throwable);
-      playControllerSpan.setHttpStatusCode(500);
+      if (REPORT_HTTP_STATUS) {
+        playControllerSpan.setHttpStatusCode(500);
+      }
       DECORATE.beforeFinish(playControllerSpan);
       playControllerSpan.finish();
     }

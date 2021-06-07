@@ -12,11 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.NewTaskForPlaceholder;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Executor;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -42,8 +41,6 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
         "io.netty.util.concurrent.GlobalEventExecutor",
         "io.netty.util.concurrent.SingleThreadEventExecutor",
         "java.util.concurrent.AbstractExecutorService",
-        "java.util.concurrent.CompletableFuture$ThreadPerTaskExecutor",
-        "java.util.concurrent.SubmissionPublisher$ThreadPerTaskExecutor",
         "org.glassfish.grizzly.threadpool.GrizzlyExecutorService");
   }
 
@@ -73,49 +70,47 @@ public final class WrapRunnableAsNewTaskInstrumentation extends Instrumenter.Tra
    * only be applied to types that extend {@link AbstractExecutorService} otherwise we'll get class
    * verification errors about this call in the transformed executor.
    */
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings("rawtypes")
   public static final class NewTaskFor {
     @Advice.OnMethodEnter
-    public static void execute(
+    public static boolean execute(
         @Advice.This Executor executor,
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
       if (task instanceof RunnableFuture || null == task || exclude(RUNNABLE, task)) {
+        return false;
         // no wrapping required
       } else if (task instanceof Comparable) {
-        task = new ComparableRunnable(task);
+        task = Wrapper.wrap(task);
       } else {
         task = NewTaskForPlaceholder.newTaskFor(executor, task, null);
       }
+      return true;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void cancel(@Advice.Argument(0) Runnable task, @Advice.Thrown Throwable error) {
-      if (null != error && task instanceof RunnableFuture) {
+    public static void cancel(
+        @Advice.Enter boolean wrapped,
+        @Advice.Argument(0) Runnable task,
+        @Advice.Thrown Throwable error) {
+      // don't cancel unless we did the wrapping
+      if (wrapped && null != error && task instanceof RunnableFuture) {
         ((RunnableFuture) task).cancel(true);
       }
     }
   }
 
-  /** More general wrapper that uses {@link FutureTask} instead of calling 'newTaskFor'. */
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  /** More general wrapper that uses {@link Wrapper} instead of calling 'newTaskFor'. */
+  @SuppressWarnings("rawtypes")
   public static final class Wrap {
     @Advice.OnMethodEnter
-    public static void execute(
-        @Advice.This Executor executor,
-        @Advice.Argument(value = 0, readOnly = false) Runnable task) {
-      if (task instanceof RunnableFuture || null == task || exclude(RUNNABLE, task)) {
-        // no wrapping required
-      } else if (task instanceof Comparable) {
-        task = new ComparableRunnable(task);
-      } else {
-        task = new FutureTask<>(task, null);
-      }
+    public static void execute(@Advice.Argument(value = 0, readOnly = false) Runnable task) {
+      task = Wrapper.wrap(task);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void cancel(@Advice.Argument(0) Runnable task, @Advice.Thrown Throwable error) {
-      if (null != error && task instanceof RunnableFuture) {
-        ((RunnableFuture) task).cancel(true);
+      if (null != error && task instanceof Wrapper) {
+        ((Wrapper) task).cancel();
       }
     }
   }

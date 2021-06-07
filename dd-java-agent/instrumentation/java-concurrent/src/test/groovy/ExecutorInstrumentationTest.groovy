@@ -10,9 +10,7 @@ import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.AbstractExecutorService
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Callable
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
-import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.ForkJoinTask
@@ -151,9 +149,6 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAll with timeout" | invokeAllTimeout    | new TypeAwareThreadPoolExecutor()
     "invokeAny"              | invokeAny           | new TypeAwareThreadPoolExecutor()
     "invokeAny with timeout" | invokeAnyTimeout    | new TypeAwareThreadPoolExecutor()
-
-    // Internal executor used by CompletableFuture
-    "execute Runnable"       | executeRunnable     | java7SafeCompletableFutureThreadPerTaskExecutor()
 
     // java.util.concurrent.Executors$FinalizableDelegatedExecutorService
     "execute Runnable"       | executeRunnable     | Executors.newSingleThreadExecutor()
@@ -345,14 +340,6 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     //    "submit Callable"     | submitCallable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     //    "schedule Runnable"   | scheduleRunnable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     //    "schedule Callable"   | scheduleCallable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
-  }
-
-  private static Executor java7SafeCompletableFutureThreadPerTaskExecutor() {
-    try {
-      return new CompletableFuture.ThreadPerTaskExecutor()
-    } catch (NoClassDefFoundError e) {
-      return null
-    }
   }
 
   static class CustomThreadPoolExecutor extends AbstractExecutorService {

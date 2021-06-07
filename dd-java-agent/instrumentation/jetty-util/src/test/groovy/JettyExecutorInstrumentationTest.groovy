@@ -4,20 +4,24 @@ import datadog.trace.core.DDSpan
 import org.eclipse.jetty.util.thread.MonitoredQueuedThreadPool
 import org.eclipse.jetty.util.thread.QueuedThreadPool
 import org.eclipse.jetty.util.thread.ReservedThreadExecutor
-import spock.lang.Requires
 import spock.lang.Shared
 
 import java.util.concurrent.Callable
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
-import static datadog.trace.api.Platform.isJavaVersionAtLeast
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static org.junit.Assume.assumeTrue
 
-@Requires({
-  isJavaVersionAtLeast(8)
-})
 class JettyExecutorInstrumentationTest extends AgentTestRunner {
+
+  @Shared
+  Executor delegate = Executors.newSingleThreadExecutor()
+
+  @Override
+  def cleanupSpec() {
+    delegate.shutdownNow()
+  }
 
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
@@ -64,6 +68,6 @@ class JettyExecutorInstrumentationTest extends AgentTestRunner {
     name                     | method              | poolImpl
     "execute Runnable"       | executeRunnable     | new MonitoredQueuedThreadPool(8)
     "execute Runnable"       | executeRunnable     | new QueuedThreadPool(8)
-    "execute Runnable"       | executeRunnable     | new ReservedThreadExecutor(Executors.newSingleThreadExecutor(), 1)
+    "execute Runnable"       | executeRunnable     | new ReservedThreadExecutor(delegate, 1)
   }
 }

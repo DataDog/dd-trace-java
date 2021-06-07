@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.play24;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.DECORATE;
+import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.REPORT_HTTP_STATUS;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
@@ -24,7 +25,9 @@ public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try
       if (result.isFailure()) {
         DECORATE.onError(span, result.failed().get());
       } else {
-        DECORATE.onResponse(span, result.get());
+        if (REPORT_HTTP_STATUS) {
+          DECORATE.onResponse(span, result.get());
+        }
       }
       DECORATE.beforeFinish(span);
       final TraceScope scope = activeScope();

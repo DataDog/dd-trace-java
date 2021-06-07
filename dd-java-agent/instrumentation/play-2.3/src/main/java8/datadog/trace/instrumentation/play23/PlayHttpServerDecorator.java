@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.play23;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -14,6 +15,7 @@ import play.api.mvc.Result;
 import scala.Option;
 
 public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Request, Result> {
+  public static final boolean REPORT_HTTP_STATUS = Config.get().getPlayReportHttpStatus();
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
   public static final CharSequence PLAY_ACTION = UTF8BytesString.create("play-action");
   public static final PlayHttpServerDecorator DECORATE = new PlayHttpServerDecorator();
@@ -74,7 +76,9 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
 
   @Override
   public AgentSpan onError(final AgentSpan span, Throwable throwable) {
-    span.setHttpStatusCode(500);
+    if (REPORT_HTTP_STATUS) {
+      span.setHttpStatusCode(500);
+    }
     if (throwable != null
         // This can be moved to instanceof check when using Java 8.
         && throwable.getClass().getName().equals("java.util.concurrent.CompletionException")

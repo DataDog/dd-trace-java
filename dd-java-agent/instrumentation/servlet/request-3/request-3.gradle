@@ -33,6 +33,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:jetty-9') // See if there's any conflicts.
   testImplementation project(':dd-java-agent:instrumentation:tomcat-5.5') // See if there's any conflicts.
   testImplementation project(':dd-java-agent:instrumentation:servlet')
+  testImplementation project(':dd-java-agent:instrumentation:jetty-util')
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.2.0.v20160908'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '8.2.0.v20160908'
   testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '8.0.41'
