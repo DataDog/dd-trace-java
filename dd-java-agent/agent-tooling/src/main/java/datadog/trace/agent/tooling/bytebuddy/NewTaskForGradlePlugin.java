@@ -9,7 +9,9 @@ import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
 
 /**
- * Bytebuddy gradle plugin which rewrites placeholder calls in 'NewTaskFor' advice at build time.
+ * Bytebuddy gradle plugin which rewrites placeholder calls in 'NewTaskFor' advice at compile time.
+ *
+ * @see "buildSrc/src/main/groovy/InstrumentPlugin.groovy"
  */
 public class NewTaskForGradlePlugin extends Plugin.ForElementMatcher {
 
