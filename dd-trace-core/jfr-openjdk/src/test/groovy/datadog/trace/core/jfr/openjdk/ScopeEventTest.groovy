@@ -12,6 +12,7 @@ import datadog.trace.test.util.DDSpecification
 import spock.lang.Requires
 
 import java.time.Duration
+import java.util.stream.Collectors
 
 import static datadog.trace.api.Checkpointer.CPU
 
@@ -36,6 +37,12 @@ class ScopeEventTest extends DDSpecification {
     tracer?.close()
   }
 
+  def filterEvents(events, eventTypeNames) {
+    return events.stream()
+      .filter({it.eventType.name in eventTypeNames})
+      .collect(Collectors.toList())
+  }
+
   // TODO more tests around CPU time (mocking out the SystemAccess class)
   def "Scope event is written with thread CPU time"() {
     setup:
@@ -47,13 +54,12 @@ class ScopeEventTest extends DDSpecification {
     AgentScope scope = tracer.activateSpan(span)
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
     span.finish()
 
     then:
     events.size() == 1
     def event = events[0]
-    event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
     event.getLong("traceId") == span.context().traceId.toLong()
     event.getLong("spanId") == span.context().spanId.toLong()
@@ -70,13 +76,12 @@ class ScopeEventTest extends DDSpecification {
     AgentScope scope = tracer.activateSpan(span)
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
     span.finish()
 
     then:
     events.size() == 1
     def event = events[0]
-    event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
     event.getLong("traceId") == span.context().traceId.toLong()
     event.getLong("spanId") == span.context().spanId.toLong()
@@ -96,13 +101,12 @@ class ScopeEventTest extends DDSpecification {
     TraceScope scope = continuation.activate()
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
     span.finish()
 
     then:
     events.size() == 1
     def event = events[0]
-    event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
     event.getLong("traceId") == span.context().traceId.toLong()
     event.getLong("spanId") == span.context().spanId.toLong()
@@ -128,13 +132,10 @@ class ScopeEventTest extends DDSpecification {
     scope.close()
     span.finish()
 
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
 
     then:
     events.size() == 2
-    events.each {
-      assert it.eventType.name == "datadog.Scope"
-    }
 
     with(events[0]) {
       getLong("traceId") == span2.context().traceId.toLong()
@@ -185,13 +186,10 @@ class ScopeEventTest extends DDSpecification {
     scope3.close()
     span3.finish()
 
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
 
     then:
     events.size() == 4
-    events.each {
-      assert it.eventType.name == "datadog.Scope"
-    }
 
     with(events[0]) {
       getLong("traceId") == span2.context().traceId.toLong()
@@ -242,12 +240,11 @@ class ScopeEventTest extends DDSpecification {
     scope2.close()
     span2.finish()
 
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
 
     then:
     events.size() == 2
     events.each {
-      assert it.eventType.name == "datadog.Scope"
       assert it.duration >= SLEEP_DURATION
     }
 
@@ -276,7 +273,7 @@ class ScopeEventTest extends DDSpecification {
     scope.close()
     span.finish()
 
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
 
     then:
     events.isEmpty()
@@ -298,10 +295,9 @@ class ScopeEventTest extends DDSpecification {
     span.setResourceName("foo")
     span.finish()
     then: "checkpoints emitted"
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Checkpoint", "datadog.Route"])
     events.size() == 5
     events.each {
-      assert it.eventType.name in ["datadog.Checkpoint", "datadog.Route"]
       assert it.getLong("traceId") == span.getTraceId().toLong()
       if (it.eventType.name == "datadog.Checkpoint") {
         assert it.getLong("spanId") == span.getSpanId().toLong()
