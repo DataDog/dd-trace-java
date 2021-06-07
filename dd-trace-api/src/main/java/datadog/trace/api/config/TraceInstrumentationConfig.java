@@ -43,12 +43,16 @@ public final class TraceInstrumentationConfig {
       "kafka.client.base64.decoding.enabled";
 
   public static final String GRPC_IGNORED_OUTBOUND_METHODS = "trace.grpc.ignored.outbound.methods";
+  public static final String GRPC_SERVER_TRIM_PACKAGE_RESOURCE =
+      "trace.grpc.server.trim-package-resource";
   public static final String HYSTRIX_TAGS_ENABLED = "hystrix.tags.enabled";
   public static final String HYSTRIX_MEASURED_ENABLED = "hystrix.measured.enabled";
 
   public static final String IGNITE_CACHE_INCLUDE_KEYS = "ignite.cache.include_keys";
 
   public static final String OSGI_SEARCH_DEPTH = "osgi.search.depth";
+
+  public static final String PLAY_REPORT_HTTP_STATUS = "trace.play.report-http-status";
 
   public static final String SERVLET_PRINCIPAL_ENABLED = "trace.servlet.principal.enabled";
   public static final String SERVLET_ASYNC_TIMEOUT_ERROR = "trace.servlet.async-timeout.error";

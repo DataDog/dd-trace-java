@@ -60,6 +60,11 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
     response.code() == 200
   }
 
+  /*
+   * TODO this test does not actually follow the intent that I believe we are looking for.
+   *  I believe the intent is that we use the liberty exception->status_code mapping
+   *  configuration to map an exception to 404.
+   */
   def "Test trace snapshot for server exception" () {
     setup:
     Response response
@@ -72,6 +77,6 @@ class SpringBootOpenLibertySnapshotTest extends AbstractTestAgentSmokeTest {
 
     expect:
     response != null
-    response.code() != 200
+    response.code() == 500
   }
 }

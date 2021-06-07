@@ -1,0 +1,62 @@
+package datadog.trace.instrumentation.synapse3;
+
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.Iterator;
+import java.util.Map;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+import org.apache.axis2.context.MessageContext;
+
+/** Helps propagate parent spans over 'passthru' mechanism to synapse-client instrumentation. */
+@AutoService(Instrumenter.class)
+public final class SynapsePassthruInstrumentation extends Instrumenter.Tracing {
+
+  public SynapsePassthruInstrumentation() {
+    super("synapse3-client", "synapse3");
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> typeMatcher() {
+    return named("org.apache.synapse.transport.passthru.DeliveryAgent");
+  }
+
+  @Override
+  public void adviceTransformations(final AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("submit"))
+            .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
+        getClass().getName() + "$PassthruAdvice");
+  }
+
+  public static final class PassthruAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void submit(@Advice.Argument(0) final MessageContext message) {
+
+      // avoid leaking x-datadog headers from incoming server messages into client requests
+      Object headers = message.getProperty(MessageContext.TRANSPORT_HEADERS);
+      if (headers instanceof Map) {
+        Iterator<Map.Entry<String, ?>> itr = ((Map) headers).entrySet().iterator();
+        while (itr.hasNext()) {
+          if (itr.next().getKey().toLowerCase().startsWith("x-datadog")) {
+            itr.remove();
+          }
+        }
+      }
+
+      // use message context to propagate active spans across Synapse's 'passthru' mechanism
+      AgentSpan span = activeSpan();
+      if (null != span) {
+        message.setNonReplicableProperty("dd.trace.synapse.span", span);
+      }
+    }
+  }
+}

@@ -3,8 +3,8 @@ package datadog.trace.bootstrap
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter
 import datadog.trace.test.util.DDSpecification
 
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.CALLABLE
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FUTURE
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE
 
 class ExcludeFilterTest extends DDSpecification {
@@ -30,11 +30,11 @@ class ExcludeFilterTest extends DDSpecification {
     def yetAnotherName = YetAnother.getName()
     Map<ExcludeFilter.ExcludeType, Set<String>> excludedTypes = new HashMap<>()
     excludedTypes.put(RUNNABLE, [anotherName].toSet())
-    excludedTypes.put(CALLABLE, [yetAnotherName].toSet())
-    excludedTypes.put(FUTURE, [anotherName, yetAnotherName].toSet())
+    excludedTypes.put(EXECUTOR, [yetAnotherName].toSet())
+    excludedTypes.put(RUNNABLE_FUTURE, [anotherName, yetAnotherName].toSet())
     ExcludeFilter.add(excludedTypes)
-    def anotherExcluded = type == RUNNABLE || type == FUTURE
-    def yetAnotherExcluded = type == CALLABLE || type == FUTURE
+    def anotherExcluded = type == RUNNABLE || type == RUNNABLE_FUTURE
+    def yetAnotherExcluded = type == EXECUTOR || type == RUNNABLE_FUTURE
 
     expect:
     ExcludeFilter.exclude(type, another) == anotherExcluded

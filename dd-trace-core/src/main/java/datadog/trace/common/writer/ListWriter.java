@@ -1,7 +1,6 @@
 package datadog.trace.common.writer;
 
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.processor.TraceProcessor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -25,7 +24,6 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
         }
       };
 
-  private final TraceProcessor processor = new TraceProcessor();
   private final List<CountDownLatch> latches = new ArrayList<>();
   private final AtomicInteger traceCount = new AtomicInteger();
   private final TraceStructureWriter structureWriter = new TraceStructureWriter(true);
@@ -43,7 +41,6 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
 
     traceCount.incrementAndGet();
     synchronized (latches) {
-      trace = processor.onTraceComplete(trace);
       add(trace);
       for (final CountDownLatch latch : latches) {
         if (size() >= latch.getCount()) {
@@ -77,6 +74,11 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   }
 
   public void waitUntilReported(final DDSpan span) throws InterruptedException, TimeoutException {
+    waitUntilReported(span, 20, TimeUnit.SECONDS);
+  }
+
+  public void waitUntilReported(final DDSpan span, int timeout, TimeUnit unit)
+      throws InterruptedException, TimeoutException {
     while (true) {
       final CountDownLatch latch = new CountDownLatch(size() + 1);
       synchronized (latches) {
@@ -85,7 +87,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
       if (isReported(span)) {
         return;
       }
-      if (!latch.await(20, TimeUnit.SECONDS)) {
+      if (!latch.await(timeout, unit)) {
         String msg = "Timeout waiting for span to be reported: " + span;
         log.warn(msg);
         throw new TimeoutException(msg);

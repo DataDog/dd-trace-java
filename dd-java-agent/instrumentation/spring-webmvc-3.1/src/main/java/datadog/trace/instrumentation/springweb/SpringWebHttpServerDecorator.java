@@ -84,21 +84,9 @@ public class SpringWebHttpServerDecorator
       final Object bestMatchingPattern =
           request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
       if (method != null && bestMatchingPattern != null && !bestMatchingPattern.equals("/**")) {
-        // universal matching is not helpful (and prevents 404 renaming in URLAsResourceNameRule).
         ROUTE_HANDLER_DECORATOR.withRoute(span, method, bestMatchingPattern.toString());
       }
     }
-    return span;
-  }
-
-  @Override
-  public AgentSpan onResponse(AgentSpan span, HttpServletResponse response) {
-    super.onResponse(span, response);
-
-    if (status(response) == 404) {
-      span.setResourceName("404");
-    }
-
     return span;
   }
 

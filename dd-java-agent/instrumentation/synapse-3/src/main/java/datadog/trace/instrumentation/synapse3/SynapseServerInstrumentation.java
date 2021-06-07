@@ -3,14 +3,14 @@ package datadog.trace.instrumentation.synapse3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.synapse3.HttpRequestExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_REQUEST;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_SPAN_KEY;
-import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -19,104 +19,122 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.apache.http.HttpResponse;
+import org.apache.http.HttpRequest;
 import org.apache.http.nio.NHttpServerConnection;
-import org.apache.synapse.transport.passthru.SourceRequest;
 
 @AutoService(Instrumenter.class)
 public final class SynapseServerInstrumentation extends Instrumenter.Tracing {
 
   public SynapseServerInstrumentation() {
-    super("synapse3");
+    super("synapse3-server", "synapse3");
   }
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return namedOneOf(
-        "org.apache.synapse.transport.passthru.ServerWorker",
-        "org.apache.synapse.transport.passthru.SourceResponse");
+    return named("org.apache.synapse.transport.passthru.SourceHandler");
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SynapseServerDecorator",
+      packageName + ".HttpRequestExtractAdapter", packageName + ".SynapseServerDecorator",
     };
   }
 
   @Override
-  public void adviceTransformations(AdviceTransformation transformation) {
+  public void adviceTransformations(final AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod()
-            .and(named("run"))
-            .and(takesNoArguments())
-            .and(isDeclaredBy(named("org.apache.synapse.transport.passthru.ServerWorker"))),
-        getClass().getName() + "$HandleRequestAdvice");
+            .and(named("requestReceived"))
+            .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
+        getClass().getName() + "$ServerRequestAdvice");
     transformation.applyAdvice(
         isMethod()
-            .and(named("start"))
-            .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection")))
-            .and(isDeclaredBy(named("org.apache.synapse.transport.passthru.SourceResponse"))),
-        getClass().getName() + "$HandleAsyncResponseAdvice");
+            .and(named("responseReady"))
+            .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
+        getClass().getName() + "$ServerResponseAdvice");
+    transformation.applyAdvice(
+        isMethod()
+            .and(namedOneOf("closed", "exception", "timeout"))
+            .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
+        getClass().getName() + "$ServerErrorResponseAdvice");
   }
 
-  public static final class HandleRequestAdvice {
+  public static final class ServerRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beginRequest(
-        @Advice.FieldValue("request") final SourceRequest request) {
-      AgentSpan span = startSpan(SYNAPSE_REQUEST);
+        @Advice.Argument(0) final NHttpServerConnection connection) {
+
+      // check incoming request for distributed trace ids
+      HttpRequest request = connection.getHttpRequest();
+      AgentSpan.Context.Extracted extractedContext = propagate().extract(request, GETTER);
+
+      AgentSpan span;
+      if (null != extractedContext) {
+        span = startSpan(SYNAPSE_REQUEST, extractedContext);
+      } else {
+        span = startSpan(SYNAPSE_REQUEST);
+      }
+
+      span.setMeasured(true);
       DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request.getConnection(), request, null);
-      request.getConnection().getContext().setAttribute(SYNAPSE_SPAN_KEY, span);
+      DECORATE.onRequest(span, connection, request, extractedContext);
+
+      // capture span to be finished by one of the various server response advices
+      connection.getContext().setAttribute(SYNAPSE_SPAN_KEY, span);
+
       return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void finishRequest(
+    public static void requestReceived(@Advice.Enter final AgentScope scope) {
+      scope.close();
+    }
+  }
+
+  public static final class ServerResponseAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentScope beginResponse(
+        @Advice.Argument(0) final NHttpServerConnection connection) {
+      // check and remove span from context so it won't be finished twice
+      AgentSpan span = (AgentSpan) connection.getContext().removeAttribute(SYNAPSE_SPAN_KEY);
+      if (null != span) {
+        return activateSpan(span);
+      }
+      return null;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void responseReady(
+        @Advice.Argument(0) final NHttpServerConnection connection,
         @Advice.Enter final AgentScope scope,
-        @Advice.FieldValue("request") final SourceRequest request,
         @Advice.Thrown final Throwable error) {
       if (null == scope) {
         return;
       }
       AgentSpan span = scope.span();
-      HttpResponse response = request.getConnection().getHttpResponse();
-      if (null != response) {
-        DECORATE.onResponse(span, response);
-      }
+      DECORATE.onResponse(span, connection.getHttpResponse());
       if (null != error) {
         DECORATE.onError(span, error);
       }
-      // if we have a response (or error) then we can finish the request span now
-      if ((null != response || null != error)
-          && null != request.getConnection().getContext().removeAttribute(SYNAPSE_SPAN_KEY)) {
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      } else {
-        // response will be committed asynchronously by SourceResponse.start(connection)
-        scope.close();
-      }
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
     }
   }
 
-  public static final class HandleAsyncResponseAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void finishAsyncResponse(
+  public static final class ServerErrorResponseAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void errorResponse(
         @Advice.Argument(0) final NHttpServerConnection connection,
-        @Advice.Thrown final Throwable error) {
-      // get back to original span so we can finish it with the async response
+        @Advice.Argument(value = 1, optional = true) final Object error) {
+      // check and remove span from context so it won't be finished twice
       AgentSpan span = (AgentSpan) connection.getContext().removeAttribute(SYNAPSE_SPAN_KEY);
-      if (null == span) {
-        return;
-      }
-      try (AgentScope scope = activateSpan(span)) {
-        HttpResponse response = connection.getHttpResponse();
-        if (null != response) {
-          DECORATE.onResponse(span, response);
-        }
-        if (null != error) {
-          DECORATE.onError(span, error);
+      if (null != span) {
+        if (error instanceof Throwable) {
+          DECORATE.onError(span, (Throwable) error);
+        } else {
+          span.setError(true);
         }
         DECORATE.beforeFinish(span);
         span.finish();

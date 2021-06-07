@@ -16,7 +16,7 @@ class HystrixObservableTest extends HystrixTestRunner {
 
   @Override
   boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
+    // FIXME - test still times out in CI
     return false
   }
 

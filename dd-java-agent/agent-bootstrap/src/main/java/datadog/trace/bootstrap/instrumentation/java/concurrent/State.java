@@ -1,23 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
+
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public final class State {
-
-  private static final class ContinuationClaim implements TraceScope.Continuation {
-
-    @Override
-    public TraceScope activate() {
-      throw new IllegalStateException();
-    }
-
-    @Override
-    public void cancel() {
-      throw new IllegalStateException();
-    }
-  }
 
   public static ContextStore.Factory<State> FACTORY =
       new ContextStore.Factory<State>() {
@@ -30,8 +20,6 @@ public final class State {
   private static final AtomicReferenceFieldUpdater<State, TraceScope.Continuation> CONTINUATION =
       AtomicReferenceFieldUpdater.newUpdater(
           State.class, TraceScope.Continuation.class, "continuation");
-
-  private static final TraceScope.Continuation CLAIMED = new ContinuationClaim();
 
   private volatile TraceScope.Continuation continuation = null;
 
@@ -76,5 +64,12 @@ public final class State {
     }
     CONTINUATION.compareAndSet(this, continuation, null);
     return continuation;
+  }
+
+  public void startThreadMigration() {
+    TraceScope.Continuation continuation = CONTINUATION.get(this);
+    if (continuation instanceof AgentScope.Continuation) {
+      ((AgentScope.Continuation) continuation).migrate();
+    }
   }
 }

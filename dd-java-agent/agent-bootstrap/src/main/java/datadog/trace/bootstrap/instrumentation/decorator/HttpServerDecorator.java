@@ -1,9 +1,15 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.api.Functions.PATH_BASED_RESOURCE_NAME;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
+import static datadog.trace.api.normalize.PathNormalizer.normalize;
+import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Pair;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Events;
@@ -14,6 +20,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.BitSet;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -26,6 +33,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
+
+  private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
+  protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
+  private static final boolean SHOULD_SET_404_RESOURCE_NAME =
+      Config.get().isRuleEnabled("URLAsResourceNameRule")
+          && Config.get().isRuleEnabled("Status404Rule")
+          && Config.get().isRuleEnabled("Status404Decorator");
+  private static final boolean SHOULD_SET_URL_RESOURCE_NAME =
+      Config.get().isRuleEnabled("URLAsResourceNameRule");
+  private static final DDCache<Pair<String, String>, UTF8BytesString> RESOURCE_NAMES =
+      DDCaches.newFixedSizeCache(512);
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
 
@@ -79,7 +97,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     }
 
     if (request != null) {
-      span.setTag(Tags.HTTP_METHOD, method(request));
+      String method = method(request);
+      span.setTag(Tags.HTTP_METHOD, method);
 
       // Copy of HttpClientDecorator url handling
       try {
@@ -92,11 +111,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
           onRequestForInstrumentationGateway(span, url);
+          // TODO is this ever false?
+          if (SHOULD_SET_URL_RESOURCE_NAME && !span.hasResourceName()) {
+            span.setResourceName(
+                RESOURCE_NAMES.computeIfAbsent(
+                    Pair.of(method, normalize(url.path())), PATH_BASED_RESOURCE_NAME));
+          }
+        } else if (SHOULD_SET_URL_RESOURCE_NAME && !span.hasResourceName()) {
+          span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
       }
-      // TODO set resource name from URL.
     }
 
     if (connection != null) {
@@ -121,6 +147,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       }
       if (SERVER_ERROR_STATUSES.get(status)) {
         span.setError(true);
+      }
+      if (SHOULD_SET_404_RESOURCE_NAME
+          && status == 404
+          && !ROUTE_HANDLER_DECORATOR.hasRouteBasedResourceName(span)) {
+        span.setResourceName(NOT_FOUND_RESOURCE_NAME);
       }
     }
     return span;

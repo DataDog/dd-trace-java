@@ -599,6 +599,9 @@ public class AgentTracer {
 
     @Override
     public void cancel() {}
+
+    @Override
+    public void migrate() {}
   }
 
   public static class NoopContext implements Context.Extracted {
