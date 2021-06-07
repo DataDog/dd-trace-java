@@ -298,9 +298,10 @@ class ScopeEventTest extends DDSpecification {
     def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Checkpoint", "datadog.Route"])
     events.size() == 5
     events.each {
-      assert it.getLong("traceId") == span.getTraceId().toLong()
+      assert it.eventType.name in ["datadog.Checkpoint", "datadog.Route"]
+      assert Double.doubleToRawLongBits(it.getDouble("traceId")) == span.getTraceId().toLong()
       if (it.eventType.name == "datadog.Checkpoint") {
-        assert it.getLong("spanId") == span.getSpanId().toLong()
+        assert Double.doubleToRawLongBits(it.getDouble("spanId")) == span.getSpanId().toLong()
         int flags = it.getInt("flags")
         long cpuTime = it.getLong("cpuTime")
         if ((flags & CPU) != 0) {

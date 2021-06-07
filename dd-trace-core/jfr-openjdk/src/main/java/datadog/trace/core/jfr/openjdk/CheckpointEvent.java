@@ -18,10 +18,10 @@ import jdk.jfr.StackTrace;
 public class CheckpointEvent extends Event {
 
   @Label("Trace Id")
-  private final long traceId;
+  private final double traceId;
 
   @Label("Span Id")
-  private final long spanId;
+  private final double spanId;
 
   @Label("Flags")
   private final int flags;
@@ -30,8 +30,8 @@ public class CheckpointEvent extends Event {
   private final long cpuTime;
 
   public CheckpointEvent(long traceId, long spanId, int flags) {
-    this.traceId = traceId;
-    this.spanId = spanId;
+    this.traceId = Double.longBitsToDouble(traceId);
+    this.spanId = Double.longBitsToDouble(spanId);
     this.flags = flags;
     if ((flags & CPU) != 0 && isEnabled()) {
       this.cpuTime = SystemAccess.getCurrentThreadCpuTime();
