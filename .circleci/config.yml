@@ -187,7 +187,7 @@ jobs:
       - run:
           name: Upload test results to Datadog
           when: always
-          command: set +o pipefail && datadog-ci junit upload --service dd-trace-java ./results || true
+          command: ./upload_ciapp.sh base << parameters.testTask >> || true
 
   instrumentation_tests:
     <<: *base_tests
@@ -260,7 +260,7 @@ jobs:
       - run:
           name: Upload test results to Datadog
           when: always
-          command: set +o pipefail && datadog-ci junit upload --service dd-trace-java ./results || true
+          command: ./upload_ciapp.sh instrumentation << parameters.testTask >> || true
 
   smoke_tests:
     <<: *base_tests
@@ -314,7 +314,7 @@ jobs:
       - run:
           name: Upload test results to Datadog
           when: always
-          command: set +o pipefail && datadog-ci junit upload --service dd-trace-java ./results || true
+          command: ./upload_ciapp.sh smoke << parameters.testTask >> || true
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
   # doesn't consume so many resources. The execution time for this including spin up seems to
