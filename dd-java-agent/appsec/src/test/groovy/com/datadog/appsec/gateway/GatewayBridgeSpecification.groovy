@@ -45,7 +45,7 @@ class GatewayBridgeSpecification extends Specification {
 
     then:
     1 * eventDispatcher.publishEvent(
-      _ as AppSecRequestContext, EventType.REQUEST_START) >> NoopFlow.INSTANCE
+      _ as AppSecRequestContext, EventType.REQUEST_START)
     RequestContext producedCtx = startFlow.getResult()
     producedCtx instanceof AppSecRequestContext
     startFlow.action == Flow.Action.Noop.INSTANCE
@@ -53,16 +53,15 @@ class GatewayBridgeSpecification extends Specification {
 
   void 'request_end closes context and publishes event'() {
     AppSecRequestContext mockCtx = Mock()
-    def stubReturnFlow = Mock(Flow)
 
     when:
-    Flow<RequestContext> endFlow = requestEndedCB.apply(mockCtx)
+    def flow = requestEndedCB.apply(mockCtx)
 
     then:
     1 * mockCtx.close()
-    1 * eventDispatcher.publishEvent(mockCtx, EventType.REQUEST_END) >> stubReturnFlow
-
-    endFlow.is(stubReturnFlow)
+    1 * eventDispatcher.publishEvent(mockCtx, EventType.REQUEST_END)
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
   }
 
   void 'bridge can collect headers'() {

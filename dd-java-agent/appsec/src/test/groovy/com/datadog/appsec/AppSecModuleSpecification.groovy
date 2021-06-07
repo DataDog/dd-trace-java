@@ -51,7 +51,7 @@ class AppSecModuleSpecification extends Specification {
     }
 
     @Override
-    void onEvent(ChangeableFlow flow, AppSecRequestContext ctx, EventType eventType) {
+    void onEvent(AppSecRequestContext ctx, EventType eventType) {
     }
   }
 }

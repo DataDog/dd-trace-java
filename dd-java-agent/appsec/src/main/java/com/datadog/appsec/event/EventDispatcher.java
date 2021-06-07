@@ -69,21 +69,15 @@ public class EventDispatcher implements EventProducerService, EventConsumerServi
   }
 
   @Override
-  public Flow publishEvent(AppSecRequestContext ctx, EventType event) {
+  public void publishEvent(AppSecRequestContext ctx, EventType event) {
     List<EventListener> eventListeners = this.eventListeners.get(event.serial);
-    ChangeableFlow flow = new ChangeableFlow();
     for (EventListener listener : eventListeners) {
       try {
-        listener.onEvent(flow, ctx, event);
+        listener.onEvent(ctx, event);
       } catch (RuntimeException rte) {
         LOG.warn("AppSec callback exception", rte);
       }
-      if (flow.isBlocking()) {
-        break;
-      }
     }
-
-    return flow;
   }
 
   @Override
