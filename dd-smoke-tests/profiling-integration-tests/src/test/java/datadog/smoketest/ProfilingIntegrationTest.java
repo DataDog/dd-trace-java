@@ -3,7 +3,6 @@ package datadog.smoketest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.testing.ProfilingTestUtils;
@@ -22,7 +21,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -157,7 +157,7 @@ class ProfilingIntegrationTest {
       byte[] byteData = getParameter("chunk-data", byte[].class, firstRequestParameters);
       assertNotNull(byteData);
 
-      assertFalse(logHasErrors(logFilePath, it -> false));
+      assertFalse(logHasErrors(logFilePath));
       IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
       assertTrue(events.hasItems());
       Pair<Instant, Instant> rangeStartAndEnd = getRangeStartAndEnd(events);
@@ -281,10 +281,31 @@ class ProfilingIntegrationTest {
                         logFilePath)
                     .start();
 
-            RecordedRequest request = retrieveRequest();
+            /* API key of an incorrect format will cause profiling to get disabled.
+              This means no upload requests will be made. We are going to check the log file for
+              the presence of a specific message. For this we need to wait for a particular message indicating
+              that the profiling system is initializing and then assert for the presence of the expected message
+              caused by the API key format error.
+            */
+            long ts = System.nanoTime();
+            while (!checkLogLines(
+                logFilePath, line -> line.contains("Registering scope event factory"))) {
+              Thread.sleep(500);
+              // Wait at most 30 seconds
+              if (System.nanoTime() - ts > 30_000_000_000L) {
+                throw new TimeoutException();
+              }
+            }
 
-            assertNull(request);
-            assertFalse(logHasErrors(logFilePath, it -> false));
+            /* An API key with incorrect format will cause profiling to get disabled and the
+              following message would be logged.
+              The test asserts for the presence of the message.
+            */
+            assertTrue(
+                checkLogLines(
+                    logFilePath,
+                    it -> it.contains("Profiling: API key doesn't match expected format")));
+            assertFalse(logHasErrors(logFilePath));
           } finally {
             if (targetProcess != null) {
               targetProcess.destroyForcibly();
@@ -315,7 +336,7 @@ class ProfilingIntegrationTest {
 
             RecordedRequest request = retrieveRequest();
             assertNotNull(request);
-            assertFalse(logHasErrors(logFilePath, it -> false));
+            assertFalse(logHasErrors(logFilePath));
             assertTrue(request.getBodySize() > 0);
 
             // Wait for the app exit with some extra time.
@@ -360,9 +381,12 @@ class ProfilingIntegrationTest {
   }
 
   private RecordedRequest retrieveRequest() throws Exception {
+    return retrieveRequest(5 * REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
+  }
+
+  private RecordedRequest retrieveRequest(long timeout, TimeUnit timeUnit) throws Exception {
     long ts = System.nanoTime();
-    RecordedRequest request =
-        profilingServer.takeRequest(5 * REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
+    RecordedRequest request = profilingServer.takeRequest(timeout, timeUnit);
     long dur = System.nanoTime() - ts;
     log.info(
         "Profiling request retrieved in {} seconds",
@@ -474,6 +498,7 @@ class ProfilingIntegrationTest {
             "-Ddd.env=smoketest",
             "-Ddd.version=99",
             "-Ddd.profiling.enabled=true",
+            "-DD.profiling.agentless=" + (apiKey != null),
             "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
             "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
             "-Ddd.profiling.url=http://localhost:" + profilerPort,
@@ -516,8 +541,12 @@ class ProfilingIntegrationTest {
     return System.getProperty("datadog.smoketest.profiling.shadowJar.path");
   }
 
-  private static boolean logHasErrors(Path logFilePath, Function<String, Boolean> checker)
+  private static boolean checkLogLines(Path logFilePath, Predicate<String> checker)
       throws IOException {
+    return Files.lines(logFilePath).anyMatch(checker);
+  }
+
+  private static boolean logHasErrors(Path logFilePath) throws IOException {
     boolean[] logHasErrors = new boolean[] {false};
     Files.lines(logFilePath)
         .forEach(
@@ -526,7 +555,6 @@ class ProfilingIntegrationTest {
                 System.out.println(it);
                 logHasErrors[0] = true;
               }
-              logHasErrors[0] |= checker.apply(it);
             });
     if (logHasErrors[0]) {
       System.out.println(

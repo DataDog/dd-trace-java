@@ -413,6 +413,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     final AgentSpan spanUnderScope;
     final byte source;
     final AgentTrace trace;
+    protected volatile boolean migrated;
 
     public Continuation(
         ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
@@ -423,7 +424,6 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     Continuation register() {
-      spanUnderScope.startThreadMigration();
       trace.registerContinuation(this);
       return this;
     }
@@ -451,8 +451,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public AgentScope activate() {
-      spanUnderScope.finishThreadMigration();
       if (USED.compareAndSet(this, 0, 1)) {
+        if (migrated) {
+          spanUnderScope.finishThreadMigration();
+        }
         return scopeManager.handleSpan(this, spanUnderScope, source);
       } else {
         log.debug(
@@ -468,6 +470,12 @@ public class ContinuableScopeManager implements AgentScopeManager {
       } else {
         log.debug("Failed to close continuation {}. Already used.", this);
       }
+    }
+
+    @Override
+    public void migrate() {
+      this.migrated = true;
+      spanUnderScope.startThreadMigration();
     }
 
     @Override
@@ -495,10 +503,12 @@ public class ContinuableScopeManager implements AgentScopeManager {
    * way, and close the scopes without fear of closing the related {@link AgentSpan} prematurely.
    */
   private static final class ConcurrentContinuation extends Continuation {
-    private static final int START = 1;
+    private static final int START = 2;
     private static final int CLOSED = Integer.MIN_VALUE >> 1;
     private static final int BARRIER = Integer.MIN_VALUE >> 2;
+    private static final int MIGRATED = 1;
 
+    // the counter is incremented/decremented by 2 so the lsb can represent migrated status
     private volatile int count = START;
 
     private static final AtomicIntegerFieldUpdater<ConcurrentContinuation> COUNT =
@@ -512,9 +522,9 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     private boolean tryActivate() {
-      int current = COUNT.incrementAndGet(this);
+      int current = COUNT.addAndGet(this, 2);
       if (current < START) {
-        COUNT.decrementAndGet(this);
+        COUNT.addAndGet(this, -2);
       }
       return current > START;
     }
@@ -525,7 +535,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
         return false;
       }
       // Now decrement the counter
-      current = COUNT.decrementAndGet(this);
+      current = COUNT.addAndGet(this, -2);
       // Try to close this if we are between START and BARRIER
       while (current < START && current > BARRIER) {
         if (COUNT.compareAndSet(this, current, CLOSED)) {
@@ -536,10 +546,25 @@ public class ContinuableScopeManager implements AgentScopeManager {
       return false;
     }
 
+    private void tryFinishThreadMigration() {
+      // loop until the MIGRATED bit is unset on the count
+      int current;
+      do {
+        current = COUNT.get(this);
+      } while ((current & MIGRATED) == MIGRATED
+          && !COUNT.compareAndSet(this, current, current ^ MIGRATED));
+      if ((current & MIGRATED) == MIGRATED) {
+        // if the MIGRATED bit is set on the last snapshot, we
+        // must have been the one to switch it off, so can finish
+        // the thread migration here
+        spanUnderScope.finishThreadMigration();
+      }
+    }
+
     @Override
     public AgentScope activate() {
       if (tryActivate()) {
-        spanUnderScope.finishThreadMigration();
+        tryFinishThreadMigration();
         return scopeManager.handleSpan(this, spanUnderScope, source);
       } else {
         return null;
@@ -552,6 +577,17 @@ public class ContinuableScopeManager implements AgentScopeManager {
         trace.cancelContinuation(this);
       }
       log.debug("t_id={} -> canceling continuation {}", spanUnderScope.getTraceId(), this);
+    }
+
+    @Override
+    public void migrate() {
+      // loop until the MIGRATED bit has been set on the count by CAS, or by someone else
+      int snapshot;
+      do {
+        snapshot = COUNT.get(this);
+      } while ((snapshot & MIGRATED) != MIGRATED
+          && !COUNT.compareAndSet(this, snapshot, snapshot | MIGRATED));
+      spanUnderScope.startThreadMigration();
     }
 
     @Override

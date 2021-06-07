@@ -64,13 +64,13 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
       ROUTE_HANDLER_DECORATOR.withRoute(
           span, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
     } else {
-      if (!parent.getLocalRootSpan().hasResourceName()) {
-        ROUTE_HANDLER_DECORATOR.withRoute(
-            parent.getLocalRootSpan(), httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
-        parent.getLocalRootSpan().setTag(Tags.COMPONENT, "jax-rs");
-      }
-
       span.setResourceName(DECORATE.spanNameForMethod(target, method));
+
+      if (parent == parent.getLocalRootSpan()) {
+        parent.setTag(Tags.COMPONENT, "jax-rs");
+        ROUTE_HANDLER_DECORATOR.withRoute(
+            parent, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+      }
     }
   }
 
@@ -89,7 +89,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
       Path methodPath = null;
       final Path classPath = findClassPath(target);
       for (final Class<?> currentClass : new ClassHierarchyIterable(target)) {
-        final Method currentMethod;
+        Method currentMethod;
         if (currentClass.equals(target)) {
           currentMethod = method;
         } else {

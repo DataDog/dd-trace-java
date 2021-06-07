@@ -9,17 +9,19 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.URI;
 import org.apache.http.HttpInetConnection;
+import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
-import org.apache.http.nio.NHttpServerConnection;
-import org.apache.synapse.transport.passthru.SourceRequest;
+import org.apache.http.nio.NHttpConnection;
 
 public final class SynapseServerDecorator
-    extends HttpServerDecorator<SourceRequest, NHttpServerConnection, HttpResponse> {
+    extends HttpServerDecorator<HttpRequest, NHttpConnection, HttpResponse> {
   public static final SynapseServerDecorator DECORATE = new SynapseServerDecorator();
 
   public static final CharSequence SYNAPSE_REQUEST = UTF8BytesString.create("http.request");
   public static final CharSequence SYNAPSE_SERVER = UTF8BytesString.create("synapse-server");
+
   public static final String SYNAPSE_SPAN_KEY = "dd.trace.synapse.span";
+  public static final String SYNAPSE_CONTINUATION_KEY = "dd.trace.synapse.continuation";
 
   @Override
   protected String[] instrumentationNames() {
@@ -32,17 +34,17 @@ public final class SynapseServerDecorator
   }
 
   @Override
-  protected String method(final SourceRequest request) {
-    return request.getMethod();
+  protected String method(final HttpRequest request) {
+    return request.getRequestLine().getMethod();
   }
 
   @Override
-  protected URIDataAdapter url(final SourceRequest request) {
-    return new DefaultURIDataAdapter(URI.create(request.getUri()));
+  protected URIDataAdapter url(final HttpRequest request) {
+    return new DefaultURIDataAdapter(URI.create(request.getRequestLine().getUri()));
   }
 
   @Override
-  protected String peerHostIP(final NHttpServerConnection connection) {
+  protected String peerHostIP(final NHttpConnection connection) {
     if (connection instanceof HttpInetConnection) {
       return ((HttpInetConnection) connection).getRemoteAddress().getHostAddress();
     }
@@ -50,7 +52,7 @@ public final class SynapseServerDecorator
   }
 
   @Override
-  protected int peerPort(final NHttpServerConnection connection) {
+  protected int peerPort(final NHttpConnection connection) {
     if (connection instanceof HttpInetConnection) {
       return ((HttpInetConnection) connection).getRemotePort();
     }
