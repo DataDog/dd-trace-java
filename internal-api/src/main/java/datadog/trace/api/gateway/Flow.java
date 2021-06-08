@@ -31,43 +31,6 @@ public interface Flow<T> {
         return this.exception;
       }
     }
-
-    final class ForcedReturnValue implements Action {
-      private final Object retVal;
-      private final boolean blocking;
-
-      public ForcedReturnValue(Object retVal, boolean blocking) {
-        this.retVal = retVal;
-        this.blocking = blocking;
-      }
-
-      public boolean isBlocking() {
-        return blocking;
-      }
-
-      public Object getRetVal() {
-        return retVal;
-      }
-    }
-
-    final class ReplacedArguments implements Action {
-      private final Object[] newArguments;
-      private final boolean blocking;
-
-      public ReplacedArguments(Object[] newArguments, boolean blocking) {
-        this.newArguments = newArguments;
-        this.blocking = blocking;
-      }
-
-      public Object[] getNewArguments() {
-        return newArguments;
-      }
-
-      @Override
-      public boolean isBlocking() {
-        return this.blocking;
-      }
-    }
   }
 
   class ResultFlow<R> implements Flow<R> {
