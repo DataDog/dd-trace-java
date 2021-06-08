@@ -181,6 +181,8 @@ jobs:
 
       - store_test_results:
           path: ./results
+      - store_artifacts:
+          path: ./results
 
       - early_return_for_forked_pull_requests
 
