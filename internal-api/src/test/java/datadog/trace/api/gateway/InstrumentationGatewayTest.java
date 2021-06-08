@@ -106,25 +106,4 @@ public class InstrumentationGatewayTest {
     assertThat(thrown.isBlocking()).isTrue();
     assertThat(thrown.getBlockingException().getMessage()).isEqualTo("my message");
   }
-
-  @Test
-  public void testReplacedArgumentsAction() {
-    Flow.Action.ReplacedArguments replacedArguments =
-        new Flow.Action.ReplacedArguments(new Object[] {"new arg"}, true);
-    assertThat(replacedArguments.isBlocking()).isTrue();
-    assertThat(replacedArguments.getNewArguments()[0]).isEqualTo("new arg");
-    replacedArguments = new Flow.Action.ReplacedArguments(new Object[] {"new arg"}, false);
-    assertThat(replacedArguments.isBlocking()).isFalse();
-  }
-
-  @Test
-  public void test() {
-    Flow.Action.ForcedReturnValue forcedReturnValue =
-        new Flow.Action.ForcedReturnValue("new retval", true);
-    assertThat(forcedReturnValue.getRetVal()).isEqualTo("new retval");
-    assertThat(forcedReturnValue.isBlocking()).isTrue();
-
-    forcedReturnValue = new Flow.Action.ForcedReturnValue("new retval", false);
-    assertThat(forcedReturnValue.isBlocking()).isFalse();
-  }
 }
