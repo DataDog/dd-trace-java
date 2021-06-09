@@ -79,6 +79,13 @@ commands:
               circleci step halt
             fi
 
+  display_memory_usage:
+    steps:
+      - run:
+          name: Max Memory Used
+          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+          when: always
+
 jobs:
   build:
     <<: *defaults
@@ -117,6 +124,8 @@ jobs:
           key: dd-trace-java-v3-{{ .Branch }}-{{ .Revision }}
           <<: *save_cache_paths
 
+      - display_memory_usage
+
   build_clean_cache:
     <<: *defaults
     resource_class: xlarge
@@ -136,6 +145,8 @@ jobs:
       - save_cache:
           key: dd-trace-java-v3-{{ .Branch }}-{{ epoch }}
           <<: *save_cache_paths
+
+      - display_memory_usage
 
   base_tests: &base_tests
     <<: *defaults
@@ -181,6 +192,8 @@ jobs:
 
       - store_test_results:
           path: ./results
+
+      - display_memory_usage
 
       - early_return_for_forked_pull_requests
 
@@ -255,6 +268,8 @@ jobs:
       - store_test_results:
           path: ./results
 
+      - display_memory_usage
+
       - early_return_for_forked_pull_requests
 
       - run:
@@ -308,6 +323,8 @@ jobs:
 
       - store_test_results:
           path: ./results
+
+      - display_memory_usage
 
       - early_return_for_forked_pull_requests
 
@@ -384,6 +401,8 @@ jobs:
       - store_artifacts:
           path: ./reports
 
+      - display_memory_usage
+
   muzzle:
     <<: *defaults
     resource_class: medium
@@ -426,6 +445,8 @@ jobs:
 
       - store_test_results:
           path: workspace/build/muzzle-test-results
+
+      - display_memory_usage
 
 workflows:
   build_test_deploy:
