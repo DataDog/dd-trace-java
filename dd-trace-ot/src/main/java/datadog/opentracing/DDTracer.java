@@ -54,7 +54,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
         } else {
           log.error("dd-java-agent should not be on the classpath.");
         }
-      } catch (ClassNotFoundException ex) {
+      } catch (ClassNotFoundException expected) {
         // ignore
       }
     }
