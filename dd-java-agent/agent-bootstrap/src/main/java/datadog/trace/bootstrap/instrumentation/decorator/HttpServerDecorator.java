@@ -222,7 +222,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     RequestContext requestContext = span.getRequestContext();
     if (null != cbp && null != requestContext) {
       BiFunction<RequestContext, String, Flow<Void>> callback =
-          cbp.getCallback(Events.REQUEST_URI_RAW);
+          cbp.getCallback(Events.requestUriRaw());
       if (null != callback) {
         // TODO:appsec pull this out and add it to the URIDataAdapter
         String query = url.query();

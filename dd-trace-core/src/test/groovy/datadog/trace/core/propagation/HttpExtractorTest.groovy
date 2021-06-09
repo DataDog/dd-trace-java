@@ -96,13 +96,13 @@ class HttpExtractorTest extends DDSpecification {
     def ig = new InstrumentationGateway()
     def callbacks = new IGCallBacks(reqContext)
     if (reqStarted) {
-      ig.registerCallback(Events.REQUEST_STARTED, callbacks)
+      ig.registerCallback(Events.requestStarted(), callbacks)
     }
     if (reqHeader) {
-      ig.registerCallback(Events.REQUEST_HEADER, callbacks)
+      ig.registerCallback(Events.requestHeader(), callbacks)
     }
     if (reqHeaderDone) {
-      ig.registerCallback(Events.REQUEST_HEADER_DONE, callbacks)
+      ig.registerCallback(Events.requestHeaderDone(), callbacks)
     }
     Map<String, String> headers = ["foo": "bar", "some": "thing", "another": "value"]
     Config config = Mock(Config) {

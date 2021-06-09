@@ -117,14 +117,14 @@ public class HttpCodec {
 
       if (null != callbackProvider) {
         Supplier<Flow<RequestContext>> startedCB =
-            callbackProvider.getCallback(Events.REQUEST_STARTED);
+            callbackProvider.getCallback(Events.requestStarted());
         if (null != startedCB) {
           requestContext = startedCB.get().getResult();
           IGKeyClassifier igKeyClassifier =
               IGKeyClassifier.create(
                   requestContext,
-                  callbackProvider.getCallback(Events.REQUEST_HEADER),
-                  callbackProvider.getCallback(Events.REQUEST_HEADER_DONE));
+                  callbackProvider.getCallback(Events.requestHeader()),
+                  callbackProvider.getCallback(Events.requestHeaderDone()));
           if (null != igKeyClassifier) {
             getter.forEachKey(carrier, igKeyClassifier);
             igKeyClassifier.done();

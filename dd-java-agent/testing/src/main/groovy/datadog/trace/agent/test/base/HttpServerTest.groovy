@@ -55,9 +55,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     // Register the Instrumentation Gateway callbacks
     def ig = get().instrumentationGateway()
     def callbacks = new IGCallbacks()
-    ig.registerCallback(Events.REQUEST_STARTED, callbacks)
-    ig.registerCallback(Events.REQUEST_HEADER, callbacks)
-    ig.registerCallback(Events.REQUEST_URI_RAW, callbacks)
+    ig.registerCallback(Events.requestStarted(), callbacks)
+    ig.registerCallback(Events.requestHeader(), callbacks)
+    ig.registerCallback(Events.requestUriRaw(), callbacks)
   }
 
   @Shared
@@ -724,31 +724,28 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   private static final String IG_TEST_HEADER = "x-ig-test-header"
-  class IGCallbacks implements Supplier<Flow<RequestContext>>, TriConsumer<RequestContext, String, String>, BiFunction<RequestContext, String, Flow<Void>> {
+  class IGCallbacks implements Supplier<Flow<Context>>, TriConsumer<Context, String, String>, BiFunction<Context, String, Flow<Void>> {
     static class Context implements RequestContext {
       private String extraSpan = null
     }
 
     // REQUEST_STARTED
     @Override
-    Flow<RequestContext> get() {
-      def result = new Flow.ResultFlow<RequestContext>(new Context())
-      return result
+    Flow<Context> get() {
+      return new Flow.ResultFlow<Context>(new Context())
     }
 
     // REQUEST_HEADER
     @Override
-    void accept(RequestContext requestContext, String key, String value) {
+    void accept(Context context, String key, String value) {
       if (IG_TEST_HEADER.equalsIgnoreCase(key)) {
-        Context context = (Context) requestContext
         context.extraSpan = value
       }
     }
 
     // REQUEST_URI_RAW
     @Override
-    Flow<Void> apply(RequestContext requestContext, String uri) {
-      Context context = (Context) requestContext
+    Flow<Void> apply(Context context, String uri) {
       // Only trigger for query path without query parameters and with special header
       if (uri.endsWith("${QUERY_PARAM.path}?${QUERY_PARAM.query}") && null != context.extraSpan) {
         runUnderTrace("$IG_TEST_HEADER-${context.extraSpan}", false) {}
