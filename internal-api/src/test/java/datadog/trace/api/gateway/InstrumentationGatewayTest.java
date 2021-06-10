@@ -13,7 +13,7 @@ public class InstrumentationGatewayTest {
 
   private InstrumentationGateway gateway;
   private RequestContext context;
-  private Supplier<Flow<RequestContext>> callback;
+  private Events.RequestStarted<RequestContext> callback;
   private Subscription subscription;
 
   @Before
@@ -21,77 +21,74 @@ public class InstrumentationGatewayTest {
     gateway = new InstrumentationGateway();
     context = new RequestContext() {};
     callback =
-        new Supplier<Flow<RequestContext>>() {
+        new Events.RequestStarted<RequestContext>() {
           @Override
-          public Flow<RequestContext> get() {
-            return new Flow.ResultFlow<>(context);
+          public RequestContext get() {
+            return context;
           }
         };
-    subscription = gateway.registerCallback(Events.requestStarted(), callback);
+    subscription = gateway.registerCallback(Events.REQUEST_STARTED, callback);
   }
 
   @Test
   public void testGetCallback() {
     // check event without registered callback
-    assertThat(gateway.getCallback(Events.requestEnded())).isNull();
+    assertThat(gateway.getCallback(Events.REQUEST_ENDED)).isNull();
     // check event with registered callback
-    Supplier<Flow<RequestContext>> cback = gateway.getCallback(Events.requestStarted());
+    Events.RequestStarted<RequestContext> cback = gateway.getCallback(Events.REQUEST_STARTED);
     assertThat(cback).isEqualTo(callback);
-    Flow<RequestContext> flow = cback.get();
-    assertThat(flow.getAction()).isNull();
-    RequestContext ctxt = flow.getResult();
-    assertThat(ctxt).isEqualTo(context);
+    RequestContext ctx = cback.get();
+    assertThat(ctx).isEqualTo(context);
   }
 
   @Test
   public void testRegisterCallback() {
     // check event without registered callback
-    assertThat(gateway.getCallback(Events.requestEnded())).isNull();
+    assertThat(gateway.getCallback(Events.REQUEST_ENDED)).isNull();
     // check event with registered callback
-    assertThat(gateway.getCallback(Events.requestStarted())).isEqualTo(callback);
+    assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isEqualTo(callback);
     // check that we can register a callback
-    Function<RequestContext, Flow<Void>> cb =
-        new Function<RequestContext, Flow<Void>>() {
+    Events.RequestEnded<RequestContext> cb =
+        new Events.RequestEnded<RequestContext>() {
           @Override
-          public Flow<Void> apply(RequestContext input) {
-            return new Flow.ResultFlow<>(null);
+          public void apply(RequestContext input) {
           }
         };
-    Subscription s = gateway.registerCallback(Events.requestEnded(), cb);
-    assertThat(gateway.getCallback(Events.requestEnded())).isEqualTo(cb);
+    Subscription s = gateway.registerCallback(Events.REQUEST_ENDED, cb);
+    assertThat(gateway.getCallback(Events.REQUEST_ENDED)).isEqualTo(cb);
     // check that we can cancel a callback
     subscription.cancel();
-    assertThat(gateway.getCallback(Events.requestStarted())).isNull();
+    assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isNull();
     // check that we didn't remove the other callback
-    assertThat(gateway.getCallback(Events.requestEnded())).isEqualTo(cb);
+    assertThat(gateway.getCallback(Events.REQUEST_ENDED)).isEqualTo(cb);
   }
 
   @Test
   public void testDoubleRegistration() {
     // check event with registered callback
-    assertThat(gateway.getCallback(Events.requestStarted())).isEqualTo(callback);
+    assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isEqualTo(callback);
     // check that we can't overwrite the callback
     assertThatThrownBy(
             new ThrowableAssert.ThrowingCallable() {
               @Override
               public void call() throws Throwable {
-                gateway.registerCallback(Events.requestStarted(), callback);
+                gateway.registerCallback(Events.REQUEST_STARTED, callback);
               }
             })
         .isInstanceOf(IllegalStateException.class)
         .hasMessageStartingWith("Trying to overwrite existing callback ")
-        .hasMessageContaining(Events.requestStarted().toString());
+        .hasMessageContaining(Events.REQUEST_STARTED.toString());
   }
 
   @Test
   public void testDoubleCancel() {
     // check event with registered callback
-    assertThat(gateway.getCallback(Events.requestStarted())).isEqualTo(callback);
+    assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isEqualTo(callback);
     // check that we can cancel a callback
     subscription.cancel();
-    assertThat(gateway.getCallback(Events.requestStarted())).isNull();
+    assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isNull();
     // check that we can cancel a callback
     subscription.cancel();
-    assertThat(gateway.getCallback(Events.requestStarted())).isNull();
+    assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isNull();
   }
 }

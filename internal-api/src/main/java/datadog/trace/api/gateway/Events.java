@@ -1,58 +1,52 @@
 package datadog.trace.api.gateway;
 
-import datadog.trace.api.Function;
-import datadog.trace.api.function.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class Events {
   private static final AtomicInteger nextId = new AtomicInteger(0);
 
-  @SuppressWarnings("rawtypes")
-  private static final EventType REQUEST_STARTED = new ET<>("request.started");
 
   /** A request started * */
-  @SuppressWarnings("unchecked")
-  public static <C extends RequestContext> EventType<Supplier<Flow<C>>> requestStarted() {
-    return (EventType<Supplier<Flow<C>>>) REQUEST_STARTED;
-  }
+  public static final EventType<RequestStarted> REQUEST_STARTED = new ET<>("request.started");
 
   @SuppressWarnings("rawtypes")
-  private static final EventType REQUEST_ENDED = new ET<>("request.ended");
+  public interface RequestStarted<C extends RequestContext> {
+    C get();
+  }
 
   /** A request ended * */
-  @SuppressWarnings("unchecked")
-  public static <C extends RequestContext> EventType<Function<C, Flow<Void>>> requestEnded() {
-    return (EventType<Function<C, Flow<Void>>>) REQUEST_ENDED;
-  }
+  public static final EventType<RequestEnded> REQUEST_ENDED = new ET<>("request.ended");
 
   @SuppressWarnings("rawtypes")
-  private static final EventType REQUEST_HEADER = new ET<>("server.request.header");
+  public interface RequestEnded<C extends RequestContext> {
+    void apply(C ctx);
+  }
 
   /** A request header as a key and values separated by , */
-  @SuppressWarnings("unchecked")
-  public static <C extends RequestContext>
-      EventType<TriConsumer<C, String, String>> requestHeader() {
-    return (EventType<TriConsumer<C, String, String>>) REQUEST_HEADER;
-  }
+  public static final EventType<RequestHeader> REQUEST_HEADER = new ET<>("server.request.header");
 
   @SuppressWarnings("rawtypes")
-  private static final EventType REQUEST_HEADER_DONE = new ET<>("server.request.header.done");
+  public interface RequestHeader<C extends RequestContext> {
+    void accept(C ctx, String key, String value);
+  }
 
   /** All request headers have been provided */
-  @SuppressWarnings("unchecked")
-  public static <C extends RequestContext> EventType<Function<C, Flow<Void>>> requestHeaderDone() {
-    return (EventType<Function<C, Flow<Void>>>) REQUEST_HEADER_DONE;
-  }
+  public static final EventType<RequestHeaderDone> REQUEST_HEADER_DONE = new ET<>("server.request.header.done");
 
   @SuppressWarnings("rawtypes")
-  private static final EventType REQUEST_URI_RAW = new ET<>("server.request.uri.raw");
+  public interface RequestHeaderDone<C extends RequestContext> {
+    Flow<C> apply(C ctx);
+  }
 
   /** The unparsed request uri, incl. the query string. */
-  @SuppressWarnings("unchecked")
-  public static <C extends RequestContext>
-      EventType<BiFunction<C, String, Flow<Void>>> requestUriRaw() {
-    return (EventType<BiFunction<C, String, Flow<Void>>>) REQUEST_URI_RAW;
+  public static final EventType<RequestUriRaw> REQUEST_URI_RAW = new ET<>("server.request.uri.raw");
+
+  @SuppressWarnings("rawtypes")
+  public interface RequestUriRaw<C extends RequestContext> {
+    Flow<C> apply(C ctx, String uri);
   }
+
+
 
   public static final int MAX_EVENTS = nextId.get();
 
