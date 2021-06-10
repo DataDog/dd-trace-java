@@ -164,7 +164,7 @@ public class Agent {
     if (profilingEnabled && !isOracleJDK8()) {
       if (!isJavaVersionAtLeast(9) && appUsingCustomLogManager) {
         log.debug("Custom logger detected. Delaying JMXFetch initialization.");
-        registerLogManagerCallback(new StartProfilingAgentCallback(inst, bootstrapURL));
+        registerLogManagerCallback(new StartProfilingAgentCallback(bootstrapURL));
       } else {
         // Anything above 8 is OpenJDK implementation and is safe to run synchronously
         startProfilingAgent(bootstrapURL, false);
@@ -285,7 +285,7 @@ public class Agent {
   }
 
   protected static class StartProfilingAgentCallback extends ClassLoadCallBack {
-    StartProfilingAgentCallback(final Instrumentation inst, final URL bootstrapURL) {
+    StartProfilingAgentCallback(final URL bootstrapURL) {
       super(bootstrapURL);
     }
 
