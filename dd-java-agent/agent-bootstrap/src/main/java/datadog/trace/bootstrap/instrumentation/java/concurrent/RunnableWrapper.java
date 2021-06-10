@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
+import jdk.jfr.RecordingContext;
 
 /**
  * This is used to wrap lambda runnables since currently we cannot instrument them
@@ -10,14 +11,16 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.Exc
 public final class RunnableWrapper implements Runnable {
 
   private final Runnable runnable;
+  private final RecordingContext.Snapshot snapshot;
 
   public RunnableWrapper(final Runnable runnable) {
     this.runnable = runnable;
+    this.snapshot = RecordingContext.snapshot();
   }
 
   @Override
   public void run() {
-    runnable.run();
+    RecordingContext.runWithSnapshot(runnable, snapshot);
   }
 
   public static Runnable wrapIfNeeded(final Runnable task) {

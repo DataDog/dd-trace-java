@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
+import jdk.jfr.RecordingContext;
+import jdk.jfr.RecordingContextEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +29,13 @@ import org.slf4j.LoggerFactory;
  */
 public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
+
+  private static final RecordingContextEntry recordingContextTraceId =
+      RecordingContextEntry.forName("dd.trace.id");
+  private static final RecordingContextEntry recordingContextSpanId =
+      RecordingContextEntry.forName("dd.span.id");
+
+  private final RecordingContext recordingContext;
 
   static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
     final DDSpan span = new DDSpan(timestampMicro, context);
@@ -68,6 +77,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private DDSpan(final long timestampMicro, @Nonnull DDSpanContext context) {
     this.context = context;
 
+    this.recordingContext =
+        RecordingContext.builder()
+            .where(recordingContextTraceId, context.getTraceId().toString())
+            .where(recordingContextSpanId, context.getSpanId().toString())
+            .build();
+
     if (timestampMicro <= 0L) {
       // record the start time
       startTimeMicro = Clock.currentMicroTime();
@@ -89,6 +104,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     if (this.durationNano.compareAndSet(0, Math.max(1, durationNano))) {
       log.debug("Finished span: {}", this);
       context.getTrace().addFinishedSpan(this);
+      recordingContext.close();
     } else {
       log.debug("Already finished: {}", this);
     }

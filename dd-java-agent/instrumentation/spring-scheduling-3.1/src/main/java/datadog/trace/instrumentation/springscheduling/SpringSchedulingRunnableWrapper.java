@@ -10,30 +10,34 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public class SpringSchedulingRunnableWrapper implements Runnable {
   private final Runnable runnable;
+  private final RecordingContext.Snapshot snapshot;
 
   private SpringSchedulingRunnableWrapper(final Runnable runnable) {
     this.runnable = runnable;
+    this.snapshot = RecordingContext.snapshot();
   }
 
   @Override
   public void run() {
-    final AgentSpan span = startSpan(SCHEDULED_CALL);
-    DECORATE.afterStart(span);
+    RecordingContext.runWithSnapshot(() -> {
+      final AgentSpan span = startSpan(SCHEDULED_CALL);
+      DECORATE.afterStart(span);
 
-    try (final AgentScope scope = activateSpan(span)) {
-      DECORATE.onRun(span, runnable);
-      scope.setAsyncPropagation(true);
+      try (final AgentScope scope = activateSpan(span)) {
+        DECORATE.onRun(span, runnable);
+        scope.setAsyncPropagation(true);
 
-      try {
-        runnable.run();
-      } catch (final Throwable throwable) {
-        DECORATE.onError(span, throwable);
-        throw throwable;
+        try {
+          runnable.run();
+        } catch (final Throwable throwable) {
+          DECORATE.onError(span, throwable);
+          throw throwable;
+        }
+      } finally {
+        DECORATE.beforeFinish(span);
+        span.finish();
       }
-    } finally {
-      DECORATE.beforeFinish(span);
-      span.finish();
-    }
+    }, snapshot);
   }
 
   public static Runnable wrapIfNeeded(final Runnable task) {
