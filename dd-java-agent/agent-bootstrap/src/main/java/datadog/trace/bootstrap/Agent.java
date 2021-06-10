@@ -309,15 +309,14 @@ public class Agent {
         final Constructor constructor = bootstrapProxyClass.getDeclaredConstructor(URL.class);
         BOOTSTRAP_PROXY = (ClassLoader) constructor.newInstance(bootstrapURL);
 
-        final ClassLoader grandParent;
-        if (!isJavaVersionAtLeast(9)) {
-          grandParent = null; // bootstrap
-        } else {
-          // platform classloader is parent of system in java 9+
-          grandParent = getPlatformClassLoader();
+        // assume this is the right location of other agent-bootstrap classes
+        ClassLoader parent = Agent.class.getClassLoader();
+        if (parent == null && isJavaVersionAtLeast(9)) {
+          // for Java9+ replace any JDK bootstrap reference with platform loader
+          parent = getPlatformClassLoader();
         }
 
-        SHARED_CLASSLOADER = createDatadogClassLoader("shared", bootstrapURL, grandParent);
+        SHARED_CLASSLOADER = createDatadogClassLoader("shared", bootstrapURL, parent);
       } catch (final Throwable ex) {
         log.error("Throwable thrown creating shared classloader", ex);
       }
