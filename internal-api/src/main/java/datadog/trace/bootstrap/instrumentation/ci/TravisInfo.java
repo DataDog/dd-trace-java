@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.ci;
 
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 
 class TravisInfo extends CIProviderInfo {
 
@@ -19,6 +20,7 @@ class TravisInfo extends CIProviderInfo {
   public static final String TRAVIS_GIT_PR_BRANCH = "TRAVIS_PULL_REQUEST_BRANCH";
   public static final String TRAVIS_GIT_BRANCH = "TRAVIS_BRANCH";
   public static final String TRAVIS_GIT_TAG = "TRAVIS_TAG";
+  public static final String TRAVIS_GIT_COMMIT_MESSAGE = "TRAVIS_COMMIT_MESSAGE";
 
   @Override
   protected GitInfo buildCIGitInfo() {
@@ -28,7 +30,11 @@ class TravisInfo extends CIProviderInfo {
         buildGitRepositoryUrl(),
         buildGitBranch(gitTag),
         gitTag,
-        new CommitInfo(System.getenv(TRAVIS_GIT_COMMIT)));
+        new CommitInfo(
+            System.getenv(TRAVIS_GIT_COMMIT),
+            PersonInfo.NOOP,
+            PersonInfo.NOOP,
+            System.getenv(TRAVIS_GIT_COMMIT_MESSAGE)));
   }
 
   @Override
