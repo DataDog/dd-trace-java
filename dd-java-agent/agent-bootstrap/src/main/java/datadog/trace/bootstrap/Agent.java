@@ -330,11 +330,14 @@ public class Agent {
         final ClassLoader agentClassLoader =
             createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
 
-        final Class<?> agentInstallerClass =
-            agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
-        final Method agentInstallerMethod =
-            agentInstallerClass.getMethod("installBytebuddyAgent", Instrumentation.class);
-        agentInstallerMethod.invoke(null, inst);
+        if (inst != null) {
+          final Class<?> agentInstallerClass =
+              agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
+          final Method agentInstallerMethod =
+              agentInstallerClass.getMethod("installBytebuddyAgent", Instrumentation.class);
+          agentInstallerMethod.invoke(null, inst);
+        }
+
         AGENT_CLASSLOADER = agentClassLoader;
       } catch (final Throwable ex) {
         log.error("Throwable thrown while installing the Datadog Agent", ex);
