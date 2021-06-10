@@ -26,6 +26,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.EnumSet;
+import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
@@ -170,6 +173,27 @@ public class Agent {
         startProfilingAgent(bootstrapURL, false);
       }
     }
+  }
+
+  public static Iterable<String> listIntegrationNames(final URL bootstrapURL) throws Exception {
+    createSharedClassloader(bootstrapURL);
+
+    ClassLoader agentClassLoader =
+        createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
+    Class<?> instrumenterClass =
+        agentClassLoader.loadClass("datadog.trace.agent.tooling.Instrumenter");
+    Class<?> instrumenterDefaultClass =
+        agentClassLoader.loadClass(instrumenterClass.getName() + "$Default");
+
+    Method nameMethod = instrumenterDefaultClass.getMethod("name");
+
+    Set<String> names = new TreeSet<>();
+    for (Object instrumenter : ServiceLoader.load(instrumenterClass, agentClassLoader)) {
+      if (instrumenterDefaultClass.isInstance(instrumenter)) {
+        names.add((String) nameMethod.invoke(instrumenter));
+      }
+    }
+    return names;
   }
 
   private static boolean isOracleJDK8() {

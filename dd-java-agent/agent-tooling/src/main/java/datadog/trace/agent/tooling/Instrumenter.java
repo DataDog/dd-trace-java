@@ -103,6 +103,10 @@ public interface Instrumenter {
       enabled = Config.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
     }
 
+    public String name() {
+      return instrumentationPrimaryName;
+    }
+
     // Since the super(...) call is first in the constructor, we can't really rely on things
     // being properly initialized in the Instrumentation until the super(...) call has finished
     // so do the rest of the initialization lazily
