@@ -63,7 +63,7 @@ public class Agent {
   private static final AtomicBoolean jmxStarting = new AtomicBoolean();
 
   // fields must be managed under class lock
-  private static ClassLoader PARENT_CLASSLOADER = null;
+  private static ClassLoader SHARED_CLASSLOADER = null;
   private static ClassLoader BOOTSTRAP_PROXY = null;
   private static ClassLoader AGENT_CLASSLOADER = null;
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
@@ -75,7 +75,7 @@ public class Agent {
   private static boolean profilingEnabled = false;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
-    createParentClassloader(bootstrapURL);
+    createSharedClassloader(bootstrapURL);
 
     jmxFetchEnabled = isJmxFetchEnabled();
     profilingEnabled = isProfilingEnabled();
@@ -300,8 +300,8 @@ public class Agent {
     }
   }
 
-  private static synchronized void createParentClassloader(final URL bootstrapURL) {
-    if (PARENT_CLASSLOADER == null) {
+  private static synchronized void createSharedClassloader(final URL bootstrapURL) {
+    if (SHARED_CLASSLOADER == null) {
       try {
         final Class<?> bootstrapProxyClass =
             ClassLoader.getSystemClassLoader()
@@ -317,9 +317,9 @@ public class Agent {
           grandParent = getPlatformClassLoader();
         }
 
-        PARENT_CLASSLOADER = createDatadogClassLoader("shared", bootstrapURL, grandParent);
+        SHARED_CLASSLOADER = createDatadogClassLoader("shared", bootstrapURL, grandParent);
       } catch (final Throwable ex) {
-        log.error("Throwable thrown creating parent classloader", ex);
+        log.error("Throwable thrown creating shared classloader", ex);
       }
     }
   }
@@ -329,7 +329,7 @@ public class Agent {
     if (AGENT_CLASSLOADER == null) {
       try {
         final ClassLoader agentClassLoader =
-            createDelegateClassLoader("inst", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
 
         final Class<?> agentInstallerClass =
             agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
@@ -440,7 +440,7 @@ public class Agent {
       final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
       try {
         final ClassLoader jmxFetchClassLoader =
-            createDelegateClassLoader("metrics", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("metrics", bootstrapURL, SHARED_CLASSLOADER);
         Thread.currentThread().setContextClassLoader(jmxFetchClassLoader);
         final Class<?> jmxFetchAgentClass =
             jmxFetchClassLoader.loadClass("datadog.trace.agent.jmxfetch.JMXFetch");
@@ -536,7 +536,7 @@ public class Agent {
       throws Exception {
     if (PROFILING_CLASSLOADER == null) {
       PROFILING_CLASSLOADER =
-          createDelegateClassLoader("profiling", bootstrapURL, PARENT_CLASSLOADER);
+          createDelegateClassLoader("profiling", bootstrapURL, SHARED_CLASSLOADER);
     }
     return PROFILING_CLASSLOADER;
   }
@@ -593,7 +593,7 @@ public class Agent {
     final ClassLoader classLoader =
         (ClassLoader)
             constructor.newInstance(
-                bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, PARENT_CLASSLOADER);
+                bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, SHARED_CLASSLOADER);
     return classLoader;
   }
 
