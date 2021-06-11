@@ -25,6 +25,7 @@ import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Map;
 import jdk.jfr.Recording;
 import org.slf4j.Logger;
@@ -56,20 +57,22 @@ public final class OpenJdkController implements Controller {
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
     try {
-      recordingSettings =
+      final Map<String, String> recordingSettings =
           JfpUtils.readNamedJfpResource(
               JfpUtils.DEFAULT_JFP, config.getProfilingTemplateOverrideFile());
+
+      // Toggle settings based on JDK version
+      if (Boolean.parseBoolean(recordingSettings.get("jdk.OldObjectSample#enabled"))) {
+        if (!isJavaVersionAtLeast(17)) {
+          log.debug(
+              "Inexpensive live object profiling is not supported for this JDK. Disabling OldObjectSample JFR event.");
+          recordingSettings.put("jdk.OldObjectSample#enabled", "false");
+        }
+      }
+
+      this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
     } catch (final IOException e) {
       throw new ConfigurationException(e);
-    }
-
-    // Toggle settings based on JDK version
-    if (Boolean.parseBoolean(recordingSettings.get("jdk.OldObjectSample#enabled"))) {
-      if (!isJavaVersionAtLeast(17)) {
-        log.debug(
-            "Inexpensive live object profiling is not supported for this JDK. Disabling OldObjectSample JFR event.");
-        recordingSettings.put("jdk.OldObjectSample#enabled", "false");
-      }
     }
 
     // Register periodic events
