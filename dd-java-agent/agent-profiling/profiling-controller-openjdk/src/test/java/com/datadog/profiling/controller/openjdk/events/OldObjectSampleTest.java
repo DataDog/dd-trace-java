@@ -17,7 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-public class OpenJdkControllerTest {
+public class OldObjectSampleTest {
 
   private static final String TEST_NAME = "recording name";
 
@@ -26,19 +26,18 @@ public class OpenJdkControllerTest {
 
   @BeforeEach
   public void setup() throws ConfigurationException, ClassNotFoundException {
-    when(config.getProfilingTemplateOverrideFile()).thenReturn(JfpUtilsTest.OVERRIDES);
+    when(config.getProfilingTemplateOverrideFile()).thenReturn(JfpUtilsTest.OVERRIDES_OLD_OBJECT_SAMPLE);
     controller = new OpenJdkController(config);
   }
 
   @Test
-  public void testCreateContinuousRecording() throws IOException {
+  public void testOldObjectSampleIsDisabledOnUnsupportedVersion() {
     try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
-      assertEquals(TEST_NAME, recording.getName());
-      assertEquals(
-          JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP, JfpUtilsTest.OVERRIDES),
-          recording.getSettings());
-      assertEquals(OpenJdkController.RECORDING_MAX_SIZE, recording.getMaxSize());
-      assertEquals(OpenJdkController.RECORDING_MAX_AGE, recording.getMaxAge());
+      if (!isJavaVersionAtLeast(17)) {
+        assertEquals(
+            Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")),
+            false);
+      }
     }
   }
 }
