@@ -43,9 +43,9 @@ public final class AgentCLI {
         span.finish();
       }
       if (count < 0) {
-        System.out.println("... completed " + numTraces + (numTraces < 2 ? " trace" : " traces"));
+        System.out.print("... completed " + numTraces + (numTraces < 2 ? " trace\r" : " traces\r"));
       } else {
-        System.out.println("... completed " + numTraces + "/" + count + " traces");
+        System.out.print("... completed " + numTraces + "/" + count + " traces\r");
       }
     }
   }
