@@ -26,9 +26,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.EnumSet;
-import java.util.ServiceLoader;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
@@ -175,25 +172,14 @@ public class Agent {
     }
   }
 
-  public static Iterable<String> listIntegrationNames(final URL bootstrapURL) throws Exception {
+  public static synchronized Class<?> installAgentCLI(final URL bootstrapURL) throws Exception {
     createSharedClassloader(bootstrapURL);
-
-    ClassLoader agentClassLoader =
-        createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
-    Class<?> instrumenterClass =
-        agentClassLoader.loadClass("datadog.trace.agent.tooling.Instrumenter");
-    Class<?> instrumenterDefaultClass =
-        agentClassLoader.loadClass(instrumenterClass.getName() + "$Default");
-
-    Method nameMethod = instrumenterDefaultClass.getMethod("name");
-
-    Set<String> names = new TreeSet<>();
-    for (Object instrumenter : ServiceLoader.load(instrumenterClass, agentClassLoader)) {
-      if (instrumenterDefaultClass.isInstance(instrumenter)) {
-        names.add((String) nameMethod.invoke(instrumenter));
-      }
+    if (null == AGENT_CLASSLOADER) {
+      // in CLI mode we skip installation of instrumentation because we're not running as an agent
+      // we still create the agent classloader so we can install the tracer and query integrations
+      AGENT_CLASSLOADER = createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
     }
-    return names;
+    return AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentCLI");
   }
 
   private static boolean isOracleJDK8() {
@@ -354,14 +340,11 @@ public class Agent {
         final ClassLoader agentClassLoader =
             createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
 
-        if (inst != null) {
-          final Class<?> agentInstallerClass =
-              agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
-          final Method agentInstallerMethod =
-              agentInstallerClass.getMethod("installBytebuddyAgent", Instrumentation.class);
-          agentInstallerMethod.invoke(null, inst);
-        }
-
+        final Class<?> agentInstallerClass =
+            agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
+        final Method agentInstallerMethod =
+            agentInstallerClass.getMethod("installBytebuddyAgent", Instrumentation.class);
+        agentInstallerMethod.invoke(null, inst);
         AGENT_CLASSLOADER = agentClassLoader;
       } catch (final Throwable ex) {
         log.error("Throwable thrown while installing the Datadog Agent", ex);

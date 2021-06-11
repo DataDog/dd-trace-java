@@ -3,7 +3,6 @@ package datadog.trace.bootstrap;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -76,40 +75,16 @@ public final class AgentJar {
       }
     }
 
-    CodeSource codeSource = thisClass.getProtectionDomain().getCodeSource();
-    if (codeSource == null || codeSource.getLocation() == null) {
-      throw new MalformedURLException("Could not get jar location from code source");
-    }
-
-    Class<?> agentClass =
-        ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
-    Method startMethod = agentClass.getMethod("start", Instrumentation.class, URL.class);
-    startMethod.invoke(null, null, codeSource.getLocation());
-
-    Class<?> tracerClass =
-        ClassLoader.getSystemClassLoader()
-            .loadClass("datadog.trace.bootstrap.instrumentation.api.AgentTracer");
-    Method startSpanMethod = tracerClass.getMethod("startSpan", CharSequence.class);
-
-    Class<?> spanClass =
-        ClassLoader.getSystemClassLoader()
-            .loadClass("datadog.trace.bootstrap.instrumentation.api.AgentSpan");
-    Method finishSpanMethod = spanClass.getMethod("finish");
-
-    int numTraces = 0;
-    while (++numTraces <= count || count < 0) {
-      Object span = startSpanMethod.invoke(null, "sample");
-      Thread.sleep(Math.max((long) (1000.0 * interval), 1L));
-      finishSpanMethod.invoke(span);
-      if (count < 0) {
-        System.out.println("... sent " + numTraces + (numTraces < 2 ? " trace" : " traces"));
-      } else {
-        System.out.println("... sent " + numTraces + "/" + count + " traces");
-      }
-    }
+    installAgentCLI()
+        .getMethod("sendSampleTraces", int.class, double.class)
+        .invoke(null, count, interval);
   }
 
   private static void printIntegrationNames() throws Exception {
+    installAgentCLI().getMethod("printIntegrationNames").invoke(null);
+  }
+
+  private static Class<?> installAgentCLI() throws Exception {
     CodeSource codeSource = thisClass.getProtectionDomain().getCodeSource();
     if (codeSource == null || codeSource.getLocation() == null) {
       throw new MalformedURLException("Could not get jar location from code source");
@@ -117,10 +92,8 @@ public final class AgentJar {
 
     Class<?> agentClass =
         ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
-    Method listMethod = agentClass.getMethod("listIntegrationNames", URL.class);
-    for (String name : (Iterable<String>) listMethod.invoke(null, codeSource.getLocation())) {
-      System.out.println(name);
-    }
+    Method installAgentCLIMethod = agentClass.getMethod("installAgentCLI", URL.class);
+    return (Class<?>) installAgentCLIMethod.invoke(null, codeSource.getLocation());
   }
 
   private static void printAgentVersion() {
