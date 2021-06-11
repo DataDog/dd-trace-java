@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.ci;
 
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 
 class BitriseInfo extends CIProviderInfo {
 
@@ -15,9 +16,9 @@ class BitriseInfo extends CIProviderInfo {
   public static final String BITRISE_GIT_REPOSITORY_URL = "GIT_REPOSITORY_URL";
   public static final String BITRISE_GIT_PR_COMMIT = "BITRISE_GIT_COMMIT";
   public static final String BITRISE_GIT_COMMIT = "GIT_CLONE_COMMIT_HASH";
-  public static final String BITRISE_GIT_PR_BRANCH = "BITRISEIO_GIT_BRANCH_DEST";
   public static final String BITRISE_GIT_BRANCH = "BITRISE_GIT_BRANCH";
   public static final String BITRISE_GIT_TAG = "BITRISE_GIT_TAG";
+  public static final String BITRISE_GIT_MESSAGE = "BITRISE_GIT_MESSAGE";
 
   @Override
   protected GitInfo buildCIGitInfo() {
@@ -26,7 +27,11 @@ class BitriseInfo extends CIProviderInfo {
         filterSensitiveInfo(System.getenv(BITRISE_GIT_REPOSITORY_URL)),
         buildGitBranch(gitTag),
         gitTag,
-        new CommitInfo(buildGitCommit()));
+        new CommitInfo(
+            buildGitCommit(),
+            PersonInfo.NOOP,
+            PersonInfo.NOOP,
+            System.getenv(BITRISE_GIT_MESSAGE)));
   }
 
   @Override
@@ -46,12 +51,7 @@ class BitriseInfo extends CIProviderInfo {
       return null;
     }
 
-    final String fromBranch = System.getenv(BITRISE_GIT_PR_BRANCH);
-    if (fromBranch != null && !fromBranch.isEmpty()) {
-      return normalizeRef(fromBranch);
-    } else {
-      return normalizeRef(System.getenv(BITRISE_GIT_BRANCH));
-    }
+    return normalizeRef(System.getenv(BITRISE_GIT_BRANCH));
   }
 
   private String buildGitCommit() {

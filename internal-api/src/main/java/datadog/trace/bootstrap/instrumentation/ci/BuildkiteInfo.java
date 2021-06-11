@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.ci;
 
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 
 class BuildkiteInfo extends CIProviderInfo {
 
@@ -18,6 +19,9 @@ class BuildkiteInfo extends CIProviderInfo {
   public static final String BUILDKITE_GIT_COMMIT = "BUILDKITE_COMMIT";
   public static final String BUILDKITE_GIT_BRANCH = "BUILDKITE_BRANCH";
   public static final String BUILDKITE_GIT_TAG = "BUILDKITE_TAG";
+  public static final String BUILDKITE_GIT_MESSAGE = "BUILDKITE_MESSAGE";
+  public static final String BUILDKITE_GIT_AUTHOR_NAME = "BUILDKITE_BUILD_AUTHOR";
+  public static final String BUILDKITE_GIT_AUTHOR_EMAIL = "BUILDKITE_BUILD_AUTHOR_EMAIL";
 
   @Override
   protected GitInfo buildCIGitInfo() {
@@ -25,7 +29,11 @@ class BuildkiteInfo extends CIProviderInfo {
         filterSensitiveInfo(System.getenv(BUILDKITE_GIT_REPOSITORY_URL)),
         normalizeRef(System.getenv(BUILDKITE_GIT_BRANCH)),
         normalizeRef(System.getenv(BUILDKITE_GIT_TAG)),
-        new CommitInfo(System.getenv(BUILDKITE_GIT_COMMIT)));
+        new CommitInfo(
+            System.getenv(BUILDKITE_GIT_COMMIT),
+            buildGitCommitAuthor(),
+            PersonInfo.NOOP,
+            System.getenv(BUILDKITE_GIT_MESSAGE)));
   }
 
   @Override
@@ -41,5 +49,10 @@ class BuildkiteInfo extends CIProviderInfo {
         .ciJobUrl(String.format("%s#%s", ciPipelineUrl, System.getenv(BUILDKITE_JOB_ID)))
         .ciWorkspace(expandTilde(System.getenv(BUILDKITE_WORKSPACE_PATH)))
         .build();
+  }
+
+  private PersonInfo buildGitCommitAuthor() {
+    return new PersonInfo(
+        System.getenv(BUILDKITE_GIT_AUTHOR_NAME), System.getenv(BUILDKITE_GIT_AUTHOR_EMAIL));
   }
 }

@@ -20,6 +20,10 @@ public class PersonInfo {
     this(null, null, 0, 0);
   }
 
+  public PersonInfo(final String name, final String email) {
+    this(name, email, 0, 0);
+  }
+
   public PersonInfo(String name, String email, long when, int tzOffset) {
     this.name = name;
     this.email = email;
