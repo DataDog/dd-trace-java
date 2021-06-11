@@ -5,7 +5,33 @@ public interface Flow<T> {
 
   T getResult();
 
-  interface Action {}
+  interface Action {
+    boolean isBlocking();
+
+    enum Noop implements Action {
+      INSTANCE;
+
+      public boolean isBlocking() {
+        return false;
+      }
+    }
+
+    final class Throw implements Action {
+      private final Exception exception;
+
+      public Throw(Exception exception) {
+        this.exception = exception;
+      }
+
+      public boolean isBlocking() {
+        return true;
+      }
+
+      public Exception getBlockingException() {
+        return this.exception;
+      }
+    }
+  }
 
   class ResultFlow<R> implements Flow<R> {
     @SuppressWarnings("rawtypes")

@@ -15,6 +15,7 @@ indent_size=2
 [*.java]
 indent_style=space
 indent_size=2
+continuation_indent_size=4
 
 [{*.yml,*.yaml}]
 indent_style=space

@@ -94,4 +94,16 @@ public class InstrumentationGatewayTest {
     subscription.cancel();
     assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isNull();
   }
+
+  @Test
+  public void testNoopAction() {
+    assertThat(Flow.Action.Noop.INSTANCE.isBlocking()).isFalse();
+  }
+
+  @Test
+  public void testThrownAction() {
+    Flow.Action.Throw thrown = new Flow.Action.Throw(new Exception("my message"));
+    assertThat(thrown.isBlocking()).isTrue();
+    assertThat(thrown.getBlockingException().getMessage()).isEqualTo("my message");
+  }
 }
