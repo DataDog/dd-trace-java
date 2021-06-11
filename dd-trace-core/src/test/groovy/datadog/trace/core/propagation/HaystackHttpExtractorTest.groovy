@@ -5,6 +5,7 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.test.util.DDSpecification
 
+import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY
@@ -13,6 +14,10 @@ import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY
 class HaystackHttpExtractorTest extends DDSpecification {
 
   HttpCodec.Extractor extractor = HaystackHttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
+
+  def setup() {
+    injectSysConfig(PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, "true")
+  }
 
   def "extract http headers"() {
     setup:

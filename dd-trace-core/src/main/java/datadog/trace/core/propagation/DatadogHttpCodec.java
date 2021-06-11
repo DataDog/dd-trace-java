@@ -76,6 +76,9 @@ class DatadogHttpCodec {
       if (null == key || key.isEmpty()) {
         return true;
       }
+      if (LOG_EXTRACT_HEADER_NAMES) {
+        log.debug("Header: {}", key);
+      }
       String lowerCaseKey = null;
       int classification = IGNORE;
       char first = Character.toLowerCase(key.charAt(0));
