@@ -45,6 +45,12 @@ abstract class HttpClientTest extends AgentTestRunner {
         String msg = "Sorry."
         response.status(500).send(msg)
       }
+      prefix("timeout") {
+        handleDistributedRequest()
+        sleep(2000)
+        String msg = "Hello."
+        response.status(200).send(msg)
+      }
       prefix("redirect") {
         handleDistributedRequest()
         redirect(server.address.resolve("/success").toURL().toString())
@@ -484,6 +490,24 @@ abstract class HttpClientTest extends AgentTestRunner {
     method = "HEAD"
   }
 
+  def "request timeout"() {
+    given:
+    assumeTrue(testTimeout())
+    def uri = server.address.resolve("/timeout")
+
+    when:
+    def status = doRequest("GET", uri)
+
+    then:
+    status == 200
+    assertTraces(2) {
+      trace(size(1)) {
+        clientSpan(it, null, method, false, false, uri)
+      }
+      server.distributedRequestTrace(it, trace(0).last())
+    }
+  }
+
   // IBM JVM has different protocol support for TLS
   @Requires({ !System.getProperty("java.vm.name").contains("IBM J9 VM") })
   def "test https request"() {
@@ -586,5 +610,9 @@ abstract class HttpClientTest extends AgentTestRunner {
     // FIXME: this hack is here because callback with parent is broken in play-ws when the stream()
     // function is used.  There is no way to stop a test from a derived class hence the flag
     true
+  }
+
+  boolean testTimeout() {
+    false
   }
 }

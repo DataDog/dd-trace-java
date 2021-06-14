@@ -94,10 +94,10 @@ dependencies {
   latestBoot24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.+'
 }
 
-tasks.named("test").configure {
-  dependsOn "boot20Test"
-  dependsOn "boot24Test"
-}
+//tasks.named("test").configure {
+//  dependsOn "boot20Test"
+//  dependsOn "boot24Test"
+//}
 tasks.named("latestDepTest").configure {
   dependsOn "latestBoot20Test"
   dependsOn "latestBoot24Test"
