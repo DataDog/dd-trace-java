@@ -23,7 +23,7 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
 
   @Override
   @SuppressWarnings("unchecked")
-  public <C> Subscription registerCallback(final EventType<C> eventType, final C callback) {
+  public <C extends EventCallback> Subscription registerCallback(final EventType<C> eventType, final C callback) {
     if (!callbacks.compareAndSet(eventType.getId(), null, callback)) {
       C existing = (C) callbacks.get(eventType.getId());
       String message =
