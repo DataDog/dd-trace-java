@@ -12,9 +12,7 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
+  latestDepTest
 }
 
 dependencies {
@@ -30,12 +28,10 @@ dependencies {
 
   // Include latest version of kafka itself along with latest version of client libs.
   // This seems to help with jar compatibility hell.
-  latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka_2.11', version: '2.3.+'
-  // (Pinning to 2.3.x: 2.4.0 introduces an error when executing compileLatestDepTestGroovy)
-  //  Caused by: java.lang.NoClassDefFoundError: org.I0Itec.zkclient.ZkClient
-  latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.3.+'
-  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.2.+'
-  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.2.+'
+  latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka_2.13', version: '2.+'
+  latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.+'
+  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.+'
+  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.+'
   latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.+'
   latestDepTestImplementation deps.guava
 }
