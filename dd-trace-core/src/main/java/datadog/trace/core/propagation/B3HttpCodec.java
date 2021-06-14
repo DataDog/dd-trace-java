@@ -92,6 +92,9 @@ class B3HttpCodec {
       if (null == key || key.isEmpty()) {
         return true;
       }
+      if (LOG_EXTRACT_HEADER_NAMES) {
+        log.debug("Header: {}", key);
+      }
       String lowerCaseKey = null;
       int classification = IGNORE;
       if (Character.toLowerCase(key.charAt(0)) == 'x') {

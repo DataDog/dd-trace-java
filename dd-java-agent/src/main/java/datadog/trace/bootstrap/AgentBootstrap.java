@@ -48,11 +48,13 @@ public final class AgentBootstrap {
 
   public static void agentmain(final String agentArgs, final Instrumentation inst) {
     try {
-
       final URL bootstrapURL = installBootstrapJar(inst);
 
       final Class<?> agentClass =
           ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
+      if (agentClass.getClassLoader() != null) {
+        throw new IllegalStateException("DD Java Agent NOT added to bootstrap classpath.");
+      }
       final Method startMethod = agentClass.getMethod("start", Instrumentation.class, URL.class);
       startMethod.invoke(null, inst, bootstrapURL);
     } catch (final Throwable ex) {
@@ -95,14 +97,14 @@ public final class AgentBootstrap {
         if (agentArgument == null) {
           agentArgument = arg;
         } else {
-          throw new RuntimeException(
+          throw new IllegalStateException(
               "Multiple javaagents specified and code source unavailable, not installing tracing agent");
         }
       }
     }
 
     if (agentArgument == null) {
-      throw new RuntimeException(
+      throw new IllegalStateException(
           "Could not find javaagent parameter and code source unavailable, not installing tracing agent");
     }
 
@@ -110,12 +112,12 @@ public final class AgentBootstrap {
     final Matcher matcher = Pattern.compile("-javaagent:([^=]+).*").matcher(agentArgument);
 
     if (!matcher.matches()) {
-      throw new RuntimeException("Unable to parse javaagent parameter: " + agentArgument);
+      throw new IllegalStateException("Unable to parse javaagent parameter: " + agentArgument);
     }
 
     final File javaagentFile = new File(matcher.group(1));
     if (!(javaagentFile.exists() || javaagentFile.isFile())) {
-      throw new RuntimeException("Unable to find javaagent file: " + javaagentFile);
+      throw new IllegalStateException("Unable to find javaagent file: " + javaagentFile);
     }
     ddJavaAgentJarURL = javaagentFile.toURI().toURL();
     checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
@@ -176,7 +178,7 @@ public final class AgentBootstrap {
         }
       }
     }
-    throw new RuntimeException(
+    throw new IllegalStateException(
         "dd-java-agent is not installed, because class '"
             + thisClass.getCanonicalName()
             + "' is located in '"

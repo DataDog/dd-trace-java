@@ -41,6 +41,25 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
   private static final Logger log = LoggerFactory.getLogger(DDTracer.class);
 
+  static {
+    ClassLoader classLoader = DDTracer.class.getClassLoader();
+    if (classLoader == null) {
+      log.error("dd-trace-ot should not be on the bootstrap classpath.");
+    } else {
+      try {
+        Class<?> bootstrapClass =
+            Class.forName("datadog.trace.bootstrap.AgentBootstrap", false, classLoader);
+        if (bootstrapClass.getClassLoader() == null) {
+          log.error("dd-trace-ot should not be used with dd-java-agent.");
+        } else {
+          log.error("dd-java-agent should not be on the classpath.");
+        }
+      } catch (ClassNotFoundException expected) {
+        // ignore
+      }
+    }
+  }
+
   public static DDTracerBuilder builder() {
     return new DDTracerBuilder();
   }

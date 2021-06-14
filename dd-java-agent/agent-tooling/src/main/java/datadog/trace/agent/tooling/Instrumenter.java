@@ -165,8 +165,11 @@ public interface Instrumenter {
 
     private AgentBuilder.Identified.Narrowable filter(AgentBuilder agentBuilder) {
       final AgentBuilder.Identified.Narrowable narrowable;
+      ElementMatcher<ClassLoader> classLoaderMatcher = classLoaderMatcher();
       ElementMatcher<? super TypeDescription> typeMatcher = typeMatcher();
-      if (typeMatcher instanceof AgentBuilder.RawMatcher && typeMatcher instanceof FailSafe) {
+      if (classLoaderMatcher == ANY_CLASS_LOADER // Don't bypass the classLoaderMatcher
+          && typeMatcher instanceof AgentBuilder.RawMatcher
+          && typeMatcher instanceof FailSafe) {
         narrowable = agentBuilder.type((AgentBuilder.RawMatcher) typeMatcher);
       } else {
         narrowable =
@@ -175,7 +178,7 @@ public interface Instrumenter {
                     typeMatcher,
                     "Instrumentation type matcher unexpected exception: " + getClass().getName()),
                 failSafe(
-                    classLoaderMatcher(),
+                    classLoaderMatcher,
                     "Instrumentation class loader matcher unexpected exception: "
                         + getClass().getName()));
       }

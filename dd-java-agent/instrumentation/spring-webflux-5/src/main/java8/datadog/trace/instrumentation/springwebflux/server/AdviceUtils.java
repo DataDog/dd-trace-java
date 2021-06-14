@@ -108,7 +108,7 @@ public final class AdviceUtils {
     public void onSubscribe(Subscription s) {
       this.subscription = s;
       try (AgentScope scope = activateSpan(span)) {
-        subscriber.onSubscribe(s);
+        subscriber.onSubscribe(this);
       }
     }
 
@@ -152,6 +152,7 @@ public final class AdviceUtils {
       if (null != span && COMPLETED.compareAndSet(this, 0, 1)) {
         span.finish();
       }
+      subscription.cancel();
     }
   }
 }
