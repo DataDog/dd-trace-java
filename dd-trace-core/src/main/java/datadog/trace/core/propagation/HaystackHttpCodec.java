@@ -129,6 +129,9 @@ public class HaystackHttpCodec {
       if (null == key || key.isEmpty()) {
         return true;
       }
+      if (LOG_EXTRACT_HEADER_NAMES) {
+        log.debug("Header: {}", key);
+      }
       char first = Character.toLowerCase(key.charAt(0));
       String lowerCaseKey = null;
       int classification = IGNORE;

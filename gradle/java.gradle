@@ -206,7 +206,8 @@ if (project.plugins.hasPlugin('com.github.johnrengelman.shadow')) {
 
 if (project.hasProperty("removeJarVersionNumbers") && removeJarVersionNumbers) {
   tasks.withType(AbstractArchiveTask).configureEach {
-    archiveVersion = null
+    archiveVersion.convention(null)
+    archiveVersion.set(null)
   }
 }
 

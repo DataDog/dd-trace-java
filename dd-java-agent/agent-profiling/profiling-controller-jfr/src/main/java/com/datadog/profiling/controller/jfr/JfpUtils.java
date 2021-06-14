@@ -19,7 +19,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -69,8 +68,8 @@ public final class JfpUtils {
       if (!overridesFileName.toLowerCase().endsWith(JFP_EXTENSION)) {
         overridesFileName = overridesFileName + JFP_EXTENSION;
       }
-      File override = new File(overridesFileName);
-      try (InputStream overrideStream =
+      final File override = new File(overridesFileName);
+      try (final InputStream overrideStream =
           override.exists()
               ? new FileInputStream(override)
               : getNamedResource(OVERRIDES_PATH + overridesFileName)) {
@@ -81,6 +80,6 @@ public final class JfpUtils {
         }
       }
     }
-    return Collections.unmodifiableMap(result);
+    return result;
   }
 }

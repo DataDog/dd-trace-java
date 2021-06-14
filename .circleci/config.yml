@@ -79,6 +79,13 @@ commands:
               circleci step halt
             fi
 
+  display_memory_usage:
+    steps:
+      - run:
+          name: Max Memory Used
+          command: cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
+          when: always
+
 jobs:
   build:
     <<: *defaults
@@ -117,6 +124,8 @@ jobs:
           key: dd-trace-java-v3-{{ .Branch }}-{{ .Revision }}
           <<: *save_cache_paths
 
+      - display_memory_usage
+
   build_clean_cache:
     <<: *defaults
     resource_class: xlarge
@@ -136,6 +145,8 @@ jobs:
       - save_cache:
           key: dd-trace-java-v3-{{ .Branch }}-{{ epoch }}
           <<: *save_cache_paths
+
+      - display_memory_usage
 
   base_tests: &base_tests
     <<: *defaults
@@ -182,12 +193,14 @@ jobs:
       - store_test_results:
           path: ./results
 
+      - display_memory_usage
+
       - early_return_for_forked_pull_requests
 
       - run:
           name: Upload test results to Datadog
           when: always
-          command: set +o pipefail && datadog-ci junit upload --service dd-trace-java ./results || true
+          command: .circleci/upload_ciapp.sh base << parameters.testTask >> || true
 
   instrumentation_tests:
     <<: *base_tests
@@ -255,12 +268,14 @@ jobs:
       - store_test_results:
           path: ./results
 
+      - display_memory_usage
+
       - early_return_for_forked_pull_requests
 
       - run:
           name: Upload test results to Datadog
           when: always
-          command: set +o pipefail && datadog-ci junit upload --service dd-trace-java ./results || true
+          command: .circleci/upload_ciapp.sh instrumentation << parameters.testTask >> || true
 
   smoke_tests:
     <<: *base_tests
@@ -288,7 +303,7 @@ jobs:
           name: Run Tests
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx512M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1940M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log' -Ddatadog.forkedMaxHeapSize=512M -Ddatadog.forkedMinHeapSize=128M"
             ./gradlew stagePlayBinaryDist :dd-smoke-test:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=2
@@ -309,12 +324,14 @@ jobs:
       - store_test_results:
           path: ./results
 
+      - display_memory_usage
+
       - early_return_for_forked_pull_requests
 
       - run:
           name: Upload test results to Datadog
           when: always
-          command: set +o pipefail && datadog-ci junit upload --service dd-trace-java ./results || true
+          command: .circleci/upload_ciapp.sh smoke << parameters.testTask >> || true
 
   # The only way to do fan-in in CircleCI seems to have a proper job, so let's have one that
   # doesn't consume so many resources. The execution time for this including spin up seems to
@@ -361,7 +378,7 @@ jobs:
           name: Build Project
           command: >-
             MAVEN_OPTS="-Xms64M -Xmx256M"
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1750M -Xms256M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1550M -Xms512M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
             ./gradlew build -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=3
@@ -383,6 +400,8 @@ jobs:
 
       - store_artifacts:
           path: ./reports
+
+      - display_memory_usage
 
   muzzle:
     <<: *defaults
@@ -426,6 +445,8 @@ jobs:
 
       - store_test_results:
           path: workspace/build/muzzle-test-results
+
+      - display_memory_usage
 
 workflows:
   build_test_deploy:

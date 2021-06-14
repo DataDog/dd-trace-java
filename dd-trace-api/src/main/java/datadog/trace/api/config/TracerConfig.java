@@ -46,6 +46,8 @@ public final class TracerConfig {
       "trace.scope.inherit.async.propagation";
   public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
   public static final String TRACE_STRICT_WRITES_ENABLED = "trace.strict.writes.enabled";
+  public static final String PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED =
+      "propagation.extract.log_header_names.enabled";
   public static final String PROPAGATION_STYLE_EXTRACT = "propagation.style.extract";
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
 
