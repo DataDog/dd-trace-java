@@ -14,9 +14,12 @@ java_prop () {
 }
 
 # based on tracer implementation: https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/TestDecorator.java#L55-L77
-TAGS="test.traits:{\"marker\":[\"$1\"]},\
-runtime.name:$(java_prop java.runtime.name),runtime.vendor:$(java_prop java.vendor),runtime.version:$(java_prop java.version),\
-os.architecture:$(java_prop os.arch),os.platform:$(java_prop os.name),os.version:$(java_prop os.version)\
-"
-
-DD_TAGS="${TAGS}" datadog-ci junit upload --service $SERVICE_NAME ./results
+datadog-ci junit upload --service $SERVICE_NAME \
+    --tags "test.traits:{\"marker\":[\"$1\"]}" \
+    --tags "runtime.name:$(java_prop java.runtime.name)" \
+    --tags "runtime.vendor:$(java_prop java.vendor)" \
+    --tags "runtime.version:$(java_prop java.version)" \
+    --tags "os.architecture:$(java_prop os.arch)" \
+    --tags "os.platform:$(java_prop os.name)" \
+    --tags "os.version:$(java_prop os.version)" \
+./results
