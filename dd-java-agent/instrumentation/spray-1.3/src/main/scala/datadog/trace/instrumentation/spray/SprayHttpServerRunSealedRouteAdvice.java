@@ -18,6 +18,8 @@ public class SprayHttpServerRunSealedRouteAdvice {
   public static AgentScope enter(@Advice.Argument(value = 1, readOnly = false) RequestContext ctx) {
     final AgentSpan span;
     if (activeSpan() == null) {
+      // Propagate context in case income request was going through several routes
+      // TODO: Add test for it
       final AgentSpan.Context extractedContext = propagate().extract(ctx.request(), GETTER);
       span = startSpan(SPRAY_HTTP_REQUEST, extractedContext);
     } else {
