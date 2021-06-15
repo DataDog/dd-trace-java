@@ -21,13 +21,12 @@ variables:
   image: datadog/dd-trace-java-docker-build:latest
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
-
-cache:
-  key: 'cache-$CI_SERVER_VERSION' # Reset the cache every time gitlab is upgraded.  ~Every couple months
-  paths:
-    - .gradle/wrapper
-    - .gradle/caches
-  policy: pull
+  cache:
+    key: '$CI_SERVER_VERSION' # Reset the cache every time gitlab is upgraded.  ~Every couple months
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+    policy: pull
 
 build: &build
   <<: *gradle_build
@@ -42,19 +41,12 @@ build: &build
 
 build_with_cache:
   <<: *build
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: on_success
-    - when: manual
   cache:
     policy: push
 
 deploy_to_reliability_env:
   stage: deploy
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - when: on_success
+  when: on_success
   trigger:
     project: DataDog/datadog-reliability-env
     branch: $DOWNSTREAM_BRANCH
