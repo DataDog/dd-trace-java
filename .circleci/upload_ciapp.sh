@@ -4,11 +4,9 @@ SERVICE_NAME="dd-trace-java"
 # JAVA_???_HOME are set in the base image for each used JDK https://github.com/DataDog/dd-trace-java-docker-build/blob/master/Dockerfile#L86
 java_home="JAVA_$2_HOME"
 java_bin="${!java_home}/bin/java"
-echo "JAVA_BIN: $java_bin"
 if [ ! -x $java_bin ]; then
     java_bin=$(which java)
 fi
-echo "JAVA_BIN: $java_bin"
 
 java_props=$($java_bin -XshowSettings:properties -version 2>&1)
 java_prop () {
@@ -20,6 +18,5 @@ TAGS="test.traits:{\"marker\":[\"$1\"]},\
 runtime.name:$(java_prop java.runtime.name),runtime.vendor:$(java_prop java.vendor),runtime.version:$(java_prop java.version),\
 os.architecture:$(java_prop os.arch),os.platform:$(java_prop os.name),os.version:$(java_prop os.version)\
 "
-echo "${TAGS}"
 
 DD_TAGS="${TAGS}" datadog-ci junit upload --service $SERVICE_NAME ./results
