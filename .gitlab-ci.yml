@@ -23,7 +23,7 @@ variables:
     - export GRADLE_USER_HOME=`pwd`/.gradle
 
 cache:
-  key: '$CI_SERVER_VERSION' # Reset the cache every time gitlab is upgraded.  ~Every couple months
+  key: 'cache-$CI_SERVER_VERSION' # Reset the cache every time gitlab is upgraded.  ~Every couple months
   paths:
     - .gradle/wrapper
     - .gradle/caches
