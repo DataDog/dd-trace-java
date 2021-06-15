@@ -46,6 +46,7 @@ build_with_cache:
     - if: '$POPULATE_CACHE'
       when: on_success
     - when: manual
+      allow_failure: true
   cache:
     <<: *default_cache
     policy: push
