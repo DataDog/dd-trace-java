@@ -2,7 +2,8 @@
 SERVICE_NAME="dd-trace-java"
 
 # JAVA_???_HOME are set in the base image for each used JDK https://github.com/DataDog/dd-trace-java-docker-build/blob/master/Dockerfile#L86
-java_bin="\$JAVA_$2_HOME/bin/java"
+java_home="JAVA_$2_HOME"
+java_bin="${!java_home}/bin/java"
 echo "JAVA_BIN: $java_bin"
 if [ ! -x $java_bin ]; then
     java_bin=$(which java)
