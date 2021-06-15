@@ -48,18 +48,17 @@ class B3HttpCodec {
         setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
         setter.set(carrier, SPAN_ID_KEY, injectedSpanId);
 
-        final int injectedSamplingPriority = context.getSamplingPriority();
+        String injectedB3Id = injectedTraceId + '-' + injectedSpanId;
 
         if (context.lockSamplingPriority()) {
+          final String injectedSamplingPriority = convertSamplingPriority(context.getSamplingPriority());
           setter.set(
             carrier,
             SAMPLING_PRIORITY_KEY,
-            convertSamplingPriority(injectedSamplingPriority));
-        }
+            injectedSamplingPriority);
 
-        // check if these all exist before adding all to b3Id
-        // if x-b3-flags replace injectedSamplingPriority with d else injectedSamplingPriority
-        final String injectedB3Id = injectedTraceId + '-' + injectedSpanId + '-' + injectedSamplingPriority;
+          injectedB3Id += '-' + injectedSamplingPriority;
+        }
         setter.set(carrier, B3_KEY, injectedB3Id);
 
         log.debug("{} - B3 parent context injected - {}", context.getTraceId(), injectedTraceId);
