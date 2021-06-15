@@ -128,7 +128,11 @@ public class MuzzleVersionScanPlugin {
     for (final String helperName : helperClasses) {
       int nestedClassIndex = helperName.lastIndexOf('$');
       if (nestedClassIndex > 0) {
-        String parent = helperName.substring(0, nestedClassIndex);
+        final int scalaParentIndex = helperName.indexOf("$anonfun$");
+        if (scalaParentIndex > 0) {
+          nestedClassIndex = scalaParentIndex;
+        }
+        final String parent = helperName.substring(0, nestedClassIndex);
         if (!helperClassNames.contains(parent)) {
           throw new IllegalArgumentException(
               "Nested helper "
