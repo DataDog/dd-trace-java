@@ -65,6 +65,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
     and: "operations are captured in traces"
     assertTraces(1) {
+      sortSpansByStart()
       trace(2) {
         basicSpan(it, "test")
         hazelcastSpan(it, "Map.get $randomName", false)

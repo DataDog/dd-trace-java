@@ -79,6 +79,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     result == "bar"
 
     assertTraces(1) {
+      sortSpansByStart()
       trace(2) {
         basicSpan(it, "test")
         hazelcastSpan(it, "Map.Get ${randomName}", false)
