@@ -32,6 +32,6 @@ dependencies {
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '2.+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.+'
-  latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.+'
+  latestDepTestImplementation group: 'org.assertj', name: 'assertj-core', version: '3.19.+'
   latestDepTestImplementation deps.guava
 }
