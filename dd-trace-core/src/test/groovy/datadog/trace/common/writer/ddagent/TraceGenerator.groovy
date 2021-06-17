@@ -47,6 +47,7 @@ class TraceGenerator {
     for (int i = 0; i < tagCount; ++i) {
       tags.put("tag." + i, ThreadLocalRandom.current().nextBoolean() ? "foo" : randomString(2000))
       tags.put("tag.1." + i, lowCardinality ? "y" : UUID.randomUUID())
+      tags.put("tag.2." + i, ThreadLocalRandom.current().nextBoolean())
     }
     int metricCount = ThreadLocalRandom.current().nextInt(0, 20)
     for (int i = 0; i < metricCount; ++i) {
@@ -134,7 +135,7 @@ class TraceGenerator {
       this.metadata = new Metadata(Thread.currentThread().getId(),
         UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, UNSET, measured, topLevel,
         statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)))
-      this.httpStatusCode = (short)statusCode
+      this.httpStatusCode = (short) statusCode
     }
 
     @Override
