@@ -1,5 +1,6 @@
 plugins {
   id "com.github.johnrengelman.shadow"
+  id "me.champeau.jmh"
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -39,6 +40,16 @@ shadowJar {
 
 jar {
   archiveClassifier = 'unbundled'
+}
+
+jmh {
+  fork = 5
+  warmupForks = 0
+  jmhVersion = '1.32'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  jvmArgsAppend = ['-Ddd.appsec.beta=true -Xms64m -Xmx64m']
+  failOnError = false
+  forceGC = true
 }
 
 task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
