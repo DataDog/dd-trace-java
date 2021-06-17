@@ -15,6 +15,7 @@
  */
 package com.datadog.profiling.controller.openjdk;
 
+import static datadog.trace.api.Platform.isJavaVersion;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 
 import com.datadog.profiling.controller.ConfigurationException;
@@ -63,7 +64,10 @@ public final class OpenJdkController implements Controller {
 
       // Toggle settings based on JDK version
       if (Boolean.parseBoolean(recordingSettings.get("jdk.OldObjectSample#enabled"))) {
-        if (!isJavaVersionAtLeast(17)) {
+        if (!((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
+            || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
+            || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
+            || isJavaVersionAtLeast(17))) {
           log.debug(
               "Inexpensive live object profiling is not supported for this JDK. Disabling OldObjectSample JFR event.");
           recordingSettings.put("jdk.OldObjectSample#enabled", "false");
