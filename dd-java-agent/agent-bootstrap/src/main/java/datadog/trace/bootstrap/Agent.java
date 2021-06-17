@@ -523,7 +523,7 @@ public class Agent {
                   if (e instanceof InvocationTargetException) {
                     e = e.getCause();
                   }
-                  log.debug("Profiling of ScopeEvents is not available. {}", e.getMessage());
+                  log.debug("Profiling code hotspots are not available. {}", e.getMessage());
                 }
               }
             });
