@@ -26,11 +26,8 @@ class ScopeEventTest extends DDSpecification {
 
   def setup() {
     injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
-    injectSysConfig(ProfilingConfig.PROFILING_HOTSPOTS_ENABLED, "true")
-    injectSysConfig(ProfilingConfig.PROFILING_CHECKPOINTS_RECORD_CPU_TIME, "true")
     tracer = CoreTracer.builder().writer(new ListWriter()).build()
     GlobalTracer.forceRegister(tracer)
-    tracer.addScopeListener(new ScopeEventFactory())
   }
 
   def cleanup() {
@@ -43,9 +40,39 @@ class ScopeEventTest extends DDSpecification {
       .collect(Collectors.toList())
   }
 
+  def addScopeEventFactory(hotspots = true, checkpoints = true) {
+    injectSysConfig(ProfilingConfig.PROFILING_HOTSPOTS_ENABLED, String.valueOf(hotspots))
+    injectSysConfig(ProfilingConfig.PROFILING_CHECKPOINTS_RECORD_CPU_TIME, String.valueOf(checkpoints))
+    tracer.addScopeListener(new ScopeEventFactory())
+  }
+
   // TODO more tests around CPU time (mocking out the SystemAccess class)
+  def "Default scope event is written without thread CPU time"() {
+    setup:
+    addScopeEventFactory(false)
+    SystemAccess.enableJmx()
+    def recording = JfrHelper.startRecording()
+
+    when:
+    AgentSpan span = tracer.buildSpan("test").start()
+    AgentScope scope = tracer.activateSpan(span)
+    sleep(SLEEP_DURATION.toMillis())
+    scope.close()
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
+    span.finish()
+
+    then:
+    events.size() == 1
+    def event = events[0]
+    event.duration >= SLEEP_DURATION
+    event.getLong("traceId") == span.context().traceId.toLong()
+    event.getLong("spanId") == span.context().spanId.toLong()
+    event.getLong("cpuTime") == Long.MIN_VALUE
+  }
+
   def "Scope event is written with thread CPU time"() {
     setup:
+    addScopeEventFactory()
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -68,6 +95,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope event is written without thread CPU time"() {
     setup:
+    addScopeEventFactory()
     SystemAccess.disableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -90,6 +118,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope event is written after continuation activation"() {
     setup:
+    addScopeEventFactory()
     def recording = JfrHelper.startRecording()
 
     AgentSpan span = tracer.buildSpan("test").start()
@@ -114,6 +143,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope events are written - two deep"() {
     setup:
+    addScopeEventFactory()
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -154,6 +184,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope events are written - two deep, two wide"() {
     setup:
+    addScopeEventFactory()
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -222,6 +253,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "Test out of order scope closing"() {
     setup:
+    addScopeEventFactory()
     def recording = JfrHelper.startRecording()
 
     when:
@@ -262,6 +294,7 @@ class ScopeEventTest extends DDSpecification {
   def "Events are not created when profiling is not enabled"() {
     setup:
     injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "false")
+    addScopeEventFactory()
     def noProfilingTracer = CoreTracer.builder().writer(new ListWriter()).build()
     def recording = JfrHelper.startRecording()
 
@@ -284,6 +317,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "checkpoint events written when checkpointer registered"() {
     setup:
+    addScopeEventFactory()
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
     tracer.registerCheckpointer(new JFRCheckpointer())
