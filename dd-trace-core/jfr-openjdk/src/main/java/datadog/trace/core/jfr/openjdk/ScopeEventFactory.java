@@ -11,7 +11,7 @@ import jdk.jfr.EventType;
 
 /** Event factory for {@link ScopeEvent} */
 public class ScopeEventFactory implements ExtendedScopeListener {
-  private static final ThreadCpuTimeProvider THREAD_CPU_TIME_PROVIDER =
+  private final ThreadCpuTimeProvider threadCpuTimeProvider =
       ConfigProvider.createDefault().getBoolean(ProfilingConfig.PROFILING_HOTSPOTS_ENABLED, false)
           ? SystemAccess::getCurrentThreadCpuTime
           : () -> Long.MIN_VALUE;
@@ -41,7 +41,7 @@ public class ScopeEventFactory implements ExtendedScopeListener {
     long spanIdNum = spanId.toLong();
 
     if (top == null || top.getTraceId() != traceIdNum || top.getSpanId() != spanIdNum) {
-      ScopeEvent event = new ScopeEvent(traceIdNum, spanIdNum, THREAD_CPU_TIME_PROVIDER);
+      ScopeEvent event = new ScopeEvent(traceIdNum, spanIdNum, threadCpuTimeProvider);
       stack.push(event);
       event.start();
     }
