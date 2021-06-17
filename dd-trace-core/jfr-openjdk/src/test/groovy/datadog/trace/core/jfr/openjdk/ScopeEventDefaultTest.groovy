@@ -17,7 +17,7 @@ import java.util.stream.Collectors
   jvm.java11Compatible
 })
 /*
-  This needs to be done as a separate test because it is not possible to change system config between test cases
+ This needs to be done as a separate test because it is not possible to change system config between test cases
  */
 class ScopeEventDefaultTest extends DDSpecification {
   private static final Duration SLEEP_DURATION = Duration.ofMillis(200)

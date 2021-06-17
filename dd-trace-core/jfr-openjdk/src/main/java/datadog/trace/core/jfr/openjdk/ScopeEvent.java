@@ -1,6 +1,5 @@
 package datadog.trace.core.jfr.openjdk;
 
-import datadog.trace.core.util.SystemAccess;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Event;
