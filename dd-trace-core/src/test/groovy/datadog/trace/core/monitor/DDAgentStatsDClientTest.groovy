@@ -164,7 +164,7 @@ class DDAgentStatsDClientTest extends DDSpecification {
         yield()
       }
       try {
-        return lastMessage
+        return lastMessage.trim()
       } finally {
         lastMessage = null
       }
