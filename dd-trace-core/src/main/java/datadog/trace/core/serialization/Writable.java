@@ -11,6 +11,8 @@ public interface Writable {
 
   void writeObject(Object value, EncodingCache encodingCache);
 
+  void writeObjectString(Object value, EncodingCache encodingCache);
+
   void writeMap(Map<? extends CharSequence, ?> map, EncodingCache encodingCache);
 
   void writeString(CharSequence s, EncodingCache encodingCache);
