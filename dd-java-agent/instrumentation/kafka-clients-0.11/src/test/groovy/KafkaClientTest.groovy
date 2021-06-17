@@ -2,6 +2,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.instrumentation.kafka_clients.TracingIterable
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -71,12 +72,12 @@ class KafkaClientTest extends AgentTestRunner {
 
     // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records.add(record)
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records.add(record)
+      }
+    })
 
     // start the container and underlying message listener
     container.start()
@@ -180,12 +181,12 @@ class KafkaClientTest extends AgentTestRunner {
 
     // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records.add(record)
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records.add(record)
+      }
+    })
 
     // start the container and underlying message listener
     container.start()
@@ -287,12 +288,12 @@ class KafkaClientTest extends AgentTestRunner {
 
     // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records.add(record)
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records.add(record)
+      }
+    })
 
     // start the container and underlying message listener
     container.start()
@@ -472,6 +473,89 @@ class KafkaClientTest extends AgentTestRunner {
 
     then:
     recs.hasNext() == false
+    first.value() == greeting
+    first.key() == null
+
+    assertTraces(2) {
+      trace(1) {
+        // PRODUCER span 0
+        span {
+          serviceName "kafka"
+          operationName "kafka.produce"
+          resourceName "Produce Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          parent()
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            defaultTags(true)
+          }
+        }
+      }
+      trace(1) {
+        // CONSUMER span 0
+        span {
+          serviceName "kafka"
+          operationName "kafka.consume"
+          resourceName "Consume Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          childOf trace(0)[0]
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+            // TODO - test with and without feature enabled once Config is easier to control
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+
+            defaultTags(true)
+          }
+        }
+      }
+    }
+
+    cleanup:
+    consumer.close()
+    producer.close()
+
+  }
+
+
+  def "test records(TopicPartition).forEach kafka consume"() {
+    setup:
+
+    // set up the Kafka consumer properties
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(producerProps)
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when:
+    def greeting = "Hello from MockConsumer!"
+    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, greeting))
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+
+    def records = (TracingIterable) pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition))
+
+    def first = null
+    if (records.forEach(records)) {
+      first = records.next()
+    }
+
+    then:
+    records.forEach(records) == false
     first.value() == greeting
     first.key() == null
 
@@ -750,14 +834,14 @@ class KafkaClientTest extends AgentTestRunner {
     def container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties)
     def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
     container.setupMessageListener(new BatchMessageListener<String, String>() {
-        @Override
-        void onMessage(List<ConsumerRecord<String, String>> consumerRecords) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          consumerRecords.each {
-            records.add(it)
-          }
+      @Override
+      void onMessage(List<ConsumerRecord<String, String>> consumerRecords) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        consumerRecords.each {
+          records.add(it)
         }
-      })
+      }
+    })
     container.start()
     ContainerTestUtils.waitForAssignment(container, embeddedKafka.getPartitionsPerTopic())
 
@@ -921,12 +1005,12 @@ class KafkaClientTest extends AgentTestRunner {
 
     // setup a Kafka message listener
     container.setupMessageListener(new MessageListener<String, String>() {
-        @Override
-        void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
-          records.add(record)
-        }
-      })
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records.add(record)
+      }
+    })
 
     // start the container and underlying message listener
     container.start()
