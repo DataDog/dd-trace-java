@@ -7,9 +7,7 @@ import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
-import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY
-import static datadog.trace.core.propagation.B3HttpCodec.SPAN_ID_KEY
-import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY
+import static datadog.trace.core.propagation.B3HttpCodec.*
 
 class B3HttpExtractorTest extends DDSpecification {
 
@@ -54,6 +52,84 @@ class B3HttpExtractorTest extends DDSpecification {
     3G               | 4G               | 0                | PrioritySampling.SAMPLER_DROP
     TRACE_ID_MAX     | TRACE_ID_MAX - 1 | 0                | PrioritySampling.SAMPLER_DROP
     TRACE_ID_MAX - 1 | TRACE_ID_MAX     | 1                | PrioritySampling.SAMPLER_KEEP
+  }
+
+  def "extract http headers with b3 header beginning"() {
+    setup:
+    def headers = [
+      ""                          : "empty key",
+      (B3_KEY)                    : b3TraceId.toString(16).toLowerCase() + "-" + b3SpanId.toString(16).toLowerCase(),
+      (TRACE_ID_KEY.toUpperCase()): traceId.toString(16).toLowerCase(),
+      (SPAN_ID_KEY.toUpperCase()) : spanId.toString(16).toLowerCase(),
+      SOME_HEADER                 : "my-interesting-info",
+    ]
+
+    if (samplingPriority != null) {
+      headers.put(SAMPLING_PRIORITY_KEY, "$samplingPriority".toString())
+      headers.put(B3_KEY, headers.get(B3_KEY) + "-" + "$samplingPriority".toString())
+    }
+
+    when:
+    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    context.traceId == DDId.from("$b3TraceId")
+    context.spanId == DDId.from("$b3SpanId")
+    context.baggage == [:]
+    context.tags == [
+      "b3.traceid": context.traceId.toHexStringOrOriginal(),
+      "b3.spanid" : context.spanId.toHexStringOrOriginal(),
+      "some-tag"  : "my-interesting-info"
+    ]
+    context.samplingPriority == expectedSamplingPriority
+    context.origin == null
+
+    where:
+    traceId          | spanId           | samplingPriority | expectedSamplingPriority      | b3TraceId | b3SpanId
+    1G               | 2G               | null             | PrioritySampling.UNSET        | 5G        | 6G
+    2G               | 3G               | 1                | PrioritySampling.SAMPLER_KEEP | 6G        | 7G
+    3G               | 4G               | 0                | PrioritySampling.SAMPLER_DROP | 7G        | 8G
+    TRACE_ID_MAX     | TRACE_ID_MAX - 1 | 0                | PrioritySampling.SAMPLER_DROP | 8G        | 9G
+    TRACE_ID_MAX - 1 | TRACE_ID_MAX     | 1                | PrioritySampling.SAMPLER_KEEP | 9G        | 10G
+  }
+
+  def "extract http headers with b3 header end"() {
+    setup:
+    def headers = [
+      ""                          : "empty key",
+      (TRACE_ID_KEY.toUpperCase()): traceId.toString(16).toLowerCase(),
+      (SPAN_ID_KEY.toUpperCase()) : spanId.toString(16).toLowerCase(),
+      (B3_KEY)                    : b3TraceId.toString(16).toLowerCase() + "-" + b3SpanId.toString(16).toLowerCase(),
+      SOME_HEADER                 : "my-interesting-info",
+    ]
+
+    if (samplingPriority != null) {
+      headers.put(SAMPLING_PRIORITY_KEY, "$samplingPriority".toString())
+      headers.put(B3_KEY, headers.get(B3_KEY) + "-" + "$samplingPriority".toString())
+    }
+
+    when:
+    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+
+    then:
+    context.traceId == DDId.from("$b3TraceId")
+    context.spanId == DDId.from("$b3SpanId")
+    context.baggage == [:]
+    context.tags == [
+      "b3.traceid": context.traceId.toHexStringOrOriginal(),
+      "b3.spanid" : context.spanId.toHexStringOrOriginal(),
+      "some-tag"  : "my-interesting-info"
+    ]
+    context.samplingPriority == expectedSamplingPriority
+    context.origin == null
+
+    where:
+    traceId          | spanId           | samplingPriority | expectedSamplingPriority      | b3TraceId    | b3SpanId
+    1G               | 2G               | null             | PrioritySampling.UNSET        | 1G           | 2G
+    2G               | 3G               | 1                | PrioritySampling.SAMPLER_KEEP | 6G           | 7G
+    3G               | 4G               | 0                | PrioritySampling.SAMPLER_DROP | 7G           | 8G
+    TRACE_ID_MAX     | TRACE_ID_MAX - 1 | 0                | PrioritySampling.SAMPLER_DROP | TRACE_ID_MAX | 9G
+    TRACE_ID_MAX - 1 | TRACE_ID_MAX     | 1                | PrioritySampling.SAMPLER_KEEP | 9G           | 10G
   }
 
   def "extract 128 bit id truncates id to 64 bit"() {
@@ -209,4 +285,6 @@ class B3HttpExtractorTest extends DDSpecification {
     "1"                                | "f" * 16           | DDId.ONE                         | DDId.MAX
     "1"                                | "000" + "f" * 16   | DDId.ONE                         | DDId.MAX
   }
+
+
 }

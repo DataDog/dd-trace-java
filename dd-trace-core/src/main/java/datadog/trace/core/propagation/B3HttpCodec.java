@@ -28,7 +28,6 @@ class B3HttpCodec {
   private static final String TRACE_ID_KEY = "X-B3-TraceId";
   private static final String SPAN_ID_KEY = "X-B3-SpanId";
   private static final String SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
-  // b3={x-b3-traceid}-{x-b3-spanid}-{if x-b3-flags 'd' else x-b3-sampled}-{x-b3-parentspanid}, where the last two fields are optional.
   private static final String B3_KEY = "b3";
   private static final String SAMPLING_PRIORITY_ACCEPT = String.valueOf(1);
   private static final String SAMPLING_PRIORITY_DROP = String.valueOf(0);
@@ -112,11 +111,11 @@ class B3HttpCodec {
       if (B3_KEY.equals(key)) {
         classification = B3_ID;
       } else if (Character.toLowerCase(key.charAt(0)) == 'x') {
-        if (TRACE_ID_KEY.equalsIgnoreCase(key)) {
+        if (TRACE_ID_KEY.equalsIgnoreCase(key) && (traceId == null || traceId == DDId.ZERO)) {
           classification = TRACE_ID;
-        } else if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
+        } else if (SPAN_ID_KEY.equalsIgnoreCase(key) && (spanId == null || spanId == DDId.ZERO)) {
           classification = SPAN_ID;
-        } else if (SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
+        } else if (SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key) && samplingPriority == defaultSamplingPriority()) {
           classification = SAMPLING_PRIORITY;
         } else if (handledForwarding(key, value)) {
           return true;
@@ -142,11 +141,11 @@ class B3HttpCodec {
 
                   final int length = headers[0].length();
                   if (length > 32) {
-                    log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, value);
+                    log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, headers[0]);
                     traceId = DDId.ZERO;
                     return true;
                   } else {
-                    traceId = DDId.fromHexTruncatedWithOriginal(value);
+                    traceId = DDId.fromHexTruncatedWithOriginal(headers[0]);
                   }
                   if (tags.isEmpty()) {
                     tags = new TreeMap<>();
