@@ -8,9 +8,7 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
-import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY
-import static datadog.trace.core.propagation.B3HttpCodec.SPAN_ID_KEY
-import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY
+import static datadog.trace.core.propagation.B3HttpCodec.*
 
 class B3HttpInjectorTest extends DDCoreSpecification {
 
@@ -22,20 +20,20 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-      DDId.from("$traceId"),
-      DDId.from("$spanId"),
-      DDId.ZERO,
-      null,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      samplingPriority,
-      "fakeOrigin",
-      ["k1" : "v1", "k2" : "v2"],
-      false,
-      "fakeType",
-      0,
-      tracer.pendingTraceFactory.create(DDId.ONE))
+        DDId.from("$traceId"),
+        DDId.from("$spanId"),
+        DDId.ZERO,
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        samplingPriority,
+        "fakeOrigin",
+        ["k1": "v1", "k2": "v2"],
+        false,
+        "fakeType",
+        0,
+        tracer.pendingTraceFactory.create(DDId.ONE))
 
     final Map<String, String> carrier = Mock()
 
@@ -47,6 +45,9 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(SPAN_ID_KEY, spanId.toString(16).toLowerCase())
     if (expectedSamplingPriority != null) {
       1 * carrier.put(SAMPLING_PRIORITY_KEY, "$expectedSamplingPriority")
+      1 * carrier.put(B3_KEY, traceId.toString(16).toLowerCase() + "-" + spanId.toString(16).toLowerCase() + "-$expectedSamplingPriority")
+    } else {
+      1 * carrier.put(B3_KEY, traceId.toString(16).toLowerCase() + "-" + spanId.toString(16).toLowerCase())
     }
     0 * _
 
@@ -76,20 +77,20 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
     final DDSpanContext mockedContext =
       new DDSpanContext(
-      context.traceId,
-      context.spanId,
-      DDId.ZERO,
-      null,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      PrioritySampling.UNSET,
-      "fakeOrigin",
-      ["k1" : "v1", "k2" : "v2"],
-      false,
-      "fakeType",
-      0,
-      tracer.pendingTraceFactory.create(DDId.ONE))
+        context.traceId,
+        context.spanId,
+        DDId.ZERO,
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        PrioritySampling.UNSET,
+        "fakeOrigin",
+        ["k1": "v1", "k2": "v2"],
+        false,
+        "fakeType",
+        0,
+        tracer.pendingTraceFactory.create(DDId.ONE))
     final Map<String, String> carrier = Mock()
 
     when:
@@ -98,6 +99,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     then:
     1 * carrier.put(TRACE_ID_KEY, traceId)
     1 * carrier.put(SPAN_ID_KEY, spanId)
+    1 * carrier.put(B3_KEY, traceId + "-" + spanId)
     0 * _
 
     cleanup:
