@@ -133,7 +133,6 @@ class B3HttpCodec {
           if (null != firstValue) {
             switch (classification) {
               case B3_ID:
-                //!firstValue.contains("-") or firstValue.length() == 1
                 if (firstValue.length() == 1) {
                   samplingPriority = convertSamplingPriority(firstValue);
                 } else {
