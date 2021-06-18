@@ -8,13 +8,16 @@ import net.bytebuddy.dynamic.DynamicType
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.file.Directory
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.compile.AbstractCompile
 
 class InstrumentPlugin implements Plugin<Project> {
 
   @Override
   void apply(Project project) {
-    Project toolingProject = project.project(':dd-java-agent:agent-tooling')
+    InstrumentExtension extension = project.extensions.create('instrument', InstrumentExtension)
+
+    Project toolingProject = project.findProject(':dd-java-agent:agent-tooling')
 
     project.tasks.matching { it.name in ['compileJava', 'compileScala', 'compileKotlin'] }.all {
       AbstractCompile compileTask = it as AbstractCompile
@@ -46,12 +49,13 @@ class InstrumentPlugin implements Plugin<Project> {
 
           compileTask.destinationDir = rawClassesDir.asFile
 
-          byteBuddyTask.classPath.from(toolingProject.configurations.instrumentationMuzzle +
+          byteBuddyTask.classPath.from((toolingProject?.configurations?.instrumentationMuzzle ?: []) +
               project.configurations.compileClasspath + compileTask.destinationDir)
 
           byteBuddyTask.transformation {
             it.plugin = InstrumentLoader
             it.argument({ it.value = byteBuddyTask.classPath.collect({ it.toURI() as String }) })
+            it.argument({ it.value = extension.plugins.get() })
           }
 
           // insert task between compile and jar
@@ -63,16 +67,20 @@ class InstrumentPlugin implements Plugin<Project> {
   }
 }
 
+abstract class InstrumentExtension {
+  abstract ListProperty<String> getPlugins()
+}
+
 class InstrumentLoader implements net.bytebuddy.build.Plugin {
   List<String> pluginClassPath
 
-  String[] pluginNames = ['datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
-                          'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin']
+  List<String> pluginNames
 
   net.bytebuddy.build.Plugin[] plugins
 
-  InstrumentLoader(List<String> pluginClassPath) {
+  InstrumentLoader(List<String> pluginClassPath, List<String> pluginNames) {
     this.pluginClassPath = pluginClassPath
+    this.pluginNames = pluginNames
   }
 
   @Override
@@ -111,7 +119,7 @@ class InstrumentLoader implements net.bytebuddy.build.Plugin {
         // File.toURI() will remove trailing slashes if the directory does not exist yet,
         // we need to add these slashes back for URLClassLoader to load classes from them
         return new URL(it.endsWith('/') || it.endsWith('.jar') ? it : it + '/')
-      } as URL[], ByteBuddyTask.class.classLoader)
+      } as URL[], ByteBuddyTask.classLoader)
 
       plugins = pluginNames.collect({ pluginLoader.loadClass(it).newInstance() }) as net.bytebuddy.build.Plugin[]
     }

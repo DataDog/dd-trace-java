@@ -21,6 +21,11 @@ subprojects { Project subProj ->
   apply plugin: 'instrument'
   apply plugin: 'muzzle'
 
+  instrument.plugins = [
+    'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
+    'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin'
+  ]
+
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 
   // needs fetching this project's configurations.instrumentationMuzzle
