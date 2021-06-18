@@ -15,16 +15,19 @@
  */
 package com.datadog.profiling.uploader;
 
+import static datadog.common.socket.SocketUtils.discoverApmSocket;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.PidHelper;
 import datadog.common.container.ContainerInfo;
+import datadog.common.socket.UnixDomainSocketFactory;
 import datadog.trace.api.Config;
 import datadog.trace.api.IOLogger;
 import datadog.trace.util.AgentProxySelector;
 import datadog.trace.util.AgentThreadFactory;
+import java.io.File;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.InetSocketAddress;
@@ -225,7 +228,12 @@ public final class ProfileUploader {
             .dispatcher(new Dispatcher(okHttpExecutorService))
             .connectionPool(connectionPool);
 
-    if (config.getFinalProfilingUrl().startsWith("http://")) {
+    String apmSocketPath = discoverApmSocket(config);
+    if (apmSocketPath != null) {
+      clientBuilder.socketFactory(new UnixDomainSocketFactory(new File(apmSocketPath)));
+    }
+
+    if (url.startsWith("http://")) {
       // force clear text when using http to avoid failures for JVMs without TLS
       // see: https://github.com/DataDog/dd-trace-java/pull/1582
       clientBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));

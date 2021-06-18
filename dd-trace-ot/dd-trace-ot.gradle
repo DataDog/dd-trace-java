@@ -78,7 +78,13 @@ jar {
   archiveClassifier = 'unbundled'
 }
 
-def bundledProjects = [':dd-trace-core', ':internal-api', ':utils:container-utils', ':utils:histograms']
+def bundledProjects = [
+  ':dd-trace-core',
+  ':internal-api',
+  ':utils:container-utils',
+  ':utils:histograms',
+  ':utils:socket-utils'
+]
 
 shadowJar {
   archiveClassifier = ''

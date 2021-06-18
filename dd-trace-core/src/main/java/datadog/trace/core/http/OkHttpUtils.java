@@ -3,7 +3,7 @@ package datadog.trace.core.http;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.common.container.ContainerInfo;
-import datadog.trace.common.writer.ddagent.unixdomainsockets.UnixDomainSocketFactory;
+import datadog.common.socket.UnixDomainSocketFactory;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentProxySelector;
 import java.io.File;

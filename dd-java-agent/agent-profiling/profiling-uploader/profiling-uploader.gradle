@@ -22,6 +22,7 @@ dependencies {
   implementation deps.slf4j
   implementation project(':utils:container-utils')
   implementation project(':internal-api')
+  implementation project(':utils:socket-utils')
 
   implementation project(':dd-java-agent:agent-profiling:profiling-controller')
 
