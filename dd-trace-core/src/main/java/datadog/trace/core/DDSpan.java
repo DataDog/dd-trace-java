@@ -87,8 +87,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (this.durationNano.compareAndSet(0, Math.max(1, durationNano))) {
-      log.debug("Finished span: {}", this);
-      context.getTrace().addFinishedSpan(this);
+      PendingTrace.FinishState finishState = context.getTrace().addFinishedSpan(this);
+      log.debug("Finished span ({}): {}", finishState, this);
     } else {
       log.debug("Already finished: {}", this);
     }
@@ -274,6 +274,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   // FIXME [API] this is not on AgentSpan or MutableSpan
+  @Override
   public DDSpan removeTag(final String tag) {
     context.setTag(tag, null);
     return this;

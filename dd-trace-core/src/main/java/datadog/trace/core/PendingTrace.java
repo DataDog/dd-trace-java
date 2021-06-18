@@ -132,6 +132,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     lastReferenced = Clock.currentNanoTicks();
   }
 
+  @Override
   public boolean lastReferencedNanosAgo(long nanos) {
     long currentNanoTicks = Clock.currentNanoTicks();
     long age = currentNanoTicks - lastReferenced;
@@ -144,14 +145,14 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
   }
 
-  void addFinishedSpan(final DDSpan span) {
+  FinishState addFinishedSpan(final DDSpan span) {
     tracer.onFinish(span);
     finishedSpans.addFirst(span);
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal
     // write method.
     COMPLETED_SPAN_COUNT.incrementAndGet(this);
-    decrementRefAndMaybeWrite(span == getRootSpan());
+    return decrementRefAndMaybeWrite(span == getRootSpan());
   }
 
   public DDSpan getRootSpan() {
@@ -159,6 +160,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   /** @return Long.MAX_VALUE if no spans finished. */
+  @Override
   public long oldestFinishedTime() {
     long oldest = Long.MAX_VALUE;
     for (DDSpan span : finishedSpans) {
@@ -181,7 +183,14 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     decrementRefAndMaybeWrite(false);
   }
 
-  private void decrementRefAndMaybeWrite(boolean isRootSpan) {
+  enum FinishState {
+    WRITTEN,
+    PARTIAL_FLUSH,
+    BUFFERED,
+    PENDING
+  }
+
+  private FinishState decrementRefAndMaybeWrite(boolean isRootSpan) {
     final int count = PENDING_REFERENCE_COUNT.decrementAndGet(this);
     if (strictTraceWrites && count < 0) {
       throw new IllegalStateException("Pending reference count " + count + " is negative");
@@ -191,16 +200,21 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     if (count == 0 && (strictTraceWrites || !rootSpanWritten)) {
       // Finished with no pending work ... write immediately
       write();
+      return FinishState.WRITTEN;
     } else if (isRootSpan) {
       // Finished root with pending work ... delay write
       pendingTraceBuffer.enqueue(this);
+      return FinishState.BUFFERED;
     } else if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
       // Trace is getting too big, write anything completed.
       partialFlush();
+      return FinishState.PARTIAL_FLUSH;
     } else if (rootSpanWritten) {
       // Late arrival span ... delay write
       pendingTraceBuffer.enqueue(this);
+      return FinishState.BUFFERED;
     }
+    return FinishState.PENDING;
   }
 
   /** Important to note: may be called multiple times. */
@@ -212,6 +226,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   }
 
   /** Important to note: may be called multiple times. */
+  @Override
   public void write() {
     write(false);
   }
