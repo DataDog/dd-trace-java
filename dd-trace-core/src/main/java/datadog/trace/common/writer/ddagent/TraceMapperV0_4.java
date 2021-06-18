@@ -109,7 +109,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
         if (!(entry.getValue() instanceof Number)) {
           writable.writeString(entry.getKey(), null);
-          writable.writeObject(entry.getValue(), null);
+          writable.writeObjectString(entry.getValue(), null);
         }
       }
     }

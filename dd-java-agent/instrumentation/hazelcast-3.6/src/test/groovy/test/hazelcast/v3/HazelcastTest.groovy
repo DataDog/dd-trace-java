@@ -117,7 +117,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     def clientTopic = client.getTopic("test")
     def receivedMessage = new BlockingVariable<Message>(5, TimeUnit.SECONDS)
     def listener = Stub(MessageListener)
-    listener.onMessage(_ as Message) >> { Message<String> message -> receivedMessage.set(message)}
+    listener.onMessage(_ as Message) >> { Message<String> message -> receivedMessage.set(message) }
 
     clientTopic.addMessageListener(listener)
 
@@ -125,7 +125,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     clientTopic.publish("hello")
 
     then:
-    with (receivedMessage.get()) { Message<String> message ->
+    with(receivedMessage.get()) { Message<String> message ->
       message.messageObject == "hello"
     }
 

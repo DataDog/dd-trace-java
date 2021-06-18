@@ -134,6 +134,6 @@ public class TracingList implements List<ConsumerRecord<?, ?>> {
 
   @Override
   public List<ConsumerRecord<?, ?>> subList(final int fromIndex, final int toIndex) {
-    return delegate.subList(fromIndex, toIndex);
+    return new TracingList(delegate.subList(fromIndex, toIndex), operationName, decorator);
   }
 }
