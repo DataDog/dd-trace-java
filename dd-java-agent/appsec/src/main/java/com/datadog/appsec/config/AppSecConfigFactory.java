@@ -6,6 +6,7 @@ import java.io.*;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.nodes.*;
 
 public class AppSecConfigFactory {
 
@@ -54,6 +55,38 @@ public class AppSecConfigFactory {
         throw new NullPointerException("Loader must be provided.");
       }
       this.loader = theLoader;
+
+      // Since rule conditions section can have different params depends on operation
+      // (match_regex, phrase_match, etc.) we use custom constructor to build distinct
+      // instances of params for different operations
+      this.yamlClassConstructors.put(NodeId.mapping, new ConstructMapping() {
+        @Override
+        protected Object constructJavaBean2ndStep(MappingNode node, Object object) {
+
+          // For conditions use custom parser
+          if (node.getType().equals(Condition.class)) {
+            NodeTuple operationNode = node.getValue().get(0);
+            String key = constructScalar((ScalarNode) operationNode.getKeyNode());
+            if ("operation".equalsIgnoreCase(key)) {
+              Node valueNode = operationNode.getValueNode();
+              valueNode.setType(Operation.class);
+              String operation = constructScalar((ScalarNode) valueNode);
+
+              // If operation is match_regex then use MatchRegexParams for params
+              if ("match_regex".equalsIgnoreCase(operation)) {
+                NodeTuple paramsNode = node.getValue().get(1);
+                key = constructScalar((ScalarNode) paramsNode.getKeyNode());
+                if ("params".equalsIgnoreCase(key)) {
+                  valueNode = paramsNode.getValueNode();
+                  valueNode.setType(MatchRegexParams.class);
+                }
+              }
+            }
+          }
+
+          return super.constructJavaBean2ndStep(node, object);
+        }
+      });
     }
 
     @Override

@@ -28,6 +28,7 @@ public class AppSecSystem {
 
       // Convert config to legacy json
       String json = AppSecConfigFactory.toLegacyFormat(appSecConfig);
+      json.toString();
 
     } catch (FileNotFoundException e) {
       e.printStackTrace();

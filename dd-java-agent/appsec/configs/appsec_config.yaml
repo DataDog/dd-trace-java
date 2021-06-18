@@ -1,0 +1,15 @@
+version: 0.1
+events:
+  - id: rule_111
+    name: Nikto security scanner detection
+    tags:
+      category: security_scanners
+      mitre_attack: T1595
+    conditions:
+      - operation: match_regex
+        params:
+          input: $http.headers.user_agent
+          regex: \(nikto/[\d\.]+\)
+    transformers:
+      - lowercase
+    action: log

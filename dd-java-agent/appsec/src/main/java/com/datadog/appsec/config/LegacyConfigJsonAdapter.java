@@ -16,39 +16,44 @@ public class LegacyConfigJsonAdapter {
   @ToJson
   public void toJson(JsonWriter writer, AppSecConfig config) throws IOException {
 
-    List<String> blockingRulesId = new LinkedList<>();
+    /*List<String> blockingRulesId = new LinkedList<>();
     List<String> passRulesId = new LinkedList<>();
-    Set<String> parameters = new LinkedHashSet<>();
+    Set<String> parameters = new LinkedHashSet<>();*/
 
     writer.beginObject();
     writer.name("rules").beginArray();
 
-    for (Rule r : config.rules) {
+    for (Event event : config.events) {
 
       String ruleId;
-      if (r.id != null) {
-        ruleId = r.id.toString();
+      if (event.id != null) {
+        ruleId = event.id;
       } else {
-        ruleId = md5(r.name);
+        ruleId = md5(event.name);
       }
 
-      if (r.action == Action.BLOCK) {
+      /*if (e.action == Action.LOG) {
         blockingRulesId.add(ruleId);
       } else {
         passRulesId.add(ruleId);
-      }
+      }*/
 
       writer.beginObject();
       writer.name("rule_id").value(ruleId);
 
       writer.name("filters").beginArray();
-      for (Step step : r.steps) {
+      for (Condition cond : event.conditions) {
         writer.beginObject();
 
         String operator = null;
-        switch (step.operation) {
+        String input = null;
+        String value = null;
+        switch (cond.operation) {
           case MATCH_REGEX:
             operator = "@rx";
+            MatchRegexParams params = (MatchRegexParams)cond.params;
+            input = params.input;
+            value = params.regex;
             break;
           case HAS_SQLI_PATTERN:
             operator = "@detectSQLi";
@@ -62,19 +67,18 @@ public class LegacyConfigJsonAdapter {
         if (operator != null) {
           writer.name("operator").value(operator);
           writer.name("targets").beginArray();
-          for (String user_param : step.targets.user_params) {
-            parameters.add(user_param);
-            writer.value(user_param);
-          }
+
+          writer.value(input);
+
           writer.endArray();
-          if (step.targets.regex != null) {
-            writer.name("value").value(step.targets.regex);
+          if (value != null) {
+            writer.name("value").value(value);
           }
         }
 
-        if (step.transformers != null && !step.transformers.isEmpty()) {
+        if (event.transformers != null && !event.transformers.isEmpty()) {
           writer.name("transformations").beginArray();
-          for (String s : step.transformers) {
+          for (String s : event.transformers) {
             writer.value(s);
           }
           writer.endArray();
@@ -88,7 +92,7 @@ public class LegacyConfigJsonAdapter {
     writer.endArray();
 
     // Manifest
-    writer.name("manifest").beginObject();
+    /*writer.name("manifest").beginObject();
     for (String parameter : parameters) {
       writer.name(parameter).beginObject();
       writer.name("inherit_from").value(parameter);
@@ -128,11 +132,11 @@ public class LegacyConfigJsonAdapter {
       writer.endArray();
       writer.name("on_match").value("exit_monitor");
       writer.endObject();
-    }
+    }*/
 
-    writer.endArray();
-    writer.endObject();
-    writer.endArray();
+    //writer.endArray();
+    //writer.endObject();
+    //writer.endArray();
 
     writer.endObject();
   }
