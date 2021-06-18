@@ -2,7 +2,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.kafka_clients.TracingIterable
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -30,6 +29,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class KafkaClientTest extends AgentTestRunner {
   static final SHARED_TOPIC = "shared.topic"
@@ -524,7 +524,6 @@ class KafkaClientTest extends AgentTestRunner {
 
   }
 
-
   def "test records(TopicPartition).forEach kafka consume"() {
     setup:
 
@@ -534,8 +533,8 @@ class KafkaClientTest extends AgentTestRunner {
     consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
     def consumer = new KafkaConsumer<String, String>(consumerProperties)
 
-    def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
-    def producer = new KafkaProducer(producerProps)
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(senderProps)
 
     consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
 
@@ -547,17 +546,18 @@ class KafkaClientTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(1)
     def pollResult = KafkaTestUtils.getRecords(consumer)
 
-    def records = (TracingIterable) pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition))
+    def records = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition))
 
-    def first = null
-    if (records.forEach(records)) {
-      first = records.next()
+    def last = null
+    records.forEach {
+      last = it
+      assert activeSpan() != null
     }
 
     then:
-    records.forEach(records) == false
-    first.value() == greeting
-    first.key() == null
+    records.size() == 1
+    last.value() == greeting
+    last.key() == null
 
     assertTraces(2) {
       trace(1) {
