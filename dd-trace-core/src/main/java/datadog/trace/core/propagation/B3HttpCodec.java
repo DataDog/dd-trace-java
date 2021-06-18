@@ -111,11 +111,11 @@ class B3HttpCodec {
       if (B3_KEY.equals(key)) {
         classification = B3_ID;
       } else if (Character.toLowerCase(key.charAt(0)) == 'x') {
-        if (TRACE_ID_KEY.equalsIgnoreCase(key) && (traceId == null || traceId == DDId.ZERO)) {
+        if ((traceId == null || traceId == DDId.ZERO) && TRACE_ID_KEY.equalsIgnoreCase(key)) {
           classification = TRACE_ID;
-        } else if (SPAN_ID_KEY.equalsIgnoreCase(key) && (spanId == null || spanId == DDId.ZERO)) {
+        } else if ((spanId == null || spanId == DDId.ZERO) && SPAN_ID_KEY.equalsIgnoreCase(key)) {
           classification = SPAN_ID;
-        } else if (SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key) && samplingPriority == defaultSamplingPriority()) {
+        } else if (samplingPriority == defaultSamplingPriority() && SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
           classification = SAMPLING_PRIORITY;
         } else if (handledForwarding(key, value)) {
           return true;
@@ -138,26 +138,28 @@ class B3HttpCodec {
                 } else {
                   final String[] headers = firstValue.split("-");
 
-                  final int length = headers[0].length();
-                  if (length > 32) {
-                    log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, headers[0]);
-                    traceId = DDId.ZERO;
-                    return true;
-                  } else {
-                    traceId = DDId.fromHexTruncatedWithOriginal(headers[0]);
-                  }
-                  if (tags.isEmpty()) {
-                    tags = new TreeMap<>();
-                  }
-                  tags.put(B3_TRACE_ID, headers[0]);
+                  if (headers.length == 2 || headers.length == 3) {
+                    final int length = headers[0].length();
+                    if (length > 32) {
+                      log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, headers[0]);
+                      traceId = DDId.ZERO;
+                      return true;
+                    } else {
+                      traceId = DDId.fromHexTruncatedWithOriginal(headers[0]);
+                    }
+                    if (tags.isEmpty()) {
+                      tags = new TreeMap<>();
+                    }
+                    tags.put(B3_TRACE_ID, headers[0]);
 
-                  spanId = DDId.fromHexWithOriginal(headers[1]);
-                  if (tags.isEmpty()) {
-                    tags = new TreeMap<>();
-                  }
-                  tags.put(B3_SPAN_ID, headers[1]);
-                  if (headers.length > 2) {
-                    samplingPriority = convertSamplingPriority(headers[2]);
+                    spanId = DDId.fromHexWithOriginal(headers[1]);
+                    if (tags.isEmpty()) {
+                      tags = new TreeMap<>();
+                    }
+                    tags.put(B3_SPAN_ID, headers[1]);
+                    if (headers.length > 2) {
+                      samplingPriority = convertSamplingPriority(headers[2]);
+                    }
                   }
                 }
                 break;
