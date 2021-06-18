@@ -10,9 +10,12 @@ import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static datadog.trace.util.Strings.getResourceName;
 import static datadog.trace.util.Strings.toEnvVar;
 
+import datadog.trace.api.Checkpointer;
+import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
@@ -60,34 +63,43 @@ public class Agent {
   private static final AtomicBoolean jmxStarting = new AtomicBoolean();
 
   // fields must be managed under class lock
-  private static ClassLoader PARENT_CLASSLOADER = null;
+  private static ClassLoader SHARED_CLASSLOADER = null;
   private static ClassLoader BOOTSTRAP_PROXY = null;
   private static ClassLoader AGENT_CLASSLOADER = null;
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
   private static ClassLoader PROFILING_CLASSLOADER = null;
+
   private static volatile AgentTaskScheduler.Task<URL> PROFILER_INIT_AFTER_JMX = null;
 
-  public static void start(final Instrumentation inst, final URL bootstrapURL) {
-    createParentClassloader(bootstrapURL);
+  private static boolean jmxFetchEnabled = true;
+  private static boolean profilingEnabled = false;
 
-    if (!isOracleJDK8()) {
-      // Profiling agent startup code is written in a way to allow `startProfilingAgent` be called
-      // multiple times
-      // If early profiling is enabled then this call will start profiling.
-      // If early profiling is disabled then later call will do this.
-      startProfilingAgent(bootstrapURL, true);
-    } else {
-      log.debug("Oracle JDK 8 detected. Delaying profiler initialization.");
-      // Profiling can not run early on Oracle JDK 8 because it will cause JFR initialization
-      // deadlock.
-      // Oracle JDK 8 JFR controller requires JMX so register an 'after-jmx-initialized' callback.
-      PROFILER_INIT_AFTER_JMX =
-          new AgentTaskScheduler.Task<URL>() {
-            @Override
-            public void run(URL target) {
-              startProfilingAgent(target, false);
-            }
-          };
+  public static void start(final Instrumentation inst, final URL bootstrapURL) {
+    createSharedClassloader(bootstrapURL);
+
+    jmxFetchEnabled = isJmxFetchEnabled();
+    profilingEnabled = isProfilingEnabled();
+
+    if (profilingEnabled) {
+      if (!isOracleJDK8()) {
+        // Profiling agent startup code is written in a way to allow `startProfilingAgent` be called
+        // multiple times
+        // If early profiling is enabled then this call will start profiling.
+        // If early profiling is disabled then later call will do this.
+        startProfilingAgent(bootstrapURL, true);
+      } else {
+        log.debug("Oracle JDK 8 detected. Delaying profiler initialization.");
+        // Profiling can not run early on Oracle JDK 8 because it will cause JFR initialization
+        // deadlock.
+        // Oracle JDK 8 JFR controller requires JMX so register an 'after-jmx-initialized' callback.
+        PROFILER_INIT_AFTER_JMX =
+            new AgentTaskScheduler.Task<URL>() {
+              @Override
+              public void run(URL target) {
+                startProfilingAgent(target, false);
+              }
+            };
+      }
     }
 
     /*
@@ -119,17 +131,19 @@ public class Agent {
      * JMXFetch until we detect the custom MBeanServerBuilder is being used. This takes precedence over the custom
      * log manager check because any custom log manager will be installed before any custom MBeanServerBuilder.
      */
-    int jmxStartDelay = getJmxStartDelay();
-    if (appUsingCustomJMXBuilder) {
-      log.debug("Custom JMX builder detected. Delaying JMXFetch initialization.");
-      registerMBeanServerBuilderCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay));
-      // one minute fail-safe in case nothing touches JMX and and callback isn't triggered
-      scheduleJmxStart(bootstrapURL, 60 + jmxStartDelay);
-    } else if (appUsingCustomLogManager) {
-      log.debug("Custom logger detected. Delaying JMXFetch initialization.");
-      registerLogManagerCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay));
-    } else {
-      scheduleJmxStart(bootstrapURL, jmxStartDelay);
+    if (jmxFetchEnabled || profilingEnabled) { // both features use JMX
+      int jmxStartDelay = getJmxStartDelay();
+      if (appUsingCustomJMXBuilder) {
+        log.debug("Custom JMX builder detected. Delaying JMXFetch initialization.");
+        registerMBeanServerBuilderCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay, true));
+        // one minute fail-safe in case nothing touches JMX and and callback isn't triggered
+        scheduleJmxStart(bootstrapURL, 60 + jmxStartDelay);
+      } else if (appUsingCustomLogManager) {
+        log.debug("Custom logger detected. Delaying JMXFetch initialization.");
+        registerLogManagerCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay, false));
+      } else {
+        scheduleJmxStart(bootstrapURL, jmxStartDelay);
+      }
     }
 
     /*
@@ -147,15 +161,25 @@ public class Agent {
     /*
      * Similar thing happens with Profiler on zulu-8 because it is using OkHttp which indirectly loads JFR events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different logging facility.
      */
-    if (!isOracleJDK8()) {
+    if (profilingEnabled && !isOracleJDK8()) {
       if (!isJavaVersionAtLeast(9) && appUsingCustomLogManager) {
         log.debug("Custom logger detected. Delaying JMXFetch initialization.");
-        registerLogManagerCallback(new StartProfilingAgentCallback(inst, bootstrapURL));
+        registerLogManagerCallback(new StartProfilingAgentCallback(bootstrapURL));
       } else {
         // Anything above 8 is OpenJDK implementation and is safe to run synchronously
         startProfilingAgent(bootstrapURL, false);
       }
     }
+  }
+
+  public static synchronized Class<?> installAgentCLI(final URL bootstrapURL) throws Exception {
+    createSharedClassloader(bootstrapURL);
+    if (null == AGENT_CLASSLOADER) {
+      // in CLI mode we skip installation of instrumentation because we're not running as an agent
+      // we still create the agent classloader so we can install the tracer and query integrations
+      AGENT_CLASSLOADER = createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
+    }
+    return AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentCLI");
   }
 
   private static boolean isOracleJDK8() {
@@ -226,10 +250,13 @@ public class Agent {
 
   protected static class StartJmxCallback extends ClassLoadCallBack {
     private final int jmxStartDelay;
+    private final boolean customJmxBuilder;
 
-    StartJmxCallback(final URL bootstrapURL, final int jmxStartDelay) {
+    StartJmxCallback(
+        final URL bootstrapURL, final int jmxStartDelay, final boolean customJmxBuilder) {
       super(bootstrapURL);
       this.jmxStartDelay = jmxStartDelay;
+      this.customJmxBuilder = customJmxBuilder;
     }
 
     @Override
@@ -239,8 +266,14 @@ public class Agent {
 
     @Override
     public void execute() {
-      // finish building platform JMX from context of custom builder before starting JMXFetch
-      ManagementFactory.getPlatformMBeanServer();
+      if (customJmxBuilder) {
+        try {
+          // finish building platform JMX from context of custom builder before starting JMXFetch
+          ManagementFactory.getPlatformMBeanServer();
+        } catch (Throwable e) {
+          log.error("Error loading custom MBeanServerBuilder", e);
+        }
+      }
       scheduleJmxStart(bootstrapURL, jmxStartDelay);
     }
   }
@@ -262,7 +295,7 @@ public class Agent {
   }
 
   protected static class StartProfilingAgentCallback extends ClassLoadCallBack {
-    StartProfilingAgentCallback(final Instrumentation inst, final URL bootstrapURL) {
+    StartProfilingAgentCallback(final URL bootstrapURL) {
       super(bootstrapURL);
     }
 
@@ -277,8 +310,8 @@ public class Agent {
     }
   }
 
-  private static synchronized void createParentClassloader(final URL bootstrapURL) {
-    if (PARENT_CLASSLOADER == null) {
+  private static synchronized void createSharedClassloader(final URL bootstrapURL) {
+    if (SHARED_CLASSLOADER == null) {
       try {
         final Class<?> bootstrapProxyClass =
             ClassLoader.getSystemClassLoader()
@@ -286,17 +319,16 @@ public class Agent {
         final Constructor constructor = bootstrapProxyClass.getDeclaredConstructor(URL.class);
         BOOTSTRAP_PROXY = (ClassLoader) constructor.newInstance(bootstrapURL);
 
-        final ClassLoader grandParent;
-        if (!isJavaVersionAtLeast(9)) {
-          grandParent = null; // bootstrap
-        } else {
-          // platform classloader is parent of system in java 9+
-          grandParent = getPlatformClassLoader();
+        // assume this is the right location of other agent-bootstrap classes
+        ClassLoader parent = Agent.class.getClassLoader();
+        if (parent == null && isJavaVersionAtLeast(9)) {
+          // for Java9+ replace any JDK bootstrap reference with platform loader
+          parent = getPlatformClassLoader();
         }
 
-        PARENT_CLASSLOADER = createDatadogClassLoader("shared", bootstrapURL, grandParent);
+        SHARED_CLASSLOADER = createDatadogClassLoader("shared", bootstrapURL, parent);
       } catch (final Throwable ex) {
-        log.error("Throwable thrown creating parent classloader", ex);
+        log.error("Throwable thrown creating shared classloader", ex);
       }
     }
   }
@@ -306,7 +338,7 @@ public class Agent {
     if (AGENT_CLASSLOADER == null) {
       try {
         final ClassLoader agentClassLoader =
-            createDelegateClassLoader("inst", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("inst", bootstrapURL, SHARED_CLASSLOADER);
 
         final Class<?> agentInstallerClass =
             agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
@@ -360,19 +392,23 @@ public class Agent {
     if (jmxStarting.getAndSet(true)) {
       return; // another thread is already in startJmx
     }
-    startJmxFetch(bootstrapURL);
+    if (jmxFetchEnabled) {
+      startJmxFetch(bootstrapURL);
+    }
     initializeJmxSystemAccessProvider(AGENT_CLASSLOADER);
-    registerDeadlockDetectionEvent(bootstrapURL);
-    if (PROFILER_INIT_AFTER_JMX != null) {
-      if (getJmxStartDelay() == 0) {
-        log.debug("Waiting for profiler initialization");
-        AgentTaskScheduler.INSTANCE.scheduleWithJitter(
-            PROFILER_INIT_AFTER_JMX, bootstrapURL, 500, TimeUnit.MILLISECONDS);
-      } else {
-        log.debug("Initializing profiler");
-        PROFILER_INIT_AFTER_JMX.run(bootstrapURL);
+    if (profilingEnabled) {
+      registerDeadlockDetectionEvent(bootstrapURL);
+      if (PROFILER_INIT_AFTER_JMX != null) {
+        if (getJmxStartDelay() == 0) {
+          log.debug("Waiting for profiler initialization");
+          AgentTaskScheduler.INSTANCE.scheduleWithJitter(
+              PROFILER_INIT_AFTER_JMX, bootstrapURL, 500, TimeUnit.MILLISECONDS);
+        } else {
+          log.debug("Initializing profiler");
+          PROFILER_INIT_AFTER_JMX.run(bootstrapURL);
+        }
+        PROFILER_INIT_AFTER_JMX = null;
       }
-      PROFILER_INIT_AFTER_JMX = null;
     }
   }
 
@@ -413,7 +449,7 @@ public class Agent {
       final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
       try {
         final ClassLoader jmxFetchClassLoader =
-            createDelegateClassLoader("metrics", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("metrics", bootstrapURL, SHARED_CLASSLOADER);
         Thread.currentThread().setContextClassLoader(jmxFetchClassLoader);
         final Class<?> jmxFetchAgentClass =
             jmxFetchClassLoader.loadClass("datadog.trace.agent.jmxfetch.JMXFetch");
@@ -462,20 +498,32 @@ public class Agent {
               @Override
               public void withTracer(Tracer tracer) {
                 try {
-                  log.debug("Registering scope event factory");
-                  ScopeListener scopeListener =
-                      (ScopeListener)
-                          AGENT_CLASSLOADER
-                              .loadClass("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
-                              .getDeclaredConstructor()
-                              .newInstance();
-                  tracer.addScopeListener(scopeListener);
-                  log.debug("Scope event factory {} has been registered", scopeListener);
+                  if (Config.get().isProfilingLegacyTracingIntegrationEnabled()) {
+                    log.debug("Registering scope event factory");
+                    ScopeListener scopeListener =
+                        (ScopeListener)
+                            AGENT_CLASSLOADER
+                                .loadClass("datadog.trace.core.jfr.openjdk.ScopeEventFactory")
+                                .getDeclaredConstructor()
+                                .newInstance();
+                    tracer.addScopeListener(scopeListener);
+                    log.debug("Scope event factory {} has been registered", scopeListener);
+                  } else if (tracer instanceof AgentTracer.TracerAPI) {
+                    log.debug("Registering checkpointer");
+                    Checkpointer checkpointer =
+                        (Checkpointer)
+                            AGENT_CLASSLOADER
+                                .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
+                                .getDeclaredConstructor()
+                                .newInstance();
+                    ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
+                    log.debug("Checkpointer {} has been registered", checkpointer);
+                  }
                 } catch (Throwable e) {
                   if (e instanceof InvocationTargetException) {
                     e = e.getCause();
                   }
-                  log.debug("Profiling of ScopeEvents is not available. {}", e.getMessage());
+                  log.debug("Profiling code hotspots are not available. {}", e.getMessage());
                 }
               }
             });
@@ -497,7 +545,7 @@ public class Agent {
       throws Exception {
     if (PROFILING_CLASSLOADER == null) {
       PROFILING_CLASSLOADER =
-          createDelegateClassLoader("profiling", bootstrapURL, PARENT_CLASSLOADER);
+          createDelegateClassLoader("profiling", bootstrapURL, SHARED_CLASSLOADER);
     }
     return PROFILING_CLASSLOADER;
   }
@@ -554,7 +602,7 @@ public class Agent {
     final ClassLoader classLoader =
         (ClassLoader)
             constructor.newInstance(
-                bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, PARENT_CLASSLOADER);
+                bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, SHARED_CLASSLOADER);
     return classLoader;
   }
 
@@ -602,6 +650,28 @@ public class Agent {
     }
     // assume true unless it's explicitly set to "false"
     return !"false".equalsIgnoreCase(startupLogsEnabled);
+  }
+
+  /** @return {@code true} if JMXFetch is enabled */
+  private static boolean isJmxFetchEnabled() {
+    final String jmxFetchEnabledSysprop = "dd.jmxfetch.enabled";
+    String jmxFetchEnabled = System.getProperty(jmxFetchEnabledSysprop);
+    if (jmxFetchEnabled == null) {
+      jmxFetchEnabled = ddGetEnv(jmxFetchEnabledSysprop);
+    }
+    // assume true unless it's explicitly set to "false"
+    return !"false".equalsIgnoreCase(jmxFetchEnabled);
+  }
+
+  /** @return {@code true} if profiling is enabled */
+  private static boolean isProfilingEnabled() {
+    final String profilingEnabledSysprop = "dd.profiling.enabled";
+    String profilingEnabled = System.getProperty(profilingEnabledSysprop);
+    if (profilingEnabled == null) {
+      profilingEnabled = ddGetEnv(profilingEnabledSysprop);
+    }
+    // assume false unless it's explicitly set to "true"
+    return "true".equalsIgnoreCase(profilingEnabled);
   }
 
   /** @return configured JMX start delay in seconds */

@@ -22,6 +22,8 @@ class B3HttpCodec {
 
   private static final Logger log = LoggerFactory.getLogger(B3HttpCodec.class);
 
+  private static final String B3_TRACE_ID = "b3.traceid";
+  private static final String B3_SPAN_ID = "b3.spanid";
   private static final String TRACE_ID_KEY = "X-B3-TraceId";
   private static final String SPAN_ID_KEY = "X-B3-SpanId";
   private static final String SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
@@ -90,6 +92,9 @@ class B3HttpCodec {
       if (null == key || key.isEmpty()) {
         return true;
       }
+      if (LOG_EXTRACT_HEADER_NAMES) {
+        log.debug("Header: {}", key);
+      }
       String lowerCaseKey = null;
       int classification = IGNORE;
       if (Character.toLowerCase(key.charAt(0)) == 'x') {
@@ -124,10 +129,18 @@ class B3HttpCodec {
                   } else {
                     traceId = DDId.fromHexTruncatedWithOriginal(value);
                   }
+                  if (tags.isEmpty()) {
+                    tags = new TreeMap<>();
+                  }
+                  tags.put(B3_TRACE_ID, firstValue);
                   break;
                 }
               case SPAN_ID:
                 spanId = DDId.fromHexWithOriginal(firstValue);
+                if (tags.isEmpty()) {
+                  tags = new TreeMap<>();
+                }
+                tags.put(B3_SPAN_ID, firstValue);
                 break;
               case SAMPLING_PRIORITY:
                 samplingPriority = convertSamplingPriority(firstValue);

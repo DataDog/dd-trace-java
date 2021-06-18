@@ -4,10 +4,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.core.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
+import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
+import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -22,13 +25,13 @@ import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
+import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
-import datadog.trace.core.processor.TraceProcessor;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
@@ -103,7 +106,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
-  private final TraceProcessor traceProcessor = new TraceProcessor();
+  private final SamplingCheckpointer checkpointer = SamplingCheckpointer.create();
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -134,6 +137,46 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     final TraceScope activeScope = activeScope();
 
     return activeScope == null ? null : activeScope.capture();
+  }
+
+  @Override
+  public void checkpoint(AgentSpan span, int flags) {
+    checkpointer.checkpoint(span, flags);
+  }
+
+  @Override
+  public void onStart(AgentSpan span) {
+    checkpointer.onStart(span);
+  }
+
+  @Override
+  public void onStartWork(AgentSpan span) {
+    checkpointer.onStartWork(span);
+  }
+
+  @Override
+  public void onFinishWork(AgentSpan span) {
+    checkpointer.onFinishWork(span);
+  }
+
+  @Override
+  public void onStartThreadMigration(AgentSpan span) {
+    checkpointer.onStartThreadMigration(span);
+  }
+
+  @Override
+  public void onFinishThreadMigration(AgentSpan span) {
+    checkpointer.onFinishThreadMigration(span);
+  }
+
+  @Override
+  public void onFinish(AgentSpan span) {
+    checkpointer.onFinish(span);
+  }
+
+  @Override
+  public void onRootSpanPublished(AgentSpan root) {
+    checkpointer.onRootSpanPublished(root);
   }
 
   public static class CoreTracerBuilder {
@@ -191,22 +234,22 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     public CoreTracerBuilder localRootSpanTags(Map<String, String> localRootSpanTags) {
-      this.localRootSpanTags = localRootSpanTags;
+      this.localRootSpanTags = tryMakeImmutableMap(localRootSpanTags);
       return this;
     }
 
     public CoreTracerBuilder defaultSpanTags(Map<String, String> defaultSpanTags) {
-      this.defaultSpanTags = defaultSpanTags;
+      this.defaultSpanTags = tryMakeImmutableMap(defaultSpanTags);
       return this;
     }
 
     public CoreTracerBuilder serviceNameMappings(Map<String, String> serviceNameMappings) {
-      this.serviceNameMappings = serviceNameMappings;
+      this.serviceNameMappings = tryMakeImmutableMap(serviceNameMappings);
       return this;
     }
 
     public CoreTracerBuilder taggedHeaders(Map<String, String> taggedHeaders) {
-      this.taggedHeaders = taggedHeaders;
+      this.taggedHeaders = tryMakeImmutableMap(taggedHeaders);
       return this;
     }
 
@@ -320,11 +363,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             ? Config.get().getIdGenerationStrategy()
             : idGenerationStrategy;
 
-    if (statsDClient == null) {
+    if (statsDClient != null) {
+      this.statsDClient = statsDClient;
+    } else if (writer == null || writer instanceof DDAgentWriter) {
       this.statsDClient = createStatsDClient(config);
     } else {
-      this.statsDClient = statsDClient;
+      // avoid creating internal StatsD client when using external trace writer
+      this.statsDClient = StatsDClient.NO_OP;
     }
+
     this.monitoring =
         config.isHealthMetricsEnabled()
             ? new Monitoring(this.statsDClient, 10, TimeUnit.SECONDS)
@@ -566,8 +613,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     if (!writtenTrace.isEmpty()) {
-      writtenTrace = traceProcessor.onTraceComplete(writtenTrace);
-
       boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
       DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
@@ -577,6 +622,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       spanToSample.forceKeep(forceKeep);
       if (forceKeep || sampler.sample(spanToSample)) {
         writer.write(writtenTrace);
+        if (null != rootSpan) {
+          onRootSpanPublished(rootSpan);
+        }
       } else {
         // with span streaming this won't work - it needs to be changed
         // to track an effective sampling rate instead, however, tests
@@ -632,6 +680,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
+  public void registerCheckpointer(Checkpointer checkpointer) {
+    this.checkpointer.register(checkpointer);
+  }
+
+  @Override
   public void close() {
     pendingTraceBuffer.close();
     writer.close();
@@ -653,10 +706,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       if (host == null) {
         host = config.getJmxFetchStatsdHost();
       }
-      if (host == null) {
-        host = config.getAgentHost();
-      }
-
       Integer port = config.getHealthMetricsStatsdPort();
       if (port == null) {
         port = config.getJmxFetchStatsdPort();

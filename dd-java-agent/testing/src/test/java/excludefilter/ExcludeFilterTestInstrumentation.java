@@ -1,6 +1,7 @@
 package excludefilter;
 
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.*;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
@@ -9,12 +10,10 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import net.bytebuddy.description.method.MethodDescription;
+import java.util.concurrent.Executor;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -32,15 +31,13 @@ public class ExcludeFilterTestInstrumentation extends Instrumenter.Tracing
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return Collections.emptyMap();
-  }
+  public void adviceTransformations(AdviceTransformation transformation) {}
 
   @Override
   public Map<String, String> contextStoreForAll() {
     Map<String, String> contextStores = new HashMap<>();
     contextStores.put(Runnable.class.getName(), Object.class.getName());
-    contextStores.put(Callable.class.getName(), Object.class.getName());
+    contextStores.put(Executor.class.getName(), Object.class.getName());
     return contextStores;
   }
 
@@ -50,14 +47,9 @@ public class ExcludeFilterTestInstrumentation extends Instrumenter.Tracing
         new EnumMap<>(ExcludeFilter.ExcludeType.class);
     String prefix = getClass().getName() + "$";
     excludedTypes.put(
-        RUNNABLE, Arrays.asList(prefix + "ExcludedRunnable", prefix + "CallableExcludedRunnable"));
+        RUNNABLE, Arrays.asList(prefix + "ExcludedRunnable", prefix + "ExecutorExcludedRunnable"));
     excludedTypes.put(
-        CALLABLE,
-        Arrays.asList(
-            prefix + "ExcludedCallable",
-            prefix + "RunnableExcludedCallable",
-            "net.sf.cglib.core.internal.LoadingCache$2" // Excluded for global ignore matcher
-            ));
+        EXECUTOR, Arrays.asList(prefix + "ExcludedExecutor", prefix + "RunnableExcludedExecutor"));
     return excludedTypes;
   }
 
@@ -71,47 +63,39 @@ public class ExcludeFilterTestInstrumentation extends Instrumenter.Tracing
     public void run() {}
   }
 
-  public static final class ExcludedCallable implements Callable<Void> {
+  public static final class ExcludedExecutor implements Executor {
     @Override
-    public Void call() throws Exception {
-      return null;
-    }
+    public void execute(Runnable command) {}
   }
 
-  public static final class NormalCallable implements Callable<Void> {
+  public static final class NormalExecutor implements Executor {
     @Override
-    public Void call() throws Exception {
-      return null;
-    }
+    public void execute(Runnable command) {}
   }
 
-  public static final class RunnableExcludedCallable implements Callable<Void>, Runnable {
+  public static final class RunnableExcludedExecutor implements Executor, Runnable {
     @Override
-    public Void call() throws Exception {
-      return null;
-    }
+    public void execute(Runnable command) {}
 
     @Override
     public void run() {}
   }
 
-  public static final class CallableExcludedRunnable implements Callable<Void>, Runnable {
-    @Override
-    public Void call() throws Exception {
-      return null;
-    }
+  public static final class ExecutorExcludedRunnable implements Executor, Runnable {
 
     @Override
     public void run() {}
+
+    @Override
+    public void execute(Runnable command) {}
   }
 
-  public static final class CallableRunnable implements Callable<Void>, Runnable {
-    @Override
-    public Void call() throws Exception {
-      return null;
-    }
+  public static final class ExecutorRunnable implements Executor, Runnable {
 
     @Override
     public void run() {}
+
+    @Override
+    public void execute(Runnable command) {}
   }
 }

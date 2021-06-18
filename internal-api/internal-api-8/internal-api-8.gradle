@@ -1,3 +1,7 @@
+plugins {
+  id 'me.champeau.jmh'
+}
+
 ext {
   enableJunitPlatform = true
   minJavaVersionForTests = JavaVersion.VERSION_1_8
@@ -11,12 +15,17 @@ targetCompatibility = JavaVersion.VERSION_1_8
 minimumBranchCoverage = 0.8
 
 dependencies {
-  compile project(':internal-api')
+  api project(':internal-api')
 
-  testCompile deps.junit5
-  testCompile deps.jmc
-  testCompile deps.commonsMath
-  testCompile deps.mockito
-  testCompile deps.slf4j
-  testCompile project(":utils:test-utils")
+  testImplementation deps.junit5
+  testImplementation deps.jmc
+  testImplementation deps.commonsMath
+  testImplementation deps.mockito
+  testImplementation deps.slf4j
+  testImplementation project(":utils:test-utils")
+}
+
+jmh {
+  jmhVersion = '1.28'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }

@@ -35,22 +35,22 @@ jar {
 }
 
 shadowJar {
-  configurations = [project.configurations.compile, project.configurations.main_java8Compile]
+  configurations = [project.configurations.runtimeClasspath, project.configurations.main_java8RuntimeClasspath]
 }
 
 dependencies {
-  main_java8Compile 'org.springframework.boot:spring-boot-starter-web:1.5.18.RELEASE'
-  main_java8Compile 'io.grpc:grpc-netty-shaded:1.31.1'
-  main_java8Compile 'io.grpc:grpc-protobuf:1.31.1'
-  main_java8Compile 'io.grpc:grpc-stub:1.31.1'
-  main_java8Compile 'org.apache.tomcat:annotations-api:6.0.53'
-  main_java8Compile 'com.google.cloud:google-cloud-spanner:1.61.0'
+  main_java8Implementation 'org.springframework.boot:spring-boot-starter-web:1.5.18.RELEASE'
+  main_java8Implementation 'io.grpc:grpc-netty-shaded:1.31.1'
+  main_java8Implementation 'io.grpc:grpc-protobuf:1.31.1'
+  main_java8Implementation 'io.grpc:grpc-stub:1.31.1'
+  main_java8Implementation 'org.apache.tomcat:annotations-api:6.0.53'
+  main_java8Implementation 'com.google.cloud:google-cloud-spanner:1.61.0'
 
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn shadowJar
+  dependsOn "shadowJar"
 
   jvmArgs "-Ddatadog.smoketest.springboot-grpc.shadowJar.path=${tasks.shadowJar.archivePath}"
 }

@@ -10,6 +10,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.jar.JarFile;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import net.bytebuddy.dynamic.ClassFileLocator;
@@ -137,6 +138,22 @@ public class SpockRunner extends Sputnik {
   }
 
   private static void setupBootstrapClasspath() {
+    // Ensure there weren't any bootstrap classes loaded prematurely.
+    Set<String> prematureBootstrapClasses = new TreeSet<>();
+    for (Class clazz : ByteBuddyAgent.getInstrumentation().getAllLoadedClasses()) {
+      if (isBootstrapClass(clazz.getName())
+          && clazz.getClassLoader() != null
+          && !clazz.getName().equals("datadog.trace.api.DisableTestTrace")
+          && !clazz.getPackage().getName().startsWith("org.slf4j")) {
+        prematureBootstrapClasses.add(clazz.getName());
+      }
+    }
+    if (!prematureBootstrapClasses.isEmpty()) {
+      throw new AssertionError(
+          prematureBootstrapClasses.size()
+              + " classes were loaded before bootstrap classpath was initialized: "
+              + prematureBootstrapClasses);
+    }
     try {
       final File bootstrapJar = createBootstrapJar();
       ByteBuddyAgent.getInstrumentation()

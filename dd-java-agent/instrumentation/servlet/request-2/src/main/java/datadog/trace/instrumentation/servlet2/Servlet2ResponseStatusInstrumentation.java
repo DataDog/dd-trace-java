@@ -7,9 +7,7 @@ import static java.util.Collections.singletonMap;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.HashMap;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -40,11 +38,10 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Tr
    * applies first
    */
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         namedOneOf("sendError", "setStatus"), packageName + ".Servlet2ResponseStatusAdvice");
-    transformers.put(named("sendRedirect"), packageName + ".Servlet2ResponseRedirectAdvice");
-    return transformers;
+    transformation.applyAdvice(
+        named("sendRedirect"), packageName + ".Servlet2ResponseRedirectAdvice");
   }
 }

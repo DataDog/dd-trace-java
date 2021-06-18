@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -40,8 +39,9 @@ public final class PrivilegedEventInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(named("setCurrentEvent"), packageName + ".PrivilegedEventSetCurrentAdvice");
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        named("setCurrentEvent"), packageName + ".PrivilegedEventSetCurrentAdvice");
   }
 
   @Override

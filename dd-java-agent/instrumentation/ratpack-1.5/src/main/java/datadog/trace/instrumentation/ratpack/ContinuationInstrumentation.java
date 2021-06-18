@@ -5,15 +5,12 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.common.net.HostAndPort;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import ratpack.func.Block;
@@ -46,8 +43,8 @@ public final class ContinuationInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("resume").and(takesArgument(0, named("ratpack.func.Block"))),
         ContinuationInstrumentation.class.getName() + "$ResumeAdvice");
   }

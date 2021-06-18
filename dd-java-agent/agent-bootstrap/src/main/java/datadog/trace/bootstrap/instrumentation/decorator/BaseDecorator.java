@@ -102,7 +102,6 @@ public abstract class BaseDecorator {
 
   public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
     if (throwable != null) {
-      span.setError(true);
       span.addThrowable(throwable instanceof ExecutionException ? throwable.getCause() : throwable);
     }
     return span;

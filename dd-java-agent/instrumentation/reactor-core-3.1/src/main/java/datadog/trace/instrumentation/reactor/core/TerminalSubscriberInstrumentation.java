@@ -8,9 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -33,14 +31,12 @@ public class TerminalSubscriberInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>(4);
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(named("onSubscribe")),
         packageName + ".TerminalSubscriberAdvices$OnSubscribeAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod().and(namedOneOf("onNext", "onError", "onComplete")),
         packageName + ".TerminalSubscriberAdvices$OnNextAndCompleteAndErrorAdvice");
-    return transformers;
   }
 }

@@ -82,8 +82,9 @@ public class AgentInstaller {
         new AgentBuilder.Default()
             .disableClassFormatChanges()
             .assureReadEdgeTo(INSTRUMENTATION, FieldBackedContextAccessor.class)
+            .with(AgentTooling.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-            .with(AgentBuilder.RedefinitionStrategy.DiscoveryStrategy.Reiterating.INSTANCE)
+            .with(AgentTooling.rediscoveryStrategy())
             .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
             .with(AgentTooling.poolStrategy())
             .with(new ClassLoadListener())
@@ -103,7 +104,7 @@ public class AgentInstaller {
       agentBuilder =
           agentBuilder
               .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-              .with(AgentBuilder.RedefinitionStrategy.DiscoveryStrategy.Reiterating.INSTANCE)
+              .with(AgentTooling.rediscoveryStrategy())
               .with(new RedefinitionLoggingListener())
               .with(new TransformLoggingListener());
     }
@@ -227,8 +228,7 @@ public class AgentInstaller {
         final Throwable throwable,
         final List<Class<?>> types) {
       if (DEBUG) {
-        log.debug(
-            "Exception while retransforming " + batch.size() + " classes: " + batch, throwable);
+        log.debug("Exception while retransforming {} classes: {}", batch.size(), batch, throwable);
       }
       return Collections.emptyList();
     }
@@ -253,10 +253,10 @@ public class AgentInstaller {
         final Throwable throwable) {
       if (DEBUG) {
         log.debug(
-            "Failed to handle {} for transformation on classloader {}: {}",
+            "Failed to handle {} for transformation on classloader {}",
             typeName,
             classLoader,
-            throwable.getMessage());
+            throwable);
       }
     }
 

@@ -103,6 +103,10 @@ public interface Instrumenter {
       enabled = Config.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
     }
 
+    public String name() {
+      return instrumentationPrimaryName;
+    }
+
     // Since the super(...) call is first in the constructor, we can't really rely on things
     // being properly initialized in the Instrumentation until the super(...) call has finished
     // so do the rest of the initialization lazily
@@ -150,15 +154,24 @@ public interface Instrumenter {
           filter(parentAgentBuilder).transform(defaultTransformers());
       agentBuilder = injectHelperClasses(agentBuilder);
       agentBuilder = contextProvider.instrumentationTransformer(agentBuilder);
-      agentBuilder = applyInstrumentationTransformers(agentBuilder);
+      AgentBuilder.Transformer transformer = transformer();
+      if (transformer != null) {
+        agentBuilder = agentBuilder.transform(transformer);
+      }
+      AdviceBuilder adviceBuilder = new AdviceBuilder(agentBuilder);
+      adviceTransformations(adviceBuilder);
+      agentBuilder = adviceBuilder.agentBuilder;
       agentBuilder = contextProvider.additionalInstrumentation(agentBuilder);
       return agentBuilder;
     }
 
     private AgentBuilder.Identified.Narrowable filter(AgentBuilder agentBuilder) {
       final AgentBuilder.Identified.Narrowable narrowable;
+      ElementMatcher<ClassLoader> classLoaderMatcher = classLoaderMatcher();
       ElementMatcher<? super TypeDescription> typeMatcher = typeMatcher();
-      if (typeMatcher instanceof AgentBuilder.RawMatcher && typeMatcher instanceof FailSafe) {
+      if (classLoaderMatcher == ANY_CLASS_LOADER // Don't bypass the classLoaderMatcher
+          && typeMatcher instanceof AgentBuilder.RawMatcher
+          && typeMatcher instanceof FailSafe) {
         narrowable = agentBuilder.type((AgentBuilder.RawMatcher) typeMatcher);
       } else {
         narrowable =
@@ -167,7 +180,7 @@ public interface Instrumenter {
                     typeMatcher,
                     "Instrumentation type matcher unexpected exception: " + getClass().getName()),
                 failSafe(
-                    classLoaderMatcher(),
+                    classLoaderMatcher,
                     "Instrumentation class loader matcher unexpected exception: "
                         + getClass().getName()));
       }
@@ -185,21 +198,22 @@ public interface Instrumenter {
       return agentBuilder;
     }
 
-    private AgentBuilder.Identified.Extendable applyInstrumentationTransformers(
-        AgentBuilder.Identified.Extendable agentBuilder) {
-      AgentBuilder.Transformer transformer = transformer();
-      if (transformer != null) {
-        agentBuilder = agentBuilder.transform(transformer);
+    private static class AdviceBuilder implements AdviceTransformation {
+      AgentBuilder.Identified.Extendable agentBuilder;
+
+      public AdviceBuilder(AgentBuilder.Identified.Extendable agentBuilder) {
+        this.agentBuilder = agentBuilder;
       }
-      for (final Map.Entry<? extends ElementMatcher, String> entry : transformers().entrySet()) {
+
+      @Override
+      public void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name) {
         agentBuilder =
             agentBuilder.transform(
                 new AgentBuilder.Transformer.ForAdvice()
                     .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
                     .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
-                    .advice(entry.getKey(), entry.getValue()));
+                    .advice(matcher, name));
       }
-      return agentBuilder;
     }
 
     /** Matches classes for which instrumentation is not muzzled. */
@@ -278,13 +292,16 @@ public interface Instrumenter {
     /** @return A type matcher used to match the class under transform. */
     public abstract ElementMatcher<? super TypeDescription> typeMatcher();
 
-    /** @return A map of matcher->advice */
-    public abstract Map<? extends ElementMatcher<? super MethodDescription>, String> transformers();
-
     /** @return A transformer for further transformation of the class */
     public AgentBuilder.Transformer transformer() {
       return null;
     }
+
+    /**
+     * Instrumenters should register each advice transformation by calling {@link
+     * AdviceTransformation#applyAdvice(ElementMatcher, String)} one or more times.
+     */
+    public abstract void adviceTransformations(AdviceTransformation transformation);
 
     /**
      * Context stores to define for this instrumentation. Are added to matching class loaders.
@@ -370,5 +387,9 @@ public interface Instrumenter {
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.PROFILING);
     }
+  }
+
+  interface AdviceTransformation {
+    void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String name);
   }
 }

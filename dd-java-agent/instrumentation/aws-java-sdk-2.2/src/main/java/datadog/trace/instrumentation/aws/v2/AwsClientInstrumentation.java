@@ -1,15 +1,12 @@
 package datadog.trace.instrumentation.aws.v2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.List;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
@@ -24,8 +21,8 @@ public final class AwsClientInstrumentation extends AbstractAwsClientInstrumenta
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(named("resolveExecutionInterceptors")),
         AwsClientInstrumentation.class.getName() + "$AwsBuilderAdvice");
   }

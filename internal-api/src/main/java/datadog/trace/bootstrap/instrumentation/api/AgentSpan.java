@@ -8,6 +8,8 @@ public interface AgentSpan extends MutableSpan {
 
   DDId getTraceId();
 
+  DDId getSpanId();
+
   @Override
   AgentSpan setTag(String key, boolean value);
 
@@ -61,6 +63,10 @@ public interface AgentSpan extends MutableSpan {
 
   AgentSpan setBaggageItem(String key, String value);
 
+  AgentSpan setHttpStatusCode(int statusCode);
+
+  short getHttpStatusCode();
+
   void finish();
 
   void finish(long finishMicros);
@@ -74,6 +80,17 @@ public interface AgentSpan extends MutableSpan {
   @Override
   AgentSpan setResourceName(final CharSequence resourceName);
 
+  boolean eligibleForDropping();
+
+  /** mark that the span has been captured in some task which will resume asynchronously. */
+  void startThreadMigration();
+
+  /** mark that the work associated with the span has resumed on a new thread */
+  void finishThreadMigration();
+
+  /** Mark the end of a task associated with the span */
+  void finishWork();
+
   interface Context {
     DDId getTraceId();
 
@@ -84,7 +101,13 @@ public interface AgentSpan extends MutableSpan {
     Iterable<Map.Entry<String, String>> baggageItems();
 
     interface Extracted extends Context {
-      String getForwardedFor();
+      String getForwarded();
+
+      String getForwardedProto();
+
+      String getForwardedHost();
+
+      String getForwardedIp();
 
       String getForwardedPort();
     }

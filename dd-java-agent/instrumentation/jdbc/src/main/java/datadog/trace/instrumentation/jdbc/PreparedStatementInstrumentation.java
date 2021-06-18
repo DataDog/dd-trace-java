@@ -69,12 +69,16 @@ public final class PreparedStatementInstrumentation
     "org.postgresql.jdbc1.Jdbc1CallableStatement",
     "org.postgresql.jdbc2.PreparedStatement",
     "org.postgresql.jdbc2.CallableStatement",
+    "org.postgresql.jdbc2.AbstractJdbc2Statement",
     "org.postgresql.jdbc2.Jdbc2PreparedStatement",
     "org.postgresql.jdbc2.Jdbc2CallableStatement",
+    "org.postgresql.jdbc3.AbstractJdbc3Statement",
     "org.postgresql.jdbc3.Jdbc3PreparedStatement",
     "org.postgresql.jdbc3.Jdbc3CallableStatement",
+    "org.postgresql.jdbc3g.AbstractJdbc3gStatement",
     "org.postgresql.jdbc3g.Jdbc3gPreparedStatement",
     "org.postgresql.jdbc3g.Jdbc3gCallableStatement",
+    "org.postgresql.jdbc4.AbstractJdbc4Statement",
     "org.postgresql.jdbc4.Jdbc4PreparedStatement",
     "org.postgresql.jdbc4.Jdbc4CallableStatement",
     "org.postgresql.jdbc.PgPreparedStatement",
@@ -85,6 +89,9 @@ public final class PreparedStatementInstrumentation
     "org.sqlite.jdbc3.JDBC3PreparedStatement",
     "org.sqlite.jdbc4.JDBC4PreparedStatement",
     "org.sqlite.PrepStmt",
+    // jtds (for SQL Server and Sybase)
+    "net.sourceforge.jtds.jdbc.JtdsPreparedStatement",
+    "net.sourceforge.jtds.jdbc.JtdsCallableStatement",
     // for testing purposes
     "test.TestPreparedStatement",
     // this won't match any classes unless set

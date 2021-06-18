@@ -7,6 +7,7 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.finatra.FinatraDecorator
+
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -62,6 +63,11 @@ class FinatraServerTest extends HttpServerTest<HttpServer> {
   @Override
   String expectedOperationName() {
     return "finatra.request"
+  }
+
+  @Override
+  boolean tagServerSpanWithRoute() {
+    return true
   }
 
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {

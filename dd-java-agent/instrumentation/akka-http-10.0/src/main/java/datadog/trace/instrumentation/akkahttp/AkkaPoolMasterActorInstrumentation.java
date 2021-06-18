@@ -7,10 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -26,9 +23,9 @@ public final class AkkaPoolMasterActorInstrumentation extends Instrumenter.Traci
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
+  public void adviceTransformations(AdviceTransformation transformation) {
     // This is how scala names a method that is private to a class but is used in a PartialFunction
-    return Collections.singletonMap(
+    transformation.applyAdvice(
         named("akka$http$impl$engine$client$PoolMasterActor$$startPoolInterface"),
         AkkaPoolMasterActorInstrumentation.class.getName() + "$BlockPropagation");
   }

@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.play26;
 
+import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
+
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -19,6 +21,7 @@ import play.routing.Router;
 import scala.Option;
 
 public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Request, Result> {
+  public static final boolean REPORT_HTTP_STATUS = Config.get().getPlayReportHttpStatus();
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
   public static final CharSequence PLAY_ACTION = UTF8BytesString.create("play-action");
   public static final PlayHttpServerDecorator DECORATE = new PlayHttpServerDecorator();
@@ -107,7 +110,7 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
       }
       if (!defOption.isEmpty()) {
         final String path = defOption.get().path();
-        span.setResourceName(request.method() + " " + path);
+        ROUTE_HANDLER_DECORATOR.withRoute(span, request.method(), path);
       }
     }
     return span;
@@ -115,7 +118,9 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
 
   @Override
   public AgentSpan onError(final AgentSpan span, Throwable throwable) {
-    span.setTag(Tags.HTTP_STATUS, _500);
+    if (REPORT_HTTP_STATUS) {
+      span.setHttpStatusCode(500);
+    }
     if (throwable instanceof CompletionException && throwable.getCause() != null) {
       throwable = throwable.getCause();
     }

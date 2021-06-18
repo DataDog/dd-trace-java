@@ -62,39 +62,43 @@ testSets {
 dependencies {
   main_java8CompileOnly group: 'org.springframework', name: 'spring-webflux', version: '5.0.0.RELEASE'
 
-  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
-  testCompile project(':dd-java-agent:instrumentation:netty-4.1')
-  testCompile project(':dd-java-agent:instrumentation:netty-promise-4')
-  testCompile project(':dd-java-agent:instrumentation:reactor-core-3.1')
-  testCompile group: 'org.spockframework', name: 'spock-spring', version: '1.1-groovy-2.4'
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:netty-promise-4')
+  testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  testImplementation group: 'org.spockframework', name: 'spock-spring', version: '1.1-groovy-2.4'
 
-  testCompile group: 'org.springframework', name: 'spring-webflux', version: '5.0.0.RELEASE'
-  testCompile group: 'io.projectreactor.ipc', name: 'reactor-netty', version: '0.7.0.RELEASE'
-  testCompile group: 'org.springframework', name: 'spring-test', version: '5.0.0.RELEASE'
+  testImplementation group: 'org.springframework', name: 'spring-webflux', version: '5.0.0.RELEASE'
+  testImplementation group: 'io.projectreactor.ipc', name: 'reactor-netty', version: '0.7.0.RELEASE'
+  testImplementation group: 'org.springframework', name: 'spring-test', version: '5.0.0.RELEASE'
 
-  latestDepTestCompile group: 'org.springframework', name: 'spring-webflux', version: '5.+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-webflux', version: '5.+'
   // This is the key dep that breaks things, 1.x doesn't work
-  latestDepTestCompile group: 'io.projectreactor.netty', name: 'reactor-netty', version: '0.+'
-  latestDepTestCompile group: 'org.springframework', name: 'spring-test', version: '5.+'
+  latestDepTestImplementation group: 'io.projectreactor.netty', name: 'reactor-netty', version: '0.+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-test', version: '5.+'
 
-  boot20TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.0.0.RELEASE'
-  boot20TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.0.0.RELEASE'
-  boot20TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.0.RELEASE'
+  boot20TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.0.0.RELEASE'
+  boot20TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.0.0.RELEASE'
+  boot20TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.0.RELEASE'
 
-  latestBoot20TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.0.+'
-  latestBoot20TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.0.+'
-  latestBoot20TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.+'
+  latestBoot20TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.0.+'
+  latestBoot20TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.0.+'
+  latestBoot20TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.+'
 
-  boot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.0'
-  boot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.0'
-  boot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.0'
+  boot24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.0'
+  boot24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.0'
+  boot24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.0'
 
-  latestBoot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.+'
-  latestBoot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.+'
-  latestBoot24TestCompile group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.+'
+  latestBoot24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.4.+'
+  latestBoot24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.+'
+  latestBoot24TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.+'
 }
 
-test.dependsOn boot20Test
-latestDepTest.dependsOn latestBoot20Test
-test.dependsOn boot24Test
-latestDepTest.dependsOn latestBoot24Test
+tasks.named("test").configure {
+  dependsOn "boot20Test"
+  dependsOn "boot24Test"
+}
+tasks.named("latestDepTest").configure {
+  dependsOn "latestBoot20Test"
+  dependsOn "latestBoot24Test"
+}

@@ -311,14 +311,17 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     span.samplingPriority == extractedContext.samplingPriority
     span.context().origin == extractedContext.origin
     span.context().baggageItems == extractedContext.baggage
-    span.context().tags == extractedContext.tags + [(RUNTIME_ID_TAG)  : Config.get().getRuntimeId(),
-      (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
-      (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
+    // check the extracted context has been copied into the span tags
+    for (Map.Entry<String, Object> tag : extractedContext.tags) {
+      span.context().tags.get(tag.getKey()) == tag.getValue()
+    }
+    span.getTag(THREAD_ID) == thread.id
+    span.getTag(THREAD_NAME) == thread.name
 
     where:
-    extractedContext                                                                                                                                | _
-    new ExtractedContext(DDId.ONE, DDId.from(2), 0, null, null, null, [:], [:])                                                                     | _
-    new ExtractedContext(DDId.from(3), DDId.from(4), 1, "some-origin", null, null, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"]) | _
+    extractedContext                                                                                                                                                  | _
+    new ExtractedContext(DDId.ONE, DDId.from(2), 0, null, null, null, null, null, null, [:], [:])                                                                     | _
+    new ExtractedContext(DDId.from(3), DDId.from(4), 1, "some-origin", null, null, null, null, null, ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"]) | _
   }
 
   def "TagContext should populate default span details"() {
@@ -337,9 +340,9 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
       (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
 
     where:
-    tagContext                                                                               | _
-    new TagContext(null, null, null, [:])                                                    | _
-    new TagContext("some-origin", null, null, [(ORIGIN_KEY): "some-origin", "asdf": "qwer"]) | _
+    tagContext                                                                                                 | _
+    new TagContext(null, null, null, null, null, null, [:])                                                    | _
+    new TagContext("some-origin", null, null, null, null, null, [(ORIGIN_KEY): "some-origin", "asdf": "qwer"]) | _
   }
 
   def "global span tags populated on each span"() {

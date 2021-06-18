@@ -14,10 +14,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.datanucleus.api.jdo.JDOQuery;
@@ -43,11 +40,11 @@ public class JDOQueryInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
+  public void adviceTransformations(AdviceTransformation transformation) {
     // All of these methods delegate to *Internal() but have parameter checking and exceptions
     // beforehand.  Instrumenting all ensures we trace those exceptions.  Still instrumenting
     // *Internal() to futureproof the instrumentation
-    return Collections.singletonMap(
+    transformation.applyAdvice(
         isMethod()
             .and(
                 namedOneOf(

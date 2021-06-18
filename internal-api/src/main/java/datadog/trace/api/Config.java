@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
@@ -12,10 +11,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
@@ -27,12 +26,14 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_FORCE_FIRST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_COMPRESSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -62,6 +63,8 @@ import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
+import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
+import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_START_DELAY;
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
@@ -101,7 +104,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTO
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPTOTS_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPOTS_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PASSWORD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_PORT;
@@ -116,8 +120,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
@@ -130,6 +136,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_P
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
+import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
@@ -154,6 +161,7 @@ import static datadog.trace.api.config.TracerConfig.ID_GENERATION_STRATEGY;
 import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
+import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_STYLE_INJECT;
 import static datadog.trace.api.config.TracerConfig.PROXY_NO_PROXY;
@@ -174,7 +182,8 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RUL
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
-import static datadog.trace.util.CollectionUtils.immutableSet;
+import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
+import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.Strings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.Strings.toEnvVar;
 
@@ -270,6 +279,7 @@ public class Config {
   private final BitSet httpServerErrorStatuses;
   private final BitSet httpClientErrorStatuses;
   private final boolean httpServerTagQueryString;
+  private final boolean httpServerRouteBasedNaming;
   private final boolean httpClientTagQueryString;
   private final boolean httpClientSplitByDomain;
   private final boolean dbClientSplitByInstance;
@@ -281,6 +291,7 @@ public class Config {
   private final boolean traceStrictWritesEnabled;
   private final boolean runtimeContextFieldInjection;
   private final boolean serialVersionUIDFieldInjection;
+  private final boolean logExtractHeaderNames;
   private final Set<PropagationStyle> propagationStylesToExtract;
   private final Set<PropagationStyle> propagationStylesToInject;
 
@@ -326,6 +337,7 @@ public class Config {
 
   private final boolean profilingEnabled;
   private final boolean profilingAgentless;
+  private final boolean profilingLegacyTracingIntegrationEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -354,6 +366,9 @@ public class Config {
 
   private final int osgiSearchDepth;
 
+  // TODO: remove at a future point.
+  private final boolean playReportHttpStatus;
+
   private final boolean servletPrincipalEnabled;
   private final boolean servletAsyncTimeoutError;
 
@@ -374,6 +389,7 @@ public class Config {
   private final String jdbcConnectionClassName;
 
   private final Set<String> grpcIgnoredOutboundMethods;
+  private final boolean grpcServerTrimPackageResource;
 
   private String env;
   private String version;
@@ -434,7 +450,7 @@ public class Config {
 
     String agentHostFromEnvironment = null;
     int agentPortFromEnvironment = -1;
-    String unixDomainFromEnvironment = null;
+    String unixSocketFromEnvironment = null;
     boolean rebuildAgentUrl = false;
 
     final String agentUrlFromEnvironment = configProvider.getString(TRACE_AGENT_URL);
@@ -444,7 +460,7 @@ public class Config {
         agentHostFromEnvironment = parsedAgentUrl.getHost();
         agentPortFromEnvironment = parsedAgentUrl.getPort();
         if ("unix".equals(parsedAgentUrl.getScheme())) {
-          unixDomainFromEnvironment = parsedAgentUrl.getPath();
+          unixSocketFromEnvironment = parsedAgentUrl.getPath();
         }
       } catch (URISyntaxException e) {
         log.warn("{} not configured correctly: {}. Ignoring", TRACE_AGENT_URL, e.getMessage());
@@ -456,20 +472,19 @@ public class Config {
       rebuildAgentUrl = true;
     }
 
-    // The extra code is to detect when defaults are used for agent configuration
-    final boolean agentHostConfiguredUsingDefault;
+    if (agentPortFromEnvironment < 0) {
+      agentPortFromEnvironment = configProvider.getInteger(TRACE_AGENT_PORT, -1, AGENT_PORT_LEGACY);
+      rebuildAgentUrl = true;
+    }
+
     if (agentHostFromEnvironment == null) {
       agentHost = DEFAULT_AGENT_HOST;
-      agentHostConfiguredUsingDefault = true;
     } else {
       agentHost = agentHostFromEnvironment;
-      agentHostConfiguredUsingDefault = false;
     }
 
     if (agentPortFromEnvironment < 0) {
-      agentPort =
-          configProvider.getInteger(TRACE_AGENT_PORT, DEFAULT_TRACE_AGENT_PORT, AGENT_PORT_LEGACY);
-      rebuildAgentUrl = true;
+      agentPort = DEFAULT_TRACE_AGENT_PORT;
     } else {
       agentPort = agentPortFromEnvironment;
     }
@@ -480,23 +495,21 @@ public class Config {
       agentUrl = agentUrlFromEnvironment;
     }
 
-    if (unixDomainFromEnvironment == null) {
-      unixDomainFromEnvironment = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
+    if (unixSocketFromEnvironment == null) {
+      unixSocketFromEnvironment = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
+      String unixPrefix = "unix://";
+      // handle situation where someone passes us a unix:// URL instead of a socket path
+      if (unixSocketFromEnvironment != null && unixSocketFromEnvironment.startsWith(unixPrefix)) {
+        unixSocketFromEnvironment = unixSocketFromEnvironment.substring(unixPrefix.length());
+      }
     }
 
-    final boolean socketConfiguredUsingDefault;
-    if (unixDomainFromEnvironment == null) {
-      agentUnixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
-      socketConfiguredUsingDefault = true;
-    } else {
-      agentUnixDomainSocket = unixDomainFromEnvironment;
-      socketConfiguredUsingDefault = false;
-    }
+    agentUnixDomainSocket = unixSocketFromEnvironment;
 
     agentConfiguredUsingDefault =
-        agentHostConfiguredUsingDefault
-            && socketConfiguredUsingDefault
-            && agentPort == DEFAULT_TRACE_AGENT_PORT;
+        agentHostFromEnvironment == null
+            && agentPortFromEnvironment < 0
+            && unixSocketFromEnvironment == null;
 
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
 
@@ -521,7 +534,7 @@ public class Config {
     spanTags = configProvider.getMergedMap(SPAN_TAGS);
     jmxTags = configProvider.getMergedMap(JMX_TAGS);
 
-    excludedClasses = configProvider.getList(TRACE_CLASSES_EXCLUDE);
+    excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
     headerTags = configProvider.getMergedMap(HEADER_TAGS);
 
     httpServerErrorStatuses =
@@ -536,6 +549,10 @@ public class Config {
         configProvider.getBoolean(
             HTTP_SERVER_TAG_QUERY_STRING, DEFAULT_HTTP_SERVER_TAG_QUERY_STRING);
 
+    httpServerRouteBasedNaming =
+        configProvider.getBoolean(
+            HTTP_SERVER_ROUTE_BASED_NAMING, DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING);
+
     httpClientTagQueryString =
         configProvider.getBoolean(
             HTTP_CLIENT_TAG_QUERY_STRING, DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING);
@@ -548,8 +565,7 @@ public class Config {
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_INSTANCE, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE);
 
-    splitByTags =
-        Collections.unmodifiableSet(new LinkedHashSet<>(configProvider.getList(SPLIT_BY_TAGS)));
+    splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
     scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
@@ -569,6 +585,11 @@ public class Config {
         configProvider.getBoolean(
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
 
+    logExtractHeaderNames =
+        configProvider.getBoolean(
+            PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED,
+            DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
+
     propagationStylesToExtract =
         getPropagationStyleSetSettingFromEnvironmentOrDefault(
             PROPAGATION_STYLE_EXTRACT, DEFAULT_PROPAGATION_STYLE_EXTRACT);
@@ -586,15 +607,21 @@ public class Config {
         runtimeMetricsEnabled
             && configProvider.getBoolean(JMX_FETCH_ENABLED, DEFAULT_JMX_FETCH_ENABLED);
     jmxFetchConfigDir = configProvider.getString(JMX_FETCH_CONFIG_DIR);
-    jmxFetchConfigs = configProvider.getList(JMX_FETCH_CONFIG);
-    jmxFetchMetricsConfigs = configProvider.getList(JMX_FETCH_METRICS_CONFIGS);
+    jmxFetchConfigs = tryMakeImmutableList(configProvider.getList(JMX_FETCH_CONFIG));
+    jmxFetchMetricsConfigs =
+        tryMakeImmutableList(configProvider.getList(JMX_FETCH_METRICS_CONFIGS));
     jmxFetchCheckPeriod = configProvider.getInteger(JMX_FETCH_CHECK_PERIOD);
     jmxFetchInitialRefreshBeansPeriod =
         configProvider.getInteger(JMX_FETCH_INITIAL_REFRESH_BEANS_PERIOD);
     jmxFetchRefreshBeansPeriod = configProvider.getInteger(JMX_FETCH_REFRESH_BEANS_PERIOD);
-    jmxFetchStatsdHost = configProvider.getString(JMX_FETCH_STATSD_HOST);
-    jmxFetchStatsdPort =
-        configProvider.getInteger(JMX_FETCH_STATSD_PORT, DEFAULT_JMX_FETCH_STATSD_PORT);
+
+    jmxFetchStatsdPort = configProvider.getInteger(JMX_FETCH_STATSD_PORT, DOGSTATSD_PORT);
+    jmxFetchStatsdHost =
+        configProvider.getString(
+            JMX_FETCH_STATSD_HOST,
+            // default to agent host if an explicit port has been set
+            null != jmxFetchStatsdPort && jmxFetchStatsdPort > 0 ? agentHost : null,
+            DOGSTATSD_HOST);
 
     // Writer.Builder createMonitor will use the values of the JMX fetch & agent to fill-in defaults
     healthMetricsEnabled =
@@ -629,7 +656,7 @@ public class Config {
 
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
 
-    traceExecutors = configProvider.getList(TRACE_EXECUTORS);
+    traceExecutors = tryMakeImmutableList(configProvider.getList(TRACE_EXECUTORS));
 
     traceAnalyticsEnabled =
         configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
@@ -642,6 +669,9 @@ public class Config {
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, DEFAULT_PROFILING_AGENTLESS);
+    profilingLegacyTracingIntegrationEnabled =
+        configProvider.getBoolean(
+            PROFILING_LEGACY_TRACING_INTEGRATION, DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION);
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -709,7 +739,7 @@ public class Config {
     profilingExcludeAgentThreads = configProvider.getBoolean(PROFILING_EXCLUDE_AGENT_THREADS, true);
 
     // code hotspots are disabled by default because of potential perf overhead they can incur
-    profilingHotspotsEnabled = configProvider.getBoolean(PROFILING_HOTSPTOTS_ENABLED, false);
+    profilingHotspotsEnabled = configProvider.getBoolean(PROFILING_HOTSPOTS_ENABLED, false);
 
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
@@ -724,7 +754,9 @@ public class Config {
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
 
     grpcIgnoredOutboundMethods =
-        new HashSet<>(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
+        tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
+    grpcServerTrimPackageResource =
+        configProvider.getBoolean(GRPC_SERVER_TRIM_PACKAGE_RESOURCE, false);
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
@@ -732,6 +764,8 @@ public class Config {
     igniteCacheIncludeKeys = configProvider.getBoolean(IGNITE_CACHE_INCLUDE_KEYS, false);
 
     osgiSearchDepth = configProvider.getInteger(OSGI_SEARCH_DEPTH, 1);
+
+    playReportHttpStatus = configProvider.getBoolean(PLAY_REPORT_HTTP_STATUS, false);
 
     servletPrincipalEnabled = configProvider.getBoolean(SERVLET_PRINCIPAL_ENABLED, false);
 
@@ -857,6 +891,10 @@ public class Config {
     return httpServerTagQueryString;
   }
 
+  public boolean isHttpServerRouteBasedNaming() {
+    return httpServerRouteBasedNaming;
+  }
+
   public boolean isHttpClientTagQueryString() {
     return httpClientTagQueryString;
   }
@@ -899,6 +937,10 @@ public class Config {
 
   public boolean isSerialVersionUIDFieldInjection() {
     return serialVersionUIDFieldInjection;
+  }
+
+  public boolean isLogExtractHeaderNames() {
+    return logExtractHeaderNames;
   }
 
   public Set<PropagationStyle> getPropagationStylesToExtract() {
@@ -1097,6 +1139,10 @@ public class Config {
     return profilingHotspotsEnabled;
   }
 
+  public boolean isProfilingLegacyTracingIntegrationEnabled() {
+    return profilingLegacyTracingIntegrationEnabled;
+  }
+
   public boolean isKafkaClientPropagationEnabled() {
     return kafkaClientPropagationEnabled;
   }
@@ -1119,6 +1165,10 @@ public class Config {
 
   public int getOsgiSearchDepth() {
     return osgiSearchDepth;
+  }
+
+  public boolean getPlayReportHttpStatus() {
+    return playReportHttpStatus;
   }
 
   public boolean isServletPrincipalEnabled() {
@@ -1169,6 +1219,10 @@ public class Config {
     return grpcIgnoredOutboundMethods;
   }
 
+  public boolean isGrpcServerTrimPackageResource() {
+    return grpcServerTrimPackageResource;
+  }
+
   /** @return A map of tags to be applied only to the local application root span. */
   public Map<String, String> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
@@ -1191,7 +1245,7 @@ public class Config {
   }
 
   public Set<String> getMetricsIgnoredResources() {
-    return immutableSet(new HashSet<>(configProvider.getList(TRACER_METRICS_IGNORED_RESOURCES)));
+    return tryMakeImmutableSet(configProvider.getList(TRACER_METRICS_IGNORED_RESOURCES));
   }
 
   public String getEnv() {
@@ -1329,8 +1383,14 @@ public class Config {
   }
 
   public boolean isRuleEnabled(final String name) {
-    return configProvider.getBoolean("trace." + name + ".enabled", true)
-        && configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", true);
+    return isRuleEnabled(name, true);
+  }
+
+  public boolean isRuleEnabled(final String name, boolean defaultEnabled) {
+    boolean enabled = configProvider.getBoolean("trace." + name + ".enabled", defaultEnabled);
+    boolean lowerEnabled =
+        configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", defaultEnabled);
+    return defaultEnabled ? enabled && lowerEnabled : enabled || lowerEnabled;
   }
 
   /**
@@ -1338,7 +1398,7 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isJmxFetchIntegrationEnabled(SortedSet, boolean)}.
+   *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
   public static boolean jmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -1360,8 +1420,9 @@ public class Config {
     return isEnabled(Arrays.asList(integrationNames), "", ".analytics.enabled", defaultEnabled);
   }
 
-  public <T extends Enum<T>> T getEnumValue(String name, Class<T> type, T defaultValue) {
-    return configProvider.getEnum(PREFIX + name, type, defaultValue);
+  public <T extends Enum<T>> T getEnumValue(
+      final String name, final Class<T> type, final T defaultValue) {
+    return configProvider.getEnum(name, type, defaultValue);
   }
 
   private static boolean isDebugMode() {
@@ -1671,6 +1732,8 @@ public class Config {
         + httpClientErrorStatuses
         + ", httpServerTagQueryString="
         + httpServerTagQueryString
+        + ", httpServerRouteBasedNaming="
+        + httpServerRouteBasedNaming
         + ", httpClientTagQueryString="
         + httpClientTagQueryString
         + ", httpClientSplitByDomain="

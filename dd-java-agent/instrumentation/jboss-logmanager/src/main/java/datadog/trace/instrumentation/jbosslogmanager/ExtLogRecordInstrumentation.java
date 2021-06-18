@@ -19,7 +19,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -53,17 +52,14 @@ public class ExtLogRecordInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(named("getMdc")).and(takesArgument(0, String.class)),
         ExtLogRecordInstrumentation.class.getName() + "$GetMdcAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod().and(named("getMdcCopy")).and(takesArguments(0)),
         ExtLogRecordInstrumentation.class.getName() + "$GetMdcCopyAdvice");
-
-    return transformers;
   }
 
   @Override

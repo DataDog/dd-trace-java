@@ -87,8 +87,9 @@ class MuzzlePlugin implements Plugin<Project> {
         assertionMethod.invoke(null, instrumentationCL)
       }
     }
-    compileMuzzle.dependsOn(bootstrapProject.tasks.compileJava)
-    compileMuzzle.dependsOn(toolingProject.tasks.compileJava)
+    [bootstrapProject, toolingProject]*.afterEvaluate {
+      compileMuzzle.dependsOn it.tasks.compileJava
+    }
     project.afterEvaluate {
       compileMuzzle.dependsOn(project.tasks.compileJava)
       if (project.tasks.getNames().contains('compileScala')) {
@@ -284,6 +285,7 @@ class MuzzlePlugin implements Plugin<Project> {
       inverseDirective.module = muzzleDirective.module
       inverseDirective.versions = "$version"
       inverseDirective.assertPass = !muzzleDirective.assertPass
+      inverseDirective.excludedDependencies = muzzleDirective.excludedDependencies
       inverseDirective
     }.toSet()
   }
@@ -348,6 +350,11 @@ class MuzzlePlugin implements Plugin<Project> {
       // longer bundled with the JVM and have to be excluded for the muzzle tests to be able to run.
       dep.exclude group: 'com.sun.jdmk', module: 'jmxtools'
       dep.exclude group: 'com.sun.jmx', module: 'jmxri'
+      // Also exclude specifically excluded dependencies
+      for (String excluded: muzzleDirective.excludedDependencies) {
+        String[] parts = excluded.split(':')
+        dep.exclude group: parts[0], module: parts[1]
+      }
 
       config.dependencies.add(dep)
     }
@@ -467,6 +474,7 @@ class MuzzleDirective {
   Set<String> skipVersions = new HashSet<>()
   List<String> additionalDependencies = new ArrayList<>()
   List<RemoteRepository> additionalRepositories = new ArrayList<>();
+  List<String> excludedDependencies = new ArrayList<>();
   boolean assertPass
   boolean assertInverse = false
   boolean coreJdk = false
@@ -493,6 +501,15 @@ class MuzzleDirective {
    */
   void extraRepository(String id, String url, String type = "default") {
     additionalRepositories.add(new RemoteRepository.Builder(id, type, url).build())
+  }
+
+  /**
+   * Adds transitive dependencies to exclude from the current muzzle test.
+   *
+   * @param excludeString A dependency in the gradle canonical form: '<group_id>:<artifact_id>'.
+   */
+  void excludeDependency(String excludeString) {
+    excludedDependencies.add(excludeString)
   }
 
   /**

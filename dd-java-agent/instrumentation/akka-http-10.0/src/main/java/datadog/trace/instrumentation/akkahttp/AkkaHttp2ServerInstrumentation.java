@@ -9,11 +9,7 @@ import akka.http.scaladsl.model.HttpResponse;
 import akka.stream.Materializer;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import scala.Function1;
@@ -48,27 +44,25 @@ public final class AkkaHttp2ServerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         takesArguments(8)
             .and(named("bindAndHandleAsync"))
             .and(takesArgument(0, named("scala.Function1")))
             .and(takesArgument(7, named("akka.stream.Materializer"))),
         getClass().getName() + "$Http2BindAndHandleAsync8ArgAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         takesArguments(7)
             .and(named("bindAndHandleAsync"))
             .and(takesArgument(0, named("scala.Function1")))
             .and(takesArgument(6, named("akka.stream.Materializer"))),
         getClass().getName() + "$Http2BindAndHandleAsync7ArgAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         takesArguments(6)
             .and(named("bindAndHandleAsync"))
             .and(takesArgument(0, named("scala.Function1")))
             .and(takesArgument(5, named("akka.stream.Materializer"))),
         getClass().getName() + "$Http2BindAndHandleAsync6ArgAdvice");
-    return Collections.unmodifiableMap(transformers);
   }
 
   public static class Http2BindAndHandleAsync8ArgAdvice {

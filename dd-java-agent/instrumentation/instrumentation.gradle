@@ -15,10 +15,17 @@ plugins {
 }
 apply from: "$rootDir/gradle/java.gradle"
 
-Project instr_project = project
+tasks.register("latestDepTest")
+
+Project parent_project = project
 subprojects { Project subProj ->
   apply plugin: "net.bytebuddy.byte-buddy"
   apply plugin: 'muzzle'
+
+  subProj.tasks.withType(Javadoc).configureEach { enabled = false }
+
+  // needs fetching this project's configurations.instrumentationMuzzle
+  evaluationDependsOn ':dd-java-agent:agent-tooling'
 
   subProj.byteBuddy {
     transformation {
@@ -33,7 +40,7 @@ subprojects { Project subProj ->
       transformation {
         tasks = ['compileJava', 'compileScala', 'compileKotlin']
         plugin = 'datadog.trace.agent.tooling.bytebuddy.AgentGradlePlugin'
-        classPath = project(':dd-java-agent:agent-tooling').configurations.instrumentationMuzzle + subProj.configurations.compile + subProj.sourceSets.main.output
+        classPath = project(':dd-java-agent:agent-tooling').configurations.instrumentationMuzzle + subProj.configurations.compileClasspath + subProj.sourceSets.main.output
       }
     }
 
@@ -41,13 +48,13 @@ subprojects { Project subProj ->
     if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
       def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))
       def name = "java$version.majorVersion"
-      jdkCompile = "main_${name}Compile"
+      jdkCompile = "main_${name}Implementation"
     }
     dependencies {
       // Apply common dependencies for instrumentation.
-      compile project(':dd-trace-api')
-      compile project(':dd-java-agent:agent-tooling')
-      compile deps.bytebuddy
+      implementation project(':dd-trace-api')
+      implementation project(':dd-java-agent:agent-tooling')
+      implementation deps.bytebuddy
       if (jdkCompile) {
         "$jdkCompile" project(':dd-trace-api')
         "$jdkCompile" project(':dd-java-agent:agent-tooling')
@@ -58,33 +65,41 @@ subprojects { Project subProj ->
       compileOnly deps.autoserviceAnnotation
 
       // Include instrumentations instrumenting core JDK classes to ensure interoperability with other instrumentation
-      testCompile project(':dd-java-agent:instrumentation:java-concurrent')
-      testCompile project(':dd-java-agent:instrumentation:java-concurrent:java-completablefuture')
+      testImplementation project(':dd-java-agent:instrumentation:java-concurrent')
+      testImplementation project(':dd-java-agent:instrumentation:java-concurrent:java-completablefuture')
       // FIXME: we should enable this, but currently this fails tests for google http client
-      //testCompile project(':dd-java-agent:instrumentation:http-url-connection')
-      testCompile project(':dd-java-agent:instrumentation:classloading')
+      //testImplementation project(':dd-java-agent:instrumentation:http-url-connection')
+      testImplementation project(':dd-java-agent:instrumentation:classloading')
 
-      testCompile project(':dd-java-agent:testing')
+      testImplementation project(':dd-java-agent:testing')
       testAnnotationProcessor deps.autoserviceProcessor
       testCompileOnly deps.autoserviceAnnotation
     }
 
-    // Make it so all instrumentation subproject tests can be run with a single command.
-    instr_project.tasks.test.dependsOn(subProj.tasks.test)
+    subProj.tasks.withType(Test).configureEach { subTask ->
+      onlyIf { !project.rootProject.hasProperty("skipInstTests") }
+
+      // Make it so all instrumentation subproject tests can be run with a single command.
+      if (parent_project.hasProperty(subTask.name)) {
+        parent_project.tasks.named(subTask.name).configure {
+          dependsOn(subTask)
+        }
+      }
+    }
   }
 
-  instr_project.dependencies {
-    compile(project(subProj.getPath()))
+  parent_project.dependencies {
+    implementation project(subProj.getPath())
   }
 }
 
 dependencies {
-  compile(project(':dd-java-agent:agent-tooling')) {
+  implementation(project(':dd-java-agent:agent-tooling')) {
     exclude module: ':dd-java-agent:agent-bootstrap'
   }
 }
 
-shadowJar {
+tasks.named('shadowJar').configure {
   duplicatesStrategy = DuplicatesStrategy.FAIL
   dependencies deps.sharedInverse
   dependencies {

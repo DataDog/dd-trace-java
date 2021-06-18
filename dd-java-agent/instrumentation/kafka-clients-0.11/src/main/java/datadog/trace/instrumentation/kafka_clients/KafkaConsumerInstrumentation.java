@@ -11,12 +11,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -47,30 +44,28 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("records"))
             .and(takesArgument(0, String.class))
             .and(returns(Iterable.class)),
         KafkaConsumerInstrumentation.class.getName() + "$IterableAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("records"))
             .and(takesArgument(0, named("org.apache.kafka.common.TopicPartition")))
             .and(returns(List.class)),
         KafkaConsumerInstrumentation.class.getName() + "$ListAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("iterator"))
             .and(takesArguments(0))
             .and(returns(Iterator.class)),
         KafkaConsumerInstrumentation.class.getName() + "$IteratorAdvice");
-    return transformers;
   }
 
   public static class IterableAdvice {

@@ -178,7 +178,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     /** Flag to propagate this scope across async boundaries. */
     private boolean isAsyncPropagating;
 
-    private final byte source;
+    private byte flags;
 
     private short referenceCount = 1;
 
@@ -194,7 +194,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       this.span = span;
       this.scopeManager = scopeManager;
       this.continuation = continuation;
-      this.source = source;
+      this.flags = source;
     }
 
     @Override
@@ -210,7 +210,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
         scopeManager.statsDClient.incrementCounter("scope.close.error");
 
-        if (source == ScopeSource.MANUAL.id()) {
+        if (source() == ScopeSource.MANUAL.id()) {
           scopeManager.statsDClient.incrementCounter("scope.user.close.error");
 
           if (scopeManager.strictMode) {
@@ -247,7 +247,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
         }
       }
 
-      if (span instanceof NoopAgentSpan) {
+      if (!notifiedOnActivate()) {
         return;
       }
 
@@ -297,7 +297,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public ContinuableScopeManager.Continuation capture() {
       return isAsyncPropagating
-          ? new SingleContinuation(scopeManager, span, source).register()
+          ? new SingleContinuation(scopeManager, span, source()).register()
           : null;
     }
 
@@ -309,7 +309,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public ContinuableScopeManager.Continuation captureConcurrent() {
       return isAsyncPropagating
-          ? new ConcurrentContinuation(scopeManager, span, source).register()
+          ? new ConcurrentContinuation(scopeManager, span, source()).register()
           : null;
     }
 
@@ -327,9 +327,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
         }
       }
 
-      if (span instanceof NoopAgentSpan) {
+      if (span.eligibleForDropping()) {
         return;
       }
+      flags |= 0x80;
 
       for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
         try {
@@ -338,6 +339,14 @@ public class ContinuableScopeManager implements AgentScopeManager {
           log.debug("ExtendedScopeListener threw exception in afterActivated()", e);
         }
       }
+    }
+
+    private byte source() {
+      return (byte) (flags & 0x7F);
+    }
+
+    private boolean notifiedOnActivate() {
+      return flags < 0;
     }
   }
 
@@ -404,6 +413,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     final AgentSpan spanUnderScope;
     final byte source;
     final AgentTrace trace;
+    protected volatile boolean migrated;
 
     public Continuation(
         ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, byte source) {
@@ -442,6 +452,9 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public AgentScope activate() {
       if (USED.compareAndSet(this, 0, 1)) {
+        if (migrated) {
+          spanUnderScope.finishThreadMigration();
+        }
         return scopeManager.handleSpan(this, spanUnderScope, source);
       } else {
         log.debug(
@@ -457,6 +470,12 @@ public class ContinuableScopeManager implements AgentScopeManager {
       } else {
         log.debug("Failed to close continuation {}. Already used.", this);
       }
+    }
+
+    @Override
+    public void migrate() {
+      this.migrated = true;
+      spanUnderScope.startThreadMigration();
     }
 
     @Override
@@ -484,10 +503,12 @@ public class ContinuableScopeManager implements AgentScopeManager {
    * way, and close the scopes without fear of closing the related {@link AgentSpan} prematurely.
    */
   private static final class ConcurrentContinuation extends Continuation {
-    private static final int START = 1;
+    private static final int START = 2;
     private static final int CLOSED = Integer.MIN_VALUE >> 1;
     private static final int BARRIER = Integer.MIN_VALUE >> 2;
+    private static final int MIGRATED = 1;
 
+    // the counter is incremented/decremented by 2 so the lsb can represent migrated status
     private volatile int count = START;
 
     private static final AtomicIntegerFieldUpdater<ConcurrentContinuation> COUNT =
@@ -501,9 +522,9 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     private boolean tryActivate() {
-      int current = COUNT.incrementAndGet(this);
+      int current = COUNT.addAndGet(this, 2);
       if (current < START) {
-        COUNT.decrementAndGet(this);
+        COUNT.addAndGet(this, -2);
       }
       return current > START;
     }
@@ -514,7 +535,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
         return false;
       }
       // Now decrement the counter
-      current = COUNT.decrementAndGet(this);
+      current = COUNT.addAndGet(this, -2);
       // Try to close this if we are between START and BARRIER
       while (current < START && current > BARRIER) {
         if (COUNT.compareAndSet(this, current, CLOSED)) {
@@ -525,9 +546,25 @@ public class ContinuableScopeManager implements AgentScopeManager {
       return false;
     }
 
+    private void tryFinishThreadMigration() {
+      // loop until the MIGRATED bit is unset on the count
+      int current;
+      do {
+        current = COUNT.get(this);
+      } while ((current & MIGRATED) == MIGRATED
+          && !COUNT.compareAndSet(this, current, current ^ MIGRATED));
+      if ((current & MIGRATED) == MIGRATED) {
+        // if the MIGRATED bit is set on the last snapshot, we
+        // must have been the one to switch it off, so can finish
+        // the thread migration here
+        spanUnderScope.finishThreadMigration();
+      }
+    }
+
     @Override
     public AgentScope activate() {
       if (tryActivate()) {
+        tryFinishThreadMigration();
         return scopeManager.handleSpan(this, spanUnderScope, source);
       } else {
         return null;
@@ -540,6 +577,17 @@ public class ContinuableScopeManager implements AgentScopeManager {
         trace.cancelContinuation(this);
       }
       log.debug("t_id={} -> canceling continuation {}", spanUnderScope.getTraceId(), this);
+    }
+
+    @Override
+    public void migrate() {
+      // loop until the MIGRATED bit has been set on the count by CAS, or by someone else
+      int snapshot;
+      do {
+        snapshot = COUNT.get(this);
+      } while ((snapshot & MIGRATED) != MIGRATED
+          && !COUNT.compareAndSet(this, snapshot, snapshot | MIGRATED));
+      spanUnderScope.startThreadMigration();
     }
 
     @Override

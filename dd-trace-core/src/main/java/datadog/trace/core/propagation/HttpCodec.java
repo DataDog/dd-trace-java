@@ -16,6 +16,10 @@ import org.slf4j.LoggerFactory;
 public class HttpCodec {
 
   private static final Logger log = LoggerFactory.getLogger(HttpCodec.class);
+  // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Forwarded
+  static final String FORWARDED_KEY = "forwarded";
+  static final String FORWARDED_PROTO_KEY = "x-forwarded-proto";
+  static final String FORWARDED_HOST_KEY = "x-forwarded-host";
   static final String FORWARDED_FOR_KEY = "x-forwarded-for";
   static final String FORWARDED_PORT_KEY = "x-forwarded-port";
 

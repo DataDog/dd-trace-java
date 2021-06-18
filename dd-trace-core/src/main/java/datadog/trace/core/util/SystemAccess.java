@@ -1,7 +1,6 @@
 package datadog.trace.core.util;
 
 import datadog.trace.api.Config;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +18,6 @@ public final class SystemAccess {
   }
 
   /** Enable JMX accesses */
-  @SuppressForbidden
   public static void enableJmx() {
     if (!Config.get().isProfilingEnabled() && !Config.get().isHealthMetricsEnabled()) {
       log.debug("Will not enable JMX access. Profiling and metrics are both disabled.");
@@ -38,7 +36,10 @@ public final class SystemAccess {
        */
       systemAccessProvider =
           (SystemAccessProvider)
-              Class.forName("datadog.trace.core.util.JmxSystemAccessProvider")
+              Class.forName(
+                      "datadog.trace.core.util.JmxSystemAccessProvider",
+                      false,
+                      SystemAccess.class.getClassLoader())
                   .getField("INSTANCE")
                   .get(null);
     } catch (final ClassNotFoundException | NoSuchFieldException | IllegalAccessException e) {

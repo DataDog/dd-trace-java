@@ -1,9 +1,7 @@
 package datadog.trace.instrumentation.springweb;
 
-import datadog.trace.api.Function;
-import datadog.trace.api.Pair;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
+import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -23,16 +21,6 @@ public class SpringWebHttpServerDecorator
 
   public static final CharSequence SPRING_HANDLER = UTF8BytesString.create("spring.handler");
   public static final CharSequence RESPONSE_RENDER = UTF8BytesString.create("response.render");
-
-  private static final Function<Pair<String, Object>, CharSequence> RESOURCE_NAME_JOINER =
-      new Function<Pair<String, Object>, CharSequence>() {
-        @Override
-        public CharSequence apply(Pair<String, Object> input) {
-          return UTF8BytesString.create(input.getLeft() + " " + input.getRight());
-        }
-      };
-  private static final DDCache<Pair<String, Object>, CharSequence> RESOURCE_NAME_CACHE =
-      DDCaches.newFixedSizeCache(64);
 
   private final CharSequence component;
 
@@ -96,24 +84,9 @@ public class SpringWebHttpServerDecorator
       final Object bestMatchingPattern =
           request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
       if (method != null && bestMatchingPattern != null && !bestMatchingPattern.equals("/**")) {
-        // universal matching is not helpful (and prevents 404 renaming in URLAsResourceNameRule).
-        final CharSequence resourceName =
-            RESOURCE_NAME_CACHE.computeIfAbsent(
-                Pair.of(method, bestMatchingPattern), RESOURCE_NAME_JOINER);
-        span.setResourceName(resourceName);
+        ROUTE_HANDLER_DECORATOR.withRoute(span, method, bestMatchingPattern.toString());
       }
     }
-    return span;
-  }
-
-  @Override
-  public AgentSpan onResponse(AgentSpan span, HttpServletResponse response) {
-    super.onResponse(span, response);
-
-    if (status(response) == 404) {
-      span.setResourceName("404");
-    }
-
     return span;
   }
 

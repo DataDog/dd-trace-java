@@ -684,6 +684,70 @@ public enum JDBCConnectionUrlParser {
       }
       return builder.instance(instance);
     }
+  },
+
+  /** http://jtds.sourceforge.net/faq.html#urlFormat */
+  JTDS("jtds") {
+    private static final String DEFAULT_HOST = "localhost";
+    private static final int DEFAULT_SQL_SERVER_PORT = 1433;
+    private static final int DEFAULT_SYBASE_PORT = 7100;
+
+    @Override
+    DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
+      final DBInfo dbInfo = builder.build();
+
+      final int protoLoc = jdbcUrl.indexOf("://");
+      final int typeEndLoc = dbInfo.getType().length();
+      final String subtype = jdbcUrl.substring(typeEndLoc + 1, protoLoc);
+
+      builder.subtype(subtype);
+
+      if ("sqlserver".equals(subtype)) {
+        if (dbInfo.getPort() == null) {
+          builder.port(DEFAULT_SQL_SERVER_PORT);
+        }
+      } else if ("sybase".equals(subtype)) {
+        if (dbInfo.getPort() == null) {
+          builder.port(DEFAULT_SYBASE_PORT);
+        }
+      }
+
+      final String details = jdbcUrl.substring(protoLoc + "://".length());
+
+      final int hostEndLoc;
+      final int portLoc = details.indexOf(':', typeEndLoc + 1);
+      final int dbLoc = details.indexOf('/', typeEndLoc);
+      final int paramLoc = details.indexOf(';', dbLoc);
+
+      if (paramLoc > 0) {
+        populateStandardProperties(builder, splitQuery(details.substring(paramLoc + 1), ';'));
+        if (dbLoc > 0) {
+          builder.db(details.substring(dbLoc + 1, paramLoc));
+        }
+      } else {
+        if (dbLoc > 0) {
+          builder.db(details.substring(dbLoc + 1));
+        }
+      }
+
+      if (portLoc > 0) {
+        hostEndLoc = portLoc;
+        try {
+          builder.port(Integer.parseInt(details.substring(portLoc + 1, dbLoc)));
+        } catch (final NumberFormatException e) {
+        }
+      } else if (dbLoc > 0) {
+        hostEndLoc = dbLoc;
+      } else if (paramLoc > 0) {
+        hostEndLoc = paramLoc;
+      } else {
+        hostEndLoc = details.length();
+      }
+
+      builder.host(details.substring(0, hostEndLoc));
+
+      return builder;
+    }
   };
 
   private static final Map<String, JDBCConnectionUrlParser> typeParsers = new HashMap<>();

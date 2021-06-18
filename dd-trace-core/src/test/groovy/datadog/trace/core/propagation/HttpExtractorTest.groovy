@@ -56,7 +56,11 @@ class HttpExtractorTest extends DDSpecification {
     }
 
     if (expectDatadogFields) {
-      assert context.tags == ["some-tag": "my-interesting-info"]
+      if (tagContext) {
+        assert context.tags == ["b3.traceid": b3TraceId, "b3.spanid": b3SpanId, "some-tag": "my-interesting-info"]
+      } else {
+        assert context.tags == ["some-tag": "my-interesting-info"]
+      }
     }
 
     where:

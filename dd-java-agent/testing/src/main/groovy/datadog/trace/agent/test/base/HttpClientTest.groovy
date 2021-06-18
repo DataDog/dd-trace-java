@@ -541,9 +541,6 @@ abstract class HttpClientTest extends AgentTestRunner {
         }
         defaultTags()
       }
-      metrics {
-        defaultMetrics()
-      }
     }
   }
 

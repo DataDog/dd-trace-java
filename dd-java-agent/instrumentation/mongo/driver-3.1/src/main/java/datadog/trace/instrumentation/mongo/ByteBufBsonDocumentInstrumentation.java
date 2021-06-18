@@ -12,7 +12,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.bson.BsonDocument;
@@ -37,8 +36,8 @@ public class ByteBufBsonDocumentInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(isConstructor(), getClass().getName() + "$ExposeBuffer");
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(isConstructor(), getClass().getName() + "$ExposeBuffer");
   }
 
   public static final class ExposeBuffer {

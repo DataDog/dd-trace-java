@@ -77,9 +77,6 @@ class OpenTelemetryTest extends AgentTestRunner {
             }
             defaultTags()
           }
-          metrics {
-            defaultMetrics()
-          }
         }
       }
     }
@@ -124,9 +121,6 @@ class OpenTelemetryTest extends AgentTestRunner {
             errorTags(exception.class)
             defaultTags()
           }
-          metrics {
-            defaultMetrics()
-          }
         }
       }
     }
@@ -139,10 +133,10 @@ class OpenTelemetryTest extends AgentTestRunner {
     setup:
     def builder = tracer.spanBuilder("some name")
     if (parentId) {
-      builder.setParent(tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(parentId), 0, null, null, null, [:], [:])))
+      builder.setParent(tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(parentId), 0, null, null, null, null, null, null, [:], [:])))
     }
     if (linkId) {
-      builder.addLink(tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(linkId), 0, null, null, null, [:], [:])))
+      builder.addLink(tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(linkId), 0, null, null, null, null, null, null, [:], [:])))
     }
     def result = builder.startSpan()
 
@@ -169,9 +163,6 @@ class OpenTelemetryTest extends AgentTestRunner {
           errored false
           tags {
             defaultTags(expectedId != null)
-          }
-          metrics {
-            defaultMetrics()
           }
         }
       }
@@ -219,6 +210,7 @@ class OpenTelemetryTest extends AgentTestRunner {
     tracer.currentSpan.delegate == secondScope.delegate.span()
     1 * STATS_D_CLIENT.incrementCounter("scope.close.error")
     1 * STATS_D_CLIENT.incrementCounter("scope.user.close.error")
+    _ * TEST_CHECKPOINTER._
     0 * _
 
     when:
@@ -227,6 +219,7 @@ class OpenTelemetryTest extends AgentTestRunner {
 
     then:
     tracer.currentSpan == null
+    _ * TEST_CHECKPOINTER._
     0 * _
   }
 

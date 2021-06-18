@@ -54,10 +54,16 @@ class FootprintTest extends DDSpecification {
       boolean isError = ThreadLocalRandom.current().nextInt(traceCount) < errorThreshold
       aggregator.publish([
         new SimpleSpan(serviceName, operation, resourceName, type, true, true, isError, System.nanoTime(),
-        isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01))
+        isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01), 200)
       ])
     }
-    aggregator.report()
+    if (!aggregator.report()) {
+      int attempts = 0
+      while (++attempts < 10 && !aggregator.report()) {
+        Thread.sleep(10)
+      }
+      assert attempts < 10
+    }
     assert latch.await(30, SECONDS)
 
     then:

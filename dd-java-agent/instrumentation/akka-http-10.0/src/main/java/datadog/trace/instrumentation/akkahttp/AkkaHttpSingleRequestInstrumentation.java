@@ -17,10 +17,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.Future;
@@ -48,18 +45,16 @@ public final class AkkaHttpSingleRequestInstrumentation extends Instrumenter.Tra
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+  public void adviceTransformations(AdviceTransformation transformation) {
     // This is mainly for compatibility with 10.0
-    transformers.put(
+    transformation.applyAdvice(
         named("singleRequest").and(takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))),
         AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice");
     // This is for 10.1+
-    transformers.put(
+    transformation.applyAdvice(
         named("singleRequestImpl")
             .and(takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))),
         AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice");
-    return transformers;
   }
 
   public static class SingleRequestAdvice {

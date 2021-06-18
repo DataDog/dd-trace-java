@@ -1,5 +1,9 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
+
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -168,14 +172,20 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public DDSpan addThrowable(final Throwable error) {
-    setError(true);
+    String message = error.getMessage();
+    if (!"broken pipe".equalsIgnoreCase(message)) {
+      // broken pipes happen when clients abort connections,
+      // which might happen because the application is overloaded
+      // or warming up - capturing the stack trace and keeping
+      // the trace may exacerbate existing problems.
+      setError(true);
+      final StringWriter errorString = new StringWriter();
+      error.printStackTrace(new PrintWriter(errorString));
+      setTag(DDTags.ERROR_STACK, errorString.toString());
+    }
 
-    setTag(DDTags.ERROR_MSG, error.getMessage());
+    setTag(DDTags.ERROR_MSG, message);
     setTag(DDTags.ERROR_TYPE, error.getClass().getName());
-
-    final StringWriter errorString = new StringWriter();
-    error.printStackTrace(new PrintWriter(errorString));
-    setTag(DDTags.ERROR_STACK, errorString.toString());
 
     return this;
   }
@@ -194,6 +204,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public DDSpan setTag(final String tag, final int value) {
+    // can't use tag interceptor because it might set a metric
+    // http.status is important because it is expected to be a string downstream
+    if (HTTP_STATUS.equals(tag)) {
+      context.setHttpStatusCode((short) value);
+    }
     context.setTag(tag, value);
     return this;
   }
@@ -287,6 +302,17 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
+  public AgentSpan setHttpStatusCode(int statusCode) {
+    context.setHttpStatusCode((short) statusCode);
+    return this;
+  }
+
+  @Override
+  public short getHttpStatusCode() {
+    return context.getHttpStatusCode();
+  }
+
+  @Override
   public final DDSpan setOperationName(final CharSequence operationName) {
     context.setOperationName(operationName);
     return this;
@@ -302,6 +328,27 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   public final DDSpan setResourceName(final CharSequence resourceName) {
     context.setResourceName(resourceName);
     return this;
+  }
+
+  @Override
+  public boolean eligibleForDropping() {
+    int samplingPriority = context.getSamplingPriority();
+    return samplingPriority == USER_DROP || samplingPriority == SAMPLER_DROP;
+  }
+
+  @Override
+  public void startThreadMigration() {
+    context.getTracer().onStartThreadMigration(this);
+  }
+
+  @Override
+  public void finishThreadMigration() {
+    context.getTracer().onFinishThreadMigration(this);
+  }
+
+  @Override
+  public void finishWork() {
+    context.getTracer().onFinishWork(this);
   }
 
   /**
@@ -330,16 +377,6 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   // Getters
-
-  /**
-   * Span metrics.
-   *
-   * @return metrics for this span
-   */
-  @Override
-  public Map<CharSequence, Number> getUnsafeMetrics() {
-    return context.getUnsafeMetrics();
-  }
 
   @Override
   public long getStartTime() {

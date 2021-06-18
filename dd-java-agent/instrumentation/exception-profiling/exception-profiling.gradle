@@ -12,10 +12,10 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
 dependencies {
-  testCompile deps.junit5
-  testCompile deps.jmc
-  testCompile deps.commonsMath
-  testCompile deps.mockito
+  testImplementation deps.junit5
+  testImplementation deps.jmc
+  testImplementation deps.commonsMath
+  testImplementation deps.mockito
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_7

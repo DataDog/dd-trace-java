@@ -2,7 +2,6 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
@@ -62,7 +61,7 @@ public class DDAgentWriter implements Writer {
   public static class DDAgentWriterBuilder {
     String agentHost = DEFAULT_AGENT_HOST;
     int traceAgentPort = DEFAULT_TRACE_AGENT_PORT;
-    String unixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
+    String unixDomainSocket = null;
     long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
     int traceBufferSize = BUFFER_SIZE;
     HealthMetrics healthMetrics = new HealthMetrics(StatsDClient.NO_OP);
@@ -195,7 +194,6 @@ public class DDAgentWriter implements Writer {
         new TraceProcessingWorker(
             traceBufferSize,
             healthMetrics,
-            monitoring,
             dispatcher,
             featureDiscovery,
             null == prioritization ? FAST_LANE : prioritization,

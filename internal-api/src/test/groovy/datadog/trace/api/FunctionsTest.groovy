@@ -1,7 +1,12 @@
 package datadog.trace.api
 
+import constructors.InaccessibleConstructor
+import constructors.NoDefaultConstructor
+import constructors.ThrowingConstructor
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
+
+import java.util.concurrent.ConcurrentHashMap
 
 class FunctionsTest extends DDSpecification {
 
@@ -35,5 +40,41 @@ class FunctionsTest extends DDSpecification {
     UTF8BytesString utf8 = Functions.UTF8_ENCODE.apply("foo")
     then:
     utf8.toString() == "foo"
+  }
+
+  def "test construct"() {
+    when:
+    Function<?, ConcurrentHashMap> func = Functions.newInstanceOf(ConcurrentHashMap)
+    then:
+    func.apply("") instanceof ConcurrentHashMap
+  }
+
+  def "test bad input"() {
+    when: "no default constructor"
+    Functions.newInstanceOf(NoDefaultConstructor)
+    then:
+    thrown IllegalStateException
+
+    when: "inaccessible"
+    Functions.newInstanceOf(InaccessibleConstructor)
+    then:
+    thrown IllegalStateException
+
+    when: "will throw"
+    def func = Functions.newInstanceOf(ThrowingConstructor)
+    then:
+    null == func.apply("")
+  }
+
+  def "test create path based resource name"() {
+    when:
+    UTF8BytesString resourceName = Functions.PATH_BASED_RESOURCE_NAME.apply(Pair.of(method, path))
+    then:
+    resourceName as String == expected
+    where:
+    method | path    | expected
+    "GET"  | "/"     | "GET /"
+    "GET"  | "/path" | "GET /path"
+    null   | "/path" | "/path"
   }
 }

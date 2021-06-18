@@ -39,11 +39,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -76,11 +74,9 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    // We want the advice applied in a specific order, so use an ordered map.
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers =
-        new LinkedHashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    // We want the advice applied in a specific order.
+    transformation.applyAdvice(
         isMethod()
             .and(
                 not(
@@ -92,19 +88,18 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
             .and(isPublic())
             .and(canThrow(IOException.class).or(canThrow(InterruptedException.class))),
         RabbitChannelInstrumentation.class.getName() + "$ChannelMethodAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod().and(named("basicPublish")).and(takesArguments(6)),
         RabbitChannelInstrumentation.class.getName() + "$ChannelPublishAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod().and(named("basicGet")).and(takesArgument(0, String.class)),
         RabbitChannelInstrumentation.class.getName() + "$ChannelGetAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("basicConsume"))
             .and(takesArgument(0, String.class))
             .and(takesArgument(6, named("com.rabbitmq.client.Consumer"))),
         RabbitChannelInstrumentation.class.getName() + "$ChannelConsumeAdvice");
-    return transformers;
   }
 
   public static class ChannelMethodAdvice {

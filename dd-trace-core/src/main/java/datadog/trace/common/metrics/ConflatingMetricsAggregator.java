@@ -13,7 +13,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.util.AgentTaskScheduler;
@@ -21,8 +20,8 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import org.jctools.maps.NonBlockingHashMap;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.jctools.queues.SpmcArrayQueue;
 import org.slf4j.Logger;
@@ -35,14 +34,12 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private static final DDCache<String, UTF8BytesString> SERVICE_NAMES =
       DDCaches.newFixedSizeCache(32);
 
-  private static final Integer ZERO = 0;
-
   static final Batch POISON_PILL = Batch.NULL;
 
   private final Set<String> ignoredResources;
   private final Queue<Batch> batchPool;
-  private final ConcurrentHashMap<MetricKey, Batch> pending;
-  private final ConcurrentHashMap<MetricKey, MetricKey> keys;
+  private final NonBlockingHashMap<MetricKey, Batch> pending;
+  private final NonBlockingHashMap<MetricKey, MetricKey> keys;
   private final Thread thread;
   private final BlockingQueue<Batch> inbox;
   private final Sink sink;
@@ -103,8 +100,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.ignoredResources = ignoredResources;
     this.inbox = new MpscBlockingConsumerArrayQueue<>(queueSize);
     this.batchPool = new SpmcArrayQueue<>(maxAggregates);
-    this.pending = new ConcurrentHashMap<>(maxAggregates * 4 / 3, 0.75f);
-    this.keys = new ConcurrentHashMap<>();
+    this.pending = new NonBlockingHashMap<>(maxAggregates * 4 / 3);
+    this.keys = new NonBlockingHashMap<>();
     this.sink = sink;
     this.aggregator =
         new Aggregator(
@@ -139,13 +136,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   @Override
-  public void report() {
+  public boolean report() {
     boolean published;
     int attempts = 0;
     do {
       published = inbox.offer(REPORT);
       ++attempts;
     } while (!published && attempts < 10);
+    return published;
   }
 
   @Override
@@ -173,7 +171,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             SERVICE_NAMES.computeIfAbsent(span.getServiceName(), UTF8_ENCODE),
             span.getOperationName(),
             span.getType(),
-            span.getTag(Tags.HTTP_STATUS, ZERO));
+            span.getHttpStatusCode());
     boolean isNewKey = false;
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {

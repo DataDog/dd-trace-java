@@ -13,11 +13,9 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import javax.ws.rs.container.AsyncResponse;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -54,23 +52,20 @@ public final class JaxRsAsyncResponseInstrumentation extends Instrumenter.Tracin
       "datadog.trace.agent.tooling.ClassHierarchyIterable",
       "datadog.trace.agent.tooling.ClassHierarchyIterable$ClassIterator",
       packageName + ".JaxRsAnnotationsDecorator",
-      packageName + ".JaxRsAnnotationsDecorator$1",
     };
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("resume").and(takesArgument(0, Object.class)).and(isPublic()),
         JaxRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("resume").and(takesArgument(0, Throwable.class)).and(isPublic()),
         JaxRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseThrowableAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("cancel"),
         JaxRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseCancelAdvice");
-    return transformers;
   }
 
   public static class AsyncResponseAdvice {

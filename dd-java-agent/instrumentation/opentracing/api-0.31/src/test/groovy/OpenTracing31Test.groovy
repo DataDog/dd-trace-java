@@ -31,7 +31,7 @@ class OpenTracing31Test extends AgentTestRunner {
         .withTag("boolean", true)
     }
     if (addReference) {
-      builder.addReference(addReference, tracer.tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(2), 0, null, null, null, [:], [:])))
+      builder.addReference(addReference, tracer.tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(2), 0, null, null, null, null, null, null, [:], [:])))
     }
     def result = builder.start()
     if (tagSpan) {
@@ -93,9 +93,6 @@ class OpenTracing31Test extends AgentTestRunner {
               errorTags(exception.class)
             }
             defaultTags(addReference != null)
-          }
-          metrics {
-            defaultMetrics()
           }
         }
       }
@@ -233,6 +230,7 @@ class OpenTracing31Test extends AgentTestRunner {
     tracer.scopeManager().active().delegate == secondScope.delegate
     1 * STATS_D_CLIENT.incrementCounter("scope.close.error")
     1 * STATS_D_CLIENT.incrementCounter("scope.user.close.error")
+    _ * TEST_CHECKPOINTER._
     0 * _
 
     when:

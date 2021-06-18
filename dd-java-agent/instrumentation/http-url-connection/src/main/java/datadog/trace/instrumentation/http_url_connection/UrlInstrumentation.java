@@ -5,13 +5,13 @@ import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import datadog.trace.api.normalize.PathNormalizer;
 import datadog.trace.bootstrap.InternalJarURLHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,9 +19,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URL;
 import java.net.URLStreamHandler;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -40,8 +38,8 @@ public class UrlInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("openConnection")),
         UrlInstrumentation.class.getName() + "$ConnectionErrorAdvice");
   }
@@ -79,6 +77,9 @@ public class UrlInstrumentation extends Instrumenter.Tracing {
           span.setTag(Tags.PEER_HOSTNAME, host);
           if (Config.get().isHttpClientSplitByDomain() && null != host && !host.isEmpty()) {
             span.setServiceName(host);
+          }
+          if (!span.hasResourceName()) {
+            span.setResourceName(PathNormalizer.normalize(url.getPath()));
           }
 
           span.setError(true);

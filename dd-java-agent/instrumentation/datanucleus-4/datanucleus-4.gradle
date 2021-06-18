@@ -47,7 +47,7 @@ def datanucleusVersion = '4.0.5'
 // LatestDepTest can't be used because the enhancer class generates incompatible code
 // Specifically, org.datanucleus.enhancer.Persistable changes package
 // Only one version can be set as the script classpath in the 'buildScript' block
-task enhance {
+tasks.register('enhance') {
   doLast {
     def outputUrls = (sourceSets.test.output.classesDirs.files + sourceSets.test.output.resourcesDir)
       .collect { it.toURI().toURL() } as URL[]
@@ -61,11 +61,11 @@ task enhance {
     enhancer.enhance()
   }
 
-  dependsOn testClasses
+  dependsOn "testClasses"
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn enhance
+  dependsOn "enhance"
 }
 
 dependencies {
@@ -73,10 +73,10 @@ dependencies {
   compileOnly group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: datanucleusVersion
   compileOnly group: 'org.datanucleus', name: 'javax.jdo', version: '3.2.0-m1'
 
-  testCompile project(':dd-java-agent:instrumentation:jdbc')
-  testCompile group: 'org.datanucleus', name: 'datanucleus-core', version: datanucleusVersion
-  testCompile group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: datanucleusVersion
-  testCompile group: 'org.datanucleus', name: 'datanucleus-rdbms', version: datanucleusVersion
-  testCompile group: 'org.datanucleus', name: 'javax.jdo', version: '3.2.0-m1'
-  testCompile group: 'com.h2database', name: 'h2', version: '1.3.169'
+  testImplementation project(':dd-java-agent:instrumentation:jdbc')
+  testImplementation group: 'org.datanucleus', name: 'datanucleus-core', version: datanucleusVersion
+  testImplementation group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: datanucleusVersion
+  testImplementation group: 'org.datanucleus', name: 'datanucleus-rdbms', version: datanucleusVersion
+  testImplementation group: 'org.datanucleus', name: 'javax.jdo', version: '3.2.0-m1'
+  testImplementation group: 'com.h2database', name: 'h2', version: '1.3.169'
 }

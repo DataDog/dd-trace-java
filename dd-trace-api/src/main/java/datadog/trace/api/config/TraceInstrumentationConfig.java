@@ -20,6 +20,7 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_TESTS_ENABLED = "trace.tests.enabled";
 
   public static final String HTTP_SERVER_TAG_QUERY_STRING = "http.server.tag.query-string";
+  public static final String HTTP_SERVER_ROUTE_BASED_NAMING = "http.server.route-based-naming";
   public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";
   public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN = "trace.http.client.split-by-domain";
   public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE = "trace.db.client.split-by-instance";
@@ -42,12 +43,16 @@ public final class TraceInstrumentationConfig {
       "kafka.client.base64.decoding.enabled";
 
   public static final String GRPC_IGNORED_OUTBOUND_METHODS = "trace.grpc.ignored.outbound.methods";
+  public static final String GRPC_SERVER_TRIM_PACKAGE_RESOURCE =
+      "trace.grpc.server.trim-package-resource";
   public static final String HYSTRIX_TAGS_ENABLED = "hystrix.tags.enabled";
   public static final String HYSTRIX_MEASURED_ENABLED = "hystrix.measured.enabled";
 
   public static final String IGNITE_CACHE_INCLUDE_KEYS = "ignite.cache.include_keys";
 
   public static final String OSGI_SEARCH_DEPTH = "osgi.search.depth";
+
+  public static final String PLAY_REPORT_HTTP_STATUS = "trace.play.report-http-status";
 
   public static final String SERVLET_PRINCIPAL_ENABLED = "trace.servlet.principal.enabled";
   public static final String SERVLET_ASYNC_TIMEOUT_ERROR = "trace.servlet.async-timeout.error";

@@ -15,15 +15,22 @@
  */
 package com.datadog.profiling.controller.openjdk;
 
+import static datadog.trace.api.Platform.isJavaVersion;
+import static datadog.trace.api.Platform.isJavaVersionAtLeast;
+
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.jfr.JfpUtils;
+import com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent;
 import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Map;
 import jdk.jfr.Recording;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is the implementation of the controller for OpenJDK. It should work for JDK 11+ today, and
@@ -33,6 +40,8 @@ import jdk.jfr.Recording;
 public final class OpenJdkController implements Controller {
   static final int RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
   static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
+
+  private static final Logger log = LoggerFactory.getLogger(OpenJdkController.class);
 
   private final Map<String, String> recordingSettings;
 
@@ -49,12 +58,29 @@ public final class OpenJdkController implements Controller {
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
     try {
-      recordingSettings =
+      final Map<String, String> recordingSettings =
           JfpUtils.readNamedJfpResource(
               JfpUtils.DEFAULT_JFP, config.getProfilingTemplateOverrideFile());
+
+      // Toggle settings based on JDK version
+      if (Boolean.parseBoolean(recordingSettings.get("jdk.OldObjectSample#enabled"))) {
+        if (!((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
+            || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
+            || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
+            || isJavaVersionAtLeast(17))) {
+          log.debug(
+              "Inexpensive live object profiling is not supported for this JDK. Disabling OldObjectSample JFR event.");
+          recordingSettings.put("jdk.OldObjectSample#enabled", "false");
+        }
+      }
+
+      this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
+
+    // Register periodic events
+    AvailableProcessorCoresEvent.register();
   }
 
   @Override

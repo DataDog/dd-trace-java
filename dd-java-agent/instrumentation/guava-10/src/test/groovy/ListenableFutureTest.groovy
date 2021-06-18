@@ -1,3 +1,4 @@
+import com.google.common.base.Function
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
@@ -17,7 +18,7 @@ class ListenableFutureTest extends AbstractPromiseTest<SettableFuture<Boolean>, 
 
   @Override
   ListenableFuture<String> map(SettableFuture<Boolean> promise, Closure<String> callback) {
-    return Futures.transform(promise, callback, executor)
+    return Futures.transform(promise, (Function) callback, executor)
   }
 
   @Override

@@ -18,15 +18,15 @@ minimumInstructionCoverage = 0.7
 excludedClassesCoverage += ['com.datadog.profiling.controller.oracle.JdkTypeIDs_8']
 
 dependencies {
-  compile deps.slf4j
-  compile project(':internal-api')
-  compile project(':dd-java-agent:agent-profiling:profiling-controller')
-  compile project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
+  api deps.slf4j
+  api project(':internal-api')
+  api project(':dd-java-agent:agent-profiling:profiling-controller')
+  api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
 
-  testCompile deps.junit5
-  testCompile deps.mockito
-  testCompile group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
-  testCompile files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
+  testImplementation files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
 }
 
 // make sure the code is compiled to Java 8 bytecode
@@ -34,12 +34,12 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
 // Oracle JDK requires extra JVM arguments to enable JFR
-tasks.withType(Test).all {
-  it.onlyIf {
+tasks.withType(Test).configureEach {
+  onlyIf {
     it.name.contains('ORACLE8')
   }
 
-  it.jvmArgs += [
+  jvmArgs += [
     "-XX:+IgnoreUnrecognizedVMOptions",
     "-XX:+UnlockCommercialFeatures",
     "-XX:+FlightRecorder"

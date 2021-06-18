@@ -9,7 +9,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.http.AbstractGenerator;
@@ -36,8 +35,8 @@ public final class JettyGeneratorInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("setResponse").and(takesArgument(0, int.class)),
         JettyGeneratorInstrumentation.class.getName() + "$SetResponseAdvice");
   }

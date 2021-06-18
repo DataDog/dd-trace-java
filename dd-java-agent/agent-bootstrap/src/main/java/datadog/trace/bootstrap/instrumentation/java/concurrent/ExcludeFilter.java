@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import datadog.trace.api.Function;
+import datadog.trace.api.GenericClassValue;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -17,8 +19,6 @@ public class ExcludeFilter {
 
   public enum ExcludeType {
     RUNNABLE,
-    CALLABLE,
-    FUTURE,
     FORK_JOIN_TASK,
     RUNNABLE_FUTURE,
     EXECUTOR;
@@ -27,14 +27,12 @@ public class ExcludeFilter {
       switch (typeName) {
         case "java.lang.Runnable":
           return RUNNABLE;
-        case "java.util.concurrent.Callable":
-          return CALLABLE;
-        case "java.util.concurrent.Future":
-          return FUTURE;
         case "java.util.concurrent.ForkJoinTask":
           return FORK_JOIN_TASK;
         case "java.util.concurrent.RunnableFuture":
           return RUNNABLE_FUTURE;
+        case "java.util.concurrent.Executor":
+          return EXECUTOR;
         default:
           return null;
       }
@@ -65,26 +63,32 @@ public class ExcludeFilter {
     return false;
   }
 
-  private static final ClassValue<EnumSet<ExcludeType>> SKIP =
-      new ClassValue<EnumSet<ExcludeType>>() {
-        @Override
-        protected EnumSet<ExcludeType> computeValue(Class<?> clazz) {
-          EnumSet<ExcludeType> skipTypes = EnumSet.noneOf(ExcludeType.class);
-          String name = clazz.getName();
-          for (ExcludeType type : SKIP_TYPE_VALUES) {
-            if (exclude(type, name)) {
-              skipTypes.add(type);
-            } else {
-              for (String prefix : SKIP_TYPE_PREFIXES.get(type)) {
-                if (name.startsWith(prefix)) {
-                  skipTypes.add(type);
-                }
-              }
-            }
+  private static EnumSet<ExcludeType> exclude(Class<?> clazz) {
+    EnumSet<ExcludeType> skipTypes = EnumSet.noneOf(ExcludeType.class);
+    String name = clazz.getName();
+    for (ExcludeType type : SKIP_TYPE_VALUES) {
+      if (exclude(type, name)) {
+        skipTypes.add(type);
+      } else {
+        for (String prefix : SKIP_TYPE_PREFIXES.get(type)) {
+          if (name.startsWith(prefix)) {
+            skipTypes.add(type);
           }
-          return skipTypes;
         }
-      };
+      }
+    }
+    return skipTypes;
+  }
+
+  private static final ClassValue<EnumSet<ExcludeType>> SKIP =
+      GenericClassValue.of(
+          new Function<Class<?>, EnumSet<ExcludeType>>() {
+            // FIXME replace with Method Reference
+            @Override
+            public EnumSet<ExcludeType> apply(Class<?> input) {
+              return exclude(input);
+            }
+          });
 
   private static final EnumMap<ExcludeType, Set<String>> excludedClassNames =
       new EnumMap<>(ExcludeType.class);

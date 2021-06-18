@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.ci.git;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitObject.COMMIT_TYPE;
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitObject.TAG_TYPE;
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitObject.UNKNOWN_TYPE;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.author;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.commitMessage;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.committer;
@@ -9,14 +12,23 @@ import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.lastI
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.nextLF;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.parseLongBase10;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.parseTimeZoneOffset;
+import static datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackObject.NOT_FOUND_SHA_INDEX;
+import static datadog.trace.bootstrap.instrumentation.ci.git.pack.VersionedPackGitInfoExtractor.SIZE_INDEX;
+import static datadog.trace.bootstrap.instrumentation.ci.git.pack.VersionedPackGitInfoExtractor.TYPE_INDEX;
 
+import datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackObject;
+import datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackUtils;
+import datadog.trace.bootstrap.instrumentation.ci.git.pack.V2PackGitInfoExtractor;
+import datadog.trace.bootstrap.instrumentation.ci.git.pack.VersionedPackGitInfoExtractor;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
@@ -30,10 +42,10 @@ import java.util.zip.Inflater;
  */
 public class LocalFSGitInfoExtractor implements GitInfoExtractor {
 
-  private static final int TYPE_INDEX = 0;
-  private static final int SIZE_INDEX = 1;
-
   private static final int SHA_INDEX = 1;
+
+  private static final VersionedPackGitInfoExtractor V2_PACK_GIT_INFO_EXTRACTOR =
+      new V2PackGitInfoExtractor();
 
   /**
    * Extracts all git information available from the HEAD
@@ -111,20 +123,75 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     final String folder = sha.substring(0, 2);
     final String filename = sha.substring(2);
     final File gitObjectFile = Paths.get(gitFolder, "objects", folder, filename).toFile();
-    if (!gitObjectFile.exists()) {
+
+    final GitObject gitObject;
+    if (gitObjectFile.exists()) {
+      final byte[] deflatedBytes = Files.readAllBytes(gitObjectFile.toPath());
+      gitObject = buildGitObject(deflatedBytes);
+    } else {
+      final GitPackObject gitPackObject = readPackObject(gitFolder, sha);
+      gitObject = buildGitObject(gitPackObject);
+    }
+
+    if (gitObject == null) {
       return CommitInfo.NOOP;
     }
 
-    final byte[] deflatedBytes = Files.readAllBytes(gitObjectFile.toPath());
-    // Decompress (inflate) the Git object.
-    final GitObject gitObject = inflateGitObject(deflatedBytes);
     return parseCommit(gitFolder, sha, gitObject);
   }
+
+  private GitPackObject readPackObject(final String gitFolder, final String sha)
+      throws IOException {
+    final File packFolder = Paths.get(gitFolder, "objects", "pack").toFile();
+    final File[] idxFiles =
+        packFolder.listFiles(
+            new FilenameFilter() {
+              @Override
+              public boolean accept(final File dir, final String name) {
+                return name.endsWith(".idx");
+              }
+            });
+
+    if (idxFiles == null) {
+      return null;
+    }
+
+    short packVersion = 0;
+    for (final File idxFile : idxFiles) {
+      // We assume that if an IDX file has a certain version, the rest of IDXs file will be based on
+      // the same version.
+      if (packVersion == 0) {
+        packVersion = GitPackUtils.extractGitPackVersion(idxFile);
+      }
+
+      final VersionedPackGitInfoExtractor gitPackExtractor = lookupExtractor(packVersion);
+      if (gitPackExtractor == null) {
+        break;
+      }
+
+      final GitPackObject packObj =
+          gitPackExtractor.extract(idxFile, GitPackUtils.getPackFile(idxFile), sha);
+      if (packObj.raisedError()) {
+        // If an error is raised, we don't want to continue checking the next packfiles.
+        return null;
+      }
+
+      if (packObj.getShaIndex() == NOT_FOUND_SHA_INDEX) {
+        // If the commit sha has not been found in this idx file, continue with the next one.
+        continue;
+      }
+
+      return packObj;
+    }
+    return null;
+  }
+
+  private static final Pattern SPACE_PATTERN = Pattern.compile(" ");
 
   private CommitInfo parseCommit(
       final String gitFolder, final String sha, final GitObject gitObject)
       throws IOException, DataFormatException {
-    if ("tag".equalsIgnoreCase(gitObject.getType())) {
+    if (gitObject.getType() == TAG_TYPE) {
       // If the Git object is a tag, we need to read which sha is being referenced within the tag
       // object content.
 
@@ -139,7 +206,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
 
       // Here, objectSha = "object $sha1". E.g: "object 44c242675ddf69b7b1f440b4a5d8d24e908d8bef"
       // Split by " " and get the sha in the second position of the array
-      final String[] objectShaChunks = objectSha.split(" ");
+      final String[] objectShaChunks = SPACE_PATTERN.split(objectSha);
       if (objectShaChunks.length < 2) {
         return CommitInfo.NOOP;
       }
@@ -147,7 +214,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       final String innerSha = objectShaChunks[SHA_INDEX];
       return findCommit(gitFolder, innerSha);
 
-    } else if (!"commit".equalsIgnoreCase(gitObject.getType())) {
+    } else if (gitObject.getType() != COMMIT_TYPE) {
       return CommitInfo.NOOP;
     }
 
@@ -159,21 +226,12 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     return new CommitInfo(sha, author, committer, fullMessage);
   }
 
-  private GitObject inflateGitObject(final byte[] bytes) throws DataFormatException {
-    try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-
-      // Git objects are compressed with ZLib.
-      // We need to decompress it using Inflater.
-      final Inflater ifr = new Inflater();
-      ifr.setInput(bytes);
-
-      final byte[] tmp = new byte[4 * 1024];
-      while (!ifr.finished()) {
-        final int size = ifr.inflate(tmp);
-        baos.write(tmp, 0, size);
+  private GitObject buildGitObject(final byte[] compressedBytes) {
+    try {
+      final byte[] decompressed = inflate(compressedBytes);
+      if (decompressed == null) {
+        return GitObject.NOOP;
       }
-
-      final byte[] decompressed = baos.toByteArray();
 
       // The ((byte) 0) separates the metadata and the content
       // in the decompressed git object.
@@ -190,7 +248,7 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       // ((byte)32)
       // metadata[0] contains the type (e.g. commit)
       // metadata[1] contains the size (e.g. 261)
-      final String[] metadata = new String(metadataBytes).split(" ");
+      final String[] metadata = SPACE_PATTERN.split(new String(metadataBytes));
       if (metadata.length != 2) {
         // Unexpected metadata format.
         return GitObject.NOOP;
@@ -200,9 +258,58 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       final byte[] content =
           Arrays.copyOfRange(decompressed, separatorIndex + 1, decompressed.length);
 
-      return new GitObject(metadata[TYPE_INDEX], Integer.parseInt(metadata[SIZE_INDEX]), content);
-    } catch (final IOException e) {
+      return new GitObject(
+          typeToByte(metadata[TYPE_INDEX]), Integer.parseInt(metadata[SIZE_INDEX]), content);
+    } catch (final DataFormatException ex) {
       return GitObject.NOOP;
+    }
+  }
+
+  private GitObject buildGitObject(final GitPackObject gitPackObject) {
+    if (gitPackObject == null) {
+      return GitObject.NOOP;
+    }
+
+    try {
+      final byte[] decompressed = inflate(gitPackObject.getDeflatedContent());
+      if (decompressed == null) {
+        return GitObject.NOOP;
+      }
+
+      return new GitObject(gitPackObject.getType(), decompressed.length, decompressed);
+    } catch (final DataFormatException ex) {
+      return GitObject.NOOP;
+    }
+  }
+
+  private static byte typeToByte(final String type) {
+    switch (type) {
+      case "commit":
+        return COMMIT_TYPE;
+      case "tag":
+        return TAG_TYPE;
+      default:
+        return UNKNOWN_TYPE;
+    }
+  }
+
+  private byte[] inflate(final byte[] bytes) throws DataFormatException {
+    try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+
+      // Git objects are compressed with ZLib.
+      // We need to decompress it using Inflater.
+      final Inflater ifr = new Inflater();
+      ifr.setInput(bytes);
+
+      final byte[] tmp = new byte[4 * 1024];
+      while (!ifr.finished()) {
+        final int size = ifr.inflate(tmp);
+        baos.write(tmp, 0, size);
+      }
+
+      return baos.toByteArray();
+    } catch (final IOException e) {
+      return null;
     }
   }
 
@@ -338,5 +445,13 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     }
 
     return content;
+  }
+
+  private static VersionedPackGitInfoExtractor lookupExtractor(final short packVersion) {
+    if (packVersion == V2PackGitInfoExtractor.VERSION) {
+      return V2_PACK_GIT_INFO_EXTRACTOR;
+    } else {
+      return null;
+    }
   }
 }

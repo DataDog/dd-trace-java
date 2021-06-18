@@ -5,7 +5,6 @@ import com.ibm.ws.webcontainer.webapp.WebAppErrorReport;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -105,7 +104,6 @@ public class LibertyDecorator
 
   public AgentSpan onError(AgentSpan span, WebAppErrorReport report, Throwable servletThrowable) {
     span.setError(true);
-    span.setTag(Tags.HTTP_STATUS, report.getErrorCode());
     // make sure the two reported throwables are different throwables
     if (report.getCause() != null
         && (servletThrowable == null || servletThrowable.getCause() != report.getCause())) {

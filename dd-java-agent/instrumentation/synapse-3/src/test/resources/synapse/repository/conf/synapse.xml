@@ -1,1 +1,14 @@
-<definitions xmlns="http://ws.apache.org/ns/synapse" />
+<definitions xmlns="http://ws.apache.org/ns/synapse">
+
+  <proxy name="StockQuoteProxy" transports="http" startOnLoad="false">
+    <target>
+      <endpoint>
+        <address uri="http://localhost:${serverPort}/services/SimpleStockQuoteService"/>
+      </endpoint>
+      <outSequence>
+        <send/>
+      </outSequence>
+    </target>
+  </proxy>
+
+</definitions>

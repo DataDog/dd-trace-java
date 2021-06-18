@@ -12,10 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.context.TraceScope;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRequestStage;
@@ -45,8 +42,8 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return Collections.singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("execute")),
         AwsHttpClientInstrumentation.class.getName() + "$AwsHttpClientAdvice");
   }

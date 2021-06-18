@@ -17,7 +17,9 @@ public final class ConfigDefaults {
   /* These fields are made public because they're referenced elsewhere internally.  They're not intended as public API. */
   public static final String DEFAULT_AGENT_HOST = "localhost";
   public static final int DEFAULT_TRACE_AGENT_PORT = 8126;
-  public static final String DEFAULT_AGENT_UNIX_DOMAIN_SOCKET = null;
+  public static final int DEFAULT_DOGSTATSD_PORT = 8125;
+  public static final String DEFAULT_TRACE_AGENT_SOCKET_PATH = "/var/run/datadog/apm.socket";
+  public static final String DEFAULT_DOGSTATSD_SOCKET_PATH = "/var/run/datadog/dsd.socket";
   public static final int DEFAULT_AGENT_TIMEOUT = 10; // timeout in seconds
   public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
 
@@ -34,18 +36,19 @@ public final class ConfigDefaults {
   static final String DEFAULT_PRIORITY_SAMPLING_FORCE = null;
   static final boolean DEFAULT_TRACE_RESOLVER_ENABLED = true;
   static final boolean DEFAULT_HTTP_SERVER_TAG_QUERY_STRING = false;
+  static final boolean DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING = true;
   static final boolean DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING = false;
   static final boolean DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
+  static final boolean DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED = false;
   static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
   static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
   static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
 
   static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
-  static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
 
   static final boolean DEFAULT_HEALTH_METRICS_ENABLED = true;
   static final boolean DEFAULT_PERF_METRICS_ENABLED = false;
@@ -64,6 +67,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS = 50;
   static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE = 10000;
   static final boolean DEFAULT_PROFILING_AGENTLESS = false;
+  static final boolean DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION = true;
 
   static final boolean DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED = true;
 

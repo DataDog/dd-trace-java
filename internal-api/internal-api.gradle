@@ -4,6 +4,7 @@ minimumBranchCoverage = 0.7
 minimumInstructionCoverage = 0.8
 
 excludedClassesCoverage += [
+  "datadog.trace.api.Platform",
   "datadog.trace.api.StatsDClient",
   "datadog.trace.api.NoOpStatsDClient",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
@@ -42,7 +43,8 @@ excludedClassesCoverage += [
 
 dependencies {
   // references TraceScope and Continuation from public api
-  compile project(':dd-trace-api')
+  api project(':dd-trace-api')
+  api deps.slf4j
 
-  testCompile project(":utils:test-utils")
+  testImplementation project(":utils:test-utils")
 }

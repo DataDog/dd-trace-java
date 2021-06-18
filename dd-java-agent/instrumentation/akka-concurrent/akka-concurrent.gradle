@@ -27,7 +27,7 @@ testSets {
   }
 }
 
-compileAkka23TestGroovy {
+tasks.named("compileAkka23TestGroovy").configure {
   classpath += files(sourceSets.akka23Test.scala.classesDirectory)
 }
 
@@ -50,7 +50,7 @@ sourceSets {
     }
   }
 }
-compileLatestDepTestGroovy {
+tasks.named("compileLatestDepTestGroovy").configure {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
 }
 
@@ -58,13 +58,13 @@ compileLatestDepTestGroovy {
 dependencies {
   compileOnly group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
 
-  testCompile deps.scala
-  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
-  testCompile group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
-  testCompile group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: akkaVersion
+  testImplementation deps.scala
+  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
+  testImplementation group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: akkaVersion
 
-  latestDepTestCompile group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: '+'
-  latestDepTestCompile group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: '+'
+  latestDepTestImplementation group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: '+'
+  latestDepTestImplementation group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: '+'
 }
 
 [configurations.akka23TestCompile, configurations.akka23TestRuntime].each {
@@ -75,4 +75,6 @@ dependencies {
 }
 
 // Run 2.3 tests along with the rest of unit tests
-test.dependsOn akka23Test
+tasks.named("test").configure {
+  dependsOn "akka23Test"
+}

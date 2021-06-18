@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_SPAN_A
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DECORATE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.SERVLET_REQUEST;
 import static datadog.trace.instrumentation.liberty20.RequestExtractAdapter.GETTER;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -20,10 +19,8 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.Map;
 import javax.servlet.ServletRequest;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -49,8 +46,8 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(named("handleRequest"))
             .and(takesArgument(0, named("javax.servlet.ServletRequest")))

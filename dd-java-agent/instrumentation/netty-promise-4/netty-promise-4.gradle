@@ -23,10 +23,12 @@ testSets {
 dependencies {
   compileOnly group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'
 
-  testCompile group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'
+  testImplementation group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'
 
-  latestDep4TestCompile group: 'io.netty', name: 'netty-common', version: '4.+'
-  latestDepTestCompile group: 'io.netty', name: 'netty-common', version: '+'
+  latestDep4TestImplementation group: 'io.netty', name: 'netty-common', version: '4.+'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-common', version: '+'
 }
 
-tasks.latestDepTest.dependsOn tasks.latestDep4Test
+tasks.named("latestDepTest").configure {
+  dependsOn "latestDep4Test"
+}

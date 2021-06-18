@@ -1,6 +1,5 @@
 package datadog.trace.core.jfr.openjdk;
 
-import datadog.trace.core.util.SystemAccess;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Event;
@@ -15,7 +14,6 @@ import jdk.jfr.Timespan;
 @Category("Datadog")
 @StackTrace(false)
 public final class ScopeEvent extends Event {
-
   @Label("Trace Id")
   private final long traceId;
 
@@ -30,14 +28,12 @@ public final class ScopeEvent extends Event {
   private transient long cpuTimeStart;
   private transient long childCpuTime;
   private transient long rawCpuTime;
+  private final ThreadCpuTimeProvider cpuTimeProvider;
 
   ScopeEvent(long traceId, long spanId, ThreadCpuTimeProvider provider) {
     this.traceId = traceId;
     this.spanId = spanId;
-    if (isEnabled()) {
-      cpuTimeStart = provider.getThreadCpuTime();
-      begin();
-    }
+    this.cpuTimeProvider = provider;
   }
 
   void addChildCpuTime(long rawCpuTime) {
@@ -55,14 +51,14 @@ public final class ScopeEvent extends Event {
 
   public void start() {
     if (isEnabled()) {
-      cpuTimeStart = SystemAccess.getCurrentThreadCpuTime();
+      cpuTimeStart = cpuTimeProvider.getThreadCpuTime();
       begin();
     }
   }
 
   public void finish() {
     if (cpuTimeStart > 0) {
-      rawCpuTime = SystemAccess.getCurrentThreadCpuTime() - cpuTimeStart;
+      rawCpuTime = cpuTimeProvider.getThreadCpuTime() - cpuTimeStart;
       cpuTime = rawCpuTime - childCpuTime;
     }
 

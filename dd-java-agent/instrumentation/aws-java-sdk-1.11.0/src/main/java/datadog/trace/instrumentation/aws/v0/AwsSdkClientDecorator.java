@@ -7,25 +7,26 @@ import com.amazonaws.Response;
 import datadog.trace.api.Function;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
-import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.net.URI;
-import java.util.Map;
+import java.util.regex.Pattern;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
+  public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
+
+  private static final Pattern REQUEST_PATTERN = Pattern.compile("Request", Pattern.LITERAL);
+  private static final Pattern AMAZON_PATTERN = Pattern.compile("Amazon", Pattern.LITERAL);
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
 
-  @SuppressForbidden
   private final QualifiedClassNameCache cache =
       new QualifiedClassNameCache(
           new Function<Class<?>, CharSequence>() {
             @Override
             public String apply(Class<?> input) {
-              return input.getSimpleName().replace("Request", "");
+              return REQUEST_PATTERN.matcher(input.getSimpleName()).replaceAll("");
             }
           },
           Functions.SuffixJoin.of(
@@ -33,15 +34,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
               new Function<CharSequence, CharSequence>() {
                 @Override
                 public CharSequence apply(CharSequence serviceName) {
-                  return String.valueOf(serviceName).replace("Amazon", "").trim();
+                  return AMAZON_PATTERN.matcher(String.valueOf(serviceName)).replaceAll("").trim();
                 }
               }));
-
-  private final ContextStore<AmazonWebServiceRequest, Map> contextStore;
-
-  public AwsSdkClientDecorator(final ContextStore<AmazonWebServiceRequest, Map> contextStore) {
-    this.contextStore = contextStore;
-  }
 
   @Override
   public AgentSpan onRequest(final AgentSpan span, final Request request) {
@@ -60,15 +55,26 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setResourceName(cache.getQualifiedName(awsOperation, awsServiceName));
     span.setMeasured(true);
 
-    if (contextStore != null) {
-      final Map<String, String> requestMeta = contextStore.get(originalRequest);
-      if (requestMeta != null) {
-        span.setTag("aws.bucket.name", requestMeta.get("aws.bucket.name"));
-        span.setTag("aws.queue.url", requestMeta.get("aws.queue.url"));
-        span.setTag("aws.queue.name", requestMeta.get("aws.queue.name"));
-        span.setTag("aws.stream.name", requestMeta.get("aws.stream.name"));
-        span.setTag("aws.table.name", requestMeta.get("aws.table.name"));
-      }
+    RequestAccess access = RequestAccess.of(originalRequest);
+    String bucketName = access.getBucketName(originalRequest);
+    if (null != bucketName) {
+      span.setTag("aws.bucket.name", bucketName);
+    }
+    String queueUrl = access.getQueueUrl(originalRequest);
+    if (null != queueUrl) {
+      span.setTag("aws.queue.url", queueUrl);
+    }
+    String queueName = access.getQueueName(originalRequest);
+    if (null != queueName) {
+      span.setTag("aws.queue.name", queueName);
+    }
+    String streamName = access.getStreamName(originalRequest);
+    if (null != streamName) {
+      span.setTag("aws.stream.name", streamName);
+    }
+    String tableName = access.getTableName(originalRequest);
+    if (null != tableName) {
+      span.setTag("aws.table.name", tableName);
     }
 
     return span;
@@ -81,6 +87,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag("aws.requestId", awsResp.getRequestId());
     }
     return super.onResponse(span, response);
+  }
+
+  @Override
+  protected boolean shouldSetResourceName() {
+    return false;
   }
 
   @Override

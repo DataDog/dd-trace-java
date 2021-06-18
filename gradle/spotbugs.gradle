@@ -52,6 +52,6 @@ dependencies {
   compileOnly 'net.jcip:jcip-annotations:1.0'
   compileOnly 'com.github.spotbugs:spotbugs-annotations:4.2.0'
 
-  testCompile 'net.jcip:jcip-annotations:1.0'
-  testCompile 'com.github.spotbugs:spotbugs-annotations:4.2.0'
+  testImplementation 'net.jcip:jcip-annotations:1.0'
+  testImplementation 'com.github.spotbugs:spotbugs-annotations:4.2.0'
 }

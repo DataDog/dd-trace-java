@@ -56,10 +56,10 @@ dependencies {
   play group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
   play group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy").configure {
   dependsOn 'stagePlayBinaryDist'
   outputs.upToDateWhen {
     !stagePlayBinaryDist.didWork

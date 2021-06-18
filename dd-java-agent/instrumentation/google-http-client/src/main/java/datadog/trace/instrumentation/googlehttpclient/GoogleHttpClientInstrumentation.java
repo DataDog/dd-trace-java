@@ -21,10 +21,8 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -57,21 +55,18 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("execute")).and(takesArguments(0)),
         GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAdvice");
 
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(isPublic())
             .and(named("executeAsync"))
             .and(takesArguments(1))
             .and(takesArgument(0, (named("java.util.concurrent.Executor")))),
         GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAsyncAdvice");
-
-    return transformers;
   }
 
   public static class GoogleHttpClientAdvice {

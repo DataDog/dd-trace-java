@@ -35,7 +35,7 @@ dependencies {
   bundles 'org.apache.httpcomponents:httpcore-osgi:4.4.14'
   bundles 'org.apache.httpcomponents:httpclient-osgi:4.5.13'
 
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }
 
 jar {
@@ -44,7 +44,7 @@ jar {
 
 import aQute.bnd.gradle.Bundle
 
-task commonBundle(type: Bundle) {
+tasks.register('commonBundle', Bundle) {
   classifier = 'common'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/common/**'
@@ -53,7 +53,7 @@ task commonBundle(type: Bundle) {
   }
 }
 
-task clientBundle(type: Bundle) {
+tasks.register('clientBundle', Bundle) {
   classifier = 'client'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/client/**'
@@ -62,7 +62,7 @@ task clientBundle(type: Bundle) {
   }
 }
 
-task messagingBundle(type: Bundle) {
+tasks.register('messagingBundle', Bundle) {
   classifier = 'messaging'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/messaging/**'
@@ -71,7 +71,7 @@ task messagingBundle(type: Bundle) {
   }
 }
 
-task publishingBundle(type: Bundle) {
+tasks.register('publishingBundle', Bundle) {
   classifier = 'publishing'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/publishing/**'
@@ -80,7 +80,7 @@ task publishingBundle(type: Bundle) {
   }
 }
 
-task subscribingBundle(type: Bundle) {
+tasks.register('subscribingBundle', Bundle) {
   classifier = 'subscribing'
   from sourceSets.main.output
   include 'datadog/smoketest/osgi/subscribing/**'
@@ -90,7 +90,7 @@ task subscribingBundle(type: Bundle) {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn commonBundle, clientBundle, messagingBundle, publishingBundle, subscribingBundle, jar
+  dependsOn "commonBundle", "clientBundle", "messagingBundle", "publishingBundle", "subscribingBundle", "jar"
 
   jvmArgs "-Ddatadog.smoketest.osgi.appJar.path=${tasks.jar.archivePath}"
   jvmArgs "-Ddatadog.smoketest.osgi.equinoxJar.path=${configurations.equinox.first().path}"

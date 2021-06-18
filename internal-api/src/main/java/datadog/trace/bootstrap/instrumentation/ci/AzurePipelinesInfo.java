@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.ci;
 
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 
 class AzurePipelinesInfo extends CIProviderInfo {
 
@@ -25,11 +26,21 @@ class AzurePipelinesInfo extends CIProviderInfo {
   public static final String AZURE_SYSTEM_PULLREQUEST_SOURCEBRANCH =
       "SYSTEM_PULLREQUEST_SOURCEBRANCH";
   public static final String AZURE_BUILD_SOURCEBRANCH = "BUILD_SOURCEBRANCH";
+  public static final String AZURE_BUILD_SOURCEVERSION_MESSAGE = "BUILD_SOURCEVERSIONMESSAGE";
+  public static final String AZURE_BUILD_REQUESTED_FOR_ID = "BUILD_REQUESTEDFORID";
+  public static final String AZURE_BUILD_REQUESTED_FOR_EMAIL = "BUILD_REQUESTEDFOREMAIL";
 
   @Override
   protected GitInfo buildCIGitInfo() {
     return new GitInfo(
-        buildGitRepositoryUrl(), buildGitBranch(), buildGitTag(), new CommitInfo(buildGitCommit()));
+        buildGitRepositoryUrl(),
+        buildGitBranch(),
+        buildGitTag(),
+        new CommitInfo(
+            buildGitCommit(),
+            buildGitCommitAuthor(),
+            PersonInfo.NOOP,
+            System.getenv(AZURE_BUILD_SOURCEVERSION_MESSAGE)));
   }
 
   @Override
@@ -103,5 +114,11 @@ class AzurePipelinesInfo extends CIProviderInfo {
 
   private String buildCiPipelineUrl(final String uri, final String project, final String buildId) {
     return String.format("%s%s/_build/results?buildId=%s", uri, project, buildId);
+  }
+
+  private PersonInfo buildGitCommitAuthor() {
+    return new PersonInfo(
+        System.getenv(AZURE_BUILD_REQUESTED_FOR_ID),
+        System.getenv(AZURE_BUILD_REQUESTED_FOR_EMAIL));
   }
 }

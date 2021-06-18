@@ -141,12 +141,30 @@ public final class ProfilingSystem {
           uploadPeriod.toMillis(),
           TimeUnit.MILLISECONDS);
       started = true;
-    } catch (final Throwable t) {
-      if (t instanceof IllegalStateException && "Shutdown in progress".equals(t.getMessage())) {
-        log.debug("Shutdown in progress, cannot start profiling");
-      } else {
-        log.error("Fatal exception during profiling startup", t);
-        throw t;
+    } catch (Throwable t) {
+      if (t instanceof RuntimeException) {
+        // Possibly a wrapped exception related to Oracle JDK 8 JFR MX beans
+        Throwable inspecting = t.getCause();
+        while (inspecting != null) {
+          String msg = inspecting.getMessage();
+          if (msg != null && msg.contains("com.oracle.jrockit:type=FlightRecorder")) {
+            // Yes, the commercial JFR is not enabled
+            log.warn(
+                "Oracle JDK 8 is being used, where the Flight Recorder is a commercial feature. Please, make sure you have a valid license to use Flight Recorder  (for example Oracle Java SE Advanced) and then add ‘-XX:+UnlockCommercialFeatures -XX:+FlightRecorder’ to your launcher script. Alternatively, use an OpenJDK 8 distribution from another vendor, where the Flight Recorder is free.");
+            // Do not log the underlying exception
+            t = null;
+            break;
+          }
+          inspecting = inspecting.getCause();
+        }
+      }
+      if (t != null) {
+        if (t instanceof IllegalStateException && "Shutdown in progress".equals(t.getMessage())) {
+          log.debug("Shutdown in progress, cannot start profiling");
+        } else {
+          log.error("Fatal exception during profiling startup", t);
+          throw t instanceof RuntimeException ? (RuntimeException) t : new RuntimeException(t);
+        }
       }
     }
   }

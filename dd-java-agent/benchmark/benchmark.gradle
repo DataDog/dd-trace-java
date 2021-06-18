@@ -38,7 +38,9 @@ jmh {
   jmhVersion = '1.23' // Specifies JMH version
 }
 
-tasks.jmh.dependsOn project(':dd-java-agent').shadowJar
+tasks.named('jmh').configure {
+  dependsOn ':dd-java-agent:shadowJar'
+}
 
 /*
  If using libasyncProfiler, use the following to generate nice svg flamegraphs.

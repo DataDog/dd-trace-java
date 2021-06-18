@@ -4,23 +4,27 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.tomcat.RequestExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DD_EXTRACTED_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DECORATE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.SERVLET_REQUEST;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.HashMap;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.catalina.connector.CoyoteAdapter;
@@ -28,7 +32,8 @@ import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
 @AutoService(Instrumenter.class)
-public final class TomcatServerInstrumentation extends Instrumenter.Tracing {
+public final class TomcatServerInstrumentation extends Instrumenter.Tracing
+    implements ExcludeFilterProvider {
 
   public TomcatServerInstrumentation() {
     super("tomcat");
@@ -49,21 +54,36 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("service")
             .and(takesArgument(0, named("org.apache.coyote.Request")))
             .and(takesArgument(1, named("org.apache.coyote.Response"))),
         TomcatServerInstrumentation.class.getName() + "$ServiceAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("postParseRequest")
             .and(takesArgument(0, named("org.apache.coyote.Request")))
             .and(takesArgument(1, named("org.apache.catalina.connector.Request")))
             .and(takesArgument(2, named("org.apache.coyote.Response")))
             .and(takesArgument(3, named("org.apache.catalina.connector.Response"))),
         TomcatServerInstrumentation.class.getName() + "$PostParseAdvice");
-    return transformers;
+  }
+
+  @Override
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+    return singletonMap(
+        RUNNABLE,
+        Arrays.asList(
+            "org.apache.tomcat.util.threads.TaskThread$WrappingRunnable",
+            "org.apache.tomcat.util.net.SocketProcessorBase",
+            "org.apache.tomcat.util.net.AprEndpoint$Poller",
+            "org.apache.tomcat.util.net.NioEndpoint$Poller",
+            "org.apache.tomcat.util.net.NioEndpoint$PollerEvent",
+            "org.apache.tomcat.util.net.AprEndpoint$SocketProcessor",
+            "org.apache.tomcat.util.net.JIoEndpoint$SocketProcessor",
+            "org.apache.tomcat.util.net.NioEndpoint$SocketProcessor",
+            "org.apache.tomcat.util.net.Nio2Endpoint$SocketProcessor",
+            "org.apache.tomcat.util.net.NioBlockingSelector$BlockPoller"));
   }
 
   public static class ServiceAdvice {

@@ -8,6 +8,7 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
+import datadog.trace.api.Checkpointer
 import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -95,6 +96,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   AtomicInteger INSTRUMENTATION_ERROR_COUNT = new AtomicInteger(0)
 
+  @SuppressWarnings('PropertyName')
+  @Shared
+  Checkpointer TEST_CHECKPOINTER = Mock(Checkpointer)
+
   @Shared
   ClassFileTransformer activeTransformer
 
@@ -128,6 +133,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
       .build()
+    TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     assert ServiceLoader.load(Instrumenter, AgentTestRunner.getClassLoader())
@@ -155,11 +161,13 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
     TEST_WRITER.start()
 
     new MockUtil().attachMock(STATS_D_CLIENT, this)
+    new MockUtil().attachMock(TEST_CHECKPOINTER, this)
   }
 
   void cleanup() {
     TEST_TRACER.flush()
     new MockUtil().detachMock(STATS_D_CLIENT)
+    new MockUtil().detachMock(TEST_CHECKPOINTER)
   }
 
   /** Override to clean up things after the agent is removed */

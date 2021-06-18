@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.instrumentation.netty40.AttributeKeys.SPAN_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.NettyChannelPipelineInstrumentation.ADDITIONAL_INSTRUMENTATION_NAMES;
 import static datadog.trace.instrumentation.netty40.NettyChannelPipelineInstrumentation.INSTRUMENTATION_NAME;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
@@ -21,9 +20,7 @@ import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator;
 import datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator;
 import io.netty.channel.ChannelHandlerContext;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -49,15 +46,14 @@ public class NettyChannelHandlerContextInstrumentation extends Instrumenter.Trac
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".AttributeKeys",
-      packageName + ".AttributeKeys$1",
       packageName + ".client.NettyHttpClientDecorator",
       packageName + ".server.NettyHttpServerDecorator",
     };
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         // this may be overly aggressive:
         isMethod().and(nameStartsWith("fire")).and(isPublic()),
         NettyChannelHandlerContextInstrumentation.class.getName() + "$FireAdvice");

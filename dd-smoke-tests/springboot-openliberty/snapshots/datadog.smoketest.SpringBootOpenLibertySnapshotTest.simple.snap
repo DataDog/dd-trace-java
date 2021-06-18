@@ -12,7 +12,6 @@
            "language" "jvm"
            "runtime-id" "fc5c927a-eb1a-4498-af46-731a5f2b0ce1"
            "version" "99"
-           "peer.port" "57792"
            "http.url" "http://localhost:57690/connect/0"
            "component" "liberty-server"
            "thread.name" "Default Executor-thread-2"
@@ -20,12 +19,14 @@
            "http.status_code" "200"
            "span.kind" "server"
            "http.method" "GET"
-           "thread.id" "44"
+           "http.route" "/connect/{user}"
            "servlet.path" "/connect/0"}
    "metrics" {"_dd.agent_psr" 1.0
               "_dd.measured" 1
               "_sampling_priority_v1" 1
-              "_dd.top_level" 1}}
+              "peer.port" 57792
+              "_dd.top_level" 1
+              "thread.id" 44}}
       {"name" "spring.handler"
        "service" "smoke-test-java-app"
        "resource" "DemoController.connectFinal"
@@ -40,7 +41,7 @@
                "language" "jvm"
                "version" "99"
                "thread.name" "Default Executor-thread-2"
-               "thread.id" "44"
                "component" "spring-web-controller"
                "span.kind" "server"}
-       "metrics" {"_dd.measured" 1}}]]
+       "metrics" {"_dd.measured" 1
+                  "thread.id" 44}}]]

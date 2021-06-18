@@ -26,9 +26,9 @@ testSets {
 dependencies {
   compileOnly group: 'com.sparkjava', name: 'spark-core', version: '2.3'
 
-  testCompile project(':dd-java-agent:instrumentation:jetty-9')
+  testImplementation project(':dd-java-agent:instrumentation:jetty-9')
 
-  testCompile group: 'com.sparkjava', name: 'spark-core', version: '2.4'
+  testImplementation group: 'com.sparkjava', name: 'spark-core', version: '2.4'
 
-  latestDepTestCompile group: 'com.sparkjava', name: 'spark-core', version: '+'
+  latestDepTestImplementation group: 'com.sparkjava', name: 'spark-core', version: '+'
 }

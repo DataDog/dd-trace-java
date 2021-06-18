@@ -16,20 +16,26 @@ variables:
 .common: &common
   tags: [ "runner:main", "size:large" ]
 
+cache: &default_cache
+  key: '$CI_SERVER_VERSION' # Reset the cache every time gitlab is upgraded.  ~Every couple months
+  paths:
+    - .gradle/wrapper
+    - .gradle/caches
+  policy: pull
+
 .gradle_build: &gradle_build
   <<: *common
   image: datadog/dd-trace-java-docker-build:latest
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
-  cache:
-    key: '$CI_COMMIT_REF_SLUG' # Cache per branch
-    paths:
-      - .gradle/wrapper
-      - .gradle/caches
 
-build:
+build: &build
   <<: *gradle_build
   stage: build
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: on_success
   script:
     - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
@@ -38,17 +44,32 @@ build:
       - 'workspace/dd-java-agent/build/libs/*.jar'
       - 'upstream.env'
 
+build_with_cache:
+  <<: *build
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: on_success
+    - when: manual
+      allow_failure: true
+  cache:
+    <<: *default_cache
+    policy: push
+
 deploy_to_reliability_env:
   stage: deploy
-  when: on_success
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - when: on_success
   trigger:
     project: DataDog/datadog-reliability-env
     branch: $DOWNSTREAM_BRANCH
   variables:
     UPSTREAM_PACKAGE_JOB: build
-    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
+    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
     FORCE_TRIGGER: $FORCE_TRIGGER
 

@@ -28,7 +28,7 @@ dependencies {
   // organisation = serverName, revision = serverVersion, module = serverModule, ext = serverExtension
   compile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
 
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }
 
 tasks.register("unzip", Copy) {
@@ -51,7 +51,7 @@ tasks.register("unzip", Copy) {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn unzip
+  dependsOn "unzip"
 
   jvmArgs "-Ddatadog.smoketest.wildflyDir=${buildDir}/${serverName}-${serverModule}-${serverVersion}"
 }

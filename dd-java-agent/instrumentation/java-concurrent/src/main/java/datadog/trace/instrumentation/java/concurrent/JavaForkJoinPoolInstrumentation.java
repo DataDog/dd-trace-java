@@ -2,9 +2,10 @@ package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -12,13 +13,10 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.context.TraceScope;
 import java.util.Map;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -40,27 +38,23 @@ public class JavaForkJoinPoolInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
+  public void adviceTransformations(AdviceTransformation transformation) {
     if (Platform.isJavaVersionAtLeast(8)) {
-      return singletonMap(
+      transformation.applyAdvice(
           isMethod().and(namedOneOf("externalPush", "externalSubmit")),
           getClass().getName() + "$ExternalPush");
+    } else {
+      transformation.applyAdvice(
+          isMethod().and(namedOneOf("forkOrSubmit", "invoke")),
+          getClass().getName() + "$ExternalPush");
     }
-    return singletonMap(
-        isMethod().and(namedOneOf("forkOrSubmit", "invoke")),
-        getClass().getName() + "$ExternalPush");
   }
 
   public static final class ExternalPush {
     @Advice.OnMethodEnter
     public static <T> void externalPush(@Advice.Argument(0) ForkJoinTask<T> task) {
-      TraceScope activeScope = activeScope();
-      if (null != activeScope) {
-        if (!ExcludeFilter.exclude(FORK_JOIN_TASK, task)) {
-          InstrumentationContext.get(ForkJoinTask.class, State.class)
-              .putIfAbsent(task, State.FACTORY)
-              .captureAndSetContinuation(activeScope);
-        }
+      if (!exclude(FORK_JOIN_TASK, task)) {
+        capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
       }
     }
 

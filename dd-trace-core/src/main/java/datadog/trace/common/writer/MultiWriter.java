@@ -8,8 +8,12 @@ import datadog.trace.common.sampling.Sampler;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.Monitoring;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class MultiWriter implements Writer {
+  private static final Pattern MW_PATTERN =
+      Pattern.compile(MULTI_WRITER_TYPE + ":", Pattern.LITERAL);
+  private static final Pattern COMMA_PATTERN = Pattern.compile(",", Pattern.LITERAL);
 
   private final Writer[] writers;
 
@@ -19,8 +23,8 @@ public class MultiWriter implements Writer {
       StatsDClient statsDClient,
       Monitoring monitoring,
       String type) {
-    String mwConfig = type.replace(MULTI_WRITER_TYPE + ":", "");
-    String[] writerConfigs = mwConfig.split(",");
+    String mwConfig = MW_PATTERN.matcher(type).replaceAll("");
+    String[] writerConfigs = COMMA_PATTERN.split(mwConfig);
     this.writers = new Writer[writerConfigs.length];
     int i = 0;
 

@@ -29,6 +29,8 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
       1 * span.setTag(Tags.HTTP_URL, "$req.url")
       1 * span.setTag(Tags.PEER_HOSTNAME, req.url.host)
       1 * span.setTag(Tags.PEER_PORT, req.url.port)
+      1 * span.hasResourceName() >> false
+      1 * span.setResourceName({ it as String == req.method + " " + req.path })
       if (renameService) {
         1 * span.setServiceName(req.url.host)
       }
@@ -39,8 +41,8 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     renameService | req
     false         | null
     true          | null
-    false         | [method: "test-method", url: testUrl]
-    true          | [method: "test-method", url: testUrl]
+    false         | [method: "test-method", url: testUrl, path: '/somepath']
+    true          | [method: "test-method", url: testUrl, path: '/somepath']
   }
 
   def "test url handling for #url"() {
@@ -66,22 +68,24 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     if (port) {
       1 * span.setTag(Tags.PEER_PORT, port)
     }
+    1 * span.hasResourceName() >> false
+    1 * span.setResourceName({ it as String == expectedPath })
     0 * _
 
     where:
-    tagQueryString | url                                                   | expectedUrl           | expectedQuery      | expectedFragment      | hostname | port
-    false          | null                                                  | null                  | null               | null                  | null     | null
-    false          | ""                                                    | "/"                   | ""                 | null                  | null     | null
-    false          | "/path?query"                                         | "/path"               | ""                 | null                  | null     | null
-    false          | "https://host:0"                                      | "https://host/"       | ""                 | null                  | "host"   | null
-    false          | "https://host/path"                                   | "https://host/path"   | ""                 | null                  | "host"   | null
-    false          | "http://host:99/path?query#fragment"                  | "http://host:99/path" | ""                 | null                  | "host"   | 99
-    true           | null                                                  | null                  | null               | null                  | null     | null
-    true           | ""                                                    | "/"                   | null               | null                  | null     | null
-    true           | "/path?encoded+%28query%29%3F"                        | "/path"               | "encoded+(query)?" | null                  | null     | null
-    true           | "https://host:0"                                      | "https://host/"       | null               | null                  | "host"   | null
-    true           | "https://host/path"                                   | "https://host/path"   | null               | null                  | "host"   | null
-    true           | "http://host:99/path?query#encoded+%28fragment%29%3F" | "http://host:99/path" | "query"            | "encoded+(fragment)?" | "host"   | 99
+    tagQueryString | url                                                   | expectedUrl           | expectedQuery      | expectedFragment      | hostname | port | expectedPath
+    false          | null                                                  | null                  | null               | null                  | null     | null | "/"
+    false          | ""                                                    | "/"                   | ""                 | null                  | null     | null | "/"
+    false          | "/path?query"                                         | "/path"               | ""                 | null                  | null     | null | "/path"
+    false          | "https://host:0"                                      | "https://host/"       | ""                 | null                  | "host"   | null | "/"
+    false          | "https://host/path"                                   | "https://host/path"   | ""                 | null                  | "host"   | null | "/path"
+    false          | "http://host:99/path?query#fragment"                  | "http://host:99/path" | ""                 | null                  | "host"   | 99   | "/path"
+    true           | null                                                  | null                  | null               | null                  | null     | null | "/"
+    true           | ""                                                    | "/"                   | null               | null                  | null     | null | "/"
+    true           | "/path?encoded+%28query%29%3F"                        | "/path"               | "encoded+(query)?" | null                  | null     | null | "/path"
+    true           | "https://host:0"                                      | "https://host/"       | null               | null                  | "host"   | null | "/"
+    true           | "https://host/path"                                   | "https://host/path"   | null               | null                  | "host"   | null | "/path"
+    true           | "http://host:99/path?query#encoded+%28fragment%29%3F" | "http://host:99/path" | "query"            | "encoded+(fragment)?" | "host"   | 99   | "/path"
 
     req = [url: url == null ? null : new URI(url)]
   }
@@ -95,7 +99,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
 
     then:
     if (status) {
-      1 * span.setTag(Tags.HTTP_STATUS, status)
+      1 * span.setHttpStatusCode(status)
     }
     if (error) {
       1 * span.setError(true)

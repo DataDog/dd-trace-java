@@ -12,10 +12,8 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.netty.channel.Channel;
@@ -67,19 +65,17 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(nameStartsWith("add"))
             .and(takesArgument(1, named("org.jboss.netty.channel.ChannelHandler"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$ChannelPipelineAdd2ArgsAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         isMethod()
             .and(nameStartsWith("add"))
             .and(takesArgument(2, named("org.jboss.netty.channel.ChannelHandler"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$ChannelPipelineAdd3ArgsAdvice");
-    return transformers;
   }
 
   @Override

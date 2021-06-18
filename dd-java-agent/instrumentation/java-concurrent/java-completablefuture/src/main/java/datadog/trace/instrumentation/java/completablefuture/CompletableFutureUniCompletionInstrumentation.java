@@ -1,6 +1,9 @@
 package datadog.trace.instrumentation.java.completablefuture;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
@@ -15,7 +18,6 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -68,8 +70,8 @@ public class CompletableFutureUniCompletionInstrumentation extends Instrumenter.
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return Collections.singletonMap(isConstructor(), ADVICE_BASE + "UniConstructor");
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(isConstructor(), ADVICE_BASE + "UniConstructor");
   }
 
   @Override
@@ -107,10 +109,9 @@ public class CompletableFutureUniCompletionInstrumentation extends Instrumenter.
     };
     List<String> excludedClasses = Arrays.asList(classes);
     EnumMap<ExcludeType, Collection<String>> excludedTypes = new EnumMap<>(ExcludeType.class);
-    excludedTypes.put(ExcludeType.RUNNABLE, excludedClasses);
-    excludedTypes.put(ExcludeType.FORK_JOIN_TASK, excludedClasses);
-    excludedTypes.put(ExcludeType.FUTURE, excludedClasses);
-    excludedTypes.put(ExcludeType.EXECUTOR, excludedClasses);
+    excludedTypes.put(RUNNABLE, excludedClasses);
+    excludedTypes.put(FORK_JOIN_TASK, excludedClasses);
+    excludedTypes.put(EXECUTOR, excludedClasses);
     return excludedTypes;
   }
 }

@@ -17,6 +17,7 @@ muzzle {
     module = "netty-all"
     versions = "[4.1.0.Final,)"
     assertInverse = true
+    excludeDependency 'io.netty:netty-tcnative'
   }
   fail {
     group = "io.netty"
@@ -42,19 +43,19 @@ testSets {
 dependencies {
   compileOnly group: 'io.netty', name: 'netty-codec-http', version: '4.1.0.Final'
 
-  testCompile project(':dd-java-agent:instrumentation:netty-promise-4')
-  testCompile project(':dd-java-agent:instrumentation:reactor-core-3.1')
-  testCompile group: 'io.netty', name: 'netty-codec-http', version: '4.1.0.Final'
-  testCompile group: 'io.projectreactor.netty', name: 'reactor-netty', version: '0.8.0.RELEASE'
-  testCompile group: 'org.asynchttpclient', name: 'async-http-client', version: '2.1.0'
+  testImplementation project(':dd-java-agent:instrumentation:netty-promise-4')
+  testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  testImplementation group: 'io.netty', name: 'netty-codec-http', version: '4.1.0.Final'
+  testImplementation group: 'io.projectreactor.netty', name: 'reactor-netty', version: '0.8.0.RELEASE'
+  testImplementation group: 'org.asynchttpclient', name: 'async-http-client', version: '2.1.0'
 
   // latest async-http-client incompatable with 5.0+ netty
-  latestDepTestCompile group: 'io.netty', name: 'netty-codec-http', version: '(,5.0)'
-  latestDepTestCompile group: 'org.asynchttpclient', name: 'async-http-client', version: '+'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-codec-http', version: '(,5.0)'
+  latestDepTestImplementation group: 'org.asynchttpclient', name: 'async-http-client', version: '+'
 }
 
 // We need to force the dependency to the earliest supported version because other libraries declare newer versions.
-configurations.testCompile {
+configurations.testImplementation {
   resolutionStrategy {
     eachDependency { DependencyResolveDetails details ->
       //specifying a fixed version for all libraries with io.netty' group

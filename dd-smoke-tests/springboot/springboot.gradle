@@ -13,13 +13,13 @@ jar {
 }
 
 dependencies {
-  compile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
 
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn shadowJar
+  dependsOn "shadowJar"
 
   jvmArgs "-Ddatadog.smoketest.springboot.shadowJar.path=${tasks.shadowJar.archivePath}"
 }

@@ -4,15 +4,14 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator._500;
 import static datadog.trace.instrumentation.play23.PlayHeaders.GETTER;
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.PLAY_REQUEST;
+import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.REPORT_HTTP_STATUS;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
 import play.api.mvc.Request;
@@ -57,7 +56,9 @@ public class PlayAdvice {
           ((Action) thisAction).executionContext());
     } else {
       DECORATE.onError(playControllerSpan, throwable);
-      playControllerSpan.setTag(Tags.HTTP_STATUS, _500);
+      if (REPORT_HTTP_STATUS) {
+        playControllerSpan.setHttpStatusCode(500);
+      }
       DECORATE.beforeFinish(playControllerSpan);
       playControllerSpan.finish();
     }

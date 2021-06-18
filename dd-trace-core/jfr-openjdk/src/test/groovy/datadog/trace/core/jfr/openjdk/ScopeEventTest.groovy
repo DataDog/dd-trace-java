@@ -12,6 +12,9 @@ import datadog.trace.test.util.DDSpecification
 import spock.lang.Requires
 
 import java.time.Duration
+import java.util.stream.Collectors
+
+import static datadog.trace.api.Checkpointer.CPU
 
 @Requires({
   jvm.java11Compatible
@@ -23,19 +26,30 @@ class ScopeEventTest extends DDSpecification {
 
   def setup() {
     injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
-    injectSysConfig(ProfilingConfig.PROFILING_HOTSPTOTS_ENABLED, "true")
     tracer = CoreTracer.builder().writer(new ListWriter()).build()
     GlobalTracer.forceRegister(tracer)
-    tracer.addScopeListener(new ScopeEventFactory())
   }
 
   def cleanup() {
     tracer?.close()
   }
 
+  def filterEvents(events, eventTypeNames) {
+    return events.stream()
+      .filter({it.eventType.name in eventTypeNames})
+      .collect(Collectors.toList())
+  }
+
+  def addScopeEventFactory(hotspots = true, checkpoints = true) {
+    injectSysConfig(ProfilingConfig.PROFILING_HOTSPOTS_ENABLED, String.valueOf(hotspots))
+    injectSysConfig(ProfilingConfig.PROFILING_CHECKPOINTS_RECORD_CPU_TIME, String.valueOf(checkpoints))
+    tracer.addScopeListener(new ScopeEventFactory())
+  }
+
   // TODO more tests around CPU time (mocking out the SystemAccess class)
-  def "Scope event is written with thread CPU time"() {
+  def "Default scope event is written without thread CPU time"() {
     setup:
+    addScopeEventFactory(false)
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -44,13 +58,35 @@ class ScopeEventTest extends DDSpecification {
     AgentScope scope = tracer.activateSpan(span)
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
     span.finish()
 
     then:
     events.size() == 1
     def event = events[0]
-    event.eventType.name == "datadog.Scope"
+    event.duration >= SLEEP_DURATION
+    event.getLong("traceId") == span.context().traceId.toLong()
+    event.getLong("spanId") == span.context().spanId.toLong()
+    event.getLong("cpuTime") == Long.MIN_VALUE
+  }
+
+  def "Scope event is written with thread CPU time"() {
+    setup:
+    addScopeEventFactory()
+    SystemAccess.enableJmx()
+    def recording = JfrHelper.startRecording()
+
+    when:
+    AgentSpan span = tracer.buildSpan("test").start()
+    AgentScope scope = tracer.activateSpan(span)
+    sleep(SLEEP_DURATION.toMillis())
+    scope.close()
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
+    span.finish()
+
+    then:
+    events.size() == 1
+    def event = events[0]
     event.duration >= SLEEP_DURATION
     event.getLong("traceId") == span.context().traceId.toLong()
     event.getLong("spanId") == span.context().spanId.toLong()
@@ -59,6 +95,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope event is written without thread CPU time"() {
     setup:
+    addScopeEventFactory()
     SystemAccess.disableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -67,13 +104,12 @@ class ScopeEventTest extends DDSpecification {
     AgentScope scope = tracer.activateSpan(span)
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
     span.finish()
 
     then:
     events.size() == 1
     def event = events[0]
-    event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
     event.getLong("traceId") == span.context().traceId.toLong()
     event.getLong("spanId") == span.context().spanId.toLong()
@@ -82,6 +118,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope event is written after continuation activation"() {
     setup:
+    addScopeEventFactory()
     def recording = JfrHelper.startRecording()
 
     AgentSpan span = tracer.buildSpan("test").start()
@@ -93,13 +130,12 @@ class ScopeEventTest extends DDSpecification {
     TraceScope scope = continuation.activate()
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
     span.finish()
 
     then:
     events.size() == 1
     def event = events[0]
-    event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
     event.getLong("traceId") == span.context().traceId.toLong()
     event.getLong("spanId") == span.context().spanId.toLong()
@@ -107,6 +143,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope events are written - two deep"() {
     setup:
+    addScopeEventFactory()
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -125,13 +162,10 @@ class ScopeEventTest extends DDSpecification {
     scope.close()
     span.finish()
 
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
 
     then:
     events.size() == 2
-    events.each {
-      assert it.eventType.name == "datadog.Scope"
-    }
 
     with(events[0]) {
       getLong("traceId") == span2.context().traceId.toLong()
@@ -150,6 +184,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope events are written - two deep, two wide"() {
     setup:
+    addScopeEventFactory()
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -182,13 +217,10 @@ class ScopeEventTest extends DDSpecification {
     scope3.close()
     span3.finish()
 
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
 
     then:
     events.size() == 4
-    events.each {
-      assert it.eventType.name == "datadog.Scope"
-    }
 
     with(events[0]) {
       getLong("traceId") == span2.context().traceId.toLong()
@@ -221,6 +253,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "Test out of order scope closing"() {
     setup:
+    addScopeEventFactory()
     def recording = JfrHelper.startRecording()
 
     when:
@@ -239,12 +272,11 @@ class ScopeEventTest extends DDSpecification {
     scope2.close()
     span2.finish()
 
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
 
     then:
     events.size() == 2
     events.each {
-      assert it.eventType.name == "datadog.Scope"
       assert it.duration >= SLEEP_DURATION
     }
 
@@ -262,6 +294,7 @@ class ScopeEventTest extends DDSpecification {
   def "Events are not created when profiling is not enabled"() {
     setup:
     injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "false")
+    addScopeEventFactory()
     def noProfilingTracer = CoreTracer.builder().writer(new ListWriter()).build()
     def recording = JfrHelper.startRecording()
 
@@ -273,12 +306,45 @@ class ScopeEventTest extends DDSpecification {
     scope.close()
     span.finish()
 
-    def events = JfrHelper.stopRecording(recording)
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Scope"])
 
     then:
     events.isEmpty()
 
     cleanup:
     noProfilingTracer.close()
+  }
+
+  def "checkpoint events written when checkpointer registered"() {
+    setup:
+    addScopeEventFactory()
+    SystemAccess.enableJmx()
+    def recording = JfrHelper.startRecording()
+    tracer.registerCheckpointer(new JFRCheckpointer())
+
+    when: "span goes through lifecycle without activation"
+    AgentSpan span = tracer.startSpan("test")
+    span.startThreadMigration()
+    span.finishThreadMigration()
+    span.setResourceName("foo")
+    span.finish()
+    then: "checkpoints emitted"
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Checkpoint", "datadog.Route"])
+    events.size() == 5
+    events.each {
+      assert it.getLong("traceId") == span.getTraceId().toLong()
+      if (it.eventType.name == "datadog.Checkpoint") {
+        assert it.getLong("spanId") == span.getSpanId().toLong()
+        int flags = it.getInt("flags")
+        long cpuTime = it.getLong("cpuTime")
+        if ((flags & CPU) != 0) {
+          assert cpuTime > 0
+        } else {
+          assert cpuTime == 0L
+        }
+      } else {
+        it.getString("route") == "foo"
+      }
+    }
   }
 }

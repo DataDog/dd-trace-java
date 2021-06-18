@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.ci;
 
 import datadog.trace.bootstrap.instrumentation.ci.git.CommitInfo;
 import datadog.trace.bootstrap.instrumentation.ci.git.GitInfo;
+import datadog.trace.bootstrap.instrumentation.ci.git.PersonInfo;
 
 class AppVeyorInfo extends CIProviderInfo {
 
@@ -18,6 +19,10 @@ class AppVeyorInfo extends CIProviderInfo {
   public static final String APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH =
       "APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH";
   public static final String APPVEYOR_REPO_TAG_NAME = "APPVEYOR_REPO_TAG_NAME";
+  public static final String APPVEYOR_REPO_COMMIT_MESSAGE = "APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED";
+  public static final String APPVEYOR_REPO_COMMIT_AUTHOR_NAME = "APPVEYOR_REPO_COMMIT_AUTHOR";
+  public static final String APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL =
+      "APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL";
 
   @Override
   protected GitInfo buildCIGitInfo() {
@@ -27,7 +32,11 @@ class AppVeyorInfo extends CIProviderInfo {
         buildGitRepositoryUrl(repoProvider, System.getenv(APPVEYOR_REPO_NAME)),
         buildGitBranch(repoProvider, tag),
         tag,
-        new CommitInfo(buildGitCommit()));
+        new CommitInfo(
+            buildGitCommit(),
+            buildGitCommitAuthor(),
+            PersonInfo.NOOP,
+            System.getenv(APPVEYOR_REPO_COMMIT_MESSAGE)));
   }
 
   @Override
@@ -83,5 +92,11 @@ class AppVeyorInfo extends CIProviderInfo {
 
   private String buildPipelineUrl(final String repoName, final String buildId) {
     return String.format("https://ci.appveyor.com/project/%s/builds/%s", repoName, buildId);
+  }
+
+  private PersonInfo buildGitCommitAuthor() {
+    return new PersonInfo(
+        System.getenv(APPVEYOR_REPO_COMMIT_AUTHOR_NAME),
+        System.getenv(APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL));
   }
 }

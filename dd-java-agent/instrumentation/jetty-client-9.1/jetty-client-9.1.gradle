@@ -27,16 +27,17 @@ testSets {
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.1.0.v20131115'
 
-  testCompile(project(':dd-java-agent:testing')) {
+  testImplementation(project(':dd-java-agent:testing')) {
     // explicitly declared below.
     exclude module: 'jetty-server'
   }
-  testCompile group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.1.0.v20131115'
-  testCompile group: 'org.eclipse.jetty', name: 'jetty-util', version: '9.1.0.v20131115'
-  latestDepTestCompile group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.+' // 10+ requires Java 11
+  testImplementation project(':dd-java-agent:instrumentation:jetty-util')
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.1.0.v20131115'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-util', version: '9.1.0.v20131115'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-client', version: '9.+' // 10+ requires Java 11
 
   // because there are shared dependencies between the client and server
   // we have to be explicit about which version to use.
-  testCompile group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.1.0.v20131115'
-  latestDepTestCompile group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.+'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.1.0.v20131115'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.+'
 }

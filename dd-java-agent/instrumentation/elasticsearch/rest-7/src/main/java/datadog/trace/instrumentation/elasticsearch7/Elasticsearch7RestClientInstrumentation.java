@@ -14,10 +14,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -55,22 +52,20 @@ public class Elasticsearch7RestClientInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformations = new HashMap<>(3);
-    transformations.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         isMethod()
             .and(named("performRequest"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.elasticsearch.client.Request"))),
         Elasticsearch7RestClientInstrumentation.class.getName() + "$ElasticsearchRestClientAdvice");
-    transformations.put(
+    transformation.applyAdvice(
         isMethod()
             .and(named("performRequestAsync"))
             .and(takesArguments(2))
             .and(takesArgument(0, named("org.elasticsearch.client.Request")))
             .and(takesArgument(1, named("org.elasticsearch.client.ResponseListener"))),
         Elasticsearch7RestClientInstrumentation.class.getName() + "$ElasticsearchRestClientAdvice");
-    return transformations;
   }
 
   public static class ElasticsearchRestClientAdvice {

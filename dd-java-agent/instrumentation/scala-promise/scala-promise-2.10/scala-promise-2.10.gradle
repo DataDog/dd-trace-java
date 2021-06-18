@@ -51,33 +51,34 @@ sourceSets {
   latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala-promise').sourceSets.test.scala
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy").configure {
   classpath += files(sourceSets.test.scala.classesDirectory)
-  dependsOn compileTestScala
+  dependsOn "compileTestScala"
 }
 
-compileLatestDepTestGroovy {
+tasks.named("compileLatestDepTestGroovy").configure {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
-  dependsOn compileLatestDepTestScala
+  dependsOn "compileLatestDepTestScala"
 }
 
-compileLatestDepForkedTestGroovy {
+tasks.named("compileLatestDepForkedTestGroovy").configure {
   classpath += files(sourceSets.latestDepForkedTest.scala.classesDirectory)
-  dependsOn compileLatestDepForkedTestScala
+  dependsOn "compileLatestDepForkedTestScala"
 }
 
-latestDepTest {
-  dependsOn latestDepForkedTest
+tasks.named("latestDepTest").configure {
+  dependsOn "latestDepForkedTest"
+
 }
 
 dependencies {
   // first version that works with the tests on JDK11 (without dependency problems):
   compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
-  compile project(':dd-java-agent:instrumentation:scala-promise')
+  implementation project(':dd-java-agent:instrumentation:scala-promise')
 
-  testCompile group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
-  testCompile project(':dd-java-agent:instrumentation:scala-promise')
+  testImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.10.7'
+  testImplementation project(':dd-java-agent:instrumentation:scala-promise')
 
-  latestDepTestCompile group: 'org.scala-lang', name: 'scala-library', version: '2.12.+'
-  latestDepTestCompile project(':dd-java-agent:instrumentation:scala-promise')
+  latestDepTestImplementation group: 'org.scala-lang', name: 'scala-library', version: '2.12.+'
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:scala-promise')
 }

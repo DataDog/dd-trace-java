@@ -6,6 +6,7 @@ import com.datadog.profiling.controller.jfr.JfpUtils;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -33,8 +34,9 @@ public final class OracleJdkController implements Controller {
       log.debug("Initializing Oracle JFR controller");
       helper = new JfrMBeanHelper();
       eventSettings =
-          JfpUtils.readNamedJfpResource(
-              JfpUtils.DEFAULT_JFP, config.getProfilingTemplateOverrideFile());
+          Collections.unmodifiableMap(
+              JfpUtils.readNamedJfpResource(
+                  JfpUtils.DEFAULT_JFP, config.getProfilingTemplateOverrideFile()));
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
@@ -47,7 +49,7 @@ public final class OracleJdkController implements Controller {
       log.debug("Attempting to create a new recording with name '{}'", recordingName);
       return new OracleJdkOngoingRecording(
           helper, recordingName, RECORDING_MAX_SIZE, RECORDING_MAX_AGE, eventSettings);
-    } catch (IOException e) {
+    } catch (final IOException e) {
       throw new RuntimeException("Unable to create a new recording with name " + recordingName, e);
     }
   }

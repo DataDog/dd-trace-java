@@ -11,12 +11,12 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'Play Integration 2.8 Tests.'
 
 dependencies {
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }
 
 def appDir = "$projectDir/application"
 // define the task that builds the play project
-task sbtStage(type:Exec) {
+tasks.register('sbtStage', Exec) {
   workingDir "$appDir"
   commandLine './sbt', "-Dsbt.ivy=true", "-Dplay.version=$playVersion", "-Dscala.version=$scalaVersion", "-Ddatadog.smoketest.builddir=$buildDir", 'stage'
   outputs.dir("$buildDir/target")
@@ -25,7 +25,7 @@ task sbtStage(type:Exec) {
   inputs.dir("$appDir/project")
 }
 
-compileTestGroovy {
+tasks.named("compileTestGroovy").configure {
   dependsOn 'sbtStage'
   outputs.upToDateWhen {
     !sbtStage.didWork

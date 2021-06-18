@@ -16,15 +16,15 @@ jar {
 }
 
 shadowJar {
-  configurations = [project.configurations.compile, project.configurations.main_java8Compile]
+  configurations = [project.configurations.runtimeClasspath, project.configurations.main_java8RuntimeClasspath]
 }
 
 dependencies {
-  testCompile project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests')
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn shadowJar
+  dependsOn "shadowJar"
 
   jvmArgs "-Ddatadog.smoketest.fieldinjection.shadowJar.path=${tasks.shadowJar.archivePath}"
 }

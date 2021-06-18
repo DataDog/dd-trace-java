@@ -1,13 +1,18 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
+import static datadog.trace.api.Functions.PATH_BASED_RESOURCE_NAME;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Pair;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.normalize.PathNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.BitSet;
@@ -19,6 +24,11 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
   private static final Logger log = LoggerFactory.getLogger(HttpClientDecorator.class);
 
   private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getHttpClientErrorStatuses();
+
+  private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
+
+  private static final DDCache<Pair<String, String>, UTF8BytesString> RESOURCE_NAMES =
+      DDCaches.newFixedSizeCache(512);
 
   protected abstract String method(REQUEST request);
 
@@ -36,9 +46,14 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
     return null;
   }
 
+  protected boolean shouldSetResourceName() {
+    return true;
+  }
+
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
-      span.setTag(Tags.HTTP_METHOD, method(request));
+      String method = method(request);
+      span.setTag(Tags.HTTP_METHOD, method);
 
       // Copy of HttpServerDecorator url handling
       try {
@@ -76,6 +91,13 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
             span.setTag(DDTags.HTTP_QUERY, url.getQuery());
             span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
           }
+          if (shouldSetResourceName() && !span.hasResourceName()) {
+            span.setResourceName(
+                RESOURCE_NAMES.computeIfAbsent(
+                    Pair.of(method, PathNormalizer.normalize(path)), PATH_BASED_RESOURCE_NAME));
+          }
+        } else if (shouldSetResourceName() && !span.hasResourceName()) {
+          span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
@@ -88,7 +110,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
     if (response != null) {
       final int status = status(response);
       if (status > UNSET_STATUS) {
-        span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.get(status));
+        span.setHttpStatusCode(status);
       }
       if (CLIENT_ERROR_STATUSES.get(status)) {
         span.setError(true);

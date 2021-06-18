@@ -13,7 +13,6 @@ public abstract class AbstractWebfluxInstrumentation extends Instrumenter.Tracin
     return new String[] {
       packageName + ".SpringWebfluxHttpServerDecorator",
       packageName + ".AdviceUtils",
-      packageName + ".AdviceUtils$1",
       packageName + ".AdviceUtils$SpanFinishingSubscriber",
       packageName + ".RouteOnSuccessOrError"
     };

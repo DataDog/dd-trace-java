@@ -1,27 +1,57 @@
 apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
 
 minimumBranchCoverage = 0.6
 excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
 
 configurations {
   // classpath used by the instrumentation muzzle plugin
-  instrumentationMuzzle
+  instrumentationMuzzle.extendsFrom implementation
 }
 
 dependencies {
-  compile(project(':dd-java-agent:agent-bootstrap')) {
+  api(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
   }
-  compile group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
-  compile group: 'com.googlecode.concurrentlinkedhashmap', name: 'concurrentlinkedhashmap-lru', version: '1.4.2'
-  compile deps.bytebuddy
-  compile deps.bytebuddyagent
+  api group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
+  api group: 'com.googlecode.concurrentlinkedhashmap', name: 'concurrentlinkedhashmap-lru', version: '1.4.2'
+  api deps.bytebuddy
+  api deps.bytebuddyagent
 
-  compile project(':dd-trace-core')
-  compile project(':dd-trace-core:jfr-openjdk')
+  api project(':dd-trace-core')
+  api project(':dd-trace-core:jfr-openjdk')
 
-  testCompile project(':dd-java-agent:testing')
+  testImplementation project(':dd-java-agent:testing')
+}
 
-  instrumentationMuzzle sourceSets.main.output
-  instrumentationMuzzle configurations.compile
+// Use Java 11 to build a delegating ClassFileTransformer that understands Java modules
+sourceSets {
+  "main_java11" {
+    java.srcDirs "${project.projectDir}/src/main/java11"
+  }
+}
+compileMain_java11Java.doFirst {
+  if (!System.env.JAVA_11_HOME) {
+    throw new GradleException('JAVA_11_HOME must be set to build transformer helpers')
+  }
+  options.fork = true
+  options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+  sourceCompatibility = JavaVersion.VERSION_1_9
+  targetCompatibility = JavaVersion.VERSION_1_9
+}
+dependencies {
+  main_java11CompileOnly deps.bytebuddy
+  main_java11CompileOnly sourceSets.main.output
+  runtime sourceSets.main_java11.output
+}
+jar {
+  from sourceSets.main_java11.output
+}
+forbiddenApisMain_java11 {
+  failOnMissingClasses = false
+}
+idea {
+  module {
+    jdkName = '11'
+  }
 }
