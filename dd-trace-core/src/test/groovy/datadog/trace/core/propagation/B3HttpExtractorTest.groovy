@@ -84,11 +84,15 @@ class B3HttpExtractorTest extends DDSpecification {
     context.origin == null
 
     where:
-    b3      | traceId | spanId | samplingPriority | expectedTraceId | expectedSpanId | expectedSamplingPriority
-    "2-3-0" | 1G      | 2G     | 1                | 2G              | 3G             | PrioritySampling.SAMPLER_DROP
-    "2-3"   | 1G      | 2G     | 1                | 2G              | 3G             | PrioritySampling.SAMPLER_KEEP
-    "0"     | 1G      | 2G     | 1                | 1G              | 2G             | PrioritySampling.SAMPLER_DROP
-    null    | 1G      | 2G     | 1                | 1G              | 2G             | PrioritySampling.SAMPLER_KEEP
+    b3      | expectedTraceId | expectedSpanId | expectedSamplingPriority
+    "2-3-0" | 2G              | 3G             | PrioritySampling.SAMPLER_DROP
+    "2-3"   | 2G              | 3G             | PrioritySampling.SAMPLER_KEEP
+    "0"     | 1G              | 2G             | PrioritySampling.SAMPLER_DROP
+    null    | 1G              | 2G             | PrioritySampling.SAMPLER_KEEP
+
+    traceId = 1G
+    spanId = 2G
+    samplingPriority = 1
   }
 
   def "extract http headers with b3 header at the end"() {
@@ -121,12 +125,15 @@ class B3HttpExtractorTest extends DDSpecification {
     context.origin == null
 
     where:
-    b3      | traceId | spanId | samplingPriority | expectedTraceId | expectedSpanId | expectedSamplingPriority
-    "2-3-0" | 1G      | 2G     | 1                | 2G              | 3G             | PrioritySampling.SAMPLER_DROP
-    "2-3"   | 1G      | 2G     | 1                | 2G              | 3G             | PrioritySampling.SAMPLER_KEEP
-    "0"     | 1G      | 2G     | 1                | 1G              | 2G             | PrioritySampling.SAMPLER_DROP
-    null    | 1G      | 2G     | 1                | 1G              | 2G             | PrioritySampling.SAMPLER_KEEP
+    b3      | expectedTraceId | expectedSpanId | expectedSamplingPriority
+    "2-3-0" | 2G              | 3G             | PrioritySampling.SAMPLER_DROP
+    "2-3"   | 2G              | 3G             | PrioritySampling.SAMPLER_KEEP
+    "0"     | 1G              | 2G             | PrioritySampling.SAMPLER_DROP
+    null    | 1G              | 2G             | PrioritySampling.SAMPLER_KEEP
 
+    traceId = 1G
+    spanId = 2G
+    samplingPriority = 1
   }
 
   def "extract 128 bit id truncates id to 64 bit"() {
@@ -282,6 +289,4 @@ class B3HttpExtractorTest extends DDSpecification {
     "1"                                | "f" * 16           | DDId.ONE                         | DDId.MAX
     "1"                                | "000" + "f" * 16   | DDId.ONE                         | DDId.MAX
   }
-
-
 }
