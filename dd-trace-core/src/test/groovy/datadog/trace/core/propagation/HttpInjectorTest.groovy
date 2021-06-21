@@ -27,20 +27,20 @@ class HttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-        traceId,
-        spanId,
-        DDId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        samplingPriority,
-        origin,
-        ["k1": "v1", "k2": "v2"],
-        false,
-        "fakeType",
-        0,
-        tracer.pendingTraceFactory.create(DDId.ONE))
+      traceId,
+      spanId,
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      samplingPriority,
+      origin,
+      ["k1": "v1", "k2": "v2"],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE))
 
     final Map<String, String> carrier = Mock()
 
