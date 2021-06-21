@@ -16,9 +16,9 @@ public class LegacyConfigJsonAdapter {
   @ToJson
   public void toJson(JsonWriter writer, AppSecConfig config) throws IOException {
 
-    /*List<String> blockingRulesId = new LinkedList<>();
+    List<String> blockingRulesId = new LinkedList<>();
     List<String> passRulesId = new LinkedList<>();
-    Set<String> parameters = new LinkedHashSet<>();*/
+    Set<String> parameters = new LinkedHashSet<>();
 
     writer.beginObject();
     writer.name("rules").beginArray();
@@ -32,11 +32,11 @@ public class LegacyConfigJsonAdapter {
         ruleId = md5(event.name);
       }
 
-      /*if (e.action == Action.LOG) {
+      if (event.action == Action.BLOCK) {
         blockingRulesId.add(ruleId);
-      } else {
+      } else if (event.action == Action.LOG){
         passRulesId.add(ruleId);
-      }*/
+      }
 
       writer.beginObject();
       writer.name("rule_id").value(ruleId);
@@ -51,9 +51,10 @@ public class LegacyConfigJsonAdapter {
         switch (cond.operation) {
           case MATCH_REGEX:
             operator = "@rx";
-            MatchRegexParams params = (MatchRegexParams)cond.params;
-            input = params.input;
-            value = params.regex;
+            //MatchRegexParams params = (MatchRegexParams)cond.params;
+            //input = params.input;
+            //value = params.regex;
+            //parameters.add(input);
             break;
           case HAS_SQLI_PATTERN:
             operator = "@detectSQLi";
@@ -67,7 +68,6 @@ public class LegacyConfigJsonAdapter {
         if (operator != null) {
           writer.name("operator").value(operator);
           writer.name("targets").beginArray();
-
           writer.value(input);
 
           writer.endArray();
@@ -92,7 +92,7 @@ public class LegacyConfigJsonAdapter {
     writer.endArray();
 
     // Manifest
-    /*writer.name("manifest").beginObject();
+    writer.name("manifest").beginObject();
     for (String parameter : parameters) {
       writer.name(parameter).beginObject();
       writer.name("inherit_from").value(parameter);
@@ -105,7 +105,7 @@ public class LegacyConfigJsonAdapter {
     writer.name("flows").beginArray();
 
     writer.beginObject();
-    writer.name("name").value("blocking");
+    writer.name("name").value("flow_map");
     writer.name("steps").beginArray();
 
     // Block step
@@ -132,11 +132,11 @@ public class LegacyConfigJsonAdapter {
       writer.endArray();
       writer.name("on_match").value("exit_monitor");
       writer.endObject();
-    }*/
+    }
 
-    //writer.endArray();
-    //writer.endObject();
-    //writer.endArray();
+    writer.endArray();
+    writer.endObject();
+    writer.endArray();
 
     writer.endObject();
   }
