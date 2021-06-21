@@ -155,6 +155,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     return decrementRefAndMaybeWrite(span == getRootSpan());
   }
 
+  @Override
   public DDSpan getRootSpan() {
     return rootSpan;
   }
@@ -186,6 +187,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
   enum FinishState {
     WRITTEN,
     PARTIAL_FLUSH,
+    ROOT_BUFFERED,
     BUFFERED,
     PENDING
   }
@@ -204,7 +206,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     } else if (isRootSpan) {
       // Finished root with pending work ... delay write
       pendingTraceBuffer.enqueue(this);
-      return FinishState.BUFFERED;
+      return FinishState.ROOT_BUFFERED;
     } else if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
       // Trace is getting too big, write anything completed.
       partialFlush();
