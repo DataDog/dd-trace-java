@@ -23,20 +23,20 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-        DDId.from("$traceId"),
-        DDId.from("$spanId"),
-        DDId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        samplingPriority,
-        "fakeOrigin",
-        ["k1": "v1", "k2": "v2"],
-        false,
-        "fakeType",
-        0,
-        tracer.pendingTraceFactory.create(DDId.ONE))
+      DDId.from("$traceId"),
+      DDId.from("$spanId"),
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      samplingPriority,
+      "fakeOrigin",
+      ["k1": "v1", "k2": "v2"],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE))
 
     final Map<String, String> carrier = Mock()
 
@@ -80,20 +80,20 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
     final DDSpanContext mockedContext =
       new DDSpanContext(
-        context.traceId,
-        context.spanId,
-        DDId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        PrioritySampling.UNSET,
-        "fakeOrigin",
-        ["k1": "v1", "k2": "v2"],
-        false,
-        "fakeType",
-        0,
-        tracer.pendingTraceFactory.create(DDId.ONE))
+      context.traceId,
+      context.spanId,
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      "fakeOrigin",
+      ["k1": "v1", "k2": "v2"],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE))
     final Map<String, String> carrier = Mock()
 
     when:
