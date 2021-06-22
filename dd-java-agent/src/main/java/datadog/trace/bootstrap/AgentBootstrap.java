@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -130,14 +131,14 @@ public final class AgentBootstrap {
     return ddJavaAgentJarURL;
   }
 
+  @SuppressForbidden
   private static List<String> getVMArgumentsThroughReflection() {
     try {
       // Try Oracle-based
       final Class<?> managementFactoryHelperClass =
-          thisClass.getClassLoader().loadClass("sun.management.ManagementFactoryHelper");
+          Class.forName("sun.management.ManagementFactoryHelper");
 
-      final Class<?> vmManagementClass =
-          thisClass.getClassLoader().loadClass("sun.management.VMManagement");
+      final Class<?> vmManagementClass = Class.forName("sun.management.VMManagement");
 
       Object vmManagement;
 
@@ -156,7 +157,7 @@ public final class AgentBootstrap {
 
     } catch (final ReflectiveOperationException e) {
       try { // Try IBM-based.
-        final Class<?> VMClass = thisClass.getClassLoader().loadClass("com.ibm.oti.vm.VM");
+        final Class<?> VMClass = Class.forName("com.ibm.oti.vm.VM");
         final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);
         return Arrays.asList(argArray);
       } catch (final ReflectiveOperationException e1) {
