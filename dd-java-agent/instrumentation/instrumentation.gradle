@@ -6,7 +6,6 @@ buildscript {
   }
 
   dependencies {
-    classpath "net.bytebuddy:byte-buddy-gradle-plugin:1.10.14" // 1.10.15 gradle plugin has breaking changes
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.kotlin}"
   }
 }
@@ -19,31 +18,20 @@ tasks.register("latestDepTest")
 
 Project parent_project = project
 subprojects { Project subProj ->
-  apply plugin: "net.bytebuddy.byte-buddy"
+  apply plugin: 'instrument'
   apply plugin: 'muzzle'
+
+  instrument.plugins = [
+    'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
+    'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin'
+  ]
 
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 
   // needs fetching this project's configurations.instrumentationMuzzle
   evaluationDependsOn ':dd-java-agent:agent-tooling'
 
-  subProj.byteBuddy {
-    transformation {
-      // Applying NoOp optimizes build by applying bytebuddy plugin to only compileJava task
-      tasks = ['compileJava', 'compileScala', 'compileKotlin']
-      plugin = 'net.bytebuddy.build.Plugin$NoOp'
-    }
-  }
-
   subProj.afterEvaluate {
-    subProj.byteBuddy {
-      transformation {
-        tasks = ['compileJava', 'compileScala', 'compileKotlin']
-        plugin = 'datadog.trace.agent.tooling.bytebuddy.AgentGradlePlugin'
-        classPath = project(':dd-java-agent:agent-tooling').configurations.instrumentationMuzzle + subProj.configurations.compileClasspath + subProj.sourceSets.main.output
-      }
-    }
-
     String jdkCompile = null
     if (project.hasProperty('minJavaVersionForTests') && project.getProperty('minJavaVersionForTests') != JavaVersion.VERSION_1_7) {
       def version = JavaVersion.toVersion(project.getProperty('minJavaVersionForTests'))

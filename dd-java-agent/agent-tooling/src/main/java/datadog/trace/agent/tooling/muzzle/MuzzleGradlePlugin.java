@@ -13,7 +13,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
 
-/** Bytebuddy gradle plugin which creates muzzle-references at compile time. */
+/**
+ * Bytebuddy gradle plugin which creates muzzle-references at compile time.
+ *
+ * @see "buildSrc/src/main/groovy/InstrumentPlugin.groovy"
+ */
 public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
   static {
     // prevent WeakMap from logging warning while plugin is running
