@@ -8,6 +8,7 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
+import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY
 import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY
 import static datadog.trace.core.propagation.B3HttpCodec.SPAN_ID_KEY
 import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY
@@ -31,7 +32,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       samplingPriority,
       "fakeOrigin",
-      ["k1" : "v1", "k2" : "v2"],
+      ["k1": "v1", "k2": "v2"],
       false,
       "fakeType",
       0,
@@ -47,6 +48,9 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     1 * carrier.put(SPAN_ID_KEY, spanId.toString(16).toLowerCase())
     if (expectedSamplingPriority != null) {
       1 * carrier.put(SAMPLING_PRIORITY_KEY, "$expectedSamplingPriority")
+      1 * carrier.put(B3_KEY, traceId.toString(16).toLowerCase() + "-" + spanId.toString(16).toLowerCase() + "-$expectedSamplingPriority")
+    } else {
+      1 * carrier.put(B3_KEY, traceId.toString(16).toLowerCase() + "-" + spanId.toString(16).toLowerCase())
     }
     0 * _
 
@@ -85,7 +89,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       PrioritySampling.UNSET,
       "fakeOrigin",
-      ["k1" : "v1", "k2" : "v2"],
+      ["k1": "v1", "k2": "v2"],
       false,
       "fakeType",
       0,
@@ -98,6 +102,7 @@ class B3HttpInjectorTest extends DDCoreSpecification {
     then:
     1 * carrier.put(TRACE_ID_KEY, traceId)
     1 * carrier.put(SPAN_ID_KEY, spanId)
+    1 * carrier.put(B3_KEY, traceId + "-" + spanId)
     0 * _
 
     cleanup:

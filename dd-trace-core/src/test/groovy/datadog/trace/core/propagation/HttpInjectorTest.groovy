@@ -9,6 +9,7 @@ import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.PropagationStyle.B3
 import static datadog.trace.api.PropagationStyle.DATADOG
+import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY
 
 class HttpInjectorTest extends DDCoreSpecification {
 
@@ -35,7 +36,7 @@ class HttpInjectorTest extends DDCoreSpecification {
       "fakeResource",
       samplingPriority,
       origin,
-      ["k1" : "v1", "k2" : "v2"],
+      ["k1": "v1", "k2": "v2"],
       false,
       "fakeType",
       0,
@@ -64,6 +65,9 @@ class HttpInjectorTest extends DDCoreSpecification {
       1 * carrier.put(B3HttpCodec.SPAN_ID_KEY, spanId.toString())
       if (samplingPriority != PrioritySampling.UNSET) {
         1 * carrier.put(B3HttpCodec.SAMPLING_PRIORITY_KEY, "1")
+        1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString() + "-1")
+      } else {
+        1 * carrier.put(B3_KEY, traceId.toString() + "-" + spanId.toString())
       }
     }
     0 * _
