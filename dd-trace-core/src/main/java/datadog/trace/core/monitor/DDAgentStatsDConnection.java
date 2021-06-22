@@ -105,9 +105,9 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
                 .port(port)
                 .errorHandler(this)
                 .entityID(entityID);
-        // when using UDS set the datagram size to 8k
+        // when using UDS set the datagram size to 8k (2k on Mac due to lower OS default)
         if (this.port == 0) {
-          clientBuilder.maxPacketSizeBytes(8192);
+          clientBuilder.maxPacketSizeBytes(Platform.isMac() ? 2048 : 8192);
         }
         try {
           statsd = clientBuilder.build();
