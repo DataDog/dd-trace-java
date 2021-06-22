@@ -129,7 +129,7 @@ class TraceGenerator {
       this.type = type
       this.measured = measured
       this.metadata = new Metadata(Thread.currentThread().getId(),
-        UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, UNSET, measured, topLevel, null)
+        UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, UNSET, measured, topLevel, null, null)
     }
 
     @Override
@@ -185,6 +185,11 @@ class TraceGenerator {
     @Override
     short getHttpStatusCode() {
       return 0
+    }
+
+    @Override
+    CharSequence getOrigin(){
+      return null
     }
 
     @Override

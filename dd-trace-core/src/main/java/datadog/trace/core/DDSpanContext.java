@@ -36,7 +36,6 @@ public class DDSpanContext implements AgentSpan.Context {
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
   public static final String SAMPLE_RATE_KEY = "_sample_rate";
-  public static final String ORIGIN_KEY = "_dd.origin";
 
   private static final DDCache<String, UTF8BytesString> THREAD_NAMES =
       DDCaches.newFixedSizeCache(256);
@@ -96,8 +95,8 @@ public class DDSpanContext implements AgentSpan.Context {
       AtomicIntegerFieldUpdater.newUpdater(DDSpanContext.class, "samplingPriorityV1");
 
   private volatile int samplingPriorityV1 = PrioritySampling.UNSET;
-  /** The origin of the trace. (eg. Synthetics) */
-  private final String origin;
+  /** The origin of the trace. (eg. Synthetics, CI App) */
+  private volatile CharSequence origin;
 
   public DDSpanContext(
       final DDId traceId,
@@ -108,7 +107,7 @@ public class DDSpanContext implements AgentSpan.Context {
       final CharSequence operationName,
       final CharSequence resourceName,
       final int samplingPriority,
-      final String origin,
+      final CharSequence origin,
       final Map<String, String> baggageItems,
       final boolean errorFlag,
       final CharSequence spanType,
@@ -148,9 +147,6 @@ public class DDSpanContext implements AgentSpan.Context {
       setSamplingPriority(samplingPriority);
     }
 
-    if (origin != null) {
-      this.unsafeTags.put(ORIGIN_KEY, origin);
-    }
     // Additional Metadata
     final Thread current = Thread.currentThread();
     this.threadId = current.getId();
@@ -312,7 +308,7 @@ public class DDSpanContext implements AgentSpan.Context {
     return SAMPLING_PRIORITY_UPDATER.get(this) != UNSET;
   }
 
-  public String getOrigin() {
+  public CharSequence getOrigin() {
     final DDSpan rootSpan = trace.getRootSpan();
     if (null != rootSpan) {
       return rootSpan.context().origin;
@@ -360,6 +356,10 @@ public class DDSpanContext implements AgentSpan.Context {
 
   public short getHttpStatusCode() {
     return httpStatusCode;
+  }
+
+  public void setOrigin(final CharSequence origin) {
+    this.origin = origin;
   }
 
   public void setMetric(final CharSequence key, final Number value) {
@@ -458,7 +458,8 @@ public class DDSpanContext implements AgentSpan.Context {
               samplingPriorityV1,
               measured,
               topLevel,
-              httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode)));
+              httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
+              getOrigin())); // Get origin from rootSpan.context
     }
   }
 

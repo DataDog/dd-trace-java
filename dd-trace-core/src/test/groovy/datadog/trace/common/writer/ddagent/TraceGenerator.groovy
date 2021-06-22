@@ -69,7 +69,8 @@ class TraceGenerator {
       tags,
       "type-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100),
       ThreadLocalRandom.current().nextBoolean(),
-      200)
+      200,
+      "some-origin")
   }
 
   private static String randomString(int maxLength) {
@@ -120,7 +121,8 @@ class TraceGenerator {
     Map<String, Object> tags,
     String type,
     boolean measured,
-    int statusCode) {
+    int statusCode,
+    CharSequence origin) {
       this.serviceName = UTF8BytesString.create(serviceName)
       this.operationName = UTF8BytesString.create(operationName)
       this.resourceName = UTF8BytesString.create(resourceName)
@@ -134,7 +136,7 @@ class TraceGenerator {
       this.measured = measured
       this.metadata = new Metadata(Thread.currentThread().getId(),
         UTF8BytesString.create(Thread.currentThread().getName()), tags, baggage, UNSET, measured, topLevel,
-        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)))
+        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)), origin)
       this.httpStatusCode = (short) statusCode
     }
 
@@ -266,6 +268,11 @@ class TraceGenerator {
     @Override
     short getHttpStatusCode() {
       return httpStatusCode
+    }
+
+    @Override
+    CharSequence getOrigin(){
+      return metadata.getOrigin()
     }
 
     Map<String, String> getBaggage() {
