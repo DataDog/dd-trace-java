@@ -133,6 +133,28 @@ public class MsgPackWriter implements WritableFormatter {
   }
 
   @Override
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public void writeObjectString(Object value, EncodingCache encodingCache) {
+    // unpeel a very common case, but should try to move away from sending
+    // UTF8BytesString down this codepath at all
+    if (value instanceof UTF8BytesString) {
+      writeUTF8((UTF8BytesString) value);
+    } else if (null == value) {
+      writeNull();
+    } else {
+      String s = String.valueOf(value);
+      if (null != encodingCache) {
+        byte[] utf8 = encodingCache.encode(s);
+        if (null != utf8) {
+          writeUTF8(utf8);
+          return;
+        }
+      }
+      writeUTF8(s.getBytes(UTF_8));
+    }
+  }
+
+  @Override
   public void writeNull() {
     buffer.put(NULL);
   }

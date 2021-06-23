@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
+import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -30,6 +31,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.OS_ARCHITECTURE, decorator.osArch())
     1 * span.setTag(Tags.OS_PLATFORM, decorator.osPlatform())
     1 * span.setTag(Tags.OS_VERSION, decorator.osVersion())
+    1 * span.setTag(DDTags.ORIGIN_KEY, decorator.origin())
     decorator.ciTags.each {
       1 * span.setTag(it.key, it.value)
     }

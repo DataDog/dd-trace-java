@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.googlehttpclient;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -31,14 +30,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing {
   public GoogleHttpClientInstrumentation() {
     super("google-http-client");
-  }
-
-  private final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
-      hasClassesNamed("com.google.api.client.http.HttpRequest");
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return CLASS_LOADER_MATCHER;
   }
 
   @Override

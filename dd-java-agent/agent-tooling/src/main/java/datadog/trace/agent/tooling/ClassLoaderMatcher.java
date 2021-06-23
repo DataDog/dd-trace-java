@@ -56,6 +56,18 @@ public final class ClassLoaderMatcher {
     return new ClassLoaderHasClassesNamedMatcher(classNames);
   }
 
+  /**
+   * NOTICE: Does not match the bootstrap classpath. Don't use with classes expected to be on the
+   * bootstrap.
+   *
+   * @param className the className to match.
+   * @return true if class is available as a resource and not the bootstrap classloader.
+   */
+  public static ElementMatcher.Junction.AbstractBase<ClassLoader> hasClassesNamed(
+      final String className) {
+    return new ClassLoaderHasClassNamedMatcher(className);
+  }
+
   private static final class SkipClassLoaderMatcher
       extends ElementMatcher.Junction.AbstractBase<ClassLoader> {
     public static final SkipClassLoaderMatcher INSTANCE = new SkipClassLoaderMatcher();
@@ -119,22 +131,13 @@ public final class ClassLoaderMatcher {
     }
   }
 
-  private static class ClassLoaderHasClassesNamedMatcher
+  private abstract static class ClassLoaderHasNameMatcher
       extends ElementMatcher.Junction.AbstractBase<ClassLoader> {
 
     // Initialize this lazily because of startup ordering and muzzle plugin usage patterns
     private volatile WeakCache<ClassLoader, Boolean> cacheHolder = null;
 
-    private final String[] resources;
-
-    private ClassLoaderHasClassesNamedMatcher(final String... classNames) {
-      resources = classNames;
-      for (int i = 0; i < resources.length; i++) {
-        resources[i] = getResourceName(resources[i]);
-      }
-    }
-
-    private WeakCache<ClassLoader, Boolean> getCache() {
+    protected WeakCache<ClassLoader, Boolean> getCache() {
       if (cacheHolder == null) {
         synchronized (this) {
           if (cacheHolder == null) {
@@ -145,7 +148,37 @@ public final class ClassLoaderMatcher {
       return cacheHolder;
     }
 
-    private boolean hasResources(final ClassLoader cl) {
+    @Override
+    public boolean matches(final ClassLoader cl) {
+      if (cl == BOOTSTRAP_CLASSLOADER) {
+        // Can't match the bootstrap classloader.
+        return false;
+      }
+      final Boolean cached;
+      WeakCache<ClassLoader, Boolean> cache = getCache();
+      if ((cached = cache.getIfPresent(cl)) != null) {
+        return cached;
+      }
+      final boolean value = checkMatch(cl);
+      cache.put(cl, value);
+      return value;
+    }
+
+    protected abstract boolean checkMatch(ClassLoader cl);
+  }
+
+  private static class ClassLoaderHasClassesNamedMatcher extends ClassLoaderHasNameMatcher {
+
+    private final String[] resources;
+
+    private ClassLoaderHasClassesNamedMatcher(final String... classNames) {
+      resources = classNames;
+      for (int i = 0; i < resources.length; i++) {
+        resources[i] = getResourceName(resources[i]);
+      }
+    }
+
+    protected boolean checkMatch(final ClassLoader cl) {
       PROBING_CLASSLOADER.begin();
       try {
         for (final String resource : resources) {
@@ -160,21 +193,23 @@ public final class ClassLoaderMatcher {
         PROBING_CLASSLOADER.end();
       }
     }
+  }
 
-    @Override
-    public boolean matches(final ClassLoader cl) {
-      if (cl == BOOTSTRAP_CLASSLOADER) {
-        // Can't match the bootstrap classloader.
-        return false;
+  private static class ClassLoaderHasClassNamedMatcher extends ClassLoaderHasNameMatcher {
+
+    private final String resource;
+
+    private ClassLoaderHasClassNamedMatcher(final String className) {
+      resource = getResourceName(className);
+    }
+
+    protected boolean checkMatch(final ClassLoader cl) {
+      PROBING_CLASSLOADER.begin();
+      try {
+        return cl.getResource(resource) != null;
+      } finally {
+        PROBING_CLASSLOADER.end();
       }
-      final Boolean cached;
-      WeakCache<ClassLoader, Boolean> cache = getCache();
-      if ((cached = cache.getIfPresent(cl)) != null) {
-        return cached;
-      }
-      final boolean value = hasResources(cl);
-      cache.put(cl, value);
-      return value;
     }
   }
 }

@@ -1,16 +1,14 @@
 package com.datadog.profiling.controller.openjdk;
 
+import static datadog.trace.api.Platform.isJavaVersion;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
-import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import com.datadog.profiling.controller.jfr.JfpUtilsTest;
 import datadog.trace.api.Config;
-import java.io.IOException;
 import jdk.jfr.Recording;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -22,16 +20,11 @@ public class OpenJdkControllerTest {
   private static final String TEST_NAME = "recording name";
 
   @Mock private Config config;
-  private OpenJdkController controller;
-
-  @BeforeEach
-  public void setup() throws ConfigurationException, ClassNotFoundException {
-    when(config.getProfilingTemplateOverrideFile()).thenReturn(JfpUtilsTest.OVERRIDES);
-    controller = new OpenJdkController(config);
-  }
 
   @Test
-  public void testCreateContinuousRecording() throws IOException {
+  public void testCreateContinuousRecording() throws Exception {
+    when(config.getProfilingTemplateOverrideFile()).thenReturn(JfpUtilsTest.OVERRIDES);
+    OpenJdkController controller = new OpenJdkController(config);
     try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
       assertEquals(TEST_NAME, recording.getName());
       assertEquals(
@@ -43,9 +36,15 @@ public class OpenJdkControllerTest {
   }
 
   @Test
-  public void testOldObjectSampleIsDisabledOnUnsupportedVersion() {
+  public void testOldObjectSampleIsDisabledOnUnsupportedVersion() throws Exception {
+    when(config.getProfilingTemplateOverrideFile())
+        .thenReturn(JfpUtilsTest.OVERRIDES_OLD_OBJECT_SAMPLE);
+    OpenJdkController controller = new OpenJdkController(config);
     try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
-      if (!isJavaVersionAtLeast(17)) {
+      if (!((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
+          || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
+          || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
+          || isJavaVersionAtLeast(17))) {
         assertEquals(
             Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")),
             false);

@@ -8,6 +8,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class PendingTraceBuffer implements AutoCloseable {
   private static final int BUFFER_SIZE = 1 << 12; // 4096
@@ -18,6 +20,8 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     boolean lastReferencedNanosAgo(long nanos);
 
     void write();
+
+    DDSpan getRootSpan();
   }
 
   private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
@@ -32,6 +36,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     private final AtomicInteger flushCounter = new AtomicInteger(0);
 
     /** if the queue is full, pendingTrace trace will be written immediately. */
+    @Override
     public void enqueue(Element pendingTrace) {
       if (!queue.offer(pendingTrace)) {
         // Queue is full, so we can't buffer this trace, write it out directly instead.
@@ -39,6 +44,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
       }
     }
 
+    @Override
     public void start() {
       worker.start();
     }
@@ -65,6 +71,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     }
 
     // Only used from within tests
+    @Override
     public void flush() {
       if (worker.isAlive()) {
         int count = flushCounter.get();
@@ -106,6 +113,11 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
 
       @Override
       public void write() {}
+
+      @Override
+      public DDSpan getRootSpan() {
+        return null;
+      }
     }
 
     private final class Worker implements Runnable {
@@ -154,7 +166,9 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     }
   }
 
-  static class MutePendingTraceBuffer extends PendingTraceBuffer {
+  static class DiscardingPendingTraceBuffer extends PendingTraceBuffer {
+    private static final Logger log = LoggerFactory.getLogger(DiscardingPendingTraceBuffer.class);
+
     @Override
     public void start() {}
 
@@ -165,19 +179,23 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     public void flush() {}
 
     @Override
-    public void enqueue(Element pendingTrace) {}
+    public void enqueue(Element pendingTrace) {
+      log.debug(
+          "PendingTrace enqueued but won't be reported. Root span: {}", pendingTrace.getRootSpan());
+    }
   }
 
   public static PendingTraceBuffer delaying() {
     return new DelayingPendingTraceBuffer(BUFFER_SIZE);
   }
 
-  public static PendingTraceBuffer mute() {
-    return new MutePendingTraceBuffer();
+  public static PendingTraceBuffer discarding() {
+    return new DiscardingPendingTraceBuffer();
   }
 
   public abstract void start();
 
+  @Override
   public abstract void close();
 
   public abstract void flush();

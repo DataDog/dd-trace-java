@@ -1,7 +1,11 @@
 package datadog.trace.instrumentation.springamqp;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
+import static datadog.trace.instrumentation.springamqp.RabbitListenerDecorator.AMQP_CONSUME;
+import static datadog.trace.instrumentation.springamqp.RabbitListenerDecorator.DECORATE;
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -10,6 +14,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
@@ -34,6 +40,11 @@ public class AbstractMessageListenerContainerInstrumentation extends Instrumente
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".RabbitListenerDecorator"};
+  }
+
+  @Override
   public Map<String, String> contextStore() {
     return singletonMap("org.springframework.amqp.core.Message", State.class.getName());
   }
@@ -54,25 +65,36 @@ public class AbstractMessageListenerContainerInstrumentation extends Instrumente
   }
 
   public static class ActivateContinuation {
-    @Advice.OnMethodEnter
-    public static TraceScope activate(@Advice.Argument(1) Object data) {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentScope activate(@Advice.Argument(1) Object data) {
       if (data instanceof Message) {
         Message message = (Message) data;
         State state = InstrumentationContext.get(Message.class, State.class).get(message);
         if (null != state) {
           TraceScope.Continuation continuation = state.getAndResetContinuation();
           if (null != continuation) {
-            return continuation.activate();
+            try (TraceScope scope = continuation.activate()) {
+              AgentSpan span = startSpan(AMQP_CONSUME);
+              span.setMeasured(true);
+              DECORATE.afterStart(span);
+              return activateSpan(span);
+            }
           }
         }
       }
       return null;
     }
 
-    @Advice.OnMethodExit
-    public static void close(@Advice.Enter TraceScope scope) {
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void close(@Advice.Enter AgentScope scope, @Advice.Thrown Throwable error) {
       if (null != scope) {
+        AgentSpan span = scope.span();
+        if (null != error) {
+          DECORATE.onError(span, error);
+        }
+        DECORATE.beforeFinish(span);
         scope.close();
+        span.finish();
       }
     }
   }

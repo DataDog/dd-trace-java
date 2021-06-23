@@ -7,7 +7,7 @@ muzzle {
   pass {
     group = "io.micronaut"
     module = "micronaut-http-server-netty"
-    versions = "[2.0.0,)"
+    versions = "[2.0.0,3)"
     assertInverse = true
   }
 }
@@ -31,5 +31,5 @@ dependencies {
 
   testAnnotationProcessor "io.micronaut:micronaut-inject-java:2.0.0"
 
-  latestDepTestCompile group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '+'
+  latestDepTestCompile group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '2.+'
 }

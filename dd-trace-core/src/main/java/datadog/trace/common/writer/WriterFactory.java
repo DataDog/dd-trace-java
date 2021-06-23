@@ -1,6 +1,6 @@
 package datadog.trace.common.writer;
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_SOCKET_PATH;
+import static datadog.common.socket.SocketUtils.discoverApmSocket;
 import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.*;
 import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE;
@@ -9,9 +9,7 @@ import static datadog.trace.core.http.OkHttpUtils.buildHttpClient;
 
 import datadog.common.container.ServerlessInfo;
 import datadog.trace.api.Config;
-import datadog.trace.api.Platform;
 import datadog.trace.api.StatsDClient;
-import datadog.trace.api.config.TracerConfig;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery;
@@ -20,8 +18,6 @@ import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.util.Strings;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.File;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -69,7 +65,7 @@ public class WriterFactory {
       return new PrintingWriter(System.out, true);
     }
 
-    String unixDomainSocket = discoverUnixDomainSocket(config);
+    String unixDomainSocket = discoverApmSocket(config);
 
     HttpUrl agentUrl = HttpUrl.get(config.getAgentUrl());
     OkHttpClient client =
@@ -109,28 +105,6 @@ public class WriterFactory {
     }
 
     return ddAgentWriter;
-  }
-
-  @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
-  private static String discoverUnixDomainSocket(final Config config) {
-    String unixDomainSocket = config.getAgentUnixDomainSocket();
-    if (!Platform.isWindows()) {
-      if (unixDomainSocket == null
-          && Config.get().isAgentConfiguredUsingDefault()
-          && new File(DEFAULT_TRACE_AGENT_SOCKET_PATH).exists()) {
-        log.info("Detected {}.  Using it to send trace data.", DEFAULT_TRACE_AGENT_SOCKET_PATH);
-        unixDomainSocket = DEFAULT_TRACE_AGENT_SOCKET_PATH;
-      }
-    } else /* windows */ {
-      if (unixDomainSocket != null) {
-        log.warn(
-            "{} setting not supported on {}.  Reverting to the default.",
-            TracerConfig.AGENT_UNIX_DOMAIN_SOCKET,
-            System.getProperty("os.name"));
-        unixDomainSocket = null;
-      }
-    }
-    return unixDomainSocket;
   }
 
   private WriterFactory() {}

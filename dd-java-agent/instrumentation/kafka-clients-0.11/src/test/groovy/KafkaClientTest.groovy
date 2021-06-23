@@ -20,6 +20,7 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
+import spock.lang.Requires
 import spock.lang.Unroll
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -29,6 +30,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class KafkaClientTest extends AgentTestRunner {
   static final SHARED_TOPIC = "shared.topic"
@@ -378,7 +380,6 @@ class KafkaClientTest extends AgentTestRunner {
 
     then:
     TEST_WRITER.waitForTraces(1)
-    def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
     def pollResult = KafkaTestUtils.getRecords(consumer)
 
     def recs = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition)).iterator()
@@ -392,6 +393,173 @@ class KafkaClientTest extends AgentTestRunner {
     recs.hasNext() == false
     first.value() == greeting
     first.key() == null
+
+    assertTraces(2) {
+      trace(1) {
+        // PRODUCER span 0
+        span {
+          serviceName "kafka"
+          operationName "kafka.produce"
+          resourceName "Produce Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          parent()
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            defaultTags(true)
+          }
+        }
+      }
+      trace(1) {
+        // CONSUMER span 0
+        span {
+          serviceName "kafka"
+          operationName "kafka.consume"
+          resourceName "Consume Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          childOf trace(0)[0]
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+            // TODO - test with and without feature enabled once Config is easier to control
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+
+            defaultTags(true)
+          }
+        }
+      }
+    }
+
+    cleanup:
+    consumer.close()
+    producer.close()
+
+  }
+
+  def "test records(TopicPartition).subList kafka consume"() {
+    setup:
+
+    // set up the Kafka consumer properties
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(senderProps)
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when:
+    def greeting = "Hello from MockConsumer!"
+    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, greeting))
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+
+    def records = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition))
+    def recs = records.subList(0, records.size()).iterator()
+
+    def first = null
+    if (recs.hasNext()) {
+      first = recs.next()
+    }
+
+    then:
+    recs.hasNext() == false
+    first.value() == greeting
+    first.key() == null
+
+    assertTraces(2) {
+      trace(1) {
+        // PRODUCER span 0
+        span {
+          serviceName "kafka"
+          operationName "kafka.produce"
+          resourceName "Produce Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          parent()
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            defaultTags(true)
+          }
+        }
+      }
+      trace(1) {
+        // CONSUMER span 0
+        span {
+          serviceName "kafka"
+          operationName "kafka.consume"
+          resourceName "Consume Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          childOf trace(0)[0]
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+            // TODO - test with and without feature enabled once Config is easier to control
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+
+            defaultTags(true)
+          }
+        }
+      }
+    }
+
+    cleanup:
+    consumer.close()
+    producer.close()
+
+  }
+
+  @Requires({ jvm.java8Compatible })
+  def "test records(TopicPartition).forEach kafka consume"() {
+    setup:
+
+    // set up the Kafka consumer properties
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(senderProps)
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when:
+    def greeting = "Hello from MockConsumer!"
+    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, greeting))
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+
+    def records = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition))
+
+    def last = null
+    records.forEach {
+      last = it
+      assert activeSpan() != null
+    }
+
+    then:
+    records.size() == 1
+    last.value() == greeting
+    last.key() == null
 
     assertTraces(2) {
       trace(1) {

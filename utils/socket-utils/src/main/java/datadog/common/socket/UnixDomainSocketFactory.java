@@ -1,4 +1,4 @@
-package datadog.trace.common.writer.ddagent.unixdomainsockets;
+package datadog.common.socket;
 
 import java.io.File;
 import java.io.IOException;

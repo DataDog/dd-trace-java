@@ -15,6 +15,7 @@ public final class Metadata {
   private final int samplingPriority;
   private final boolean measured;
   private final boolean topLevel;
+  private final CharSequence origin;
 
   public Metadata(
       long threadId,
@@ -24,7 +25,8 @@ public final class Metadata {
       int samplingPriority,
       boolean measured,
       boolean topLevel,
-      UTF8BytesString httpStatusCode) {
+      UTF8BytesString httpStatusCode,
+      CharSequence origin) {
     this.threadId = threadId;
     this.threadName = threadName;
     this.httpStatusCode = httpStatusCode;
@@ -33,10 +35,15 @@ public final class Metadata {
     this.samplingPriority = samplingPriority;
     this.measured = measured;
     this.topLevel = topLevel;
+    this.origin = origin;
   }
 
   public UTF8BytesString getHttpStatusCode() {
     return httpStatusCode;
+  }
+
+  public CharSequence getOrigin() {
+    return origin;
   }
 
   public long getThreadId() {
