@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.BitSet;
 import org.slf4j.Logger;
@@ -150,49 +151,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   }
 
   private static String buildURL(URIDataAdapter uri) {
-    String scheme = uri.scheme();
-    String host = uri.host();
-    String path = uri.path();
-    int port = uri.port();
-    int length = 0;
-    length += null == scheme ? 0 : scheme.length() + 3;
-    if (null != host) {
-      length += host.length();
-      if (port > 0 && port != 80 && port != 443) {
-        length += 6;
-      }
-    }
-    if (null == path || path.isEmpty()) {
-      ++length;
-    } else {
-      if (path.charAt(0) != '/') {
-        ++length;
-      }
-      length += path.length();
-    }
-    final StringBuilder urlNoParams = new StringBuilder(length);
-    if (scheme != null) {
-      urlNoParams.append(scheme);
-      urlNoParams.append("://");
-    }
-
-    if (host != null) {
-      urlNoParams.append(host);
-      if (port > 0 && port != 80 && port != 443) {
-        urlNoParams.append(':');
-        urlNoParams.append(port);
-      }
-    }
-
-    if (null == path || path.isEmpty()) {
-      urlNoParams.append('/');
-    } else {
-      if (path.charAt(0) != '/') {
-        urlNoParams.append('/');
-      }
-      urlNoParams.append(path);
-    }
-    return urlNoParams.toString();
+    return URIUtils.buildURL(uri.scheme(), uri.host(), uri.port(), uri.path());
   }
 
   //  @Override

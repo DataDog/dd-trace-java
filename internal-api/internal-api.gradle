@@ -1,3 +1,7 @@
+plugins {
+  id 'me.champeau.jmh'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 minimumBranchCoverage = 0.7
@@ -47,4 +51,9 @@ dependencies {
   api deps.slf4j
 
   testImplementation project(":utils:test-utils")
+}
+
+jmh {
+  jmhVersion = '1.32'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
 }

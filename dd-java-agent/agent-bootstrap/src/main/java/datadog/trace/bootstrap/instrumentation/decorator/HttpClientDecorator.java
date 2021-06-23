@@ -12,6 +12,7 @@ import datadog.trace.api.normalize.PathNormalizer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -59,33 +60,19 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
       try {
         final URI url = url(request);
         if (url != null) {
-          final StringBuilder urlNoParams = new StringBuilder();
-          if (url.getScheme() != null) {
-            urlNoParams.append(url.getScheme());
-            urlNoParams.append("://");
-          }
-          if (url.getHost() != null) {
-            urlNoParams.append(url.getHost());
-            span.setTag(Tags.PEER_HOSTNAME, url.getHost());
+          String host = url.getHost();
+          String path = url.getPath();
+          int port = url.getPort();
+          span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.getScheme(), host, port, path));
+          if (null != host) {
+            span.setTag(Tags.PEER_HOSTNAME, host);
             if (Config.get().isHttpClientSplitByDomain()) {
-              span.setServiceName(url.getHost());
+              span.setServiceName(host);
             }
             if (url.getPort() > 0) {
               setPeerPort(span, url.getPort());
-              if (url.getPort() != 80 && url.getPort() != 443) {
-                urlNoParams.append(":");
-                urlNoParams.append(url.getPort());
-              }
             }
           }
-          final String path = url.getPath();
-          if (path.isEmpty()) {
-            urlNoParams.append("/");
-          } else {
-            urlNoParams.append(path);
-          }
-
-          span.setTag(Tags.HTTP_URL, urlNoParams.toString());
 
           if (Config.get().isHttpClientTagQueryString()) {
             span.setTag(DDTags.HTTP_QUERY, url.getQuery());
