@@ -103,4 +103,9 @@ public final class Platform {
     final String os = System.getProperty("os.name").toLowerCase();
     return os.contains("win");
   }
+
+  public static boolean isMac() {
+    final String os = System.getProperty("os.name").toLowerCase();
+    return os.contains("mac");
+  }
 }
