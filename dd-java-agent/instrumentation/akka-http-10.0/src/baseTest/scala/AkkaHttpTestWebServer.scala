@@ -1,5 +1,3 @@
-import java.net.URI
-
 import AkkaHttpTestWebServer.Binder
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
@@ -19,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import groovy.lang.Closure
 
+import java.net.URI
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
@@ -169,17 +168,19 @@ object AkkaHttpTestWebServer {
 
   def route(implicit ec: ExecutionContext): Route = withController {
     get {
-      path(SUCCESS.rawPath) {
+      path(SUCCESS.relativePath) {
         complete(
           HttpResponse(status = SUCCESS.getStatus, entity = SUCCESS.getBody)
         )
-      } ~ path(FORWARDED.rawPath) {
+      } ~ path(FORWARDED.relativePath) {
         headerValueByName("x-forwarded-for") { address =>
           complete(
             HttpResponse(status = FORWARDED.getStatus, entity = address)
           )
         }
-      } ~ path(QUERY_PARAM.rawPath) {
+      } ~ path(
+        QUERY_PARAM.relativePath | QUERY_ENCODED_BOTH.relativePath | QUERY_ENCODED_QUERY.relativePath
+      ) {
         parameter("some") { query =>
           complete(
             HttpResponse(
@@ -188,11 +189,11 @@ object AkkaHttpTestWebServer {
             )
           )
         }
-      } ~ path(REDIRECT.rawPath) {
+      } ~ path(REDIRECT.relativePath) {
         redirect(Uri(REDIRECT.getBody), StatusCodes.Found)
-      } ~ path(ERROR.rawPath) {
+      } ~ path(ERROR.relativePath) {
         complete(HttpResponse(status = ERROR.getStatus, entity = ERROR.getBody))
-      } ~ path(EXCEPTION.rawPath) {
+      } ~ path(EXCEPTION.relativePath) {
         throw new Exception(EXCEPTION.getBody)
       } ~ pathPrefix("injected-id") {
         path("ping" / IntNumber) { id =>
@@ -225,9 +226,10 @@ object AkkaHttpTestWebServer {
           def doCall(): HttpResponse = {
             val resp = HttpResponse(status = endpoint.getStatus)
             endpoint match {
-              case SUCCESS     => resp.withEntity(endpoint.getBody)
-              case FORWARDED   => resp.withEntity(endpoint.getBody) // cheating
-              case QUERY_PARAM => resp.withEntity(uri.queryString().orNull)
+              case SUCCESS   => resp.withEntity(endpoint.getBody)
+              case FORWARDED => resp.withEntity(endpoint.getBody) // cheating
+              case QUERY_PARAM | QUERY_ENCODED_BOTH | QUERY_ENCODED_QUERY =>
+                resp.withEntity(uri.queryString().orNull)
               case REDIRECT =>
                 resp.withHeaders(headers.Location(endpoint.getBody))
               case ERROR     => resp.withEntity(endpoint.getBody)

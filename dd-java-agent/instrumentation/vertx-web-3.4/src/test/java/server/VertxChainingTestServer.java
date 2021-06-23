@@ -5,6 +5,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS;
@@ -48,6 +50,26 @@ public class VertxChainingTestServer extends AbstractVerticle {
                         ctx.response()
                             .setStatusCode(FORWARDED.getStatus())
                             .end(ctx.request().getHeader("x-forwarded-for"))));
+    router
+        .route(QUERY_ENCODED_BOTH.getRawPath())
+        .handler(
+            ctx ->
+                controller(
+                    QUERY_ENCODED_BOTH,
+                    () ->
+                        ctx.response()
+                            .setStatusCode(QUERY_ENCODED_BOTH.getStatus())
+                            .end(QUERY_ENCODED_BOTH.bodyForQuery(ctx.request().query()))));
+    router
+        .route(QUERY_ENCODED_QUERY.getPath())
+        .handler(
+            ctx ->
+                controller(
+                    QUERY_ENCODED_QUERY,
+                    () ->
+                        ctx.response()
+                            .setStatusCode(QUERY_ENCODED_QUERY.getStatus())
+                            .end(QUERY_ENCODED_QUERY.bodyForQuery(ctx.request().query()))));
     router
         .route(QUERY_PARAM.getPath())
         .handler(

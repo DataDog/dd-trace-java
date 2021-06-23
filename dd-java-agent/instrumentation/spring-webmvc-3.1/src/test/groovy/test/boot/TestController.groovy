@@ -18,6 +18,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HERE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -45,6 +47,22 @@ class TestController {
   @ResponseBody
   String query_param(@RequestParam("some") String param) {
     HttpServerTest.controller(QUERY_PARAM) {
+      "some=$param"
+    }
+  }
+
+  @RequestMapping("/encoded_query")
+  @ResponseBody
+  String query_encoded_query(@RequestParam("some") String param) {
+    HttpServerTest.controller(QUERY_ENCODED_QUERY) {
+      "some=$param"
+    }
+  }
+
+  @RequestMapping("/encoded path query")
+  @ResponseBody
+  String query_encoded_both(@RequestParam("some") String param) {
+    HttpServerTest.controller(QUERY_ENCODED_BOTH) {
       "some=$param"
     }
   }

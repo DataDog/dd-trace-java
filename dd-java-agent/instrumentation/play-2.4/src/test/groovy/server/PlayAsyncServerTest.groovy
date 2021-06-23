@@ -11,6 +11,8 @@ import java.util.function.Supplier
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -39,6 +41,20 @@ class PlayAsyncServerTest extends PlayServerTest {
         CompletableFuture.supplyAsync({
           controller(QUERY_PARAM) {
             Results.status(QUERY_PARAM.getStatus(), QUERY_PARAM.getBody()) // cheating
+          }
+        }, HttpExecution.defaultContext())
+      } as Supplier)
+      .GET(QUERY_ENCODED_QUERY.getPath()).routeAsync({
+        CompletableFuture.supplyAsync({
+          controller(QUERY_ENCODED_QUERY) {
+            Results.status(QUERY_ENCODED_QUERY.getStatus(), QUERY_ENCODED_QUERY.getBody()) // cheating
+          }
+        }, HttpExecution.defaultContext())
+      } as Supplier)
+      .GET(QUERY_ENCODED_BOTH.getRawPath()).routeAsync({
+        CompletableFuture.supplyAsync({
+          controller(QUERY_ENCODED_BOTH) {
+            Results.status(QUERY_ENCODED_BOTH.getStatus(), QUERY_ENCODED_BOTH.getBody()) // cheating
           }
         }, HttpExecution.defaultContext())
       } as Supplier)

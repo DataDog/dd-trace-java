@@ -17,6 +17,8 @@ import java.util.function.Supplier
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -40,6 +42,16 @@ class PlayServerTest extends HttpServerTest<Server> {
       .GET(QUERY_PARAM.getPath()).routeTo({
         controller(QUERY_PARAM) {
           Results.status(QUERY_PARAM.getStatus(), QUERY_PARAM.getBody()) // cheating
+        }
+      } as Supplier)
+      .GET(QUERY_ENCODED_QUERY.getPath()).routeTo({
+        controller(QUERY_ENCODED_QUERY) {
+          Results.status(QUERY_ENCODED_QUERY.getStatus(), QUERY_ENCODED_QUERY.getBody()) // cheating
+        }
+      } as Supplier)
+      .GET(QUERY_ENCODED_BOTH.getRawPath()).routeTo({
+        controller(QUERY_ENCODED_BOTH) {
+          Results.status(QUERY_ENCODED_BOTH.getStatus(), QUERY_ENCODED_BOTH.getBody()) // cheating
         }
       } as Supplier)
       .GET(REDIRECT.getPath()).routeTo({
@@ -82,6 +94,7 @@ class PlayServerTest extends HttpServerTest<Server> {
 
   @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    def expectedQueryTag = expectedQueryTag(endpoint)
     trace.span {
       serviceName expectedServiceName()
       operationName "play.request"
@@ -100,7 +113,7 @@ class PlayServerTest extends HttpServerTest<Server> {
           errorTags(Exception, EXCEPTION.body)
         }
         if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.query
+          "$DDTags.HTTP_QUERY" expectedQueryTag
         }
         defaultTags()
       }

@@ -1,12 +1,12 @@
 package server
 
-import java.net.{InetSocketAddress, URI}
-
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
 import datadog.trace.agent.test.base.{HttpServer, HttpServerTest}
 import play.api.mvc.{Action, Handler, Results}
 import play.api.test.{FakeApplication, TestServer}
 import play.core.server.NettyServer
+
+import java.net.{InetSocketAddress, URI}
 
 class SyncServer extends HttpServer {
   val routes: PartialFunction[(String, String), Handler] = {
@@ -43,6 +43,28 @@ class SyncServer extends HttpServer {
           QUERY_PARAM,
           new ControllerClosureAdapter(
             Results.Status(QUERY_PARAM.getStatus).apply(QUERY_PARAM.getBody)
+          )
+        )
+      }
+    case ("GET", "/encoded_query") =>
+      Action { request =>
+        HttpServerTest.controller(
+          QUERY_ENCODED_QUERY,
+          new ControllerClosureAdapter(
+            Results
+              .Status(QUERY_ENCODED_QUERY.getStatus)
+              .apply(QUERY_ENCODED_QUERY.getBody)
+          )
+        )
+      }
+    case ("GET", "/encoded%20path%20query") =>
+      Action { request =>
+        HttpServerTest.controller(
+          QUERY_ENCODED_BOTH,
+          new ControllerClosureAdapter(
+            Results
+              .Status(QUERY_ENCODED_BOTH.getStatus)
+              .apply(QUERY_ENCODED_BOTH.getBody)
           )
         )
       }

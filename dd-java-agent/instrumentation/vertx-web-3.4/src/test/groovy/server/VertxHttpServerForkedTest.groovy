@@ -3,6 +3,7 @@ package server
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
@@ -99,6 +100,11 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  boolean hasDecodedResource() {
+    return false
+  }
+
+  @Override
   int spanCount(ServerEndpoint endpoint) {
     if (endpoint == NOT_FOUND) {
       return super.spanCount(endpoint) - 1
@@ -139,6 +145,12 @@ class VertxChainingHttpServerForkedTest extends VertxHttpServerForkedTest {
   @Override
   protected Class<AbstractVerticle> verticle() {
     VertxChainingTestServer
+  }
+
+  @Override
+  boolean hasDecodedResource() {
+    // copied from HttpServerTest since super overrides it
+    return !Config.get().isHttpServerRawResource() || !supportsRaw()
   }
 
   @Override

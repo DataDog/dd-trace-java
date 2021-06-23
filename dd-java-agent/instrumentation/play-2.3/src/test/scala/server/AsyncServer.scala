@@ -1,13 +1,12 @@
 package server
 
-import java.net.{InetSocketAddress, URI}
-
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
 import datadog.trace.agent.test.base.{HttpServer, HttpServerTest}
 import play.api.mvc.{Action, Handler, Results}
 import play.api.test.{FakeApplication, TestServer}
 import play.core.server.NettyServer
 
+import java.net.{InetSocketAddress, URI}
 import scala.concurrent.Future
 
 class AsyncServer extends HttpServer {
@@ -52,6 +51,32 @@ class AsyncServer extends HttpServer {
           new AsyncControllerClosureAdapter(
             Future.successful(
               Results.Status(QUERY_PARAM.getStatus).apply(QUERY_PARAM.getBody)
+            )
+          )
+        )
+      }
+    case ("GET", "/encoded_query") =>
+      Action.async { result =>
+        HttpServerTest.controller(
+          QUERY_ENCODED_QUERY,
+          new AsyncControllerClosureAdapter(
+            Future.successful(
+              Results
+                .Status(QUERY_ENCODED_QUERY.getStatus)
+                .apply(QUERY_ENCODED_QUERY.getBody)
+            )
+          )
+        )
+      }
+    case ("GET", "/encoded%20path%20query") =>
+      Action.async { result =>
+        HttpServerTest.controller(
+          QUERY_ENCODED_BOTH,
+          new AsyncControllerClosureAdapter(
+            Future.successful(
+              Results
+                .Status(QUERY_ENCODED_BOTH.getStatus)
+                .apply(QUERY_ENCODED_BOTH.getBody)
             )
           )
         )

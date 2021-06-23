@@ -4,6 +4,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH;
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS;
@@ -92,12 +94,28 @@ class TestController {
 
   @Get(uri = "/query", produces = MediaType.TEXT_PLAIN)
   public HttpResponse<String> query_param(final HttpRequest<?> request) {
+    return handle_query(QUERY_PARAM, request);
+  }
+
+  @Get(uri = "/encoded_query", produces = MediaType.TEXT_PLAIN)
+  public HttpResponse<String> query_encoded_query(final HttpRequest<?> request) {
+    return handle_query(QUERY_ENCODED_QUERY, request);
+  }
+
+  @Get(uri = "/encoded%20path%20query", produces = MediaType.TEXT_PLAIN)
+  public HttpResponse<String> query_encoded_both(final HttpRequest<?> request) {
+    return handle_query(QUERY_ENCODED_BOTH, request);
+  }
+
+  private HttpResponse<String> handle_query(
+      final HttpServerTest.ServerEndpoint endpoint, final HttpRequest<?> request) {
     return HttpServerTest.controller(
-        QUERY_PARAM,
+        endpoint,
         new Closure<HttpResponse<String>>(null) {
           public HttpResponse<String> doCall() {
-            String query = request.getParameters().getFirst("some", String.class).orElse("bad");
-            return HttpResponse.ok("some=" + query);
+            String query =
+                "some=" + request.getParameters().getFirst("some", String.class).orElse("bad");
+            return HttpResponse.ok(endpoint.bodyForQuery(query));
           }
         });
   }

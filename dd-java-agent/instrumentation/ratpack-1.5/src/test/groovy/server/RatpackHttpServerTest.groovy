@@ -16,6 +16,8 @@ import ratpack.test.embed.EmbeddedApp
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -33,42 +35,56 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
         bind TestErrorHandler
       }
       handlers {
-        prefix(SUCCESS.rawPath()) {
+        prefix(SUCCESS.relativeRawPath()) {
           all {
             controller(SUCCESS) {
               context.response.status(SUCCESS.status).send(SUCCESS.body)
             }
           }
         }
-        prefix(FORWARDED.rawPath()) {
+        prefix(FORWARDED.relativeRawPath()) {
           all {
             controller(FORWARDED) {
               context.response.status(FORWARDED.status).send(request.headers.get("x-forwarded-for"))
             }
           }
         }
-        prefix(QUERY_PARAM.rawPath()) {
+        prefix(QUERY_ENCODED_BOTH.relativeRawPath()) {
           all {
-            controller(QUERY_PARAM) {
-              context.response.status(QUERY_PARAM.status).send(request.query)
+            controller(QUERY_ENCODED_BOTH) {
+              context.response.status(QUERY_ENCODED_BOTH.status).send(QUERY_ENCODED_BOTH.bodyForQuery(request.query))
             }
           }
         }
-        prefix(REDIRECT.rawPath()) {
+        prefix(QUERY_ENCODED_QUERY.relativeRawPath()) {
+          all {
+            controller(QUERY_ENCODED_QUERY) {
+              context.response.status(QUERY_ENCODED_QUERY.status).send(QUERY_ENCODED_QUERY.bodyForQuery(request.query))
+            }
+          }
+        }
+        prefix(QUERY_PARAM.relativeRawPath()) {
+          all {
+            controller(QUERY_PARAM) {
+              context.response.status(QUERY_PARAM.status).send(QUERY_PARAM.bodyForQuery(request.query))
+            }
+          }
+        }
+        prefix(REDIRECT.relativeRawPath()) {
           all {
             controller(REDIRECT) {
               context.redirect(REDIRECT.body)
             }
           }
         }
-        prefix(ERROR.rawPath()) {
+        prefix(ERROR.relativeRawPath()) {
           all {
             controller(ERROR) {
               context.response.status(ERROR.status).send(ERROR.body)
             }
           }
         }
-        prefix(EXCEPTION.rawPath()) {
+        prefix(EXCEPTION.relativeRawPath()) {
           all {
             controller(EXCEPTION) {
               throw new Exception(EXCEPTION.body)
@@ -108,8 +124,13 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   }
 
   @Override
-  boolean tagServerSpanWithRoute() {
-    true
+  Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
+    return String
+  }
+
+  @Override
+  boolean hasDecodedResource() {
+    false
   }
 
   @Override
@@ -133,7 +154,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
           errorTags(Exception, EXCEPTION.body)
         }
         if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.query
+          "$DDTags.HTTP_QUERY" endpoint.rawQuery
         }
         defaultTags()
       }
