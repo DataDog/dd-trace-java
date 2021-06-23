@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.finatra;
 
 import com.twitter.finagle.http.Request;
 import com.twitter.finagle.http.Response;
-import datadog.trace.bootstrap.instrumentation.api.DefaultURIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.URI;
@@ -28,7 +28,7 @@ public class FinatraDecorator extends HttpServerDecorator<Request, Request, Resp
 
   @Override
   protected URIDataAdapter url(final Request request) {
-    return new DefaultURIDataAdapter(URI.create(request.uri()));
+    return new URIDefaultDataAdapter(URI.create(request.uri()));
   }
 
   @Override

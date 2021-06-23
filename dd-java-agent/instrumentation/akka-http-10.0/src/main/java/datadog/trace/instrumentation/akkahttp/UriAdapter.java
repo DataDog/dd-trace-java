@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.akkahttp;
 
 import akka.http.scaladsl.model.Uri;
-import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import scala.Option;
 
-final class UriAdapter implements URIDataAdapter {
+final class UriAdapter extends URIRawDataAdapter {
 
   private final Uri uri;
 
@@ -28,7 +28,7 @@ final class UriAdapter implements URIDataAdapter {
   }
 
   @Override
-  public String path() {
+  protected String innerRawPath() {
     return uri.path().toString();
   }
 
@@ -38,7 +38,7 @@ final class UriAdapter implements URIDataAdapter {
   }
 
   @Override
-  public String query() {
+  protected String innerRawQuery() {
     return getOrElseNull(uri.rawQueryString());
   }
 

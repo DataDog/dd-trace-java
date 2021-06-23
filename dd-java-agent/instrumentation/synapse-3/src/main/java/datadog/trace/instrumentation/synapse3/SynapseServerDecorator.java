@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.synapse3;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 
-import datadog.trace.bootstrap.instrumentation.api.DefaultURIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.URI;
@@ -40,7 +40,7 @@ public final class SynapseServerDecorator
 
   @Override
   protected URIDataAdapter url(final HttpRequest request) {
-    return new DefaultURIDataAdapter(URI.create(request.getRequestLine().getUri()));
+    return new URIDefaultDataAdapter(URI.create(request.getRequestLine().getUri()));
   }
 
   @Override

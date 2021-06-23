@@ -2,14 +2,15 @@ package datadog.trace.instrumentation.restlet;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpsExchange;
-import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import java.net.InetSocketAddress;
 
-final class HttpExchangeURIDataAdapter implements URIDataAdapter {
+final class HttpExchangeURIDataAdapter extends URIDefaultDataAdapter {
 
   private final HttpExchange exchange;
 
   HttpExchangeURIDataAdapter(HttpExchange exchange) {
+    super(exchange.getRequestURI());
     this.exchange = exchange;
   }
 
@@ -37,21 +38,5 @@ final class HttpExchangeURIDataAdapter implements URIDataAdapter {
   public int port() {
     // port is not available in getRequestURI
     return exchange.getLocalAddress().getPort();
-  }
-
-  @Override
-  public String path() {
-    return exchange.getRequestURI().getPath();
-  }
-
-  @Override
-  public String fragment() {
-    // fragment is not available in getRequestURI
-    return "";
-  }
-
-  @Override
-  public String query() {
-    return exchange.getRequestURI().getQuery();
   }
 }

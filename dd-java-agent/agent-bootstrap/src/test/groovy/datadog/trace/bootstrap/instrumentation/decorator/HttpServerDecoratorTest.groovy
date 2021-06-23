@@ -2,7 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.DefaultURIDataAdapter
+import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 
@@ -191,7 +191,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
         @Override
         protected URIDataAdapter url(Map m) {
-          return m.url == null ? null : new DefaultURIDataAdapter(m.url)
+          return m.url == null ? null : new URIDefaultDataAdapter(m.url)
         }
 
         @Override

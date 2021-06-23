@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.spray;
 
-import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import spray.http.Uri;
 
-public final class SprayURIAdapter implements URIDataAdapter {
+public final class SprayURIAdapter extends URIRawDataAdapter {
   private final Uri uri;
 
   public SprayURIAdapter(Uri uri) {
@@ -26,20 +26,22 @@ public final class SprayURIAdapter implements URIDataAdapter {
   }
 
   @Override
-  public String path() {
+  public String fragment() {
+    return uri.fragment().isEmpty() ? null : uri.fragment().get();
+  }
+
+  @Override
+  protected String innerRawPath() {
     return uri.path().toString();
   }
 
   @Override
-  public String fragment() {
-    if (uri.fragment().isEmpty()) {
-      return "";
-    }
-    return uri.fragment().get();
+  public boolean hasPlusEncodedSpaces() {
+    return true;
   }
 
   @Override
-  public String query() {
+  protected String innerRawQuery() {
     return uri.query().toString();
   }
 }
