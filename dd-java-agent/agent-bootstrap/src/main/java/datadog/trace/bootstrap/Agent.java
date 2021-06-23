@@ -116,7 +116,7 @@ public class Agent {
       if (isJavaVersionAtLeast(8)) {
         try {
           APPSEC_CLASSLOADER =
-              createDelegateClassLoader("appsec", bootstrapURL, PARENT_CLASSLOADER);
+              createDelegateClassLoader("appsec", bootstrapURL, SHARED_CLASSLOADER);
         } catch (Exception e) {
           log.error("Error creating appsec classloader", e);
         }
