@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.ratpack;
 
 import com.google.common.net.HostAndPort;
-import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.ConcurrentHashMap;
 import ratpack.http.Request;
 
-final class RequestURIAdapterAdapter implements URIDataAdapter {
+final class RequestURIAdapterAdapter extends URIDataAdapterBase {
 
   private final ConcurrentHashMap<String, String> DOMAIN_NAME_MAPPING = new ConcurrentHashMap<>();
 
@@ -50,11 +50,26 @@ final class RequestURIAdapterAdapter implements URIDataAdapter {
 
   @Override
   public String fragment() {
-    return "";
+    return null;
   }
 
   @Override
   public String query() {
     return request.getQuery();
+  }
+
+  @Override
+  public boolean supportsRaw() {
+    return false;
+  }
+
+  @Override
+  public String rawPath() {
+    return null;
+  }
+
+  @Override
+  public String rawQuery() {
+    return null;
   }
 }

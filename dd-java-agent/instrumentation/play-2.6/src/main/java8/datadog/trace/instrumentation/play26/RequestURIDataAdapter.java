@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.play26;
 
-import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import play.api.mvc.Request;
 
-final class RequestURIDataAdapter implements URIDataAdapter {
+final class RequestURIDataAdapter extends URIRawDataAdapter {
 
   private final Request request;
   private final String host;
@@ -32,18 +32,17 @@ final class RequestURIDataAdapter implements URIDataAdapter {
   }
 
   @Override
-  public String path() {
-    int split = request.uri().lastIndexOf('?');
-    return split == -1 ? request.uri() : request.uri().substring(0, split);
+  protected String innerRawPath() {
+    return request.path();
   }
 
   @Override
   public String fragment() {
-    return "";
+    return null;
   }
 
   @Override
-  public String query() {
+  protected String innerRawQuery() {
     return request.rawQueryString();
   }
 }
