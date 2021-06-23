@@ -51,10 +51,14 @@ public class LegacyConfigJsonAdapter {
         switch (cond.operation) {
           case MATCH_REGEX:
             operator = "@rx";
-            //MatchRegexParams params = (MatchRegexParams)cond.params;
-            //input = params.input;
-            //value = params.regex;
-            //parameters.add(input);
+            MatchRegexParams params = (MatchRegexParams)cond.params;
+            input = params.input;
+            // Ignore first '$' symbol
+            if (input.charAt(0) == '$') {
+              input = input.substring(1);
+            }
+            value = params.regex;
+            parameters.add(input);
             break;
           case HAS_SQLI_PATTERN:
             operator = "@detectSQLi";
