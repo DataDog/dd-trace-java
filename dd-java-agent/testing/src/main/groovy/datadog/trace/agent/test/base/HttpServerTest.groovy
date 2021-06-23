@@ -2,11 +2,14 @@ package datadog.trace.agent.test.base
 
 import ch.qos.logback.classic.Level
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
+import datadog.trace.api.normalize.PathNormalizer
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import okhttp3.HttpUrl
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -17,18 +20,22 @@ import spock.lang.Shared
 import spock.lang.Unroll
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
@@ -54,6 +61,56 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   abstract String expectedOperationName()
 
+  String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
+    if (endpoint.status == 404 && (changesAll404s() || endpoint.path == "/not-found")) {
+      return "404"
+    } else if (endpoint.hasPathParam) {
+      return "$method ${testPathParam()}"
+    }
+    def encoded = !hasDecodedResource()
+    def path = encoded ? endpoint.resolve(address).rawPath : endpoint.resolve(address).path
+    return "$method ${PathNormalizer.normalize(path, encoded)}"
+  }
+
+  String expectedUrl(ServerEndpoint endpoint, URI address) {
+    URI url = endpoint.resolve(address)
+    def path = Config.get().isHttpServerRawResource() && supportsRaw() ? url.rawPath : url.path
+    return URIUtils.buildURL(url.scheme, url.host, url.port, path)
+  }
+
+  Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
+    null
+  }
+
+  Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
+    Collections.emptyMap()
+  }
+
+  // Only used if hasExtraErrorInformation is true
+  Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
+    if (endpoint.errored) {
+      ["error.msg"  : { it == null || it == EXCEPTION.body },
+        "error.type" : { it == null || it == Exception.name },
+        "error.stack": { it == null || it instanceof String }]
+    } else {
+      Collections.emptyMap()
+    }
+  }
+
+  boolean expectedErrored(ServerEndpoint endpoint) {
+    endpoint.errored
+  }
+
+  Serializable expectedStatus(ServerEndpoint endpoint) {
+    endpoint.status
+  }
+
+  String expectedQueryTag(ServerEndpoint endpoint) {
+    def encoded = Config.get().isHttpServerRawQueryString() && supportsRaw()
+    def query = encoded ? endpoint.rawQuery : endpoint.query
+    null != query && encoded && hasPlusEncodedSpaces() ? query.replaceAll('%20', "+") : query
+  }
+
   boolean hasHandlerSpan() {
     false
   }
@@ -66,6 +123,39 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     // Some things like javax.servlet.RequestDispatcher.include() don't bubble headers or response codes to the
     // parent request.  This is specified in the spec
     true
+  }
+
+  boolean hasDecodedResource() {
+    !Config.get().isHttpServerRawResource() || !supportsRaw()
+  }
+
+  boolean hasPeerInformation() {
+    true
+  }
+
+  boolean hasPeerPort() {
+    true
+  }
+
+  boolean hasForwardedIP() {
+    true
+  }
+
+  boolean hasExtraErrorInformation() {
+    false
+  }
+
+  boolean changesAll404s() {
+    false
+  }
+
+  boolean supportsRaw() {
+    true
+  }
+
+  /** Does the raw query string contain plus encoded spaces? */
+  boolean hasPlusEncodedSpaces() {
+    false
   }
 
   int spanCount(ServerEndpoint endpoint) {
@@ -100,16 +190,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
-  /** Return the expected resource name */
+  /** Tomcat 5.5 can't seem to handle the encoded URIs */
+  boolean testEncodedPath() {
+    true
+  }
+
+  /** Return the expected path parameter */
   String testPathParam() {
     null
   }
-
-  boolean tagServerSpanWithRoute() {
-    false
-  }
-
-
 
   enum ServerEndpoint {
     SUCCESS("success", 200, "success"),
@@ -124,8 +213,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     TIMEOUT("timeout", 500, null),
     TIMEOUT_ERROR("timeout_error", 500, null),
 
-    // TODO: add tests for the following cases:
     QUERY_PARAM("query?some=query", 200, "some=query"),
+    QUERY_ENCODED_BOTH("encoded%20path%20query?some=is%20both", 200, "some=is both"),
+    QUERY_ENCODED_QUERY("encoded_query?some=is%20query", 200, "some=is query"),
+    // TODO: add tests for the following cases:
     // OkHttp never sends the fragment in the request, so these cases don't work.
     //    FRAGMENT_PARAM("fragment#some-fragment", 200, "some-fragment"),
     //    QUERY_FRAGMENT_PARAM("query/fragment?some=query#some-fragment", 200, "some=query#some-fragment"),
@@ -135,7 +226,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     UNKNOWN("", 451, null), // This needs to have a valid status code
 
     private final String path
+    private final String rawPath
     final String query
+    final String rawQuery
     final String fragment
     final int status
     final String body
@@ -146,7 +239,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ServerEndpoint(String uri, int status, String body) {
       def uriObj = URI.create(uri)
       this.path = uriObj.path
+      this.rawPath = uriObj.rawPath
       this.query = uriObj.query
+      this.rawQuery = uriObj.rawQuery
       this.fragment = uriObj.fragment
       this.status = status
       this.body = body
@@ -159,25 +254,41 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       return "/$path"
     }
 
-    String rawPath() {
+    String relativePath() {
       return path
+    }
+
+    String getRawPath() {
+      return "/$rawPath"
+    }
+
+    String relativeRawPath() {
+      return rawPath
     }
 
     URI resolve(URI address) {
       // must be relative path to allow for servlet context
-      return address.resolve(rawPath())
+      return address.resolve(relativeRawPath())
     }
 
-    String resource(String method, URI address, String pathParam) {
-      return path == "not-found" ? "404" : "$method ${hasPathParam ? pathParam : resolve(address).path}"
+    String bodyForQuery(String queryString) {
+      if (queryString.equals(query) || queryString.equals(rawQuery)) {
+        return body
+      }
+      return "non matching query string '$queryString'"
     }
 
     static {
       assert values().length == values().collect { it.path }.toSet().size(): "paths should be unique"
     }
 
-    private static final Map<String, ServerEndpoint> PATH_MAP = values().collectEntries { [it.path, it]}
+    private static final Map<String, ServerEndpoint> PATH_MAP = {
+      Map<String, ServerEndpoint> map = values().collectEntries { [it.path, it]}
+      map.putAll(values().collectEntries { [it.rawPath, it]})
+      map
+    }.call()
 
+    // Will match both decoded and encoded path
     static ServerEndpoint forPath(String path) {
       def endpoint = PATH_MAP.get(path)
       return endpoint != null ? endpoint : UNKNOWN
@@ -186,7 +297,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   Request.Builder request(ServerEndpoint uri, String method, RequestBody body) {
     def url = HttpUrl.get(uri.resolve(address)).newBuilder()
-      .query(uri.query)
+      .encodedQuery(uri.rawQuery)
       .fragment(uri.fragment)
       .build()
     return new Request.Builder()
@@ -303,9 +414,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     body = null
   }
 
-  def "test tag query string for #endpoint"() {
+  def "test tag query string for #endpoint rawQuery=#rawQuery"() {
     setup:
     injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
+    injectSysConfig(HTTP_SERVER_RAW_QUERY_STRING, "$rawQuery")
     def request = request(endpoint, method, body).build()
 
     when:
@@ -331,9 +443,57 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     where:
+    rawQuery | endpoint
+    true     | SUCCESS
+    true     | QUERY_PARAM
+    true     | QUERY_ENCODED_QUERY
+    false    | SUCCESS
+    false    | QUERY_PARAM
+    false    | QUERY_ENCODED_QUERY
+
     method = "GET"
     body = null
-    endpoint << [SUCCESS, QUERY_PARAM]
+  }
+
+  def "test encoded path for #endpoint rawQuery=#rawQuery rawResource=#rawResource"() {
+    setup:
+    assumeTrue(testEncodedPath())
+    injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
+    injectSysConfig(HTTP_SERVER_RAW_QUERY_STRING, "$rawQuery")
+    injectSysConfig(HTTP_SERVER_RAW_RESOURCE, "$rawResource")
+    def request = request(endpoint, method, body).build()
+
+    when:
+    Response response = client.newCall(request).execute()
+
+    then:
+    response.code() == endpoint.status
+    response.body().string() == endpoint.body
+
+    and:
+    assertTraces(1) {
+      trace(spanCount(endpoint)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, endpoint)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, endpoint)
+        }
+        controllerSpan(it)
+        if (hasResponseSpan(endpoint)) {
+          responseSpan(it, endpoint)
+        }
+      }
+    }
+
+    where:
+    rawQuery | rawResource | endpoint
+    true     | true        | QUERY_ENCODED_BOTH
+    true     | false       | QUERY_ENCODED_BOTH
+    false    | true        | QUERY_ENCODED_BOTH
+    false    | false       | QUERY_ENCODED_BOTH
+
+    method = "GET"
+    body = null
   }
 
   def "test path param"() {
@@ -627,15 +787,25 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     throw new UnsupportedOperationException("responseSpan not implemented in " + getClass().name)
   }
 
-  // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    boolean tagServerSpanWithRoute = tagServerSpanWithRoute()
+  // If you ever feel the need to make this method non final and override it with something that is almost the
+  // same, but has a slightly different behavior, then please think again, and see if you can't make that part
+  // of the integrations very special behavior into something configurable here instead.
+  final void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+    Object expectedServerSpanRoute = expectedServerSpanRoute(endpoint)
+    Map<String, Serializable> expectedExtraErrorInformation = hasExtraErrorInformation() ? expectedExtraErrorInformation(endpoint) : null
+    boolean hasPeerInformation = hasPeerInformation()
+    boolean hasPeerPort = hasPeerPort()
+    boolean hasForwardedIP = hasForwardedIP()
+    def expectedExtraServerTags = expectedExtraServerTags(endpoint)
+    def expectedStatus = expectedStatus(endpoint)
+    def expectedQueryTag = expectedQueryTag(endpoint)
+    def expectedUrl = expectedUrl(endpoint, address)
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
-      resourceName endpoint.resource(method, address, testPathParam())
+      resourceName expectedResourceName(endpoint, method, address)
       spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint.errored
+      errored expectedErrored(endpoint)
       if (parentID != null) {
         traceId traceID
         parentId parentID
@@ -645,25 +815,33 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_PORT" Integer
-        "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
-        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
+        if (hasPeerInformation) {
+          if (hasPeerPort) {
+            "$Tags.PEER_PORT" Integer
+          }
+          "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
+        }
+        "$Tags.HTTP_URL" "$expectedUrl"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" endpoint.status
-        if (endpoint == FORWARDED) {
+        "$Tags.HTTP_STATUS" expectedStatus
+        if (endpoint == FORWARDED && hasForwardedIP) {
           "$Tags.HTTP_FORWARDED_IP" endpoint.body
         }
-        if (tagServerSpanWithRoute) {
-          "$Tags.HTTP_ROUTE" String
+        if (null != expectedServerSpanRoute) {
+          "$Tags.HTTP_ROUTE" expectedServerSpanRoute
+        }
+        if (null != expectedExtraErrorInformation) {
+          addTags(expectedExtraErrorInformation)
         }
         if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.query
+          "$DDTags.HTTP_QUERY" expectedQueryTag
         }
         // OkHttp never sends the fragment in the request.
         //        if (endpoint.fragment) {
         //          "$DDTags.HTTP_FRAGMENT" endpoint.fragment
         //        }
         defaultTags(true)
+        addTags(expectedExtraServerTags)
       }
     }
   }

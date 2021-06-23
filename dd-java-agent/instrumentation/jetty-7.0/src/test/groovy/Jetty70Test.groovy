@@ -1,9 +1,5 @@
-import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.AbstractHandler
@@ -17,6 +13,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -90,6 +88,11 @@ class Jetty70Test extends HttpServerTest<Server> {
     false
   }
 
+  @Override
+  boolean hasExtraErrorInformation() {
+    true
+  }
+
   static void handleRequest(Request request, HttpServletResponse response) {
     ServerEndpoint endpoint = ServerEndpoint.forPath(request.requestURI)
     controller(endpoint) {
@@ -103,9 +106,11 @@ class Jetty70Test extends HttpServerTest<Server> {
           response.status = endpoint.status
           response.writer.print(request.getHeader("x-forwarded-for"))
           break
+        case QUERY_ENCODED_BOTH:
+        case QUERY_ENCODED_QUERY:
         case QUERY_PARAM:
           response.status = endpoint.status
-          response.writer.print(request.queryString)
+          response.writer.print(endpoint.bodyForQuery(request.queryString))
           break
         case REDIRECT:
           response.sendRedirect(endpoint.body)
@@ -136,44 +141,6 @@ class Jetty70Test extends HttpServerTest<Server> {
         baseRequest.handled = true
       } else {
         errorHandler.handle(target, baseRequest, response, response)
-      }
-    }
-  }
-
-  @Override
-  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    trace.span {
-      serviceName expectedServiceName()
-      operationName expectedOperationName()
-      resourceName endpoint.resource(method, address, testPathParam())
-      spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint.errored
-      if (parentID != null) {
-        traceId traceID
-        parentId parentID
-      } else {
-        parent()
-      }
-      tags {
-        "$Tags.COMPONENT" component
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        "$Tags.PEER_PORT" Integer
-        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
-        "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" endpoint.status
-        if (endpoint == FORWARDED) {
-          "$Tags.HTTP_FORWARDED_IP" endpoint.body
-        }
-        if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
-          "error.stack" { it == null || it instanceof String }
-        }
-        if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.query
-        }
-        defaultTags(true)
       }
     }
   }

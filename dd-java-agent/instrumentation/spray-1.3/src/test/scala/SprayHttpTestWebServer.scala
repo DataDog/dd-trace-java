@@ -1,5 +1,3 @@
-import java.net.URI
-
 import akka.actor.{ActorLogging, ActorSystem, Props}
 import akka.io.IO
 import akka.pattern.ask
@@ -13,6 +11,7 @@ import spray.can.Http
 import spray.http.HttpResponse
 import spray.routing.{HttpServiceActor, RequestContext}
 
+import java.net.URI
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -48,7 +47,7 @@ class SprayHttpTestWebServer extends HttpServer {
 
 class ServiceActor extends HttpServiceActor with ActorLogging {
   def receive = runRoute {
-    path(SUCCESS.rawPath()) {
+    path(SUCCESS.relativePath()) {
       get { ctx: RequestContext =>
         HttpServerTest.controller(
           SUCCESS,
@@ -56,7 +55,7 @@ class ServiceActor extends HttpServiceActor with ActorLogging {
         )
       }
     } ~
-      path(FORWARDED.rawPath()) {
+      path(FORWARDED.relativePath()) {
         get { ctx: RequestContext =>
           HttpServerTest.controller(
             FORWARDED,
@@ -64,7 +63,7 @@ class ServiceActor extends HttpServiceActor with ActorLogging {
           )
         }
       } ~
-      path(REDIRECT.rawPath()) {
+      path(REDIRECT.relativePath()) {
         get { ctx: RequestContext =>
           HttpServerTest.controller(
             REDIRECT,
@@ -72,7 +71,23 @@ class ServiceActor extends HttpServiceActor with ActorLogging {
           )
         }
       } ~
-      path(QUERY_PARAM.rawPath()) {
+      path(QUERY_ENCODED_BOTH.relativePath()) {
+        get { ctx: RequestContext =>
+          HttpServerTest.controller(
+            QUERY_ENCODED_BOTH,
+            new ControllerHttpResponseToClosureAdapter(ctx, QUERY_ENCODED_BOTH)
+          )
+        }
+      } ~
+      path(QUERY_ENCODED_QUERY.relativePath()) {
+        get { ctx: RequestContext =>
+          HttpServerTest.controller(
+            QUERY_ENCODED_QUERY,
+            new ControllerHttpResponseToClosureAdapter(ctx, QUERY_ENCODED_QUERY)
+          )
+        }
+      } ~
+      path(QUERY_PARAM.relativePath()) {
         get { ctx: RequestContext =>
           HttpServerTest.controller(
             QUERY_PARAM,
@@ -80,7 +95,7 @@ class ServiceActor extends HttpServiceActor with ActorLogging {
           )
         }
       } ~
-      path(ERROR.rawPath()) {
+      path(ERROR.relativePath()) {
         get { ctx: RequestContext =>
           HttpServerTest.controller(
             ERROR,
@@ -88,7 +103,7 @@ class ServiceActor extends HttpServiceActor with ActorLogging {
           )
         }
       } ~
-      path(EXCEPTION.rawPath()) {
+      path(EXCEPTION.relativePath()) {
         get { ctx: RequestContext =>
           HttpServerTest.controller(
             EXCEPTION,
@@ -99,13 +114,13 @@ class ServiceActor extends HttpServiceActor with ActorLogging {
         }
       }
     // actually not found path:
-    //      path(NOT_FOUND.rawPath()) {
+    //      path(NOT_FOUND.relativePath()) {
     //        get { ctx =>
     //          ctx.complete(NOT_FOUND.getBody)
     //        }
     //      }
     // todo: spray.routing.FutureDirectives
-    //      path(SUCCESS.rawPath()) {
+    //      path(SUCCESS.relativePath()) {
     //        import scala.concurrent.ExecutionContext.Implicits.global
     //        onSuccess(Future {
     //          "sucess-future"
@@ -126,6 +141,7 @@ class ControllerHttpResponseToClosureAdapter(
     resp
   }
 }
+
 class ControllerHttpRedirectResponseToClosureAdapter(
     ctx: RequestContext
 ) extends Closure[Unit] {
@@ -136,6 +152,7 @@ class ControllerHttpRedirectResponseToClosureAdapter(
     )
   }
 }
+
 class BlockClosureAdapter(block: () => HttpResponse)
     extends Closure[HttpResponse] {
   override def call(): HttpResponse = block()

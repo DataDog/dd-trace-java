@@ -36,6 +36,7 @@ class DynamicHandlerMapping extends AbstractHandlerMapping {
       // reflect this particular use case
       methodName = "error"
     }
+    methodName = methodName.replace(' ', '_')
     Method method = null
     Method[] methods = controllerClass.getDeclaredMethods()
     for (Method m : methods) {

@@ -27,6 +27,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -174,6 +176,12 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
           break
         case "/query?some=query":
           endpoint = QUERY_PARAM
+          break
+        case "/encoded_query?some=is%20query":
+          endpoint = QUERY_ENCODED_QUERY
+          break
+        case "/encoded%20path%20query?some=is%20both":
+          endpoint = QUERY_ENCODED_BOTH
           break
         case "/path/123/param":
           endpoint = PATH_PARAM

@@ -30,6 +30,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -58,7 +60,7 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
           if (msg.getMessage() instanceof HttpRequest) {
             def request = msg.getMessage() as HttpRequest
             def uri = URI.create(request.getUri())
-            HttpServerTest.ServerEndpoint endpoint = forPath(uri.path)
+            HttpServerTest.ServerEndpoint endpoint = forPath(uri.rawPath)
             ctx.sendDownstream controller(endpoint) {
               HttpResponse response
               ChannelBuffer responseContent = null
@@ -74,6 +76,8 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
                   response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
                   response.setContent(responseContent)
                   break
+                case QUERY_ENCODED_BOTH:
+                case QUERY_ENCODED_QUERY:
                 case QUERY_PARAM:
                   responseContent = ChannelBuffers.copiedBuffer(uri.query, CharsetUtil.UTF_8)
                   response = new DefaultHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status))
