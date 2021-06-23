@@ -7,9 +7,11 @@ class PathNormalizerTest extends DDSpecification {
   def "pulls path from url #input"() {
     when:
     def path = PathNormalizer.normalize(input) as String
+    def pathEncoded = PathNormalizer.normalize(input, true) as String
 
     then:
     path == expected
+    pathEncoded == expected
 
     where:
     input                                                            | expected
@@ -18,6 +20,7 @@ class PathNormalizerTest extends DDSpecification {
     "/search"                                                        | "/search"
     "/users/?/:name"                                                 | "/users/?/:name"
     "abc"                                                            | "abc"
+    "abc%de"                                                         | "abc%de"
     "   "                                                            | "/"
     "   /:userId"                                                    | "/:userId"
     "\t/90"                                                          | "/?"
@@ -27,9 +30,11 @@ class PathNormalizerTest extends DDSpecification {
   def "should replace all digits"() {
     when:
     def norm = PathNormalizer.normalize(input) as String
+    def normEncoded = PathNormalizer.normalize(input, true) as String
 
     then:
     norm == output
+    normEncoded == output
 
     where:
     input              | output
@@ -44,9 +49,11 @@ class PathNormalizerTest extends DDSpecification {
   def "should replace segments with mixed-characters"() {
     when:
     def norm = PathNormalizer.normalize(input) as String
+    def normEncoded = PathNormalizer.normalize(input, true) as String
 
     then:
     norm == output
+    normEncoded == output
 
     where:
     input                                              | output
@@ -60,9 +67,11 @@ class PathNormalizerTest extends DDSpecification {
   def "should leave other segments alone"() {
     when:
     def norm = PathNormalizer.normalize(input) as String
+    def normEncoded = PathNormalizer.normalize(input, true) as String
 
     then:
     norm == input
+    normEncoded == input
 
     where:
     input      | _
@@ -74,5 +83,21 @@ class PathNormalizerTest extends DDSpecification {
     "/a-b/a-b" | _
     "/a_b/a_b" | _
     "/a.b/a.b" | _
+  }
+
+  def "should handle encoded strings"() {
+    when:
+    def normEncoded = PathNormalizer.normalize(input, true) as String
+
+    then:
+    normEncoded == output
+
+    where:
+    input                                                | output
+    "/%AA1/v2"                                           | "/?/v2"
+    "/v3/1a%BB"                                          | "/v3/?"
+    "/V01/v9/abc/%CC-1"                                  | "/V01/v9/abc/?"
+    "/A%DD%EE/av-1/b_2/c.3/%FFd4d/v5f/v699/7"            | "/A%DD%EE/?/?/?/?/?/?/?"
+    "/user/asd%A0123/repository/01234567-9ABC-DEF0-1234" | "/user/?/repository/?"
   }
 }
