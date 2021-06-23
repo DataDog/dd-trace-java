@@ -2,9 +2,9 @@ package test.hazelcast.v4
 
 import com.hazelcast.config.Config
 import com.hazelcast.config.cp.SemaphoreConfig
+import com.hazelcast.query.Predicates
 import com.hazelcast.topic.Message
 import com.hazelcast.topic.MessageListener
-import com.hazelcast.query.Predicates
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -79,6 +79,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     result == "bar"
 
     assertTraces(1) {
+      sortSpansByStart()
       trace(2) {
         basicSpan(it, "test")
         hazelcastSpan(it, "Map.Get ${randomName}", false)
@@ -131,7 +132,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     def clientTopic = client.getTopic(randomName)
     def receivedMessage = new BlockingVariable<Message>(5, TimeUnit.SECONDS)
     def listener = Stub(MessageListener)
-    listener.onMessage(_ as Message) >> { Message<String> message -> receivedMessage.set(message)}
+    listener.onMessage(_ as Message) >> { Message<String> message -> receivedMessage.set(message) }
 
     clientTopic.addMessageListener(listener)
 
@@ -139,7 +140,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     clientTopic.publish("hello")
 
     then:
-    with (receivedMessage.get()) { Message<String> message ->
+    with(receivedMessage.get()) { Message<String> message ->
       message.messageObject == "hello"
     }
 
@@ -269,7 +270,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "submit callable"() {
     given: "setup list"
-    client.getList("sum").addAll(Arrays.asList(1,2,3,4,5))
+    client.getList("sum").addAll(Arrays.asList(1, 2, 3, 4, 5))
 
     and: "get executor service"
     def clientExecutor = client.getExecutorService(randomName)

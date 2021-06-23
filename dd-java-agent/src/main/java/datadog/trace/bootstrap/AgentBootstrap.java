@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -64,6 +65,10 @@ public final class AgentBootstrap {
     }
   }
 
+  public static void main(final String[] args) {
+    AgentJar.main(args);
+  }
+
   private static synchronized URL installBootstrapJar(final Instrumentation inst)
       throws IOException, URISyntaxException {
     URL ddJavaAgentJarURL = null;
@@ -126,14 +131,14 @@ public final class AgentBootstrap {
     return ddJavaAgentJarURL;
   }
 
+  @SuppressForbidden
   private static List<String> getVMArgumentsThroughReflection() {
     try {
       // Try Oracle-based
       final Class<?> managementFactoryHelperClass =
-          thisClass.getClassLoader().loadClass("sun.management.ManagementFactoryHelper");
+          Class.forName("sun.management.ManagementFactoryHelper");
 
-      final Class<?> vmManagementClass =
-          thisClass.getClassLoader().loadClass("sun.management.VMManagement");
+      final Class<?> vmManagementClass = Class.forName("sun.management.VMManagement");
 
       Object vmManagement;
 
@@ -152,7 +157,7 @@ public final class AgentBootstrap {
 
     } catch (final ReflectiveOperationException e) {
       try { // Try IBM-based.
-        final Class<?> VMClass = thisClass.getClassLoader().loadClass("com.ibm.oti.vm.VM");
+        final Class<?> VMClass = Class.forName("com.ibm.oti.vm.VM");
         final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);
         return Arrays.asList(argArray);
       } catch (final ReflectiveOperationException e1) {
@@ -184,39 +189,5 @@ public final class AgentBootstrap {
             + "' is located in '"
             + jarUrl
             + "'. Make sure you don't have this .class-file anywhere, besides dd-java-agent.jar");
-  }
-
-  /**
-   * Main entry point.
-   *
-   * @param args command line agruments
-   */
-  public static void main(final String... args) {
-    try {
-      System.out.println(getAgentVersion());
-    } catch (final Exception e) {
-      System.out.println("Failed to parse agent version");
-      e.printStackTrace();
-    }
-  }
-
-  /**
-   * Read version file out of the agent jar.
-   *
-   * @return Agent version
-   */
-  public static String getAgentVersion() throws IOException {
-    final StringBuilder sb = new StringBuilder();
-    try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(
-                thisClass.getResourceAsStream("/dd-java-agent.version"), StandardCharsets.UTF_8))) {
-
-      for (int c = reader.read(); c != -1; c = reader.read()) {
-        sb.append((char) c);
-      }
-    }
-
-    return sb.toString().trim();
   }
 }

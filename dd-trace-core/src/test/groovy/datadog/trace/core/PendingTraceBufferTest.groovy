@@ -271,6 +271,11 @@ class PendingTraceBufferTest extends DDSpecification {
         void write() {
           counter.incrementAndGet()
         }
+
+        @Override
+        DDSpan getRootSpan() {
+          return null
+        }
       }
 
     when:

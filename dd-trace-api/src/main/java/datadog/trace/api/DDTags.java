@@ -36,4 +36,5 @@ public class DDTags {
   static final String HOST_TAG = "host";
   public static final String LANGUAGE_TAG_KEY = "language";
   public static final String LANGUAGE_TAG_VALUE = "jvm";
+  public static final String ORIGIN_KEY = "_dd.origin";
 }

@@ -5,7 +5,6 @@
 
 package datadog.trace.instrumentation.log4j27;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -30,11 +29,6 @@ public class ContextDataInjectorFactoryInstrumentation extends Instrumenter.Trac
   @Override
   protected boolean defaultEnabled() {
     return Config.get().isLogsInjectionEnabled();
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("org.apache.logging.log4j.core.impl.ContextDataInjectorFactory");
   }
 
   @Override

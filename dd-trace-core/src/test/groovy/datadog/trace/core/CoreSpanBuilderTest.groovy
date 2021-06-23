@@ -14,7 +14,7 @@ import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.THREAD_ID
 import static datadog.trace.api.DDTags.THREAD_NAME
-import static datadog.trace.core.DDSpanContext.ORIGIN_KEY
+import static datadog.trace.api.DDTags.ORIGIN_KEY
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class CoreSpanBuilderTest extends DDCoreSpecification {
@@ -342,7 +342,7 @@ class CoreSpanBuilderTest extends DDCoreSpecification {
     where:
     tagContext                                                                                                 | _
     new TagContext(null, null, null, null, null, null, [:])                                                    | _
-    new TagContext("some-origin", null, null, null, null, null, [(ORIGIN_KEY): "some-origin", "asdf": "qwer"]) | _
+    new TagContext("some-origin", null, null, null, null, null, ["asdf": "qwer"]) | _
   }
 
   def "global span tags populated on each span"() {

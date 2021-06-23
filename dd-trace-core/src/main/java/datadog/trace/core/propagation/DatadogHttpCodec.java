@@ -35,9 +35,9 @@ class DatadogHttpCodec {
       if (context.lockSamplingPriority()) {
         setter.set(carrier, SAMPLING_PRIORITY_KEY, String.valueOf(context.getSamplingPriority()));
       }
-      final String origin = context.getOrigin();
+      final CharSequence origin = context.getOrigin();
       if (origin != null) {
-        setter.set(carrier, ORIGIN_KEY, origin);
+        setter.set(carrier, ORIGIN_KEY, origin.toString());
       }
 
       for (final Map.Entry<String, String> entry : context.baggageItems()) {

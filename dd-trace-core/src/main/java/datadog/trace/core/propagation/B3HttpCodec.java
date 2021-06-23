@@ -27,6 +27,8 @@ class B3HttpCodec {
   private static final String TRACE_ID_KEY = "X-B3-TraceId";
   private static final String SPAN_ID_KEY = "X-B3-SpanId";
   private static final String SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
+  // See https://github.com/openzipkin/b3-propagation#single-header for b3 header documentation
+  private static final String B3_KEY = "b3";
   private static final String SAMPLING_PRIORITY_ACCEPT = String.valueOf(1);
   private static final String SAMPLING_PRIORITY_DROP = String.valueOf(0);
 
@@ -40,16 +42,23 @@ class B3HttpCodec {
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       try {
-        String injectedTraceId = context.getTraceId().toHexStringOrOriginal();
+        final String injectedTraceId = context.getTraceId().toHexStringOrOriginal();
+        final String injectedSpanId = context.getSpanId().toHexStringOrOriginal();
         setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
-        setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toHexStringOrOriginal());
+        setter.set(carrier, SPAN_ID_KEY, injectedSpanId);
+
+        final StringBuilder injectedB3Id = new StringBuilder(100);
+        injectedB3Id.append(injectedTraceId).append('-').append(injectedSpanId);
 
         if (context.lockSamplingPriority()) {
-          setter.set(
-              carrier,
-              SAMPLING_PRIORITY_KEY,
-              convertSamplingPriority(context.getSamplingPriority()));
+          final String injectedSamplingPriority =
+              convertSamplingPriority(context.getSamplingPriority());
+          setter.set(carrier, SAMPLING_PRIORITY_KEY, injectedSamplingPriority);
+
+          injectedB3Id.append('-').append(injectedSamplingPriority);
         }
+        setter.set(carrier, B3_KEY, injectedB3Id.toString());
+
         log.debug("{} - B3 parent context injected - {}", context.getTraceId(), injectedTraceId);
       } catch (final NumberFormatException e) {
         if (log.isDebugEnabled()) {
@@ -69,7 +78,7 @@ class B3HttpCodec {
         tagMapping,
         new ContextInterpreter.Factory() {
           @Override
-          protected ContextInterpreter construct(Map<String, String> mapping) {
+          protected ContextInterpreter construct(final Map<String, String> mapping) {
             return new B3ContextInterpreter(mapping);
           }
         });
@@ -81,14 +90,15 @@ class B3HttpCodec {
     private static final int SPAN_ID = 1;
     private static final int TAGS = 2;
     private static final int SAMPLING_PRIORITY = 3;
+    private static final int B3_ID = 4;
     private static final int IGNORE = -1;
 
-    private B3ContextInterpreter(Map<String, String> taggedHeaders) {
+    private B3ContextInterpreter(final Map<String, String> taggedHeaders) {
       super(taggedHeaders);
     }
 
     @Override
-    public boolean accept(String key, String value) {
+    public boolean accept(final String key, final String value) {
       if (null == key || key.isEmpty()) {
         return true;
       }
@@ -97,12 +107,17 @@ class B3HttpCodec {
       }
       String lowerCaseKey = null;
       int classification = IGNORE;
-      if (Character.toLowerCase(key.charAt(0)) == 'x') {
-        if (TRACE_ID_KEY.equalsIgnoreCase(key)) {
+      // Prioritize b3 header. If b3 has already propagated traceId, spanId, and Sampling, we won't
+      // overwrite those
+      if (B3_KEY.equals(key)) {
+        classification = B3_ID;
+      } else if (Character.toLowerCase(key.charAt(0)) == 'x') {
+        if ((traceId == null || traceId == DDId.ZERO) && TRACE_ID_KEY.equalsIgnoreCase(key)) {
           classification = TRACE_ID;
-        } else if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
+        } else if ((spanId == null || spanId == DDId.ZERO) && SPAN_ID_KEY.equalsIgnoreCase(key)) {
           classification = SPAN_ID;
-        } else if (SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
+        } else if (samplingPriority == defaultSamplingPriority()
+            && SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
           classification = SAMPLING_PRIORITY;
         } else if (handledForwarding(key, value)) {
           return true;
@@ -116,38 +131,30 @@ class B3HttpCodec {
       }
       if (classification != IGNORE) {
         try {
-          String firstValue = firstHeaderValue(value);
+          final String firstValue = firstHeaderValue(value);
           if (null != firstValue) {
             switch (classification) {
+              case B3_ID:
+                if (extractB3(firstValue)) {
+                  return true;
+                }
+                break;
               case TRACE_ID:
                 {
-                  final int length = firstValue.length();
-                  if (length > 32) {
-                    log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, value);
-                    traceId = DDId.ZERO;
+                  if (setTraceId(firstValue)) {
                     return true;
-                  } else {
-                    traceId = DDId.fromHexTruncatedWithOriginal(value);
                   }
-                  if (tags.isEmpty()) {
-                    tags = new TreeMap<>();
-                  }
-                  tags.put(B3_TRACE_ID, firstValue);
                   break;
                 }
               case SPAN_ID:
-                spanId = DDId.fromHexWithOriginal(firstValue);
-                if (tags.isEmpty()) {
-                  tags = new TreeMap<>();
-                }
-                tags.put(B3_SPAN_ID, firstValue);
+                setSpanId(firstValue);
                 break;
               case SAMPLING_PRIORITY:
                 samplingPriority = convertSamplingPriority(firstValue);
                 break;
               case TAGS:
                 {
-                  String mappedKey = taggedHeaders.get(lowerCaseKey);
+                  final String mappedKey = taggedHeaders.get(lowerCaseKey);
                   if (null != mappedKey) {
                     if (tags.isEmpty()) {
                       tags = new TreeMap<>();
@@ -158,13 +165,62 @@ class B3HttpCodec {
                 }
             }
           }
-        } catch (RuntimeException e) {
+        } catch (final RuntimeException e) {
           invalidateContext();
           log.debug("Exception when extracting context", e);
           return false;
         }
       }
       return true;
+    }
+
+    private boolean extractB3(final String firstValue) {
+      if (firstValue.length() == 1) {
+        samplingPriority = convertSamplingPriority(firstValue);
+      } else {
+        final int firstIndex = firstValue.indexOf("-");
+        final int secondIndex = firstValue.indexOf("-", firstIndex + 1);
+        if (firstIndex != -1) {
+          final String b3TraceId = firstValue.substring(0, firstIndex);
+          if (setTraceId(b3TraceId)) {
+            return true;
+          }
+        }
+        if (secondIndex == -1) {
+          final String b3SpanId = firstValue.substring(firstIndex + 1);
+          setSpanId(b3SpanId);
+        } else {
+          final String b3SpanId = firstValue.substring(firstIndex + 1, secondIndex);
+          setSpanId(b3SpanId);
+          final String b3SamplingId = firstValue.substring(secondIndex + 1);
+          samplingPriority = convertSamplingPriority(b3SamplingId);
+        }
+      }
+      return false;
+    }
+
+    private void setSpanId(final String sId) {
+      spanId = DDId.fromHexWithOriginal(sId);
+      if (tags.isEmpty()) {
+        tags = new TreeMap<>();
+      }
+      tags.put(B3_SPAN_ID, sId);
+    }
+
+    private boolean setTraceId(final String tId) {
+      final int length = tId.length();
+      if (length > 32) {
+        log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, tId);
+        traceId = DDId.ZERO;
+        return true;
+      } else {
+        traceId = DDId.fromHexTruncatedWithOriginal(tId);
+      }
+      if (tags.isEmpty()) {
+        tags = new TreeMap<>();
+      }
+      tags.put(B3_TRACE_ID, tId);
+      return false;
     }
 
     private int convertSamplingPriority(final String samplingPriority) {

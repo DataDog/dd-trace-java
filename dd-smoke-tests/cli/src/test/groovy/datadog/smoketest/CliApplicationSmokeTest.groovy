@@ -59,3 +59,9 @@ class NoKeystoreTest extends CliApplicationSmokeTest {
     ]
   }
 }
+
+class BootstrapTest extends CliApplicationSmokeTest {
+  List<String> additionalArguments() {
+    return ["-Xbootclasspath/a:${shadowJarPath}".toString()]
+  }
+}

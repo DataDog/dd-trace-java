@@ -16,6 +16,8 @@ public class JfpUtilsTest {
 
   public static final String OVERRIDES =
       JfpUtilsTest.class.getClassLoader().getResource("overrides.jfp").getFile();
+  public static final String OVERRIDES_OLD_OBJECT_SAMPLE =
+      JfpUtilsTest.class.getClassLoader().getResource("overrides-oldobjectsample.jfp").getFile();
 
   @Test
   public void testLoadingInvalidOverride() throws IOException {

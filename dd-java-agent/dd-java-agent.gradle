@@ -86,6 +86,14 @@ includeSubprojShadowJar ':dd-java-agent:appsec', 'appsec'
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   configurations = [project.configurations.sharedShadowInclude]
+  it.dependencies {
+    exclude(project(':dd-java-agent:agent-bootstrap'))
+    exclude(project(':dd-java-agent:agent-logging'))
+    exclude(project(':dd-trace-api'))
+    exclude(project(':internal-api'))
+    exclude(project(':internal-api:internal-api-8'))
+    exclude(dependency('org.slf4j::'))
+  }
 }
 includeShadowJar(sharedShadowJar, 'shared')
 
@@ -137,6 +145,7 @@ dependencies {
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
 
   // Includes for the shared internal shadow jar
+  sharedShadowInclude project(':utils:socket-utils')
   sharedShadowInclude deps.shared
 }
 

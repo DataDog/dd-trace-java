@@ -36,6 +36,7 @@ dependencies {
   compile project(':internal-api')
   compile project(':utils:histograms')
   compile project(':utils:container-utils')
+  compile project(':utils:socket-utils')
 
   compile group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"
 
@@ -43,7 +44,6 @@ dependencies {
   compile deps.okhttp
 
   compile group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'
-  compile group: 'com.github.jnr', name: 'jnr-unixsocket', version: "${versions.jnr_unixsocket}"
   compile group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
 
   compileOnly group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '4.2.0'
@@ -56,7 +56,6 @@ dependencies {
   testImplementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
   testImplementation group: 'org.openjdk.jol', name: 'jol-core', version: '0.14'
-
 
   traceAgentTestImplementation deps.testcontainers
 }

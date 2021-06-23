@@ -96,6 +96,11 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
+  CharSequence getOrigin() {
+    return null
+  }
+
+  @Override
   SimpleSpan setMeasured(boolean measured) {
     return this
   }
