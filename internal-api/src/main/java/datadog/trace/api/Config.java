@@ -132,6 +132,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_E
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_LIST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
@@ -357,6 +358,7 @@ public class Config {
   private final boolean profilingHotspotsEnabled;
 
   private final boolean kafkaClientPropagationEnabled;
+  private final List<String> kafkaClientPropagationDisabledList;
   private final boolean kafkaClientBase64DecodingEnabled;
 
   private final boolean hystrixTagsEnabled;
@@ -423,7 +425,7 @@ public class Config {
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
-    String userProvidedServiceName =
+    final String userProvidedServiceName =
         configProvider.getStringExcludingSource(
             SERVICE, null, CapturedEnvironmentConfigSource.class, SERVICE_NAME);
 
@@ -462,7 +464,7 @@ public class Config {
         if ("unix".equals(parsedAgentUrl.getScheme())) {
           unixSocketFromEnvironment = parsedAgentUrl.getPath();
         }
-      } catch (URISyntaxException e) {
+      } catch (final URISyntaxException e) {
         log.warn("{} not configured correctly: {}. Ignoring", TRACE_AGENT_URL, e.getMessage());
       }
     }
@@ -497,7 +499,7 @@ public class Config {
 
     if (unixSocketFromEnvironment == null) {
       unixSocketFromEnvironment = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
-      String unixPrefix = "unix://";
+      final String unixPrefix = "unix://";
       // handle situation where someone passes us a unix:// URL instead of a socket path
       if (unixSocketFromEnvironment != null && unixSocketFromEnvironment.startsWith(unixPrefix)) {
         unixSocketFromEnvironment = unixSocketFromEnvironment.substring(unixPrefix.length());
@@ -601,7 +603,7 @@ public class Config {
         configProvider.getInteger(
             DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
 
-    boolean runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
+    final boolean runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
 
     jmxFetchEnabled =
         runtimeMetricsEnabled
@@ -749,6 +751,9 @@ public class Config {
     kafkaClientPropagationEnabled =
         configProvider.getBoolean(
             KAFKA_CLIENT_PROPAGATION_ENABLED, DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED);
+
+    kafkaClientPropagationDisabledList =
+        configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_LIST);
 
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
@@ -1147,6 +1152,10 @@ public class Config {
     return kafkaClientPropagationEnabled;
   }
 
+  public List<String> getKafkaClientPropagationDisabledList() {
+    return kafkaClientPropagationDisabledList;
+  }
+
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
   }
@@ -1386,9 +1395,9 @@ public class Config {
     return isRuleEnabled(name, true);
   }
 
-  public boolean isRuleEnabled(final String name, boolean defaultEnabled) {
-    boolean enabled = configProvider.getBoolean("trace." + name + ".enabled", defaultEnabled);
-    boolean lowerEnabled =
+  public boolean isRuleEnabled(final String name, final boolean defaultEnabled) {
+    final boolean enabled = configProvider.getBoolean("trace." + name + ".enabled", defaultEnabled);
+    final boolean lowerEnabled =
         configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", defaultEnabled);
     return defaultEnabled ? enabled && lowerEnabled : enabled || lowerEnabled;
   }
@@ -1539,7 +1548,7 @@ public class Config {
     int start = 0;
     int i = 0;
     for (; i < str.length(); ++i) {
-      char c = str.charAt(i);
+      final char c = str.charAt(i);
       if (Character.isWhitespace(c) || c == ',') {
         if (i - start - 1 > 0) {
           result.add(str.substring(start, i));
@@ -1577,7 +1586,7 @@ public class Config {
           System.getenv(propertyNameToEnvironmentVariableName(CONFIGURATION_FILE));
     }
     if (null != configurationFilePath && !configurationFilePath.isEmpty()) {
-      int homeIndex = configurationFilePath.indexOf('~');
+      final int homeIndex = configurationFilePath.indexOf('~');
       if (homeIndex != -1) {
 
         configurationFilePath =
@@ -1868,6 +1877,8 @@ public class Config {
         + profilingExcludeAgentThreads
         + ", kafkaClientPropagationEnabled="
         + kafkaClientPropagationEnabled
+        + ", kafkaClientPropagationDisabledList="
+        + kafkaClientPropagationDisabledList
         + ", kafkaClientBase64DecodingEnabled="
         + kafkaClientBase64DecodingEnabled
         + ", hystrixTagsEnabled="
