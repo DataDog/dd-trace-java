@@ -56,11 +56,22 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
     return next;
   }
 
-  protected void decorate(ConsumerRecord<?, ?> val) {
+  protected void decorate(final ConsumerRecord<?, ?> val) {
     try {
+      // add check here
       if (val != null) {
         final Context spanContext = propagate().extract(val.headers(), GETTER);
         final AgentSpan span = startSpan(operationName, spanContext);
+        if (val.value() == null) {
+          span.setTag(InstrumentationTags.TOMBSTONE, true);
+        }
+        decorator.afterStart(span);
+        decorator.onConsume(span, val);
+        currentScope = activateSpan(span);
+        currentScope.setAsyncPropagation(true);
+      } else {
+        // start span without spancontext
+        final AgentSpan span = startSpan(operationName);
         if (val.value() == null) {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
         }
