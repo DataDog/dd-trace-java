@@ -16,6 +16,8 @@ import io.opentracing.propagation.TextMap
 import io.opentracing.util.GlobalTracer
 import spock.lang.Subject
 
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 class OpenTracing32Test extends AgentTestRunner {
 
   @Subject
@@ -104,6 +106,17 @@ class OpenTracing32Test extends AgentTestRunner {
     "startManual" | References.CHILD_OF     | true       | true    | new Exception()
     "startManual" | "bogus"                 | false      | false   | new Exception()
     "start"       | References.FOLLOWS_FROM | false      | true    | null
+  }
+
+  def "test ignoreParent"() {
+    setup:
+    def otherSpan = runUnderTrace("parent") {
+      tracer.buildSpan("other").ignoreActiveSpan().start()
+    }
+
+    expect:
+    otherSpan.operationName == "other"
+    (otherSpan.delegate as DDSpan).parentId == DDId.ZERO
   }
 
   def "test startActive"() {
