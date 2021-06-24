@@ -39,6 +39,7 @@ class PlayServerTest extends HttpServerTest<TestServer> {
 
   @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    def expectedQueryTag = expectedQueryTag(endpoint)
     trace.span {
       serviceName expectedServiceName()
       operationName "play.request"
@@ -57,7 +58,7 @@ class PlayServerTest extends HttpServerTest<TestServer> {
           errorTags(Exception, EXCEPTION.body)
         }
         if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.query
+          "$DDTags.HTTP_QUERY" expectedQueryTag
         }
         defaultTags()
       }

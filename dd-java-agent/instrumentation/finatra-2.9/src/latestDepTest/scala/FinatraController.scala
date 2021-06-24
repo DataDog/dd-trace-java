@@ -38,6 +38,22 @@ class FinatraController extends Controller {
     })
   }
 
+  any(QUERY_ENCODED_QUERY.getPath) { request: Request =>
+    controller(QUERY_ENCODED_QUERY, new Closure[Response](null) {
+      override def call(): Response = {
+        response.ok(QUERY_ENCODED_QUERY.getBody)
+      }
+    })
+  }
+
+  any(QUERY_ENCODED_BOTH.getRawPath) { request: Request =>
+    controller(QUERY_ENCODED_BOTH, new Closure[Response](null) {
+      override def call(): Response = {
+        response.ok(QUERY_ENCODED_BOTH.getBody)
+      }
+    })
+  }
+
   any(EXCEPTION.getPath) { request: Request =>
     controller(EXCEPTION, new Closure[Future[Response]](null) {
       override def call(): Future[Response] = {

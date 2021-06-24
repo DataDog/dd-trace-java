@@ -66,8 +66,13 @@ class FinatraServerTest extends HttpServerTest<HttpServer> {
   }
 
   @Override
-  boolean tagServerSpanWithRoute() {
-    return true
+  Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
+    return String
+  }
+
+  @Override
+  boolean hasDecodedResource() {
+    return false
   }
 
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {

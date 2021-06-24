@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.BitSet;
 import org.slf4j.Logger;
@@ -97,17 +98,24 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       try {
         final URIDataAdapter url = url(request);
         if (url != null) {
-          span.setTag(Tags.HTTP_URL, buildURL(url));
+          Config config = Config.get();
+          boolean supportsRaw = url.supportsRaw();
+          boolean encoded = supportsRaw && config.isHttpServerRawResource();
+          String path = encoded ? url.rawPath() : url.path();
 
-          if (Config.get().isHttpServerTagQueryString()) {
-            span.setTag(DDTags.HTTP_QUERY, url.query());
+          span.setTag(Tags.HTTP_URL, URIUtils.buildURL(url.scheme(), url.host(), url.port(), path));
+
+          if (config.isHttpServerTagQueryString()) {
+            String query =
+                supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
+            span.setTag(DDTags.HTTP_QUERY, query);
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
           // TODO is this ever false?
           if (SHOULD_SET_URL_RESOURCE_NAME && !span.hasResourceName()) {
             span.setResourceName(
                 RESOURCE_NAMES.computeIfAbsent(
-                    Pair.of(method, normalize(url.path())), PATH_BASED_RESOURCE_NAME));
+                    Pair.of(method, normalize(path, encoded)), PATH_BASED_RESOURCE_NAME));
           }
         } else if (SHOULD_SET_URL_RESOURCE_NAME && !span.hasResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
@@ -147,52 +155,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       }
     }
     return span;
-  }
-
-  private static String buildURL(URIDataAdapter uri) {
-    String scheme = uri.scheme();
-    String host = uri.host();
-    String path = uri.path();
-    int port = uri.port();
-    int length = 0;
-    length += null == scheme ? 0 : scheme.length() + 3;
-    if (null != host) {
-      length += host.length();
-      if (port > 0 && port != 80 && port != 443) {
-        length += 6;
-      }
-    }
-    if (null == path || path.isEmpty()) {
-      ++length;
-    } else {
-      if (path.charAt(0) != '/') {
-        ++length;
-      }
-      length += path.length();
-    }
-    final StringBuilder urlNoParams = new StringBuilder(length);
-    if (scheme != null) {
-      urlNoParams.append(scheme);
-      urlNoParams.append("://");
-    }
-
-    if (host != null) {
-      urlNoParams.append(host);
-      if (port > 0 && port != 80 && port != 443) {
-        urlNoParams.append(':');
-        urlNoParams.append(port);
-      }
-    }
-
-    if (null == path || path.isEmpty()) {
-      urlNoParams.append('/');
-    } else {
-      if (path.charAt(0) != '/') {
-        urlNoParams.append('/');
-      }
-      urlNoParams.append(path);
-    }
-    return urlNoParams.toString();
   }
 
   //  @Override

@@ -6,6 +6,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.vertx.core.http.HttpServerResponse;
@@ -80,7 +81,7 @@ public class VertxRouterDecorator
     return httpServerResponse.getStatusCode();
   }
 
-  protected static class VertxURIDataAdapter implements URIDataAdapter {
+  protected static final class VertxURIDataAdapter extends URIDataAdapterBase {
     private final RoutingContext routingContext;
 
     public VertxURIDataAdapter(final RoutingContext routingContext) {
@@ -109,12 +110,27 @@ public class VertxRouterDecorator
 
     @Override
     public String fragment() {
-      return "";
+      return null;
     }
 
     @Override
     public String query() {
       return routingContext.request().query();
+    }
+
+    @Override
+    public boolean supportsRaw() {
+      return false;
+    }
+
+    @Override
+    public String rawPath() {
+      return null;
+    }
+
+    @Override
+    public String rawQuery() {
+      return null;
     }
   }
 }

@@ -16,6 +16,8 @@ import java.util.concurrent.TimeoutException
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -111,6 +113,22 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     Response query_param(@QueryParam("some") String param) {
       controller(QUERY_PARAM) {
         Response.status(QUERY_PARAM.status).entity("some=$param".toString()).build()
+      }
+    }
+
+    @GET
+    @Path("encoded_query")
+    Response query_encoded_query(@QueryParam("some") String param) {
+      controller(QUERY_ENCODED_QUERY) {
+        Response.status(QUERY_ENCODED_QUERY.status).entity("some=$param".toString()).build()
+      }
+    }
+
+    @GET
+    @Path("encoded%20path%20query")
+    Response query_encoded_both(@QueryParam("some") String param) {
+      controller(QUERY_ENCODED_BOTH) {
+        Response.status(QUERY_ENCODED_BOTH.status).entity("some=$param".toString()).build()
       }
     }
 

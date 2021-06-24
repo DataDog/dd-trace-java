@@ -8,6 +8,8 @@ import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -25,7 +27,7 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
         bind TestErrorHandler
       }
       handlers {
-        prefix(SUCCESS.rawPath()) {
+        prefix(SUCCESS.relativeRawPath()) {
           all {
             Promise.sync {
               SUCCESS
@@ -36,7 +38,7 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
             }
           }
         }
-        prefix(FORWARDED.rawPath()) {
+        prefix(FORWARDED.relativeRawPath()) {
           all {
             Promise.sync {
               FORWARDED
@@ -47,18 +49,40 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
             }
           }
         }
-        prefix(QUERY_PARAM.rawPath()) {
+        prefix(QUERY_ENCODED_BOTH.relativeRawPath()) {
+          all {
+            Promise.sync {
+              QUERY_ENCODED_BOTH
+            }.fork().then { HttpServerTest.ServerEndpoint endpoint ->
+              controller(endpoint) {
+                context.response.status(endpoint.status).send(endpoint.bodyForQuery(request.query))
+              }
+            }
+          }
+        }
+        prefix(QUERY_ENCODED_QUERY.relativeRawPath()) {
+          all {
+            Promise.sync {
+              QUERY_ENCODED_QUERY
+            }.fork().then { HttpServerTest.ServerEndpoint endpoint ->
+              controller(endpoint) {
+                context.response.status(endpoint.status).send(endpoint.bodyForQuery(request.query))
+              }
+            }
+          }
+        }
+        prefix(QUERY_PARAM.relativeRawPath()) {
           all {
             Promise.sync {
               QUERY_PARAM
             }.fork().then { HttpServerTest.ServerEndpoint endpoint ->
               controller(endpoint) {
-                context.response.status(endpoint.status).send(request.query)
+                context.response.status(endpoint.status).send(endpoint.bodyForQuery(request.query))
               }
             }
           }
         }
-        prefix(REDIRECT.rawPath()) {
+        prefix(REDIRECT.relativeRawPath()) {
           all {
             Promise.sync {
               REDIRECT
@@ -69,7 +93,7 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
             }
           }
         }
-        prefix(ERROR.rawPath()) {
+        prefix(ERROR.relativeRawPath()) {
           all {
             Promise.sync {
               ERROR
@@ -80,7 +104,7 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
             }
           }
         }
-        prefix(EXCEPTION.rawPath()) {
+        prefix(EXCEPTION.relativeRawPath()) {
           all {
             Promise.sync {
               EXCEPTION
