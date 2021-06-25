@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -59,27 +60,22 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   protected void decorate(final ConsumerRecord<?, ?> val) {
     try {
       // add check here
-      if (val != null) {
+      final AgentSpan span;
+      if (val != null
+          && !Config.get().getKafkaClientPropagationDisabledList().contains(val.topic())) {
         final Context spanContext = propagate().extract(val.headers(), GETTER);
-        final AgentSpan span = startSpan(operationName, spanContext);
-        if (val.value() == null) {
-          span.setTag(InstrumentationTags.TOMBSTONE, true);
-        }
-        decorator.afterStart(span);
-        decorator.onConsume(span, val);
-        currentScope = activateSpan(span);
-        currentScope.setAsyncPropagation(true);
+        span = startSpan(operationName, spanContext);
       } else {
         // start span without spancontext
-        final AgentSpan span = startSpan(operationName);
-        if (val.value() == null) {
-          span.setTag(InstrumentationTags.TOMBSTONE, true);
-        }
-        decorator.afterStart(span);
-        decorator.onConsume(span, val);
-        currentScope = activateSpan(span);
-        currentScope.setAsyncPropagation(true);
+        span = startSpan(operationName);
       }
+      if (val.value() == null) {
+        span.setTag(InstrumentationTags.TOMBSTONE, true);
+      }
+      decorator.afterStart(span);
+      decorator.onConsume(span, val);
+      currentScope = activateSpan(span);
+      currentScope.setAsyncPropagation(true);
     } catch (final Exception e) {
       log.debug("Error during decoration", e);
     }
