@@ -154,24 +154,9 @@ class KafkaStreamsTest extends AgentTestRunner {
         }
       }
       trace(2) {
+        sortSpansByStart()
 
         // STREAMING span 0
-        span {
-          serviceName "kafka"
-          operationName "kafka.produce"
-          resourceName "Produce Topic $STREAM_PROCESSED"
-          spanType "queue"
-          errored false
-          childOf span(1)
-
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-            defaultTags()
-          }
-        }
-
-        // STREAMING span 1
         span {
           serviceName "kafka"
           operationName "kafka.consume"
@@ -187,6 +172,22 @@ class KafkaStreamsTest extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "asdf" "testing"
             defaultTags(true)
+          }
+        }
+
+        // STREAMING span 1
+        span {
+          serviceName "kafka"
+          operationName "kafka.produce"
+          resourceName "Produce Topic $STREAM_PROCESSED"
+          spanType "queue"
+          errored false
+          childOf span(0)
+
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            defaultTags()
           }
         }
       }
