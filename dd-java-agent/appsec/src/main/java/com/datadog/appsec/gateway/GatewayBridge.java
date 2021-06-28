@@ -12,6 +12,9 @@ import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -100,11 +103,26 @@ public class GatewayBridge {
     }
   }
 
-  private class RawURICallback implements BiFunction<RequestContext, String, Flow<Void>> {
+  private class RawURICallback implements BiFunction<RequestContext, URIDataAdapter, Flow<Void>> {
     @Override
-    public Flow<Void> apply(RequestContext ctx_, String s) {
+    public Flow<Void> apply(RequestContext ctx_, URIDataAdapter uri) {
       AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
-      ctx.setRawURI(s);
+      if (uri.supportsRaw()) {
+        ctx.setRawURI(uri.raw());
+      } else {
+        try {
+          URI encodedUri = new URI(null, null, uri.path(), uri.query(), null);
+          String q = encodedUri.getRawQuery();
+          StringBuilder encoded = new StringBuilder();
+          encoded.append(encodedUri.getRawPath());
+          if (null != q && !q.isEmpty()) {
+            encoded.append('?').append(q);
+          }
+          ctx.setRawURI(encoded.toString());
+        } catch (URISyntaxException e) {
+          LOG.debug("Failed to encode URI '{}{}'", uri.path(), uri.query());
+        }
+      }
       if (isInitialRequestDataPublished(ctx)) {
         return publishInitialRequestData(ctx);
       } else {
