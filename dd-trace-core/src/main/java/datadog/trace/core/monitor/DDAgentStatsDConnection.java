@@ -1,16 +1,18 @@
 package datadog.trace.core.monitor;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_SOCKET_PATH;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.STATSD_CLIENT;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.timgroup.statsd.NoOpStatsDClient;
-import com.timgroup.statsd.NonBlockingStatsDClient;
+import com.timgroup.statsd.NonBlockingStatsDClientBuilder;
 import com.timgroup.statsd.StatsDClientErrorHandler;
 import datadog.trace.api.Config;
 import datadog.trace.api.IOLogger;
 import datadog.trace.api.Platform;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.AgentThreadFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,6 +26,9 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
   private static final com.timgroup.statsd.StatsDClient NO_OP = new NoOpStatsDClient();
 
   private static final String UNIX_DOMAIN_SOCKET_PREFIX = "unix://";
+
+  private static final AgentThreadFactory STATSD_CLIENT_THREAD_FACTORY =
+      new AgentThreadFactory(STATSD_CLIENT);
 
   private boolean usingDefaultPort;
   private volatile String host;
@@ -92,10 +97,20 @@ final class DDAgentStatsDConnection implements StatsDClientErrorHandler {
         // when using UDS, set "entity-id" to "none" to avoid having the DogStatsD
         // server add origin tags (see https://github.com/DataDog/jmxfetch/pull/264)
         String entityID = port == 0 ? "none" : null;
+        NonBlockingStatsDClientBuilder clientBuilder =
+            new NonBlockingStatsDClientBuilder()
+                .threadFactory(STATSD_CLIENT_THREAD_FACTORY)
+                .enableTelemetry(false)
+                .hostname(host)
+                .port(port)
+                .errorHandler(this)
+                .entityID(entityID);
+        // when using UDS set the datagram size to 8k (2k on Mac due to lower OS default)
+        if (this.port == 0) {
+          clientBuilder.maxPacketSizeBytes(Platform.isMac() ? 2048 : 8192);
+        }
         try {
-          statsd =
-              new NonBlockingStatsDClient(
-                  null, host, port, Integer.MAX_VALUE, null, this, entityID);
+          statsd = clientBuilder.build();
         } catch (final Exception e) {
           log.error("Unable to create StatsD client - {}", statsDAddress(host, port), e);
         }

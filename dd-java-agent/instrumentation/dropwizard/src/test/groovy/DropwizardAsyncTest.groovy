@@ -15,6 +15,8 @@ import java.util.concurrent.Executors
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -70,6 +72,26 @@ class DropwizardAsyncTest extends DropwizardTest {
       executor.execute {
         controller(QUERY_PARAM) {
           asyncResponse.resume(Response.status(QUERY_PARAM.status).entity("some=$param".toString()).build())
+        }
+      }
+    }
+
+    @GET
+    @Path("encoded_query")
+    Response query_encoded_query(@QueryParam("some") String param, @Suspended final AsyncResponse asyncResponse) {
+      executor.execute {
+        controller(QUERY_ENCODED_QUERY) {
+          asyncResponse.resume(Response.status(QUERY_ENCODED_QUERY.status).entity("some=$param".toString()).build())
+        }
+      }
+    }
+
+    @GET
+    @Path("encoded%20path%20query")
+    Response query_encoded_both(@QueryParam("some") String param, @Suspended final AsyncResponse asyncResponse) {
+      executor.execute {
+        controller(QUERY_ENCODED_BOTH) {
+          asyncResponse.resume(Response.status(QUERY_ENCODED_BOTH.status).entity("some=$param".toString()).build())
         }
       }
     }

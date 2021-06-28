@@ -11,6 +11,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -66,6 +68,32 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
           HttpServerTest.ServerEndpoint endpoint = it.result()
           controller(endpoint) {
             ctx.response().setStatusCode(FORWARDED.status).end(ctx.request().getHeader("x-forwarded-for"))
+          }
+        })
+      }
+      router.route(QUERY_ENCODED_BOTH.rawPath).handler { ctx ->
+        breaker.executeCommand({ future ->
+          future.complete(QUERY_ENCODED_BOTH)
+        }, { it ->
+          if (it.failed()) {
+            throw it.cause()
+          }
+          HttpServerTest.ServerEndpoint endpoint = it.result()
+          controller(endpoint) {
+            ctx.response().setStatusCode(endpoint.status).end(endpoint.bodyForQuery(ctx.request().query()))
+          }
+        })
+      }
+      router.route(QUERY_ENCODED_QUERY.path).handler { ctx ->
+        breaker.executeCommand({ future ->
+          future.complete(QUERY_ENCODED_QUERY)
+        }, { it ->
+          if (it.failed()) {
+            throw it.cause()
+          }
+          HttpServerTest.ServerEndpoint endpoint = it.result()
+          controller(endpoint) {
+            ctx.response().setStatusCode(endpoint.status).end(endpoint.bodyForQuery(ctx.request().query()))
           }
         })
       }

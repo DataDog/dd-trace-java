@@ -1,6 +1,7 @@
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
 import datadog.trace.core.DDSpan
 import org.apache.tomcat.util.threads.TaskQueue
@@ -53,6 +54,10 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
   def scheduleRunnable = { e, c -> e.schedule((Runnable) c, 10, TimeUnit.MILLISECONDS) }
   @Shared
   def scheduleCallable = { e, c -> e.schedule((Callable) c, 10, TimeUnit.MILLISECONDS) }
+  @Shared
+  def scheduleAtFixedRate = { e, c -> e.scheduleAtFixedRate((Runnable) c, 10, 10, TimeUnit.MILLISECONDS) }
+  @Shared
+  def scheduleWithFixedDelay = { e, c -> e.scheduleWithFixedDelay((Runnable) c, 10, 10, TimeUnit.MILLISECONDS) }
 
   @Override
   void configurePreAgent() {
@@ -216,6 +221,63 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAny with timeout" | invokeAnyTimeout    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     "schedule Runnable"      | scheduleRunnable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     "schedule Callable"      | scheduleCallable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
+    // spotless:on
+  }
+
+  def "#poolImpl '#name' doesn't propagate"() {
+    setup:
+    def pool = poolImpl
+    def m = method
+    def task = new PeriodicTask()
+
+    new Runnable() {
+        @Override
+        @Trace(operationName = "parent")
+        void run() {
+          activeScope().setAsyncPropagation(true)
+          def future = m(pool, task)
+          sleep(500)
+          future.cancel(true)
+        }
+      }.run()
+
+    expect:
+    assertTraces(task.runCount + 1) {
+      sortSpansByStart()
+      trace(1) {
+        span {
+          operationName "parent"
+          parent()
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+      for (int i = 0; i < task.runCount; i++) {
+        trace(1) {
+          span {
+            operationName "periodicRun"
+            parent()
+            tags {
+              "$Tags.COMPONENT" "trace"
+              defaultTags()
+            }
+          }
+        }
+      }
+    }
+
+    cleanup:
+    if (pool?.hasProperty("shutdown")) {
+      pool?.shutdown()
+    }
+
+    where:
+    // spotless:off
+    name                        | method                 | poolImpl
+    "schedule at fixed rate"    | scheduleAtFixedRate    | new ScheduledThreadPoolExecutor(1)
+    "schedule with fixed delay" | scheduleWithFixedDelay | new ScheduledThreadPoolExecutor(1)
     // spotless:on
   }
 
