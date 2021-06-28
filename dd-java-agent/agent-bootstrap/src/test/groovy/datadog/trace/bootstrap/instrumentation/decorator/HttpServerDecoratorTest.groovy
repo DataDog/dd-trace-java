@@ -96,6 +96,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     1 * span.setTag(Tags.HTTP_URL, expectedUrl)
     1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)
     1 * span.setTag(DDTags.HTTP_FRAGMENT, null)
+    1 * span.getRequestContext()
     1 * span.hasResourceName() >> false
     1 * span.setResourceName({ it as String == expectedResource })
     1 * span.setTag(Tags.HTTP_METHOD, null)
