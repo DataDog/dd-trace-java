@@ -14,6 +14,8 @@ import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.SubscriptionService
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import spock.lang.Specification
 
 class GatewayBridgeSpecification extends Specification {
@@ -33,7 +35,7 @@ class GatewayBridgeSpecification extends Specification {
   Function<RequestContext, Flow<Void>> requestEndedCB
   TriConsumer<RequestContext, String, String> headerCB
   Function<RequestContext, Flow<Void>> headersDoneCB
-  BiFunction<RequestContext, String, Flow<Void>> requestURICB
+  BiFunction<RequestContext, URIDataAdapter, Flow<Void>> requestURICB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -122,7 +124,7 @@ class GatewayBridgeSpecification extends Specification {
 
     and:
     headersDoneCB.apply(ctx)
-    requestURICB.apply(ctx, '/a')
+    requestURICB.apply(ctx, TestURIDataAdapter.create('/a'))
 
     then:
     bundle.get(KnownAddresses.REQUEST_URI_RAW) == '/a'
@@ -130,7 +132,7 @@ class GatewayBridgeSpecification extends Specification {
 
   void 'the raw request uri is provided and decoded'() {
     DataBundle bundle
-    String uri = '/foo%6f?foo=bar+1&fo%6f=b%61r+2&xpto'
+    def adapter = TestURIDataAdapter.create(uri, supportsRaw)
 
     when:
     eventDispatcher.getDataSubscribers(ctx, { KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
@@ -138,20 +140,29 @@ class GatewayBridgeSpecification extends Specification {
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
-    requestURICB.apply(ctx, uri)
+    requestURICB.apply(ctx, adapter)
     headersDoneCB.apply(ctx)
 
     then:
-    assert bundle.get(KnownAddresses.REQUEST_URI_RAW) == uri
+    assert bundle.get(KnownAddresses.REQUEST_URI_RAW) == expected
 
-    def query = bundle.get(KnownAddresses.REQUEST_QUERY)
-    assert query['foo'] == ['bar 1', 'bar 2']
-    assert query['xpto'] == ['']
+    if (null != uri) {
+      def query = bundle.get(KnownAddresses.REQUEST_QUERY)
+      assert query['foo'] == ['bar 1', 'bar 2']
+      assert query['xpto'] == ['']
+    }
+
+    where:
+    uri                                    | supportsRaw | expected
+    '/foo%6f?foo=bar+1&fo%6f=b%61r+2&xpto' | true        | '/foo%6f?foo=bar+1&fo%6f=b%61r+2&xpto'
+    '/fooo?foo=bar 1&foo=bar 2&xpto'       | false       | '/fooo?foo=bar%201&foo=bar%202&xpto'
+    null                                   | false       | ''
   }
 
   void 'exercise all decoding paths'() {
     DataBundle bundle
     String uri = "/?foo=$encoded"
+    def adapter = TestURIDataAdapter.create(uri)
 
     when:
     eventDispatcher.getDataSubscribers(ctx, { KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
@@ -159,7 +170,7 @@ class GatewayBridgeSpecification extends Specification {
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
-    requestURICB.apply(ctx, uri)
+    requestURICB.apply(ctx, adapter)
     headersDoneCB.apply(ctx)
 
     then:
@@ -187,5 +198,101 @@ class GatewayBridgeSpecification extends Specification {
     1 * ig.registerCallback(Events.REQUEST_HEADER_DONE, _) >> { headersDoneCB = it[1]; null }
 
     bridge.init()
+  }
+
+  private static abstract class TestURIDataAdapter extends URIDataAdapterBase {
+
+    static URIDataAdapter create(String uri) {
+      create(uri, true)
+    }
+
+    static URIDataAdapter create(String uri, boolean supportsRaw) {
+      if (supportsRaw) {
+        new TestRawAdapter(uri)
+      } else {
+        new TestNoRawAdapter(uri)
+      }
+    }
+
+    private final String p
+    private final String q
+
+    protected TestURIDataAdapter(String uri) {
+      if (null == uri) {
+        p = null
+        q = null
+      } else {
+        def parts = uri.split("\\?")
+        p = parts[0]
+        q = parts.length == 2 ? parts[1] : null
+      }
+    }
+
+    @Override
+    String scheme() {
+      return null
+    }
+
+    @Override
+    String host() {
+      return null
+    }
+
+    @Override
+    int port() {
+      return 0
+    }
+
+    @Override
+    String path() {
+      return supportsRaw() ? null : p
+    }
+
+    @Override
+    String fragment() {
+      return null
+    }
+
+    @Override
+    String query() {
+      return supportsRaw() ? null : q
+    }
+
+    @Override
+    String rawPath() {
+      return supportsRaw() ? p : null
+    }
+
+    @Override
+    boolean hasPlusEncodedSpaces() {
+      return false
+    }
+
+    @Override
+    String rawQuery() {
+      return supportsRaw() ? q : null
+    }
+
+    private static class TestRawAdapter extends TestURIDataAdapter {
+      TestRawAdapter(String uri) {
+        super(uri)
+      }
+
+      @Override
+      boolean supportsRaw() {
+        return true
+      }
+    }
+
+    private static class TestNoRawAdapter extends TestURIDataAdapter {
+      TestNoRawAdapter(String uri) {
+        super(uri)
+      }
+
+      @Override
+      boolean supportsRaw() {
+        return false
+      }
+    }
   }
 }
