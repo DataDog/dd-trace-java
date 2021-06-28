@@ -15,6 +15,7 @@ import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.normalize.PathNormalizer
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import okhttp3.HttpUrl
 import okhttp3.Request
@@ -808,10 +809,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     where:
-    endpoint    | header              | value       | extraSpan
-    QUERY_PARAM | IG_TEST_HEADER      | "something" | true
-    QUERY_PARAM | "x-ignored"         | "something" | false
-    SUCCESS     | IG_TEST_HEADER      | "whatever"  | false
+    endpoint            | header              | value       | extraSpan
+    QUERY_ENCODED_BOTH  | IG_TEST_HEADER      | "something" | true
+    QUERY_ENCODED_BOTH  | "x-ignored"         | "something" | false
+    SUCCESS             | IG_TEST_HEADER      | "whatever"  | false
+    QUERY_ENCODED_QUERY | IG_TEST_HEADER      | "whatever"  | false
+    QUERY_PARAM         | IG_TEST_HEADER      | "whatever"  | false
   }
 
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
@@ -904,7 +907,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   private static final String IG_TEST_HEADER = "x-ig-test-header"
-  class IGCallbacks implements Supplier<Flow<RequestContext>>, TriConsumer<RequestContext, String, String>, BiFunction<RequestContext, String, Flow<Void>> {
+  class IGCallbacks implements Supplier<Flow<RequestContext>>, TriConsumer<RequestContext, String, String>, BiFunction<RequestContext, URIDataAdapter, Flow<Void>> {
     static class Context implements RequestContext {
       private String extraSpan = null
     }
@@ -925,12 +928,16 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
     }
 
+    private static final String EXPECTED = "${QUERY_ENCODED_BOTH.rawPath}?${QUERY_ENCODED_BOTH.rawQuery}"
+
     // REQUEST_URI_RAW
     @Override
-    Flow<Void> apply(RequestContext requestContext, String uri) {
+    Flow<Void> apply(RequestContext requestContext, URIDataAdapter uri) {
       Context context = (Context) requestContext
+      String raw = uri.supportsRaw() ? uri.raw() : ""
+      raw = uri.hasPlusEncodedSpaces() ? raw.replace("+", "%20") : raw
       // Only trigger for query path without query parameters and with special header
-      if (uri.endsWith("${QUERY_PARAM.path}?${QUERY_PARAM.query}") && null != context.extraSpan) {
+      if (raw.endsWith(EXPECTED) && null != context.extraSpan) {
         runUnderTrace("$IG_TEST_HEADER-${context.extraSpan}", false) {}
         // Only do this for the first time since some instrumentations with handler spans may call
         // DECORATE.onRequest multiple times

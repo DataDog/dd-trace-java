@@ -2,6 +2,7 @@ package datadog.trace.api.gateway;
 
 import datadog.trace.api.Function;
 import datadog.trace.api.function.*;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class Events {
@@ -23,9 +24,9 @@ public final class Events {
   public static final EventType<Function<RequestContext, Flow<Void>>> REQUEST_HEADER_DONE =
       new ET<>("server.request.header.done");
 
-  /** The unparsed request uri, incl. the query string. */
-  public static final EventType<BiFunction<RequestContext, String, Flow<Void>>> REQUEST_URI_RAW =
-      new ET<>("server.request.uri.raw");
+  /** The URIDataAdapter for the request. */
+  public static final EventType<BiFunction<RequestContext, URIDataAdapter, Flow<Void>>>
+      REQUEST_URI_RAW = new ET<>("server.request.uri.raw");
 
   public static final int MAX_EVENTS = nextId.get();
 

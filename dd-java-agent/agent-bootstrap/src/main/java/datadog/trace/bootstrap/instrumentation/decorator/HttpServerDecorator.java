@@ -183,17 +183,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
     RequestContext requestContext = span.getRequestContext();
     if (null != cbp && null != requestContext) {
-      BiFunction<RequestContext, String, Flow<Void>> callback =
+      BiFunction<RequestContext, URIDataAdapter, Flow<Void>> callback =
           cbp.getCallback(Events.REQUEST_URI_RAW);
       if (null != callback) {
-        // TODO:appsec pull this out and add it to the URIDataAdapter
-        String query = url.query();
-        StringBuilder uri = new StringBuilder();
-        uri.append(url.path());
-        if (null != query && !query.isEmpty()) {
-          uri.append('?').append(query);
-        }
-        callback.apply(requestContext, uri.toString());
+        callback.apply(requestContext, url);
       }
     }
   }
