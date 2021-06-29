@@ -35,6 +35,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -116,9 +118,11 @@ class FilteredAppConfig extends WebMvcConfigurerAdapter {
                 resp.status = endpoint.status
                 resp.writer.print(req.getHeader("x-forwarded-for"))
                 break
+              case QUERY_ENCODED_BOTH:
+              case QUERY_ENCODED_QUERY:
               case QUERY_PARAM:
                 resp.status = endpoint.status
-                resp.writer.print(req.queryString)
+                resp.writer.print(endpoint.query)
                 break
               case PATH_PARAM:
                 resp.status = endpoint.status

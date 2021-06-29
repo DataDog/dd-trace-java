@@ -2,8 +2,6 @@ import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.api.CorrelationIdentifier
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import org.apache.catalina.AccessLog
@@ -26,7 +24,6 @@ import static TestServlet3.SERVLET_TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
@@ -115,6 +112,18 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
   }
 
   @Override
+  Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
+    if (endpoint.throwsException) {
+      // Exception classes get wrapped in ServletException
+      ["error.msg": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
+        "error.type": { it == ServletException.name || it == InputMismatchException.name },
+        "error.stack": String]
+    } else {
+      Collections.emptyMap()
+    }
+  }
+
+  @Override
   String getContext() {
     return "tomcat-context"
   }
@@ -128,58 +137,6 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
 
   boolean handlerTriggersValue() {
     return true
-  }
-
-  @Override
-  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    def dispatch = isDispatch()
-    def bubblesResponse = bubblesResponse()
-    trace.span {
-      serviceName expectedServiceName()
-      operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
-      spanType DDSpanTypes.HTTP_SERVER
-      // Exceptions are always bubbled up, other statuses: only if bubblesResponse == true
-      errored((endpoint.errored && bubblesResponse) || [EXCEPTION, CUSTOM_EXCEPTION, TIMEOUT_ERROR].contains(endpoint))
-      if (parentID != null) {
-        traceId traceID
-        parentId parentID
-      } else {
-        parent()
-      }
-      tags {
-        "$Tags.COMPONENT" component
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        "$Tags.PEER_PORT" Integer
-        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
-        "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" { it == endpoint.status || !bubblesResponse }
-        if (endpoint == FORWARDED) {
-          "$Tags.HTTP_FORWARDED_IP" endpoint.body
-        }
-        if (context) {
-          "servlet.context" "/$context"
-        }
-
-        if (dispatch) {
-          "servlet.path" "/dispatch$endpoint.path"
-        } else {
-          "servlet.path" endpoint.path
-        }
-
-        if (endpoint.throwsException) {
-          // Exception classes get wrapped in ServletException
-          "error.msg" { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body }
-          "error.type" { it == ServletException.name || it == InputMismatchException.name }
-          "error.stack" String
-        }
-        if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.query
-        }
-        defaultTags(true)
-      }
-    }
   }
 
   void dispatchSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {

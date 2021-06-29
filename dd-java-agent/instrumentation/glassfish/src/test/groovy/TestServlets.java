@@ -45,7 +45,7 @@ public class TestServlets {
     }
   }
 
-  @WebServlet("/query")
+  @WebServlet({"/query", "/encoded_query", "/encoded path query"})
   public static class Query extends HttpServlet {
     @Override
     protected void service(final HttpServletRequest req, final HttpServletResponse resp) {
@@ -57,7 +57,7 @@ public class TestServlets {
             public Object doCall() throws Exception {
               resp.setContentType("text/plain");
               resp.setStatus(endpoint.getStatus());
-              resp.getWriter().print(req.getQueryString());
+              resp.getWriter().print(endpoint.getBody());
               return null;
             }
           });

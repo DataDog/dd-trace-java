@@ -3,9 +3,9 @@ package datadog.trace.instrumentation.axway;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.DefaultURIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -150,7 +150,7 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
   @Override
   protected URIDataAdapter url(final Object serverTransaction) {
     try {
-      return new DefaultURIDataAdapter((URI) getURI_mh.invoke(serverTransaction));
+      return new URIDefaultDataAdapter((URI) getURI_mh.invoke(serverTransaction));
     } catch (Throwable e) {
       log.debug("Can't find invoke '{}}' on '{}': ", getURI_mh, serverTransaction, e);
     }

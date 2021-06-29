@@ -13,6 +13,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 import static org.junit.Assume.assumeTrue
 
@@ -38,6 +39,30 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
 
   boolean hasHandlerSpan() {
     return isDispatch()
+  }
+
+  @Override
+  boolean hasExtraErrorInformation() {
+    true
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
+    Map<String, Serializable> map = ["servlet.path": dispatch ? "/dispatch$endpoint.path" : endpoint.path]
+    if (context) {
+      map.put("servlet.context", "/$context")
+    }
+    map
+  }
+
+  @Override
+  boolean expectedErrored(ServerEndpoint endpoint) {
+    (endpoint.errored && bubblesResponse()) || [EXCEPTION, CUSTOM_EXCEPTION, TIMEOUT_ERROR].contains(endpoint)
+  }
+
+  @Override
+  Serializable expectedStatus(ServerEndpoint endpoint) {
+    return { !bubblesResponse() || it == endpoint.status }
   }
 
   boolean isDispatch() {

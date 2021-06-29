@@ -36,7 +36,7 @@ class ScopeEventTest extends DDSpecification {
 
   def filterEvents(events, eventTypeNames) {
     return events.stream()
-      .filter({it.eventType.name in eventTypeNames})
+      .filter({ it.eventType.name in eventTypeNames })
       .collect(Collectors.toList())
   }
 
@@ -329,7 +329,7 @@ class ScopeEventTest extends DDSpecification {
     span.setResourceName("foo")
     span.finish()
     then: "checkpoints emitted"
-    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Checkpoint", "datadog.Route"])
+    def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Checkpoint", "datadog.Endpoint"])
     events.size() == 5
     events.each {
       assert it.getLong("traceId") == span.getTraceId().toLong()
@@ -343,7 +343,7 @@ class ScopeEventTest extends DDSpecification {
           assert cpuTime == 0L
         }
       } else {
-        it.getString("route") == "foo"
+        it.getString("endpoint") == "foo"
       }
     }
   }

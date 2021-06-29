@@ -10,6 +10,7 @@ import org.gradle.api.Project
 import org.gradle.api.file.Directory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.compile.AbstractCompile
+import org.gradle.api.tasks.testing.Test
 
 class InstrumentPlugin implements Plugin<Project> {
 
@@ -58,9 +59,12 @@ class InstrumentPlugin implements Plugin<Project> {
             it.argument({ it.value = extension.plugins.get() })
           }
 
-          // insert task between compile and jar
+          // insert task between compile and jar, and before test*
           byteBuddyTask.dependsOn(compileTask)
           project.tasks.findByName('jar')?.dependsOn(byteBuddyTask)
+          project.tasks.withType(Test).configureEach {
+            dependsOn(byteBuddyTask)
+          }
         }
       }
     }

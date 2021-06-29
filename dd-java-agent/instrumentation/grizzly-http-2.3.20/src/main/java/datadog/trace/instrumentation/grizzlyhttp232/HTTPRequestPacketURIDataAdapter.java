@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
-import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import java.nio.charset.StandardCharsets;
 import org.glassfish.grizzly.http.HttpRequestPacket;
 
-final class HTTPRequestPacketURIDataAdapter implements URIDataAdapter {
+final class HTTPRequestPacketURIDataAdapter extends URIRawDataAdapter {
 
   private final HttpRequestPacket packet;
 
@@ -28,17 +28,17 @@ final class HTTPRequestPacketURIDataAdapter implements URIDataAdapter {
   }
 
   @Override
-  public String path() {
+  protected String innerRawPath() {
     return packet.getRequestURI();
   }
 
   @Override
   public String fragment() {
-    return "";
+    return null;
   }
 
   @Override
-  public String query() {
-    return packet.getQueryString() != null ? packet.getQueryString() : "";
+  protected String innerRawQuery() {
+    return packet.getQueryString();
   }
 }

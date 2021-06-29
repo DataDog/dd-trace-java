@@ -2,11 +2,11 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import java.net.URI;
 
-public class DefaultURIDataAdapter implements URIDataAdapter {
+public class URIDefaultDataAdapter extends URIDataAdapterBase {
 
   private final URI uri;
 
-  public DefaultURIDataAdapter(URI uri) {
+  public URIDefaultDataAdapter(URI uri) {
     this.uri = uri;
   }
 
@@ -38,5 +38,20 @@ public class DefaultURIDataAdapter implements URIDataAdapter {
   @Override
   public String query() {
     return uri.getQuery();
+  }
+
+  @Override
+  public boolean supportsRaw() {
+    return true;
+  }
+
+  @Override
+  public String rawPath() {
+    return uri.getRawPath();
+  }
+
+  @Override
+  public String rawQuery() {
+    return uri.getRawQuery();
   }
 }

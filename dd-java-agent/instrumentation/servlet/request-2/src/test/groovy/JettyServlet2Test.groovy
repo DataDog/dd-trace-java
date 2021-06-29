@@ -1,9 +1,6 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
@@ -13,10 +10,8 @@ import javax.servlet.http.HttpServletRequest
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 
 class JettyServlet2Test extends HttpServerTest<Server> {
@@ -99,6 +94,16 @@ class JettyServlet2Test extends HttpServerTest<Server> {
     false
   }
 
+  @Override
+  boolean hasExtraErrorInformation() {
+    true
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
+    ["servlet.path": endpoint.path, "servlet.context": "/$CONTEXT"]
+  }
+
   boolean hasResponseSpan(ServerEndpoint endpoint) {
     return endpoint == REDIRECT || endpoint == NOT_FOUND || endpoint == EXCEPTION || endpoint == ERROR
   }
@@ -129,46 +134,6 @@ class JettyServlet2Test extends HttpServerTest<Server> {
       tags {
         "component" "java-web-servlet-response"
         defaultTags()
-      }
-    }
-  }
-
-  // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    trace.span {
-      serviceName expectedServiceName()
-      operationName expectedOperationName()
-      resourceName endpoint.resource(method, address, testPathParam())
-      spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint.errored
-      if (parentID != null) {
-        traceId traceID
-        parentId parentID
-      } else {
-        parent()
-      }
-      tags {
-        "$Tags.COMPONENT" component
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        "$Tags.PEER_PORT" Integer
-        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
-        "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" endpoint.status
-        if (endpoint == FORWARDED) {
-          "$Tags.HTTP_FORWARDED_IP" endpoint.body
-        }
-        "servlet.context" "/$CONTEXT"
-        "servlet.path" endpoint.path
-        if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
-          "error.stack" { it == null || it instanceof String }
-        }
-        if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.query
-        }
-        defaultTags(true)
       }
     }
   }

@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.liberty20;
 
-import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import javax.servlet.http.HttpServletRequest;
 
-final class RequestURIDataAdapter implements URIDataAdapter {
+final class RequestURIDataAdapter extends URIRawDataAdapter {
 
   private final HttpServletRequest request;
 
@@ -27,17 +27,17 @@ final class RequestURIDataAdapter implements URIDataAdapter {
   }
 
   @Override
-  public String path() {
+  protected String innerRawPath() {
     return request.getRequestURI();
   }
 
   @Override
   public String fragment() {
-    return "";
+    return null;
   }
 
   @Override
-  public String query() {
+  protected String innerRawQuery() {
     return request.getQueryString();
   }
 }

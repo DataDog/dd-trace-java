@@ -1,5 +1,6 @@
 package com.datadog.profiling.uploader.util;
 
+import datadog.trace.api.Platform;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import jnr.posix.POSIX;
 import jnr.posix.POSIXFactory;
@@ -20,12 +21,14 @@ public class PidHelper {
   public static final Long PID = getPid();
 
   private static Long getPid() {
-    try {
-      final Class<?> processHandler = Class.forName("java.lang.ProcessHandle");
-      final Object object = processHandler.getMethod("current").invoke(null);
-      return (Long) processHandler.getMethod("pid").invoke(object);
-    } catch (final Exception e) {
-      log.debug("Cannot get PID through JVM API, trying POSIX instead", e);
+    if (Platform.isJavaVersionAtLeast(9)) {
+      try {
+        final Class<?> processHandler = Class.forName("java.lang.ProcessHandle");
+        final Object object = processHandler.getMethod("current").invoke(null);
+        return (Long) processHandler.getMethod("pid").invoke(object);
+      } catch (final Exception e) {
+        log.debug("Cannot get PID through JVM API, trying POSIX instead", e);
+      }
     }
 
     try {

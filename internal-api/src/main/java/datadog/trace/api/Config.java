@@ -125,6 +125,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_O
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_MEASURED_ENABLED;
@@ -281,6 +283,8 @@ public class Config {
   private final BitSet httpServerErrorStatuses;
   private final BitSet httpClientErrorStatuses;
   private final boolean httpServerTagQueryString;
+  private final boolean httpServerRawQueryString;
+  private final boolean httpServerRawResource;
   private final boolean httpServerRouteBasedNaming;
   private final boolean httpClientTagQueryString;
   private final boolean httpClientSplitByDomain;
@@ -552,6 +556,10 @@ public class Config {
     httpServerTagQueryString =
         configProvider.getBoolean(
             HTTP_SERVER_TAG_QUERY_STRING, DEFAULT_HTTP_SERVER_TAG_QUERY_STRING);
+
+    httpServerRawQueryString = configProvider.getBoolean(HTTP_SERVER_RAW_QUERY_STRING, true);
+
+    httpServerRawResource = configProvider.getBoolean(HTTP_SERVER_RAW_RESOURCE, false);
 
     httpServerRouteBasedNaming =
         configProvider.getBoolean(
@@ -895,6 +903,14 @@ public class Config {
 
   public boolean isHttpServerTagQueryString() {
     return httpServerTagQueryString;
+  }
+
+  public boolean isHttpServerRawQueryString() {
+    return httpServerRawQueryString;
+  }
+
+  public boolean isHttpServerRawResource() {
+    return httpServerRawResource;
   }
 
   public boolean isHttpServerRouteBasedNaming() {
@@ -1742,6 +1758,10 @@ public class Config {
         + httpClientErrorStatuses
         + ", httpServerTagQueryString="
         + httpServerTagQueryString
+        + ", httpServerRawQueryString="
+        + httpServerRawQueryString
+        + ", httpServerRawResource="
+        + httpServerRawResource
         + ", httpServerRouteBasedNaming="
         + httpServerRouteBasedNaming
         + ", httpClientTagQueryString="

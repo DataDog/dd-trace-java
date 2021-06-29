@@ -85,22 +85,22 @@ class TagsAssert {
     }
   }
 
-  def tag(String name, value) {
-    if (value == null) {
+  def tag(String name, expected) {
+    if (expected == null) {
       return
     }
     assertedTags.add(name)
-    def t = tag(name)
-    if (value instanceof Pattern) {
-      assert t =~ value
-    } else if (value instanceof Class) {
-      assert ((Class) value).isInstance(t)
-    } else if (value instanceof Closure) {
-      assert ((Closure) value).call(t)
-    } else if (value instanceof UTF8BytesString) {
-      assert t == value.toString()
+    def value = tag(name)
+    if (expected instanceof Pattern) {
+      assert value =~ expected : "Tag \"$name\": \"${value.toString()}\" does not match pattern \"$expected\""
+    } else if (expected instanceof Class) {
+      assert ((Class) expected).isInstance(value) : "Tag \"$name\": instance check $expected failed for \"${value.toString()}\" of class \"${value.class}\""
+    } else if (expected instanceof Closure) {
+      assert ((Closure) expected).call(value) : "Tag \"$name\": closure call ${expected.toString()} failed with \"$value\""
+    } else if (expected instanceof UTF8BytesString) {
+      assert value == expected.toString() : "Tag \"$name\": \"$value\" != \"${expected.toString()}\""
     } else {
-      assert t == value
+      assert value == expected : "Tag \"$name\": \"$value\" != \"$expected\""
     }
   }
 
@@ -114,6 +114,11 @@ class TagsAssert {
       throw new IllegalArgumentException(args.toString())
     }
     tag(name, args[0])
+  }
+
+  def addTags(Map<String, Serializable> tags) {
+    tags.each {tag(it.key, it.value)}
+    true
   }
 
   void assertTagsAllVerified() {
