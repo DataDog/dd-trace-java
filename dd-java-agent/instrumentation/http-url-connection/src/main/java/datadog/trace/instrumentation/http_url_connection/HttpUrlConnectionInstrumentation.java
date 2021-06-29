@@ -30,7 +30,9 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return namedOneOf(
-        "sun.net.www.protocol.https.HttpsURLConnection",
+        // these classes define connect/stream methods that must be instrumented,
+        // we deliberately exclude various subclasses that are simple delegators
+        "sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection",
         "sun.net.www.protocol.http.HttpURLConnection",
         "java.net.HttpURLConnection");
   }
