@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
+import static datadog.trace.api.http.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 import static datadog.trace.instrumentation.springwebflux.server.AdviceUtils.constructOperationName;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 

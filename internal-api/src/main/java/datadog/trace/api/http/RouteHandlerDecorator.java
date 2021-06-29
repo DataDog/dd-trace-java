@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.decorator;
+package datadog.trace.api.http;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.Function;

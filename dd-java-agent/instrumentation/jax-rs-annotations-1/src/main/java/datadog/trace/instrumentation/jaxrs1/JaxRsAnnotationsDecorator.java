@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jaxrs1;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
+import static datadog.trace.api.http.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 
 import datadog.trace.agent.tooling.ClassHierarchyIterable;
 import datadog.trace.api.GenericClassValue;
