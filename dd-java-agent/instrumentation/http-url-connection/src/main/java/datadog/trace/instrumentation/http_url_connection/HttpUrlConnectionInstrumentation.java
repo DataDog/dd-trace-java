@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HeadersInjectAdapter.SETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
@@ -30,9 +31,8 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return namedOneOf(
-        "sun.net.www.protocol.https.HttpsURLConnection",
-        "sun.net.www.protocol.http.HttpURLConnection",
-        "java.net.HttpURLConnection");
+        // we deliberately exclude various subclasses that are simple delegators
+        "sun.net.www.protocol.http.HttpURLConnection", "java.net.HttpURLConnection");
   }
 
   @Override
@@ -44,6 +44,9 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing {
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod().and(isPublic()).and(namedOneOf("connect", "getOutputStream", "getInputStream")),
+        HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
+    transformation.applyAdvice(
+        isMethod().and(isProtected()).and(namedOneOf("plainConnect")),
         HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
   }
 
