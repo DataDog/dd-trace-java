@@ -57,27 +57,57 @@ public final class OpenJdkController implements Controller {
     // factory and can use it.
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
+
+    Map<String, String> recordingSettings;
+
     try {
-      final Map<String, String> recordingSettings =
-          JfpUtils.readNamedJfpResource(
-              JfpUtils.DEFAULT_JFP, config.getProfilingTemplateOverrideFile());
-
-      // Toggle settings based on JDK version
-      if (Boolean.parseBoolean(recordingSettings.get("jdk.OldObjectSample#enabled"))) {
-        if (!((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
-            || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
-            || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
-            || isJavaVersionAtLeast(17))) {
-          log.debug(
-              "Inexpensive live object profiling is not supported for this JDK. Disabling OldObjectSample JFR event.");
-          recordingSettings.put("jdk.OldObjectSample#enabled", "false");
-        }
-      }
-
-      this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
+      recordingSettings = JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP);
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
+
+    // Toggle settings based on JDK version
+
+    if (Boolean.parseBoolean(recordingSettings.get("jdk.OldObjectSample#enabled"))) {
+      if (!((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
+          || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
+          || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
+          || isJavaVersionAtLeast(17))) {
+        log.debug(
+            "Inexpensive live object profiling is not supported for this JDK. "
+                + "Disabling OldObjectSample JFR event.");
+        recordingSettings.put("jdk.OldObjectSample#enabled", "false");
+      }
+    }
+
+    if (Boolean.parseBoolean(recordingSettings.get("jdk.ObjectAllocationInNewTLAB#enabled"))
+        || Boolean.parseBoolean(recordingSettings.get("jdk.ObjectAllocationOutsideTLAB#enabled"))) {
+      if (!(isJavaVersionAtLeast(16))) {
+        log.debug(
+            "Inexpensive allocation profiling is not supported for this JDK. "
+                + "Disabling ObjectAllocationInNewTLAB and ObjectAllocationOutsideTLAB JFR events.");
+        recordingSettings.put("jdk.ObjectAllocationInNewTLAB#enabled", "false");
+        recordingSettings.put("jdk.ObjectAllocationOutsideTLAB#enabled", "false");
+      }
+    }
+
+    if (Boolean.parseBoolean(recordingSettings.get("jdk.NativeMethodSample#enabled"))) {
+      if (!((isJavaVersion(8) && isJavaVersionAtLeast(8, 0, 302)) || isJavaVersionAtLeast(11))) {
+        log.debug(
+            "Inexpensive native profiling is not supported for this JDK. "
+                + "Disabling NativeMethodSample JFR event.");
+        recordingSettings.put("jdk.NativeMethodSample#enabled", "false");
+      }
+    }
+
+    try {
+      recordingSettings.putAll(
+          JfpUtils.readOverrideJfpResource(config.getProfilingTemplateOverrideFile()));
+    } catch (final IOException e) {
+      throw new ConfigurationException(e);
+    }
+
+    this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
 
     // Register periodic events
     AvailableProcessorCoresEvent.register();

@@ -56,30 +56,33 @@ public final class JfpUtils {
     return JfpUtils.class.getClassLoader().getResourceAsStream(name);
   }
 
-  public static Map<String, String> readNamedJfpResource(
-      final String name, String overridesFileName) throws IOException {
-    final Map<String, String> result = new HashMap<>();
-
-    try (final InputStream stream = getNamedResource(name)) {
-      result.putAll(readJfpFile(stream));
-    }
-
-    if (overridesFileName != null) {
-      if (!overridesFileName.toLowerCase().endsWith(JFP_EXTENSION)) {
-        overridesFileName = overridesFileName + JFP_EXTENSION;
-      }
-      final File override = new File(overridesFileName);
-      try (final InputStream overrideStream =
-          override.exists()
-              ? new FileInputStream(override)
-              : getNamedResource(OVERRIDES_PATH + overridesFileName)) {
-        if (overrideStream != null) {
-          result.putAll(readJfpFile(overrideStream));
-        } else {
-          throw new IOException("Invalid override file " + overridesFileName);
-        }
-      }
-    }
+  public static Map<String, String> readJfpResources(final String name, String overridesFileName)
+      throws IOException {
+    Map<String, String> result = readNamedJfpResource(name);
+    result.putAll(readOverrideJfpResource(overridesFileName));
     return result;
+  }
+
+  public static Map<String, String> readNamedJfpResource(final String name) throws IOException {
+    try (final InputStream stream = getNamedResource(name)) {
+      return readJfpFile(stream);
+    }
+  }
+
+  public static Map<String, String> readOverrideJfpResource(String name) throws IOException {
+    if (name != null) {
+      if (!name.toLowerCase().endsWith(JFP_EXTENSION)) {
+        name = name + JFP_EXTENSION;
+      }
+      final File file = new File(name);
+      try (final InputStream stream =
+          file.exists() ? new FileInputStream(file) : getNamedResource(OVERRIDES_PATH + name)) {
+        if (stream == null) {
+          throw new IOException("Invalid override file " + name);
+        }
+        return readJfpFile(stream);
+      }
+    }
+    return new HashMap<>();
   }
 }

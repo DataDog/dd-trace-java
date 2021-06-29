@@ -35,7 +35,7 @@ public final class OracleJdkController implements Controller {
       helper = new JfrMBeanHelper();
       eventSettings =
           Collections.unmodifiableMap(
-              JfpUtils.readNamedJfpResource(
+              JfpUtils.readJfpResources(
                   JfpUtils.DEFAULT_JFP, config.getProfilingTemplateOverrideFile()));
     } catch (final IOException e) {
       throw new ConfigurationException(e);

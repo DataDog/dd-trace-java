@@ -22,7 +22,7 @@ class JfrMBeanHelperTest {
 
   @BeforeAll
   static void setupStatic() throws Exception {
-    eventSettings = JfpUtils.readNamedJfpResource(JfpUtils.DEFAULT_JFP, null);
+    eventSettings = JfpUtils.readJfpResources(JfpUtils.DEFAULT_JFP, null);
   }
 
   @BeforeEach
