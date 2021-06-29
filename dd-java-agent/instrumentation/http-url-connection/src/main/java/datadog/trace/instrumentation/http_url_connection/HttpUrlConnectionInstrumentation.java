@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.http_url_connection;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HeadersInjectAdapter.SETTER;
@@ -46,7 +47,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing {
         isMethod().and(isPublic()).and(namedOneOf("connect", "getOutputStream", "getInputStream")),
         HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
     transformation.applyAdvice(
-        isMethod().and(isProtected()).and(namedOneOf("plainConnect")),
+        isMethod().and(isProtected()).and(named("plainConnect")),
         HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
   }
 
