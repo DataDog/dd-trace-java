@@ -129,7 +129,6 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     received3.headers().iterator().hasNext() == expected3
     received4.headers().iterator().hasNext() == expected4
 
-
     cleanup:
     producerFactory.stop()
     container1?.stop()
@@ -142,6 +141,8 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     "topic1,topic2,topic3,topic4" | false     | false     | false     | false
     "topic1,topic2"               | false     | false     | true      | true
     "topic1"                      | false     | true      | true      | true
+    ""                            | true      | true      | true      | true
+    "randomTopic"                 | true      | true      | true      | true
   }
 
   def containerProperties(String topic) {
