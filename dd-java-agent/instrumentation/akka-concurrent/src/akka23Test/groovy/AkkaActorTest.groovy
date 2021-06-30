@@ -91,37 +91,32 @@ class AkkaActorTest extends AgentTestRunner {
   def "test checkpoints emitted #name x #n"() {
     setup:
     def barrier = akkaTester.block(name)
-    def threadMigrations = threadMigrationsPerWorkflow * n
     when:
     runUnderTrace("parent") {
       (1..n).each {i -> akkaTester.send(name, "who $i")}
     }
     barrier.release()
-    // FIXME the expected interaction counts are stable with a pause
-    //  but it should be possible to synchronise this test better
-    Thread.sleep(1000)
-    then:
     TEST_WRITER.waitForTraces(1)
+    then:
     (2 * n + 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    threadMigrations * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    threadMigrations * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    // mailbox scheduling is also recorded and seems to be nondeterministic
-    (threadMigrations.._) * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
+    n * threadMigrations * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    n * threadMigrations * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    n * invocations * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
     (2 * n + 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
 
     where:
-    name      | n   | threadMigrationsPerWorkflow
-    "ask"     | 1   | 3
-    "tell"    | 1   | 3
-    "route"   | 1   | 4 // 1 extra dispatch
-    "forward" | 1   | 4 // 1 extra dispatch
-    "ask"     | 2   | 3
-    "tell"    | 2   | 3
-    "route"   | 2   | 4
-    "forward" | 2   | 4
-    "ask"     | 10  | 3
-    "tell"    | 10  | 3
-    "route"   | 10  | 4
-    "forward" | 10  | 4
+    name      | n   | threadMigrations     | invocations
+    "ask"     | 1   | 3                    | 3
+    "tell"    | 1   | 3                    | 3
+    "route"   | 1   | 4                    | 3
+    "forward" | 1   | 4                    | 4
+    "ask"     | 2   | 3                    | 3
+    "tell"    | 2   | 3                    | 3
+    "route"   | 2   | 4                    | 3
+    "forward" | 2   | 4                    | 4
+    "ask"     | 10  | 3                    | 3
+    "tell"    | 10  | 3                    | 3
+    "route"   | 10  | 4                    | 3
+    "forward" | 10  | 4                    | 4
   }
 }
