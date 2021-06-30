@@ -1,6 +1,12 @@
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
+
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.Checkpointer.CPU
+import static datadog.trace.api.Checkpointer.END
+import static datadog.trace.api.Checkpointer.SPAN
+import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 
 class AkkaActorTest extends AgentTestRunner {
   @Shared
@@ -80,5 +86,42 @@ class AkkaActorTest extends AgentTestRunner {
         }
       }
     }
+  }
+
+  def "test checkpoints emitted #name x #n"() {
+    setup:
+    def barrier = akkaTester.block(name)
+    def threadMigrations = threadMigrationsPerWorkflow * n
+    when:
+    runUnderTrace("parent") {
+      (1..n).each {i -> akkaTester.send(name, "who $i")}
+    }
+    barrier.release()
+    // FIXME the expected interaction counts are stable with a pause
+    //  but it should be possible to synchronise this test better
+    Thread.sleep(1000)
+    then:
+    TEST_WRITER.waitForTraces(1)
+    (2 * n + 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    threadMigrations * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    threadMigrations * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    // mailbox scheduling is also recorded and seems to be nondeterministic
+    (threadMigrations.._) * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
+    (2 * n + 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+
+    where:
+    name      | n   | threadMigrationsPerWorkflow
+    "ask"     | 1   | 3
+    "tell"    | 1   | 3
+    "route"   | 1   | 4 // 1 extra dispatch
+    "forward" | 1   | 4 // 1 extra dispatch
+    "ask"     | 2   | 3
+    "tell"    | 2   | 3
+    "route"   | 2   | 4
+    "forward" | 2   | 4
+    "ask"     | 10  | 3
+    "tell"    | 10  | 3
+    "route"   | 10  | 4
+    "forward" | 10  | 4
   }
 }

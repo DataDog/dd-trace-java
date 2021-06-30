@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.akka.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
@@ -41,12 +42,7 @@ public class AkkaEnvelopeInstrumentation extends Instrumenter.Tracing {
   public static class ConstructAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterInit(@Advice.This Envelope zis) {
-      TraceScope activeScope = activeScope();
-      if (null != activeScope) {
-        InstrumentationContext.get(Envelope.class, State.class)
-            .putIfAbsent(zis, State.FACTORY)
-            .captureAndSetContinuation(activeScope);
-      }
+      capture(InstrumentationContext.get(Envelope.class, State.class), zis, true);
     }
   }
 }

@@ -11,6 +11,7 @@ import akka.dispatch.Envelope;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -84,6 +85,10 @@ public class AkkaActorCellInstrumentation extends Instrumenter.Tracing {
     public static void exit(
         @Advice.Enter TraceScope scope, @Advice.Local(value = "localScope") TraceScope localScope) {
       if (localScope != null) {
+        if (localScope instanceof AgentScope) {
+          // then we have invoked an Envelope and need to mark the work complete
+          ((AgentScope) localScope).span().finishWork();
+        }
         localScope.close();
       }
       // Clean up any leaking scopes from akka-streams/akka-http et.c.
