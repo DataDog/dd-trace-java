@@ -99,24 +99,24 @@ class AkkaActorTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(1)
     then:
     (2 * n + 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    n * threadMigrations * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    n * threadMigrations * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    n * invocations * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
+    n * envelopes * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    n * envelopes * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    n * envelopes * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
     (2 * n + 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
 
     where:
-    name      | n   | threadMigrations     | invocations
-    "ask"     | 1   | 3                    | 3
-    "tell"    | 1   | 3                    | 3
-    "route"   | 1   | 4                    | 3
-    "forward" | 1   | 4                    | 4
-    "ask"     | 2   | 3                    | 3
-    "tell"    | 2   | 3                    | 3
-    "route"   | 2   | 4                    | 3
-    "forward" | 2   | 4                    | 4
-    "ask"     | 10  | 3                    | 3
-    "tell"    | 10  | 3                    | 3
-    "route"   | 10  | 4                    | 3
-    "forward" | 10  | 4                    | 4
+    name      | n   | envelopes
+    "ask"     | 1   | 3
+    "tell"    | 1   | 3
+    "route"   | 1   | 4
+    "forward" | 1   | 4
+    "ask"     | 2   | 3
+    "tell"    | 2   | 3
+    "route"   | 2   | 4
+    "forward" | 2   | 4
+    "ask"     | 10  | 3
+    "tell"    | 10  | 3
+    "route"   | 10  | 4
+    "forward" | 10  | 4
   }
 }
