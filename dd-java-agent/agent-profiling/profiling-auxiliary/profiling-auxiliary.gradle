@@ -1,0 +1,24 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+//// We have some general logging paths that are hard to test
+//minimumInstructionCoverage = 0.8
+minimumBranchCoverage = 0.7
+
+excludedClassesCoverage += [// an enum with no additional functionality
+  'com.datadog.profiling.auxiliary.ProfilingMode']
+
+dependencies {
+  api deps.slf4j
+  api project(':dd-java-agent:agent-profiling:profiling-controller')
+
+  annotationProcessor deps.autoserviceProcessor
+  compileOnly deps.autoserviceAnnotation
+
+  testImplementation deps.junit5
+  testImplementation deps.mockito
+  testCompile deps.autoserviceAnnotation
+  testAnnotationProcessor deps.autoserviceProcessor
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8

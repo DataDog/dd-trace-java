@@ -16,6 +16,7 @@ dependencies {
   api deps.slf4j
   api project(':internal-api')
 
+  api project(':dd-java-agent:agent-profiling:profiling-auxiliary-async')
   api project(':dd-java-agent:agent-profiling:profiling-uploader')
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')

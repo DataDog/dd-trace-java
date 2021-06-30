@@ -4,23 +4,37 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+minimumInstructionCoverage = 0.5
+minimumBranchCoverage = 0.5
+
+excludedClassesCoverage += [
+  // enums with no additional functionality
+  'com.datadog.profiling.controller.async.Arch',
+  'com.datadog.profiling.controller.async.OperatingSystem',
+  // --
+  // although it is quite well covered jacoco complains about branch coverage due to exception handlers
+  'com.datadog.profiling.auxiliary.async.AsyncProfilerRecording'
+]
+
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
+  api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
   implementation 'tools.profiler:async-profiler:1.8.3'
+
+  annotationProcessor deps.autoserviceProcessor
+  compileOnly deps.autoserviceAnnotation
 
   implementation deps.slf4j
 
+  testImplementation deps.jmc
   testImplementation deps.junit5
 }
-
-excludedClassesCoverage += ['com.datadog.profiling.controller.jfr.JdkTypeIDs']
-
-
-// Shared JFR implementation. The earliest Java version JFR is working on is Java 8
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
+// TODO: There might be more os/arch supports coming
+// Monitor https://github.com/jvm-profiling-tools/async-profiler/releases for newly supported archs
 ['macos-x64', 'linux-x64', 'linux-x86', 'linux-musl-x64', 'linux-arm', 'linux-aarch64'].each {
   def platform = it
 

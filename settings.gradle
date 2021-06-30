@@ -44,6 +44,8 @@ include ':dd-java-agent:agent-logging'
 include ':dd-java-agent:load-generator'
 
 include ':dd-java-agent:agent-profiling'
+include ':dd-java-agent:agent-profiling:profiling-auxiliary'
+include ':dd-java-agent:agent-profiling:profiling-auxiliary-async'
 include ':dd-java-agent:agent-profiling:profiling-controller'
 include ':dd-java-agent:agent-profiling:profiling-controller-jfr'
 include ':dd-java-agent:agent-profiling:profiling-controller-openjdk'

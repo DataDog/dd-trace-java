@@ -27,7 +27,7 @@ final class CachedData {
     mockito       : '3.5.10',
     moshi         : '1.9.2',
     testcontainers: '1.15.0-rc2',
-    jmc           : "8.0.0-SNAPSHOT",
+    jmc           : "8.1.0-SNAPSHOT",
     autoservice   : "1.0-rc7"
   ]
 
@@ -77,8 +77,6 @@ final class CachedData {
 
     jmc                  : [
       "org.openjdk.jmc:common:${versions.jmc}",
-      "org.openjdk.jmc:flightrecorder:${versions.jmc}",
-      "org.openjdk.jmc:flightrecorder:${versions.jmc}",
       "org.openjdk.jmc:flightrecorder:${versions.jmc}"
     ],
 

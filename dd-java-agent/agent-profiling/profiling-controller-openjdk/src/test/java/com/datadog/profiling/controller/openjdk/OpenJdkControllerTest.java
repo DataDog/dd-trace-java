@@ -3,8 +3,10 @@ package com.datadog.profiling.controller.openjdk;
 import static datadog.trace.api.Platform.isJavaVersion;
 import static datadog.trace.api.Platform.isJavaVersionAtLeast;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.jfr.JfpUtilsTest;
 import datadog.trace.api.Config;
 import jdk.jfr.Recording;
@@ -24,7 +26,9 @@ public class OpenJdkControllerTest {
   public void testCreateContinuousRecording() throws Exception {
     when(config.getProfilingTemplateOverrideFile()).thenReturn(JfpUtilsTest.OVERRIDES);
     OpenJdkController controller = new OpenJdkController(config);
-    try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
+    RecordingData data = controller.createRecording(TEST_NAME).stop();
+    assertTrue(data instanceof OpenJdkRecordingData);
+    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       assertEquals(TEST_NAME, recording.getName());
       assertEquals(OpenJdkController.RECORDING_MAX_SIZE, recording.getMaxSize());
       assertEquals(OpenJdkController.RECORDING_MAX_AGE, recording.getMaxAge());
@@ -34,7 +38,9 @@ public class OpenJdkControllerTest {
   @Test
   public void testOldObjectSampleIsDisabledOnUnsupportedVersion() throws Exception {
     OpenJdkController controller = new OpenJdkController(config);
-    try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
+    RecordingData data = controller.createRecording(TEST_NAME).stop();
+    assertTrue(data instanceof OpenJdkRecordingData);
+    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (!((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
           || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
           || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
@@ -51,7 +57,9 @@ public class OpenJdkControllerTest {
     when(config.getProfilingTemplateOverrideFile())
         .thenReturn(JfpUtilsTest.OVERRIDES_OLD_OBJECT_SAMPLE);
     OpenJdkController controller = new OpenJdkController(config);
-    try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
+    RecordingData data = controller.createRecording(TEST_NAME).stop();
+    assertTrue(data instanceof OpenJdkRecordingData);
+    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (!((isJavaVersion(11) && isJavaVersionAtLeast(11, 0, 12))
           || (isJavaVersion(15) && isJavaVersionAtLeast(15, 0, 4))
           || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
@@ -75,7 +83,9 @@ public class OpenJdkControllerTest {
   @Test
   public void testObjectAllocationIsDisabledOnUnsupportedVersion() throws Exception {
     OpenJdkController controller = new OpenJdkController(config);
-    try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
+    RecordingData data = controller.createRecording(TEST_NAME).stop();
+    assertTrue(data instanceof OpenJdkRecordingData);
+    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (!(isJavaVersionAtLeast(16))) {
         assertEquals(
             false,
@@ -94,7 +104,9 @@ public class OpenJdkControllerTest {
     when(config.getProfilingTemplateOverrideFile())
         .thenReturn(JfpUtilsTest.OVERRIDES_OBJECT_ALLOCATION);
     OpenJdkController controller = new OpenJdkController(config);
-    try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
+    RecordingData data = controller.createRecording(TEST_NAME).stop();
+    assertTrue(data instanceof OpenJdkRecordingData);
+    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (!(isJavaVersionAtLeast(16))) {
         assertEquals(
             true,
@@ -112,7 +124,8 @@ public class OpenJdkControllerTest {
   public void testObjectAllocationIsStillOverriddenThroughConfig() throws Exception {
     when(config.isProfilingAllocationEnabled()).thenReturn(true);
     OpenJdkController controller = new OpenJdkController(config);
-    try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
+    try (final Recording recording =
+        ((OpenJdkRecordingData) controller.createRecording(TEST_NAME).stop()).getRecording()) {
       assertEquals(
           Boolean.parseBoolean(
               recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")),
@@ -127,7 +140,9 @@ public class OpenJdkControllerTest {
   @Test
   public void testNativeMethodSampleIsDisabledOnUnsupportedVersion() throws Exception {
     OpenJdkController controller = new OpenJdkController(config);
-    try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
+    RecordingData data = controller.createRecording(TEST_NAME).stop();
+    assertTrue(data instanceof OpenJdkRecordingData);
+    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (!((isJavaVersion(8) && isJavaVersionAtLeast(8, 0, 302)) || isJavaVersionAtLeast(11))) {
         assertEquals(
             false,
@@ -141,7 +156,9 @@ public class OpenJdkControllerTest {
     when(config.getProfilingTemplateOverrideFile())
         .thenReturn(JfpUtilsTest.OVERRIDES_NATIVE_METHOD_SAMPLE);
     OpenJdkController controller = new OpenJdkController(config);
-    try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
+    RecordingData data = controller.createRecording(TEST_NAME).stop();
+    assertTrue(data instanceof OpenJdkRecordingData);
+    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (!((isJavaVersion(8) && isJavaVersionAtLeast(8, 0, 302)) || isJavaVersionAtLeast(11))) {
         assertEquals(
             true,
