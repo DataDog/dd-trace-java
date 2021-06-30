@@ -48,7 +48,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public void adviceTransformations(final AdviceTransformation transformation) {
+  public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod()
             .and(isPublic())

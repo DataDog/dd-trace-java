@@ -57,25 +57,24 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
     return next;
   }
 
-  protected void decorate(final ConsumerRecord<?, ?> val) {
+  protected void decorate(ConsumerRecord<?, ?> val) {
     try {
-      // add check here
       final AgentSpan span;
-      if (val != null
-          && !Config.get().getKafkaClientPropagationDisabledList().contains(val.topic())) {
-        final Context spanContext = propagate().extract(val.headers(), GETTER);
-        span = startSpan(operationName, spanContext);
-      } else {
-        // start span without spancontext
-        span = startSpan(operationName);
+      if (val != null) {
+        if (!Config.get().getKafkaClientPropagationDisabledList().contains(val.topic())) {
+          final Context spanContext = propagate().extract(val.headers(), GETTER);
+          span = startSpan(operationName, spanContext);
+        } else {
+          span = startSpan(operationName);
+        }
+        if (val.value() == null) {
+          span.setTag(InstrumentationTags.TOMBSTONE, true);
+        }
+        decorator.afterStart(span);
+        decorator.onConsume(span, val);
+        currentScope = activateSpan(span);
+        currentScope.setAsyncPropagation(true);
       }
-      if (val.value() == null) {
-        span.setTag(InstrumentationTags.TOMBSTONE, true);
-      }
-      decorator.afterStart(span);
-      decorator.onConsume(span, val);
-      currentScope = activateSpan(span);
-      currentScope.setAsyncPropagation(true);
     } catch (final Exception e) {
       log.debug("Error during decoration", e);
     }

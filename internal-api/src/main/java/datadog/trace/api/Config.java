@@ -425,7 +425,7 @@ public class Config {
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
-    final String userProvidedServiceName =
+    String userProvidedServiceName =
         configProvider.getStringExcludingSource(
             SERVICE, null, CapturedEnvironmentConfigSource.class, SERVICE_NAME);
 
@@ -464,7 +464,7 @@ public class Config {
         if ("unix".equals(parsedAgentUrl.getScheme())) {
           unixSocketFromEnvironment = parsedAgentUrl.getPath();
         }
-      } catch (final URISyntaxException e) {
+      } catch (URISyntaxException e) {
         log.warn("{} not configured correctly: {}. Ignoring", TRACE_AGENT_URL, e.getMessage());
       }
     }
@@ -499,7 +499,7 @@ public class Config {
 
     if (unixSocketFromEnvironment == null) {
       unixSocketFromEnvironment = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
-      final String unixPrefix = "unix://";
+      String unixPrefix = "unix://";
       // handle situation where someone passes us a unix:// URL instead of a socket path
       if (unixSocketFromEnvironment != null && unixSocketFromEnvironment.startsWith(unixPrefix)) {
         unixSocketFromEnvironment = unixSocketFromEnvironment.substring(unixPrefix.length());
@@ -603,7 +603,7 @@ public class Config {
         configProvider.getInteger(
             DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
 
-    final boolean runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
+    boolean runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
 
     jmxFetchEnabled =
         runtimeMetricsEnabled
@@ -1395,9 +1395,9 @@ public class Config {
     return isRuleEnabled(name, true);
   }
 
-  public boolean isRuleEnabled(final String name, final boolean defaultEnabled) {
-    final boolean enabled = configProvider.getBoolean("trace." + name + ".enabled", defaultEnabled);
-    final boolean lowerEnabled =
+  public boolean isRuleEnabled(final String name, boolean defaultEnabled) {
+    boolean enabled = configProvider.getBoolean("trace." + name + ".enabled", defaultEnabled);
+    boolean lowerEnabled =
         configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", defaultEnabled);
     return defaultEnabled ? enabled && lowerEnabled : enabled || lowerEnabled;
   }
@@ -1548,7 +1548,7 @@ public class Config {
     int start = 0;
     int i = 0;
     for (; i < str.length(); ++i) {
-      final char c = str.charAt(i);
+      char c = str.charAt(i);
       if (Character.isWhitespace(c) || c == ',') {
         if (i - start - 1 > 0) {
           result.add(str.substring(start, i));
@@ -1586,7 +1586,7 @@ public class Config {
           System.getenv(propertyNameToEnvironmentVariableName(CONFIGURATION_FILE));
     }
     if (null != configurationFilePath && !configurationFilePath.isEmpty()) {
-      final int homeIndex = configurationFilePath.indexOf('~');
+      int homeIndex = configurationFilePath.indexOf('~');
       if (homeIndex != -1) {
 
         configurationFilePath =

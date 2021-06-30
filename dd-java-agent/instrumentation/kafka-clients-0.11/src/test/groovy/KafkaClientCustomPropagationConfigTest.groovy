@@ -110,10 +110,10 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     ContainerTestUtils.waitForAssignment(container3, embeddedKafka.getPartitionsPerTopic())
     ContainerTestUtils.waitForAssignment(container4, embeddedKafka.getPartitionsPerTopic())
 
-    when:
     String message = "Testing without headers for certain topics"
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_LIST, value)
 
+    when:
     for (String topic : SHARED_TOPIC)
       kafkaTemplate.send(topic, message)
 
