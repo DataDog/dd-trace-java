@@ -2,7 +2,6 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator
 import io.dropwizard.Application
@@ -21,6 +20,8 @@ import javax.ws.rs.core.Response
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_QUERY
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -84,6 +85,11 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
   }
 
   @Override
+  Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
+    return "/${endpoint.relativeRawPath()}"
+  }
+
+  @Override
   boolean hasHandlerSpan() {
     true
   }
@@ -95,6 +101,21 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
 
   boolean testExceptionBody() {
     false
+  }
+
+  @Override
+  boolean hasDecodedResource() {
+    return false
+  }
+
+  @Override
+  boolean hasExtraErrorInformation() {
+    return true
+  }
+
+  @Override
+  boolean changesAll404s() {
+    true
   }
 
   @Override
@@ -112,45 +133,6 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
           errorTags(Exception, EXCEPTION.body)
         }
         defaultTags()
-      }
-    }
-  }
-
-  @Override
-  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    trace.span {
-      serviceName expectedServiceName()
-      operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
-      spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint.errored
-      if (parentID != null) {
-        traceId traceID
-        parentId parentID
-      } else {
-        parent()
-      }
-      tags {
-        "$Tags.COMPONENT" component
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" { it == (endpoint == FORWARDED ? endpoint.body : "127.0.0.1") }
-        "$Tags.PEER_PORT" Integer
-        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
-        "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_ROUTE" "/${endpoint.rawPath()}"
-        "$Tags.HTTP_STATUS" endpoint.status
-        if (endpoint == FORWARDED) {
-          "$Tags.HTTP_FORWARDED_IP" endpoint.body
-        }
-        if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
-          "error.stack" { it == null || it instanceof String }
-        }
-        if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.query
-        }
-        defaultTags(true)
       }
     }
   }
@@ -193,6 +175,22 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
     Response query_param(@QueryParam("some") String param) {
       controller(QUERY_PARAM) {
         Response.status(QUERY_PARAM.status).entity("some=$param".toString()).build()
+      }
+    }
+
+    @GET
+    @Path("encoded_query")
+    Response query_encoded_query(@QueryParam("some") String param) {
+      controller(QUERY_ENCODED_QUERY) {
+        Response.status(QUERY_ENCODED_QUERY.status).entity("some=$param".toString()).build()
+      }
+    }
+
+    @GET
+    @Path("encoded%20path%20query")
+    Response query_encoded_both(@QueryParam("some") String param) {
+      controller(QUERY_ENCODED_BOTH) {
+        Response.status(QUERY_ENCODED_BOTH.status).entity("some=$param".toString()).build()
       }
     }
 

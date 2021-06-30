@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.netty38.server;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.HOST;
 
-import datadog.trace.bootstrap.instrumentation.api.DefaultURIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.InetSocketAddress;
@@ -39,10 +39,10 @@ public class NettyHttpServerDecorator
   protected URIDataAdapter url(final HttpRequest request) {
     final URI uri = URI.create(request.getUri());
     if ((uri.getHost() == null || uri.getHost().equals("")) && request.headers().contains(HOST)) {
-      return new DefaultURIDataAdapter(
+      return new URIDefaultDataAdapter(
           URI.create("http://" + request.headers().get(HOST) + request.getUri()));
     } else {
-      return new DefaultURIDataAdapter(uri);
+      return new URIDefaultDataAdapter(uri);
     }
   }
 

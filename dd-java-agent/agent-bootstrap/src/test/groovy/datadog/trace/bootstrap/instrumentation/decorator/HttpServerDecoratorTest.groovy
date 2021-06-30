@@ -2,10 +2,12 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.DefaultURIDataAdapter
+import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
@@ -60,20 +62,49 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     0 * _
 
     where:
-    tagQueryString | url                                                    | expectedUrl           | expectedQuery       | expectedFragment       | expectedPath
-    false          | null                                                   | null                  | null                | null                   | "/"
-    false          | ""                                                     | "/"                   | ""                  | null                   | "/"
-    false          | "/path?query"                                          | "/path"               | ""                  | null                   | "/path"
-    false          | "https://host:0"                                       | "https://host/"       | ""                  | null                   | "/"
-    false          | "https://host/path"                                    | "https://host/path"   | ""                  | null                   | "/path"
-    false          | "http://host:99/path?query#fragment"                   | "http://host:99/path" | ""                  | null                   | "/path"
-    true           | null                                                   | null                  | null                | null                   | "/"
-    true           | ""                                                     | "/"                   | null                | null                   | "/"
-    true           | "/path?encoded+%28query%29%3F?"                        | "/path"               | "encoded+(query)??" | null                   | "/path"
-    true           | "https://host:0"                                       | "https://host/"       | null                | null                   | "/"
-    true           | "https://host/path"                                    | "https://host/path"   | null                | null                   | "/path"
-    true           | "http://host:99/path?query#enc+%28fragment%29%3F"      | "http://host:99/path" | "query"             | "enc+(fragment)?"      | "/path"
-    true           | "http://host:99/path?query#enc+%28fragment%29%3F?tail" | "http://host:99/path" | "query"             | "enc+(fragment)??tail" | "/path"
+    tagQueryString | url                                                    | expectedUrl           | expectedQuery             | expectedFragment       | expectedPath
+    false          | null                                                   | null                  | null                      | null                   | "/"
+    false          | ""                                                     | "/"                   | ""                        | null                   | "/"
+    false          | "/path?query"                                          | "/path"               | ""                        | null                   | "/path"
+    false          | "https://host:0"                                       | "https://host/"       | ""                        | null                   | "/"
+    false          | "https://host/path"                                    | "https://host/path"   | ""                        | null                   | "/path"
+    false          | "http://host:99/path?query#fragment"                   | "http://host:99/path" | ""                        | null                   | "/path"
+    true           | null                                                   | null                  | null                      | null                   | "/"
+    true           | ""                                                     | "/"                   | null                      | null                   | "/"
+    true           | "/path?encoded+%28query%29%3F?"                        | "/path"               | "encoded+%28query%29%3F?" | null                   | "/path"
+    true           | "https://host:0"                                       | "https://host/"       | null                      | null                   | "/"
+    true           | "https://host/path"                                    | "https://host/path"   | null                      | null                   | "/path"
+    true           | "http://host:99/path?query#enc+%28fragment%29%3F"      | "http://host:99/path" | "query"                   | "enc+(fragment)?"      | "/path"
+    true           | "http://host:99/path?query#enc+%28fragment%29%3F?tail" | "http://host:99/path" | "query"                   | "enc+(fragment)??tail" | "/path"
+
+    req = [url: url == null ? null : new URI(url)]
+  }
+
+  def "test url handling for #url rawQuery=#rawQuery rawResource=#rawResource"() {
+    setup:
+    injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
+    injectSysConfig(HTTP_SERVER_RAW_QUERY_STRING, "$rawQuery")
+    injectSysConfig(HTTP_SERVER_RAW_RESOURCE, "$rawResource")
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(span, null, req, null)
+
+    then:
+    1 * span.setTag(Tags.HTTP_URL, expectedUrl)
+    1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)
+    1 * span.setTag(DDTags.HTTP_FRAGMENT, null)
+    1 * span.hasResourceName() >> false
+    1 * span.setResourceName({ it as String == expectedResource })
+    1 * span.setTag(Tags.HTTP_METHOD, null)
+    0 * _
+
+    where:
+    rawQuery | rawResource | url                             | expectedUrl           | expectedQuery | expectedResource
+    false    | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath"   | "query??"     | "/path"
+    false    | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath" | "query??"     | "/p%20ath"
+    true     | false       | "http://host/p%20ath?query%3F?" | "http://host/p ath"   | "query%3F?"   | "/path"
+    true     | true        | "http://host/p%20ath?query%3F?" | "http://host/p%20ath" | "query%3F?"   | "/p%20ath"
 
     req = [url: url == null ? null : new URI(url)]
   }
@@ -191,7 +222,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
         @Override
         protected URIDataAdapter url(Map m) {
-          return m.url == null ? null : new DefaultURIDataAdapter(m.url)
+          return m.url == null ? null : new URIDefaultDataAdapter(m.url)
         }
 
         @Override

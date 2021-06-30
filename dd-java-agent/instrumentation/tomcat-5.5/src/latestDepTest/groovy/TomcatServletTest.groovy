@@ -1,10 +1,5 @@
 import com.google.common.io.Files
-import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
-import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import jakarta.servlet.Servlet
 import jakarta.servlet.ServletException
 import org.apache.catalina.Context
@@ -21,9 +16,6 @@ import spock.lang.Unroll
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static org.junit.Assume.assumeTrue
 
@@ -92,6 +84,42 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
   }
 
   @Override
+  boolean hasExtraErrorInformation() {
+    true
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraErrorInformation(ServerEndpoint endpoint) {
+    if (endpoint.throwsException) {
+      // Exception classes get wrapped in ServletException
+      ["error.msg": { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body },
+        "error.type": { it == ServletException.name || it == InputMismatchException.name },
+        "error.stack": String]
+    } else {
+      Collections.emptyMap()
+    }
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
+    Map<String, Serializable> map = ["servlet.path": dispatch ? "/dispatch$endpoint.path" : endpoint.path]
+    if (context) {
+      map.put("servlet.context", "/$context")
+    }
+    map
+  }
+
+  @Override
+  boolean expectedErrored(ServerEndpoint endpoint) {
+    (endpoint.errored && bubblesResponse()) || [EXCEPTION, CUSTOM_EXCEPTION, TIMEOUT_ERROR].contains(endpoint)
+  }
+
+  @Override
+  Serializable expectedStatus(ServerEndpoint endpoint) {
+    return { !bubblesResponse() || it == endpoint.status }
+  }
+
+  @Override
   HttpServer server() {
     return new TomcatServer()
   }
@@ -145,62 +173,6 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
     where:
     method = "GET"
     body = null
-  }
-
-  @Override
-  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", HttpServerTest.ServerEndpoint endpoint = SUCCESS) {
-    def dispatch = isDispatch()
-    def bubblesResponse = bubblesResponse()
-    trace.span {
-      serviceName expectedServiceName()
-      operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
-      spanType DDSpanTypes.HTTP_SERVER
-      // Exceptions are always bubbled up, other statuses: only if bubblesResponse == true
-      errored((endpoint.errored && bubblesResponse && endpoint != TIMEOUT) || endpoint == EXCEPTION || endpoint == TIMEOUT_ERROR)
-      if (parentID != null) {
-        traceId traceID
-        parentId parentID
-      } else {
-        parent()
-      }
-      tags {
-        "$Tags.COMPONENT" component
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        "$Tags.PEER_PORT" Integer
-        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
-        "$Tags.HTTP_METHOD" method
-        if (endpoint == FORWARDED) {
-          "$Tags.HTTP_FORWARDED_IP" endpoint.body
-        }
-        if (endpoint != TIMEOUT && endpoint != TIMEOUT_ERROR) {
-          "$Tags.HTTP_STATUS" { it == endpoint.status || !bubblesResponse }
-        } else {
-          "timeout" 1_000
-        }
-        if (context) {
-          "servlet.context" "/$context"
-        }
-
-        if (dispatch) {
-          "servlet.path" "/dispatch$endpoint.path"
-        } else {
-          "servlet.path" endpoint.path
-        }
-
-        if (endpoint.throwsException && !dispatch) {
-          // Exception classes get wrapped in ServletException
-          "error.msg" { endpoint == EXCEPTION ? "Servlet execution threw an exception" : it == endpoint.body }
-          "error.type" { it == ServletException.name || it == InputMismatchException.name }
-          "error.stack" String
-        }
-        if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.query
-        }
-        defaultTags(true)
-      }
-    }
   }
 
   static class ErrorHandlerValve extends ErrorReportValve {

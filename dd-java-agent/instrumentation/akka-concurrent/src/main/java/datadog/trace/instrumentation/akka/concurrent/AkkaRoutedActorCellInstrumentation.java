@@ -9,6 +9,7 @@ import akka.routing.RoutedActorCell;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
@@ -67,6 +68,10 @@ public class AkkaRoutedActorCellInstrumentation extends Instrumenter.Tracing {
     public static void exit(@Advice.Enter TraceScope scope) {
       if (null != scope) {
         scope.close();
+        if (scope instanceof AgentScope) {
+          // then we have invoked an Envelope and need to mark the work complete
+          ((AgentScope) scope).span().finishWork();
+        }
       }
     }
   }

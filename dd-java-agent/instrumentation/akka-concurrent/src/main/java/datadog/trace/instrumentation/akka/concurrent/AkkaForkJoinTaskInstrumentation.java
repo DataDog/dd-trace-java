@@ -3,23 +3,27 @@ package datadog.trace.instrumentation.akka.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.notExcludedByName;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import akka.dispatch.forkjoin.ForkJoinTask;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -47,19 +51,27 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return not(named("akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask"))
+    return notExcludedByName(FORK_JOIN_TASK)
         .and(ElementMatchers.<TypeDescription>declaresMethod(namedOneOf("exec", "fork", "cancel")))
         .and(extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask")));
   }
 
   @Override
   public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return singletonMap(
+    Map<ExcludeFilter.ExcludeType, Collection<String>> exclude =
+        new EnumMap<>(ExcludeFilter.ExcludeType.class);
+    exclude.put(
+        FORK_JOIN_TASK,
+        Arrays.asList(
+            "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask",
+            "akka.dispatch.Dispatcher$$anon$1"));
+    exclude.put(
         RUNNABLE_FUTURE,
         Arrays.asList(
             "akka.dispatch.forkjoin.ForkJoinTask$AdaptedCallable",
             "akka.dispatch.forkjoin.ForkJoinTask$AdaptedRunnable",
             "akka.dispatch.forkjoin.ForkJoinTask$AdaptedRunnableAction"));
+    return exclude;
   }
 
   @Override
@@ -73,35 +85,26 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   public static final class Exec {
     @Advice.OnMethodEnter
     public static <T> TraceScope before(@Advice.This ForkJoinTask<T> task) {
-      return AdviceUtils.startTaskScope(
-          InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+      return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter TraceScope scope) {
-      AdviceUtils.endTaskScope(scope);
+      endTaskScope(scope);
     }
   }
 
   public static final class Fork {
     @Advice.OnMethodEnter
     public static <T> void fork(@Advice.This ForkJoinTask<T> task) {
-      TraceScope activeScope = activeScope();
-      if (null != activeScope) {
-        InstrumentationContext.get(ForkJoinTask.class, State.class)
-            .putIfAbsent(task, State.FACTORY)
-            .captureAndSetContinuation(activeScope);
-      }
+      capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
     }
   }
 
   public static final class Cancel {
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
-      State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
-      if (null != state) {
-        state.closeContinuation();
-      }
+      cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
   }
 }

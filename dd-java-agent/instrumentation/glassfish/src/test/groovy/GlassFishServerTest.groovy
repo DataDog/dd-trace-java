@@ -1,12 +1,8 @@
 import com.sun.enterprise.v3.services.impl.GlassfishNetworkListener
 import com.sun.enterprise.v3.services.impl.GrizzlyProxy
 import com.sun.enterprise.v3.services.impl.GrizzlyService
-import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import org.glassfish.embeddable.BootstrapProperties
 import org.glassfish.embeddable.Deployer
@@ -18,10 +14,6 @@ import org.glassfish.grizzly.nio.transport.TCPNIOTransport
 
 import java.nio.channels.ServerSocketChannel
 import java.util.concurrent.TimeoutException
-
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 /**
  * Unfortunately because we're using an embedded GlassFish instance, we aren't exercising the standard
@@ -112,43 +104,17 @@ class GlassFishServerTest extends HttpServerTest<GlassFish> {
   }
 
   @Override
-  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    trace.span {
-      serviceName expectedServiceName()
-      operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
-      spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint.errored
-      if (parentID != null) {
-        traceId traceID
-        parentId parentID
-      } else {
-        parent()
-      }
-      tags {
-        "$Tags.COMPONENT" component
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-        "$Tags.PEER_PORT" Integer
-        "$Tags.HTTP_STATUS" endpoint.status
-        "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
-        if (endpoint == FORWARDED) {
-          "$Tags.HTTP_FORWARDED_IP" endpoint.body
-        }
-        "servlet.context" "/$context"
-        "servlet.path" endpoint.path
-        if (endpoint.errored) {
-          "error.msg" { it == null || it == EXCEPTION.body }
-          "error.type" { it == null || it == Exception.name }
-          "error.stack" { it == null || it instanceof String }
-        }
-        if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" endpoint.query
-        }
-        defaultTags(true)
-      }
-    }
+  boolean hasExtraErrorInformation() {
+    true
+  }
+
+  @Override
+  boolean changesAll404s() {
+    true
+  }
+
+  @Override
+  Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
+    ["servlet.path": endpoint.path, "servlet.context": "/$context"]
   }
 }
-
