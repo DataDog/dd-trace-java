@@ -212,7 +212,6 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -520,7 +519,7 @@ public class Config {
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
 
     // DD_PROXY_NO_PROXY is specified as a space-separated list of hosts
-    noProxyHosts = new HashSet<>(configProvider.getSpacedList(PROXY_NO_PROXY));
+    noProxyHosts = tryMakeImmutableSet(configProvider.getSpacedList(PROXY_NO_PROXY));
 
     prioritySamplingEnabled =
         configProvider.getBoolean(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
@@ -761,7 +760,7 @@ public class Config {
             KAFKA_CLIENT_PROPAGATION_ENABLED, DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED);
 
     kafkaClientPropagationDisabledTopics =
-        new HashSet<>(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
+        tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
 
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);

@@ -28,7 +28,7 @@ import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.S
 
 class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   static final SHARED_TOPIC = ["topic1", "topic2", "topic3", "topic4"]
-  static final String message = "Testing without headers for certain topics"
+  static final MESSAGE = "Testing without headers for certain topics"
 
   static final dataTable() {
     [
@@ -135,8 +135,9 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     ContainerTestUtils.waitForAssignment(container4, embeddedKafka.getPartitionsPerTopic())
 
     when:
-    for (String topic : SHARED_TOPIC)
-      kafkaTemplate.send(topic, message)
+    for (String topic : SHARED_TOPIC) {
+      kafkaTemplate.send(topic, MESSAGE)
+    }
 
     then:
     // check that the message was received
@@ -253,7 +254,7 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
         topic,
         0,
         null,
-        message,
+        MESSAGE,
         header
         )
       kafkaTemplate.send(record as ProducerRecord<String, String>)
