@@ -8,8 +8,10 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
+import datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpResponse;
@@ -51,5 +53,22 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
       scope.setAsyncPropagation(true);
       ctx.sendUpstream(msg);
     }
+  }
+
+  @Override
+  public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
+    final ChannelTraceContext channelTraceContext =
+        contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+
+    final AgentSpan span = channelTraceContext.getServerSpan();
+    if (span != null) {
+      // If an exception is passed to this point, it likely means it was unhandled and the
+      // client span won't be finished with a proper response, so we should finish the span here.
+      span.setError(true);
+      NettyHttpServerDecorator.DECORATE.onError(span, e.getCause());
+      NettyHttpServerDecorator.DECORATE.beforeFinish(span);
+      span.finish();
+    }
+    super.exceptionCaught(ctx, e);
   }
 }

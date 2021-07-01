@@ -15,6 +15,7 @@ import static datadog.trace.instrumentation.netty41.client.NettyResponseInjectAd
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
+import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
@@ -87,5 +88,19 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         parentScope.close();
       }
     }
+  }
+
+  @Override
+  public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).get();
+    if (span != null) {
+      // If an exception is passed to this point, it likely means it was unhandled and the
+      // client span won't be finished with a proper response, so we should finish the span here.
+      span.setError(true);
+      NettyHttpServerDecorator.DECORATE.onError(span, cause);
+      NettyHttpServerDecorator.DECORATE.beforeFinish(span);
+      span.finish();
+    }
+    super.exceptionCaught(ctx, cause);
   }
 }

@@ -172,4 +172,9 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
   String expectedOperationName() {
     "netty.request"
   }
+
+  @Override
+  boolean hasExtraErrorInformation() {
+    true
+  }
 }

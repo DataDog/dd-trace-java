@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -70,5 +71,22 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
         throw throwable;
       }
     }
+  }
+
+  @Override
+  public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
+    final ChannelTraceContext channelTraceContext =
+        contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+
+    final AgentSpan span = channelTraceContext.getServerSpan();
+    if (span != null) {
+      // If an exception is passed to this point, it likely means it was unhandled and the
+      // server span won't be finished with a proper response, so we should finish the span here.
+      span.setError(true);
+      DECORATE.onError(span, e.getCause());
+      DECORATE.beforeFinish(span);
+      span.finish();
+    }
+    super.exceptionCaught(ctx, e);
   }
 }

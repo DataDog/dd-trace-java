@@ -42,4 +42,18 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
       ctx.fireChannelRead(msg);
     }
   }
+
+  @Override
+  public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).get();
+    if (span != null) {
+      // If an exception is passed to this point, it likely means it was unhandled and the
+      // client span won't be finished with a proper response, so we should finish the span here.
+      span.setError(true);
+      DECORATE.onError(span, cause);
+      DECORATE.beforeFinish(span);
+      span.finish();
+    }
+    super.exceptionCaught(ctx, cause);
+  }
 }
