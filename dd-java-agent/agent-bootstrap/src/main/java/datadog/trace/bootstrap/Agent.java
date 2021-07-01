@@ -73,12 +73,19 @@ public class Agent {
 
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
+  private static boolean ciVisibilityEnabled = false;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createSharedClassloader(bootstrapURL);
 
     jmxFetchEnabled = isJmxFetchEnabled();
     profilingEnabled = isProfilingEnabled();
+    ciVisibilityEnabled = isCiVisibilityEnabled();
+
+    if (ciVisibilityEnabled) {
+      log.debug("CI Visibility mode is enabled.");
+      configureCiVisibility();
+    }
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -562,6 +569,39 @@ public class Agent {
     }
   }
 
+  private static void configureCiVisibility() {
+    /* If CI Visibility mode is enabled, we force a special configuration to use in the dd-java-agent.
+    This special configuration is adapted to use the dd-java-agent to send Test Executions for unit and integration tests executed by a CI provider.
+    Additionally, we disable all integrations and we select a subset of integrations that may be useful for the user, such as test framework integrations, http integrations, etc..*/
+
+    // ENSURE_TRACE to avoid dropping spans
+    setSystemPropertyDefault("dd.prioritization.type", "ENSURE_TRACE");
+
+    // We don't need JMX Fetch on CI Visibility mode
+    setSystemPropertyDefault("dd.jmxfetch.enabled", "false");
+
+    // All integrations disabled by default
+    setSystemPropertyDefault("dd.integrations.enabled", "false");
+
+    // Integrations that we want to enable by default for CI Visibility:
+    // -----------------------------------------------------------------
+    // Test frameworks integrations
+    setSystemPropertyDefault("dd.integration.junit.enabled", "true");
+    setSystemPropertyDefault("dd.integration.testng.enabled", "true");
+
+    // Network frameworks integrations
+    setSystemPropertyDefault("dd.integration.httpurlconnection.enabled", "true");
+    setSystemPropertyDefault("dd.integration.apache-httpclient.enabled", "true");
+    setSystemPropertyDefault("dd.integration.okhttp.enabled", "true");
+    setSystemPropertyDefault("dd.integration.commons-http-client.enabled", "true");
+    setSystemPropertyDefault("dd.integration.google-http-client.enabled", "true");
+    setSystemPropertyDefault("dd.integration.jax-rs-client.enabled", "true");
+    setSystemPropertyDefault("dd.integration.grpc-client.enabled", "true");
+
+    // Data stores integrations
+    setSystemPropertyDefault("dd.integration.jdbc.enabled", "true");
+  }
+
   private static void setSystemPropertyDefault(final String property, final String value) {
     if (System.getProperty(property) == null) {
       System.setProperty(property, value);
@@ -614,6 +654,27 @@ public class Agent {
     */
     final Method method = ClassLoader.class.getDeclaredMethod("getPlatformClassLoader");
     return (ClassLoader) method.invoke(null);
+  }
+
+  /**
+   * Determine if we should configure the agent for CI Visibility
+   *
+   * @return true if we should
+   */
+  private static boolean isCiVisibilityEnabled() {
+    final String ciVisibilityEnabledSysprop = "dd.civisibility.enabled";
+    final String ciVisibilityEnabledProp = System.getProperty(ciVisibilityEnabledSysprop);
+
+    if (ciVisibilityEnabledProp != null) {
+      return Boolean.parseBoolean(ciVisibilityEnabledProp);
+    }
+
+    final String ciVisibilityEnabledEnv = ddGetEnv(ciVisibilityEnabledSysprop);
+
+    if (ciVisibilityEnabledEnv != null) {
+      return Boolean.parseBoolean(ciVisibilityEnabledEnv);
+    }
+    return false;
   }
 
   /**
