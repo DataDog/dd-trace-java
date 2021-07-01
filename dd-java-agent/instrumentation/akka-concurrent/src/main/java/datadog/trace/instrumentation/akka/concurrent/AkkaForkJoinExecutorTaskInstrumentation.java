@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.akka.concurrent;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -60,12 +60,7 @@ public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.
   public static final class Construct {
     @Advice.OnMethodExit
     public static void construct(@Advice.Argument(0) Runnable wrapped) {
-      TraceScope activeScope = activeScope();
-      if (null != activeScope) {
-        InstrumentationContext.get(Runnable.class, State.class)
-            .putIfAbsent(wrapped, State.FACTORY)
-            .captureAndSetContinuation(activeScope);
-      }
+      capture(InstrumentationContext.get(Runnable.class, State.class), wrapped, true);
     }
   }
 
