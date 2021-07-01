@@ -59,7 +59,7 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   @Unroll
   def "test kafka client header propagation with topic filters"() {
     setup:
-    injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_LIST, value as String)
+    injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
 
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
@@ -164,7 +164,8 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   @Unroll
   def "test consumer with topic filters"() {
     setup:
-    injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_LIST, value as String)
+    injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
+    // Need to disable the producer side injection in all cases so it won't overwrite with another span's headers
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED, "false")
 
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())

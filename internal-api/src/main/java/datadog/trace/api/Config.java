@@ -134,7 +134,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_E
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
-import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_LIST;
+import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
@@ -362,7 +362,7 @@ public class Config {
   private final boolean profilingHotspotsEnabled;
 
   private final boolean kafkaClientPropagationEnabled;
-  private final List<String> kafkaClientPropagationDisabledList;
+  private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
 
   private final boolean hystrixTagsEnabled;
@@ -760,8 +760,8 @@ public class Config {
         configProvider.getBoolean(
             KAFKA_CLIENT_PROPAGATION_ENABLED, DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED);
 
-    kafkaClientPropagationDisabledList =
-        configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_LIST);
+    kafkaClientPropagationDisabledTopics =
+        new HashSet<>(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
 
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
@@ -1168,8 +1168,8 @@ public class Config {
     return kafkaClientPropagationEnabled;
   }
 
-  public List<String> getKafkaClientPropagationDisabledList() {
-    return kafkaClientPropagationDisabledList;
+  public Set<String> getKafkaClientPropagationDisabledTopics() {
+    return kafkaClientPropagationDisabledTopics;
   }
 
   public boolean isKafkaClientBase64DecodingEnabled() {
@@ -1897,8 +1897,8 @@ public class Config {
         + profilingExcludeAgentThreads
         + ", kafkaClientPropagationEnabled="
         + kafkaClientPropagationEnabled
-        + ", kafkaClientPropagationDisabledList="
-        + kafkaClientPropagationDisabledList
+        + ", kafkaClientPropagationDisabledTopics="
+        + kafkaClientPropagationDisabledTopics
         + ", kafkaClientBase64DecodingEnabled="
         + kafkaClientBase64DecodingEnabled
         + ", hystrixTagsEnabled="
