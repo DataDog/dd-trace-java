@@ -83,8 +83,11 @@ class PostRepository {
     query.uniqueResult()
   }
 
-  private enum PostRowMapper implements RowMapper<Post> {
-    INSTANCE
+  private static final class PostRowMapper implements RowMapper<Post> {
+    private PostRowMapper() {
+    }
+
+    static final PostRowMapper INSTANCE = new PostRowMapper()
 
     @Override
     Post mapRow(ResultSet rs, int rowNum) throws SQLException {

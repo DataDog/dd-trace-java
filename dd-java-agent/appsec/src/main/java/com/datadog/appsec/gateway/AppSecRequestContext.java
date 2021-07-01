@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 // or at least create separate interfaces
 public class AppSecRequestContext
     implements DataBundle, datadog.trace.api.gateway.RequestContext, Closeable {
-  private static final Logger LOG = LoggerFactory.getLogger(AppSecSystem.class);
+  private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
 
@@ -34,7 +34,7 @@ public class AppSecRequestContext
     for (Map.Entry<Address<?>, Object> entry : newData) {
       Object prev = persistentData.putIfAbsent(entry.getKey(), entry.getValue());
       if (prev != null) {
-        LOG.warn("Illegal attempt to replace context value for {}", entry.getKey());
+        log.warn("Illegal attempt to replace context value for {}", entry.getKey());
       }
     }
   }

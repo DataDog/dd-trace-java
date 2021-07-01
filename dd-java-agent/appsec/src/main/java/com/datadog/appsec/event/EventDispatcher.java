@@ -13,7 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class EventDispatcher implements EventProducerService, EventConsumerService {
-  private static final Logger LOG = LoggerFactory.getLogger(EventDispatcher.class);
+  private static final Logger log = LoggerFactory.getLogger(EventDispatcher.class);
   private static final int[] EMPTY_INT_ARRAY = new int[0];
 
   private final List<List<EventListener>> eventListeners; // index: eventType.serial
@@ -75,7 +75,7 @@ public class EventDispatcher implements EventProducerService, EventConsumerServi
       try {
         listener.onEvent(ctx, event);
       } catch (RuntimeException rte) {
-        LOG.warn("AppSec callback exception", rte);
+        log.warn("AppSec callback exception", rte);
       }
     }
   }
@@ -116,7 +116,7 @@ public class EventDispatcher implements EventProducerService, EventConsumerServi
       try {
         dataListenersIdx.get(idx).onDataAvailable(flow, ctx, newData);
       } catch (RuntimeException rte) {
-        LOG.warn("AppSec callback exception", rte);
+        log.warn("AppSec callback exception", rte);
       }
       if (flow.isBlocking()) {
         break;

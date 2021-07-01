@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(AppSecModule.class)
 public class PowerWAFModule implements AppSecModule {
-  private static final Logger LOG = LoggerFactory.getLogger(AppSecSystem.class);
+  private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
 
   private static final int MAX_DEPTH = 10;
   private static final int MAX_ELEMENTS = 150;
@@ -82,16 +82,16 @@ public class PowerWAFModule implements AppSecModule {
     PowerwafContext ctx = null;
 
     if (!LibSqreenInitialization.ONLINE) {
-      LOG.warn("In-app WAF initialization failed");
+      log.warn("In-app WAF initialization failed");
     } else {
       try {
         String wafDef = loadWAFJson(resourceName);
         String uniqueId = UUID.randomUUID().toString();
         ctx = Powerwaf.createContext(uniqueId, Collections.singletonMap(RULE_NAME, wafDef));
       } catch (IOException e) {
-        LOG.error("Error reading WAF atom", e);
+        log.error("Error reading WAF atom", e);
       } catch (AbstractPowerwafException e) {
-        LOG.error("Error creating WAF atom", e);
+        log.error("Error creating WAF atom", e);
       }
     }
 
@@ -129,12 +129,12 @@ public class PowerWAFModule implements AppSecModule {
       try {
         actionWithData = ctx.runRule(RULE_NAME, new DataBundleMapWrapper(newData), LIMITS);
       } catch (AbstractPowerwafException e) {
-        LOG.error("Error calling WAF", e);
+        log.error("Error calling WAF", e);
         return;
       }
 
       if (actionWithData.action != Powerwaf.Action.OK) {
-        LOG.warn("WAF signalled action {}: {}", actionWithData.action, actionWithData.data);
+        log.warn("WAF signalled action {}: {}", actionWithData.action, actionWithData.data);
         flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
       }
     }

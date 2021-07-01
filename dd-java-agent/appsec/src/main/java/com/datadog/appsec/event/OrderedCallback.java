@@ -12,8 +12,10 @@ public interface OrderedCallback {
   int getSequenceNumber(); // for resolving draws
 
   /** Note: not consistent with equals(). */
-  enum OrderedCallbackComparator implements Comparator<OrderedCallback> {
-    INSTANCE;
+  final class OrderedCallbackComparator implements Comparator<OrderedCallback> {
+    private OrderedCallbackComparator() {}
+
+    public static final OrderedCallbackComparator INSTANCE = new OrderedCallbackComparator();
 
     @Override
     public int compare(OrderedCallback o1, OrderedCallback o2) {
