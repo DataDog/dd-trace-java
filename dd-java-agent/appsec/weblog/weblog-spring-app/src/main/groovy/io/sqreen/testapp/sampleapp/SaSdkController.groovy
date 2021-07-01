@@ -87,8 +87,11 @@ class SaSdkController {
         at timestamp = $spec.timestamp"""
   }
 
-  enum NaiveTrustManager implements X509TrustManager {
-    INSTANCE
+  static final class NaiveTrustManager implements X509TrustManager {
+    private NaiveTrustManager() {
+    }
+
+    static final NaiveTrustManager INSTANCE = new NaiveTrustManager()
 
     @Override
     void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {

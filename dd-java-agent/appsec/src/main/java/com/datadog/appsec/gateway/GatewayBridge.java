@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 /** Bridges the instrumentation gateway and the reactive engine. */
 public class GatewayBridge {
-  private static final Logger LOG = LoggerFactory.getLogger(GatewayBridge.class);
+  private static final Logger log = LoggerFactory.getLogger(GatewayBridge.class);
 
   private static final Pattern QUERY_PARAM_VALUE_SPLITTER = Pattern.compile("=");
   private static final Pattern QUERY_PARAM_SPLITTER = Pattern.compile("&");
@@ -120,7 +120,7 @@ public class GatewayBridge {
           }
           ctx.setRawURI(encoded.toString());
         } catch (URISyntaxException e) {
-          LOG.debug("Failed to encode URI '{}{}'", uri.path(), uri.query());
+          log.debug("Failed to encode URI '{}{}'", uri.path(), uri.query());
         }
       }
       if (isInitialRequestDataPublished(ctx)) {
