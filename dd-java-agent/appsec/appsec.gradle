@@ -47,7 +47,7 @@ jmh {
   warmupForks = 0
   jmhVersion = '1.32'
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-  jvmArgsAppend = ['-Ddd.appsec.beta=true -Xms64m -Xmx64m']
+  jvmArgsAppend = ['-Ddd.appsec.enabled=true -Xms64m -Xmx64m']
   failOnError = false
   forceGC = true
 }
@@ -58,7 +58,7 @@ task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
 
   def agentShadowJar = project(':dd-java-agent').tasks['shadowJar']
 
-  def jvmArgs = '-Ddd.appsec.beta=true'
+  def jvmArgs = '-Ddd.appsec.enabled=true'
   if (project.hasProperty('jvmArgs')) {
     jvmArgs += " ${project.'jvmArgs'}"
   }
@@ -85,5 +85,5 @@ ext {
 }
 
 tasks.withType(Test).configureEach {
-  jvmArgs += ['-Ddd.appsec.beta=true']
+  jvmArgs += ['-Ddd.appsec.enabled=true']
 }
