@@ -15,7 +15,7 @@ repositories {
 dependencies {
   api deps.slf4j
   implementation project(':internal-api')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '2.0'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '2.0.1'
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
