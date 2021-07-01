@@ -715,7 +715,7 @@ public class Agent {
 
   /** @return {@code true} if appsec is enabled */
   private static boolean isAppSecEnabled() {
-    final String appSecEnabledSysprop = "dd.appsec.beta";
+    final String appSecEnabledSysprop = "dd.appsec.enabled";
     String appSecEnabled = System.getProperty(appSecEnabledSysprop);
     if (appSecEnabled == null) {
       appSecEnabled = ddGetEnv(appSecEnabledSysprop);
