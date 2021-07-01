@@ -20,7 +20,7 @@ examples/**/build/
 .classpath
 # Eclipse is odd in assuming in can use bin to put temp files into it
 # This assumes we do not have sub-projects that actually need bin files committed
-*/bin/
+bin/
 
 # OS generated files #
 ######################

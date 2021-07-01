@@ -4,7 +4,12 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.notExcludedByName;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -42,7 +47,8 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   public ElementMatcher<TypeDescription> typeMatcher() {
     // this type is constructed on entry to the JFP, and can be used to track
     // the lifecycle of tasks
-    return declaresMethod(namedOneOf("exec", "fork", "cancel"))
+    return notExcludedByName(FORK_JOIN_TASK)
+        .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
         .and(extendsClass(named("scala.concurrent.forkjoin.ForkJoinTask")));
   }
 
@@ -61,14 +67,7 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   public static final class Exec {
     @Advice.OnMethodEnter
     public static <T> TraceScope before(@Advice.This ForkJoinTask<T> task) {
-      State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
-      if (null != state) {
-        TraceScope.Continuation continuation = state.getAndResetContinuation();
-        if (null != continuation) {
-          return continuation.activate();
-        }
-      }
-      return null;
+      return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
@@ -82,11 +81,8 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   public static final class Fork {
     @Advice.OnMethodEnter
     public static <T> void fork(@Advice.This ForkJoinTask<T> task) {
-      TraceScope activeScope = activeScope();
-      if (null != activeScope) {
-        InstrumentationContext.get(ForkJoinTask.class, State.class)
-            .putIfAbsent(task, State.FACTORY)
-            .captureAndSetContinuation(activeScope);
+      if (!exclude(FORK_JOIN_TASK, task)) {
+        capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
       }
     }
   }
@@ -94,10 +90,7 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   public static final class Cancel {
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
-      State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
-      if (null != state) {
-        state.closeContinuation();
-      }
+      cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
   }
 }
