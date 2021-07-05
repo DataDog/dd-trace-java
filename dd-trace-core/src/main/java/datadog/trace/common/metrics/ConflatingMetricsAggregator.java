@@ -130,8 +130,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
               reportingInterval,
               reportingInterval,
               reportingIntervalTimeUnit);
+      log.debug("started metrics aggregator");
     } else {
       enabled = false;
+      log.debug("metrics aggregator not started because sink could not be validated");
     }
   }
 
@@ -143,6 +145,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       published = inbox.offer(REPORT);
       ++attempts;
     } while (!published && attempts < 10);
+    if (!published) {
+      log.debug("Skipped metrics reporting because the queue is full");
+    }
     return published;
   }
 

@@ -83,15 +83,20 @@ final class Aggregator implements Runnable {
         }
       } catch (InterruptedException e) {
         currentThread.interrupt();
+      } catch (Throwable error) {
+        log.debug("error aggregating metrics", error);
       }
     }
+    log.debug("metrics aggregator exited");
   }
 
   private void report(long when) {
+    boolean skipped = true;
     if (dirty) {
       try {
         expungeStaleAggregates();
         if (!aggregates.isEmpty()) {
+          skipped = false;
           writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
           for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
             writer.add(aggregate.getKey(), aggregate.getValue());
@@ -105,6 +110,9 @@ final class Aggregator implements Runnable {
         log.debug("Error publishing metrics. Dropping payload", error);
       }
       dirty = false;
+    }
+    if (skipped) {
+      log.debug("skipped metrics reporting because no points have changed");
     }
   }
 
