@@ -36,7 +36,11 @@ public final class AsyncPropagatingDisableInstrumentation implements Instrumente
         .instrument(
             new DisableAsyncInstrumentation(
                     named("rx.internal.operators.OperatorTimeoutBase"), named("call"))
-                .instrument(agentBuilder));
+                .instrument(
+                    new DisableAsyncInstrumentation(
+                            named("io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe"),
+                            named("connect"))
+                        .instrument(agentBuilder)));
   }
 
   @Override
