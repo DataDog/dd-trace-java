@@ -12,7 +12,7 @@ repositories {
     url "https://packagecloud.io/sqreen/sqreen-public/maven2"
   }
   maven {
-    url "https://dl.bintray.com/grails/grails-core"
+    url "https://repository.mulesoft.org/nexus/content/repositories/public/"
   }
   maven {
     url 'https://oss.sonatype.org/content/groups/public/'
