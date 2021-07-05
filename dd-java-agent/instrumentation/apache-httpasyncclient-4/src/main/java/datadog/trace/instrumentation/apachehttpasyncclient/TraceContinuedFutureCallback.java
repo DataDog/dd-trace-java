@@ -29,6 +29,13 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     this.delegate = delegate;
   }
 
+  public void responseReceived() {
+    // happens once the the response has been received,
+    // and captures activity like serialization which
+    // we want to notify profiling about
+    clientSpan.finishThreadMigration();
+  }
+
   @Override
   public void completed(final T result) {
     DECORATE.onResponse(clientSpan, context);
