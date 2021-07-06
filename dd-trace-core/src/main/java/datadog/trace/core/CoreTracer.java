@@ -1,11 +1,14 @@
 package datadog.trace.core;
 
+import static datadog.communication.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
-import static datadog.trace.core.monitor.DDAgentStatsDClientManager.statsDClientManager;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
+import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.communication.monitor.Monitoring;
+import datadog.communication.monitor.Recording;
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
@@ -30,8 +33,7 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.WriterFactory;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
-import datadog.trace.core.monitor.Monitoring;
-import datadog.trace.core.monitor.Recording;
+import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
@@ -183,6 +185,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     private Config config;
     private String serviceName;
+    private SharedCommunicationObjects sharedCommunicationObjects;
     private Writer writer;
     private IdGenerationStrategy idGenerationStrategy;
     private Sampler<DDSpan> sampler;
@@ -200,6 +203,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
+      return this;
+    }
+
+    public CoreTracerBuilder sharedCommunicationObjects(
+        SharedCommunicationObjects sharedCommunicationObjects) {
+      this.sharedCommunicationObjects = sharedCommunicationObjects;
       return this;
     }
 
@@ -309,6 +318,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       return new CoreTracer(
           config,
           serviceName,
+          sharedCommunicationObjects,
           writer,
           idGenerationStrategy,
           sampler,
@@ -330,6 +340,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private CoreTracer(
       final Config config,
       final String serviceName,
+      SharedCommunicationObjects sharedCommunicationObjects,
       final Writer writer,
       final IdGenerationStrategy idGenerationStrategy,
       final Sampler<DDSpan> sampler,
@@ -374,11 +385,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.monitoring =
         config.isHealthMetricsEnabled()
-            ? new Monitoring(this.statsDClient, 10, TimeUnit.SECONDS)
+            ? new MonitoringImpl(this.statsDClient, 10, TimeUnit.SECONDS)
             : Monitoring.DISABLED;
     this.performanceMonitoring =
         config.isPerfMetricsEnabled()
-            ? new Monitoring(this.statsDClient, 10, TimeUnit.SECONDS)
+            ? new MonitoringImpl(this.statsDClient, 10, TimeUnit.SECONDS)
             : Monitoring.DISABLED;
     this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
@@ -394,8 +405,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.scopeManager = scopeManager;
     }
 
+    if (sharedCommunicationObjects == null) {
+      sharedCommunicationObjects = new SharedCommunicationObjects();
+    }
+    sharedCommunicationObjects.monitoring = this.monitoring;
     if (writer == null) {
-      this.writer = WriterFactory.createWriter(config, sampler, this.statsDClient, monitoring);
+      sharedCommunicationObjects.createRemaining(config);
+      this.writer =
+          WriterFactory.createWriter(
+              config, sharedCommunicationObjects, sampler, this.statsDClient);
     } else {
       this.writer = writer;
     }

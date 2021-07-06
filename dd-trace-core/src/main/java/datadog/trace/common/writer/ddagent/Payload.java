@@ -1,8 +1,8 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.core.serialization.msgpack.MsgPackWriter.ARRAY16;
-import static datadog.trace.core.serialization.msgpack.MsgPackWriter.ARRAY32;
-import static datadog.trace.core.serialization.msgpack.MsgPackWriter.FIXARRAY;
+import static datadog.communication.serialization.msgpack.MsgPackWriter.ARRAY16;
+import static datadog.communication.serialization.msgpack.MsgPackWriter.ARRAY32;
+import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -36,7 +36,7 @@ public abstract class Payload {
     return this;
   }
 
-  int traceCount() {
+  protected int traceCount() {
     return traceCount;
   }
 
@@ -48,11 +48,11 @@ public abstract class Payload {
     return droppedSpans;
   }
 
-  abstract int sizeInBytes();
+  public abstract int sizeInBytes();
 
-  abstract void writeTo(WritableByteChannel channel) throws IOException;
+  protected abstract void writeTo(WritableByteChannel channel) throws IOException;
 
-  abstract RequestBody toRequest();
+  protected abstract RequestBody toRequest();
 
   protected int msgpackArrayHeaderSize(int count) {
     if (count < 0x10) {

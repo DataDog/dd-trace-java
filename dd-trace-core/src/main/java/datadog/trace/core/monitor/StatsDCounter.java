@@ -2,6 +2,7 @@ package datadog.trace.core.monitor;
 
 import static datadog.trace.core.monitor.Utils.mergeTags;
 
+import datadog.communication.monitor.Counter;
 import datadog.trace.api.StatsDClient;
 
 public final class StatsDCounter implements Counter {

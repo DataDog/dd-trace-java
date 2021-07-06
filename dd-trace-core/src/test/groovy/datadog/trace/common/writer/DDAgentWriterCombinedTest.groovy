@@ -4,20 +4,20 @@ import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
-import datadog.trace.core.http.OkHttpUtils
+import datadog.communication.http.OkHttpUtils
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.monitor.Monitoring
-import datadog.trace.core.serialization.ByteBufferConsumer
-import datadog.trace.core.serialization.FlushingBuffer
-import datadog.trace.core.serialization.Mapper
-import datadog.trace.core.serialization.msgpack.MsgPackWriter
+import datadog.trace.core.monitor.MonitoringImpl
+import datadog.communication.serialization.ByteBufferConsumer
+import datadog.communication.serialization.FlushingBuffer
+import datadog.communication.serialization.Mapper
+import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import spock.lang.Retry
@@ -38,7 +38,7 @@ import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
 class DDAgentWriterCombinedTest extends DDCoreSpecification {
 
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
-  def monitoring = new Monitoring(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
+  def monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
   def phaser = new Phaser()
 
   // Only used to create spans

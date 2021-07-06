@@ -51,6 +51,8 @@ include ':dd-java-agent:agent-profiling:profiling-controller-oracle'
 include ':dd-java-agent:agent-profiling:profiling-testing'
 include ':dd-java-agent:agent-profiling:profiling-uploader'
 
+include ':communication'
+
 // misc
 include ':dd-java-agent:testing'
 include ':utils:container-utils'

@@ -1,10 +1,10 @@
 package datadog.trace.common.writer.ddagent;
 
+import datadog.communication.serialization.Mapper;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
-import datadog.trace.core.serialization.Mapper;
 import java.util.List;
 
 public interface TraceMapper extends Mapper<List<? extends CoreSpan<?>>> {

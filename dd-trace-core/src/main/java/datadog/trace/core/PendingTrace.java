@@ -1,9 +1,9 @@
 package datadog.trace.core;
 
+import datadog.communication.monitor.Recording;
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
-import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.util.Clock;
 import java.util.ArrayList;
 import java.util.List;

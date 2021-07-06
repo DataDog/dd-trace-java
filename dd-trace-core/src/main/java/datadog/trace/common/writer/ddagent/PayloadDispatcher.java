@@ -1,13 +1,14 @@
 package datadog.trace.common.writer.ddagent;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.monitor.Monitoring;
+import datadog.communication.monitor.Recording;
+import datadog.communication.serialization.ByteBufferConsumer;
+import datadog.communication.serialization.FlushingBuffer;
+import datadog.communication.serialization.WritableFormatter;
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.monitor.Monitoring;
-import datadog.trace.core.monitor.Recording;
-import datadog.trace.core.serialization.ByteBufferConsumer;
-import datadog.trace.core.serialization.FlushingBuffer;
-import datadog.trace.core.serialization.WritableFormatter;
-import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 import java.nio.ByteBuffer;
 import java.util.List;
 import org.jctools.counters.CountersFactory;

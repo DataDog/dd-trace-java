@@ -1,8 +1,9 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.common.sampling.PrioritySampling.SAMPLER_DROP;
-import static datadog.trace.common.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 
+import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.core.CoreSpan;
 import java.util.List;
 import java.util.Queue;

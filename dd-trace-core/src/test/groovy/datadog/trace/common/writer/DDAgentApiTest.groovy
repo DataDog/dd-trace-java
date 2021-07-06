@@ -2,24 +2,25 @@ package datadog.trace.common.writer
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import datadog.communication.monitor.Monitoring
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
 import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
-import datadog.trace.core.http.OkHttpUtils
-import datadog.trace.core.monitor.Monitoring
-import datadog.trace.core.serialization.ByteBufferConsumer
-import datadog.trace.core.serialization.FlushingBuffer
-import datadog.trace.core.serialization.msgpack.MsgPackWriter
+import datadog.communication.http.OkHttpUtils
+import datadog.trace.core.monitor.MonitoringImpl
+import datadog.communication.serialization.ByteBufferConsumer
+import datadog.communication.serialization.FlushingBuffer
+import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.core.test.DDCoreSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -39,7 +40,7 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 class DDAgentApiTest extends DDCoreSpecification {
 
   @Shared
-  Monitoring monitoring = new Monitoring(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
+  Monitoring monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
   static mapper = new ObjectMapper(new MessagePackFactory())
 
   static newAgent(String latestVersion) {

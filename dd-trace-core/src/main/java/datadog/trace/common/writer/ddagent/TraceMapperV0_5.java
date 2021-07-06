@@ -1,17 +1,17 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.core.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
+import datadog.communication.serialization.GrowableBuffer;
+import datadog.communication.serialization.Mapper;
+import datadog.communication.serialization.Writable;
+import datadog.communication.serialization.WritableFormatter;
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
-import datadog.trace.core.serialization.GrowableBuffer;
-import datadog.trace.core.serialization.Mapper;
-import datadog.trace.core.serialization.Writable;
-import datadog.trace.core.serialization.WritableFormatter;
-import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -137,7 +137,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
 
     @Override
-    int sizeInBytes() {
+    public int sizeInBytes() {
       return 1
           + msgpackArrayHeaderSize(stringCount)
           + dictionary.remaining()
@@ -146,7 +146,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
 
     @Override
-    void writeTo(WritableByteChannel channel) throws IOException {
+    protected void writeTo(WritableByteChannel channel) throws IOException {
       for (ByteBuffer buffer : toList()) {
         while (buffer.hasRemaining()) {
           channel.write(buffer);
@@ -155,7 +155,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
 
     @Override
-    RequestBody toRequest() {
+    protected RequestBody toRequest() {
       return msgpackRequestBodyOf(toList());
     }
 

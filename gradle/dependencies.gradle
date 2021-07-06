@@ -25,6 +25,7 @@ final class CachedData {
     jnr_unixsocket: "0.28",
     commons       : "3.2",
     mockito       : '3.5.10',
+    moshi         : '1.9.2',
     testcontainers: '1.15.0-rc2',
     jmc           : "8.0.0-SNAPSHOT",
     autoservice   : "1.0-rc7"
@@ -34,6 +35,7 @@ final class CachedData {
     // General
     slf4j                : "org.slf4j:slf4j-api:${versions.slf4j}",
     guava                : "com.google.guava:guava:$versions.guava",
+    moshi                : "com.squareup.moshi:moshi:${versions.moshi}",
     okhttp               : "com.squareup.okhttp3:okhttp:${versions.okhttp}",
     okio                 : "com.squareup.okio:okio:${versions.okio}",
     bytebuddy            : "net.bytebuddy:byte-buddy:${versions.bytebuddy}",
@@ -80,7 +82,7 @@ final class CachedData {
       "org.openjdk.jmc:flightrecorder:${versions.jmc}"
     ],
 
-    // Shared between agent tooling, instrumentation, JMXFetch, and profiling
+    // Shared between appsec, agent tooling, instrumentation, JMXFetch, and profiling
     shared               : [
       "com.squareup.okhttp3:okhttp:${versions.okhttp}",
       // Force specific version of okio required by com.squareup.moshi:moshi
@@ -89,6 +91,8 @@ final class CachedData {
       "com.squareup.okio:okio:${versions.okio}",
       "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",
       "com.github.jnr:jnr-unixsocket:${versions.jnr_unixsocket}"
+      // TODO: not adding new stuff here because it results in redundant dependencies
+      // moshi, :communication and :utils:container-utils are also part of shared jar
     ],
 
     // Inverse of "shared".  These exclude directives are part of shadowJar's DSL
@@ -103,6 +107,14 @@ final class CachedData {
       // okhttp and its transitives
       exclude(dependency('com.squareup.okhttp3:okhttp'))
       exclude(dependency('com.squareup.okio:okio'))
+
+      exclude(dependency("com.squareup.moshi:moshi:${versions.moshi}"))
+
+      // container-utils/communication and transitives
+      exclude(project(':communication'))
+
+      exclude(project(':utils:container-utils'))
+      exclude(dependency("org.slf4j:slf4j-api:${versions.slf4j}"))
     }
   ]
 }
