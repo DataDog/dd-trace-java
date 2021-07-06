@@ -13,6 +13,7 @@ import datadog.trace.api.Checkpointer
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
+import datadog.trace.api.SamplingCheckpointer
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.common.writer.ListWriter
@@ -104,6 +105,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
+  SamplingCheckpointer TEST_SAMPLING_CHECKPOINTER = SamplingCheckpointer.create()
+
+  @SuppressWarnings('PropertyName')
+  @Shared
   TimelineCheckpointer TEST_CHECKPOINTER = Spy(new TimelineCheckpointer())
 
   @SuppressWarnings('PropertyName')
@@ -144,7 +149,9 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
       .build())
-    TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
+
+    TEST_SAMPLING_CHECKPOINTER.register(TEST_CHECKPOINTER)
+    TEST_TRACER.registerSpanCheckpointer(TEST_SAMPLING_CHECKPOINTER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     enableAppSec()

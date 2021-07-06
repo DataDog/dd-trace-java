@@ -148,11 +148,11 @@ public class AgentTracer {
     void flush();
 
     /**
-     * Registers the checkpointer
+     * Registers the span checkpointer
      *
      * @param checkpointer
      */
-    void registerCheckpointer(Checkpointer checkpointer);
+    void registerSpanCheckpointer(SpanCheckpointer checkpointer);
 
     InstrumentationGateway instrumentationGateway();
   }
@@ -281,7 +281,7 @@ public class AgentTracer {
     public void addScopeListener(final ScopeListener listener) {}
 
     @Override
-    public void registerCheckpointer(Checkpointer checkpointer) {}
+    public void registerSpanCheckpointer(SpanCheckpointer checkpointer) {}
 
     @Override
     public TraceScope.Continuation capture() {

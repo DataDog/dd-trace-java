@@ -3,6 +3,7 @@ package datadog.trace.core
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import datadog.trace.api.Checkpointer
+import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 import org.slf4j.LoggerFactory
@@ -275,7 +276,10 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     // for a test to fail when modifying PendingTrace
     setup:
     Checkpointer checkpointer = Mock()
-    tracer.registerCheckpointer(checkpointer)
+    SamplingCheckpointer samplingCheckpointer = SamplingCheckpointer.create()
+    samplingCheckpointer.register(checkpointer)
+
+    tracer.registerSpanCheckpointer(samplingCheckpointer)
 
     // unfortunately the span can't be
     when:

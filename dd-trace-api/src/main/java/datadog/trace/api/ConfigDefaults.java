@@ -91,5 +91,8 @@ public final class ConfigDefaults {
 
   public static final boolean DEFAULT_ASYNC_PROPAGATING = true;
 
+  static final boolean DEFAULT_CWS_ENABLED = false;
+  static final int DEFAULT_CWS_TLS_REFRESH = 5000;
+
   private ConfigDefaults() {}
 }

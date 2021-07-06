@@ -1,8 +1,10 @@
 package datadog.trace.core
 
+import datadog.cws.tls.CwsTls
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
+import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
@@ -11,6 +13,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.test.DDCoreSpecification
+import datadog.trace.TestCwsTls
 
 import java.util.concurrent.TimeUnit
 
@@ -344,7 +347,10 @@ class DDSpanTest extends DDCoreSpecification {
   def "span start and finish emit checkpoints"() {
     setup:
     Checkpointer checkpointer = Mock()
-    tracer.registerCheckpointer(checkpointer)
+    SamplingCheckpointer samplingCheckpointer = SamplingCheckpointer.create()
+    samplingCheckpointer.register(checkpointer)
+ 
+    tracer.registerSpanCheckpointer(samplingCheckpointer)
     DDSpanContext context =
       new DDSpanContext(
       DDId.from(1),

@@ -12,11 +12,13 @@ import static datadog.trace.util.Strings.toEnvVar;
 
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
+import datadog.trace.api.SpanCheckpointer;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
@@ -77,6 +79,7 @@ public class Agent {
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled = false;
+  private static boolean cwsEnabled = false;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createSharedClassloader(bootstrapURL);
@@ -84,6 +87,7 @@ public class Agent {
     jmxFetchEnabled = isJmxFetchEnabled();
     profilingEnabled = isProfilingEnabled();
     appSecEnabled = isAppSecEnabled();
+    cwsEnabled = isCwsEnabled();
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -105,6 +109,10 @@ public class Agent {
               }
             };
       }
+    }
+
+    if (cwsEnabled) {
+      startCwsAgent();
     }
 
     /*
@@ -521,6 +529,33 @@ public class Agent {
     }
   }
 
+  private static void startCwsAgent() {
+    log.debug("Scheduling scope event factory registration");
+    WithGlobalTracer.registerOrExecute(
+        new WithGlobalTracer.Callback() {
+          @Override
+          public void withTracer(Tracer tracer) {
+            log.debug("Registering CWS scope tracker");
+            try {
+              SpanCheckpointer checkpointer =
+              (SpanCheckpointer)
+                  AGENT_CLASSLOADER
+                      .loadClass("datadog.cws.tls.CwsTlsCheckpointer")
+                      .getDeclaredConstructor()
+                      .newInstance();
+
+              ((AgentTracer.TracerAPI) tracer).registerSpanCheckpointer(checkpointer);
+              log.debug("Checkpointer {} has been registered", checkpointer);
+            } catch (Throwable e) {
+              if (e instanceof InvocationTargetException) {
+                e = e.getCause();
+              }
+              log.debug("CWS is not available. {}", e.getMessage());
+            }
+          }
+        });
+  }
+
   private static void startProfilingAgent(final URL bootstrapURL, final boolean isStartingFirst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
@@ -558,13 +593,17 @@ public class Agent {
                     log.debug("Scope event factory {} has been registered", scopeListener);
                   } else if (tracer instanceof AgentTracer.TracerAPI) {
                     log.debug("Registering checkpointer");
+                    SamplingCheckpointer samplingCheckpointer = SamplingCheckpointer.create();
+                    ((AgentTracer.TracerAPI) tracer).registerSpanCheckpointer(samplingCheckpointer);
+
                     Checkpointer checkpointer =
                         (Checkpointer)
                             AGENT_CLASSLOADER
                                 .loadClass("datadog.trace.core.jfr.openjdk.JFRCheckpointer")
                                 .getDeclaredConstructor()
                                 .newInstance();
-                    ((AgentTracer.TracerAPI) tracer).registerCheckpointer(checkpointer);
+
+                    samplingCheckpointer.register(checkpointer);
                     log.debug("Checkpointer {} has been registered", checkpointer);
                   }
                 } catch (Throwable e) {
@@ -732,6 +771,17 @@ public class Agent {
     // assume false unless it's explicitly set to "true"
     return "true".equalsIgnoreCase(appSecEnabled);
   }
+
+    /** @return {@code true} if cws is enabled */
+    private static boolean isCwsEnabled() {
+      final String cwsEnabledSysprop = "dd.cws.enabled";
+      String cwsEnabled = System.getProperty(cwsEnabledSysprop);
+      if (cwsEnabled == null) {
+        cwsEnabled = ddGetEnv(cwsEnabledSysprop);
+      }
+      // assume false unless it's explicitly set to "true"
+      return "true".equalsIgnoreCase(cwsEnabled);
+    }
 
   /** @return configured JMX start delay in seconds */
   private static int getJmxStartDelay() {

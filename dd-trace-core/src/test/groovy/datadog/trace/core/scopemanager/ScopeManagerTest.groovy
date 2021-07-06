@@ -6,6 +6,7 @@ import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
+import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.scopemanager.ExtendedScopeListener
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -50,13 +51,17 @@ class ScopeManagerTest extends DDCoreSpecification {
   EventCountingListener eventCountingListener
   EventCountingExtendedListener eventCountingExtendedListener
   Checkpointer checkpointer
+  SamplingCheckpointer samplingCheckpointer
 
   def setup() {
     checkpointer = Mock()
+    samplingCheckpointer = SamplingCheckpointer.create()
+    samplingCheckpointer.register(checkpointer)
+
     writer = new ListWriter()
     statsDClient = Mock()
     tracer = tracerBuilder().writer(writer).statsDClient(statsDClient).build()
-    tracer.registerCheckpointer(checkpointer)
+    tracer.registerSpanCheckpointer(samplingCheckpointer)
     scopeManager = tracer.scopeManager
     eventCountingListener = new EventCountingListener()
     scopeManager.addScopeListener(eventCountingListener)
