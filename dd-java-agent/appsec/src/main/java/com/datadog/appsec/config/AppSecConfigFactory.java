@@ -3,8 +3,12 @@ package com.datadog.appsec.config;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import java.io.*;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Construct;
 import org.yaml.snakeyaml.constructor.Constructor;
 import org.yaml.snakeyaml.nodes.*;
 
@@ -35,10 +39,11 @@ public class AppSecConfigFactory {
   // loaded by appsec Classloader, but Moshi loaded by shared Classloader.
   // Also this constructor disables case sensitivity for Enums that allows
   // to use uppercase Enums with lowercase values.
-  private static class AppSecConfigConstructor extends Constructor {
+  private static class AppSecConfigConstructor extends Constructor implements DefaultConstructor {
     private final ClassLoader loader;
 
     private static final LoaderOptions loaderOptions;
+    private final Set<Node> recursiveObjects;
 
     static {
       loaderOptions = new LoaderOptions();
@@ -55,39 +60,29 @@ public class AppSecConfigFactory {
         throw new NullPointerException("Loader must be provided.");
       }
       this.loader = theLoader;
+      this.recursiveObjects = new HashSet<>();
 
-      // Since rule conditions section can have different params depends on operation
-      // (match_regex, phrase_match, etc.) we use custom constructor to build distinct
-      // instances of params for different operations
-      this.yamlClassConstructors.put(NodeId.mapping, new ConstructMapping() {
-        @Override
-        protected Object constructJavaBean2ndStep(MappingNode node, Object object) {
-
-          // For conditions use custom parser
-          if (node.getType().equals(Condition.class)) {
-            NodeTuple operationNode = node.getValue().get(0);
-            String key = constructScalar((ScalarNode) operationNode.getKeyNode());
-            if ("operation".equalsIgnoreCase(key)) {
-              Node valueNode = operationNode.getValueNode();
-              valueNode.setType(Operation.class);
-              String operation = constructScalar((ScalarNode) valueNode);
-
-              // If operation is match_regex then use MatchRegexParams for params
-              if ("match_regex".equalsIgnoreCase(operation)) {
-                NodeTuple paramsNode = node.getValue().get(1);
-                key = constructScalar((ScalarNode) paramsNode.getKeyNode());
-                if ("params".equalsIgnoreCase(key)) {
-                  valueNode = paramsNode.getValueNode();
-                  valueNode.setType(MatchRegexParams.class);
-                }
-              }
-            }
-          }
-
-          return super.constructJavaBean2ndStep(node, object);
-        }
-      });
+      // Use custom constructor for Condition
+      this.yamlConstructors.put(new Tag(Condition.class), new Condition.Constructor(this));
     }
+
+    @Override
+    public Object constructObject(Node node) {
+      if (!recursiveObjects.contains(node)) {
+        Construct c = yamlConstructors.get(new Tag(node.getType()));
+        if (c != null) {
+          recursiveObjects.add(node);
+          Object obj = c.construct(node);
+          if (node.isTwoStepsConstruction()) {
+            c.construct2ndStep(node, obj);
+          }
+          recursiveObjects.remove(node);
+          return obj;
+        }
+      }
+      return super.constructObject(node);
+    }
+
 
     @Override
     protected Class<?> getClassForName(String name) throws ClassNotFoundException {

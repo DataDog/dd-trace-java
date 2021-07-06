@@ -1,7 +1,10 @@
 package com.datadog.appsec.config;
 
+import com.squareup.moshi.FromJson;
+import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.ToJson;
+
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.MessageDigest;
@@ -13,9 +16,14 @@ import java.util.Set;
 
 public class LegacyConfigJsonAdapter {
 
+  @FromJson
+  public AppSecConfig fromJson(JsonReader reader) {
+    // Stub method needed to bypass internal moshi checker that not allow to use abstract classes
+    return null;
+  }
+
   @ToJson
   public void toJson(JsonWriter writer, AppSecConfig config) throws IOException {
-
     List<String> blockingRulesId = new LinkedList<>();
     List<String> passRulesId = new LinkedList<>();
     Set<String> parameters = new LinkedHashSet<>();
@@ -46,25 +54,41 @@ public class LegacyConfigJsonAdapter {
         writer.beginObject();
 
         String operator = null;
-        String input = null;
-        String value = null;
+        List<String> inputs = new LinkedList<>();
+        List<String> values = new LinkedList<>();
         switch (cond.operation) {
           case MATCH_REGEX:
             operator = "@rx";
-            MatchRegexParams params = (MatchRegexParams)cond.params;
-            input = params.input;
-            // Ignore first '$' symbol
-            if (input.charAt(0) == '$') {
-              input = input.substring(1);
+            Condition.MatchRegexCondition rxCond = (Condition.MatchRegexCondition) cond;
+
+            for (String input : rxCond.inputs) {
+              input = toLegacyAddress(input);
+              inputs.add(input);
+              parameters.add(input);
             }
-            value = params.regex;
-            parameters.add(input);
+            values.add(rxCond.regex);
             break;
-          case HAS_SQLI_PATTERN:
-            operator = "@detectSQLi";
+          case PHRASE_MATCH:
+            operator = "@pm";
+            Condition.PhraseMatchCondition pmCond = (Condition.PhraseMatchCondition) cond;
+
+            for (String input : pmCond.inputs) {
+              input = toLegacyAddress(input);
+              inputs.add(input);
+              parameters.add(input);
+            }
+            values = pmCond.list;
             break;
-          case HAS_XSS_PATTERN:
-            operator = "@detectXSS";
+          case MATCH_STRING:
+            operator = "@eq";
+            Condition.MatchStringCondition eqCond = (Condition.MatchStringCondition) cond;
+
+            for (String input : eqCond.inputs) {
+              input = toLegacyAddress(input);
+              inputs.add(input);
+              parameters.add(input);
+            }
+            values = eqCond.text;
             break;
           default:
         }
@@ -72,11 +96,20 @@ public class LegacyConfigJsonAdapter {
         if (operator != null) {
           writer.name("operator").value(operator);
           writer.name("targets").beginArray();
-          writer.value(input);
-
+          for (String input : inputs) {
+            writer.value(input);
+          }
           writer.endArray();
-          if (value != null) {
-            writer.name("value").value(value);
+          if (values != null) {
+            if (values.size() == 1) {
+              writer.name("value").value(values.get(0));
+            } else if (values.size() > 1){
+              writer.name("value").beginArray();
+              for (String value : values) {
+                writer.value(value);
+              }
+              writer.endArray();
+            }
           }
         }
 
@@ -154,5 +187,16 @@ public class LegacyConfigJsonAdapter {
       e.printStackTrace();
     }
     return null;
+  }
+
+  /**
+   * If input starts with '$' - then remove it
+   */
+  private String toLegacyAddress(String input) {
+    // Ignore first '$' symbol
+    if (input.charAt(0) == '$') {
+      input = input.substring(1);
+    }
+    return input;
   }
 }
