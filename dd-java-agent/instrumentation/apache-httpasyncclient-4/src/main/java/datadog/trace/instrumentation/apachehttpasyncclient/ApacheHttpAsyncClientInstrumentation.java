@@ -81,7 +81,7 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan methodEnter(
         @Advice.Argument(value = 0, readOnly = false) HttpAsyncRequestProducer requestProducer,
-        @Advice.Argument(2) final HttpContext context,
+        @Advice.Argument(2) HttpContext context,
         @Advice.Argument(value = 3, readOnly = false) FutureCallback<?> futureCallback) {
 
       final TraceScope parentScope = activeScope();
@@ -92,6 +92,7 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing {
       requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);
       futureCallback =
           new TraceContinuedFutureCallback(parentScope, clientSpan, context, futureCallback);
+      clientSpan.startThreadMigration();
 
       return clientSpan;
     }

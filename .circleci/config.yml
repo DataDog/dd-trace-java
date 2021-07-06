@@ -16,13 +16,13 @@ defaults: &defaults
 cache_keys: &cache_keys
   keys:
     # Dependent steps will find this cache
-    - dd-trace-java-v3-{{ .Branch }}-{{ .Revision }}
+    - dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
     # New branch commits will find this cache
-    - dd-trace-java-v3-{{ .Branch }}-
+    - dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
     # New branches fall back on main build caches
+    - dd-trace-java-v4-master-{{ checksum "_circle_ci_cache_base_id" }}-
+    # Fall back on the previous cache scheme to not start from scratch when switching
     - dd-trace-java-v3-master-
-    # Fall back on the previous cache scheme to not start from scratch for this PR
-    - dd-trace-java-v2-master-
 
 save_cache_paths: &save_cache_paths
   paths:
@@ -62,6 +62,20 @@ commands:
               git fetch -u origin ${FETCH_REFS}
               git checkout "pr/${CIRCLE_PR_NUMBER}/merge"
             fi
+
+            # Everything falls back to the main cache
+            BASE_CACHE_ID="main"
+            if [ "$CIRCLE_BRANCH" == "master" ];
+            then
+              # If we're on a the main branch, then they are the same
+              echo "${BASE_CACHE_ID}" >| _circle_ci_cache_id
+            else
+              # If we're on a PR branch, then we use the name of the branch and the
+              # PR number as a stable identifier for the branch cache
+              echo "${CIRCLE_BRANCH}-${CIRCLE_PULL_REQUEST##*/}" >| _circle_ci_cache_id
+            fi
+            # Have new branches start from the main cache
+            echo "${BASE_CACHE_ID}" >| _circle_ci_cache_base_id
 
       - attach_workspace:
           at: .
@@ -104,7 +118,7 @@ jobs:
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
-            --max-workers=8
+            --max-workers=4
 
       - run:
           name: Collect Libs
@@ -121,7 +135,7 @@ jobs:
             - workspace
 
       - save_cache:
-          key: dd-trace-java-v3-{{ .Branch }}-{{ .Revision }}
+          key: dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           <<: *save_cache_paths
 
       - display_memory_usage
@@ -140,10 +154,10 @@ jobs:
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1900M -Xms64M -XX:ErrorFile=/tmp/hs_err_pid%p.log'"
             ./gradlew clean compile shadowJar
             << pipeline.parameters.gradle_flags >>
-            --max-workers=8
+            --max-workers=4
 
       - save_cache:
-          key: dd-trace-java-v3-{{ .Branch }}-{{ epoch }}
+          key: dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
           <<: *save_cache_paths
 
       - display_memory_usage
@@ -357,12 +371,11 @@ jobs:
 
     docker:
       - image: *default_container
-      - image: datadog/agent:7.25.0
+      - image: datadog/agent:7.29.0
         environment:
           - DD_APM_ENABLED=true
           - DD_BIND_HOST=0.0.0.0
           - DD_API_KEY=invalid_key_but_this_is_fine
-          - DD_APM_FEATURES=client_stats
 
   check:
     <<: *defaults
