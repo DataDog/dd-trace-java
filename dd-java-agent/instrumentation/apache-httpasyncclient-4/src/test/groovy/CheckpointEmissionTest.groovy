@@ -62,7 +62,7 @@ class CheckpointEmissionTest extends AgentTestRunner {
       assert Thread.currentThread().name.contains("I/O dispatcher")
     }
     3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
-    2 * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
   }
 
@@ -86,7 +86,7 @@ class CheckpointEmissionTest extends AgentTestRunner {
       assert Thread.currentThread().name.contains("I/O dispatcher")
     }
     4 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
-    2 * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
   }
 
