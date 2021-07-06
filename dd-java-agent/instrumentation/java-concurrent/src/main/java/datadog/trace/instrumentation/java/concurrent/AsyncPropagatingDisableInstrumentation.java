@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
@@ -38,7 +39,10 @@ public final class AsyncPropagatingDisableInstrumentation implements Instrumente
                     named("rx.internal.operators.OperatorTimeoutBase"), named("call"))
                 .instrument(
                     new DisableAsyncInstrumentation(
-                            named("io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe"),
+                            namedOneOf(
+                                "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
+                                "io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
+                                "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe"),
                             named("connect"))
                         .instrument(agentBuilder)));
   }
