@@ -5,3 +5,6 @@
 
 dd-java-agent/agent-profiling/  @DataDog/profiling-java
 dd-smoke-tests/profiling-integration-tests/ @DataDog/profiling-java
+
+# @ValentinZakharov is not in the @DataDog org :( so add him here
+dd-java-agent/appsec/  @DataDog/appsec-java @ValentinZakharov
