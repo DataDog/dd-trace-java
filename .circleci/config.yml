@@ -16,13 +16,13 @@ defaults: &defaults
 cache_keys: &cache_keys
   keys:
     # Dependent steps will find this cache
-    - dd-trace-java-v3-{{ .Branch }}-{{ .Revision }}
+    - dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
     # New branch commits will find this cache
-    - dd-trace-java-v3-{{ .Branch }}-
+    - dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-
     # New branches fall back on main build caches
+    - dd-trace-java-v4-master-{{ checksum "_circle_ci_cache_base_id" }}-
+    # Fall back on the previous cache scheme to not start from scratch when switching
     - dd-trace-java-v3-master-
-    # Fall back on the previous cache scheme to not start from scratch for this PR
-    - dd-trace-java-v2-master-
 
 save_cache_paths: &save_cache_paths
   paths:
@@ -62,6 +62,20 @@ commands:
               git fetch -u origin ${FETCH_REFS}
               git checkout "pr/${CIRCLE_PR_NUMBER}/merge"
             fi
+
+            # Everything falls back to the main cache
+            BASE_CACHE_ID="main"
+            if [ "$CIRCLE_BRANCH" == "master" ];
+            then
+              # If we're on a the main branch, then they are the same
+              echo "${BASE_CACHE_ID}" >| _circle_ci_cache_id
+            else
+              # If we're on a PR branch, then we use the name of the branch and the
+              # PR number as a stable identifier for the branch cache
+              echo "${CIRCLE_BRANCH}-${CIRCLE_PULL_REQUEST##*/}" >| _circle_ci_cache_id
+            fi
+            # Have new branches start from the main cache
+            echo "${BASE_CACHE_ID}" >| _circle_ci_cache_base_id
 
       - attach_workspace:
           at: .
@@ -121,7 +135,7 @@ jobs:
             - workspace
 
       - save_cache:
-          key: dd-trace-java-v3-{{ .Branch }}-{{ .Revision }}
+          key: dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ .Revision }}
           <<: *save_cache_paths
 
       - display_memory_usage
@@ -143,7 +157,7 @@ jobs:
             --max-workers=4
 
       - save_cache:
-          key: dd-trace-java-v3-{{ .Branch }}-{{ epoch }}
+          key: dd-trace-java-v4-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}-{{ epoch }}
           <<: *save_cache_paths
 
       - display_memory_usage
