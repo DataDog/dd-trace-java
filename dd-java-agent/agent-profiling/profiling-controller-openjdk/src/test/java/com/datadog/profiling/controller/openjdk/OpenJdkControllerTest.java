@@ -40,8 +40,8 @@ public class OpenJdkControllerTest {
           || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
           || isJavaVersionAtLeast(17))) {
         assertEquals(
-            Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")),
-            false);
+            false,
+            Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
       }
     }
   }
@@ -57,7 +57,7 @@ public class OpenJdkControllerTest {
           || (isJavaVersion(16) && isJavaVersionAtLeast(16, 0, 2))
           || isJavaVersionAtLeast(17))) {
         assertEquals(
-            Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")), true);
+            true, Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
       }
     }
   }
@@ -78,13 +78,13 @@ public class OpenJdkControllerTest {
     try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
       if (!(isJavaVersionAtLeast(16))) {
         assertEquals(
+            false,
             Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")),
-            false);
+                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
         assertEquals(
+            false,
             Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")),
-            false);
+                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
       }
     }
   }
@@ -97,13 +97,13 @@ public class OpenJdkControllerTest {
     try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
       if (!(isJavaVersionAtLeast(16))) {
         assertEquals(
+            true,
             Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")),
-            true);
+                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
         assertEquals(
+            true,
             Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")),
-            true);
+                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
       }
     }
   }
@@ -130,8 +130,8 @@ public class OpenJdkControllerTest {
     try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
       if (!((isJavaVersion(8) && isJavaVersionAtLeast(8, 0, 302)) || isJavaVersionAtLeast(11))) {
         assertEquals(
-            Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")),
-            false);
+            false,
+            Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")));
       }
     }
   }
@@ -144,8 +144,8 @@ public class OpenJdkControllerTest {
     try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
       if (!((isJavaVersion(8) && isJavaVersionAtLeast(8, 0, 302)) || isJavaVersionAtLeast(11))) {
         assertEquals(
-            Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")),
-            true);
+            true,
+            Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")));
       }
     }
   }
