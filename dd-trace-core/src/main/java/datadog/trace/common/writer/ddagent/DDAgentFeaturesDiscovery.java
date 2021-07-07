@@ -95,6 +95,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         }
       }
     }
+    if (log.isDebugEnabled()) {
+      log.debug(
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}",
+          traceEndpoint,
+          metricsEndpoint,
+          supportsDropping);
+    }
   }
 
   private String probeTracesEndpoint() {
