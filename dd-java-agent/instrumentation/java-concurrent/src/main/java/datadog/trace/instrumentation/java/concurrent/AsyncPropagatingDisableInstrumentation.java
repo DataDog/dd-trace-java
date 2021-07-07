@@ -41,10 +41,18 @@ public final class AsyncPropagatingDisableInstrumentation implements Instrumente
                     new DisableAsyncInstrumentation(
                             namedOneOf(
                                 "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
+                                "io.grpc.netty.shaded.io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
                                 "io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
-                                "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe"),
+                                "io.grpc.netty.shaded.io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
+                                "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
+                                "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe"),
                             named("connect"))
-                        .instrument(agentBuilder)));
+                        .instrument(
+                            new DisableAsyncInstrumentation(
+                                    named(
+                                        "io.grpc.internal.ServerImpl$ServerTransportListenerImpl"),
+                                    named("init"))
+                                .instrument(agentBuilder))));
   }
 
   @Override
