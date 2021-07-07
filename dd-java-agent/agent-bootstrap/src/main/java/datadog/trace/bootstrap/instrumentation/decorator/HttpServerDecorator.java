@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDeco
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Function;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Events;
@@ -179,6 +180,23 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
           cbp.getCallback(Events.REQUEST_URI_RAW);
       if (null != callback) {
         callback.apply(requestContext, url);
+      }
+    }
+  }
+
+  @Override
+  public AgentSpan beforeFinish(AgentSpan span) {
+    onRequestEndForInstrumentationGateway(span);
+    return super.beforeFinish(span);
+  }
+
+  private static void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
+    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+    RequestContext requestContext = span.getRequestContext();
+    if (cbp != null && requestContext != null) {
+      Function<RequestContext, Flow<Void>> callback = cbp.getCallback(Events.REQUEST_ENDED);
+      if (callback != null) {
+        callback.apply(requestContext);
       }
     }
   }

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://appsec-schema.datadoghq.com/jsonschema/struct/events/sign_up/0.1.0.json",
+  "allOf": [
+    {
+      "$ref": "../../../raw/events/sign_up/sign_up_0.1.0.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+         "evt": {
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string",
+              "const": "authentication"
+            },
+            "name": {
+              "type": "string",
+              "const": "appsec.authentication.sign_up",
+              "description": "Copied from event_type."
+            }
+          }
+        },
+        "usr": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Copied from user._id"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

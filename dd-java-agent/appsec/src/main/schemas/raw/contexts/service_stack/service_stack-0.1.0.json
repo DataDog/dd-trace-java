@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://appsec-schema.datadoghq.com/jsonschema/raw/contexts/service_stack/0.1.0.json",
+  "type": "object",
+  "properties": {
+    "context_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "services": {
+      "type": "array",
+      "mintItems": 1,
+      "items": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "../_definitions/service/service_0.1.0.json"
+          },
+          {
+            "properties": {
+              "when": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "when"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "context_version",
+    "services"
+  ],
+  "additionalProperties": false
+}

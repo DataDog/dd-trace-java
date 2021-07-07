@@ -1,9 +1,16 @@
+buildscript {
+  dependencies {
+    classpath 'org.jsonschema2pojo:jsonschema2pojo-gradle-plugin:1.1.1'
+  }
+}
 plugins {
   id "com.github.johnrengelman.shadow"
   id "me.champeau.jmh"
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/version.gradle"
+apply plugin: 'jsonschema2pojo'
 
 repositories {
   ivy {
@@ -15,12 +22,16 @@ repositories {
 dependencies {
   api deps.slf4j
   implementation project(':internal-api')
+  implementation project(':communication')
   implementation group: 'io.sqreen', name: 'libsqreen', version: '2.0.1'
+  implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
 
   testImplementation deps.bytebuddy
+  testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
+  testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
@@ -34,6 +45,7 @@ shadowJar {
     exclude(project(':dd-java-agent:agent-logging'))
     exclude(project(':dd-trace-api'))
     exclude(project(':internal-api'))
+    exclude(project(':communication'))
     exclude(dependency('org.slf4j::'))
   }
 }
@@ -43,16 +55,52 @@ jar {
 }
 
 jmh {
-  fork = 5
-  warmupForks = 0
   jmhVersion = '1.32'
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-  jvmArgsAppend = ['-Ddd.appsec.enabled=true -Xms64m -Xmx64m']
+  jvmArgs = ['-Ddd.appsec.enabled=true -Xms64m -Xmx64m']
   failOnError = false
   forceGC = true
   if (project.hasProperty('jmhIncludes')) {
     includes = [project.jmhIncludes]
   }
+}
+jmhJar {
+  exclude 'org/slf4j/impl/**/*'
+}
+
+jsonSchema2Pojo {
+  source = files("$projectDir/src/main/schemas")
+  targetPackage = 'com.datadog.appsec.report'
+  includeAdditionalProperties = false
+  includeGeneratedAnnotation = false
+  generateBuilders = true
+  useInnerClassBuilders = true
+  usePrimitives = false
+  annotationStyle = 'moshi1'
+  //  customAnnotator = 'org.jsonschema2pojo.NoopAnnotator'
+
+  // Whether to use the 'title' property of the schema to decide the class name (if not
+  // set to true, the filename and property names are used).
+  useTitleAsClassname = false
+  sourceType = 'jsonschema'
+
+
+  dateType = "java.time.LocalDate"
+  dateTimeType = "java.time.Instant"
+  timeType = "java.time.LocalDate"
+
+  //  formatTypeMapping = []
+  //  toStringExcludes = ["someProperty"]
+
+  targetVersion = "1.8"
+}
+
+tasks['generateJsonSchema2Pojo'].doLast {
+  project.delete(files(
+    "${project.buildDir}/generated-sources/js2p/com/datadog/appsec/report/raw/contexts/actor/Identifiers.java",
+    "${project.buildDir}/generated-sources/js2p/com/datadog/appsec/report/raw/contexts/http/HttpHeaders.java",
+    "${project.buildDir}/generated-sources/js2p/com/datadog/appsec/report/raw/contexts/service_stack/Service.java"
+    ))
 }
 
 task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
@@ -80,7 +128,13 @@ task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
 ext {
   minimumBranchCoverage = 0.6
   minimumInstructionCoverage = 0.8
-  excludedClassesCoverage = ['com.datadog.appsec.powerwaf.LibSqreenInitialization' // can't cover error conditions
+  excludedClassesCoverage = [
+    'com.datadog.appsec.powerwaf.LibSqreenInitialization',
+    'com.datadog.appsec.report.struct.*',
+    'com.datadog.appsec.report.raw.*',
+    'com.datadog.appsec.report.ReportSerializer.MoshiAdapter',
+    'com.datadog.appsec.report.AppSecApi.1',
+    'com.datadog.appsec.config.AppSecConfigServiceImpl.SubscribeFleetServiceRunnable.1',
   ]
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',
@@ -92,4 +146,10 @@ ext {
 
 tasks.withType(Test).configureEach {
   jvmArgs += ['-Ddd.appsec.enabled=true']
+}
+def rootDir = project.rootDir
+spotless {
+  java {
+    target 'src/**/*.java'
+  }
 }

@@ -4,7 +4,10 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.event.data.StringKVPair
+import com.datadog.appsec.report.raw.events.attack.Attack010
 import spock.lang.Specification
+
+import java.time.Instant
 
 class AppSecRequestContextSpecification extends Specification {
 
@@ -99,5 +102,22 @@ class AppSecRequestContextSpecification extends Specification {
 
     then:
     ctx.savedRawURI == '/a'
+  }
+
+  void 'can collect attacks'() {
+    AppSecRequestContext ctx = new AppSecRequestContext()
+    def now = Instant.now()
+
+    expect:
+    ctx.collectedAttacks.empty
+
+    when:
+    ctx.reportAttack(new Attack010(detectedAt: now))
+    ctx.reportAttack(new Attack010())
+
+    then:
+    ctx.collectedAttacks.size() == 2
+    ctx.collectedAttacks[0].detectedAt.is(now)
+    ctx.collectedAttacks[1] != null
   }
 }
