@@ -17,6 +17,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -25,6 +26,7 @@ import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import java.util.HashMap;
 import java.util.Map;
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageListener;
@@ -115,26 +117,38 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
       if (null != messageConsumerState) {
-        final Context extractedContext = propagate().extract(message, GETTER);
-        AgentSpan span = startSpan(JMS_CONSUME, extractedContext);
-        // this scope is intentionally not closed here
-        // it stays open until the next call to get a
-        // message, or the consumer is closed
-        AgentScope scope = activateSpan(span);
-        messageConsumerState.capture(scope);
-        CONSUMER_DECORATE.afterStart(span);
-        CONSUMER_DECORATE.onConsume(span, message, messageConsumerState.getResourceName());
-        CONSUMER_DECORATE.onError(span, throwable);
-        if (messageConsumerState.isClientAcknowledge()) {
-          // span will be finished by a call to Message.acknowledge
-          InstrumentationContext.get(Message.class, AgentSpan.class).put(message, span);
-        } else if (messageConsumerState.isTransactedSession()) {
-          // span will be finished by Session.commit
-          InstrumentationContext.get(Session.class, SessionState.class)
-              .get((Session) messageConsumerState.getSession())
-              .add(span);
+        try {
+          final AgentSpan span;
+          if (!Config.get()
+              .getJMSPropagationDisabledTopicsAndQueues()
+              .contains(message.getJMSDestination().toString())) {
+            final Context extractedContext = propagate().extract(message, GETTER);
+            span = startSpan(JMS_CONSUME, extractedContext);
+          } else {
+            span = startSpan(JMS_CONSUME, null);
+          }
+          // this scope is intentionally not closed here
+          // it stays open until the next call to get a
+          // message, or the consumer is closed
+          AgentScope scope = activateSpan(span);
+          messageConsumerState.capture(scope);
+          CONSUMER_DECORATE.afterStart(span);
+          CONSUMER_DECORATE.onConsume(span, message, messageConsumerState.getResourceName());
+          CONSUMER_DECORATE.onError(span, throwable);
+          if (messageConsumerState.isClientAcknowledge()) {
+            // span will be finished by a call to Message.acknowledge
+            InstrumentationContext.get(Message.class, AgentSpan.class).put(message, span);
+          } else if (messageConsumerState.isTransactedSession()) {
+            // span will be finished by Session.commit
+            InstrumentationContext.get(Session.class, SessionState.class)
+                .get((Session) messageConsumerState.getSession())
+                .add(span);
+          }
+          // for AUTO_ACKNOWLEDGE, span is not finished until next call to receive, or close
+
+        } catch (JMSException e) {
+          e.printStackTrace();
         }
-        // for AUTO_ACKNOWLEDGE, span is not finished until next call to receive, or close
       }
     }
   }

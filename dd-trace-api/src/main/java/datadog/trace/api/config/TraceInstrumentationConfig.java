@@ -46,6 +46,10 @@ public final class TraceInstrumentationConfig {
   public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
       "kafka.client.base64.decoding.enabled";
 
+  public static final String JMS_PROPAGATION_ENABLED = "jms.propagation.enabled";
+  public static final String JMS_PROPAGATION_DISABLED_TOPICS_AND_QUEUES =
+      "jms.propagation.disabled.topics.and.queues";
+
   public static final String GRPC_IGNORED_OUTBOUND_METHODS = "trace.grpc.ignored.outbound.methods";
   public static final String GRPC_SERVER_TRIM_PACKAGE_RESOURCE =
       "trace.grpc.server.trim-package-resource";

@@ -14,6 +14,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMS_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
@@ -133,6 +134,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_I
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS_AND_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
@@ -365,6 +368,9 @@ public class Config {
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
+
+  private final boolean JMSPropagationEnabled;
+  private final Set<String> JMSPropagationDisabledTopicsAndQueues;
 
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
@@ -769,6 +775,12 @@ public class Config {
 
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+
+    JMSPropagationEnabled =
+        configProvider.getBoolean(JMS_PROPAGATION_ENABLED, DEFAULT_JMS_PROPAGATION_ENABLED);
+
+    JMSPropagationDisabledTopicsAndQueues =
+        tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS_AND_QUEUES));
 
     grpcIgnoredOutboundMethods =
         tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
@@ -1182,6 +1194,14 @@ public class Config {
 
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
+  }
+
+  public boolean isJMSPropagationEnabled() {
+    return JMSPropagationEnabled;
+  }
+
+  public Set<String> getJMSPropagationDisabledTopicsAndQueues() {
+    return JMSPropagationDisabledTopicsAndQueues;
   }
 
   public boolean isHystrixTagsEnabled() {
@@ -1911,6 +1931,10 @@ public class Config {
         + kafkaClientPropagationDisabledTopics
         + ", kafkaClientBase64DecodingEnabled="
         + kafkaClientBase64DecodingEnabled
+        + ", JMSPropagationEnabled="
+        + JMSPropagationEnabled
+        + ", JMSPropagationDisabledTopicsAndQueues="
+        + JMSPropagationDisabledTopicsAndQueues
         + ", hystrixTagsEnabled="
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="

@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -87,7 +88,13 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, message, defaultDestination);
 
-      propagate().inject(span, message, SETTER);
+      if (Config.get().isJMSPropagationEnabled()) {
+        if (!Config.get()
+            .getJMSPropagationDisabledTopicsAndQueues()
+            .contains(defaultDestination.toString())) {
+          propagate().inject(span, message, SETTER);
+        }
+      }
 
       return activateSpan(span);
     }
@@ -122,7 +129,12 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, message, destination);
 
-      propagate().inject(span, message, SETTER);
+      if (Config.get().isJMSPropagationEnabled()
+          && !Config.get()
+              .getJMSPropagationDisabledTopicsAndQueues()
+              .contains(destination.toString())) {
+        propagate().inject(span, message, SETTER);
+      }
 
       return activateSpan(span);
     }
