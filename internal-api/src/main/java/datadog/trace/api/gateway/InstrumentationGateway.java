@@ -6,6 +6,10 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * The implementation of the {@code CallbackProvider} and {@code SubscriptionService}. Only supports
+ * one callback of each type right now.
+ */
 public class InstrumentationGateway implements CallbackProvider, SubscriptionService {
   private static final Logger log = LoggerFactory.getLogger(InstrumentationGateway.class);
 

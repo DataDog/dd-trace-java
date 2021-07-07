@@ -115,7 +115,12 @@ public class HttpCodec {
       TagContext context = null;
       RequestContext requestContext = null;
 
+      // Check if we should send events to the InstrumentationGateway
       if (null != callbackProvider) {
+        // Since there is no generic beforeRequest method that is called in the
+        // instrumentations before the headers are extracted, this is the least
+        // intrusive place to tell the InstrumentationGateway that the HTTP request
+        // started.
         Supplier<Flow<RequestContext>> startedCB =
             callbackProvider.getCallback(Events.REQUEST_STARTED);
         if (null != startedCB) {
@@ -182,6 +187,7 @@ public class HttpCodec {
     return firstComma == -1 ? value : value.substring(0, firstComma).trim();
   }
 
+  /** This passes the headers through to the InstrumentationGateway */
   private static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
 
     private static IGKeyClassifier create(

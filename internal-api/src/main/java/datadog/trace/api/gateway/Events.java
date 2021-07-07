@@ -5,6 +5,7 @@ import datadog.trace.api.function.*;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/** All known {@code EventType} that the {@code InstrumentationGateway} can handle. */
 public final class Events {
   private static final AtomicInteger nextId = new AtomicInteger(0);
 
