@@ -51,7 +51,11 @@ public class AdviceUtils {
       ContextStore<T, State> contextStore, T task, boolean startThreadMigration) {
     TraceScope activeScope = activeScope();
     if (null != activeScope) {
-      State state = contextStore.putIfAbsent(task, State.FACTORY);
+      State state = contextStore.get(task);
+      if (null == state) {
+        state = State.FACTORY.create();
+        contextStore.put(task, state);
+      }
       if (state.captureAndSetContinuation(activeScope) && startThreadMigration) {
         state.startThreadMigration();
       }
