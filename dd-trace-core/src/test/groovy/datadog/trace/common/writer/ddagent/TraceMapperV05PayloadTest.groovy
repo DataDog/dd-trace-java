@@ -1,11 +1,12 @@
 package datadog.trace.common.writer.ddagent
 
+
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.serialization.ByteBufferConsumer
-import datadog.trace.core.serialization.FlushingBuffer
-import datadog.trace.core.serialization.msgpack.MsgPackWriter
+import datadog.communication.serialization.ByteBufferConsumer
+import datadog.communication.serialization.FlushingBuffer
+import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
 import org.msgpack.core.MessageFormat

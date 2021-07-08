@@ -1,13 +1,13 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.core.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
+import datadog.communication.serialization.Writable;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
-import datadog.trace.core.serialization.Writable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -183,12 +183,12 @@ public final class TraceMapperV0_4 implements TraceMapper {
   private static class PayloadV0_4 extends Payload {
 
     @Override
-    int sizeInBytes() {
+    public int sizeInBytes() {
       return msgpackArrayHeaderSize(traceCount()) + body.remaining();
     }
 
     @Override
-    void writeTo(WritableByteChannel channel) throws IOException {
+    protected void writeTo(WritableByteChannel channel) throws IOException {
       ByteBuffer header = msgpackArrayHeader(traceCount());
       while (header.hasRemaining()) {
         channel.write(header);
@@ -199,7 +199,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
 
     @Override
-    RequestBody toRequest() {
+    protected RequestBody toRequest() {
       return msgpackRequestBodyOf(Arrays.asList(msgpackArrayHeader(traceCount()), body));
     }
   }

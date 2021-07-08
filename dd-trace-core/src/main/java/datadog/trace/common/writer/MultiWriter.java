@@ -2,11 +2,11 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.monitor.Monitoring;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -19,9 +19,9 @@ public class MultiWriter implements Writer {
 
   public MultiWriter(
       Config config,
+      SharedCommunicationObjects commObjects,
       Sampler sampler,
       StatsDClient statsDClient,
-      Monitoring monitoring,
       String type) {
     String mwConfig = MW_PATTERN.matcher(type).replaceAll("");
     String[] writerConfigs = COMMA_PATTERN.split(mwConfig);
@@ -30,7 +30,7 @@ public class MultiWriter implements Writer {
 
     for (String writerConfig : writerConfigs) {
       writers[i] =
-          WriterFactory.createWriter(config, sampler, statsDClient, monitoring, writerConfig);
+          WriterFactory.createWriter(config, commObjects, sampler, statsDClient, writerConfig);
       i++;
     }
   }

@@ -1,6 +1,6 @@
 package datadog.trace.common.metrics;
 
-import datadog.trace.core.serialization.ByteBufferConsumer;
+import datadog.communication.serialization.ByteBufferConsumer;
 
 public interface Sink extends ByteBufferConsumer {
 

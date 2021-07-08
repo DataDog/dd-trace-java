@@ -1,11 +1,11 @@
 package datadog.trace.core;
 
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5;
-import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

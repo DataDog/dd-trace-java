@@ -1,23 +1,23 @@
 package datadog.trace.common.writer;
 
+import static datadog.communication.http.OkHttpUtils.buildHttpClient;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
-import static datadog.trace.core.http.OkHttpUtils.buildHttpClient;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.monitor.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
-import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.PayloadDispatcher;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.monitor.Monitoring;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;

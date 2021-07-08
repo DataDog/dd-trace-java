@@ -2,12 +2,12 @@
 
 import datadog.trace.api.StatsDClient
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.core.CoreSpan
-import datadog.trace.core.http.OkHttpUtils
+import datadog.communication.http.OkHttpUtils
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.monitor.Monitoring
+import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -29,7 +29,7 @@ class TraceMapperRealAgentTest extends DDSpecification {
   OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 30_000)
 
   @Shared
-  Monitoring monitoring = new Monitoring(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
+  MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
   @Shared
   DDAgentFeaturesDiscovery v05Discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
   @Shared

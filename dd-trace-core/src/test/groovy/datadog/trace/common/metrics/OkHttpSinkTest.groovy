@@ -21,7 +21,7 @@ import static datadog.trace.common.metrics.EventListener.EventType.BAD_PAYLOAD
 import static datadog.trace.common.metrics.EventListener.EventType.DOWNGRADED
 import static datadog.trace.common.metrics.EventListener.EventType.ERROR
 import static datadog.trace.common.metrics.EventListener.EventType.OK
-import static datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
 
 @Requires({
   isJavaVersionAtLeast(8)

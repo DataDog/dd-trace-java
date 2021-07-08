@@ -1,5 +1,8 @@
 package datadog.trace.core.monitor
 
+import datadog.communication.monitor.Counter
+import datadog.communication.monitor.Monitoring
+import datadog.communication.monitor.NoOpCounter
 import datadog.trace.api.StatsDClient
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
@@ -10,7 +13,7 @@ class CounterTest extends DDSpecification {
 
   def "counter counts stuff"() {
     StatsDClient statsd = Mock(StatsDClient)
-    Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
+    Monitoring monitoring = new MonitoringImpl(statsd, 100, MILLISECONDS)
     def counter = monitoring.newCounter("my_counter")
     when:
     counter.increment(1)
@@ -21,7 +24,7 @@ class CounterTest extends DDSpecification {
 
   def "counter tags error counts with cause"() {
     StatsDClient statsd = Mock(StatsDClient)
-    Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
+    Monitoring monitoring = new MonitoringImpl(statsd, 100, MILLISECONDS)
     def counter = monitoring.newCounter("my_counter")
     when:
     counter.incrementErrorCount("bad stuff happened", 1000)

@@ -1,5 +1,8 @@
 package datadog.trace.core.monitor
 
+import datadog.communication.monitor.Monitoring
+import datadog.communication.monitor.NoOpRecording
+import datadog.communication.monitor.Recording
 import datadog.trace.api.Platform
 import datadog.trace.api.StatsDClient
 import datadog.trace.test.util.DDSpecification
@@ -16,7 +19,7 @@ class TimingTest extends DDSpecification {
   def "timer times stuff"() {
     setup:
     StatsDClient statsd = Mock(StatsDClient)
-    Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
+    MonitoringImpl monitoring = new MonitoringImpl(statsd, 100, MILLISECONDS)
     def timer = monitoring.newTimer("my_timer")
     when:
     Recording recording = timer.start()
@@ -32,7 +35,7 @@ class TimingTest extends DDSpecification {
   def "threadlocal timer times stuff"() {
     setup:
     StatsDClient statsd = Mock(StatsDClient)
-    Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
+    MonitoringImpl monitoring = new MonitoringImpl(statsd, 100, MILLISECONDS)
     def timer = monitoring.newThreadLocalTimer("my_timer")
     when:
     Recording recording = timer.start()
@@ -48,7 +51,7 @@ class TimingTest extends DDSpecification {
   def "reset timer"() {
     setup:
     StatsDClient statsd = Mock(StatsDClient)
-    Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
+    MonitoringImpl monitoring = new MonitoringImpl(statsd, 100, MILLISECONDS)
     def timer = timerCreator(monitoring)
     when:
     timer.start()

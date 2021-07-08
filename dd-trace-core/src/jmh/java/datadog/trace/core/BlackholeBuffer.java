@@ -1,6 +1,6 @@
 package datadog.trace.core;
 
-import datadog.trace.core.serialization.StreamingBuffer;
+import datadog.communication.serialization.StreamingBuffer;
 import java.nio.ByteBuffer;
 import org.openjdk.jmh.infra.Blackhole;
 

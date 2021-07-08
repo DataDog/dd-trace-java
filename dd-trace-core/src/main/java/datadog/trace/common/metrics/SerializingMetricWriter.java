@@ -2,10 +2,10 @@ package datadog.trace.common.metrics;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
+import datadog.communication.serialization.GrowableBuffer;
+import datadog.communication.serialization.WritableFormatter;
+import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.WellKnownTags;
-import datadog.trace.core.serialization.GrowableBuffer;
-import datadog.trace.core.serialization.WritableFormatter;
-import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 
 public final class SerializingMetricWriter implements MetricWriter {
 

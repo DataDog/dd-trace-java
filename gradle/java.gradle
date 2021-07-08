@@ -210,8 +210,8 @@ if (project.hasProperty("removeJarVersionNumbers") && removeJarVersionNumbers) {
   }
 }
 
-if (project.parent && project.parent.hasProperty("javaExecutableVersionCache")) {
-  project.ext.javaExecutableVersionCache = project.parent.ext.javaExecutableVersionCache
+if (project.parent && project.parent.properties.containsKey('javaExecutableVersionCache')) {
+  project.ext.javaExecutableVersionCache = project.parent.properties.get('javaExecutableVersionCache')
 } else {
   project.ext.javaExecutableVersionCache = [:]
 }

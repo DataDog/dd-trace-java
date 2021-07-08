@@ -24,6 +24,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URL;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
@@ -151,11 +152,13 @@ public class Agent {
      * events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different
      * logging facility.
      */
+    InstallDatadogTracerCallback installDatadogTracerCallback =
+        new InstallDatadogTracerCallback(bootstrapURL);
     if (isJavaBefore9WithJFR() && appUsingCustomLogManager) {
       log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
-      registerLogManagerCallback(new InstallDatadogTracerCallback(bootstrapURL));
+      registerLogManagerCallback(installDatadogTracerCallback);
     } else {
-      installDatadogTracer();
+      installDatadogTracerCallback.execute();
     }
 
     /*
@@ -290,7 +293,23 @@ public class Agent {
 
     @Override
     public void execute() {
-      installDatadogTracer();
+      Object sco;
+      Class<?> scoClass;
+      try {
+        scoClass =
+            SHARED_CLASSLOADER.loadClass(
+                "datadog.communication.ddagent.SharedCommunicationObjects");
+        sco = scoClass.getConstructor().newInstance();
+      } catch (ClassNotFoundException
+          | NoSuchMethodException
+          | InstantiationException
+          | IllegalAccessException
+          | InvocationTargetException e) {
+        throw new UndeclaredThrowableException(e);
+      }
+
+      installDatadogTracer(scoClass, sco);
+      // install other modules dependent on sco here (appsec)
     }
   }
 
@@ -352,7 +371,7 @@ public class Agent {
     }
   }
 
-  private static synchronized void installDatadogTracer() {
+  private static synchronized void installDatadogTracer(Class<?> scoClass, Object sco) {
     if (AGENT_CLASSLOADER == null) {
       throw new IllegalStateException("Datadog agent should have been started already");
     }
@@ -362,8 +381,9 @@ public class Agent {
       // install global tracer
       final Class<?> tracerInstallerClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.TracerInstaller");
-      final Method tracerInstallerMethod = tracerInstallerClass.getMethod("installGlobalTracer");
-      tracerInstallerMethod.invoke(null);
+      final Method tracerInstallerMethod =
+          tracerInstallerClass.getMethod("installGlobalTracer", scoClass);
+      tracerInstallerMethod.invoke(null, sco);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
     }
@@ -467,7 +487,7 @@ public class Agent {
 
   private static StatsDClientManager statsDClientManager() throws Exception {
     final Class<?> statsdClientManagerClass =
-        AGENT_CLASSLOADER.loadClass("datadog.trace.core.monitor.DDAgentStatsDClientManager");
+        SHARED_CLASSLOADER.loadClass("datadog.communication.monitor.DDAgentStatsDClientManager");
     final Method statsDClientManagerMethod =
         statsdClientManagerClass.getMethod("statsDClientManager");
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
