@@ -100,11 +100,22 @@ public final class OpenJdkController implements Controller {
       }
     }
 
+    // Toggle settings from override file
+
     try {
       recordingSettings.putAll(
           JfpUtils.readOverrideJfpResource(config.getProfilingTemplateOverrideFile()));
     } catch (final IOException e) {
       throw new ConfigurationException(e);
+    }
+
+    // Toggle settings from config
+
+    if (config.isProfilingAllocationEnabled()) {
+      log.debug(
+          "Enabling ObjectAllocationInNewTLAB and ObjectAllocationOutsideTLAB JFR events from the command line or environment variable.");
+      recordingSettings.put("jdk.ObjectAllocationInNewTLAB#enabled", "true");
+      recordingSettings.put("jdk.ObjectAllocationOutsideTLAB#enabled", "true");
     }
 
     this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
