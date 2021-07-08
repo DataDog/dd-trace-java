@@ -19,13 +19,14 @@ class JenkinsInfo extends CIProviderInfo {
   public static final String JENKINS_JOB_URL = "JOB_URL";
   public static final String JENKINS_WORKSPACE_PATH = "WORKSPACE";
   public static final String JENKINS_GIT_REPOSITORY_URL = "GIT_URL";
+  public static final String JENKINS_GIT_REPOSITORY_URL_ALT = "GIT_URL_1";
   public static final String JENKINS_GIT_COMMIT = "GIT_COMMIT";
   public static final String JENKINS_GIT_BRANCH = "GIT_BRANCH";
 
   @Override
   protected GitInfo buildCIGitInfo() {
     return new GitInfo(
-        filterSensitiveInfo(System.getenv(JENKINS_GIT_REPOSITORY_URL)),
+        filterSensitiveInfo(buildGitRepositoryUrl()),
         buildGitBranch(),
         buildGitTag(),
         new CommitInfo(System.getenv(JENKINS_GIT_COMMIT)));
@@ -43,6 +44,12 @@ class JenkinsInfo extends CIProviderInfo {
         .ciPipelineUrl(System.getenv(JENKINS_PIPELINE_URL))
         .ciWorkspace(expandTilde(System.getenv(JENKINS_WORKSPACE_PATH)))
         .build();
+  }
+
+  private String buildGitRepositoryUrl() {
+    return System.getenv(JENKINS_GIT_REPOSITORY_URL) != null
+        ? System.getenv(JENKINS_GIT_REPOSITORY_URL)
+        : System.getenv(JENKINS_GIT_REPOSITORY_URL_ALT);
   }
 
   private String buildGitBranch() {
