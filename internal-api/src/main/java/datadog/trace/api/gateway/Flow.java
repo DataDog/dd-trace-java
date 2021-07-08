@@ -1,5 +1,10 @@
 package datadog.trace.api.gateway;
 
+/**
+ * The result of sending an event to a callback.
+ *
+ * @param <T> the type of the result
+ */
 public interface Flow<T> {
   Flow.Action getAction();
 
@@ -8,8 +13,10 @@ public interface Flow<T> {
   interface Action {
     boolean isBlocking();
 
-    enum Noop implements Action {
-      INSTANCE;
+    class Noop implements Action {
+      public static Action INSTANCE = new Noop();
+
+      private Noop() {}
 
       public boolean isBlocking() {
         return false;
