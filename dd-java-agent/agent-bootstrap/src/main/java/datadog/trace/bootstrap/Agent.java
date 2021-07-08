@@ -20,7 +20,6 @@ import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
-import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -136,12 +135,12 @@ public class Agent {
       int jmxStartDelay = getJmxStartDelay();
       if (appUsingCustomJMXBuilder) {
         log.debug("Custom JMX builder detected. Delaying JMXFetch initialization.");
-        registerMBeanServerBuilderCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay, true));
+        registerMBeanServerBuilderCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay));
         // one minute fail-safe in case nothing touches JMX and and callback isn't triggered
         scheduleJmxStart(bootstrapURL, 60 + jmxStartDelay);
       } else if (appUsingCustomLogManager) {
         log.debug("Custom logger detected. Delaying JMXFetch initialization.");
-        registerLogManagerCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay, false));
+        registerLogManagerCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay));
       } else {
         scheduleJmxStart(bootstrapURL, jmxStartDelay);
       }
@@ -253,13 +252,10 @@ public class Agent {
 
   protected static class StartJmxCallback extends ClassLoadCallBack {
     private final int jmxStartDelay;
-    private final boolean customJmxBuilder;
 
-    StartJmxCallback(
-        final URL bootstrapURL, final int jmxStartDelay, final boolean customJmxBuilder) {
+    StartJmxCallback(final URL bootstrapURL, final int jmxStartDelay) {
       super(bootstrapURL);
       this.jmxStartDelay = jmxStartDelay;
-      this.customJmxBuilder = customJmxBuilder;
     }
 
     @Override
@@ -269,14 +265,7 @@ public class Agent {
 
     @Override
     public void execute() {
-      if (customJmxBuilder) {
-        try {
-          // finish building platform JMX from context of custom builder before starting JMXFetch
-          ManagementFactory.getPlatformMBeanServer();
-        } catch (Throwable e) {
-          log.error("Error loading custom MBeanServerBuilder", e);
-        }
-      }
+      // still honour the requested delay from the point JMX becomes available
       scheduleJmxStart(bootstrapURL, jmxStartDelay);
     }
   }
