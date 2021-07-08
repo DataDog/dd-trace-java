@@ -43,9 +43,12 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
   @Override
   public void run() {
     try (TraceScope scope = activate()) {
-      delegate.run();
-      if (scope instanceof AgentScope) {
-        ((AgentScope) scope).span().finishWork();
+      try {
+        delegate.run();
+      } finally {
+        if (scope instanceof AgentScope) {
+          ((AgentScope) scope).span().finishWork();
+        }
       }
     }
   }
