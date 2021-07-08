@@ -26,11 +26,14 @@ import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import java.util.HashMap;
 import java.util.Map;
+import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageListener;
+import javax.jms.Queue;
 import javax.jms.Session;
+import javax.jms.Topic;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -116,12 +119,20 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
       MessageConsumerState messageConsumerState =
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
+
       if (null != messageConsumerState) {
         try {
           final AgentSpan span;
-          if (!Config.get()
-              .getJMSPropagationDisabledTopicsAndQueues()
-              .contains(message.getJMSDestination().toString())) {
+
+          Destination destination = message.getJMSDestination();
+          String destinationName = null;
+          if (destination instanceof Queue) {
+            destinationName = ((Queue) destination).getQueueName();
+          } else if (destination instanceof Topic) {
+            destinationName = ((Topic) destination).getTopicName();
+          }
+
+          if (!Config.get().getJMSPropagationDisabledTopicsAndQueues().contains(destinationName)) {
             final Context extractedContext = propagate().extract(message, GETTER);
             span = startSpan(JMS_CONSUME, extractedContext);
           } else {

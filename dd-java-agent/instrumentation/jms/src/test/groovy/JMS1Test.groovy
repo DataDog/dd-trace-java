@@ -3,6 +3,8 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
+import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -18,6 +20,11 @@ import javax.jms.Session
 import javax.jms.TextMessage
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
+
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE
+import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER
 
 class JMS1Test extends AgentTestRunner {
   @Shared
@@ -58,6 +65,7 @@ class JMS1Test extends AgentTestRunner {
 
     expect:
     receivedMessage.text == messageText
+
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
       consumerTrace(it, jmsResourceName, trace(0)[0])
@@ -161,6 +169,8 @@ class JMS1Test extends AgentTestRunner {
     }
     // This check needs to go after all traces have been accounted for
     messageRef.get().text == messageText
+    propagate().inject(span, message, SETTER)
+
 
     cleanup:
     producer.close()
@@ -256,7 +266,7 @@ class JMS1Test extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             defaultTags()
           }
         }
@@ -336,6 +346,94 @@ class JMS1Test extends AgentTestRunner {
     session.createTemporaryQueue()   | "Temporary Queue"
     session.createTemporaryTopic()   | "Temporary Topic"
   }
+
+  def "sending a message to #jmsResourceName with given topic or queue disabled disables propagation properly on producer side"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS_AND_QUEUES, value)
+
+    def producer = session.createProducer(destination)
+    def consumer = session.createConsumer(destination)
+
+    producer.send(message)
+
+    TextMessage receivedMessage = consumer.receive()
+    // required to finish auto-acknowledged spans
+    consumer.receiveNoWait()
+
+    expect:
+    receivedMessage.text == messageText
+
+    if (expected) {
+      assertTraces(2) {
+        producerTrace(it, jmsResourceName)
+        consumerTrace(it, jmsResourceName, trace(0)[0],)
+      }
+    } else {
+      assertTraces(2) {
+        producerTrace(it, jmsResourceName)
+        consumerTrace(it, jmsResourceName, null)
+      }
+    }
+
+    cleanup:
+    producer.close()
+    consumer.close()
+
+    where:
+    destination                      | jmsResourceName   | value                  | expected
+    session.createQueue("someQueue") | "Queue someQueue" | "someQueue, someTopic" | false
+    session.createTopic("someTopic") | "Topic someTopic" | "someTopic"            | false
+    session.createTemporaryQueue()   | "Temporary Queue" | ""                     | true
+    session.createTemporaryTopic()   | "Temporary Topic" | "random"               | true
+
+  }
+
+  def "sending a message to #jmsResourceName with given topic or queue disabled disables propagation properly on consumer side"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS_AND_QUEUES, value)
+    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_ENABLED, "false")
+
+    def producer = session.createProducer(destination)
+    def consumer = session.createConsumer(destination)
+
+    AgentSpan span = startSpan(JMS_PRODUCE)
+    propagate().inject(span, message, SETTER)
+    span.finish()
+
+    producer.send(message)
+
+    TextMessage receivedMessage = consumer.receive()
+    // required to finish auto-acknowledged spans
+    consumer.receiveNoWait()
+
+    expect:
+    receivedMessage.text == messageText
+
+    if (expected) {
+      assertTraces(2) {
+        producerTrace(it, jmsResourceName)
+        consumerTrace(it, jmsResourceName, trace(0)[0],)
+      }
+    } else {
+      assertTraces(2) {
+        producerTrace(it, jmsResourceName)
+        consumerTrace(it, jmsResourceName, null)
+      }
+    }
+
+    cleanup:
+    producer.close()
+    consumer.close()
+
+    where:
+    destination                      | jmsResourceName   | value                 | expected
+    session.createQueue("someQueue") | "Queue someQueue" | "someQueue,someTopic" | false
+    session.createTopic("someTopic") | "Topic someTopic" | "someTopic"           | false
+    session.createTemporaryQueue()   | "Temporary Queue" | ""                    | true
+    session.createTemporaryTopic()   | "Temporary Topic" | "random"              | true
+
+  }
+
 
   static producerTrace(ListWriterAssert writer, String jmsResourceName) {
     writer.trace(1) {
