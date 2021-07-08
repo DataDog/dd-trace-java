@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.http_url_connection;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
+import static datadog.trace.api.http.UrlBasedResourceNameCalculator.SIMPLE_PATH_NORMALIZER;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -11,7 +12,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import datadog.trace.api.normalize.PathNormalizer;
 import datadog.trace.bootstrap.InternalJarURLHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -79,7 +79,7 @@ public class UrlInstrumentation extends Instrumenter.Tracing {
             span.setServiceName(host);
           }
           if (!span.hasResourceName()) {
-            span.setResourceName(PathNormalizer.normalize(url.getPath()));
+            span.setResourceName(SIMPLE_PATH_NORMALIZER.normalize(url.getPath()));
           }
 
           span.setError(true);
