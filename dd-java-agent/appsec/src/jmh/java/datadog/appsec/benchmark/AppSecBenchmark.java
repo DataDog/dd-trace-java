@@ -28,6 +28,7 @@ public class AppSecBenchmark {
 
   private InstrumentationGateway gw;
   private URIDataAdapter uri;
+  private String ip = "0.0.0.0";
 
   @Setup(Level.Trial)
   public void setUp() throws URISyntaxException {
@@ -40,6 +41,7 @@ public class AppSecBenchmark {
   public void maliciousRequest() throws Exception {
     RequestContext context = gw.getCallback(Events.REQUEST_STARTED).get().getResult();
     gw.getCallback(Events.REQUEST_URI_RAW).apply(context, uri);
+    gw.getCallback(Events.REQUEST_CLIENT_IP).apply(context, ip);
     gw.getCallback(Events.REQUEST_HEADER).accept(context, "User-Agent", "Arachni/v1");
     Flow<?> flow = gw.getCallback(Events.REQUEST_HEADER_DONE).apply(context);
     if (!flow.getAction().isBlocking()) {
@@ -52,6 +54,7 @@ public class AppSecBenchmark {
   public void normalRequest() {
     RequestContext context = gw.getCallback(Events.REQUEST_STARTED).get().getResult();
     gw.getCallback(Events.REQUEST_URI_RAW).apply(context, uri);
+    gw.getCallback(Events.REQUEST_CLIENT_IP).apply(context, ip);
     gw.getCallback(Events.REQUEST_HEADER).accept(context, "User-Agent", "Mozilla/5.0");
     gw.getCallback(Events.REQUEST_HEADER_DONE).apply(context);
     gw.getCallback(Events.REQUEST_ENDED).apply(context);

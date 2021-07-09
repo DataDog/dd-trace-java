@@ -40,6 +40,10 @@ public final class Events {
   public static final EventType<BiFunction<RequestContext, URIDataAdapter, Flow<Void>>>
       REQUEST_URI_RAW = new ET<>("server.request.uri.raw", REQUEST_URI_RAW_ID);
 
+  public static final int REQUEST_CLIENT_IP_ID = 5;
+  public static final EventType<BiFunction<RequestContext, String, Flow<Void>>> REQUEST_CLIENT_IP =
+      new ET<>("http.server.client_ip", REQUEST_CLIENT_IP_ID);
+
   public static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {
