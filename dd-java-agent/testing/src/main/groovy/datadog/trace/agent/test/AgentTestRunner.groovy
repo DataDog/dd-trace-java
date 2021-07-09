@@ -8,7 +8,6 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
-import datadog.trace.api.Checkpointer
 import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -98,7 +97,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   @SuppressWarnings('PropertyName')
   @Shared
-  Checkpointer TEST_CHECKPOINTER = Mock(Checkpointer)
+  TimelineCheckpointer TEST_CHECKPOINTER = Spy(new TimelineCheckpointer())
 
   @Shared
   ClassFileTransformer activeTransformer
@@ -166,6 +165,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   void cleanup() {
     TEST_TRACER.flush()
+    TEST_CHECKPOINTER.printActivity()
+    TEST_CHECKPOINTER.clear()
     new MockUtil().detachMock(STATS_D_CLIENT)
     new MockUtil().detachMock(TEST_CHECKPOINTER)
   }
@@ -280,3 +281,5 @@ class AbortTransformationException extends RuntimeException {
     super(message)
   }
 }
+
+
