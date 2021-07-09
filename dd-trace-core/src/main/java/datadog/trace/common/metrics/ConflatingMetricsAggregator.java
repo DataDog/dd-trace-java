@@ -261,15 +261,17 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private void disable() {
     features.discover();
-    AgentTaskScheduler.Scheduled<?> cancellation = this.cancellation;
-    if (null != cancellation) {
-      cancellation.cancel();
+    if (!features.supportsMetrics()) {
+      AgentTaskScheduler.Scheduled<?> cancellation = this.cancellation;
+      if (null != cancellation) {
+        cancellation.cancel();
+      }
+      this.thread.interrupt();
+      this.pending.clear();
+      this.batchPool.clear();
+      this.inbox.clear();
+      this.aggregator.clearAggregates();
     }
-    this.thread.interrupt();
-    this.pending.clear();
-    this.batchPool.clear();
-    this.inbox.clear();
-    this.aggregator.clearAggregates();
   }
 
   private static final class ReportTask
