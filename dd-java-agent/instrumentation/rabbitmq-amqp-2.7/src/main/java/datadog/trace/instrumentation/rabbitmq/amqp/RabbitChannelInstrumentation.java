@@ -32,6 +32,7 @@ import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.MessageProperties;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -162,7 +163,10 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
         Map<String, Object> headers = props.getHeaders();
         headers = (headers == null) ? new HashMap<String, Object>() : new HashMap<>(headers);
 
-        propagate().inject(span, headers, SETTER);
+        if (Config.get().isRabbitPropagationEnabled()
+            && !Config.get().getRabbitPropagationDisabledQueues().contains(routingKey)) {
+          propagate().inject(span, headers, SETTER);
+        }
 
         props =
             new AMQP.BasicProperties(
@@ -234,6 +238,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
       // TODO: it would be better if we could actually have span wrapped into the scope started in
       // OnMethodEnter
       final AgentSpan span;
+
       if (parentContext != null) {
         span = startSpan(AMQP_COMMAND, parentContext, TimeUnit.MILLISECONDS.toMicros(startTime));
       } else {
