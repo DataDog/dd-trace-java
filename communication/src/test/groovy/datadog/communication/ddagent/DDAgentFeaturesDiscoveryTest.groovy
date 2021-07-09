@@ -28,6 +28,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
 
   static final String INFO_RESPONSE = loadJsonFile("agent-info.json")
   static final String INFO_WITH_CLIENT_DROPPING_RESPONSE = loadJsonFile("agent-info-with-client-dropping.json")
+  static final String INFO_WITHOUT_METRICS_RESPONSE = loadJsonFile("agent-info-without-metrics.json")
 
   def "test parse /info response"() {
     setup:
@@ -208,9 +209,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     !(features as DroppingPolicy).active()
   }
 
-  def "discovery of metrics endpoint after agent upgrade does not enable dropping"() {
-    // discovery of the metrics endpoint would lead to code being deoptimised on the application threads
-    // so the user needs to restart applications to start producing metrics after the agent upgrade
+  def "discovery of metrics endpoint after agent upgrade enables dropping and metrics"() {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
     DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
@@ -229,10 +228,64 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     when: "/info and v0.6/stats become available to an already configured tracer"
     features.discover()
 
-    then: "metrics endpoint not probed, metrics and dropping not supported"
+    then: "metrics endpoint not probed, metrics and dropping enabled"
     1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
     features.supportsDropping()
+    features.supportsMetrics()
+    (features as DroppingPolicy).active()
+  }
+
+  def "disappearance of info endpoint after agent downgrade disables metrics and dropping"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
+
+    when: "/info available"
+    features.discover()
+
+    then: "no probing, metrics and dropping supported"
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
+    0 * client.newCall(_)
+    features.supportsDropping()
+    features.supportsMetrics()
+    (features as DroppingPolicy).active()
+
+    when: "/info and v0.6/stats become unavailable to an already configured tracer"
+    features.discover()
+
+    then: "no probing, metrics and dropping not supported"
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> notFound(request) }
+    0 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/v0.4/traces" }) >> { Request request -> success(request) }
+    !features.supportsDropping()
     !features.supportsMetrics()
+    !(features as DroppingPolicy).active()
+  }
+
+  def "disappearance of metrics endpoint after agent downgrade disables metrics and dropping"() {
+    setup:
+    OkHttpClient client = Mock(OkHttpClient)
+    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, false, true)
+
+    when: "/info available"
+    features.discover()
+
+    then: "no probing, metrics and dropping supported"
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITH_CLIENT_DROPPING_RESPONSE) }
+    0 * client.newCall(_)
+    features.supportsDropping()
+    features.supportsMetrics()
+    (features as DroppingPolicy).active()
+
+    when: "/info and v0.6/stats become unavailable to an already configured tracer"
+    features.discover()
+
+    then: "no probing, metrics and dropping not supported"
+    1 * client.newCall({ Request request -> request.url().toString() == "http://localhost:8125/info" }) >> { Request request -> infoResponse(request, INFO_WITHOUT_METRICS_RESPONSE) }
+    0 * client.newCall(_)
+    // misconfigured agent allows dropping but not metrics
+    features.supportsDropping()
+    !features.supportsMetrics()
+    // but we don't permit dropping anyway
     !(features as DroppingPolicy).active()
   }
 
