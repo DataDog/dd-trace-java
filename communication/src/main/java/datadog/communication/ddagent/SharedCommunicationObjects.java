@@ -27,6 +27,10 @@ public class SharedCommunicationObjects {
           OkHttpUtils.buildHttpClient(
               agentUrl, unixDomainSocket, TimeUnit.SECONDS.toMillis(config.getAgentTimeout()));
     }
+    featuresDiscovery(config);
+  }
+
+  public DDAgentFeaturesDiscovery featuresDiscovery(Config config) {
     if (featuresDiscovery == null) {
       featuresDiscovery =
           new DDAgentFeaturesDiscovery(
@@ -36,5 +40,6 @@ public class SharedCommunicationObjects {
               config.isTraceAgentV05Enabled(),
               config.isTracerMetricsEnabled());
     }
+    return featuresDiscovery;
   }
 }

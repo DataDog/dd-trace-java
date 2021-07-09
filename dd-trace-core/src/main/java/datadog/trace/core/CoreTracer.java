@@ -6,6 +6,7 @@ import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetric
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.monitor.Monitoring;
 import datadog.communication.monitor.Recording;
@@ -418,6 +419,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
+    DDAgentFeaturesDiscovery discovery = sharedCommunicationObjects.featuresDiscovery(config);
+
     this.pendingTraceBuffer =
         strictTraceWrites ? PendingTraceBuffer.discarding() : PendingTraceBuffer.delaying();
     pendingTraceFactory = new PendingTrace.Factory(this, pendingTraceBuffer, strictTraceWrites);
@@ -425,7 +428,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     this.writer.start();
 
-    metricsAggregator = createMetricsAggregator(config);
+    metricsAggregator = createMetricsAggregator(config, discovery);
     // Schedule the metrics aggregator to begin reporting after a random delay of 1 to 10 seconds
     // (using milliseconds granularity.) This avoids a fleet of traced applications starting at the
     // same time from sending metrics in sync.

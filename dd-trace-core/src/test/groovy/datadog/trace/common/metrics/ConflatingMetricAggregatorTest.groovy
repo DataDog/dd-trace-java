@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
@@ -30,11 +31,13 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
   def "should ignore traces with no measured spans"() {
     setup:
     Sink sink = Mock(Sink)
-    sink.validate() >> true
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version")
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       empty,
+      features,
       sink,
       10,
       queueSize,
@@ -57,11 +60,13 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     setup:
     String ignoredResourceName = "foo"
     Sink sink = Mock(Sink)
-    sink.validate() >> true
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version")
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       [ignoredResourceName].toSet(),
+      features,
       sink,
       10,
       queueSize,
@@ -92,9 +97,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     setup:
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
-    sink.validate() >> true
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      sink, writer, 10, queueSize, reportingInterval, SECONDS)
+      features, sink, writer, 10, queueSize, reportingInterval, SECONDS)
     aggregator.start()
 
     when:
@@ -118,8 +124,9 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     setup:
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
-    sink.validate() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty, features,
       sink, writer, 10, queueSize, reportingInterval, SECONDS)
     aggregator.start()
 
@@ -152,9 +159,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     setup:
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
-    sink.validate() >> true
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      sink, writer, 10, queueSize, reportingInterval, SECONDS)
+      features, sink, writer, 10, queueSize, reportingInterval, SECONDS)
     long duration = 100
     List<CoreSpan> trace = [
       new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, duration, HTTP_OK),
@@ -194,9 +202,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     int maxAggregates = 10
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
-    sink.validate() >> true
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
+      features, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
     long duration = 100
     aggregator.start()
 
@@ -229,9 +238,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     int maxAggregates = 10
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
-    sink.validate() >> true
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
+      features, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
     long duration = 100
     aggregator.start()
 
@@ -283,9 +293,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     int maxAggregates = 10
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
-    sink.validate() >> true
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
+      features, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS)
     long duration = 100
     aggregator.start()
 
@@ -325,9 +336,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     int maxAggregates = 10
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
-    sink.validate() >> true
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      sink, writer, maxAggregates, queueSize, 1, SECONDS)
+      features, sink, writer, maxAggregates, queueSize, 1, SECONDS)
     long duration = 100
     aggregator.start()
 
@@ -358,9 +370,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     int maxAggregates = 10
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
-    sink.validate() >> true
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      sink, writer, maxAggregates, queueSize, 1, SECONDS)
+      features, sink, writer, maxAggregates, queueSize, 1, SECONDS)
     long duration = 100
     aggregator.start()
 
@@ -395,9 +408,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     int maxAggregates = 10
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
-    sink.validate() >> true
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
-      sink, writer, maxAggregates, queueSize, 1, SECONDS)
+      features, sink, writer, maxAggregates, queueSize, 1, SECONDS)
     long duration = 100
     aggregator.start()
 
