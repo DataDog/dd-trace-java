@@ -120,21 +120,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public void start() {
-    if (sink.validate()) {
-      sink.register(this);
-      thread.start();
-      cancellation =
-          AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
-              new ReportTask(),
-              this,
-              reportingInterval,
-              reportingInterval,
-              reportingIntervalTimeUnit);
-      log.debug("started metrics aggregator");
-    } else {
-      enabled = false;
-      log.debug("metrics aggregator not started because sink could not be validated");
-    }
+    sink.register(this);
+    thread.start();
+    cancellation =
+        AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+            new ReportTask(),
+            this,
+            reportingInterval,
+            reportingInterval,
+            reportingIntervalTimeUnit);
+    log.debug("started metrics aggregator");
   }
 
   @Override

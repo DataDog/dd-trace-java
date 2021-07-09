@@ -125,11 +125,6 @@ class FootprintTest extends DDSpecification {
     }
 
     @Override
-    boolean validate() {
-      return true
-    }
-
-    @Override
     void accept(int messageCount, ByteBuffer buffer) {
       latch.countDown()
     }
