@@ -21,7 +21,7 @@ public final class AgentProxySelector extends ProxySelector {
 
   @Override
   public List<Proxy> select(final URI uri) {
-    if (noProxyHosts.contains(uri.getHost())) {
+    if (null != uri.getHost() && noProxyHosts.contains(uri.getHost())) {
       return DIRECT;
     } else {
       return defaultProxySelector.select(uri);
