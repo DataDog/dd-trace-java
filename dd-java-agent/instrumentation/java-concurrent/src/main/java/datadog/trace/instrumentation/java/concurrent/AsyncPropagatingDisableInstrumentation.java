@@ -57,7 +57,12 @@ public final class AsyncPropagatingDisableInstrumentation implements Instrumente
                                             named(
                                                 "com.amazonaws.http.timers.request.HttpRequestTimer"),
                                             named("startTimer"))
-                                        .instrument(agentBuilder)))));
+                                        .instrument(
+                                            new DisableAsyncInstrumentation(
+                                                    named(
+                                                        "io.netty.handler.timeout.WriteTimeoutHandler"),
+                                                    named("scheduleTimeout"))
+                                                .instrument(agentBuilder))))));
   }
 
   @Override
