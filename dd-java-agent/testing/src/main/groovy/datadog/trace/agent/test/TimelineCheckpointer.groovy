@@ -8,6 +8,8 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 class TimelineCheckpointer implements Checkpointer {
 
+  private static String[] emptySpaces = new String[128]
+
   private final ConcurrentHashMap<DDId, List<Event>> spanEvents = new ConcurrentHashMap<>()
   private final ConcurrentHashMap<String, List<Event>> threadEvents = new ConcurrentHashMap<>()
   private final List<Event> encounterOrder = new CopyOnWriteArrayList<>()
@@ -57,55 +59,64 @@ class TimelineCheckpointer implements Checkpointer {
   }
 
   void printTimeLine() {
-    System.err.println("Activity checkpoints by thread ordered by time")
-    int threadCount = threadEvents.size()
-    StringBuilder[] timelineBuilders = new StringBuilder[threadCount]
-    Map<String, Integer> threadNameToPosition = new HashMap<>()
-    SortedSet<String> threadNames = new TreeSet<>(threadEvents.keySet())
-    int position = 0
-    int maxNameLength = 0
-    for (String threadName : threadNames) {
-      StringBuilder sb = new StringBuilder().append(threadName)
-      timelineBuilders[position] = sb
-      threadNameToPosition.put(threadName, position)
-      maxNameLength = Math.max(maxNameLength, threadName.length())
-      ++position
-    }
-    for (StringBuilder timeline : timelineBuilders) {
-      int length = timeline.length()
-      timeline.append(':')
-      for (int i = 0; i < maxNameLength - length + 1; ++i) {
-        timeline.append(' ')
+    if (!encounterOrder.isEmpty()) {
+      System.err.println("Activity checkpoints by thread ordered by time")
+      // allows rendering threads top to bottom by when they were first encountered
+      Map<String, BitSet> timelines = new LinkedHashMap<>()
+      int maxNameLength = 0
+      String[] renderings = new String[encounterOrder.size()]
+      for (String threadName : threadEvents.keySet()) {
+        maxNameLength = Math.max(maxNameLength, threadName.length())
       }
-      timeline.append('|')
-    }
-    for (Event event : encounterOrder) {
-      String rendering = event.eventName + "/" + event.spanId
-      if (!threadNameToPosition.containsKey(event.threadName)) {
-        System.err.println(event.threadName + " not in "+ threadNameToPosition.keySet())
-        continue
-      }
-      int pos = threadNameToPosition.get(event.threadName)
-      StringBuilder timeline = timelineBuilders[pos]
-      timeline.append('-')
-      timeline.append(rendering)
-      timeline.append('-')
-      timeline.append('|')
-      for (int i = 0; i < threadCount; ++i) {
-        if (i != pos) {
-          timeline = timelineBuilders[i]
-          timeline.append('-')
-          for (int j = 0; j < rendering.length(); ++j) {
-            timeline.append('-')
-          }
-          timeline.append('-')
-          timeline.append('|')
+      int position = 0
+      for (Event event : encounterOrder) {
+        renderings[position] = event.eventName + "/" + event.spanId
+        BitSet timeline = timelines[event.threadName]
+        if (null == timeline) {
+          timelines[event.threadName] = timeline = new BitSet()
         }
+        timeline.set(position++)
+      }
+      for (Map.Entry<String, BitSet> timeline : timelines) {
+        String threadName = timeline.key
+        System.err.print(threadName)
+        System.err.print(":")
+        System.err.print(repeat(" ", maxNameLength - threadName.length() + 1))
+        System.err.print("|")
+        BitSet positions = timeline.value
+        int next = positions.nextSetBit(0)
+        for (int i = 0; i < renderings.length; ++i) {
+          System.err.print("-")
+          if (i == next) {
+            System.err.print(renderings[i])
+            next = positions.nextSetBit(next + 1)
+          } else {
+            System.err.print(getEmptySpace(renderings[i].length()))
+          }
+          System.err.print("-|")
+        }
+        System.err.println()
       }
     }
-    for (StringBuilder timeline : timelineBuilders) {
-      System.err.println(timeline.toString())
+  }
+
+  private static String getEmptySpace(int width) {
+    if (width >= emptySpaces.length) {
+      return repeat("-", width)
     }
+    String space = emptySpaces[width]
+    if (null == space) {
+      space = emptySpaces[width] = repeat("-", width)
+    }
+    return space
+  }
+
+  private static String repeat(String x, int length) {
+    StringBuilder sb = new StringBuilder(x.length() * length)
+    for (int i = 0; i < length; ++i) {
+      sb.append(x)
+    }
+    return sb.toString()
   }
 
   class Event {
