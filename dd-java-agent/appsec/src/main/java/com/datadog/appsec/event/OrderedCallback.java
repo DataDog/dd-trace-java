@@ -3,29 +3,33 @@ package com.datadog.appsec.event;
 import java.util.Comparator;
 
 public interface OrderedCallback {
-  int MAXIMUM_PRIORITY = Integer.MIN_VALUE; // the lower the value the earlier it will be processed
-  int DEFAULT_PRIORITY = 0;
-  int MINIMUM_PRIORITY = Integer.MAX_VALUE;
+  enum Priority {
+    // ordinal is important
+    // do not add more because EventDispatcher relies on ordinals
+    // fitting into 2 bits
+    HIGHEST,
+    HIGH,
+    DEFAULT,
+    LOW
+  }
 
-  int getPriority();
+  Priority getPriority();
 
-  int getSequenceNumber(); // for resolving draws
+  /* Note: not consistent with equals(). */
+  final class CallbackPriorityComparator implements Comparator<OrderedCallback> {
+    private CallbackPriorityComparator() {}
 
-  /** Note: not consistent with equals(). */
-  final class OrderedCallbackComparator implements Comparator<OrderedCallback> {
-    private OrderedCallbackComparator() {}
-
-    public static final OrderedCallbackComparator INSTANCE = new OrderedCallbackComparator();
+    public static final CallbackPriorityComparator INSTANCE = new CallbackPriorityComparator();
 
     @Override
     public int compare(OrderedCallback o1, OrderedCallback o2) {
-      int p1 = o1.getPriority();
-      int p2 = o2.getPriority();
+      int p1 = o1.getPriority().ordinal();
+      int p2 = o2.getPriority().ordinal();
 
       if (p1 < p2) {
         return -1;
       } else if (p1 == p2) {
-        return o1.getSequenceNumber() < o2.getSequenceNumber() ? -1 : 1;
+        return 0;
       } else {
         return 1;
       }

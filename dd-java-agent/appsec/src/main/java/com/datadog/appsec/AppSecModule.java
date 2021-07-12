@@ -5,7 +5,6 @@ import com.datadog.appsec.event.EventListener;
 import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.Address;
 import java.util.Collection;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public interface AppSecModule {
   String getName();
@@ -15,46 +14,32 @@ public interface AppSecModule {
   Collection<DataSubscription> getDataSubscriptions();
 
   abstract class EventSubscription implements EventListener {
-    private static final AtomicInteger SEQUENCE_NUMBER = new AtomicInteger();
     public final EventType eventType;
-    private final int priority;
-    private final int sequenceNumber = SEQUENCE_NUMBER.getAndIncrement();
+    private final Priority priority;
 
-    protected EventSubscription(EventType eventType, int priority) {
+    protected EventSubscription(EventType eventType, Priority priority) {
       this.eventType = eventType;
       this.priority = priority;
     }
 
     @Override
-    public int getPriority() {
+    public Priority getPriority() {
       return priority;
-    }
-
-    @Override
-    public int getSequenceNumber() {
-      return sequenceNumber;
     }
   }
 
   abstract class DataSubscription implements DataListener {
-    private static final AtomicInteger SEQUENCE_NUMBER = new AtomicInteger();
     private final Collection<Address<?>> subscribedAddresses;
-    private final int priority;
-    private final int sequenceNumber = SEQUENCE_NUMBER.getAndIncrement();
+    private final Priority priority;
 
-    protected DataSubscription(Collection<Address<?>> subscribedAddresses, int priority) {
+    protected DataSubscription(Collection<Address<?>> subscribedAddresses, Priority priority) {
       this.subscribedAddresses = subscribedAddresses;
       this.priority = priority;
     }
 
     @Override
-    public int getPriority() {
+    public Priority getPriority() {
       return priority;
-    }
-
-    @Override
-    public int getSequenceNumber() {
-      return sequenceNumber;
     }
 
     public Collection<Address<?>> getSubscribedAddresses() {

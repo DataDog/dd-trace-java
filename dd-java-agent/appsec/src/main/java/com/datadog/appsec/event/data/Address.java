@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /** @param <T> the type of data associated with the address */
 public final class Address<T> {
+  private static final int MAX_SERIAL = 0x3FFF;
   private static final AtomicInteger NEXT_SERIAL = new AtomicInteger();
 
   private final String key;
@@ -13,6 +14,7 @@ public final class Address<T> {
   Address(String key) {
     this.key = key;
     this.serial = NEXT_SERIAL.getAndIncrement();
+    assert (this.serial <= MAX_SERIAL);
   }
 
   public static int instanceCount() {
