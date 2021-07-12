@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicReference
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE
+import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER
 
 class JMS1Test extends AgentTestRunner {
@@ -169,8 +170,6 @@ class JMS1Test extends AgentTestRunner {
     }
     // This check needs to go after all traces have been accounted for
     messageRef.get().text == messageText
-    propagate().inject(span, message, SETTER)
-
 
     cleanup:
     producer.close()
@@ -371,7 +370,24 @@ class JMS1Test extends AgentTestRunner {
     } else {
       assertTraces(2) {
         producerTrace(it, jmsResourceName)
-        consumerTrace(it, jmsResourceName, null)
+        trace(1) {
+          span {
+            // Do I need to check traceId here as well? Not sure how to do that
+            parentId(0 as BigInteger)
+            serviceName "jms"
+            operationName "jms.consume"
+            resourceName "Consumed from $jmsResourceName"
+            spanType DDSpanTypes.MESSAGE_CONSUMER
+            errored false
+
+            tags {
+              "$Tags.COMPONENT" "jms"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+              "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+              defaultTags()
+            }
+          }
+        }
       }
     }
 
@@ -396,9 +412,11 @@ class JMS1Test extends AgentTestRunner {
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
 
-    AgentSpan span = startSpan(JMS_PRODUCE)
-    propagate().inject(span, message, SETTER)
-    span.finish()
+    AgentSpan span1 = startSpan(JMS_PRODUCE)
+    PRODUCER_DECORATE.afterStart(span1)
+    PRODUCER_DECORATE.onProduce(span1, message, destination)
+    propagate().inject(span1, message, SETTER)
+    span1.finish()
 
     producer.send(message)
 
@@ -410,14 +428,33 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage.text == messageText
 
     if (expected) {
-      assertTraces(2) {
+      assertTraces(3) {
         producerTrace(it, jmsResourceName)
-        consumerTrace(it, jmsResourceName, trace(0)[0],)
+        producerTrace(it, jmsResourceName)
+        consumerTrace(it, jmsResourceName, trace(0)[0])
       }
     } else {
-      assertTraces(2) {
+      assertTraces(3) {
         producerTrace(it, jmsResourceName)
-        consumerTrace(it, jmsResourceName, null)
+        producerTrace(it, jmsResourceName)
+        trace(1) {
+          span {
+            // Do I need to check traceId here as well? Not sure how to do that
+            parentId(0 as BigInteger)
+            serviceName "jms"
+            operationName "jms.consume"
+            resourceName "Consumed from $jmsResourceName"
+            spanType DDSpanTypes.MESSAGE_CONSUMER
+            errored false
+
+            tags {
+              "$Tags.COMPONENT" "jms"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+              "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+              defaultTags()
+            }
+          }
+        }
       }
     }
 
