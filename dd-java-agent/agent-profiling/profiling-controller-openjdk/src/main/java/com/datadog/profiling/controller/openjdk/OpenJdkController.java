@@ -80,17 +80,6 @@ public final class OpenJdkController implements Controller {
       }
     }
 
-    if (Boolean.parseBoolean(recordingSettings.get("jdk.ObjectAllocationInNewTLAB#enabled"))
-        || Boolean.parseBoolean(recordingSettings.get("jdk.ObjectAllocationOutsideTLAB#enabled"))) {
-      if (!(isJavaVersionAtLeast(16))) {
-        log.debug(
-            "Inexpensive allocation profiling is not supported for this JDK. "
-                + "Disabling ObjectAllocationInNewTLAB and ObjectAllocationOutsideTLAB JFR events.");
-        recordingSettings.put("jdk.ObjectAllocationInNewTLAB#enabled", "false");
-        recordingSettings.put("jdk.ObjectAllocationOutsideTLAB#enabled", "false");
-      }
-    }
-
     if (Boolean.parseBoolean(recordingSettings.get("jdk.NativeMethodSample#enabled"))) {
       if (!((isJavaVersion(8) && isJavaVersionAtLeast(8, 0, 302)) || isJavaVersionAtLeast(11))) {
         log.debug(
