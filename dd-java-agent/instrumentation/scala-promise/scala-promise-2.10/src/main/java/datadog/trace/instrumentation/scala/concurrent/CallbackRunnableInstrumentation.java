@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.scala.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -76,12 +77,7 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
   public static final class Construct {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <T> void onConstruct(@Advice.This CallbackRunnable<T> task) {
-      final TraceScope scope = activeScope();
-      if (scope != null) {
-        State state = State.FACTORY.create();
-        state.captureAndSetContinuation(scope);
-        InstrumentationContext.get(CallbackRunnable.class, State.class).put(task, state);
-      }
+      capture(InstrumentationContext.get(CallbackRunnable.class, State.class), task, true);
     }
   }
 
@@ -94,7 +90,7 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter TraceScope scope) {
-      AdviceUtils.endTaskScope(scope);
+      endTaskScope(scope);
     }
   }
 
@@ -119,12 +115,7 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
       }
       // If nothing else has been picked up, then try to pick up the current Scope
       if (null == state) {
-        final TraceScope scope = activeScope();
-        if (scope != null) {
-          state = State.FACTORY.create();
-          state.captureAndSetContinuation(scope);
-          contextStore.put(task, state);
-        }
+        capture(contextStore, task, true);
       }
     }
   }
