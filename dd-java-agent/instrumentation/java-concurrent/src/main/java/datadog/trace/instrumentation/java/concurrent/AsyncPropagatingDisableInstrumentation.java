@@ -81,7 +81,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "org.eclipse.jetty.io.SelectorManager",
             "org.jvnet.hk2.internal.ServiceLocatorImpl",
             "com.zaxxer.hikari.pool.HikariPool",
-            "net.sf.ehcache.store.disk.DiskStorageFactory")
+            "net.sf.ehcache.store.disk.DiskStorageFactory",
+            "org.springframework.jms.listener.DefaultMessageListenerContainer")
         .or(RX_WORKERS)
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS);
@@ -148,6 +149,12 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
         advice);
     transformation.applyAdvice(
         named("schedule").and(isDeclaredBy(named("net.sf.ehcache.store.disk.DiskStorageFactory"))),
+        advice);
+    transformation.applyAdvice(
+        named("doRescheduleTask")
+            .and(
+                isDeclaredBy(
+                    named("org.springframework.jms.listener.DefaultMessageListenerContainer"))),
         advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
