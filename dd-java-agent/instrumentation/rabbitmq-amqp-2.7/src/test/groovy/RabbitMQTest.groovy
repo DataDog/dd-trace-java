@@ -8,6 +8,7 @@ import com.rabbitmq.client.GetResponse
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -344,6 +345,86 @@ class RabbitMQTest extends AgentTestRunner {
         rabbitSpan(it, "basic.get $queue.name", true, trace(1)[0])
       }
     }
+  }
+
+  def "test rabbit publish/get with given disabled queue (producer side)"() {
+    setup:
+    String queueName = channel.queueDeclare().getQueue()
+    injectSysConfig(TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES, queueName)
+
+    GetResponse response = runUnderTrace("parent") {
+      channel.exchangeDeclare(exchangeName, "direct", false)
+      //      String queueName = channel.queueDeclare().getQueue()
+      channel.queueBind(queueName, exchangeName, routingKey)
+      channel.basicPublish(exchangeName, routingKey, null, "Hello, world!".getBytes())
+      return channel.basicGet(queueName, true)
+    }
+
+    expect:
+    new String(response.getBody()) == "Hello, world!"
+
+    and:
+    assertTraces(2) {
+      trace(5) {
+        span {
+          operationName "parent"
+          tags {
+            defaultTags()
+          }
+        }
+        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
+        rabbitSpan(it, "queue.bind", false, span(0))
+        rabbitSpan(it, "queue.declare", false, span(0))
+        rabbitSpan(it, "exchange.declare", false, span(0))
+      }
+      trace(1) {
+        rabbitSpan(it, "basic.get <generated>", true, trace(0)[1])
+      }
+    }
+
+    where:
+    exchangeName    | routingKey         | value
+    "some-exchange" | "some-routing-key" | ""
+  }
+
+  def "test rabbit publish/get with given disabled queue (consumer side)"() {
+    setup:
+    String queueName = channel.queueDeclare().getQueue()
+    injectSysConfig(TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES, queueName)
+    injectSysConfig(TraceInstrumentationConfig.RABBIT_PROPAGATION_ENABLED, "false")
+
+    GetResponse response = runUnderTrace("parent") {
+      channel.exchangeDeclare(exchangeName, "direct", false)
+      channel.queueBind(queueName, exchangeName, routingKey)
+      channel.basicPublish(exchangeName, routingKey, null, "Hello, world!".getBytes())
+      return channel.basicGet(queueName, true)
+    }
+
+    expect:
+    new String(response.getBody()) == "Hello, world!"
+
+    and:
+    assertTraces(2) {
+      trace(5) {
+        span {
+          operationName "parent"
+          tags {
+            defaultTags()
+          }
+        }
+        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
+        rabbitSpan(it, "queue.bind", false, span(0))
+        rabbitSpan(it, "queue.declare", false, span(0))
+        rabbitSpan(it, "exchange.declare", false, span(0))
+      }
+      trace(1) {
+        rabbitSpan(it, "basic.get <generated>", true, trace(0)[1])
+      }
+    }
+
+    where:
+    exchangeName    | routingKey
+    "some-exchange" | "some-routing-key"
   }
 
   def rabbitSpan(

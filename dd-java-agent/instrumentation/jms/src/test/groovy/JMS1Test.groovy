@@ -66,7 +66,6 @@ class JMS1Test extends AgentTestRunner {
 
     expect:
     receivedMessage.text == messageText
-
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
       consumerTrace(it, jmsResourceName, trace(0)[0])
@@ -346,7 +345,7 @@ class JMS1Test extends AgentTestRunner {
     session.createTemporaryTopic()   | "Temporary Topic"
   }
 
-  def "sending a message to #jmsResourceName with given topic or queue disabled disables propagation properly on producer side"() {
+  def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on producer side"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS_AND_QUEUES, value)
 
@@ -404,7 +403,7 @@ class JMS1Test extends AgentTestRunner {
 
   }
 
-  def "sending a message to #jmsResourceName with given topic or queue disabled disables propagation properly on consumer side"() {
+  def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on consumer side"() {
     setup:
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS_AND_QUEUES, value)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_ENABLED, "false")
