@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.slick;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
@@ -47,12 +46,7 @@ public final class SlickRunnableInstrumentation extends Instrumenter.Tracing {
   public static final class Construct {
     @Advice.OnMethodExit
     public static void capture(@Advice.This Runnable zis) {
-      TraceScope activeScope = activeScope();
-      if (null != activeScope) {
-        InstrumentationContext.get(Runnable.class, State.class)
-            .putIfAbsent(zis, State.FACTORY)
-            .captureAndSetContinuation(activeScope);
-      }
+      AdviceUtils.capture(InstrumentationContext.get(Runnable.class, State.class), zis, true);
     }
   }
 
