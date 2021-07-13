@@ -22,6 +22,8 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class AppSecApiSpecification extends Specification {
+  private static final HttpUrl EXPECTED_ENDPOINT_URL = HttpUrl.get('http://example.com/appsec/v1/input')
+
   AgentTaskScheduler scheduler = new AgentTaskScheduler(AgentThreadFactory.AgentThread.APPSEC_HTTP_DISPATCHER)
   Monitoring monitoring = Mock()
   HttpUrl url = HttpUrl.get('http://example.com/')
@@ -48,7 +50,7 @@ class AppSecApiSpecification extends Specification {
 
     then:
     1 * okHttpClient.newCall({ Request r ->
-      r.method() == 'POST' && r.url() == HttpUrl.get("http://example.com/appsec") &&
+      r.method() == 'POST' && r.url() == EXPECTED_ENDPOINT_URL &&
         r.body().contentType() == MediaType.get("application/json")
     }) >> {
       savedRequest = it[0]
@@ -79,7 +81,7 @@ class AppSecApiSpecification extends Specification {
 
     then:
     1 * okHttpClient.newCall({ Request r ->
-      r.method() == 'POST' && r.url() == HttpUrl.get("http://example.com/appsec") &&
+      r.method() == 'POST' && r.url() == EXPECTED_ENDPOINT_URL &&
         r.body().contentType() == MediaType.get("application/json")
     }) >> {
       savedRequest = it[0]
@@ -113,7 +115,7 @@ class AppSecApiSpecification extends Specification {
 
     then:
     1 * okHttpClient.newCall({ Request r ->
-      r.method() == 'POST' && r.url() == HttpUrl.get("http://example.com/appsec") &&
+      r.method() == 'POST' && r.url() == EXPECTED_ENDPOINT_URL &&
         r.body().contentType() == MediaType.get("application/json")
     }) >> call
     1 * call.execute() >> {
@@ -143,7 +145,7 @@ class AppSecApiSpecification extends Specification {
       processRequestLatch.countDown()
     }
     5 * okHttpClient.newCall({ Request r ->
-      r.method() == 'POST' && r.url() == HttpUrl.get("http://example.com/appsec") &&
+      r.method() == 'POST' && r.url() == EXPECTED_ENDPOINT_URL &&
         r.body().contentType() == MediaType.get("application/json")
     }) >> {
       processRequestLatch.await(1, TimeUnit.SECONDS)

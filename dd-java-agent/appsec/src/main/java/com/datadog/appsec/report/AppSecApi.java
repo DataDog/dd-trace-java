@@ -41,7 +41,13 @@ public class AppSecApi {
       HttpUrl httpUrl,
       OkHttpClient okHttpClient,
       AgentTaskScheduler taskScheduler) {
-    this.httpUrl = httpUrl.newBuilder().addPathSegment("appsec").build();
+    this.httpUrl =
+        httpUrl
+            .newBuilder()
+            .addPathSegment("appsec")
+            .addPathSegment("v1")
+            .addPathSegment("input")
+            .build();
     this.okHttpClient = okHttpClient;
     this.headers = new HashMap<>();
     this.headers.put(DATADOG_META_APP_SEC_VERSION, AppSecVersion.VERSION);
