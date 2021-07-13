@@ -63,42 +63,6 @@ public class OpenJdkControllerTest {
   }
 
   @Test
-  public void testObjectAllocationIsDisabledOnUnsupportedVersion() throws Exception {
-    OpenJdkController controller = new OpenJdkController(config);
-    try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
-      if (!(isJavaVersionAtLeast(16))) {
-        assertEquals(
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")),
-            false);
-        assertEquals(
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")),
-            false);
-      }
-    }
-  }
-
-  @Test
-  public void testObjectAllocationIsStillOverriddenOnUnsupportedVersion() throws Exception {
-    when(config.getProfilingTemplateOverrideFile())
-        .thenReturn(JfpUtilsTest.OVERRIDES_OBJECT_ALLOCATION);
-    OpenJdkController controller = new OpenJdkController(config);
-    try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
-      if (!(isJavaVersionAtLeast(16))) {
-        assertEquals(
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")),
-            true);
-        assertEquals(
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")),
-            true);
-      }
-    }
-  }
-
-  @Test
   public void testNativeMethodSampleIsDisabledOnUnsupportedVersion() throws Exception {
     OpenJdkController controller = new OpenJdkController(config);
     try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
