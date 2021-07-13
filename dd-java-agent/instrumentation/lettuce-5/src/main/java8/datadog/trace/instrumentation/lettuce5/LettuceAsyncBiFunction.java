@@ -22,10 +22,12 @@ public class LettuceAsyncBiFunction<T extends Object, U extends Throwable, R ext
 
   public LettuceAsyncBiFunction(final AgentSpan span) {
     this.span = span;
+    span.startThreadMigration();
   }
 
   @Override
   public R apply(final T t, final Throwable throwable) {
+    span.finishThreadMigration();
     if (throwable instanceof CancellationException) {
       span.setTag("db.command.cancelled", true);
     } else {
