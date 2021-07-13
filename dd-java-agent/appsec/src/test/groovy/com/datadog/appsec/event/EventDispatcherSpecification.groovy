@@ -19,8 +19,10 @@ class EventDispatcherSpecification extends Specification {
     eventListener1.priority >> OrderedCallback.Priority.DEFAULT
     eventListener2.priority >> OrderedCallback.Priority.HIGH
 
-    dispatcher.subscribeEvent(EventType.REQUEST_END, eventListener1)
-    dispatcher.subscribeEvent(EventType.REQUEST_END, eventListener2)
+    def set = new EventDispatcher.EventSubscriptionSet()
+    set.addSubscription(EventType.REQUEST_END, eventListener1)
+    set.addSubscription(EventType.REQUEST_END, eventListener2)
+    dispatcher.subscribeEvents(set)
 
     when:
     dispatcher.publishEvent(ctx, EventType.REQUEST_END)
@@ -36,6 +38,7 @@ class EventDispatcherSpecification extends Specification {
     Flow savedFlow1, savedFlow2, savedFlow3
 
     given:
+    def set = new EventDispatcher.DataSubscriptionSet()
     DataListener dataListener1 = Mock()
     DataListener dataListener2 = Mock()
     DataListener dataListener3 = Mock()
@@ -43,9 +46,10 @@ class EventDispatcherSpecification extends Specification {
     dataListener2.priority >> OrderedCallback.Priority.HIGH
     dataListener3.priority >> OrderedCallback.Priority.HIGHEST
 
-    dispatcher.subscribeDataAvailable([KnownAddresses.REQUEST_CLIENT_IP], dataListener1)
-    dispatcher.subscribeDataAvailable([KnownAddresses.REQUEST_CLIENT_IP], dataListener2)
-    dispatcher.subscribeDataAvailable([KnownAddresses.REQUEST_METHOD], dataListener3)
+    set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener1)
+    set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener2)
+    set.addSubscription([KnownAddresses.REQUEST_METHOD], dataListener3)
+    dispatcher.subscribeDataAvailable(set)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(ctx,
@@ -81,9 +85,11 @@ class EventDispatcherSpecification extends Specification {
     DataListener listener = Mock()
     listener.priority >> OrderedCallback.Priority.DEFAULT
 
-    dispatcher.subscribeDataAvailable(
+    def set = new EventDispatcher.DataSubscriptionSet()
+    set.addSubscription(
       [KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.HEADERS_NO_COOKIES],
       listener)
+    dispatcher.subscribeDataAvailable(set)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(ctx,
@@ -105,8 +111,10 @@ class EventDispatcherSpecification extends Specification {
       it.priority >> OrderedCallback.Priority.DEFAULT
     }
 
-    dispatcher.subscribeDataAvailable([KnownAddresses.REQUEST_CLIENT_IP], dataListener1)
-    dispatcher.subscribeDataAvailable([KnownAddresses.REQUEST_CLIENT_IP], dataListener2)
+    def set = new EventDispatcher.DataSubscriptionSet()
+    set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener1)
+    set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener2)
+    dispatcher.subscribeDataAvailable(set)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(ctx, KnownAddresses.REQUEST_CLIENT_IP)
@@ -130,7 +138,9 @@ class EventDispatcherSpecification extends Specification {
     DataListener listener = Mock()
     listener.priority >> OrderedCallback.Priority.DEFAULT
 
-    dispatcher.subscribeDataAvailable([KnownAddresses.REQUEST_CLIENT_IP], listener)
+    def set = new EventDispatcher.DataSubscriptionSet()
+    set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], listener)
+    dispatcher.subscribeDataAvailable(set)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(ctx, KnownAddresses.REQUEST_CLIENT_IP)

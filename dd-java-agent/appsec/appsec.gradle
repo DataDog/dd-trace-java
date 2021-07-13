@@ -86,7 +86,7 @@ ext {
     'com.datadog.appsec.gateway.GatewayBridge',
     'com.datadog.appsec.event.data.Address', // assert never fails
   ]
-  excludedClassesInstructionCoverage = []
+  excludedClassesInstructionCoverage = ['com.datadog.appsec.report.ReportServiceImpl.TaskSchedulerImpl',]
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 

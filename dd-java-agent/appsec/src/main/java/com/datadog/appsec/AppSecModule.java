@@ -3,6 +3,7 @@ package com.datadog.appsec;
 import com.datadog.appsec.event.DataListener;
 import com.datadog.appsec.event.EventListener;
 import com.datadog.appsec.event.EventType;
+import com.datadog.appsec.event.OrderedCallback.Priority;
 import com.datadog.appsec.event.data.Address;
 import java.util.Collection;
 

@@ -58,24 +58,28 @@ public class EventDispatcherBenchmark {
       int iUsed = 0, iUnused = 0, iTotal = 0;
       int usedAddressIdx = 0;
 
+      EventDispatcher.DataSubscriptionSet subsSet = new EventDispatcher.DataSubscriptionSet();
       while (iUsed < numUsedSubscribers || iUnused < numUnusedSubscribers) {
         if (iUsed < numUsedSubscribers) {
           iUsed++;
           int i = iTotal++;
           Address<?> usedAddress = usedAddresses[usedAddressIdx++ % usedAddresses.length];
-          doSubscribe(usedAddress, i);
+          doSubscribe(subsSet, usedAddress, i);
         }
         if (iUnused < numUnusedSubscribers) {
           iUnused++;
           int i = iTotal++;
-          doSubscribe(unusedAddress, i);
+          doSubscribe(subsSet, unusedAddress, i);
         }
       }
+
+      dispatcher.subscribeDataAvailable(subsSet);
     }
 
-    private void doSubscribe(Address<?> address, int i) {
+    private void doSubscribe(
+        EventDispatcher.DataSubscriptionSet subsSet, Address<?> address, int i) {
       final OrderedCallback.Priority priority = PRIORITY_VALUES[i % 4];
-      dispatcher.subscribeDataAvailable(
+      subsSet.addSubscription(
           Collections.singletonList(address),
           new DataListener() {
             @Override
