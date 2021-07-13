@@ -22,6 +22,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_AGENTLESS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
@@ -95,6 +96,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_HOST;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
@@ -342,6 +344,7 @@ public class Config {
   private final int traceRateLimit;
 
   private final boolean profilingEnabled;
+  private final boolean profilingAllocationEnabled;
   private final boolean profilingAgentless;
   private final boolean profilingLegacyTracingIntegrationEnabled;
   @Deprecated private final String profilingUrl;
@@ -681,6 +684,9 @@ public class Config {
     traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
+    profilingAllocationEnabled =
+        configProvider.getBoolean(
+            PROFILING_ALLOCATION_ENABLED, DEFAULT_PROFILING_ALLOCATION_ENABLED);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, DEFAULT_PROFILING_AGENTLESS);
     profilingLegacyTracingIntegrationEnabled =
@@ -1102,6 +1108,10 @@ public class Config {
 
   public boolean isProfilingEnabled() {
     return profilingEnabled;
+  }
+
+  public boolean isProfilingAllocationEnabled() {
+    return profilingAllocationEnabled;
   }
 
   public boolean isProfilingAgentless() {
@@ -1866,6 +1876,8 @@ public class Config {
         + traceRateLimit
         + ", profilingEnabled="
         + profilingEnabled
+        + ", profilingAllocationEnabled="
+        + profilingAllocationEnabled
         + ", profilingAgentless="
         + profilingAgentless
         + ", profilingUrl='"
