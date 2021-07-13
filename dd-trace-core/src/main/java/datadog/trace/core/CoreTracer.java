@@ -43,6 +43,7 @@ import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.core.util.ScopeLeakCheckpointer;
 import datadog.trace.util.AgentTaskScheduler;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
@@ -387,6 +388,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         null == idGenerationStrategy
             ? Config.get().getIdGenerationStrategy()
             : idGenerationStrategy;
+
+    if (config.getScopeLeakDetectionFile() != null) {
+      registerCheckpointer(new ScopeLeakCheckpointer(config.getScopeLeakDetectionFile()));
+    }
 
     if (statsDClient != null) {
       this.statsDClient = statsDClient;

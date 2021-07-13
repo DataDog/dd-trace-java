@@ -157,6 +157,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SCOPE_LEAK_DETECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
@@ -420,6 +421,8 @@ public class Config {
   private final boolean internalExitOnFailure;
 
   private final boolean resolverUseLoadClassEnabled;
+
+  private final String scopeLeakDetectionFile;
 
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
@@ -854,6 +857,11 @@ public class Config {
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     resolverUseLoadClassEnabled = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
+
+    boolean scopeLeakDetectionEnabled = configProvider.getBoolean(SCOPE_LEAK_DETECTION, false);
+    scopeLeakDetectionFile =
+        configProvider.getString(
+            SCOPE_LEAK_DETECTION + ".file", scopeLeakDetectionEnabled ? "log" : null);
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
@@ -1336,6 +1344,10 @@ public class Config {
 
   public boolean isResolverUseLoadClassEnabled() {
     return resolverUseLoadClassEnabled;
+  }
+
+  public String getScopeLeakDetectionFile() {
+    return scopeLeakDetectionFile;
   }
 
   public String getJdbcPreparedStatementClassName() {
@@ -2054,6 +2066,8 @@ public class Config {
         + internalExitOnFailure
         + ", resolverUseLoadClassEnabled="
         + resolverUseLoadClassEnabled
+        + ", scopeLeakDetectionFile="
+        + scopeLeakDetectionFile
         + ", jdbcPreparedStatementClassName='"
         + jdbcPreparedStatementClassName
         + '\''
