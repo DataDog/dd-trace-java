@@ -54,4 +54,29 @@ class DefaultReportStrategySpecification extends Specification {
     50.times { testee.shouldFlush(new Attack010(type: 'my type')) == false }
     testee.shouldFlush(new Attack010(type: 'my type')) == true
   }
+
+  void 'if no new attack then the wait time is 1 min'() {
+    setup:
+    jvmTime.nanoTime() >>> [
+      1000_000_000_000L,
+      1000_000_000_000L + 1L,
+      1000_000_000_000L + 60_000_000_000L,
+      1000_000_000_000L + 60_000_000_001L,
+    ]
+
+    expect:
+    testee.shouldFlush(new Attack010(type: 'my type')) == true
+    testee.shouldFlush(new Attack010(type: 'my type')) == false
+    testee.shouldFlush() == false
+    testee.shouldFlush() == true
+  }
+
+  void 'if no new attack no flush unless there is something queued'() {
+    setup:
+    jvmTime.nanoTime() >>> [1000_000_000_000L, 1000_000_000_000L + 60_000_000_001L,]
+
+    expect:
+    testee.shouldFlush(new Attack010(type: 'my type')) == true
+    testee.shouldFlush() == false
+  }
 }

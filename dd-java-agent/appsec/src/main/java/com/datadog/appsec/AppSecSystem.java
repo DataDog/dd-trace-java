@@ -45,7 +45,10 @@ public class AppSecSystem {
         new AgentTaskScheduler(AgentThreadFactory.AgentThread.APPSEC_HTTP_DISPATCHER);
     AppSecApi api = new AppSecApi(sco.monitoring, sco.agentUrl, sco.okHttpClient, taskScheduler);
     ReportService reportService =
-        new ReportServiceImpl(api, new ReportStrategy.Default(JvmTime.Default.INSTANCE));
+        new ReportServiceImpl(
+            api,
+            new ReportStrategy.Default(JvmTime.Default.INSTANCE),
+            ReportServiceImpl.TaskScheduler.of(taskScheduler));
     GatewayBridge gatewayBridge = new GatewayBridge(gw, eventDispatcher, reportService);
     gatewayBridge.init();
 
