@@ -50,7 +50,7 @@ public class AdviceUtils {
   public static <T> void capture(
       ContextStore<T, State> contextStore, T task, boolean startThreadMigration) {
     TraceScope activeScope = activeScope();
-    if (null != activeScope) {
+    if (null != activeScope && activeScope.isAsyncPropagating()) {
       State state = contextStore.get(task);
       if (null == state) {
         state = State.FACTORY.create();
