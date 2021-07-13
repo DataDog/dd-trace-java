@@ -109,10 +109,14 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      if (null == throwable) {
+        // emit checkpoint here to capture serialization activity in KafkaProducer::doSend
+        // between the start event and this event
+        scope.span().startThreadMigration();
+      }
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
-      // span finished by ProducerCallback
     }
   }
 }
