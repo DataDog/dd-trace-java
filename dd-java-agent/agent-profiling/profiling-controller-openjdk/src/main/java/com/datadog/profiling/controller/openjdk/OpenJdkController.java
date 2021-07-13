@@ -112,8 +112,17 @@ public final class OpenJdkController implements Controller {
     // Toggle settings from config
 
     if (config.isProfilingAllocationEnabled()) {
+      if (!Boolean.parseBoolean(recordingSettings.get("jdk.ObjectAllocationInNewTLAB#enabled"))
+          || !Boolean.parseBoolean(
+              recordingSettings.get("jdk.ObjectAllocationOutsideTLAB#enabled"))) {
+        if (isJavaVersionAtLeast(16)) {
+          // It was enabled based on JDK version so disabled by override file
+          log.warn(
+              "The ObjectAllocationInNewTLAB and ObjectAllocationOutsideTLAB JFR events are disabled with the override file but enabled with the config.");
+        }
+      }
       log.debug(
-          "Enabling ObjectAllocationInNewTLAB and ObjectAllocationOutsideTLAB JFR events from the command line or environment variable.");
+          "Enabling ObjectAllocationInNewTLAB and ObjectAllocationOutsideTLAB JFR events with the config.");
       recordingSettings.put("jdk.ObjectAllocationInNewTLAB#enabled", "true");
       recordingSettings.put("jdk.ObjectAllocationOutsideTLAB#enabled", "true");
     }
