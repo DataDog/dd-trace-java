@@ -332,4 +332,13 @@ class DDSpanTest extends DDCoreSpecification {
     span.getTag(DDTags.ERROR_STACK) == null
     span.getTag(DDTags.ERROR_MSG) == "Broken pipe"
   }
+
+  def "null exception safe to add"() {
+    when:
+    def span = tracer.buildSpan("root").start()
+    span.addThrowable(null)
+    then:
+    !span.isError()
+    span.getTag(DDTags.ERROR_STACK) == null
+  }
 }
