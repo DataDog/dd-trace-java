@@ -71,7 +71,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
             "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
             "rx.internal.util.ObjectPool",
-            "io.grpc.internal.ServerImpl$ServerTransportListenerImpl")
+            "io.grpc.internal.ServerImpl$ServerTransportListenerImpl",
+            "okhttp3.ConnectionPool")
         .or(RX_WORKERS)
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS);
@@ -105,6 +106,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
         advice);
     transformation.applyAdvice(
         named("start").and(isDeclaredBy(named("rx.internal.util.ObjectPool"))), advice);
+    transformation.applyAdvice(
+        named("put").and(isDeclaredBy(named("okhttp3.ConnectionPool"))), advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
   }
