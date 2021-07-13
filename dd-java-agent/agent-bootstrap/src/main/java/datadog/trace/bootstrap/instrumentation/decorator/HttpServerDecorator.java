@@ -191,6 +191,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   }
 
   private static void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
+    if (span.getLocalRootSpan() != span) {
+      return;
+    }
     CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
     RequestContext requestContext = span.getRequestContext();
     if (cbp != null && requestContext != null) {
