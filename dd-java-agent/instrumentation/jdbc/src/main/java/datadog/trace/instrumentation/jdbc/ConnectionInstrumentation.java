@@ -55,6 +55,8 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     "org.sqlite.Conn",
     "org.sqlite.jdbc3.JDBC3Connection",
     "org.sqlite.jdbc4.JDBC4Connection",
+    // covers snowflake
+    "net.snowflake.client.jdbc.SnowflakeConnectionV1",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsConnection",
     // for testing purposes

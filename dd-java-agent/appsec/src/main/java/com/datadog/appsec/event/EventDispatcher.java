@@ -1,5 +1,7 @@
 package com.datadog.appsec.event;
 
+import static com.datadog.appsec.event.EventType.NUM_EVENT_TYPES;
+
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
@@ -8,69 +10,130 @@ import datadog.trace.api.gateway.Flow;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class EventDispatcher implements EventProducerService, EventConsumerService {
+public class EventDispatcher implements EventProducerService {
   private static final Logger log = LoggerFactory.getLogger(EventDispatcher.class);
-  private static final int[] EMPTY_INT_ARRAY = new int[0];
+  private static final char[] EMPTY_CHAR_ARRAY = new char[0];
 
-  private final List<List<EventListener>> eventListeners; // index: eventType.serial
+  private List<List<EventListener>> eventListeners; // index: eventType.serial
 
-  private final List<DataListener> dataListenersIdx = new ArrayList<>();
-  private final List<int[]> dataListenerSubs; // index: address.serial
+  private static final int PRIORITY_SHIFT = 14;
+  private static final int INDEX_MASK = 0x3FFF;
+
+  // indexes are the ids we successively attribute to listeners
+  // we support up to 2^14 (~16k) listeners in total
+  private List<DataListener> dataListenersIdx;
+  // index: address.serial; values: ordered array of (listener idx | priority << 14)
+  private List<char[]> dataListenerSubs;
 
   public EventDispatcher() {
     KnownAddresses.HEADERS_NO_COOKIES.getKey(); // force class initialization
 
-    int eventCount = EventType.values().length;
-    eventListeners = new ArrayList<>(eventCount);
-    for (int i = 0; i < eventCount; i++) {
-      eventListeners.add(new ArrayList<>(2));
+    // empty subscriptions
+    eventListeners = new ArrayList<>(NUM_EVENT_TYPES);
+    for (int i = 0; i < NUM_EVENT_TYPES; i++) {
+      eventListeners.add(Collections.emptyList());
     }
 
     final int addressCount = Address.instanceCount();
     dataListenerSubs = new ArrayList<>(addressCount);
     for (int i = 0; i < addressCount; i++) {
-      dataListenerSubs.add(EMPTY_INT_ARRAY);
+      dataListenerSubs.add(EMPTY_CHAR_ARRAY);
     }
   }
 
-  @Override
-  public void subscribeEvent(EventType event, EventListener listener) {
-    List<EventListener> eventListeners = this.eventListeners.get(event.serial);
-    eventListeners.add(listener);
-    eventListeners.sort(OrderedCallback.OrderedCallbackComparator.INSTANCE);
+  public static class EventSubscriptionSet {
+    private final List<List<EventListener>> eventListeners; // index: eventType.serial
+
+    public EventSubscriptionSet() {
+      KnownAddresses.HEADERS_NO_COOKIES.getKey(); // force class initialization
+
+      eventListeners = new ArrayList<>(NUM_EVENT_TYPES);
+      for (int i = 0; i < NUM_EVENT_TYPES; i++) {
+        eventListeners.add(new ArrayList<>(2));
+      }
+    }
+
+    public void addSubscription(EventType event, EventListener listener) {
+      List<EventListener> eventListeners = this.eventListeners.get(event.ordinal());
+      eventListeners.add(listener);
+    }
   }
 
-  @Override
-  public void subscribeDataAvailable(
-      Collection<Address<?>> anyOfTheseAddresses, DataListener dataListener) {
-    dataListenersIdx.add(dataListener);
-    int id = dataListenersIdx.size() - 1;
+  public void subscribeEvents(EventSubscriptionSet subscriptionSet) {
+    for (List<EventListener> eventListener : subscriptionSet.eventListeners) {
+      eventListener.sort(OrderedCallback.CallbackPriorityComparator.INSTANCE);
+    }
+    this.eventListeners = subscriptionSet.eventListeners;
+  }
 
-    for (Address<?> addr : anyOfTheseAddresses) {
-      int serial = addr.getSerial();
-      int[] oldArray = dataListenerSubs.get(serial);
-      List<DataListener> newList = new ArrayList<>(oldArray.length + 1);
-      for (int i = 0; i < oldArray.length; i++) {
-        newList.add(dataListenersIdx.get(i));
+  public static class DataSubscriptionSet {
+    private final Map<DataListener, Integer> indexes = new HashMap<>();
+    // index: addr.serial
+    private final List<List<DataListener>> addrSubs;
+
+    public DataSubscriptionSet() {
+      final int addressCount = Address.instanceCount();
+      addrSubs = new ArrayList<>(addressCount);
+      for (int i = 0; i < addressCount; i++) {
+        addrSubs.add(new ArrayList<>());
       }
-      newList.add(dataListener);
-      newList.sort(OrderedCallback.OrderedCallbackComparator.INSTANCE);
-      int[] newArray = new int[newList.size()];
+    }
+
+    public void addSubscription(
+        Collection<Address<?>> anyOfTheseAddresses, DataListener dataListener) {
+      indexes.put(dataListener, indexes.size());
+
+      for (Address<?> addr : anyOfTheseAddresses) {
+        int serial = addr.getSerial();
+        List<DataListener> dataListeners = addrSubs.get(serial);
+        dataListeners.add(dataListener);
+      }
+    }
+  }
+
+  public void subscribeDataAvailable(DataSubscriptionSet subSet) {
+    // convert index from map listener -> int to
+    // list of the listeners where the index is the int
+    int numListeners = subSet.indexes.size();
+    List<DataListener> newDataListenersIdx = nullFilledList(numListeners);
+    for (Map.Entry<DataListener, Integer> e : subSet.indexes.entrySet()) {
+      newDataListenersIdx.set(e.getValue(), e.getKey());
+    }
+
+    int addressCount = Address.instanceCount();
+    ArrayList<char[]> newDataListenerSubs = new ArrayList<>(addressCount);
+
+    for (int addrSerial = 0; addrSerial < addressCount; addrSerial++) {
+      List<DataListener> listenersList = subSet.addrSubs.get(addrSerial);
+      listenersList.sort(OrderedCallback.CallbackPriorityComparator.INSTANCE);
+
+      // convert list of listeners to char array of their indexes + priority
+      char[] newArray = new char[listenersList.size()];
       for (int i = 0; i < newArray.length; i++) {
-        newArray[i] = dataListenersIdx.indexOf(newList.get(i));
+        DataListener listener = listenersList.get(i);
+        char indexAndPriority =
+            (char)
+                (subSet.indexes.get(listener) | listener.getPriority().ordinal() << PRIORITY_SHIFT);
+        newArray[i] = indexAndPriority;
       }
 
-      dataListenerSubs.set(serial, newArray);
+      newDataListenerSubs.add(newArray);
     }
+
+    dataListenersIdx = newDataListenersIdx;
+    dataListenerSubs = newDataListenerSubs;
   }
 
   @Override
   public void publishEvent(AppSecRequestContext ctx, EventType event) {
-    List<EventListener> eventListeners = this.eventListeners.get(event.serial);
+    List<EventListener> eventListeners = this.eventListeners.get(event.ordinal());
     for (EventListener listener : eventListeners) {
       try {
         listener.onEvent(ctx, event);
@@ -86,19 +149,31 @@ public class EventDispatcher implements EventProducerService, EventConsumerServi
     if (newAddresses.length == 1) {
       // fast path
       Address<?> addr = newAddresses[0];
-      int[] subs = dataListenerSubs.get(addr.getSerial());
-      return new DataSubscriberInfoImpl(subs);
+      char[] idsAndPriorities = dataListenerSubs.get(addr.getSerial());
+      char[] subsIds = new char[idsAndPriorities.length];
+      for (int i = 0; i < idsAndPriorities.length; i++) {
+        subsIds[i] = (char) (idsAndPriorities[i] & INDEX_MASK);
+      }
+      return new DataSubscriberInfoImpl(subsIds);
     } else {
+      // calculate union of listeners
       int numDataListeners = dataListenersIdx.size();
-      BitSet bitSet = new BitSet(numDataListeners);
+      BitSet bitSet = new BitSet(0xFFFF);
       for (Address<?> addr : newAddresses) {
-        int[] subs = dataListenerSubs.get(addr.getSerial());
+        char[] subs = dataListenerSubs.get(addr.getSerial());
         for (int sub : subs) {
           bitSet.set(sub);
         }
       }
-      int[] subs = new int[bitSet.cardinality()];
-      return new DataSubscriberInfoImpl(subs);
+      char[] subsIds = new char[bitSet.cardinality()];
+
+      // Copy bits into the array
+      for (int bit = bitSet.nextSetBit(0), i = 0; bit >= 0; bit = bitSet.nextSetBit(bit + 1)) {
+        // operate on index i here
+        subsIds[i++] = (char) (bit & INDEX_MASK);
+      }
+
+      return new DataSubscriberInfoImpl(subsIds);
     }
   }
 
@@ -107,8 +182,8 @@ public class EventDispatcher implements EventProducerService, EventConsumerServi
       DataSubscriberInfo subscribers,
       AppSecRequestContext ctx,
       DataBundle newData,
-      boolean transyent) {
-    if (!transyent) {
+      boolean isTransient) {
+    if (!isTransient) {
       ctx.addAll(newData);
     }
     ChangeableFlow flow = new ChangeableFlow();
@@ -126,10 +201,18 @@ public class EventDispatcher implements EventProducerService, EventConsumerServi
     return flow;
   }
 
-  private static class DataSubscriberInfoImpl implements DataSubscriberInfo {
-    final int[] listenerIndices;
+  private static <T> List<T> nullFilledList(int numElements) {
+    ArrayList<T> ts = new ArrayList<>(numElements);
+    for (int i = 0; i < numElements; i++) {
+      ts.add(null);
+    }
+    return ts;
+  }
 
-    private DataSubscriberInfoImpl(int[] listenerIndices) {
+  private static class DataSubscriberInfoImpl implements DataSubscriberInfo {
+    final char[] listenerIndices;
+
+    private DataSubscriberInfoImpl(char[] listenerIndices) {
       this.listenerIndices = listenerIndices;
     }
 

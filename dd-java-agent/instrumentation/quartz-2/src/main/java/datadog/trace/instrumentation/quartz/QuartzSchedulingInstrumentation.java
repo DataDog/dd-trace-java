@@ -63,13 +63,11 @@ public final class QuartzSchedulingInstrumentation extends Instrumenter.Tracing 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-      if (throwable != null) {
-        final AgentSpan span = scope.span();
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
       final AgentSpan span = scope.span();
+      if (throwable != null) {
+        DECORATE.onError(span, throwable);
+      }
+      DECORATE.beforeFinish(span);
       span.finish();
       scope.close();
     }

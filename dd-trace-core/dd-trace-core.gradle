@@ -31,17 +31,15 @@ testSets {
 
 dependencies {
   compile project(':dd-trace-api')
+  api project(':communication')
   compile project(':internal-api')
   compile project(':utils:histograms')
   compile project(':utils:container-utils')
   compile project(':utils:socket-utils')
 
-  compile group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"
-
   compile deps.slf4j
-  compile deps.okhttp
+  implementation deps.moshi
 
-  compile group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'
   compile group: 'org.jctools', name: 'jctools-core', version: '3.3.0'
 
   compileOnly group: 'com.github.spotbugs', name: 'spotbugs-annotations', version: '4.2.0'

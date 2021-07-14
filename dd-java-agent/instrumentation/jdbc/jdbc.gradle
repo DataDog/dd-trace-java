@@ -60,7 +60,7 @@ dependencies {
 
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'tomcat-jdbc', version: '+'
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'tomcat-juli', version: '+'
-  latestDepTestImplementation group: 'com.zaxxer', name: 'HikariCP', version: '+'
+  latestDepTestImplementation group: 'com.zaxxer', name: 'HikariCP', version: ',5.0.0)' // 5 requires JDK11
   latestDepTestImplementation group: 'com.mchange', name: 'c3p0', version: '+'
 }
 

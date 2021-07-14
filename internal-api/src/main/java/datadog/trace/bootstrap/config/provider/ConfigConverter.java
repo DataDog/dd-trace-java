@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -74,22 +75,42 @@ final class ConfigConverter {
       return Collections.emptyMap();
     }
     Map<String, String> map = new HashMap<>();
+    loadMap(map, trimmed, settingName);
+    return map;
+  }
+
+  @Nonnull
+  static Map<String, String> parseOrderedMap(final String str, final String settingName) {
+    // If we ever want to have default values besides an empty map, this will need to change.
+    if (str == null) {
+      return Collections.emptyMap();
+    }
+    String trimmed = str.trim();
+    if (trimmed.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    Map<String, String> map = new LinkedHashMap<>();
+    loadMap(map, trimmed, settingName);
+    return map;
+  }
+
+  private static void loadMap(Map<String, String> map, String str, String settingName) {
     boolean badFormat = false;
     int start = 0;
-    int splitter = trimmed.indexOf(':', start);
+    int splitter = str.indexOf(':', start);
     while (splitter != -1 && !badFormat) {
-      int nextSplitter = trimmed.indexOf(':', splitter + 1);
+      int nextSplitter = str.indexOf(':', splitter + 1);
       int end;
       if (nextSplitter == -1) {
-        end = trimmed.length();
-        int trailingDelimiter = trimmed.indexOf(',', splitter + 1);
-        if (trailingDelimiter == trimmed.length() - 1) {
+        end = str.length();
+        int trailingDelimiter = str.indexOf(',', splitter + 1);
+        if (trailingDelimiter == str.length() - 1) {
           end = trailingDelimiter;
         }
       } else {
-        int delimiter = trimmed.indexOf(',', splitter + 1);
+        int delimiter = str.indexOf(',', splitter + 1);
         if (delimiter == -1) {
-          delimiter = trimmed.indexOf(' ', splitter + 1);
+          delimiter = str.indexOf(' ', splitter + 1);
           if (delimiter == -1) {
             badFormat = true;
           }
@@ -100,10 +121,10 @@ final class ConfigConverter {
         end = delimiter;
       }
       if (!badFormat) {
-        String key = trimmed.substring(start, splitter).trim();
+        String key = str.substring(start, splitter).trim();
         badFormat = key.indexOf(',') != -1;
         if (!badFormat) {
-          String value = trimmed.substring(splitter + 1, end).trim();
+          String value = str.substring(splitter + 1, end).trim();
           if (!key.isEmpty() && !value.isEmpty()) {
             map.put(key, value);
           }
@@ -117,9 +138,8 @@ final class ConfigConverter {
           "Invalid config for {}: '{}'. Must match 'key1:value1,key2:value2' or 'key1:value1 key2:value2'.",
           settingName,
           str);
-      return Collections.emptyMap();
+      map.clear();
     }
-    return map;
   }
 
   @Nonnull

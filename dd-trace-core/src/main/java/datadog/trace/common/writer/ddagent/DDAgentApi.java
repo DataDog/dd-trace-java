@@ -1,16 +1,19 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.core.http.OkHttpUtils.prepareRequest;
+import static datadog.communication.http.OkHttpUtils.prepareRequest;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.monitor.Counter;
+import datadog.communication.monitor.Monitoring;
+import datadog.communication.monitor.Recording;
 import datadog.trace.api.IOLogger;
-import datadog.trace.core.monitor.Counter;
-import datadog.trace.core.monitor.Monitoring;
-import datadog.trace.core.monitor.Recording;
+import datadog.trace.core.DDTraceCoreInfo;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,6 +26,7 @@ import org.slf4j.LoggerFactory;
 /** The API pointing to a DD agent */
 public class DDAgentApi {
 
+  public static final String DATADOG_META_TRACER_VERSION = "Datadog-Meta-Tracer-Version";
   private static final Logger log = LoggerFactory.getLogger(DDAgentApi.class);
 
   private static final String DATADOG_CLIENT_COMPUTED_STATS = "Datadog-Client-Computed-Stats";
@@ -36,6 +40,7 @@ public class DDAgentApi {
   private static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
   private final List<DDAgentResponseListener> responseListeners = new ArrayList<>();
+  private final boolean metricsEnabled;
 
   private long totalTraces = 0;
   private long receivedTraces = 0;
@@ -57,7 +62,7 @@ public class DDAgentApi {
   private final DDAgentFeaturesDiscovery featuresDiscovery;
   private final OkHttpClient httpClient;
   private final HttpUrl agentUrl;
-  private final boolean metricsEnabled;
+  private final Map<String, String> headers;
 
   private final IOLogger ioLogger = new IOLogger(log);
 
@@ -73,6 +78,10 @@ public class DDAgentApi {
     this.sendPayloadTimer = monitoring.newTimer("trace.agent.send.time");
     this.agentErrorCounter = monitoring.newCounter("trace.agent.error.counter");
     this.metricsEnabled = metricsEnabled;
+
+    this.headers = new HashMap<>();
+    this.headers.put(DATADOG_CLIENT_COMPUTED_TOP_LEVEL, "true");
+    this.headers.put(DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -97,14 +106,13 @@ public class DDAgentApi {
     HttpUrl tracesUrl = agentUrl.resolve(tracesEndpoint);
     try {
       final Request request =
-          prepareRequest(tracesUrl)
-              .addHeader(DATADOG_CLIENT_COMPUTED_TOP_LEVEL, "true")
-              .addHeader(
-                  DATADOG_CLIENT_COMPUTED_STATS,
-                  metricsEnabled && featuresDiscovery.supportsMetrics() ? "true" : "")
+          prepareRequest(tracesUrl, headers)
               .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
               .addHeader(DATADOG_DROPPED_TRACE_COUNT, Long.toString(payload.droppedTraces()))
               .addHeader(DATADOG_DROPPED_SPAN_COUNT, Long.toString(payload.droppedSpans()))
+              .addHeader(
+                  DATADOG_CLIENT_COMPUTED_STATS,
+                  metricsEnabled && featuresDiscovery.supportsMetrics() ? "true" : "")
               .put(payload.toRequest())
               .build();
       this.totalTraces += payload.traceCount();

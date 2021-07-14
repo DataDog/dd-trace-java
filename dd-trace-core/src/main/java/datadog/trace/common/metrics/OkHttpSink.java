@@ -1,20 +1,23 @@
 package datadog.trace.common.metrics;
 
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
+import static datadog.communication.http.OkHttpUtils.buildHttpClient;
+import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.trace.common.metrics.EventListener.EventType.BAD_PAYLOAD;
 import static datadog.trace.common.metrics.EventListener.EventType.DOWNGRADED;
 import static datadog.trace.common.metrics.EventListener.EventType.ERROR;
 import static datadog.trace.common.metrics.EventListener.EventType.OK;
-import static datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
-import static datadog.trace.core.http.OkHttpUtils.buildHttpClient;
-import static datadog.trace.core.http.OkHttpUtils.msgpackRequestBodyOf;
-import static datadog.trace.core.http.OkHttpUtils.prepareRequest;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.trace.common.writer.ddagent.DDAgentApi;
+import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -29,9 +32,11 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private static final Logger log = LoggerFactory.getLogger(OkHttpSink.class);
 
+  private static final Map<String, String> HEADERS =
+      Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
+
   private final OkHttpClient client;
   private final HttpUrl metricsUrl;
-  private final HttpUrl validationUrl;
   private final List<EventListener> listeners;
   private final SpscArrayQueue<Request> enqueuedRequests = new SpscArrayQueue<>(10);
   private final AtomicLong lastRequestTime = new AtomicLong();
@@ -62,7 +67,6 @@ public final class OkHttpSink implements Sink, EventListener {
       boolean bufferingEnabled) {
     this.client = client;
     this.metricsUrl = HttpUrl.get(agentUrl).resolve(path);
-    this.validationUrl = HttpUrl.get(agentUrl).resolve("info");
     this.listeners = new CopyOnWriteArrayList<>();
     this.asyncThresholdLatency = asyncThresholdLatency;
     this.bufferingEnabled = bufferingEnabled;
@@ -76,7 +80,7 @@ public final class OkHttpSink implements Sink, EventListener {
     // on the main task scheduler as a last resort
     if (!bufferingEnabled || lastRequestTime.get() < asyncThresholdLatency) {
       send(
-          prepareRequest(metricsUrl)
+          prepareRequest(metricsUrl, HEADERS)
               .put(msgpackRequestBodyOf(Collections.singletonList(buffer)))
               .build());
       AgentTaskScheduler.Scheduled<OkHttpSink> future = this.future;
@@ -99,7 +103,7 @@ public final class OkHttpSink implements Sink, EventListener {
   private void sendAsync(int messageCount, ByteBuffer buffer) {
     asyncRequestCounter.getAndIncrement();
     if (!enqueuedRequests.offer(
-        prepareRequest(metricsUrl)
+        prepareRequest(metricsUrl, HEADERS)
             .put(msgpackRequestBodyOf(Collections.singletonList(buffer.duplicate())))
             .build())) {
       log.debug(
@@ -142,22 +146,6 @@ public final class OkHttpSink implements Sink, EventListener {
   @Override
   public void register(EventListener listener) {
     this.listeners.add(listener);
-  }
-
-  @Override
-  public boolean validate() {
-    // TODO rework DDAgentFeaturesDiscovery so it can be used here,
-    // independently of DDAgentWriter
-    // check the /info endpoint exists which means trace agent >= 7.27.0
-    try (final okhttp3.Response response =
-        client.newCall(prepareRequest(validationUrl).build()).execute()) {
-      if (response.code() != 404 && response.code() < 500) {
-        return true;
-      }
-    } catch (Throwable ignore) {
-      log.debug("Error validating metrics endpoint", ignore);
-    }
-    return false;
   }
 
   private void handleFailure(okhttp3.Response response) throws IOException {

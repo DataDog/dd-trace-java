@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.api.WellKnownTags
 import datadog.trace.test.util.DDSpecification
 import org.openjdk.jol.info.GraphLayout
@@ -25,9 +26,12 @@ class FootprintTest extends DDSpecification {
     setup:
     CountDownLatch latch = new CountDownLatch(1)
     ValidatingSink sink = new ValidatingSink(latch)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       new WellKnownTags("runtimeid","hostname", "env", "service", "version"),
       [].toSet() as Set<String>,
+      features,
       sink,
       1000,
       1000,
@@ -122,11 +126,6 @@ class FootprintTest extends DDSpecification {
 
     @Override
     void register(EventListener listener) {
-    }
-
-    @Override
-    boolean validate() {
-      return true
     }
 
     @Override

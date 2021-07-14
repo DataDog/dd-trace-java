@@ -4,7 +4,7 @@ import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker
 import datadog.trace.core.CoreTracer
@@ -12,7 +12,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.monitor.Monitoring
+import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Subject
 
@@ -24,7 +24,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
   def api = Mock(DDAgentApi)
   def monitor = Mock(HealthMetrics)
   def worker = Mock(TraceProcessingWorker)
-  def monitoring = new Monitoring(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
+  def monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
 
   @Subject
   def writer = new DDAgentWriter(discovery, api, monitor, monitoring, worker)

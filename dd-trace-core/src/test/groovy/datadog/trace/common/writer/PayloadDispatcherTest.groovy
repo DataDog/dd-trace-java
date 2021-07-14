@@ -4,7 +4,7 @@ import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.core.CoreTracer
@@ -12,7 +12,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.trace.core.monitor.Monitoring
+import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 import spock.lang.Timeout
@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class PayloadDispatcherTest extends DDSpecification {
 
   @Shared
-  Monitoring monitoring = new Monitoring(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
+  MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
 
   @Timeout(5)
   def "flush automatically when data limit is breached"() {

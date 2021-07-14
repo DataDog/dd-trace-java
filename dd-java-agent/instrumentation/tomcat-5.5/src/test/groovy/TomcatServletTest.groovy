@@ -17,7 +17,12 @@ import javax.servlet.ServletException
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.api.Checkpointer.CPU
+import static datadog.trace.api.Checkpointer.END
+import static datadog.trace.api.Checkpointer.SPAN
+import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 import static org.junit.Assume.assumeTrue
 
 @Unroll
@@ -194,6 +199,23 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
         }
       }
     }
+
+    where:
+    method = "GET"
+    body = null
+  }
+
+  def "test checkpoint emission"() {
+    when:
+    def request = request(SUCCESS, method, body).build()
+    client.newCall(request).execute()
+    TEST_WRITER.waitForTraces(1)
+    then: "2 synchronous spans"
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    0 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    0 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    0 * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
 
     where:
     method = "GET"

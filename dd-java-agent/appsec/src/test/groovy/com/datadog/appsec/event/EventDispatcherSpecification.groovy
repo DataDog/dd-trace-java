@@ -16,11 +16,13 @@ class EventDispatcherSpecification extends Specification {
     given:
     EventListener eventListener1 = Mock()
     EventListener eventListener2 = Mock()
-    eventListener1.priority >> 0
-    eventListener2.priority >> -1
+    eventListener1.priority >> OrderedCallback.Priority.DEFAULT
+    eventListener2.priority >> OrderedCallback.Priority.HIGH
 
-    dispatcher.subscribeEvent(EventType.REQUEST_END, eventListener1)
-    dispatcher.subscribeEvent(EventType.REQUEST_END, eventListener2)
+    def set = new EventDispatcher.EventSubscriptionSet()
+    set.addSubscription(EventType.REQUEST_END, eventListener1)
+    set.addSubscription(EventType.REQUEST_END, eventListener2)
+    dispatcher.subscribeEvents(set)
 
     when:
     dispatcher.publishEvent(ctx, EventType.REQUEST_END)
@@ -33,30 +35,44 @@ class EventDispatcherSpecification extends Specification {
   }
 
   void 'notifies about data in order with the same flow'() {
-    Flow savedFlow1, savedFlow2
+    Flow savedFlow1, savedFlow2, savedFlow3
 
     given:
+    def set = new EventDispatcher.DataSubscriptionSet()
     DataListener dataListener1 = Mock()
     DataListener dataListener2 = Mock()
-    dataListener1.priority >> 0
-    dataListener2.priority >> -1
+    DataListener dataListener3 = Mock()
+    dataListener1.priority >> OrderedCallback.Priority.DEFAULT
+    dataListener2.priority >> OrderedCallback.Priority.HIGH
+    dataListener3.priority >> OrderedCallback.Priority.HIGHEST
 
-    dispatcher.subscribeDataAvailable([KnownAddresses.REQUEST_CLIENT_IP], dataListener1)
-    dispatcher.subscribeDataAvailable([KnownAddresses.REQUEST_CLIENT_IP], dataListener2)
+    set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener1)
+    set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener2)
+    set.addSubscription([KnownAddresses.REQUEST_METHOD], dataListener3)
+    dispatcher.subscribeDataAvailable(set)
 
     when:
-    def subscribers = dispatcher.getDataSubscribers(ctx, KnownAddresses.REQUEST_CLIENT_IP)
-    DataBundle db = MapDataBundle.of(KnownAddresses.REQUEST_CLIENT_IP, '::1')
+    def subscribers = dispatcher.getDataSubscribers(ctx,
+      KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.REQUEST_METHOD)
+    DataBundle db = MapDataBundle.of(
+      KnownAddresses.REQUEST_CLIENT_IP, '::1',
+      KnownAddresses.REQUEST_METHOD, 'GET')
     dispatcher.publishDataEvent(subscribers, ctx, db, true)
+
+    then:
+    1 * dataListener3.onDataAvailable(
+      _ as Flow, ctx,
+      { it.hasAddress(KnownAddresses.REQUEST_CLIENT_IP) }) >> { savedFlow3 = it[0] }
 
     then:
     1 * dataListener2.onDataAvailable(
       _ as Flow, ctx,
-      { it.hasAddress(KnownAddresses.REQUEST_CLIENT_IP)}) >> { savedFlow2 = it.first }
+      { it.hasAddress(KnownAddresses.REQUEST_CLIENT_IP) }) >> { savedFlow2 = it[0] }
+    savedFlow2.is(savedFlow3)
 
     then:
     1 * dataListener1.onDataAvailable(_ as Flow, ctx,
-      _ as DataBundle) >> { savedFlow1 = it.first }
+      _ as DataBundle) >> { savedFlow1 = it[0] }
     savedFlow1.is(savedFlow2)
   }
 
@@ -67,10 +83,13 @@ class EventDispatcherSpecification extends Specification {
 
     given:
     DataListener listener = Mock()
+    listener.priority >> OrderedCallback.Priority.DEFAULT
 
-    dispatcher.subscribeDataAvailable(
+    def set = new EventDispatcher.DataSubscriptionSet()
+    set.addSubscription(
       [KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.HEADERS_NO_COOKIES],
       listener)
+    dispatcher.subscribeDataAvailable(set)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(ctx,
@@ -88,9 +107,14 @@ class EventDispatcherSpecification extends Specification {
     given:
     DataListener dataListener1 = Mock()
     DataListener dataListener2 = Mock()
+    [dataListener1, dataListener2].each {
+      it.priority >> OrderedCallback.Priority.DEFAULT
+    }
 
-    dispatcher.subscribeDataAvailable([KnownAddresses.REQUEST_CLIENT_IP], dataListener1)
-    dispatcher.subscribeDataAvailable([KnownAddresses.REQUEST_CLIENT_IP], dataListener2)
+    def set = new EventDispatcher.DataSubscriptionSet()
+    set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener1)
+    set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener2)
+    dispatcher.subscribeDataAvailable(set)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(ctx, KnownAddresses.REQUEST_CLIENT_IP)
@@ -112,8 +136,11 @@ class EventDispatcherSpecification extends Specification {
 
     given:
     DataListener listener = Mock()
+    listener.priority >> OrderedCallback.Priority.DEFAULT
 
-    dispatcher.subscribeDataAvailable([KnownAddresses.REQUEST_CLIENT_IP], listener)
+    def set = new EventDispatcher.DataSubscriptionSet()
+    set.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], listener)
+    dispatcher.subscribeDataAvailable(set)
 
     when:
     def subscribers = dispatcher.getDataSubscribers(ctx, KnownAddresses.REQUEST_CLIENT_IP)

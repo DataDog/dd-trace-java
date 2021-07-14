@@ -11,7 +11,9 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
@@ -24,6 +26,7 @@ import datadog.trace.context.TraceScope;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -55,8 +58,20 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    // TODO should target some particular implementations to prevent this from happening all
-    //  the way up the constructor chain (even though the advice applied is cheap)
+    // instrument any FutureTask or TrustedListenableFutureTask constructor,
+    // but only instrument the PromiseTask constructor with a Callable argument
+    transformation.applyAdvice(
+        isConstructor()
+            .and(
+                isDeclaredBy(
+                        named("java.util.concurrent.FutureTask")
+                            .or(
+                                nameEndsWith(
+                                    "com.google.common.util.concurrent.TrustedListenableFutureTask")))
+                    .or(
+                        isDeclaredBy(nameEndsWith(".netty.util.concurrent.PromiseTask"))
+                            .and(takesArgument(1, named(Callable.class.getName()))))),
+        getClass().getName() + "$Construct");
     transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
     transformation.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
     transformation.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");

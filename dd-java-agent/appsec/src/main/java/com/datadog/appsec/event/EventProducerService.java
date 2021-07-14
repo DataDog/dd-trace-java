@@ -22,9 +22,6 @@ public interface EventProducerService {
    * <p>The return value is to be passed to {@link #publishDataEvent(DataSubscriberInfo,
    * AppSecRequestContext, DataBundle, boolean)}.
    *
-   * <p>This method does not throw. If one of the callbacks throws, the exception is caught and the
-   * processing continues.
-   *
    * @param ctx the request context
    * @param newAddresses the addresses contained in the {@link DataBundle} that is to be passed to
    *     <code>publishDataEvent()</code>.

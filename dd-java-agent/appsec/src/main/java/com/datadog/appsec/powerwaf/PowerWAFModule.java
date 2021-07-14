@@ -3,7 +3,6 @@ package com.datadog.appsec.powerwaf;
 import com.datadog.appsec.AppSecModule;
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.event.ChangeableFlow;
-import com.datadog.appsec.event.OrderedCallback;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
@@ -119,7 +118,7 @@ public class PowerWAFModule implements AppSecModule {
 
   private class PowerWAFDataCallback extends DataSubscription {
     public PowerWAFDataCallback() {
-      super(ADDRESSES_OF_INTEREST, OrderedCallback.DEFAULT_PRIORITY);
+      super(ADDRESSES_OF_INTEREST, Priority.DEFAULT);
     }
 
     @Override

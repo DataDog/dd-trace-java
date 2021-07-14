@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -58,9 +59,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
   protected void decorate(ConsumerRecord<?, ?> val) {
     try {
+      final AgentSpan span;
       if (val != null) {
-        final Context spanContext = propagate().extract(val.headers(), GETTER);
-        final AgentSpan span = startSpan(operationName, spanContext);
+        if (!Config.get().getKafkaClientPropagationDisabledTopics().contains(val.topic())) {
+          final Context spanContext = propagate().extract(val.headers(), GETTER);
+          span = startSpan(operationName, spanContext);
+        } else {
+          span = startSpan(operationName, null);
+        }
         if (val.value() == null) {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
         }

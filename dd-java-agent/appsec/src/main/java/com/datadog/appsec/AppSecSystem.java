@@ -36,20 +36,28 @@ public class AppSecSystem {
   }
 
   private static void loadModules(EventDispatcher eventDispatcher) {
+    EventDispatcher.EventSubscriptionSet eventSubscriptionSet =
+        new EventDispatcher.EventSubscriptionSet();
+    EventDispatcher.DataSubscriptionSet dataSubscriptionSet =
+        new EventDispatcher.DataSubscriptionSet();
+
     ServiceLoader<AppSecModule> modules =
         ServiceLoader.load(AppSecModule.class, AppSecSystem.class.getClassLoader());
     for (AppSecModule module : modules) {
       log.info("Starting appsec module {}", module.getName());
       for (AppSecModule.EventSubscription sub : module.getEventSubscriptions()) {
-        eventDispatcher.subscribeEvent(sub.eventType, sub);
+        eventSubscriptionSet.addSubscription(sub.eventType, sub);
       }
 
       for (AppSecModule.DataSubscription sub : module.getDataSubscriptions()) {
-        eventDispatcher.subscribeDataAvailable(sub.getSubscribedAddresses(), sub);
+        dataSubscriptionSet.addSubscription(sub.getSubscribedAddresses(), sub);
       }
 
       STARTED_MODULE_NAMES.add(module.getName());
     }
+
+    eventDispatcher.subscribeEvents(eventSubscriptionSet);
+    eventDispatcher.subscribeDataAvailable(dataSubscriptionSet);
   }
 
   public static boolean isStarted() {

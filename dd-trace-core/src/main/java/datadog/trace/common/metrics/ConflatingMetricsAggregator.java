@@ -9,6 +9,7 @@ import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
@@ -46,14 +47,15 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final Aggregator aggregator;
   private final long reportingInterval;
   private final TimeUnit reportingIntervalTimeUnit;
+  private final DDAgentFeaturesDiscovery features;
 
-  private volatile boolean enabled = true;
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
-  public ConflatingMetricsAggregator(Config config) {
+  public ConflatingMetricsAggregator(Config config, DDAgentFeaturesDiscovery features) {
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
+        features,
         new OkHttpSink(
             config.getAgentUrl(),
             config.getAgentTimeout(),
@@ -65,15 +67,17 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
+      DDAgentFeaturesDiscovery features,
       Sink sink,
       int maxAggregates,
       int queueSize) {
-    this(wellKnownTags, ignoredResources, sink, maxAggregates, queueSize, 10, SECONDS);
+    this(wellKnownTags, ignoredResources, features, sink, maxAggregates, queueSize, 10, SECONDS);
   }
 
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
+      DDAgentFeaturesDiscovery features,
       Sink sink,
       int maxAggregates,
       int queueSize,
@@ -81,6 +85,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       TimeUnit timeUnit) {
     this(
         ignoredResources,
+        features,
         sink,
         new SerializingMetricWriter(wellKnownTags, sink),
         maxAggregates,
@@ -91,6 +96,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   ConflatingMetricsAggregator(
       Set<String> ignoredResources,
+      DDAgentFeaturesDiscovery features,
       Sink sink,
       MetricWriter metricWriter,
       int maxAggregates,
@@ -102,6 +108,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.batchPool = new SpmcArrayQueue<>(maxAggregates);
     this.pending = new NonBlockingHashMap<>(maxAggregates * 4 / 3);
     this.keys = new NonBlockingHashMap<>();
+    this.features = features;
     this.sink = sink;
     this.aggregator =
         new Aggregator(
@@ -120,7 +127,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public void start() {
-    if (sink.validate()) {
+    features.discover();
+    if (features.supportsMetrics()) {
       sink.register(this);
       thread.start();
       cancellation =
@@ -130,8 +138,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
               reportingInterval,
               reportingInterval,
               reportingIntervalTimeUnit);
+      log.debug("started metrics aggregator");
     } else {
-      enabled = false;
+      log.debug("metrics not supported by trace agent");
     }
   }
 
@@ -143,13 +152,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       published = inbox.offer(REPORT);
       ++attempts;
     } while (!published && attempts < 10);
+    if (!published) {
+      log.debug("Skipped metrics reporting because the queue is full");
+    }
     return published;
   }
 
   @Override
   public boolean publish(List<? extends CoreSpan<?>> trace) {
     boolean forceKeep = false;
-    if (enabled) {
+    if (features.supportsMetrics()) {
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (isTopLevel || span.isMeasured()) {
@@ -248,16 +260,18 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private void disable() {
-    this.enabled = false;
-    AgentTaskScheduler.Scheduled<?> cancellation = this.cancellation;
-    if (null != cancellation) {
-      cancellation.cancel();
+    features.discover();
+    if (!features.supportsMetrics()) {
+      AgentTaskScheduler.Scheduled<?> cancellation = this.cancellation;
+      if (null != cancellation) {
+        cancellation.cancel();
+      }
+      this.thread.interrupt();
+      this.pending.clear();
+      this.batchPool.clear();
+      this.inbox.clear();
+      this.aggregator.clearAggregates();
     }
-    this.thread.interrupt();
-    this.pending.clear();
-    this.batchPool.clear();
-    this.inbox.clear();
-    this.aggregator.clearAggregates();
   }
 
   private static final class ReportTask

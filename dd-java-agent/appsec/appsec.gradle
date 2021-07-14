@@ -50,6 +50,9 @@ jmh {
   jvmArgsAppend = ['-Ddd.appsec.enabled=true -Xms64m -Xmx64m']
   failOnError = false
   forceGC = true
+  if (project.hasProperty('jmhIncludes')) {
+    includes = [project.jmhIncludes]
+  }
 }
 
 task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
@@ -79,8 +82,11 @@ ext {
   minimumInstructionCoverage = 0.8
   excludedClassesCoverage = ['com.datadog.appsec.powerwaf.LibSqreenInitialization' // can't cover error conditions
   ]
-  excludedClassesBranchCoverage = ['com.datadog.appsec.gateway.GatewayBridge']
-  excludedClassesInstructionCoverage = []
+  excludedClassesBranchCoverage = [
+    'com.datadog.appsec.gateway.GatewayBridge',
+    'com.datadog.appsec.event.data.Address', // assert never fails
+  ]
+  excludedClassesInstructionCoverage = ['com.datadog.appsec.report.ReportServiceImpl.TaskSchedulerImpl',]
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
