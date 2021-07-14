@@ -23,13 +23,11 @@ public class EventDispatcher implements EventProducerService {
 
   private List<List<EventListener>> eventListeners; // index: eventType.serial
 
-  private static final int PRIORITY_SHIFT = 14;
-  private static final int INDEX_MASK = 0x3FFF;
-
   // indexes are the ids we successively attribute to listeners
-  // we support up to 2^14 (~16k) listeners in total
+  // we support up to 2^16 listeners in total
+  // The listeners are ordered by priority (from highest to lowest)
   private List<DataListener> dataListenersIdx;
-  // index: address.serial; values: ordered array of (listener idx | priority << 14)
+  // index: address.serial; values: ordered array of listener idx
   private List<char[]> dataListenerSubs;
 
   public EventDispatcher() {
@@ -99,12 +97,13 @@ public class EventDispatcher implements EventProducerService {
   }
 
   public void subscribeDataAvailable(DataSubscriptionSet subSet) {
-    // convert index from map listener -> int to
-    // list of the listeners where the index is the int
     int numListeners = subSet.indexes.size();
-    List<DataListener> newDataListenersIdx = nullFilledList(numListeners);
-    for (Map.Entry<DataListener, Integer> e : subSet.indexes.entrySet()) {
-      newDataListenersIdx.set(e.getValue(), e.getKey());
+    List<DataListener> newDataListenersIdx = new ArrayList<>(subSet.indexes.keySet());
+    newDataListenersIdx.sort(OrderedCallback.CallbackPriorityComparator.INSTANCE);
+
+    for (int i = 0; i < numListeners; i++) {
+      DataListener listener = newDataListenersIdx.get(i);
+      subSet.indexes.put(listener, i); // update index on subSet argument directly
     }
 
     int addressCount = Address.instanceCount();
@@ -118,10 +117,7 @@ public class EventDispatcher implements EventProducerService {
       char[] newArray = new char[listenersList.size()];
       for (int i = 0; i < newArray.length; i++) {
         DataListener listener = listenersList.get(i);
-        char indexAndPriority =
-            (char)
-                (subSet.indexes.get(listener) | listener.getPriority().ordinal() << PRIORITY_SHIFT);
-        newArray[i] = indexAndPriority;
+        newArray[i] = (char) subSet.indexes.get(listener).intValue();
       }
 
       newDataListenerSubs.add(newArray);
@@ -149,16 +145,12 @@ public class EventDispatcher implements EventProducerService {
     if (newAddresses.length == 1) {
       // fast path
       Address<?> addr = newAddresses[0];
-      char[] idsAndPriorities = dataListenerSubs.get(addr.getSerial());
-      char[] subsIds = new char[idsAndPriorities.length];
-      for (int i = 0; i < idsAndPriorities.length; i++) {
-        subsIds[i] = (char) (idsAndPriorities[i] & INDEX_MASK);
-      }
-      return new DataSubscriberInfoImpl(subsIds);
+      char[] ids = dataListenerSubs.get(addr.getSerial());
+      return new DataSubscriberInfoImpl(ids);
     } else {
       // calculate union of listeners
       int numDataListeners = dataListenersIdx.size();
-      BitSet bitSet = new BitSet(0xFFFF);
+      BitSet bitSet = new BitSet(numDataListeners);
       for (Address<?> addr : newAddresses) {
         char[] subs = dataListenerSubs.get(addr.getSerial());
         for (int sub : subs) {
@@ -170,7 +162,7 @@ public class EventDispatcher implements EventProducerService {
       // Copy bits into the array
       for (int bit = bitSet.nextSetBit(0), i = 0; bit >= 0; bit = bitSet.nextSetBit(bit + 1)) {
         // operate on index i here
-        subsIds[i++] = (char) (bit & INDEX_MASK);
+        subsIds[i++] = (char) bit;
       }
 
       return new DataSubscriberInfoImpl(subsIds);
