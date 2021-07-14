@@ -5,10 +5,12 @@ import com.rabbitmq.client.Consumer
 import com.rabbitmq.client.DefaultConsumer
 import com.rabbitmq.client.Envelope
 import com.rabbitmq.client.GetResponse
+import com.rabbitmq.client.MessageProperties
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -26,6 +28,11 @@ import java.time.Duration
 import java.util.concurrent.Phaser
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
+import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.AMQP_COMMAND
+import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.PRODUCER_DECORATE
+import static datadog.trace.instrumentation.rabbitmq.amqp.TextMapInjectAdapter.SETTER
 
 // Do not run tests locally on Java7 since testcontainers are not compatible with Java7
 // It is fine to run on CI because CI provides rabbitmq externally, not through testcontainers
@@ -354,7 +361,6 @@ class RabbitMQTest extends AgentTestRunner {
 
     GetResponse response = runUnderTrace("parent") {
       channel.exchangeDeclare(exchangeName, "direct", false)
-      //      String queueName = channel.queueDeclare().getQueue()
       channel.queueBind(queueName, exchangeName, routingKey)
       channel.basicPublish(exchangeName, routingKey, null, "Hello, world!".getBytes())
       return channel.basicGet(queueName, true)
@@ -364,8 +370,11 @@ class RabbitMQTest extends AgentTestRunner {
     new String(response.getBody()) == "Hello, world!"
 
     and:
-    assertTraces(2) {
-      trace(5) {
+    assertTraces(3) {
+      trace(1) {
+        rabbitSpan(it, "queue.declare", true, trace(0)[1])
+      }
+      trace(4) {
         span {
           operationName "parent"
           tags {
@@ -374,11 +383,10 @@ class RabbitMQTest extends AgentTestRunner {
         }
         rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
         rabbitSpan(it, "queue.bind", false, span(0))
-        rabbitSpan(it, "queue.declare", false, span(0))
         rabbitSpan(it, "exchange.declare", false, span(0))
       }
       trace(1) {
-        rabbitSpan(it, "basic.get <generated>", true, trace(0)[1])
+        rabbitSpan(it, "basic.get <generated>", true, trace(1)[1])
       }
     }
 
@@ -393,6 +401,15 @@ class RabbitMQTest extends AgentTestRunner {
     injectSysConfig(TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES, queueName)
     injectSysConfig(TraceInstrumentationConfig.RABBIT_PROPAGATION_ENABLED, "false")
 
+    final AgentSpan span1 = startSpan(AMQP_COMMAND)
+    PRODUCER_DECORATE.afterStart(span1) // Overwrite tags set by generic decorator.
+    PRODUCER_DECORATE.onPublish(span1, exchangeName, routingKey)
+    AMQP.BasicProperties props = MessageProperties.MINIMAL_BASIC
+    Map<String, Object> headers = props.getHeaders()
+    headers = (headers == null) ? new HashMap<String, Object>() : new HashMap<>(headers)
+    propagate().inject(span1, headers, SETTER)
+    span1.finish()
+
     GetResponse response = runUnderTrace("parent") {
       channel.exchangeDeclare(exchangeName, "direct", false)
       channel.queueBind(queueName, exchangeName, routingKey)
@@ -404,21 +421,15 @@ class RabbitMQTest extends AgentTestRunner {
     new String(response.getBody()) == "Hello, world!"
 
     and:
-    assertTraces(2) {
-      trace(5) {
-        span {
-          operationName "parent"
-          tags {
-            defaultTags()
-          }
-        }
-        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
-        rabbitSpan(it, "queue.bind", false, span(0))
-        rabbitSpan(it, "queue.declare", false, span(0))
-        rabbitSpan(it, "exchange.declare", false, span(0))
+    assertTraces(3) {
+      trace(1) {
+        rabbitSpan(it, "queue.declare", true, trace(0)[1])
       }
       trace(1) {
-        rabbitSpan(it, "basic.get <generated>", true, trace(0)[1])
+        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, trace(0)[0])
+      }
+      trace(1) {
+        rabbitSpan(it, "basic.get <generated>", true, trace(0)[0])
       }
     }
 
