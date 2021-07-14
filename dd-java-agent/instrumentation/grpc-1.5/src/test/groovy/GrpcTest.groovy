@@ -55,7 +55,9 @@ class GrpcTest extends AgentTestRunner {
           }
         }
       }
-    Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter).executor(executor).build().start()
+    def builder = InProcessServerBuilder.forName(getClass().name).addService(greeter).executor(executor)
+    (0..extraBuildCalls).each {builder.build()}
+    Server server = builder.build().start()
 
     ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
     GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(channel)
@@ -145,13 +147,19 @@ class GrpcTest extends AgentTestRunner {
     }
 
     where:
-    name              | executor                            | contexts
-    "some name"       | MoreExecutors.directExecutor()      | 1
-    "some other name" | MoreExecutors.directExecutor()      | 1
-    "some name"       | newWorkStealingPool()               | 3
-    "some other name" | newWorkStealingPool()               | 3
-    "some name"       | Executors.newSingleThreadExecutor() | 3
-    "some other name" | Executors.newSingleThreadExecutor() | 3
+    name              | executor                            | contexts | extraBuildCalls
+    "some name"       | MoreExecutors.directExecutor()      | 1        | 0
+    "some other name" | MoreExecutors.directExecutor()      | 1        | 0
+    "some name"       | newWorkStealingPool()               | 3        | 0
+    "some other name" | newWorkStealingPool()               | 3        | 0
+    "some name"       | Executors.newSingleThreadExecutor() | 3        | 0
+    "some other name" | Executors.newSingleThreadExecutor() | 3        | 0
+    "some name"       | MoreExecutors.directExecutor()      | 1        | 1
+    "some other name" | MoreExecutors.directExecutor()      | 1        | 1
+    "some name"       | newWorkStealingPool()               | 3        | 1
+    "some other name" | newWorkStealingPool()               | 3        | 1
+    "some name"       | Executors.newSingleThreadExecutor() | 3        | 1
+    "some other name" | Executors.newSingleThreadExecutor() | 3        | 1
   }
 
   def "test error - #name"() {
