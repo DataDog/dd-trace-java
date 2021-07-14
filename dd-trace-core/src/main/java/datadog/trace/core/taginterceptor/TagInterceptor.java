@@ -169,7 +169,9 @@ public class TagInterceptor {
     }
     String contextName = String.valueOf(value).trim();
     if (!contextName.isEmpty()) {
-      if (contextName.charAt(0) == '/') {
+      if (contextName.equals("/")) {
+        span.setServiceName(Config.get().getRootContextServiceName());
+      } else if (contextName.charAt(0) == '/') {
         if (contextName.length() > 1) {
           span.setServiceName(contextName.substring(1));
         }
