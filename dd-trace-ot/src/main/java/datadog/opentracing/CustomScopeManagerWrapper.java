@@ -95,6 +95,14 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
     }
 
     @Override
+    public boolean checkpointed() {
+      if (delegate instanceof AgentScope) {
+        return ((AgentScope) delegate).checkpointed();
+      }
+      return false;
+    }
+
+    @Override
     public boolean isAsyncPropagating() {
       return traceScope && ((TraceScope) delegate).isAsyncPropagating();
     }

@@ -289,6 +289,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
       isAsyncPropagating = value;
     }
 
+    @Override
+    public boolean checkpointed() {
+      return null != continuation && continuation.migrated;
+    }
+
     /**
      * The continuation returned must be closed or activated or the trace will not finish.
      *
