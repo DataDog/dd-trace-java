@@ -63,7 +63,7 @@ public class TomcatDecorator extends HttpServerDecorator<Request, Request, Respo
       String servletPath = request.getServletPath();
 
       if (null == contextPath || contextPath.isEmpty()) {
-        contextPath = "/root";
+        contextPath = Config.get().getRootContextServiceName();
       }
       span.setTag("servlet.context", contextPath);
       if (null != servletPath && !servletPath.isEmpty()) {
