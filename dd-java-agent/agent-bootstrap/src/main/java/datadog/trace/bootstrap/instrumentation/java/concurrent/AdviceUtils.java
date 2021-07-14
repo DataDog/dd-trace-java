@@ -33,7 +33,10 @@ public class AdviceUtils {
 
   public static void endTaskScope(final TraceScope scope) {
     if (scope instanceof AgentScope) {
-      ((AgentScope) scope).span().finishWork();
+      AgentScope agentScope = (AgentScope) scope;
+      if (agentScope.checkpointed()) {
+        agentScope.span().finishWork();
+      }
     }
     if (scope != null) {
       scope.close();

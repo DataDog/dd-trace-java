@@ -537,6 +537,11 @@ public class AgentTracer {
     public void setAsyncPropagation(final boolean value) {}
 
     @Override
+    public boolean checkpointed() {
+      return false;
+    }
+
+    @Override
     public AgentScope.Continuation capture() {
       return NoopContinuation.INSTANCE;
     }
