@@ -50,6 +50,6 @@ dependencies {
   latestDepTestImplementation group: 'org.hsqldb', name: 'hsqldb', version: '2.5+'
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'tomcat-jdbc', version: '+'
   latestDepTestImplementation group: 'org.apache.tomcat', name: 'tomcat-juli', version: '+'
-  latestDepTestImplementation group: 'com.zaxxer', name: 'HikariCP', version: '+'
+  latestDepTestImplementation group: 'com.zaxxer', name: 'HikariCP', version: '4.+' // 5+ requires Java 11
   latestDepTestImplementation group: 'com.mchange', name: 'c3p0', version: '+'
 }
