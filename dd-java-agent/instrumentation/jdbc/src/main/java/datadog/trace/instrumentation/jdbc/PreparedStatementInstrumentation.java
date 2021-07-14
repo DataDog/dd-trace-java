@@ -89,6 +89,8 @@ public final class PreparedStatementInstrumentation
     "org.sqlite.jdbc3.JDBC3PreparedStatement",
     "org.sqlite.jdbc4.JDBC4PreparedStatement",
     "org.sqlite.PrepStmt",
+    // covers snowflake
+    "net.snowflake.client.jdbc.SnowflakePreparedStatementV1",
     // jtds (for SQL Server and Sybase)
     "net.sourceforge.jtds.jdbc.JtdsPreparedStatement",
     "net.sourceforge.jtds.jdbc.JtdsCallableStatement",

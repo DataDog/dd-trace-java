@@ -13,7 +13,6 @@ import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
-import datadog.trace.api.normalize.PathNormalizer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
@@ -46,6 +45,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RA
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR
+import static datadog.trace.api.http.UrlBasedResourceNameCalculator.SIMPLE_PATH_NORMALIZER
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
@@ -87,7 +87,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
     def encoded = !hasDecodedResource()
     def path = encoded ? endpoint.resolve(address).rawPath : endpoint.resolve(address).path
-    return "$method ${PathNormalizer.normalize(path, encoded)}"
+    return "$method ${SIMPLE_PATH_NORMALIZER.normalize(path, encoded)}"
   }
 
   String expectedUrl(ServerEndpoint endpoint, URI address) {

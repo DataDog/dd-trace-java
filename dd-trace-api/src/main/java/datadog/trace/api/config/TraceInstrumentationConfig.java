@@ -41,6 +41,8 @@ public final class TraceInstrumentationConfig {
   public static final String LOGS_MDC_TAGS_INJECTION_ENABLED = "logs.mdc.tags.injection";
 
   public static final String KAFKA_CLIENT_PROPAGATION_ENABLED = "kafka.client.propagation.enabled";
+  public static final String KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS =
+      "kafka.client.propagation.disabled.topics";
   public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
       "kafka.client.base64.decoding.enabled";
 

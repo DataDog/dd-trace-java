@@ -51,6 +51,8 @@ include ':dd-java-agent:agent-profiling:profiling-controller-oracle'
 include ':dd-java-agent:agent-profiling:profiling-testing'
 include ':dd-java-agent:agent-profiling:profiling-uploader'
 
+include ':communication'
+
 include ':dd-java-agent:appsec'
 include ':dd-java-agent:appsec:weblog:weblog-common'
 include ':dd-java-agent:appsec:weblog:weblog-spring-app'

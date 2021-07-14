@@ -1,8 +1,8 @@
 package datadog.trace.agent
 
 
-import datadog.trace.core.DDTraceCoreInfo
 import datadog.trace.api.DDTraceApiInfo
+import datadog.trace.core.DDTraceCoreInfo
 import spock.lang.Specification
 
 class DDInfoTest extends Specification {

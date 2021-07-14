@@ -9,7 +9,7 @@ class BitriseInfo extends CIProviderInfo {
   public static final String BITRISE = "BITRISE_BUILD_SLUG";
   public static final String BITRISE_PROVIDER_NAME = "bitrise";
   public static final String BITRISE_PIPELINE_ID = "BITRISE_BUILD_SLUG";
-  public static final String BITRISE_PIPELINE_NAME = "BITRISE_APP_TITLE";
+  public static final String BITRISE_PIPELINE_NAME = "BITRISE_TRIGGERED_WORKFLOW_ID";
   public static final String BITRISE_PIPELINE_NUMBER = "BITRISE_BUILD_NUMBER";
   public static final String BITRISE_PIPELINE_URL = "BITRISE_BUILD_URL";
   public static final String BITRISE_WORKSPACE_PATH = "BITRISE_SOURCE_DIR";

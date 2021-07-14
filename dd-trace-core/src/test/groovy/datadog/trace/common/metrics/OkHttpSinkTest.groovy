@@ -21,37 +21,12 @@ import static datadog.trace.common.metrics.EventListener.EventType.BAD_PAYLOAD
 import static datadog.trace.common.metrics.EventListener.EventType.DOWNGRADED
 import static datadog.trace.common.metrics.EventListener.EventType.ERROR
 import static datadog.trace.common.metrics.EventListener.EventType.OK
-import static datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT
 
 @Requires({
   isJavaVersionAtLeast(8)
 })
 class OkHttpSinkTest extends DDSpecification {
-
-  def "validate responds to status code"() {
-    setup:
-    String agentUrl = "http://localhost:8126"
-    String path = V6_METRICS_ENDPOINT
-    OkHttpClient client = Mock(OkHttpClient)
-    OkHttpSink sink = new OkHttpSink(client, agentUrl, path, true)
-
-    when:
-    boolean validated = sink.validate()
-
-    then:
-    1 * client.newCall(_) >> { Request request -> respond(request, responseCode) }
-    validated == expected
-
-    where:
-    responseCode | expected
-    404          | false
-    500          | false
-    0            | false
-    400          | true
-    200          | true
-    201          | true
-  }
-
 
   def "http status code #responseCode yields #eventType"() {
     setup:

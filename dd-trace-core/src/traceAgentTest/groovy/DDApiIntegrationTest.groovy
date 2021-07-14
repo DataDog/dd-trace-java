@@ -1,7 +1,11 @@
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.http.OkHttpUtils
+import datadog.communication.serialization.ByteBufferConsumer
+import datadog.communication.serialization.FlushingBuffer
+import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.api.StatsDClient
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.trace.common.writer.ddagent.DDAgentFeaturesDiscovery
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
 import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.TraceMapper
@@ -9,11 +13,7 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
-import datadog.trace.core.http.OkHttpUtils
-import datadog.trace.core.monitor.Monitoring
-import datadog.trace.core.serialization.ByteBufferConsumer
-import datadog.trace.core.serialization.FlushingBuffer
-import datadog.trace.core.serialization.msgpack.MsgPackWriter
+import datadog.trace.core.monitor.MonitoringImpl
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -118,7 +118,7 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
   def beforeTest(boolean enableV05) {
-    Monitoring monitoring = new Monitoring(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
+    MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
     HttpUrl agentUrl = HttpUrl.get(String.format("http://%s:%d", agentContainerHost, agentContainerPort))
     OkHttpClient httpClient = OkHttpUtils.buildHttpClient(agentUrl, 5000)
     discovery = new DDAgentFeaturesDiscovery(httpClient, monitoring, agentUrl, enableV05, true)

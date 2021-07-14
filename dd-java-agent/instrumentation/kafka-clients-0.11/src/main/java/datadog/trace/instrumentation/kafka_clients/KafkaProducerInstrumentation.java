@@ -84,7 +84,8 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
       // headers attempt to read messages that were produced by clients > 0.11 and the magic
       // value of the broker(s) is >= 2
       if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2
-          && Config.get().isKafkaClientPropagationEnabled()) {
+          && Config.get().isKafkaClientPropagationEnabled()
+          && !Config.get().getKafkaClientPropagationDisabledTopics().contains(record.topic())) {
         try {
           propagate().inject(span, record.headers(), SETTER);
         } catch (final IllegalStateException e) {
@@ -108,10 +109,14 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      if (null == throwable) {
+        // emit checkpoint here to capture serialization activity in KafkaProducer::doSend
+        // between the start event and this event
+        scope.span().startThreadMigration();
+      }
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
-      // span finished by ProducerCallback
     }
   }
 }

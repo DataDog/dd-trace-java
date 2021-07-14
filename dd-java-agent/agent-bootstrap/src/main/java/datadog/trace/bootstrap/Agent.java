@@ -22,10 +22,10 @@ import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
-import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URL;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
@@ -151,12 +151,12 @@ public class Agent {
       int jmxStartDelay = getJmxStartDelay();
       if (appUsingCustomJMXBuilder) {
         log.debug("Custom JMX builder detected. Delaying JMXFetch initialization.");
-        registerMBeanServerBuilderCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay, true));
+        registerMBeanServerBuilderCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay));
         // one minute fail-safe in case nothing touches JMX and and callback isn't triggered
         scheduleJmxStart(bootstrapURL, 60 + jmxStartDelay);
       } else if (appUsingCustomLogManager) {
         log.debug("Custom logger detected. Delaying JMXFetch initialization.");
-        registerLogManagerCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay, false));
+        registerLogManagerCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay));
       } else {
         scheduleJmxStart(bootstrapURL, jmxStartDelay);
       }
@@ -167,12 +167,13 @@ public class Agent {
      * events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different
      * logging facility.
      */
+    InstallDatadogTracerCallback installDatadogTracerCallback =
+        new InstallDatadogTracerCallback(bootstrapURL);
     if (isJavaBefore9WithJFR() && appUsingCustomLogManager) {
       log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
-      registerLogManagerCallback(new InstallDatadogTracerCallback(bootstrapURL));
+      registerLogManagerCallback(installDatadogTracerCallback);
     } else {
-      installDatadogTracer();
-      maybeStartAppSec();
+      installDatadogTracerCallback.execute();
     }
 
     /*
@@ -267,13 +268,10 @@ public class Agent {
 
   protected static class StartJmxCallback extends ClassLoadCallBack {
     private final int jmxStartDelay;
-    private final boolean customJmxBuilder;
 
-    StartJmxCallback(
-        final URL bootstrapURL, final int jmxStartDelay, final boolean customJmxBuilder) {
+    StartJmxCallback(final URL bootstrapURL, final int jmxStartDelay) {
       super(bootstrapURL);
       this.jmxStartDelay = jmxStartDelay;
-      this.customJmxBuilder = customJmxBuilder;
     }
 
     @Override
@@ -283,14 +281,7 @@ public class Agent {
 
     @Override
     public void execute() {
-      if (customJmxBuilder) {
-        try {
-          // finish building platform JMX from context of custom builder before starting JMXFetch
-          ManagementFactory.getPlatformMBeanServer();
-        } catch (Throwable e) {
-          log.error("Error loading custom MBeanServerBuilder", e);
-        }
-      }
+      // still honour the requested delay from the point JMX becomes available
       scheduleJmxStart(bootstrapURL, jmxStartDelay);
     }
   }
@@ -307,8 +298,23 @@ public class Agent {
 
     @Override
     public void execute() {
-      installDatadogTracer();
-      maybeStartAppSec();
+      Object sco;
+      Class<?> scoClass;
+      try {
+        scoClass =
+            SHARED_CLASSLOADER.loadClass(
+                "datadog.communication.ddagent.SharedCommunicationObjects");
+        sco = scoClass.getConstructor().newInstance();
+      } catch (ClassNotFoundException
+          | NoSuchMethodException
+          | InstantiationException
+          | IllegalAccessException
+          | InvocationTargetException e) {
+        throw new UndeclaredThrowableException(e);
+      }
+
+      installDatadogTracer(scoClass, sco);
+      maybeStartAppSec(scoClass, sco);
     }
   }
 
@@ -370,7 +376,7 @@ public class Agent {
     }
   }
 
-  private static synchronized void installDatadogTracer() {
+  private static synchronized void installDatadogTracer(Class<?> scoClass, Object sco) {
     if (AGENT_CLASSLOADER == null) {
       throw new IllegalStateException("Datadog agent should have been started already");
     }
@@ -380,8 +386,9 @@ public class Agent {
       // install global tracer
       final Class<?> tracerInstallerClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.TracerInstaller");
-      final Method tracerInstallerMethod = tracerInstallerClass.getMethod("installGlobalTracer");
-      tracerInstallerMethod.invoke(null);
+      final Method tracerInstallerMethod =
+          tracerInstallerClass.getMethod("installGlobalTracer", scoClass);
+      tracerInstallerMethod.invoke(null, sco);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
     }
@@ -485,28 +492,28 @@ public class Agent {
 
   private static StatsDClientManager statsDClientManager() throws Exception {
     final Class<?> statsdClientManagerClass =
-        AGENT_CLASSLOADER.loadClass("datadog.trace.core.monitor.DDAgentStatsDClientManager");
+        SHARED_CLASSLOADER.loadClass("datadog.communication.monitor.DDAgentStatsDClientManager");
     final Method statsDClientManagerMethod =
         statsdClientManagerClass.getMethod("statsDClientManager");
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
   }
 
-  private static void maybeStartAppSec() {
+  private static void maybeStartAppSec(Class<?> scoClass, Object o) {
     if (APPSEC_CLASSLOADER == null) {
       return;
     }
 
     InstrumentationGateway gw = AgentTracer.get().instrumentationGateway();
-    startAppSec(gw);
+    startAppSec(gw, scoClass, o);
   }
 
-  private static void startAppSec(InstrumentationGateway gw) {
+  private static void startAppSec(InstrumentationGateway gw, Class<?> scoClass, Object sco) {
     try {
       final Class<?> appSecSysClass =
           APPSEC_CLASSLOADER.loadClass("com.datadog.appsec.AppSecSystem");
       final Method appSecInstallerMethod =
-          appSecSysClass.getMethod("start", SubscriptionService.class);
-      appSecInstallerMethod.invoke(null, gw);
+          appSecSysClass.getMethod("start", SubscriptionService.class, scoClass);
+      appSecInstallerMethod.invoke(null, gw, sco);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting the AppSec Agent", ex);
     }

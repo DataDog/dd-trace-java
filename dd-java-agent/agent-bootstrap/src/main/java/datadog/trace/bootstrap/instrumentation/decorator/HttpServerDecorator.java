@@ -1,15 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.Functions.PATH_BASED_RESOURCE_NAME;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
-import static datadog.trace.api.normalize.PathNormalizer.normalize;
+import static datadog.trace.api.http.UrlBasedResourceNameCalculator.RESOURCE_NAME_CALCULATOR;
 import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.Pair;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Events;
@@ -43,8 +39,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
           && Config.get().isRuleEnabled("Status404Decorator");
   private static final boolean SHOULD_SET_URL_RESOURCE_NAME =
       Config.get().isRuleEnabled("URLAsResourceNameRule");
-  private static final DDCache<Pair<String, String>, UTF8BytesString> RESOURCE_NAMES =
-      DDCaches.newFixedSizeCache(512);
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
 
@@ -121,9 +115,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
           onRequestForInstrumentationGateway(span, url);
           // TODO is this ever false?
           if (SHOULD_SET_URL_RESOURCE_NAME && !span.hasResourceName()) {
-            span.setResourceName(
-                RESOURCE_NAMES.computeIfAbsent(
-                    Pair.of(method, normalize(path, encoded)), PATH_BASED_RESOURCE_NAME));
+            span.setResourceName(RESOURCE_NAME_CALCULATOR.calculate(method, path, encoded));
           }
         } else if (SHOULD_SET_URL_RESOURCE_NAME && !span.hasResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);

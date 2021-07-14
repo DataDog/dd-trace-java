@@ -35,6 +35,8 @@ public final class TracerConfig {
   public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
   public static final String HEADER_TAGS = "trace.header.tags";
+  public static final String TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING =
+      "trace.http.server.path-resource-name-mapping";
   public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
   public static final String HTTP_CLIENT_ERROR_STATUSES = "http.client.error.statuses";
 

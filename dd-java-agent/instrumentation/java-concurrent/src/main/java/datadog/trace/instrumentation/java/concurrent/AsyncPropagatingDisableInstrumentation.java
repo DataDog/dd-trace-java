@@ -1,20 +1,21 @@
 package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static net.bytebuddy.matcher.ElementMatchers.declaresField;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
+import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
-import java.util.Set;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
@@ -25,74 +26,108 @@ import net.bytebuddy.matcher.ElementMatchers;
  * during this period.
  */
 @AutoService(Instrumenter.class)
-public final class AsyncPropagatingDisableInstrumentation implements Instrumenter {
+public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.Tracing {
+
+  public AsyncPropagatingDisableInstrumentation() {
+    super("java_concurrent");
+  }
+
+  private static final ElementMatcher<TypeDescription> RX_WORKERS =
+      nameStartsWith("rx.").and(extendsClass(named("rx.Scheduler$Worker")));
+  private static final ElementMatcher<TypeDescription> NETTY_UNSAFE =
+      namedOneOf(
+          "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
+          "io.grpc.netty.shaded.io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
+          "io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
+          "io.grpc.netty.shaded.io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
+          "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
+          "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe");
+  private static final ElementMatcher<TypeDescription> GRPC_MANAGED_CHANNEL =
+      nameEndsWith("io.grpc.internal.ManagedChannelImpl");
+  private static final ElementMatcher<TypeDescription> REACTOR_DISABLED_TYPE_INITIALIZERS =
+      namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask")
+          .and(
+              declaresField(
+                  ElementMatchers.named("FINISHED")
+                      .and(ElementMatchers.<FieldDescription>isStatic())))
+          .and(
+              declaresField(
+                  ElementMatchers.named("CANCELLED")
+                      .and(ElementMatchers.<FieldDescription>isStatic())));
 
   @Override
-  public AgentBuilder instrument(AgentBuilder agentBuilder) {
-    return new DisableAsyncInstrumentation(
-            NameMatchers.<TypeDescription>nameStartsWith("rx.")
-                .and(extendsClass(named("rx.Scheduler$Worker"))),
-            named("schedulePeriodically"))
-        .instrument(
-            new DisableAsyncInstrumentation(
-                    named("rx.internal.operators.OperatorTimeoutBase"), named("call"))
-                .instrument(agentBuilder));
+  public ElementMatcher<? super TypeDescription> typeMatcher() {
+    // all set matchers are denormalised into this set to reduce the amount of matching
+    // required to rule a type out
+    return NameMatchers.<TypeDescription>namedOneOf(
+            "rx.internal.operators.OperatorTimeoutBase",
+            "com.amazonaws.http.timers.request.HttpRequestTimer",
+            "io.netty.handler.timeout.WriteTimeoutHandler",
+            "java.util.concurrent.ScheduledThreadPoolExecutor",
+            "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
+            "io.grpc.netty.shaded.io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
+            "io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
+            "io.grpc.netty.shaded.io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
+            "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
+            "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
+            "rx.internal.util.ObjectPool",
+            "io.grpc.internal.ServerImpl$ServerTransportListenerImpl",
+            "okhttp3.ConnectionPool")
+        .or(RX_WORKERS)
+        .or(GRPC_MANAGED_CHANNEL)
+        .or(REACTOR_DISABLED_TYPE_INITIALIZERS);
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    // don't care
-    return true;
-  }
-
-  // Not Using AutoService to hook up this instrumentation
-  public static class DisableAsyncInstrumentation extends Tracing {
-
-    private final ElementMatcher<? super TypeDescription> typeMatcher;
-    private final ElementMatcher<? super MethodDescription> methodMatcher;
-
-    /** No-arg constructor only used by muzzle and tests. */
-    public DisableAsyncInstrumentation() {
-      this(ElementMatchers.<TypeDescription>none(), ElementMatchers.<MethodDescription>none());
-    }
-
-    public DisableAsyncInstrumentation(
-        final ElementMatcher<? super TypeDescription> typeMatcher,
-        final ElementMatcher<? super MethodDescription> methodMatcher) {
-      super(AbstractExecutorInstrumentation.EXEC_NAME);
-      this.typeMatcher = typeMatcher;
-      this.methodMatcher = methodMatcher;
-    }
-
-    @Override
-    public ElementMatcher<? super TypeDescription> typeMatcher() {
-      return typeMatcher;
-    }
-
-    @Override
-    public void adviceTransformations(AdviceTransformation transformation) {
-      transformation.applyAdvice(
-          methodMatcher,
-          AsyncPropagatingDisableInstrumentation.class.getName() + "$DisableAsyncAdvice");
-    }
+  public void adviceTransformations(AdviceTransformation transformation) {
+    String advice = getClass().getName() + "$DisableAsyncAdvice";
+    transformation.applyAdvice(named("schedulePeriodically").and(isDeclaredBy(RX_WORKERS)), advice);
+    transformation.applyAdvice(
+        named("call").and(isDeclaredBy(named("rx.internal.operators.OperatorTimeoutBase"))),
+        advice);
+    transformation.applyAdvice(named("connect").and(isDeclaredBy(NETTY_UNSAFE)), advice);
+    transformation.applyAdvice(
+        named("init")
+            .and(isDeclaredBy(named("io.grpc.internal.ServerImpl$ServerTransportListenerImpl"))),
+        advice);
+    transformation.applyAdvice(
+        named("startTimer")
+            .and(isDeclaredBy(named("com.amazonaws.http.timers.request.HttpRequestTimer"))),
+        advice);
+    transformation.applyAdvice(
+        named("scheduleTimeout")
+            .and(isDeclaredBy(named("io.netty.handler.timeout.WriteTimeoutHandler"))),
+        advice);
+    transformation.applyAdvice(
+        named("rescheduleIdleTimer").and(isDeclaredBy(GRPC_MANAGED_CHANNEL)), advice);
+    transformation.applyAdvice(
+        namedOneOf("scheduleAtFixedRate", "scheduleWithFixedDelay")
+            .and(isDeclaredBy(named("java.util.concurrent.ScheduledThreadPoolExecutor"))),
+        advice);
+    transformation.applyAdvice(
+        named("start").and(isDeclaredBy(named("rx.internal.util.ObjectPool"))), advice);
+    transformation.applyAdvice(
+        named("put").and(isDeclaredBy(named("okhttp3.ConnectionPool"))), advice);
+    transformation.applyAdvice(
+        isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
   }
 
   public static class DisableAsyncAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter() {
-      final TraceScope scope = activeScope();
-      if (scope != null && scope.isAsyncPropagating()) {
-        return activateSpan(noopSpan());
+    @Advice.OnMethodEnter
+    public static TraceScope before() {
+      TraceScope scope = activeScope();
+      if (null != scope && scope.isAsyncPropagating()) {
+        scope.setAsyncPropagation(false);
+        return scope;
       }
       return null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void exit(@Advice.Enter final AgentScope scope) {
-      if (scope != null) {
-        scope.close();
-        // Don't need to finish noop span.
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void after(@Advice.Enter TraceScope scope) {
+      if (null != scope) {
+        scope.setAsyncPropagation(true);
       }
     }
   }

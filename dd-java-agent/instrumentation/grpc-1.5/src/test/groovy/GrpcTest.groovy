@@ -1,3 +1,4 @@
+import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDSpanTypes
@@ -18,10 +19,15 @@ import io.grpc.stub.StreamObserver
 
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.Checkpointer.CPU
+import static datadog.trace.api.Checkpointer.END
+import static datadog.trace.api.Checkpointer.SPAN
+import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 
 class GrpcTest extends AgentTestRunner {
 
@@ -49,7 +55,7 @@ class GrpcTest extends AgentTestRunner {
           }
         }
       }
-    Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter).directExecutor().build().start()
+    Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter).executor(executor).build().start()
 
     ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
     GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(channel)
@@ -59,6 +65,8 @@ class GrpcTest extends AgentTestRunner {
       def resp = client.sayHello(Helloworld.Request.newBuilder().setName(name).build())
       return resp
     }
+    // wait here to make checkpoint asserts deterministic
+    TEST_WRITER.waitForTraces(2)
 
     then:
     response.message == "Hello $name"
@@ -121,13 +129,29 @@ class GrpcTest extends AgentTestRunner {
         }
       }
     }
+    5 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    5 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    contexts * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    contexts * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    contexts * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
+    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    0 * TEST_CHECKPOINTER._
 
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
     server?.shutdownNow()?.awaitTermination()
+    if (executor instanceof ExecutorService) {
+      (executor as ExecutorService).shutdownNow()
+    }
 
     where:
-    name << ["some name", "some other name"]
+    name              | executor                            | contexts
+    "some name"       | MoreExecutors.directExecutor()      | 1
+    "some other name" | MoreExecutors.directExecutor()      | 1
+    "some name"       | newWorkStealingPool()               | 3
+    "some other name" | newWorkStealingPool()               | 3
+    "some name"       | Executors.newSingleThreadExecutor() | 3
+    "some other name" | Executors.newSingleThreadExecutor() | 3
   }
 
   def "test error - #name"() {
@@ -147,6 +171,8 @@ class GrpcTest extends AgentTestRunner {
 
     when:
     client.sayHello(Helloworld.Request.newBuilder().setName(name).build())
+    // wait here to make checkpoint asserts deterministic
+    TEST_WRITER.waitForTraces(2)
 
     then:
     thrown StatusRuntimeException
@@ -202,6 +228,11 @@ class GrpcTest extends AgentTestRunner {
       }
     }
 
+    3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    0 * TEST_CHECKPOINTER._
+
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
     server?.shutdownNow()?.awaitTermination()
@@ -233,6 +264,8 @@ class GrpcTest extends AgentTestRunner {
 
     when:
     client.sayHello(Helloworld.Request.newBuilder().setName(name).build())
+    // wait here to make checkpoint asserts deterministic
+    TEST_WRITER.waitForTraces(2)
 
     then:
     thrown StatusRuntimeException
@@ -282,6 +315,11 @@ class GrpcTest extends AgentTestRunner {
         }
       }
     }
+
+    3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    0 * TEST_CHECKPOINTER._
 
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
@@ -381,5 +419,14 @@ class GrpcTest extends AgentTestRunner {
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
     server?.shutdownNow()?.awaitTermination()
+  }
+
+
+  def newWorkStealingPool() {
+    // Executors.newWorkStealingPool() not available in JDK7
+    return new ForkJoinPool
+      (Runtime.getRuntime().availableProcessors(),
+      ForkJoinPool.defaultForkJoinWorkerThreadFactory,
+      null, true)
   }
 }

@@ -2,14 +2,14 @@ package datadog.trace.common.writer.ddagent;
 
 import java.util.concurrent.CountDownLatch;
 
-final class FlushEvent {
+public final class FlushEvent {
   private final CountDownLatch latch;
 
-  FlushEvent(CountDownLatch latch) {
+  public FlushEvent(CountDownLatch latch) {
     this.latch = latch;
   }
 
-  void sync() {
+  public void sync() {
     latch.countDown();
   }
 }
