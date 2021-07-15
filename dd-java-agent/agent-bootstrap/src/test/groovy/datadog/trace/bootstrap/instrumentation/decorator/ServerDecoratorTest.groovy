@@ -34,7 +34,7 @@ class ServerDecoratorTest extends BaseDecoratorTest {
     newDecorator().beforeFinish(span)
 
     then:
-    1 * span.requestContext
+    (0..1) * span.localRootSpan
   }
 
   @Override
