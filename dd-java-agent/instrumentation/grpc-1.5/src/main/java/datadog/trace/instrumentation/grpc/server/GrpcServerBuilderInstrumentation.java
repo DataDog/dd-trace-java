@@ -71,25 +71,21 @@ public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing {
   public static class BuildAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean onEnter(@Advice.This ServerBuilder<?> serverBuilder) {
-      ContextStore<ServerBuilder, Boolean> interceptedStore =
-          InstrumentationContext.get(ServerBuilder.class, Boolean.class);
-      if (interceptedStore.get(serverBuilder) == null) {
-        int callDepth = incrementCallDepth(ServerBuilder.class);
-        if (callDepth == 0) {
+    public static void onEnter(@Advice.This ServerBuilder<?> serverBuilder) {
+      int callDepth = incrementCallDepth(ServerBuilder.class);
+      if (callDepth == 0) {
+        ContextStore<ServerBuilder, Boolean> interceptedStore =
+            InstrumentationContext.get(ServerBuilder.class, Boolean.class);
+        if (interceptedStore.get(serverBuilder) == null) {
           interceptedStore.put(serverBuilder, Boolean.TRUE);
           serverBuilder.intercept(TracingServerInterceptor.INSTANCE);
         }
-        return true;
       }
-      return false;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(@Advice.Enter boolean decrement) {
-      if (decrement) {
-        CallDepthThreadLocalMap.decrementCallDepth(ServerBuilder.class);
-      }
+    public static void onExit() {
+      CallDepthThreadLocalMap.decrementCallDepth(ServerBuilder.class);
     }
   }
 }
