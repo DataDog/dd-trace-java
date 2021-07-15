@@ -22,7 +22,7 @@ public final class ConfigDefaults {
   public static final String DEFAULT_DOGSTATSD_SOCKET_PATH = "/var/run/datadog/dsd.socket";
   public static final int DEFAULT_AGENT_TIMEOUT = 10; // timeout in seconds
   public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
-  public static final String DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME = "/root-servlet";
+  public static final String DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME = "root-servlet";
 
   static final String DEFAULT_SITE = "datadoghq.com";
 
