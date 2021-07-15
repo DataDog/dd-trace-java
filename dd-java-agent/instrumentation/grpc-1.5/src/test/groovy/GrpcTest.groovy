@@ -133,9 +133,9 @@ class GrpcTest extends AgentTestRunner {
     }
     5 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
     5 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
-    contexts * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    contexts * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    contexts * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
+    (minContexts..contexts) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    (minContexts..contexts) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    (minContexts..contexts) * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
 
@@ -147,19 +147,19 @@ class GrpcTest extends AgentTestRunner {
     }
 
     where:
-    name              | executor                            | contexts | extraBuildCalls
-    "some name"       | MoreExecutors.directExecutor()      | 1        | 0
-    "some other name" | MoreExecutors.directExecutor()      | 1        | 0
-    "some name"       | newWorkStealingPool()               | 3        | 0
-    "some other name" | newWorkStealingPool()               | 3        | 0
-    "some name"       | Executors.newSingleThreadExecutor() | 3        | 0
-    "some other name" | Executors.newSingleThreadExecutor() | 3        | 0
-    "some name"       | MoreExecutors.directExecutor()      | 1        | 1
-    "some other name" | MoreExecutors.directExecutor()      | 1        | 1
-    "some name"       | newWorkStealingPool()               | 3        | 1
-    "some other name" | newWorkStealingPool()               | 3        | 1
-    "some name"       | Executors.newSingleThreadExecutor() | 3        | 1
-    "some other name" | Executors.newSingleThreadExecutor() | 3        | 1
+    name              | executor                            | contexts | extraBuildCalls | minContexts
+    "some name"       | MoreExecutors.directExecutor()      | 1        | 0               | 1
+    "some other name" | MoreExecutors.directExecutor()      | 1        | 0               | 1
+    "some name"       | newWorkStealingPool()               | 3        | 0               | 1
+    "some other name" | newWorkStealingPool()               | 3        | 0               | 1
+    "some name"       | Executors.newSingleThreadExecutor() | 3        | 0               | 3
+    "some other name" | Executors.newSingleThreadExecutor() | 3        | 0               | 3
+    "some name"       | MoreExecutors.directExecutor()      | 1        | 1               | 1
+    "some other name" | MoreExecutors.directExecutor()      | 1        | 1               | 1
+    "some name"       | newWorkStealingPool()               | 3        | 1               | 1
+    "some other name" | newWorkStealingPool()               | 3        | 1               | 1
+    "some name"       | Executors.newSingleThreadExecutor() | 3        | 1               | 3
+    "some other name" | Executors.newSingleThreadExecutor() | 3        | 1               | 3
   }
 
   def "test error - #name"() {
