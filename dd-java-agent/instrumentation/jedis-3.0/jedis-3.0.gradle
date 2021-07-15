@@ -3,6 +3,7 @@ muzzle {
     group = "redis.clients"
     module = "jedis"
     versions = "[,3.0.0)"
+    skipVersions += "jedis-3.6.2" // bad release version ("jedis-" prefix)
   }
 
   pass {
