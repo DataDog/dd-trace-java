@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.elasticsearch7_3;
+package datadog.trace.instrumentation.elasticsearch;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -28,7 +28,7 @@ import org.elasticsearch.action.support.ThreadedActionListener;
 public final class ThreadedActionListenerInstrumentation extends Instrumenter.Tracing {
 
   public ThreadedActionListenerInstrumentation() {
-    super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-7");
+    super("elasticsearch", "elasticsearch-transport");
   }
 
   @Override
