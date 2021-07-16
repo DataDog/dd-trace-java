@@ -74,6 +74,12 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
             log.info("Disabling built-in allocation profiling events");
             recording.disable("jdk.ObjectAllocationOutsideTLAB");
             recording.disable("jdk.ObjectAllocationInNewTLAB");
+            recording.disable("jdk.ObjectAllocationSample");
+            break;
+          }
+        case WALLCLOCK:
+          {
+            // do nothing here for now - this mode is not really supported yet
             break;
           }
         default:
