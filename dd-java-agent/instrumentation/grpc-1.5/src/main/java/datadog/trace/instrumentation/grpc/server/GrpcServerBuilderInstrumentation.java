@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.grpc.server;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.CallDepthThreadLocalMap.incrementCallDepth;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -10,7 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstrumentationContext;
 import io.grpc.ServerBuilder;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -40,6 +45,11 @@ public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("io.grpc.ServerBuilder", Boolean.class.getName());
+  }
+
+  @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".GrpcServerDecorator",
@@ -62,9 +72,14 @@ public class GrpcServerBuilderInstrumentation extends Instrumenter.Tracing {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.This ServerBuilder<?> serverBuilder) {
-      int callDepth = CallDepthThreadLocalMap.incrementCallDepth(ServerBuilder.class);
+      int callDepth = incrementCallDepth(ServerBuilder.class);
       if (callDepth == 0) {
-        serverBuilder.intercept(TracingServerInterceptor.INSTANCE);
+        ContextStore<ServerBuilder, Boolean> interceptedStore =
+            InstrumentationContext.get(ServerBuilder.class, Boolean.class);
+        if (interceptedStore.get(serverBuilder) == null) {
+          interceptedStore.put(serverBuilder, Boolean.TRUE);
+          serverBuilder.intercept(TracingServerInterceptor.INSTANCE);
+        }
       }
     }
 
