@@ -1,0 +1,44 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: "idea"
+
+// Use Java 11 to build a delegating ClassFileTransformer that understands Java modules
+sourceSets {
+  "main_java11" {
+    java.srcDirs "${project.projectDir}/src/main/java11"
+  }
+}
+compileMain_java11Java.doFirst {
+  if (!System.env.JAVA_11_HOME) {
+    throw new GradleException('JAVA_11_HOME must be set to build transformer helpers')
+  }
+  options.fork = true
+  options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
+}
+dependencies {
+  main_java11CompileOnly sourceSets.main.output
+  runtime sourceSets.main_java11.output
+}
+jar {
+  from sourceSets.main_java11.output
+}
+forbiddenApisMain_java11 {
+  failOnMissingClasses = false
+}
+idea {
+  module {
+    jdkName = '11'
+  }
+}
