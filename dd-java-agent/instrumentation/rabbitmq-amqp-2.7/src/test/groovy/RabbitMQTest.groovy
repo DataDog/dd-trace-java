@@ -356,25 +356,24 @@ class RabbitMQTest extends AgentTestRunner {
 
   def "test rabbit publish/get with given disabled queue (producer side)"() {
     setup:
-    String queueName = channel.queueDeclare().getQueue()
+    String queueName = "test"
     injectSysConfig(TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES, queueName)
 
+    when:
     GetResponse response = runUnderTrace("parent") {
+      channel.queueDeclare(queueName, false, true, true, null)
       channel.exchangeDeclare(exchangeName, "direct", false)
       channel.queueBind(queueName, exchangeName, routingKey)
       channel.basicPublish(exchangeName, routingKey, null, "Hello, world!".getBytes())
       return channel.basicGet(queueName, true)
     }
 
-    expect:
+    then:
     new String(response.getBody()) == "Hello, world!"
 
     and:
-    assertTraces(3) {
-      trace(1) {
-        rabbitSpan(it, "queue.declare", true, trace(0)[1])
-      }
-      trace(4) {
+    assertTraces(2) {
+      trace(5) {
         span {
           operationName "parent"
           tags {
@@ -384,9 +383,10 @@ class RabbitMQTest extends AgentTestRunner {
         rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
         rabbitSpan(it, "queue.bind", false, span(0))
         rabbitSpan(it, "exchange.declare", false, span(0))
+        rabbitSpan(it, "queue.declare", true, span(0))
       }
       trace(1) {
-        rabbitSpan(it, "basic.get <generated>", true, trace(1)[1])
+        rabbitSpan(it, "basic.get <generated>", true)
       }
     }
 
@@ -423,7 +423,16 @@ class RabbitMQTest extends AgentTestRunner {
     and:
     assertTraces(3) {
       trace(1) {
-        rabbitSpan(it, "queue.declare", true, trace(0)[1])
+        span {
+          parentId(0 as BigInteger)
+          operationName "amqp.command"
+          spanType "queue"
+        }
+        //        rabbitSpan(it, "queue.declare", false, span(1))
+        //                span {
+        //                  spanType("queue")
+        //                  parentId(0 as BigInteger)
+        //                })
       }
       trace(1) {
         rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, trace(0)[0])
