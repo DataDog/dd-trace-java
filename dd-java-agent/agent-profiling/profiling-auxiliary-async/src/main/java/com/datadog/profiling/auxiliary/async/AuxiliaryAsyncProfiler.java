@@ -24,7 +24,7 @@ import one.profiler.AsyncProfiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
+final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   private static final Logger log = LoggerFactory.getLogger(AuxiliaryAsyncProfiler.class);
 
   public static final String TYPE = "async";
@@ -48,7 +48,7 @@ public final class AuxiliaryAsyncProfiler implements AuxiliaryImplementation {
   private final AsyncProfiler asyncProfiler;
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
 
-  public AuxiliaryAsyncProfiler(ConfigProvider configProvider) {
+  AuxiliaryAsyncProfiler(ConfigProvider configProvider) {
     this.configProvider = configProvider;
     AsyncProfiler instance = null;
     String libDir = configProvider.getString(ProfilingConfig.PROFILING_ASYNC_LIBPATH);
