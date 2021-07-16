@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -39,6 +40,9 @@ class GrpcTest extends AgentTestRunner {
 
   def "test request-response"() {
     setup:
+    AtomicInteger suspends = new AtomicInteger(0)
+    AtomicInteger resumes = new AtomicInteger(0)
+    AtomicInteger completions = new AtomicInteger(0)
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
         @Override
@@ -133,11 +137,19 @@ class GrpcTest extends AgentTestRunner {
     }
     5 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
     5 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
-    (minContexts..contexts) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    (minContexts..contexts) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    (minContexts..contexts) * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION) >> {
+      suspends.getAndIncrement()
+    }
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END) >> {
+      resumes.getAndIncrement()
+    }
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END) >> {
+      completions.getAndIncrement()
+    }
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
+    suspends.get() == resumes.get()
+    resumes.get() == completions.get()
 
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
@@ -147,19 +159,19 @@ class GrpcTest extends AgentTestRunner {
     }
 
     where:
-    name              | executor                            | contexts | extraBuildCalls | minContexts
-    "some name"       | MoreExecutors.directExecutor()      | 1        | 0               | 1
-    "some other name" | MoreExecutors.directExecutor()      | 1        | 0               | 1
-    "some name"       | newWorkStealingPool()               | 3        | 0               | 1
-    "some other name" | newWorkStealingPool()               | 3        | 0               | 1
-    "some name"       | Executors.newSingleThreadExecutor() | 3        | 0               | 3
-    "some other name" | Executors.newSingleThreadExecutor() | 3        | 0               | 3
-    "some name"       | MoreExecutors.directExecutor()      | 1        | 1               | 1
-    "some other name" | MoreExecutors.directExecutor()      | 1        | 1               | 1
-    "some name"       | newWorkStealingPool()               | 3        | 1               | 1
-    "some other name" | newWorkStealingPool()               | 3        | 1               | 1
-    "some name"       | Executors.newSingleThreadExecutor() | 3        | 1               | 3
-    "some other name" | Executors.newSingleThreadExecutor() | 3        | 1               | 3
+    name              | executor                            | extraBuildCalls
+    "some name"       | MoreExecutors.directExecutor()      | 0
+    "some other name" | MoreExecutors.directExecutor()      | 0
+    "some name"       | newWorkStealingPool()               | 0
+    "some other name" | newWorkStealingPool()               | 0
+    "some name"       | Executors.newSingleThreadExecutor() | 0
+    "some other name" | Executors.newSingleThreadExecutor() | 0
+    "some name"       | MoreExecutors.directExecutor()      | 1
+    "some other name" | MoreExecutors.directExecutor()      | 1
+    "some name"       | newWorkStealingPool()               | 1
+    "some other name" | newWorkStealingPool()               | 1
+    "some name"       | Executors.newSingleThreadExecutor() | 1
+    "some other name" | Executors.newSingleThreadExecutor() | 1
   }
 
   def "test error - #name"() {
