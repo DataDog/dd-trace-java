@@ -42,6 +42,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJ
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
@@ -149,6 +150,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEX
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
@@ -264,6 +266,7 @@ public class Config {
 
   private final String serviceName;
   private final boolean serviceNameSetByUser;
+  private final String rootContextServiceName;
   private final boolean traceEnabled;
   private final boolean integrationsEnabled;
   private final String writerType;
@@ -448,6 +451,10 @@ public class Config {
       serviceNameSetByUser = true;
       serviceName = userProvidedServiceName;
     }
+
+    rootContextServiceName =
+        configProvider.getString(
+            SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
 
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     integrationsEnabled =
@@ -842,6 +849,10 @@ public class Config {
 
   public boolean isServiceNameSetByUser() {
     return serviceNameSetByUser;
+  }
+
+  public String getRootContextServiceName() {
+    return rootContextServiceName;
   }
 
   public boolean isTraceEnabled() {
@@ -1736,6 +1747,8 @@ public class Config {
         + '\''
         + ", serviceNameSetByUser="
         + serviceNameSetByUser
+        + ", rootContextServiceName="
+        + rootContextServiceName
         + ", traceEnabled="
         + traceEnabled
         + ", integrationsEnabled="

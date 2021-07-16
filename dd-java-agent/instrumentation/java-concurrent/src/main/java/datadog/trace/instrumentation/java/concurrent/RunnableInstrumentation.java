@@ -27,7 +27,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public final class RunnableInstrumentation extends Instrumenter.Tracing {
 
   public RunnableInstrumentation() {
-    super(AbstractExecutorInstrumentation.EXEC_NAME);
+    super(AbstractExecutorInstrumentation.EXEC_NAME, "runnable");
   }
 
   @Override

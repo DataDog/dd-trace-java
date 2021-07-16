@@ -9,6 +9,8 @@ public interface AgentScope extends TraceScope, Closeable {
   @Override
   void setAsyncPropagation(boolean value);
 
+  boolean checkpointed();
+
   @Override
   void close();
 

@@ -59,6 +59,9 @@ testSets {
 dependencies {
   compileOnly group: 'com.github.etaty', name: 'rediscala_2.11', version: '1.8.0'
 
+  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
+  testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')
+
   testImplementation group: 'com.github.etaty', name: 'rediscala_2.11', version: '1.8.0'
   testImplementation group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
 

@@ -7,6 +7,11 @@ import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import static datadog.trace.api.Checkpointer.CPU
+import static datadog.trace.api.Checkpointer.END
+import static datadog.trace.api.Checkpointer.SPAN
+import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
+
 abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttpTestWebServer> {
 
   @Override
@@ -65,6 +70,35 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
 
     and:
     TEST_WRITER.waitForTraces(totalInvocations)
+  }
+
+  def "checkpoints balance"() {
+    setup:
+    AtomicInteger suspends = new AtomicInteger(0)
+    AtomicInteger resumes = new AtomicInteger(0)
+    AtomicInteger completions = new AtomicInteger(0)
+    when:
+    ThreadUtils.runConcurrently(10, totalInvocations, {
+      def id = counter.incrementAndGet()
+      doAndValidateRequest(id)
+    })
+    TEST_WRITER.waitForTraces(totalInvocations)
+    then:
+    totalInvocations * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    totalInvocations * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION) >> {
+      suspends.getAndIncrement()
+    }
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END) >> {
+      resumes.getAndIncrement()
+    }
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END) >> {
+      completions.getAndIncrement()
+    }
+    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    0 * TEST_CHECKPOINTER._
+    suspends.get() == resumes.get()
+    resumes.get() == completions.get()
   }
 }
 

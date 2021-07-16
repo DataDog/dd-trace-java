@@ -87,7 +87,7 @@ public final class RediscalaInstrumentation extends Instrumenter.Tracing {
       final AgentSpan span = scope.span();
 
       if (throwable == null) {
-        responseFuture.onComplete(new OnCompleteHandler(span), ctx);
+        responseFuture.onComplete(OnCompleteHandler.INSTANCE, ctx);
       } else {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);

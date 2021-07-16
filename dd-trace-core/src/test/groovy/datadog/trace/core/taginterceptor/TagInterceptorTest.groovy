@@ -14,6 +14,7 @@ import datadog.trace.core.CoreSpan
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 
@@ -98,15 +99,15 @@ class TagInterceptorTest extends DDCoreSpecification {
     tracer.close()
 
     where:
-    context         | serviceName          | expected
-    "/"             | DEFAULT_SERVICE_NAME | DEFAULT_SERVICE_NAME
-    ""              | DEFAULT_SERVICE_NAME | DEFAULT_SERVICE_NAME
-    "/some-context" | DEFAULT_SERVICE_NAME | "some-context"
-    "other-context" | DEFAULT_SERVICE_NAME | "other-context"
-    "/"             | "my-service"         | "my-service"
-    ""              | "my-service"         | "my-service"
-    "/some-context" | "my-service"         | "my-service"
-    "other-context" | "my-service"         | "my-service"
+    context         | serviceName                               | expected
+    "/"             | DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME | DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME
+    ""              | DEFAULT_SERVICE_NAME                      | DEFAULT_SERVICE_NAME
+    "/some-context" | DEFAULT_SERVICE_NAME                      | "some-context"
+    "other-context" | DEFAULT_SERVICE_NAME                      | "other-context"
+    "/"             | "my-service"                              | "my-service"
+    ""              | "my-service"                              | "my-service"
+    "/some-context" | "my-service"                              | "my-service"
+    "other-context" | "my-service"                              | "my-service"
   }
 
   def "setting service name as a property disables servlet.context with context '#context'"() {
