@@ -9,6 +9,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -98,6 +99,9 @@ public class DDSpanContext implements AgentSpan.Context {
   /** The origin of the trace. (eg. Synthetics, CI App) */
   private volatile CharSequence origin;
 
+  /** RequestContext for the Instrumentation Gateway */
+  private final RequestContext requestContext;
+
   public DDSpanContext(
       final DDId traceId,
       final DDId spanId,
@@ -112,7 +116,8 @@ public class DDSpanContext implements AgentSpan.Context {
       final boolean errorFlag,
       final CharSequence spanType,
       final int tagsSize,
-      final PendingTrace trace) {
+      final PendingTrace trace,
+      final RequestContext requestContext) {
 
     assert trace != null;
     this.trace = trace;
@@ -130,6 +135,8 @@ public class DDSpanContext implements AgentSpan.Context {
     } else {
       this.baggageItems = new ConcurrentHashMap<>(baggageItems);
     }
+
+    this.requestContext = requestContext;
 
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
@@ -344,6 +351,11 @@ public class DDSpanContext implements AgentSpan.Context {
   @Override
   public PendingTrace getTrace() {
     return trace;
+  }
+
+  @Override
+  public RequestContext getRequestContext() {
+    return requestContext;
   }
 
   public CoreTracer getTracer() {

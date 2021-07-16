@@ -143,7 +143,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       null,
       tags.size(),
-      tracer.pendingTraceFactory.create(DDId.ONE))
+      tracer.pendingTraceFactory.create(DDId.ONE),
+      null)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     CaptureBuffer capture = new CaptureBuffer()
@@ -209,7 +210,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       null,
       tags.size(),
-      tracer.pendingTraceFactory.create(DDId.ONE))
+      tracer.pendingTraceFactory.create(DDId.ONE),
+      null)
     context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     CaptureBuffer capture = new CaptureBuffer()
@@ -285,7 +287,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       false,
       spanType,
       1,
-      tracer.pendingTraceFactory.create(DDId.ONE))
+      tracer.pendingTraceFactory.create(DDId.ONE),
+      null)
     ctx.setAllTags(["k1": "v1"])
     return ctx
   }

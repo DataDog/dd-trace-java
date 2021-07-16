@@ -1,0 +1,95 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+  id "me.champeau.jmh"
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+repositories {
+  ivy {
+    artifactPattern 'http://sqreen-ci-java.s3-website-us-east-1.amazonaws.com/jars/[organisation]/[artifact]-[revision](-[classifier]).[ext]'
+    ivyPattern 'http://sqreen-ci-java.s3-website-us-east-1.amazonaws.com/jars/[organisation]/[module]-[revision].xml'
+  }
+}
+
+dependencies {
+  api deps.slf4j
+  implementation project(':internal-api')
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '2.0.1'
+
+  annotationProcessor deps.autoserviceProcessor
+  compileOnly deps.autoserviceAnnotation
+
+  testImplementation deps.bytebuddy
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+shadowJar {
+  exclude '**/*-dbgsym.zip'
+  dependencies deps.sharedInverse
+  dependencies {
+    exclude(project(':dd-java-agent:agent-bootstrap'))
+    exclude(project(':dd-java-agent:agent-logging'))
+    exclude(project(':dd-trace-api'))
+    exclude(project(':internal-api'))
+    exclude(dependency('org.slf4j::'))
+  }
+}
+
+jar {
+  archiveClassifier = 'unbundled'
+}
+
+jmh {
+  fork = 5
+  warmupForks = 0
+  jmhVersion = '1.32'
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  jvmArgsAppend = ['-Ddd.appsec.enabled=true -Xms64m -Xmx64m']
+  failOnError = false
+  forceGC = true
+  if (project.hasProperty('jmhIncludes')) {
+    includes = [project.jmhIncludes]
+  }
+}
+
+task runSampleApp(type: GradleBuild, dependsOn: ':dd-java-agent:shadowJar') {
+  description = "Run AppSec sample app with instrumentation"
+  group = 'application'
+
+  def agentShadowJar = project(':dd-java-agent').tasks['shadowJar']
+
+  def jvmArgs = '-Ddd.appsec.enabled=true'
+  if (project.hasProperty('jvmArgs')) {
+    jvmArgs += " ${project.'jvmArgs'}"
+  }
+
+  doFirst {
+    startParameter = startParameter.newInstance()
+    startParameter.projectProperties = [
+      testExecutable: System.getenv('TEST_EXECUTABLE') ?: '',
+      jvmArgs       : "-javaagent:${agentShadowJar.archiveFile.get().asFile} $jvmArgs",
+      debugJvm      : project.hasProperty('debugJvm') ? project.debugJvm : 'false',
+    ]
+  }
+  tasks = ['weblog:weblog-spring-app:bootRun']
+}
+
+ext {
+  minimumBranchCoverage = 0.6
+  minimumInstructionCoverage = 0.8
+  excludedClassesCoverage = ['com.datadog.appsec.powerwaf.LibSqreenInitialization' // can't cover error conditions
+  ]
+  excludedClassesBranchCoverage = [
+    'com.datadog.appsec.gateway.GatewayBridge',
+    'com.datadog.appsec.event.data.Address', // assert never fails
+  ]
+  excludedClassesInstructionCoverage = ['com.datadog.appsec.report.ReportServiceImpl.TaskSchedulerImpl',]
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs += ['-Ddd.appsec.enabled=true']
+}

@@ -263,7 +263,8 @@ class DDSpanTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE))
+      tracer.pendingTraceFactory.create(DDId.ONE),
+      null)
     then:
     context.isTopLevel() == expectTopLevel
 
@@ -296,7 +297,8 @@ class DDSpanTest extends DDCoreSpecification {
       false,
       "fakeType",
       0,
-      tracer.pendingTraceFactory.create(DDId.ONE))
+      tracer.pendingTraceFactory.create(DDId.ONE),
+      null)
 
     when:
     DDSpan span = DDSpan.create(1, context)

@@ -15,6 +15,8 @@ import datadog.trace.api.Config;
 import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.WithGlobalTracer;
+import datadog.trace.api.gateway.InstrumentationGateway;
+import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.util.AgentTaskScheduler;
@@ -68,6 +70,7 @@ public class Agent {
   private static ClassLoader AGENT_CLASSLOADER = null;
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
   private static ClassLoader PROFILING_CLASSLOADER = null;
+  private static ClassLoader APPSEC_CLASSLOADER = null;
 
   private static volatile AgentTaskScheduler.Task<URL> PROFILER_INIT_AFTER_JMX = null;
 
@@ -108,6 +111,19 @@ public class Agent {
      */
     AgentTaskScheduler.initialize();
     startDatadogAgent(inst, bootstrapURL);
+
+    if (isAppSecEnabled()) {
+      if (isJavaVersionAtLeast(8)) {
+        try {
+          APPSEC_CLASSLOADER =
+              createDelegateClassLoader("appsec", bootstrapURL, SHARED_CLASSLOADER);
+        } catch (Exception e) {
+          log.error("Error creating appsec classloader", e);
+        }
+      } else {
+        log.warn("AppSec System requires Java 8 or later to run");
+      }
+    }
 
     final EnumSet<Library> libraries = detectLibraries(log);
 
@@ -298,7 +314,7 @@ public class Agent {
       }
 
       installDatadogTracer(scoClass, sco);
-      // install other modules dependent on sco here (appsec)
+      maybeStartAppSec(scoClass, sco);
     }
   }
 
@@ -480,6 +496,27 @@ public class Agent {
     final Method statsDClientManagerMethod =
         statsdClientManagerClass.getMethod("statsDClientManager");
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
+  }
+
+  private static void maybeStartAppSec(Class<?> scoClass, Object o) {
+    if (APPSEC_CLASSLOADER == null) {
+      return;
+    }
+
+    InstrumentationGateway gw = AgentTracer.get().instrumentationGateway();
+    startAppSec(gw, scoClass, o);
+  }
+
+  private static void startAppSec(InstrumentationGateway gw, Class<?> scoClass, Object sco) {
+    try {
+      final Class<?> appSecSysClass =
+          APPSEC_CLASSLOADER.loadClass("com.datadog.appsec.AppSecSystem");
+      final Method appSecInstallerMethod =
+          appSecSysClass.getMethod("start", SubscriptionService.class, scoClass);
+      appSecInstallerMethod.invoke(null, gw, sco);
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while starting the AppSec Agent", ex);
+    }
   }
 
   private static void startProfilingAgent(final URL bootstrapURL, final boolean isStartingFirst) {
@@ -681,6 +718,17 @@ public class Agent {
     }
     // assume false unless it's explicitly set to "true"
     return "true".equalsIgnoreCase(profilingEnabled);
+  }
+
+  /** @return {@code true} if appsec is enabled */
+  private static boolean isAppSecEnabled() {
+    final String appSecEnabledSysprop = "dd.appsec.enabled";
+    String appSecEnabled = System.getProperty(appSecEnabledSysprop);
+    if (appSecEnabled == null) {
+      appSecEnabled = ddGetEnv(appSecEnabledSysprop);
+    }
+    // assume false unless it's explicitly set to "true"
+    return "true".equalsIgnoreCase(appSecEnabled);
   }
 
   /** @return configured JMX start delay in seconds */

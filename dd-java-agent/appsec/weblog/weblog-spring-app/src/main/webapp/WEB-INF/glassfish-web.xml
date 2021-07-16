@@ -1,0 +1,11 @@
+<!DOCTYPE glassfish-web-app PUBLIC "-//GlassFish.org//DTD GlassFish Application Server 3.1 Servlet 3.0//EN"
+        "https://raw.githubusercontent.com/payara/Payara/fc5c82e057f35f3d353cc2ed077700650219db12/appserver/deployment/dtds/src/main/resources/glassfish/lib/dtds/glassfish-web-app_3_0-1.dtd">
+<glassfish-web-app>
+    <!-- When running the embedded GlassFish in tests, with delegation, the webapp classloader loads LoggerFactory
+    * (in slf4j-api) from the system classloader (Gradle's copy); LoggerFactory then attempts to load StaticLoggerBinder
+    * (in logback-class) from the classloader that loaded it (the system classloader) and can't find it, since it's only
+    * in the war, and accessible from the webapp classloader only. Adding a system classloader dep on logback-classic is
+    * no solution since then the configuration file logback.xml would still not be found.
+    * So disable delegation so that LoggerFactory is loaded from the slf4j copy in the war. -->
+    <class-loader delegate="false" />
+</glassfish-web-app>

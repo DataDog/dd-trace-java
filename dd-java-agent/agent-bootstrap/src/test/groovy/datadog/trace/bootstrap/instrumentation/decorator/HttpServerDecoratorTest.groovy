@@ -25,6 +25,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (req) {
       1 * span.setTag(Tags.HTTP_METHOD, "test-method")
       1 * span.setTag(Tags.HTTP_URL, url)
+      1 * span.getRequestContext()
       1 * span.hasResourceName() >> false
       1 * span.setResourceName({ it as String == req.method + " " + req.path })
     }
@@ -51,6 +52,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     then:
     if (expectedUrl) {
       1 * span.setTag(Tags.HTTP_URL, expectedUrl)
+      1 * span.getRequestContext()
     }
     if (expectedUrl && tagQueryString) {
       1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)
@@ -94,6 +96,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     1 * span.setTag(Tags.HTTP_URL, expectedUrl)
     1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)
     1 * span.setTag(DDTags.HTTP_FRAGMENT, null)
+    1 * span.getRequestContext()
     1 * span.hasResourceName() >> false
     1 * span.setResourceName({ it as String == expectedResource })
     1 * span.setTag(Tags.HTTP_METHOD, null)

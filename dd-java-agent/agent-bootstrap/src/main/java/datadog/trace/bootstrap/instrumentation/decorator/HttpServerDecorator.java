@@ -6,13 +6,20 @@ import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDeco
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Events;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.BitSet;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,6 +112,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
             span.setTag(DDTags.HTTP_QUERY, query);
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
+          onRequestForInstrumentationGateway(span, url);
           // TODO is this ever false?
           if (SHOULD_SET_URL_RESOURCE_NAME && !span.hasResourceName()) {
             span.setResourceName(RESOURCE_NAME_CALCULATOR.calculate(method, path, encoded));
@@ -160,4 +168,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   //    }
   //    return super.onError(span, throwable);
   //  }
+
+  private static void onRequestForInstrumentationGateway(
+      @Nonnull final AgentSpan span, @Nonnull final URIDataAdapter url) {
+    // TODO:appsec there must be some better way to do this?
+    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+    RequestContext requestContext = span.getRequestContext();
+    if (null != cbp && null != requestContext) {
+      BiFunction<RequestContext, URIDataAdapter, Flow<Void>> callback =
+          cbp.getCallback(Events.REQUEST_URI_RAW);
+      if (null != callback) {
+        callback.apply(requestContext, url);
+      }
+    }
+  }
 }

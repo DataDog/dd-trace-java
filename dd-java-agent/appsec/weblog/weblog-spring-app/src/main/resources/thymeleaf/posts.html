@@ -1,0 +1,19 @@
+<div th:each="p : ${posts}">
+    <h2><a th:href="@{/posts} + '/' + ${p.id}" th:text="${p.title}">Post title</a></h2>
+    <p th:text="${p.body}">Post body</p>
+    <p><small th:inline="text">By [[${p.author}]] at [[${p.createdAt}]] (#[[${p.id}]])</small></p>
+</div>
+
+<p th:if="${posts.empty}">No posts yet.</p>
+
+<h2>Add new Post</h2>
+<form action="#" th:action="@{/posts}" th:object="${post}" method="post">
+    <ul>
+        <li><label>Author: <input type="text" th:field="*{author}"/></label></li>
+        <li><label>Title: <input type="text" th:field="*{title}"/></label></li>
+        <li><label>Body: <textarea type="text" th:field="*{body}"/></label></li>
+    </ul>
+    <input type="submit" value="Save"/>
+</form>
+
+<span th:if="${posts != null}" th:utext="${xssMessage}"></span>

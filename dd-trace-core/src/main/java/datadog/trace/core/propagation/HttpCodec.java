@@ -1,7 +1,14 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.Function;
 import datadog.trace.api.PropagationStyle;
+import datadog.trace.api.function.Supplier;
+import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Events;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.io.UnsupportedEncodingException;
@@ -53,7 +60,9 @@ public class HttpCodec {
   }
 
   public static Extractor createExtractor(
-      final Config config, final Map<String, String> taggedHeaders) {
+      final Config config,
+      final Map<String, String> taggedHeaders,
+      CallbackProvider callbackProvider) {
     final List<Extractor> extractors = new ArrayList<>();
     for (final PropagationStyle style : config.getPropagationStylesToExtract()) {
       switch (style) {
@@ -70,7 +79,7 @@ public class HttpCodec {
           log.debug("No implementation found to extract propagation style: {}", style);
       }
     }
-    return new CompoundExtractor(extractors);
+    return new CompoundExtractor(extractors, callbackProvider);
   }
 
   public static class CompoundInjector implements Injector {
@@ -93,23 +102,57 @@ public class HttpCodec {
   public static class CompoundExtractor implements Extractor {
 
     private final List<Extractor> extractors;
+    private final CallbackProvider callbackProvider;
 
-    public CompoundExtractor(final List<Extractor> extractors) {
+    public CompoundExtractor(final List<Extractor> extractors, CallbackProvider callbackProvider) {
       this.extractors = extractors;
+      this.callbackProvider = callbackProvider;
     }
 
     @Override
     public <C> TagContext extract(
-        final C carrier, final AgentPropagation.ContextVisitor<C> setter) {
+        final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
       TagContext context = null;
-      for (final Extractor extractor : extractors) {
-        context = extractor.extract(carrier, setter);
-        // Use incomplete TagContext only as last resort
-        if (context instanceof ExtractedContext) {
-          return context;
+      RequestContext requestContext = null;
+
+      // Check if we should send events to the InstrumentationGateway
+      if (null != callbackProvider) {
+        // Since there is no generic beforeRequest method that is called in the
+        // instrumentations before the headers are extracted, this is the least
+        // intrusive place to tell the InstrumentationGateway that the HTTP request
+        // started.
+        Supplier<Flow<RequestContext>> startedCB =
+            callbackProvider.getCallback(Events.REQUEST_STARTED);
+        if (null != startedCB) {
+          requestContext = startedCB.get().getResult();
+          IGKeyClassifier igKeyClassifier =
+              IGKeyClassifier.create(
+                  requestContext,
+                  callbackProvider.getCallback(Events.REQUEST_HEADER),
+                  callbackProvider.getCallback(Events.REQUEST_HEADER_DONE));
+          if (null != igKeyClassifier) {
+            getter.forEachKey(carrier, igKeyClassifier);
+            igKeyClassifier.done();
+          }
         }
       }
-      return context;
+
+      for (final Extractor extractor : extractors) {
+        context = extractor.extract(carrier, getter);
+        // Use incomplete TagContext only as last resort
+        if (context instanceof ExtractedContext) {
+          return context.withRequestContext(requestContext);
+        }
+      }
+
+      if (null != requestContext) {
+        if (context == null) {
+          context = TagContext.empty();
+        }
+        return context.withRequestContext(requestContext);
+      } else {
+        return context;
+      }
     }
   }
 
@@ -142,5 +185,44 @@ public class HttpCodec {
 
     int firstComma = value.indexOf(',');
     return firstComma == -1 ? value : value.substring(0, firstComma).trim();
+  }
+
+  /** This passes the headers through to the InstrumentationGateway */
+  private static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
+
+    private static IGKeyClassifier create(
+        RequestContext requestContext,
+        TriConsumer<RequestContext, String, String> headerCallback,
+        Function<RequestContext, Flow<Void>> doneCallback) {
+      if (null == requestContext || null == headerCallback) {
+        return null;
+      }
+      return new IGKeyClassifier(requestContext, headerCallback, doneCallback);
+    }
+
+    private final RequestContext requestContext;
+    private final TriConsumer<RequestContext, String, String> headerCallback;
+    private final Function<RequestContext, Flow<Void>> doneCallback;
+
+    private IGKeyClassifier(
+        RequestContext requestContext,
+        TriConsumer<RequestContext, String, String> headerCallback,
+        Function<RequestContext, Flow<Void>> doneCallback) {
+      this.requestContext = requestContext;
+      this.headerCallback = headerCallback;
+      this.doneCallback = doneCallback;
+    }
+
+    @Override
+    public boolean accept(String key, String value) {
+      headerCallback.accept(requestContext, key, value);
+      return true;
+    }
+
+    public void done() {
+      if (null != doneCallback) {
+        doneCallback.apply(requestContext);
+      }
+    }
   }
 }

@@ -47,16 +47,18 @@ public interface Instrumenter {
   /**
    * Since several subsystems are sharing the same instrumentation infractructure in order to enable
    * only the applicable {@link Instrumenter instrumenters} on startup each {@linkplain
-   * Instrumenter} type must declare its target system. Currently only two systems are supported
+   * Instrumenter} type must declare its target system. Currently only three systems are supported
    *
    * <ul>
    *   <li>{@link TargetSystem#TRACING tracing}
    *   <li>{@link TargetSystem#PROFILING profiling}
+   *   <li>{@link TargetSystem#APPSEC appsec}
    * </ul>
    */
   enum TargetSystem {
     TRACING,
-    PROFILING
+    PROFILING,
+    APPSEC
   }
 
   /**
@@ -386,6 +388,17 @@ public interface Instrumenter {
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.PROFILING);
+    }
+  }
+
+  abstract class AppSec extends Default {
+    public AppSec(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.APPSEC);
     }
   }
 

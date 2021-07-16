@@ -11,6 +11,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.Platform",
   "datadog.trace.api.StatsDClient",
   "datadog.trace.api.NoOpStatsDClient",
+  "datadog.trace.api.gateway.Events.ET",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
   "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
@@ -51,6 +52,7 @@ dependencies {
   api deps.slf4j
 
   testImplementation project(":utils:test-utils")
+  testImplementation("org.assertj:assertj-core:2.9.1")
 }
 
 jmh {
