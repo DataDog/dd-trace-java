@@ -2,7 +2,11 @@ package datadog.trace.instrumentation.elasticsearch7_3;
 
 import static datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator.DECORATE;
 
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import datadog.trace.context.TraceScope;
 import datadog.trace.util.Strings;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -31,6 +35,7 @@ public class TransportActionListener<T extends ActionResponse> implements Action
   }
 
   private void onRequest(final ActionRequest request) {
+    try {
     if (request instanceof IndicesRequest) {
       final IndicesRequest req = (IndicesRequest) request;
       if (req.indices() != null) {
@@ -47,10 +52,19 @@ public class TransportActionListener<T extends ActionResponse> implements Action
       span.setTag("elasticsearch.request.write.routing", req.routing());
       span.setTag("elasticsearch.request.write.version", req.version());
     }
+
+    AdviceUtils.capture(InstrumentationContext.get(ActionListener.class, State.class), this, true);
+  } catch (Throwable t) {
+    t.printStackTrace();
+  }
   }
 
   @Override
   public void onResponse(final T response) {
+    TraceScope scope =
+        AdviceUtils.startTaskScope(
+            InstrumentationContext.get(ActionListener.class, State.class), this);
+
     if (response.remoteAddress() != null) {
       DECORATE.onPeerConnection(span, response.remoteAddress().address());
     }
@@ -99,18 +113,24 @@ public class TransportActionListener<T extends ActionResponse> implements Action
       listener.onResponse(response);
     } finally {
       DECORATE.beforeFinish(span);
+      AdviceUtils.endTaskScope(scope);
       span.finish();
     }
   }
 
   @Override
   public void onFailure(final Exception e) {
+    TraceScope scope =
+        AdviceUtils.startTaskScope(
+            InstrumentationContext.get(ActionListener.class, State.class), this);
+
     DECORATE.onError(span, e);
 
     try {
       listener.onFailure(e);
     } finally {
       DECORATE.beforeFinish(span);
+      AdviceUtils.endTaskScope(scope);
       span.finish();
     }
   }

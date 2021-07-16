@@ -12,8 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -80,7 +82,7 @@ public class Elasticsearch73TransportClientInstrumentation extends Instrumenter.
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, action.getClass(), actionRequest.getClass());
 
-      actionListener = new TransportActionListener<>(actionRequest, actionListener, span);
+      actionListener = new TransportActionListener<>(actionRequest, actionListener, span, InstrumentationContext.get(ActionListener.class, State.class));
 
       return activateSpan(span);
     }
