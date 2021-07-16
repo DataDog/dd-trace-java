@@ -20,30 +20,3 @@ excludedClassesCoverage += ['com.datadog.profiling.controller.jfr.JdkTypeIDs']
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
-
-['macos-x64', 'linux-x64', 'linux-x86', 'linux-musl-x64', 'linux-arm', 'linux-aarch64'].each {
-  def platform = it
-
-  tasks.create(type: Download, name: "downloadAsyncProfiler_${platform}") {
-    src "https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0/async-profiler-2.0-${platform}.tar.gz"
-    dest "${buildDir}/external/"
-    overwrite false
-    doLast {
-      copy {
-        from tarTree(resources.gzip("${buildDir}/external/async-profiler-2.0-${platform}.tar.gz"))
-        into "${buildDir}/external/"
-      }
-    }
-    doFirst {
-      mkdir "${buildDir}/external/"
-    }
-  }
-  def rsrcTask = tasks.create(type: Copy, name: "asyncProfilerResources_${platform}") {
-    dependsOn "downloadAsyncProfiler_${platform}"
-    from "${buildDir}/external/async-profiler-2.0-${platform}/build/"
-    into "${buildDir}/resources/main/native-libs/${platform}/"
-    include '**/*.so'
-  }
-
-  processResources.dependsOn "asyncProfilerResources_${platform}"
-}
