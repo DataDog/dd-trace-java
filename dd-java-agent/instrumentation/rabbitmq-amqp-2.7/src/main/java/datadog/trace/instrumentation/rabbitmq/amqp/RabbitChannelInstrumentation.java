@@ -164,7 +164,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
         headers = (headers == null) ? new HashMap<String, Object>() : new HashMap<>(headers);
 
         if (Config.get().isRabbitPropagationEnabled()
-            && !Config.get().getRabbitPropagationDisabledQueues().contains(routingKey)) {
+            && !Config.get().getRabbitPropagationDisabledQueues().contains(exchange)) {
           propagate().inject(span, headers, SETTER);
         }
 

@@ -43,7 +43,7 @@ class RabbitMQTest extends AgentTestRunner {
    'testcontainers' are built for Java 8 and Java 7 cannot load this class.
    */
   @Shared
-  def rabbbitMQContainer
+  def rabbitMQContainer
   @Shared
   def defaultRabbitMQPort = 5672
   @Shared
@@ -74,23 +74,23 @@ class RabbitMQTest extends AgentTestRunner {
      and we use 'testcontainers' for this.
      */
     if ("true" != System.getenv("CI")) {
-      rabbbitMQContainer = new GenericContainer('rabbitmq:latest')
+      rabbitMQContainer = new GenericContainer('rabbitmq:latest')
         .withExposedPorts(defaultRabbitMQPort)
         .withStartupTimeout(Duration.ofSeconds(120))
       //        .withLogConsumer { output ->
       //        print output.utf8String
       //      }
-      rabbbitMQContainer.start()
+      rabbitMQContainer.start()
       rabbitmqAddress = new InetSocketAddress(
-        rabbbitMQContainer.containerIpAddress,
-        rabbbitMQContainer.getMappedPort(defaultRabbitMQPort)
+        rabbitMQContainer.containerIpAddress,
+        rabbitMQContainer.getMappedPort(defaultRabbitMQPort)
         )
     }
   }
 
   def cleanupSpec() {
-    if (rabbbitMQContainer) {
-      rabbbitMQContainer.stop()
+    if (rabbitMQContainer) {
+      rabbitMQContainer.stop()
     }
   }
 
@@ -356,12 +356,15 @@ class RabbitMQTest extends AgentTestRunner {
 
   def "test rabbit publish/get with given disabled queue (producer side)"() {
     setup:
-    String queueName = "test"
-    injectSysConfig(TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES, queueName)
+    String queueName = "queueNameTest"
+    injectSysConfig(TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES, queueName + "," + exchangeName)
 
     when:
+    //    channel.queueDeclare(queueName, false, true, true, null)
     GetResponse response = runUnderTrace("parent") {
       channel.queueDeclare(queueName, false, true, true, null)
+      //      channel.queueDeclareNoWait(queueName, false, true, true, null)
+      //      channel.queueDeclarePassive(queueName)
       channel.exchangeDeclare(exchangeName, "direct", false)
       channel.queueBind(queueName, exchangeName, routingKey)
       channel.basicPublish(exchangeName, routingKey, null, "Hello, world!".getBytes())
@@ -383,10 +386,10 @@ class RabbitMQTest extends AgentTestRunner {
         rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
         rabbitSpan(it, "queue.bind", false, span(0))
         rabbitSpan(it, "exchange.declare", false, span(0))
-        rabbitSpan(it, "queue.declare", true, span(0))
+        rabbitSpan(it, "queue.declare", false, span(0))
       }
       trace(1) {
-        rabbitSpan(it, "basic.get <generated>", true)
+        rabbitSpan(it, "basic.get $queueName", true, null)
       }
     }
 
@@ -508,7 +511,7 @@ class RabbitMQTest extends AgentTestRunner {
           case "basic.get":
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "amqp.command" "basic.get"
-            "amqp.queue" { it == "some-queue" || it == "some-routing-queue" || it.startsWith("amq.gen-") }
+            "amqp.queue" { it == "some-queue" || it == "some-routing-queue" || it.startsWith("amq.gen-") || it == "queueNameTest" }
             "message.size" { it == null || it instanceof Integer }
             break
           case "basic.deliver":
