@@ -2,21 +2,32 @@ package datadog.trace.instrumentation.grizzly.client;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.HTTP_REQUEST;
+import static datadog.trace.instrumentation.grizzly.client.InjectAdapter.SETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import com.ning.http.client.AsyncHandler;
+import com.ning.http.client.Request;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Pair;
+import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class ClientRequestInstrumentation extends Instrumenter.Tracing {
+public final class AsyncHttpClientInstrumentation extends Instrumenter.Tracing {
 
-  public ClientRequestInstrumentation() {
+  public AsyncHttpClientInstrumentation() {
     super("grizzly-client", "ning");
   }
 
@@ -34,6 +45,11 @@ public final class ClientRequestInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
+  protected boolean defaultEnabled() {
+    return false;
+  }
+
+  @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return named("com.ning.http.client.AsyncHttpClient");
   }
@@ -44,17 +60,32 @@ public final class ClientRequestInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("executeRequest")
             .and(takesArgument(0, named("com.ning.http.client.Request")))
             .and(takesArgument(1, named("com.ning.http.client.AsyncHandler")))
             .and(isPublic()),
-        packageName + ".ClientRequestAdvice");
+        getClass().getName() + "$ExecuteRequest");
+  }
+
+  public static class ExecuteRequest {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.Argument(0) final Request request,
+        @Advice.Argument(1) final AsyncHandler<?> handler) {
+      AgentSpan parentSpan = activeSpan();
+      AgentSpan span = startSpan(HTTP_REQUEST);
+      DECORATE.afterStart(span);
+      DECORATE.onRequest(span, request);
+      propagate().inject(span, request, SETTER);
+      InstrumentationContext.get(AsyncHandler.class, Pair.class)
+          .put(handler, Pair.of(parentSpan, span));
+      span.startThreadMigration();
+      if (null != parentSpan) {
+        parentSpan.startThreadMigration();
+      }
+    }
   }
 }
