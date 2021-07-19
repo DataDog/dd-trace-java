@@ -66,7 +66,7 @@ class AuxiliaryRecordingDataTest {
     AuxiliaryRecordingData combined =
         new AuxiliaryRecordingData(Instant.now(), Instant.now(), mainData, auxiliaryData);
 
-    assertThrows(IOException.class, () -> readFromStream(combined.getStream()));
+    assertEquals(0, readFromStream(combined.getStream()));
   }
 
   @Test
