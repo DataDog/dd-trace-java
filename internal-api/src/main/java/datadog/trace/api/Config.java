@@ -40,6 +40,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RABBIT_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
@@ -151,6 +152,9 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
@@ -210,6 +214,10 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -232,9 +240,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
-import javax.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Config reads values with the following priority: 1) system properties, 2) environment variables,
@@ -318,7 +323,8 @@ public class Config {
   private final int dogStatsDStartDelay;
   private final String jmxFetchConfigDir;
   private final List<String> jmxFetchConfigs;
-  @Deprecated private final List<String> jmxFetchMetricsConfigs;
+  @Deprecated
+  private final List<String> jmxFetchMetricsConfigs;
   private final Integer jmxFetchCheckPeriod;
   private final Integer jmxFetchInitialRefreshBeansPeriod;
   private final Integer jmxFetchRefreshBeansPeriod;
@@ -359,7 +365,8 @@ public class Config {
   private final boolean profilingHeapEnabled;
   private final boolean profilingAgentless;
   private final boolean profilingLegacyTracingIntegrationEnabled;
-  @Deprecated private final String profilingUrl;
+  @Deprecated
+  private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
   private final boolean profilingStartForceFirst;
@@ -386,6 +393,10 @@ public class Config {
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
+
+  private final boolean RabbitPropagationEnabled;
+  private final Set<String> RabbitPropagationDisabledQueues;
+  private final Set<String> RabbitPropagationDisabledExchanges;
 
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
@@ -427,8 +438,8 @@ public class Config {
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(
-        INSTANCE != null ? INSTANCE.runtimeId : UUID.randomUUID().toString(),
-        ConfigProvider.createDefault());
+            INSTANCE != null ? INSTANCE.runtimeId : UUID.randomUUID().toString(),
+            ConfigProvider.createDefault());
   }
 
   private Config(final String runtimeId, final ConfigProvider configProvider) {
@@ -441,19 +452,19 @@ public class Config {
     // FIXME: We should use better authentication mechanism
     final String apiKeyFile = configProvider.getString(API_KEY_FILE);
     String tmpApiKey =
-        configProvider.getStringExcludingSource(API_KEY, null, SystemPropertiesConfigSource.class);
+            configProvider.getStringExcludingSource(API_KEY, null, SystemPropertiesConfigSource.class);
     if (apiKeyFile != null) {
       try {
         tmpApiKey =
-            new String(Files.readAllBytes(Paths.get(apiKeyFile)), StandardCharsets.UTF_8).trim();
+                new String(Files.readAllBytes(Paths.get(apiKeyFile)), StandardCharsets.UTF_8).trim();
       } catch (final IOException e) {
         log.error("Cannot read API key from file {}, skipping", apiKeyFile, e);
       }
     }
     site = configProvider.getString(SITE, DEFAULT_SITE);
     String userProvidedServiceName =
-        configProvider.getStringExcludingSource(
-            SERVICE, null, CapturedEnvironmentConfigSource.class, SERVICE_NAME);
+            configProvider.getStringExcludingSource(
+                    SERVICE, null, CapturedEnvironmentConfigSource.class, SERVICE_NAME);
 
     if (userProvidedServiceName == null) {
       serviceNameSetByUser = false;
@@ -464,20 +475,20 @@ public class Config {
     }
 
     rootContextServiceName =
-        configProvider.getString(
-            SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
+            configProvider.getString(
+                    SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
 
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     integrationsEnabled =
-        configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
+            configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
 
     idGenerationStrategy =
-        configProvider.getEnum(ID_GENERATION_STRATEGY, IdGenerationStrategy.class, RANDOM);
+            configProvider.getEnum(ID_GENERATION_STRATEGY, IdGenerationStrategy.class, RANDOM);
     if (idGenerationStrategy != RANDOM) {
       log.warn(
-          "*** you are using an unsupported id generation strategy {} - this can impact correctness of traces",
-          idGenerationStrategy);
+              "*** you are using an unsupported id generation strategy {} - this can impact correctness of traces",
+              idGenerationStrategy);
     }
 
     String agentHostFromEnvironment = null;
@@ -539,9 +550,9 @@ public class Config {
     agentUnixDomainSocket = unixSocketFromEnvironment;
 
     agentConfiguredUsingDefault =
-        agentHostFromEnvironment == null
-            && agentPortFromEnvironment < 0
-            && unixSocketFromEnvironment == null;
+            agentHostFromEnvironment == null
+                    && agentPortFromEnvironment < 0
+                    && unixSocketFromEnvironment == null;
 
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
 
@@ -549,12 +560,12 @@ public class Config {
     noProxyHosts = tryMakeImmutableSet(configProvider.getSpacedList(PROXY_NO_PROXY));
 
     prioritySamplingEnabled =
-        configProvider.getBoolean(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
+            configProvider.getBoolean(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
     prioritySamplingForce =
-        configProvider.getString(PRIORITY_SAMPLING_FORCE, DEFAULT_PRIORITY_SAMPLING_FORCE);
+            configProvider.getString(PRIORITY_SAMPLING_FORCE, DEFAULT_PRIORITY_SAMPLING_FORCE);
 
     traceResolverEnabled =
-        configProvider.getBoolean(TRACE_RESOLVER_ENABLED, DEFAULT_TRACE_RESOLVER_ENABLED);
+            configProvider.getBoolean(TRACE_RESOLVER_ENABLED, DEFAULT_TRACE_RESOLVER_ENABLED);
     serviceMapping = configProvider.getMergedMap(SERVICE_MAPPING);
 
     {
@@ -570,39 +581,39 @@ public class Config {
     headerTags = configProvider.getMergedMap(HEADER_TAGS);
 
     httpServerPathResourceNameMapping =
-        configProvider.getOrderedMap(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING);
+            configProvider.getOrderedMap(TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING);
 
     httpServerErrorStatuses =
-        configProvider.getIntegerRange(
-            HTTP_SERVER_ERROR_STATUSES, DEFAULT_HTTP_SERVER_ERROR_STATUSES);
+            configProvider.getIntegerRange(
+                    HTTP_SERVER_ERROR_STATUSES, DEFAULT_HTTP_SERVER_ERROR_STATUSES);
 
     httpClientErrorStatuses =
-        configProvider.getIntegerRange(
-            HTTP_CLIENT_ERROR_STATUSES, DEFAULT_HTTP_CLIENT_ERROR_STATUSES);
+            configProvider.getIntegerRange(
+                    HTTP_CLIENT_ERROR_STATUSES, DEFAULT_HTTP_CLIENT_ERROR_STATUSES);
 
     httpServerTagQueryString =
-        configProvider.getBoolean(
-            HTTP_SERVER_TAG_QUERY_STRING, DEFAULT_HTTP_SERVER_TAG_QUERY_STRING);
+            configProvider.getBoolean(
+                    HTTP_SERVER_TAG_QUERY_STRING, DEFAULT_HTTP_SERVER_TAG_QUERY_STRING);
 
     httpServerRawQueryString = configProvider.getBoolean(HTTP_SERVER_RAW_QUERY_STRING, true);
 
     httpServerRawResource = configProvider.getBoolean(HTTP_SERVER_RAW_RESOURCE, false);
 
     httpServerRouteBasedNaming =
-        configProvider.getBoolean(
-            HTTP_SERVER_ROUTE_BASED_NAMING, DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING);
+            configProvider.getBoolean(
+                    HTTP_SERVER_ROUTE_BASED_NAMING, DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING);
 
     httpClientTagQueryString =
-        configProvider.getBoolean(
-            HTTP_CLIENT_TAG_QUERY_STRING, DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING);
+            configProvider.getBoolean(
+                    HTTP_CLIENT_TAG_QUERY_STRING, DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING);
 
     httpClientSplitByDomain =
-        configProvider.getBoolean(
-            HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN);
+            configProvider.getBoolean(
+                    HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN);
 
     dbClientSplitByInstance =
-        configProvider.getBoolean(
-            DB_CLIENT_HOST_SPLIT_BY_INSTANCE, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE);
+            configProvider.getBoolean(
+                    DB_CLIENT_HOST_SPLIT_BY_INSTANCE, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
@@ -613,81 +624,81 @@ public class Config {
     scopeInheritAsyncPropagation = configProvider.getBoolean(SCOPE_INHERIT_ASYNC_PROPAGATION, true);
 
     partialFlushMinSpans =
-        configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
+            configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
 
     traceStrictWritesEnabled = configProvider.getBoolean(TRACE_STRICT_WRITES_ENABLED, false);
 
     runtimeContextFieldInjection =
-        configProvider.getBoolean(
-            RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
+            configProvider.getBoolean(
+                    RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
     serialVersionUIDFieldInjection =
-        configProvider.getBoolean(
-            SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
+            configProvider.getBoolean(
+                    SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
 
     logExtractHeaderNames =
-        configProvider.getBoolean(
-            PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED,
-            DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
+            configProvider.getBoolean(
+                    PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED,
+                    DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
 
     propagationStylesToExtract =
-        getPropagationStyleSetSettingFromEnvironmentOrDefault(
-            PROPAGATION_STYLE_EXTRACT, DEFAULT_PROPAGATION_STYLE_EXTRACT);
+            getPropagationStyleSetSettingFromEnvironmentOrDefault(
+                    PROPAGATION_STYLE_EXTRACT, DEFAULT_PROPAGATION_STYLE_EXTRACT);
     propagationStylesToInject =
-        getPropagationStyleSetSettingFromEnvironmentOrDefault(
-            PROPAGATION_STYLE_INJECT, DEFAULT_PROPAGATION_STYLE_INJECT);
+            getPropagationStyleSetSettingFromEnvironmentOrDefault(
+                    PROPAGATION_STYLE_INJECT, DEFAULT_PROPAGATION_STYLE_INJECT);
 
     dogStatsDStartDelay =
-        configProvider.getInteger(
-            DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
+            configProvider.getInteger(
+                    DOGSTATSD_START_DELAY, DEFAULT_DOGSTATSD_START_DELAY, JMX_FETCH_START_DELAY);
 
     boolean runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
 
     jmxFetchEnabled =
-        runtimeMetricsEnabled
-            && configProvider.getBoolean(JMX_FETCH_ENABLED, DEFAULT_JMX_FETCH_ENABLED);
+            runtimeMetricsEnabled
+                    && configProvider.getBoolean(JMX_FETCH_ENABLED, DEFAULT_JMX_FETCH_ENABLED);
     jmxFetchConfigDir = configProvider.getString(JMX_FETCH_CONFIG_DIR);
     jmxFetchConfigs = tryMakeImmutableList(configProvider.getList(JMX_FETCH_CONFIG));
     jmxFetchMetricsConfigs =
-        tryMakeImmutableList(configProvider.getList(JMX_FETCH_METRICS_CONFIGS));
+            tryMakeImmutableList(configProvider.getList(JMX_FETCH_METRICS_CONFIGS));
     jmxFetchCheckPeriod = configProvider.getInteger(JMX_FETCH_CHECK_PERIOD);
     jmxFetchInitialRefreshBeansPeriod =
-        configProvider.getInteger(JMX_FETCH_INITIAL_REFRESH_BEANS_PERIOD);
+            configProvider.getInteger(JMX_FETCH_INITIAL_REFRESH_BEANS_PERIOD);
     jmxFetchRefreshBeansPeriod = configProvider.getInteger(JMX_FETCH_REFRESH_BEANS_PERIOD);
 
     jmxFetchStatsdPort = configProvider.getInteger(JMX_FETCH_STATSD_PORT, DOGSTATSD_PORT);
     jmxFetchStatsdHost =
-        configProvider.getString(
-            JMX_FETCH_STATSD_HOST,
-            // default to agent host if an explicit port has been set
-            null != jmxFetchStatsdPort && jmxFetchStatsdPort > 0 ? agentHost : null,
-            DOGSTATSD_HOST);
+            configProvider.getString(
+                    JMX_FETCH_STATSD_HOST,
+                    // default to agent host if an explicit port has been set
+                    null != jmxFetchStatsdPort && jmxFetchStatsdPort > 0 ? agentHost : null,
+                    DOGSTATSD_HOST);
 
     // Writer.Builder createMonitor will use the values of the JMX fetch & agent to fill-in defaults
     healthMetricsEnabled =
-        runtimeMetricsEnabled
-            && configProvider.getBoolean(HEALTH_METRICS_ENABLED, DEFAULT_HEALTH_METRICS_ENABLED);
+            runtimeMetricsEnabled
+                    && configProvider.getBoolean(HEALTH_METRICS_ENABLED, DEFAULT_HEALTH_METRICS_ENABLED);
     healthMetricsStatsdHost = configProvider.getString(HEALTH_METRICS_STATSD_HOST);
     healthMetricsStatsdPort = configProvider.getInteger(HEALTH_METRICS_STATSD_PORT);
     perfMetricsEnabled =
-        runtimeMetricsEnabled
-            && isJavaVersionAtLeast(8)
-            && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
+            runtimeMetricsEnabled
+                    && isJavaVersionAtLeast(8)
+                    && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
     tracerMetricsEnabled =
-        isJavaVersionAtLeast(8) && configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
+            isJavaVersionAtLeast(8) && configProvider.getBoolean(TRACER_METRICS_ENABLED, false);
     tracerMetricsBufferingEnabled =
-        configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
+            configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
     tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
 
     logsInjectionEnabled =
-        configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
+            configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
     logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, true);
     reportHostName =
-        configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
+            configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
     traceAgentV05Enabled =
-        configProvider.getBoolean(ENABLE_TRACE_AGENT_V05, DEFAULT_TRACE_AGENT_V05_ENABLED);
+            configProvider.getBoolean(ENABLE_TRACE_AGENT_V05, DEFAULT_TRACE_AGENT_V05_ENABLED);
 
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
 
@@ -698,7 +709,7 @@ public class Config {
     traceExecutors = tryMakeImmutableList(configProvider.getList(TRACE_EXECUTORS));
 
     traceAnalyticsEnabled =
-        configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
+            configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
 
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
@@ -707,15 +718,15 @@ public class Config {
 
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
     profilingAllocationEnabled =
-        configProvider.getBoolean(
-            PROFILING_ALLOCATION_ENABLED, DEFAULT_PROFILING_ALLOCATION_ENABLED);
+            configProvider.getBoolean(
+                    PROFILING_ALLOCATION_ENABLED, DEFAULT_PROFILING_ALLOCATION_ENABLED);
     profilingHeapEnabled =
-        configProvider.getBoolean(PROFILING_HEAP_ENABLED, DEFAULT_PROFILING_HEAP_ENABLED);
+            configProvider.getBoolean(PROFILING_HEAP_ENABLED, DEFAULT_PROFILING_HEAP_ENABLED);
     profilingAgentless =
-        configProvider.getBoolean(PROFILING_AGENTLESS, DEFAULT_PROFILING_AGENTLESS);
+            configProvider.getBoolean(PROFILING_AGENTLESS, DEFAULT_PROFILING_AGENTLESS);
     profilingLegacyTracingIntegrationEnabled =
-        configProvider.getBoolean(
-            PROFILING_LEGACY_TRACING_INTEGRATION, DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION);
+            configProvider.getBoolean(
+                    PROFILING_LEGACY_TRACING_INTEGRATION, DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION);
     profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
@@ -724,9 +735,9 @@ public class Config {
       if (oldProfilingApiKeyFile != null) {
         try {
           tmpApiKey =
-              new String(
-                      Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
-                  .trim();
+                  new String(
+                          Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
+                          .trim();
         } catch (final IOException e) {
           log.error("Cannot read API key from file {}, skipping", oldProfilingApiKeyFile, e);
         }
@@ -734,15 +745,15 @@ public class Config {
     }
     if (tmpApiKey == null) {
       final String veryOldProfilingApiKeyFile =
-          configProvider.getString(PROFILING_API_KEY_FILE_VERY_OLD);
+              configProvider.getString(PROFILING_API_KEY_FILE_VERY_OLD);
       tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_VERY_OLD));
       if (veryOldProfilingApiKeyFile != null) {
         try {
           tmpApiKey =
-              new String(
-                      Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
-                      StandardCharsets.UTF_8)
-                  .trim();
+                  new String(
+                          Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
+                          StandardCharsets.UTF_8)
+                          .trim();
         } catch (final IOException e) {
           log.error("Cannot read API key from file {}, skipping", veryOldProfilingApiKeyFile, e);
         }
@@ -751,34 +762,34 @@ public class Config {
 
     profilingTags = configProvider.getMergedMap(PROFILING_TAGS);
     profilingStartDelay =
-        configProvider.getInteger(PROFILING_START_DELAY, DEFAULT_PROFILING_START_DELAY);
+            configProvider.getInteger(PROFILING_START_DELAY, DEFAULT_PROFILING_START_DELAY);
     profilingStartForceFirst =
-        configProvider.getBoolean(PROFILING_START_FORCE_FIRST, DEFAULT_PROFILING_START_FORCE_FIRST);
+            configProvider.getBoolean(PROFILING_START_FORCE_FIRST, DEFAULT_PROFILING_START_FORCE_FIRST);
     profilingUploadPeriod =
-        configProvider.getInteger(PROFILING_UPLOAD_PERIOD, DEFAULT_PROFILING_UPLOAD_PERIOD);
+            configProvider.getInteger(PROFILING_UPLOAD_PERIOD, DEFAULT_PROFILING_UPLOAD_PERIOD);
     profilingTemplateOverrideFile = configProvider.getString(PROFILING_TEMPLATE_OVERRIDE_FILE);
     profilingUploadTimeout =
-        configProvider.getInteger(PROFILING_UPLOAD_TIMEOUT, DEFAULT_PROFILING_UPLOAD_TIMEOUT);
+            configProvider.getInteger(PROFILING_UPLOAD_TIMEOUT, DEFAULT_PROFILING_UPLOAD_TIMEOUT);
     profilingUploadCompression =
-        configProvider.getString(
-            PROFILING_UPLOAD_COMPRESSION, DEFAULT_PROFILING_UPLOAD_COMPRESSION);
+            configProvider.getString(
+                    PROFILING_UPLOAD_COMPRESSION, DEFAULT_PROFILING_UPLOAD_COMPRESSION);
     profilingProxyHost = configProvider.getString(PROFILING_PROXY_HOST);
     profilingProxyPort =
-        configProvider.getInteger(PROFILING_PROXY_PORT, DEFAULT_PROFILING_PROXY_PORT);
+            configProvider.getInteger(PROFILING_PROXY_PORT, DEFAULT_PROFILING_PROXY_PORT);
     profilingProxyUsername = configProvider.getString(PROFILING_PROXY_USERNAME);
     profilingProxyPassword = configProvider.getString(PROFILING_PROXY_PASSWORD);
 
     profilingExceptionSampleLimit =
-        configProvider.getInteger(
-            PROFILING_EXCEPTION_SAMPLE_LIMIT, DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT);
+            configProvider.getInteger(
+                    PROFILING_EXCEPTION_SAMPLE_LIMIT, DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT);
     profilingExceptionHistogramTopItems =
-        configProvider.getInteger(
-            PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
-            DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS);
+            configProvider.getInteger(
+                    PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
+                    DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS);
     profilingExceptionHistogramMaxCollectionSize =
-        configProvider.getInteger(
-            PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
-            DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE);
+            configProvider.getInteger(
+                    PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
+                    DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE);
 
     profilingExcludeAgentThreads = configProvider.getBoolean(PROFILING_EXCLUDE_AGENT_THREADS, true);
 
@@ -788,33 +799,42 @@ public class Config {
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
 
     jdbcPreparedStatementClassName =
-        configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
+            configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
 
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
 
     kafkaClientPropagationEnabled =
-        configProvider.getBoolean(
-            KAFKA_CLIENT_PROPAGATION_ENABLED, DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED);
+            configProvider.getBoolean(
+                    KAFKA_CLIENT_PROPAGATION_ENABLED, DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED);
 
     kafkaClientPropagationDisabledTopics =
-        tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
+            tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
 
     kafkaClientBase64DecodingEnabled =
-        configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+            configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
 
     jmsPropagationEnabled =
-        configProvider.getBoolean(JMS_PROPAGATION_ENABLED, DEFAULT_JMS_PROPAGATION_ENABLED);
+            configProvider.getBoolean(JMS_PROPAGATION_ENABLED, DEFAULT_JMS_PROPAGATION_ENABLED);
 
     jmsPropagationDisabledTopics =
-        tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
+            tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
 
     jmsPropagationDisabledQueues =
-        tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_QUEUES));
+            tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_QUEUES));
+
+    RabbitPropagationEnabled =
+            configProvider.getBoolean(RABBIT_PROPAGATION_ENABLED, DEFAULT_RABBIT_PROPAGATION_ENABLED);
+
+    RabbitPropagationDisabledQueues =
+            tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_QUEUES));
+
+    RabbitPropagationDisabledExchanges =
+            tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_EXCHANGES));
 
     grpcIgnoredOutboundMethods =
-        tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
+            tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
     grpcServerTrimPackageResource =
-        configProvider.getBoolean(GRPC_SERVER_TRIM_PACKAGE_RESOURCE, false);
+            configProvider.getBoolean(GRPC_SERVER_TRIM_PACKAGE_RESOURCE, false);
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
@@ -830,7 +850,7 @@ public class Config {
     servletAsyncTimeoutError = configProvider.getBoolean(SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
     tempJarsCleanOnBoot =
-        configProvider.getBoolean(TEMP_JARS_CLEAN_ON_BOOT, false) && isWindowsOS();
+            configProvider.getBoolean(TEMP_JARS_CLEAN_ON_BOOT, false) && isWindowsOS();
 
     debugEnabled = isDebugMode();
 
@@ -843,7 +863,7 @@ public class Config {
 
     if (profilingAgentless && apiKey == null) {
       log.warn(
-          "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
+              "Agentless profiling activated but no api key provided. Profile uploading will likely fail");
     }
 
     log.debug("New instance: {}", this);
@@ -1253,6 +1273,18 @@ public class Config {
     return kafkaClientBase64DecodingEnabled;
   }
 
+  public boolean isRabbitPropagationEnabled() {
+    return RabbitPropagationEnabled;
+  }
+
+  public Set<String> getRabbitPropagationDisabledQueues() {
+    return RabbitPropagationDisabledQueues;
+  }
+
+  public Set<String> getRabbitPropagationDisabledExchanges() {
+    return RabbitPropagationDisabledExchanges;
+  }
+
   public boolean isHystrixTagsEnabled() {
     return hystrixTagsEnabled;
   }
@@ -1325,7 +1357,9 @@ public class Config {
     return grpcServerTrimPackageResource;
   }
 
-  /** @return A map of tags to be applied only to the local application root span. */
+  /**
+   * @return A map of tags to be applied only to the local application root span.
+   */
   public Map<String, String> getLocalRootSpanTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final Map<String, String> result = new HashMap<>(runtimeTags);
@@ -1343,7 +1377,7 @@ public class Config {
 
   public WellKnownTags getWellKnownTags() {
     return new WellKnownTags(
-        getRuntimeId(), reportHostName ? getHostName() : "", getEnv(), serviceName, getVersion());
+            getRuntimeId(), reportHostName ? getHostName() : "", getEnv(), serviceName, getVersion());
   }
 
   public Set<String> getMetricsIgnoredResources() {
@@ -1385,8 +1419,8 @@ public class Config {
   public Map<String, String> getMergedJmxTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final Map<String, String> result =
-        newHashMap(
-            getGlobalTags().size() + jmxTags.size() + runtimeTags.size() + 1 /* for serviceName */);
+            newHashMap(
+                    getGlobalTags().size() + jmxTags.size() + runtimeTags.size() + 1 /* for serviceName */);
     result.putAll(getGlobalTags());
     result.putAll(jmxTags);
     result.putAll(runtimeTags);
@@ -1401,11 +1435,11 @@ public class Config {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final String host = getHostName();
     final Map<String, String> result =
-        newHashMap(
-            getGlobalTags().size()
-                + profilingTags.size()
-                + runtimeTags.size()
-                + 3 /* for serviceName and host and language */);
+            newHashMap(
+                    getGlobalTags().size()
+                            + profilingTags.size()
+                            + runtimeTags.size()
+                            + 3 /* for serviceName and host and language */);
     result.put(HOST_TAG, host); // Host goes first to allow to override it
     result.putAll(getGlobalTags());
     result.putAll(profilingTags);
@@ -1469,18 +1503,18 @@ public class Config {
   }
 
   public boolean isIntegrationEnabled(
-      final Iterable<String> integrationNames, final boolean defaultEnabled) {
+          final Iterable<String> integrationNames, final boolean defaultEnabled) {
     return isEnabled(integrationNames, "integration.", ".enabled", defaultEnabled);
   }
 
   public boolean isIntegrationShortCutMatchingEnabled(
-      final Iterable<String> integrationNames, final boolean defaultEnabled) {
+          final Iterable<String> integrationNames, final boolean defaultEnabled) {
     return isEnabled(
-        integrationNames, "integration.", ".matching.shortcut.enabled", defaultEnabled);
+            integrationNames, "integration.", ".matching.shortcut.enabled", defaultEnabled);
   }
 
   public boolean isJmxFetchIntegrationEnabled(
-      final Iterable<String> integrationNames, final boolean defaultEnabled) {
+          final Iterable<String> integrationNames, final boolean defaultEnabled) {
     return isEnabled(integrationNames, "jmxfetch.", ".enabled", defaultEnabled);
   }
 
@@ -1491,7 +1525,7 @@ public class Config {
   public boolean isRuleEnabled(final String name, boolean defaultEnabled) {
     boolean enabled = configProvider.getBoolean("trace." + name + ".enabled", defaultEnabled);
     boolean lowerEnabled =
-        configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", defaultEnabled);
+            configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", defaultEnabled);
     return defaultEnabled ? enabled && lowerEnabled : enabled || lowerEnabled;
   }
 
@@ -1500,30 +1534,30 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
+   * #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
   public static boolean jmxFetchIntegrationEnabled(
-      final SortedSet<String> integrationNames, final boolean defaultEnabled) {
+          final SortedSet<String> integrationNames, final boolean defaultEnabled) {
     return Config.get().isJmxFetchIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
   public boolean isEndToEndDurationEnabled(
-      final boolean defaultEnabled, final String... integrationNames) {
+          final boolean defaultEnabled, final String... integrationNames) {
     return isEnabled(Arrays.asList(integrationNames), "", ".e2e.duration.enabled", defaultEnabled);
   }
 
   public boolean isTraceAnalyticsIntegrationEnabled(
-      final SortedSet<String> integrationNames, final boolean defaultEnabled) {
+          final SortedSet<String> integrationNames, final boolean defaultEnabled) {
     return isEnabled(integrationNames, "", ".analytics.enabled", defaultEnabled);
   }
 
   public boolean isTraceAnalyticsIntegrationEnabled(
-      final boolean defaultEnabled, final String... integrationNames) {
+          final boolean defaultEnabled, final String... integrationNames) {
     return isEnabled(Arrays.asList(integrationNames), "", ".analytics.enabled", defaultEnabled);
   }
 
   public <T extends Enum<T>> T getEnumValue(
-      final String name, final Class<T> type, final T defaultValue) {
+          final String name, final Class<T> type, final T defaultValue) {
     return configProvider.getEnum(name, type, defaultValue);
   }
 
@@ -1548,25 +1582,25 @@ public class Config {
    * @param defaultEnabled
    * @return
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
+   * #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    */
   public static boolean traceAnalyticsIntegrationEnabled(
-      final SortedSet<String> integrationNames, final boolean defaultEnabled) {
+          final SortedSet<String> integrationNames, final boolean defaultEnabled) {
     return Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
   private boolean isEnabled(
-      final Iterable<String> integrationNames,
-      final String settingPrefix,
-      final String settingSuffix,
-      final boolean defaultEnabled) {
+          final Iterable<String> integrationNames,
+          final String settingPrefix,
+          final String settingSuffix,
+          final boolean defaultEnabled) {
     // If default is enabled, we want to disable individually.
     // If default is disabled, we want to enable individually.
     boolean anyEnabled = defaultEnabled;
     for (final String name : integrationNames) {
       final String configKey = settingPrefix + name + settingSuffix;
       final boolean configEnabled =
-          configProvider.getBoolean("trace." + configKey, defaultEnabled, configKey);
+              configProvider.getBoolean("trace." + configKey, defaultEnabled, configKey);
       if (defaultEnabled) {
         anyEnabled &= configEnabled;
       } else {
@@ -1581,15 +1615,15 @@ public class Config {
    * splitting by space or comma.
    */
   private Set<PropagationStyle> getPropagationStyleSetSettingFromEnvironmentOrDefault(
-      final String name, final String defaultValue) {
+          final String name, final String defaultValue) {
     final String value = configProvider.getString(name, defaultValue);
     Set<PropagationStyle> result =
-        convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(value));
+            convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(value));
 
     if (result.isEmpty()) {
       // Treat empty parsing result as no value and use default instead
       result =
-          convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(defaultValue));
+              convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(defaultValue));
     }
 
     return result;
@@ -1621,7 +1655,7 @@ public class Config {
    */
   @Nonnull
   private Map<String, String> getMapWithPropertiesDefinedByEnvironment(
-      @Nonnull final Map<String, String> map, @Nonnull final String... propNames) {
+          @Nonnull final Map<String, String> map, @Nonnull final String... propNames) {
     final Map<String, String> res = new HashMap<>(map);
     for (final String propName : propNames) {
       final String val = configProvider.getString(propName);
@@ -1657,7 +1691,7 @@ public class Config {
 
   @Nonnull
   private static Set<PropagationStyle> convertStringSetToPropagationStyleSet(
-      final Set<String> input) {
+          final Set<String> input) {
     // Using LinkedHashSet to preserve original string order
     final Set<PropagationStyle> result = new LinkedHashSet<>();
     for (final String value : input) {
@@ -1673,19 +1707,19 @@ public class Config {
   @SuppressForbidden
   private static String findConfigurationFile() {
     String configurationFilePath =
-        System.getProperty(propertyNameToSystemPropertyName(CONFIGURATION_FILE));
+            System.getProperty(propertyNameToSystemPropertyName(CONFIGURATION_FILE));
     if (null == configurationFilePath) {
       configurationFilePath =
-          System.getenv(propertyNameToEnvironmentVariableName(CONFIGURATION_FILE));
+              System.getenv(propertyNameToEnvironmentVariableName(CONFIGURATION_FILE));
     }
     if (null != configurationFilePath && !configurationFilePath.isEmpty()) {
       int homeIndex = configurationFilePath.indexOf('~');
       if (homeIndex != -1) {
 
         configurationFilePath =
-            configurationFilePath.substring(0, homeIndex)
-                + System.getProperty("user.home")
-                + configurationFilePath.substring(homeIndex + 1);
+                configurationFilePath.substring(0, homeIndex)
+                        + System.getProperty("user.home")
+                        + configurationFilePath.substring(homeIndex + 1);
       }
       final File configurationFile = new File(configurationFilePath);
       if (!configurationFile.exists()) {
@@ -1695,7 +1729,9 @@ public class Config {
     return "no config file present";
   }
 
-  /** Returns the detected hostname. First tries locally, then using DNS */
+  /**
+   * Returns the detected hostname. First tries locally, then using DNS
+   */
   private static String getHostName() {
     String possibleHostname;
 
@@ -1713,8 +1749,8 @@ public class Config {
 
     // Try hostname command
     try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
+                 new BufferedReader(
+                         new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
       possibleHostname = reader.readLine();
     } catch (final Exception ignore) {
       // Ignore.  Hostname command is not always available
@@ -1772,263 +1808,269 @@ public class Config {
   @Override
   public String toString() {
     return "Config{"
-        + "runtimeId='"
-        + runtimeId
-        + '\''
-        + ", apiKey="
-        + (apiKey == null ? "null" : "****")
-        + ", site='"
-        + site
-        + '\''
-        + ", serviceName='"
-        + serviceName
-        + '\''
-        + ", serviceNameSetByUser="
-        + serviceNameSetByUser
-        + ", rootContextServiceName="
-        + rootContextServiceName
-        + ", traceEnabled="
-        + traceEnabled
-        + ", integrationsEnabled="
-        + integrationsEnabled
-        + ", writerType='"
-        + writerType
-        + '\''
-        + ", agentConfiguredUsingDefault="
-        + agentConfiguredUsingDefault
-        + ", agentUrl='"
-        + agentUrl
-        + '\''
-        + ", agentHost='"
-        + agentHost
-        + '\''
-        + ", agentPort="
-        + agentPort
-        + ", agentUnixDomainSocket='"
-        + agentUnixDomainSocket
-        + '\''
-        + ", agentTimeout="
-        + agentTimeout
-        + ", noProxyHosts="
-        + noProxyHosts
-        + ", prioritySamplingEnabled="
-        + prioritySamplingEnabled
-        + ", prioritySamplingForce='"
-        + prioritySamplingForce
-        + '\''
-        + ", traceResolverEnabled="
-        + traceResolverEnabled
-        + ", serviceMapping="
-        + serviceMapping
-        + ", tags="
-        + tags
-        + ", spanTags="
-        + spanTags
-        + ", jmxTags="
-        + jmxTags
-        + ", excludedClasses="
-        + excludedClasses
-        + ", headerTags="
-        + headerTags
-        + ", httpServerErrorStatuses="
-        + httpServerErrorStatuses
-        + ", httpClientErrorStatuses="
-        + httpClientErrorStatuses
-        + ", httpServerTagQueryString="
-        + httpServerTagQueryString
-        + ", httpServerRawQueryString="
-        + httpServerRawQueryString
-        + ", httpServerRawResource="
-        + httpServerRawResource
-        + ", httpServerRouteBasedNaming="
-        + httpServerRouteBasedNaming
-        + ", httpServerPathResourceNameMapping="
-        + httpServerPathResourceNameMapping
-        + ", httpClientTagQueryString="
-        + httpClientTagQueryString
-        + ", httpClientSplitByDomain="
-        + httpClientSplitByDomain
-        + ", dbClientSplitByInstance="
-        + dbClientSplitByInstance
-        + ", splitByTags="
-        + splitByTags
-        + ", scopeDepthLimit="
-        + scopeDepthLimit
-        + ", scopeStrictMode="
-        + scopeStrictMode
-        + ", scopeInheritAsyncPropagation="
-        + scopeInheritAsyncPropagation
-        + ", partialFlushMinSpans="
-        + partialFlushMinSpans
-        + ", traceStrictWritesEnabled="
-        + traceStrictWritesEnabled
-        + ", runtimeContextFieldInjection="
-        + runtimeContextFieldInjection
-        + ", serialVersionUIDFieldInjection="
-        + serialVersionUIDFieldInjection
-        + ", propagationStylesToExtract="
-        + propagationStylesToExtract
-        + ", propagationStylesToInject="
-        + propagationStylesToInject
-        + ", jmxFetchEnabled="
-        + jmxFetchEnabled
-        + ", dogStatsDStartDelay="
-        + dogStatsDStartDelay
-        + ", jmxFetchConfigDir='"
-        + jmxFetchConfigDir
-        + '\''
-        + ", jmxFetchConfigs="
-        + jmxFetchConfigs
-        + ", jmxFetchMetricsConfigs="
-        + jmxFetchMetricsConfigs
-        + ", jmxFetchCheckPeriod="
-        + jmxFetchCheckPeriod
-        + ", jmxFetchInitialRefreshBeansPeriod="
-        + jmxFetchInitialRefreshBeansPeriod
-        + ", jmxFetchRefreshBeansPeriod="
-        + jmxFetchRefreshBeansPeriod
-        + ", jmxFetchStatsdHost='"
-        + jmxFetchStatsdHost
-        + '\''
-        + ", jmxFetchStatsdPort="
-        + jmxFetchStatsdPort
-        + ", healthMetricsEnabled="
-        + healthMetricsEnabled
-        + ", healthMetricsStatsdHost='"
-        + healthMetricsStatsdHost
-        + '\''
-        + ", healthMetricsStatsdPort="
-        + healthMetricsStatsdPort
-        + ", perfMetricsEnabled="
-        + perfMetricsEnabled
-        + ", tracerMetricsEnabled="
-        + tracerMetricsEnabled
-        + ", tracerMetricsBufferingEnabled="
-        + tracerMetricsBufferingEnabled
-        + ", tracerMetricsMaxAggregates="
-        + tracerMetricsMaxAggregates
-        + ", tracerMetricsMaxPending="
-        + tracerMetricsMaxPending
-        + ", logsInjectionEnabled="
-        + logsInjectionEnabled
-        + ", logsMDCTagsInjectionEnabled="
-        + logsMDCTagsInjectionEnabled
-        + ", reportHostName="
-        + reportHostName
-        + ", traceAnnotations='"
-        + traceAnnotations
-        + '\''
-        + ", traceMethods='"
-        + traceMethods
-        + '\''
-        + ", traceExecutorsAll="
-        + traceExecutorsAll
-        + ", traceExecutors="
-        + traceExecutors
-        + ", traceAnalyticsEnabled="
-        + traceAnalyticsEnabled
-        + ", traceSamplingServiceRules="
-        + traceSamplingServiceRules
-        + ", traceSamplingOperationRules="
-        + traceSamplingOperationRules
-        + ", traceSampleRate="
-        + traceSampleRate
-        + ", traceRateLimit="
-        + traceRateLimit
-        + ", profilingEnabled="
-        + profilingEnabled
-        + ", profilingAllocationEnabled="
-        + profilingAllocationEnabled
-        + ", profilingHeapEnabled="
-        + profilingHeapEnabled
-        + ", profilingAgentless="
-        + profilingAgentless
-        + ", profilingUrl='"
-        + profilingUrl
-        + '\''
-        + ", profilingTags="
-        + profilingTags
-        + ", profilingStartDelay="
-        + profilingStartDelay
-        + ", profilingStartForceFirst="
-        + profilingStartForceFirst
-        + ", profilingUploadPeriod="
-        + profilingUploadPeriod
-        + ", profilingTemplateOverrideFile='"
-        + profilingTemplateOverrideFile
-        + '\''
-        + ", profilingUploadTimeout="
-        + profilingUploadTimeout
-        + ", profilingUploadCompression='"
-        + profilingUploadCompression
-        + '\''
-        + ", profilingProxyHost='"
-        + profilingProxyHost
-        + '\''
-        + ", profilingProxyPort="
-        + profilingProxyPort
-        + ", profilingProxyUsername='"
-        + profilingProxyUsername
-        + '\''
-        + ", profilingProxyPassword="
-        + (profilingProxyPassword == null ? "null" : "****")
-        + ", profilingExceptionSampleLimit="
-        + profilingExceptionSampleLimit
-        + ", profilingExceptionHistogramTopItems="
-        + profilingExceptionHistogramTopItems
-        + ", profilingExceptionHistogramMaxCollectionSize="
-        + profilingExceptionHistogramMaxCollectionSize
-        + ", profilingExcludeAgentThreads="
-        + profilingExcludeAgentThreads
-        + ", kafkaClientPropagationEnabled="
-        + kafkaClientPropagationEnabled
-        + ", kafkaClientPropagationDisabledTopics="
-        + kafkaClientPropagationDisabledTopics
-        + ", kafkaClientBase64DecodingEnabled="
-        + kafkaClientBase64DecodingEnabled
-        + ", jmsPropagationEnabled="
-        + jmsPropagationEnabled
-        + ", jmsPropagationDisabledTopics="
-        + jmsPropagationDisabledTopics
-        + ", jmsPropagationDisabledQueues="
-        + jmsPropagationDisabledQueues
-        + ", hystrixTagsEnabled="
-        + hystrixTagsEnabled
-        + ", hystrixMeasuredEnabled="
-        + hystrixMeasuredEnabled
-        + ", igniteCacheIncludeKeys="
-        + igniteCacheIncludeKeys
-        + ", osgiSearchDepth="
-        + osgiSearchDepth
-        + ", servletPrincipalEnabled="
-        + servletPrincipalEnabled
-        + ", servletAsyncTimeoutError="
-        + servletAsyncTimeoutError
-        + ", tempJarsCleanOnBoot="
-        + tempJarsCleanOnBoot
-        + ", traceAgentV05Enabled="
-        + traceAgentV05Enabled
-        + ", debugEnabled="
-        + debugEnabled
-        + ", configFile='"
-        + configFile
-        + '\''
-        + ", idGenerationStrategy="
-        + idGenerationStrategy
-        + ", internalExitOnFailure="
-        + internalExitOnFailure
-        + ", resolverUseLoadClassEnabled="
-        + resolverUseLoadClassEnabled
-        + ", jdbcPreparedStatementClassName='"
-        + jdbcPreparedStatementClassName
-        + '\''
-        + ", jdbcConnectionClassName='"
-        + jdbcConnectionClassName
-        + '\''
-        + ", grpcIgnoredOutboundMethods="
-        + grpcIgnoredOutboundMethods
-        + ", configProvider="
-        + configProvider
-        + '}';
+            + "runtimeId='"
+            + runtimeId
+            + '\''
+            + ", apiKey="
+            + (apiKey == null ? "null" : "****")
+            + ", site='"
+            + site
+            + '\''
+            + ", serviceName='"
+            + serviceName
+            + '\''
+            + ", serviceNameSetByUser="
+            + serviceNameSetByUser
+            + ", rootContextServiceName="
+            + rootContextServiceName
+            + ", traceEnabled="
+            + traceEnabled
+            + ", integrationsEnabled="
+            + integrationsEnabled
+            + ", writerType='"
+            + writerType
+            + '\''
+            + ", agentConfiguredUsingDefault="
+            + agentConfiguredUsingDefault
+            + ", agentUrl='"
+            + agentUrl
+            + '\''
+            + ", agentHost='"
+            + agentHost
+            + '\''
+            + ", agentPort="
+            + agentPort
+            + ", agentUnixDomainSocket='"
+            + agentUnixDomainSocket
+            + '\''
+            + ", agentTimeout="
+            + agentTimeout
+            + ", noProxyHosts="
+            + noProxyHosts
+            + ", prioritySamplingEnabled="
+            + prioritySamplingEnabled
+            + ", prioritySamplingForce='"
+            + prioritySamplingForce
+            + '\''
+            + ", traceResolverEnabled="
+            + traceResolverEnabled
+            + ", serviceMapping="
+            + serviceMapping
+            + ", tags="
+            + tags
+            + ", spanTags="
+            + spanTags
+            + ", jmxTags="
+            + jmxTags
+            + ", excludedClasses="
+            + excludedClasses
+            + ", headerTags="
+            + headerTags
+            + ", httpServerErrorStatuses="
+            + httpServerErrorStatuses
+            + ", httpClientErrorStatuses="
+            + httpClientErrorStatuses
+            + ", httpServerTagQueryString="
+            + httpServerTagQueryString
+            + ", httpServerRawQueryString="
+            + httpServerRawQueryString
+            + ", httpServerRawResource="
+            + httpServerRawResource
+            + ", httpServerRouteBasedNaming="
+            + httpServerRouteBasedNaming
+            + ", httpServerPathResourceNameMapping="
+            + httpServerPathResourceNameMapping
+            + ", httpClientTagQueryString="
+            + httpClientTagQueryString
+            + ", httpClientSplitByDomain="
+            + httpClientSplitByDomain
+            + ", dbClientSplitByInstance="
+            + dbClientSplitByInstance
+            + ", splitByTags="
+            + splitByTags
+            + ", scopeDepthLimit="
+            + scopeDepthLimit
+            + ", scopeStrictMode="
+            + scopeStrictMode
+            + ", scopeInheritAsyncPropagation="
+            + scopeInheritAsyncPropagation
+            + ", partialFlushMinSpans="
+            + partialFlushMinSpans
+            + ", traceStrictWritesEnabled="
+            + traceStrictWritesEnabled
+            + ", runtimeContextFieldInjection="
+            + runtimeContextFieldInjection
+            + ", serialVersionUIDFieldInjection="
+            + serialVersionUIDFieldInjection
+            + ", propagationStylesToExtract="
+            + propagationStylesToExtract
+            + ", propagationStylesToInject="
+            + propagationStylesToInject
+            + ", jmxFetchEnabled="
+            + jmxFetchEnabled
+            + ", dogStatsDStartDelay="
+            + dogStatsDStartDelay
+            + ", jmxFetchConfigDir='"
+            + jmxFetchConfigDir
+            + '\''
+            + ", jmxFetchConfigs="
+            + jmxFetchConfigs
+            + ", jmxFetchMetricsConfigs="
+            + jmxFetchMetricsConfigs
+            + ", jmxFetchCheckPeriod="
+            + jmxFetchCheckPeriod
+            + ", jmxFetchInitialRefreshBeansPeriod="
+            + jmxFetchInitialRefreshBeansPeriod
+            + ", jmxFetchRefreshBeansPeriod="
+            + jmxFetchRefreshBeansPeriod
+            + ", jmxFetchStatsdHost='"
+            + jmxFetchStatsdHost
+            + '\''
+            + ", jmxFetchStatsdPort="
+            + jmxFetchStatsdPort
+            + ", healthMetricsEnabled="
+            + healthMetricsEnabled
+            + ", healthMetricsStatsdHost='"
+            + healthMetricsStatsdHost
+            + '\''
+            + ", healthMetricsStatsdPort="
+            + healthMetricsStatsdPort
+            + ", perfMetricsEnabled="
+            + perfMetricsEnabled
+            + ", tracerMetricsEnabled="
+            + tracerMetricsEnabled
+            + ", tracerMetricsBufferingEnabled="
+            + tracerMetricsBufferingEnabled
+            + ", tracerMetricsMaxAggregates="
+            + tracerMetricsMaxAggregates
+            + ", tracerMetricsMaxPending="
+            + tracerMetricsMaxPending
+            + ", logsInjectionEnabled="
+            + logsInjectionEnabled
+            + ", logsMDCTagsInjectionEnabled="
+            + logsMDCTagsInjectionEnabled
+            + ", reportHostName="
+            + reportHostName
+            + ", traceAnnotations='"
+            + traceAnnotations
+            + '\''
+            + ", traceMethods='"
+            + traceMethods
+            + '\''
+            + ", traceExecutorsAll="
+            + traceExecutorsAll
+            + ", traceExecutors="
+            + traceExecutors
+            + ", traceAnalyticsEnabled="
+            + traceAnalyticsEnabled
+            + ", traceSamplingServiceRules="
+            + traceSamplingServiceRules
+            + ", traceSamplingOperationRules="
+            + traceSamplingOperationRules
+            + ", traceSampleRate="
+            + traceSampleRate
+            + ", traceRateLimit="
+            + traceRateLimit
+            + ", profilingEnabled="
+            + profilingEnabled
+            + ", profilingAllocationEnabled="
+            + profilingAllocationEnabled
+            + ", profilingHeapEnabled="
+            + profilingHeapEnabled
+            + ", profilingAgentless="
+            + profilingAgentless
+            + ", profilingUrl='"
+            + profilingUrl
+            + '\''
+            + ", profilingTags="
+            + profilingTags
+            + ", profilingStartDelay="
+            + profilingStartDelay
+            + ", profilingStartForceFirst="
+            + profilingStartForceFirst
+            + ", profilingUploadPeriod="
+            + profilingUploadPeriod
+            + ", profilingTemplateOverrideFile='"
+            + profilingTemplateOverrideFile
+            + '\''
+            + ", profilingUploadTimeout="
+            + profilingUploadTimeout
+            + ", profilingUploadCompression='"
+            + profilingUploadCompression
+            + '\''
+            + ", profilingProxyHost='"
+            + profilingProxyHost
+            + '\''
+            + ", profilingProxyPort="
+            + profilingProxyPort
+            + ", profilingProxyUsername='"
+            + profilingProxyUsername
+            + '\''
+            + ", profilingProxyPassword="
+            + (profilingProxyPassword == null ? "null" : "****")
+            + ", profilingExceptionSampleLimit="
+            + profilingExceptionSampleLimit
+            + ", profilingExceptionHistogramTopItems="
+            + profilingExceptionHistogramTopItems
+            + ", profilingExceptionHistogramMaxCollectionSize="
+            + profilingExceptionHistogramMaxCollectionSize
+            + ", profilingExcludeAgentThreads="
+            + profilingExcludeAgentThreads
+            + ", kafkaClientPropagationEnabled="
+            + kafkaClientPropagationEnabled
+            + ", kafkaClientPropagationDisabledTopics="
+            + kafkaClientPropagationDisabledTopics
+            + ", kafkaClientBase64DecodingEnabled="
+            + kafkaClientBase64DecodingEnabled
+            + ", jmsPropagationEnabled="
+            + jmsPropagationEnabled
+            + ", jmsPropagationDisabledTopics="
+            + jmsPropagationDisabledTopics
+            + ", jmsPropagationDisabledQueues="
+            + jmsPropagationDisabledQueues
+            + ", RabbitPropagationEnabled="
+            + RabbitPropagationEnabled
+            + ", RabbitPropagationDisabledQueues="
+            + RabbitPropagationDisabledQueues
+            + ", RabbitPropagationDisabledExchanges="
+            + RabbitPropagationDisabledExchanges
+            + ", hystrixTagsEnabled="
+            + hystrixTagsEnabled
+            + ", hystrixMeasuredEnabled="
+            + hystrixMeasuredEnabled
+            + ", igniteCacheIncludeKeys="
+            + igniteCacheIncludeKeys
+            + ", osgiSearchDepth="
+            + osgiSearchDepth
+            + ", servletPrincipalEnabled="
+            + servletPrincipalEnabled
+            + ", servletAsyncTimeoutError="
+            + servletAsyncTimeoutError
+            + ", tempJarsCleanOnBoot="
+            + tempJarsCleanOnBoot
+            + ", traceAgentV05Enabled="
+            + traceAgentV05Enabled
+            + ", debugEnabled="
+            + debugEnabled
+            + ", configFile='"
+            + configFile
+            + '\''
+            + ", idGenerationStrategy="
+            + idGenerationStrategy
+            + ", internalExitOnFailure="
+            + internalExitOnFailure
+            + ", resolverUseLoadClassEnabled="
+            + resolverUseLoadClassEnabled
+            + ", jdbcPreparedStatementClassName='"
+            + jdbcPreparedStatementClassName
+            + '\''
+            + ", jdbcConnectionClassName='"
+            + jdbcConnectionClassName
+            + '\''
+            + ", grpcIgnoredOutboundMethods="
+            + grpcIgnoredOutboundMethods
+            + ", configProvider="
+            + configProvider
+            + '}';
   }
 }

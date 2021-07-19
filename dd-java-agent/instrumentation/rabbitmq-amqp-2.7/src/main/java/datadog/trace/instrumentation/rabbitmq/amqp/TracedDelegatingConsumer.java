@@ -15,6 +15,7 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.ShutdownSignalException;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -81,10 +82,21 @@ public class TracedDelegatingConsumer implements Consumer {
       final Context context =
           headers == null ? null : propagate().extract(headers, ContextVisitors.objectValuesMap());
 
-      final AgentSpan span =
-          startSpan(AMQP_COMMAND, context)
-              .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
-              .setMeasured(true);
+      final AgentSpan span;
+
+      // TODO: check dynamically bound queues
+      if (!Config.get().getRabbitPropagationDisabledQueues().contains(queue)) {
+        span =
+            startSpan(AMQP_COMMAND, context)
+                .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
+                .setMeasured(true);
+      } else {
+        span =
+            startSpan(AMQP_COMMAND, null)
+                .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
+                .setMeasured(true);
+      }
+
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
       final long spanStartTime = NANOSECONDS.toMillis(span.getStartTime());

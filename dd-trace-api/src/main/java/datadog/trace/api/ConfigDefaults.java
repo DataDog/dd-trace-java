@@ -76,6 +76,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED = true;
   static final boolean DEFAULT_JMS_PROPAGATION_ENABLED = true;
+  static final boolean DEFAULT_RABBIT_PROPAGATION_ENABLED = true;
 
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
@@ -87,5 +88,6 @@ public final class ConfigDefaults {
 
   public static final boolean DEFAULT_ASYNC_PROPAGATING = true;
 
-  private ConfigDefaults() {}
+  private ConfigDefaults() {
+  }
 }
