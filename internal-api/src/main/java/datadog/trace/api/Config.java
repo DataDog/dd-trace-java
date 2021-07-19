@@ -28,6 +28,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_DELAY;
@@ -109,6 +110,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTO
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPOTS_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
@@ -350,6 +352,7 @@ public class Config {
 
   private final boolean profilingEnabled;
   private final boolean profilingAllocationEnabled;
+  private final boolean profilingHeapEnabled;
   private final boolean profilingAgentless;
   private final boolean profilingLegacyTracingIntegrationEnabled;
   @Deprecated private final String profilingUrl;
@@ -698,6 +701,8 @@ public class Config {
     profilingAllocationEnabled =
         configProvider.getBoolean(
             PROFILING_ALLOCATION_ENABLED, DEFAULT_PROFILING_ALLOCATION_ENABLED);
+    profilingHeapEnabled =
+        configProvider.getBoolean(PROFILING_HEAP_ENABLED, DEFAULT_PROFILING_HEAP_ENABLED);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, DEFAULT_PROFILING_AGENTLESS);
     profilingLegacyTracingIntegrationEnabled =
@@ -1129,6 +1134,10 @@ public class Config {
 
   public boolean isProfilingAllocationEnabled() {
     return profilingAllocationEnabled;
+  }
+
+  public boolean isProfilingHeapEnabled() {
+    return profilingHeapEnabled;
   }
 
   public boolean isProfilingAgentless() {
@@ -1901,6 +1910,8 @@ public class Config {
         + profilingEnabled
         + ", profilingAllocationEnabled="
         + profilingAllocationEnabled
+        + ", profilingHeapEnabled="
+        + profilingHeapEnabled
         + ", profilingAgentless="
         + profilingAgentless
         + ", profilingUrl='"
