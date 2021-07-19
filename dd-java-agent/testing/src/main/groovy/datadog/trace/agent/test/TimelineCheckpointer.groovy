@@ -19,31 +19,12 @@ class TimelineCheckpointer implements Checkpointer {
   @Override
   void checkpoint(DDId traceId, DDId spanId, int flags) {
     Thread currentThread = Thread.currentThread()
-    Event event = new Event(flagsToEvent(flags), traceId, spanId, currentThread.name)
+    Event event = new Event(flags, traceId, spanId, currentThread)
     encounterOrder.add(event)
     spanEvents.putIfAbsent(spanId, new CopyOnWriteArrayList<Event>())
     threadEvents.putIfAbsent(currentThread.name, new CopyOnWriteArrayList<Event>())
     spanEvents.get(spanId).add(event)
     threadEvents.get(currentThread.name).add(event)
-  }
-
-  private String flagsToEvent(int flags) {
-    switch (flags) {
-      case SPAN:
-        return "startSpan"
-      case SPAN | END:
-        return "endSpan"
-      case THREAD_MIGRATION:
-        return "suspend"
-      case THREAD_MIGRATION | END:
-        return "resume"
-      case CPU | END:
-        return "endTask"
-      case CPU:
-        return "startTask"
-      default:
-        return "unknown"
-    }
   }
 
   @Override
@@ -59,13 +40,19 @@ class TimelineCheckpointer implements Checkpointer {
   void printActivity() {
     if (!encounterOrder.isEmpty()) {
       if (Boolean.parseBoolean(System.getenv("TIMELINECHECKPOINTER_PRINT_PROFILING_TESTCASE"))) {
-        PrintStream out = new PrintStream(File.createTempFile("checkpointer-events", ".csv", null));
-        out.println("eventName,traceId,spanId,threadName")
-        for (Event event : encounterOrder) {
-          out.println(String.format("%s,%s,%s,%s", event.eventName, event.traceId, event.spanId, event.threadName))
+        PrintStream out = null;
+        try {
+          out = new PrintStream(File.createTempFile("checkpointer-events", ".csv", null));
+          out.println("eventFlags,traceId,spanId,threadId")
+          for (Event event : encounterOrder) {
+            out.println(String.format("%d,%s,%s,%d", event.flags, event.traceId.toHexString(), event.spanId.toHexString(), event.threadId))
+          }
+          out.flush()
+        } finally {
+          if (out != null) {
+            out.close()
+          }
         }
-        out.flush()
-        out.close()
       } else {
         printTimeLine()
       }
@@ -134,20 +121,41 @@ class TimelineCheckpointer implements Checkpointer {
   }
 
   class Event {
-    private final String eventName
+    private final int flags
+    private final long threadId
     private final String threadName
     private final DDId traceId
     private final DDId spanId
 
-    Event(String eventName, DDId traceId, DDId spanId, String threadName) {
-      this.eventName = eventName
+    Event(int flags, DDId traceId, DDId spanId, Thread thread) {
+      this.flags = flags
       this.traceId = traceId
       this.spanId = spanId
-      this.threadName = threadName
+      this.threadId = thread.id
+      this.threadName = thread.name
     }
 
     String getEventName() {
-      return eventName
+      switch (flags) {
+        case SPAN:
+          return "startSpan"
+        case SPAN | END:
+          return "endSpan"
+        case THREAD_MIGRATION:
+          return "suspend"
+        case THREAD_MIGRATION | END:
+          return "resume"
+        case CPU | END:
+          return "endTask"
+        case CPU:
+          return "startTask"
+        default:
+          return "unknown"
+      }
+    }
+
+    int getFlags() {
+      return flags;
     }
 
     DDId getTraceId() {
@@ -156,6 +164,10 @@ class TimelineCheckpointer implements Checkpointer {
 
     DDId getSpanId() {
       return spanId
+    }
+
+    long getThreadId() {
+      return threadId;
     }
 
     String getThreadName() {
