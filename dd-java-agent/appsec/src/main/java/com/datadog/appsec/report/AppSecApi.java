@@ -45,8 +45,10 @@ public class AppSecApi {
         httpUrl
             .newBuilder()
             .addPathSegment("appsec")
-            .addPathSegment("v1")
-            .addPathSegment("input")
+            .addPathSegment("proxy")
+            .addPathSegment("api")
+            .addPathSegment("v2")
+            .addPathSegment("appsecevts")
             .build();
     this.okHttpClient = okHttpClient;
     this.headers = new HashMap<>();

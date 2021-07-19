@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "$id": "https://appsec-schema.datadoghq.com/jsonschema/raw/events/attack/0.1.0.json",
+  "$id": "https://appsec-schema.datadoghq.com/jsonschema/raw/events/attack/attack-0.1.0.json",
   "properties": {
     "event_id": {
       "type": "string"

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://appsec-schema.datadoghq.com/jsonschema/raw/contexts/code_location/0.1.0.json",
+  "$id": "https://appsec-schema.datadoghq.com/jsonschema/raw/contexts/code_location/code_location-0.1.0.json",
   "definitions": {
     "StackTraceItem": {
       "in_app": {

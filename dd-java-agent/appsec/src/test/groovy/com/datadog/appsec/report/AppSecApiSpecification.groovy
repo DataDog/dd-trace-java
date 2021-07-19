@@ -22,7 +22,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class AppSecApiSpecification extends Specification {
-  private static final HttpUrl EXPECTED_ENDPOINT_URL = HttpUrl.get('http://example.com/appsec/v1/input')
+  private static final HttpUrl EXPECTED_ENDPOINT_URL = HttpUrl.get('http://example.com/appsec/proxy/api/v2/appsecevts')
 
   AgentTaskScheduler scheduler = new AgentTaskScheduler(AgentThreadFactory.AgentThread.APPSEC_HTTP_DISPATCHER)
   Monitoring monitoring = Mock()

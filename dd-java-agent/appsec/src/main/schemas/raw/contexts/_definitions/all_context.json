@@ -5,84 +5,84 @@
     "actor": {
       "oneOf": [
         {
-          "$ref": "../actor/0.1.0.json"
+          "$ref": "../actor/actor-0.1.0.json"
         }
       ]
     },
     "agent": {
       "oneOf": [
         {
-          "$ref": "../agent/0.1.0.json"
+          "$ref": "../agent/agent-0.1.0.json"
         }
       ]
     },
     "code_location": {
       "oneOf": [
         {
-          "$ref": "../code_location/0.1.0.json"
+          "$ref": "../code_location/code_location-0.1.0.json"
         }
       ]
     },
     "host": {
       "oneOf": [
         {
-          "$ref": "../host/0.1.0.json"
+          "$ref": "../host/host-0.1.0.json"
         }
       ]
     },
     "http": {
       "oneOf": [
         {
-          "$ref": "../http/0.1.0.json"
+          "$ref": "../http/http-0.1.0.json"
         }
       ]
     },
     "service": {
       "oneOf": [
         {
-          "$ref": "../service/0.1.0.json"
+          "$ref": "../service/service-0.1.0.json"
         }
       ]
     },
     "service_stack": {
       "oneOf": [
         {
-          "$ref": "../service_stack/0.1.0.json"
+          "$ref": "../service_stack/service_stack-0.1.0.json"
         }
       ]
     },
     "span": {
       "oneOf": [
         {
-          "$ref": "../span/0.1.0.json"
+          "$ref": "../span/span-0.1.0.json"
         }
       ]
     },
     "sqreen": {
       "oneOf": [
         {
-          "$ref": "../sqreen/0.1.0.json"
+          "$ref": "../sqreen/sqreen-0.1.0.json"
         }
       ]
     },
     "tags": {
       "oneOf": [
         {
-          "$ref": "../tags/0.1.0.json"
+          "$ref": "../tags/tags-0.1.0.json"
         }
       ]
     },
     "trace": {
       "oneOf": [
         {
-          "$ref": "../trace/0.1.0.json"
+          "$ref": "../trace/trace-0.1.0.json"
         }
       ]
     },
     "tracer": {
       "oneOf": [
         {
-          "$ref": "../tracer/0.1.0.json"
+          "$ref": "../tracer/tracer-0.1.0.json"
         }
       ]
     }
