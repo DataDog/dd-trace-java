@@ -7,25 +7,23 @@ import java.io.InputStream;
 public interface FleetService extends Closeable {
   void init();
 
-  // TODO: if the agent http service is polling-only, this should just return the results
-  // Alternatively, the listener pattern can be kept and the dedicated thread/retry logic
-  // moved from AppSecConfigServiceImpl here, so that it can be shared among fleet products
-  // exception-safe
-  void subscribe(Product product, ConfigurationListener listener);
+  interface FleetSubscription {
+    void cancel();
+  }
+
+  FleetSubscription subscribe(Product product, ConfigurationListener listener);
 
   @Override
   void close() throws IOException;
 
   interface ConfigurationListener {
     void onNewConfiguration(InputStream config);
-
-    void onError(Throwable t);
-
-    void onCompleted();
   }
 
   enum Product {
-    APPSEC(2);
+    DEBUGGING(1),
+    APPSEC(2),
+    RUNTIME_SECURITY(3);
 
     public final int ordinal;
 

@@ -12,6 +12,5 @@ public interface AppSecConfigService extends Closeable {
     void onNewSubconfig(Object newConfig);
   }
 
-  @Override
   void close();
 }

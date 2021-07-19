@@ -53,8 +53,11 @@ public class AppSecSystem {
     gatewayBridge.init();
 
     //  TODO: FleetService should be shared with other components
-    FleetService fleetService = new FleetServiceImpl();
-    fleetService.init(); // currently a noop
+    FleetService fleetService =
+        new FleetServiceImpl(
+            sco, new AgentThreadFactory(AgentThreadFactory.AgentThread.FLEET_MANAGEMENT_POLLER));
+    // do not start its thread, support not merged in agent yet
+    //    fleetService.init();
     APP_SEC_CONFIG_SERVICE = new AppSecConfigServiceImpl(fleetService);
     // no point initializing it, as it will receive no notifications
     //    APP_SEC_CONFIG_SERVICE.init();
