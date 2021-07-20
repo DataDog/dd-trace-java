@@ -3,8 +3,6 @@ package datadog.trace.agent.test
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
 
-import java.io.File
-import java.io.PrintStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -40,9 +38,9 @@ class TimelineCheckpointer implements Checkpointer {
   void printActivity() {
     if (!encounterOrder.isEmpty()) {
       if (Boolean.parseBoolean(System.getenv("TIMELINECHECKPOINTER_PRINT_PROFILING_TESTCASE"))) {
-        PrintStream out = null;
+        PrintStream out = null
         try {
-          out = new PrintStream(File.createTempFile("checkpointer-events", ".csv", null));
+          out = new PrintStream(File.createTempFile("checkpointer-events", ".csv", null))
           out.println("eventFlags,traceId,spanId,threadId")
           for (Event event : encounterOrder) {
             out.println(String.format("%d,%s,%s,%d", event.flags, event.traceId.toHexString(), event.spanId.toHexString(), event.threadId))
@@ -155,7 +153,7 @@ class TimelineCheckpointer implements Checkpointer {
     }
 
     int getFlags() {
-      return flags;
+      return flags
     }
 
     DDId getTraceId() {
@@ -167,11 +165,11 @@ class TimelineCheckpointer implements Checkpointer {
     }
 
     long getThreadId() {
-      return threadId;
+      return threadId
     }
 
     String getThreadName() {
-      return threadName;
+      return threadName
     }
   }
 }
