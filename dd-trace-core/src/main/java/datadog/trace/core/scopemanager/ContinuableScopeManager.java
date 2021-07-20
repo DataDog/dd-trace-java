@@ -118,6 +118,8 @@ public class ContinuableScopeManager implements AgentScopeManager {
       final byte source,
       final boolean overrideAsyncPropagation,
       final boolean isAsyncPropagating) {
+    assert span != null;
+
     // Inherit the async propagation from the active scope unless the a value is overridden
     boolean asyncPropagation =
         overrideAsyncPropagation

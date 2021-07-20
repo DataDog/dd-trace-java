@@ -43,6 +43,10 @@ public class OTTracer implements Tracer {
 
   @Override
   public Scope activateSpan(final Span span) {
+    if (null == span) {
+      return null;
+    }
+
     return converter.toScope(
         tracer.activateSpan(converter.toAgentSpan(span), ScopeSource.MANUAL), false);
   }
