@@ -164,6 +164,12 @@ public final class ConfigProvider {
     }
   }
 
+  /**
+   * Property sources are loosely ordered to follow https://12factor.net/config
+   *
+   * <p>For another example see:
+   * https://docs.spring.io/spring-boot/docs/2.1.13.RELEASE/reference/html/boot-features-external-config.html
+   */
   public static ConfigProvider createDefault() {
     Properties configProperties =
         loadConfigurationFile(
@@ -182,6 +188,16 @@ public final class ConfigProvider {
     }
   }
 
+  /**
+   * Property sources are loosely ordered to follow https://12factor.net/config
+   *
+   * <p>For another example see:
+   * https://docs.spring.io/spring-boot/docs/2.1.13.RELEASE/reference/html/boot-features-external-config.html
+   *
+   * @param properties properties to be added at a priority only higher than
+   *     CapturedEnvironmentConfigSource which is based on inherent values from the application (jar
+   *     name)
+   */
   public static ConfigProvider withPropertiesOverride(Properties properties) {
     PropertiesConfigSource providedConfigSource = new PropertiesConfigSource(properties, false);
     Properties configProperties =
@@ -198,10 +214,10 @@ public final class ConfigProvider {
           new CapturedEnvironmentConfigSource());
     } else {
       return new ConfigProvider(
-          providedConfigSource,
           new SystemPropertiesConfigSource(),
           new EnvironmentConfigSource(),
           new PropertiesConfigSource(configProperties, true),
+          providedConfigSource,
           new CapturedEnvironmentConfigSource());
     }
   }
