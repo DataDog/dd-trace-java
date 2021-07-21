@@ -21,7 +21,7 @@ excludedClassesCoverage += [
   // Avoid applying jacoco instrumentation to classes instrumented by tested agent
   'context.FieldInjectionTestInstrumentation**',
   'context.ExcludeFilterTestInstrumentation**',
-  'datadog.trace.agent.test.TimelineCheckpointer',
+  'datadog.trace.agent.test.TimelineCheckpointer**',
 ]
 
 dependencies {
