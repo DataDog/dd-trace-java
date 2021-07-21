@@ -15,40 +15,45 @@ public final class SessionState {
 
   // hard bound at 8192 pending spans, degrade to finishing spans early
   // if transactions are very large, rather than use lots of space
-  private final Queue<AgentSpan> queue;
-  private final boolean transacted;
+  private volatile Queue<AgentSpan> queue;
   private static final AtomicIntegerFieldUpdater<SessionState> SEQUENCE =
       AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "sequence");
   private volatile int sequence;
 
-  public SessionState(boolean transacted) {
-    this.queue = transacted ? new ArrayBlockingQueue<AgentSpan>(CAPACITY) : null;
-    this.transacted = transacted;
-  }
-
+  // only used for testing
   boolean isEmpty() {
-    return !transacted || queue.isEmpty();
+    Queue<AgentSpan> q = queue;
+    return null == q || q.isEmpty();
   }
 
   public void add(AgentSpan span) {
-    if (transacted) {
-      if (queue.offer(span)) {
-        SEQUENCE.incrementAndGet(this);
-      } else {
-        // just finish the span to avoid an unbounded queue
-        span.finish();
+    Queue<AgentSpan> q = queue;
+    if (null == q) {
+      synchronized (this) {
+        q = queue;
+        if (null == q) {
+          q = new ArrayBlockingQueue<AgentSpan>(CAPACITY);
+          queue = q;
+        }
       }
+    }
+    if (q.offer(span)) {
+      SEQUENCE.incrementAndGet(this);
+    } else {
+      // just finish the span to avoid an unbounded queue
+      span.finish();
     }
   }
 
   public void onCommit() {
-    if (transacted) {
+    Queue<AgentSpan> q = queue;
+    if (null != q) {
       synchronized (this) {
         // synchronized in case the second commit
         // happens quicker than we can close the spans
         int taken = SEQUENCE.get(this);
         for (int i = 0; i < taken; ++i) {
-          AgentSpan span = queue.poll();
+          AgentSpan span = q.poll();
           // it won't be null, but just in case...
           if (null != span) {
             span.finish();

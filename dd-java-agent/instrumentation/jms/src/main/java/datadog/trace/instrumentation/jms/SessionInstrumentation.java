@@ -129,14 +129,8 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
   public static final class Construct {
     @Advice.OnMethodExit
     public static void createSessionState(@Advice.This Session session) {
-      boolean transacted;
-      try {
-        transacted = session.getTransacted();
-      } catch (JMSException ignore) {
-        transacted = false;
-      }
       InstrumentationContext.get(Session.class, SessionState.class)
-          .put(session, new SessionState(transacted));
+          .put(session, new SessionState());
     }
   }
 }
