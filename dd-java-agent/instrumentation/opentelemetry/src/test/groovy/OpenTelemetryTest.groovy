@@ -293,6 +293,22 @@ class OpenTelemetryTest extends AgentTestRunner {
     PrioritySampling.USER_DROP    | PrioritySampling.USER_DROP
   }
 
+  def "tolerate null span activation"() {
+    when:
+    try {
+      tracer.withSpan(null)?.close()
+    } catch (Exception ignored) {}
+
+    // make sure scope stack has been left in a valid state
+    def testSpan = tracer.spanBuilder("some name").startSpan()
+    def testScope = tracer.withSpan(testSpan)
+    testSpan.end()
+    testScope.close()
+
+    then:
+    tracer.currentSpan == null
+  }
+
   static class TextMapGetter implements HttpTextFormat.Getter<Map<String, String>> {
     @Override
     String get(Map<String, String> carrier, String key) {
