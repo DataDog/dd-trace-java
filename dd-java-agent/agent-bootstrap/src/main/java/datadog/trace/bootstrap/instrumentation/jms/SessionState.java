@@ -30,11 +30,10 @@ public final class SessionState {
     Queue<AgentSpan> q = queue;
     if (null == q) {
       synchronized (this) {
-        q = queue;
-        if (null == q) {
-          q = new ArrayBlockingQueue<AgentSpan>(CAPACITY);
-          queue = q;
+        if (null == queue) {
+          queue = new ArrayBlockingQueue<AgentSpan>(CAPACITY);
         }
+        q = queue;
       }
     }
     if (q.offer(span)) {
