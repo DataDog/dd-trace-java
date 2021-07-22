@@ -9,11 +9,14 @@ public final class MessageConsumerState {
   private final int ackMode;
   private final UTF8BytesString resourceName;
   private final ThreadLocal<AgentScope> currentScope = new ThreadLocal<>();
+  private final String destinationName;
 
-  public MessageConsumerState(Object session, int ackMode, UTF8BytesString resourceName) {
+  public MessageConsumerState(
+      Object session, int ackMode, UTF8BytesString resourceName, String destinationName) {
     this.session = session;
     this.ackMode = ackMode;
     this.resourceName = resourceName;
+    this.destinationName = destinationName;
   }
 
   @SuppressWarnings("unchecked")
@@ -36,6 +39,10 @@ public final class MessageConsumerState {
 
   public UTF8BytesString getResourceName() {
     return resourceName;
+  }
+
+  public String getDestinationName() {
+    return destinationName;
   }
 
   public void capture(AgentScope scope) {
