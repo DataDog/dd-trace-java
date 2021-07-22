@@ -4,18 +4,20 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.KafkaStreams
+import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.KStream
-import org.apache.kafka.streams.kstream.KStreamBuilder
+import org.apache.kafka.streams.kstream.Produced
 import org.apache.kafka.streams.kstream.ValueMapper
 import org.junit.ClassRule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
+import org.springframework.kafka.listener.ContainerProperties
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
-import org.springframework.kafka.listener.config.ContainerProperties
-import org.springframework.kafka.test.rule.KafkaEmbedded
+import org.springframework.kafka.test.EmbeddedKafkaBroker
+import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Shared
@@ -29,13 +31,15 @@ class KafkaStreamsTest extends AgentTestRunner {
 
   @Shared
   @ClassRule
-  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, STREAM_PENDING, STREAM_PROCESSED)
+  EmbeddedKafkaRule kafkaRule = new EmbeddedKafkaRule(1, true, STREAM_PENDING, STREAM_PROCESSED)
+  @Shared
+  EmbeddedKafkaBroker embeddedKafka = kafkaRule.embeddedKafka
 
   def "test kafka produce and consume with streams in-between"() {
     setup:
     def config = new Properties()
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    config.putAll(senderProps)
+    def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
+    config.putAll(producerProps)
     config.put(StreamsConfig.APPLICATION_ID_CONFIG, "test-application")
     config.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName())
     config.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName())
@@ -67,7 +71,7 @@ class KafkaStreamsTest extends AgentTestRunner {
     ContainerTestUtils.waitForAssignment(consumerContainer, embeddedKafka.getPartitionsPerTopic())
 
     // CONFIGURE PROCESSOR
-    def builder = new KStreamBuilder()
+    StreamsBuilder builder = new StreamsBuilder()
     KStream<String, String> textLines = builder.stream(STREAM_PENDING)
     def values = textLines
       .mapValues(new ValueMapper<String, String>() {
@@ -79,12 +83,13 @@ class KafkaStreamsTest extends AgentTestRunner {
         }
       })
 
-    values.to(Serdes.String(), Serdes.String(), STREAM_PROCESSED)
-    KafkaStreams streams = new KafkaStreams(builder, config)
+    def producer = Produced.with(Serdes.String(), Serdes.String())
+    values.to(STREAM_PROCESSED, producer)
+    KafkaStreams streams = new KafkaStreams(builder.build(), config)
     streams.start()
 
     // CONFIGURE PRODUCER
-    def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
+    def producerFactory = new DefaultKafkaProducerFactory<String, String>(producerProps)
     def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
 
     when:
@@ -200,7 +205,7 @@ class KafkaStreamsTest extends AgentTestRunner {
 
 
     cleanup:
-    producerFactory?.stop()
+    producerFactory?.destroy()
     streams?.close()
     consumerContainer?.stop()
   }
