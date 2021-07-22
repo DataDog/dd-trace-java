@@ -1,7 +1,11 @@
 package datadog.trace.instrumentation.googlehttpclient;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.instrumentation.googlehttpclient.HeadersInjectAdapter.SETTER;
+
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -27,6 +31,14 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
     final String url = httpRequest.getUrl().build();
     final String fixedUrl = URL_REPLACEMENT.matcher(url).replaceAll("+");
     return new URI(fixedUrl);
+  }
+
+  public AgentSpan prepareSpan(AgentSpan span, HttpRequest request) {
+    span.setMeasured(true);
+    DECORATE.afterStart(span);
+    DECORATE.onRequest(span, request);
+    propagate().inject(span, request, SETTER);
+    return span;
   }
 
   @Override
