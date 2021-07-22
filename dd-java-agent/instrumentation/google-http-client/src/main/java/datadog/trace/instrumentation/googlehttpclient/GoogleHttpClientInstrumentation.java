@@ -127,7 +127,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing {
   public static class GoogleHttpClientAsyncAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void methodEnter(@Advice.This final HttpRequest request) {
+    public static AgentScope methodEnter(@Advice.This final HttpRequest request) {
       final AgentSpan span = startSpan(HTTP_REQUEST);
 
       final ContextStore<HttpRequest, RequestState> contextStore =
@@ -135,28 +135,31 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing {
 
       final RequestState state = new RequestState(span);
       contextStore.put(request, state);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.This final HttpRequest request, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter AgentScope scope,
+        @Advice.This final HttpRequest request,
+        @Advice.Thrown final Throwable throwable) {
+      try {
+        if (throwable != null) {
 
-      if (throwable != null) {
+          final ContextStore<HttpRequest, RequestState> contextStore =
+              InstrumentationContext.get(HttpRequest.class, RequestState.class);
+          final RequestState state = contextStore.get(request);
 
-        final ContextStore<HttpRequest, RequestState> contextStore =
-            InstrumentationContext.get(HttpRequest.class, RequestState.class);
-        final RequestState state = contextStore.get(request);
-
-        if (state != null) {
-          final AgentSpan span = state.getSpan();
-
-          try (final AgentScope scope = activateSpan(span)) {
+          if (state != null) {
+            final AgentSpan span = state.getSpan();
             DECORATE.onError(span, throwable);
 
             DECORATE.beforeFinish(span);
             span.finish();
           }
         }
+      } finally {
+        scope.close();
       }
     }
   }
