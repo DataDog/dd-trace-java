@@ -7,7 +7,7 @@ class SessionStateTest extends DDSpecification {
 
   def "commit transaction"() {
     setup:
-    SessionState sessionState = new SessionState(true)
+    SessionState sessionState = new SessionState()
     def span1 = Mock(AgentSpan)
     def span2 = Mock(AgentSpan)
     when:
@@ -26,7 +26,7 @@ class SessionStateTest extends DDSpecification {
 
   def "when buffer overflows, spans are finished eagerly"() {
     setup:
-    SessionState sessionState = new SessionState(true)
+    SessionState sessionState = new SessionState()
     AgentSpan span1 = Mock(AgentSpan)
     AgentSpan span2 = Mock(AgentSpan)
     when: "fill the buffer"
@@ -44,17 +44,5 @@ class SessionStateTest extends DDSpecification {
     sessionState.add(span2)
     then: "span is enqueued and not finished"
     0 * span2.finish()
-  }
-
-  def "non-transacted sessionstate"() {
-    setup:
-    SessionState sessionState = new SessionState(false)
-    AgentSpan span = Mock()
-    when:
-    sessionState.add(span)
-    sessionState.onCommit()
-    then:
-    0 * span.finish()
-    sessionState.isEmpty()
   }
 }
