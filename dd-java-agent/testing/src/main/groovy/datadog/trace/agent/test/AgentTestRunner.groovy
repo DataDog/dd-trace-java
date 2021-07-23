@@ -5,6 +5,7 @@ import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.util.ContextInitializer
 import com.google.common.collect.Sets
 import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.agent.test.checkpoints.TimelineCheckpointer
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
@@ -165,7 +166,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   void cleanup() {
     TEST_TRACER.flush()
-    TEST_CHECKPOINTER.printActivity()
+    TEST_CHECKPOINTER.publish()
     TEST_CHECKPOINTER.clear()
     new MockUtil().detachMock(STATS_D_CLIENT)
     new MockUtil().detachMock(TEST_CHECKPOINTER)
