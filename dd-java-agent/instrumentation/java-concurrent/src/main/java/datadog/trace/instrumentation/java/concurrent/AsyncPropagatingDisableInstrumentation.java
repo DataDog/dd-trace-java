@@ -74,7 +74,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "io.grpc.internal.ServerImpl$ServerTransportListenerImpl",
             "okhttp3.ConnectionPool",
             "org.elasticsearch.transport.netty4.Netty4TcpChannel",
-            "org.springframework.cglib.core.internal.LoadingCache")
+            "org.springframework.cglib.core.internal.LoadingCache",
+            "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher")
         .or(RX_WORKERS)
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS);
@@ -117,6 +118,13 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
     transformation.applyAdvice(
         named("createEntry")
             .and(isDeclaredBy(named("org.springframework.cglib.core.internal.LoadingCache"))),
+        advice);
+    transformation.applyAdvice(
+        named("runOnEventLoop")
+            .and(
+                isDeclaredBy(
+                    named(
+                        "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher"))),
         advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
