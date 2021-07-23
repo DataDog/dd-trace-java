@@ -73,7 +73,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "rx.internal.util.ObjectPool",
             "io.grpc.internal.ServerImpl$ServerTransportListenerImpl",
             "okhttp3.ConnectionPool",
-            "org.elasticsearch.transport.netty4.Netty4TcpChannel")
+            "org.elasticsearch.transport.netty4.Netty4TcpChannel",
+            "org.springframework.cglib.core.internal.LoadingCache")
         .or(RX_WORKERS)
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS);
@@ -112,6 +113,10 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
     transformation.applyAdvice(
         named("sendMessage")
             .and(isDeclaredBy(named("org.elasticsearch.transport.netty4.Netty4TcpChannel"))),
+        advice);
+    transformation.applyAdvice(
+        named("createEntry")
+            .and(isDeclaredBy(named("org.springframework.cglib.core.internal.LoadingCache"))),
         advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
