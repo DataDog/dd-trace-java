@@ -88,6 +88,5 @@ public final class ConfigDefaults {
 
   public static final boolean DEFAULT_ASYNC_PROPAGATING = true;
 
-  private ConfigDefaults() {
-  }
+  private ConfigDefaults() {}
 }

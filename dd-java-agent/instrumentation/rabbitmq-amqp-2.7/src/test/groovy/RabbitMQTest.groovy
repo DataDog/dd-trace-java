@@ -406,39 +406,60 @@ class RabbitMQTest extends AgentTestRunner {
     setup:
     injectSysConfig(TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES, config)
 
-    runUnderTrace("parent") {
-      channel.queueDeclare(queueName, false, true, true, null)
-      channel.exchangeDeclare(exchangeName, "direct", false)
-      channel.queueBind(queueName, exchangeName, routingKey)
-      channel.basicPublish(exchangeName, routingKey, null, "Hello, world!".getBytes())
-    }
-    GetResponse response = channel.basicGet(queueName, true)
+    channel.exchangeDeclare(exchangeName, "direct", false)
+    channel.queueDeclare(queueName, false, true, true, null)
+    channel.queueBind(queueName, exchangeName, routingKey)
+
+    Consumer callback = new DefaultConsumer(channel)
+    channel.basicConsume(queueName, callback)
+    channel.basicPublish(exchangeName, routingKey, null, "Hello, world!".getBytes())
 
     expect:
-    new String(response.getBody()) == "Hello, world!"
-
-    and:
-    assertTraces(2) {
-      trace(5) {
-        span {
-          operationName "parent"
-          tags {
-            defaultTags()
-          }
-        }
-        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
-        rabbitSpan(it, "queue.bind", false, span(0))
-        rabbitSpan(it, "exchange.declare", false, span(0))
-        rabbitSpan(it, "queue.declare", false, span(0))
+    assertTraces(6) {
+      trace(1) {
+        rabbitSpan(it, "exchange.declare", false)
       }
       trace(1) {
-        rabbitSpan(it, "basic.get $queueName", true, trace(0)[1])
+        rabbitSpan(it, "queue.declare", false)
+      }
+      trace(1) {
+        rabbitSpan(it, "queue.bind", false)
+      }
+      trace(1) {
+        rabbitSpan(it, "basic.consume")
+      }
+      trace(1) {
+        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false)
+      }
+      if (nullParent) {
+        trace(1) {
+          span {
+            parentId(0 as BigInteger)
+            resourceName("basic.deliver $queueName")
+            serviceName("rabbitmq")
+            operationName("amqp.command")
+            spanType(DDSpanTypes.MESSAGE_CONSUMER)
+            errored(false)
+          }
+        }
+      } else {
+        trace(1) {
+          span {
+            resourceName("basic.deliver $queueName")
+            serviceName("rabbitmq")
+            operationName("amqp.command")
+            spanType(DDSpanTypes.MESSAGE_CONSUMER)
+            errored(false)
+            parentId(trace(4)[0].spanId.toString().toBigInteger())
+          }
+        }
       }
     }
 
     where:
     exchangeName    | routingKey         | queueName       | config          | nullParent
     "some-exchange" | "some-routing-key" | "queueNameTest" | "queueNameTest" | true
+    "some-exchange" | "some-routing-key" | "queueNameTest" | "some-exchange" | false
     "some-exchange" | "some-routing-key" | "queueNameTest" | ""              | false
   }
 
