@@ -36,10 +36,12 @@ public class TracedDelegatingConsumer implements Consumer {
   private final String queue;
   private final Consumer delegate;
   private final boolean traceStartTimeEnabled;
+  private final boolean propagate;
 
   public TracedDelegatingConsumer(
       final String queue, final Consumer delegate, boolean traceStartTimeEnabled) {
     this.queue = queue;
+    this.propagate = !Config.get().getRabbitPropagationDisabledQueues().contains(queue);
     this.delegate = delegate;
     this.traceStartTimeEnabled = traceStartTimeEnabled;
   }
@@ -80,22 +82,15 @@ public class TracedDelegatingConsumer implements Consumer {
     try {
       final Map<String, Object> headers = properties.getHeaders();
       final Context context =
-          headers == null ? null : propagate().extract(headers, ContextVisitors.objectValuesMap());
-
-      final AgentSpan span;
+          (headers == null || !propagate)
+              ? null
+              : propagate().extract(headers, ContextVisitors.objectValuesMap());
 
       // TODO: check dynamically bound queues
-      if (!Config.get().getRabbitPropagationDisabledQueues().contains(queue)) {
-        span =
-            startSpan(AMQP_COMMAND, context)
-                .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
-                .setMeasured(true);
-      } else {
-        span =
-            startSpan(AMQP_COMMAND, null)
-                .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
-                .setMeasured(true);
-      }
+      final AgentSpan span =
+          startSpan(AMQP_COMMAND, context)
+              .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
+              .setMeasured(true);
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
