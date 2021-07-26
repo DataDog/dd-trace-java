@@ -72,6 +72,19 @@ public class GatewayBridge {
     subscriptionService.registerCallback(Events.REQUEST_HEADER_DONE, new HeadersDoneCallback());
 
     subscriptionService.registerCallback(Events.REQUEST_URI_RAW, new RawURICallback());
+
+    subscriptionService.registerCallback(
+        Events.REQUEST_CLIENT_IP,
+        (ctx_, ip) -> {
+          AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+          ctx.setIp(ip);
+
+          if (isInitialRequestDataPublished(ctx)) {
+            return publishInitialRequestData(ctx);
+          } else {
+            return NoopFlow.INSTANCE;
+          }
+        });
   }
 
   private static class RequestContextSupplier implements Flow<RequestContext> {
@@ -146,7 +159,7 @@ public class GatewayBridge {
   }
 
   private static boolean isInitialRequestDataPublished(AppSecRequestContext ctx) {
-    return ctx.getSavedRawURI() != null && ctx.isFinishedHeaders();
+    return ctx.getSavedRawURI() != null && ctx.isFinishedHeaders() && ctx.getIp() != null;
   }
 
   private Flow<Void> publishInitialRequestData(AppSecRequestContext ctx) {
@@ -168,19 +181,18 @@ public class GatewayBridge {
               KnownAddresses.HEADERS_NO_COOKIES,
               KnownAddresses.REQUEST_COOKIES,
               KnownAddresses.REQUEST_URI_RAW,
-              KnownAddresses.REQUEST_QUERY);
+              KnownAddresses.REQUEST_QUERY,
+              KnownAddresses.REQUEST_CLIENT_IP);
     }
 
     MapDataBundle bundle =
-        MapDataBundle.of(
-            KnownAddresses.HEADERS_NO_COOKIES,
-            ctx.getCollectedHeaders(),
-            KnownAddresses.REQUEST_COOKIES,
-            ctx.getCollectedCookies(),
-            KnownAddresses.REQUEST_URI_RAW,
-            savedRawURI,
-            KnownAddresses.REQUEST_QUERY,
-            queryParams);
+        new MapDataBundle.Builder()
+            .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getCollectedHeaders())
+            .add(KnownAddresses.REQUEST_COOKIES, ctx.getCollectedCookies())
+            .add(KnownAddresses.REQUEST_URI_RAW, savedRawURI)
+            .add(KnownAddresses.REQUEST_QUERY, queryParams)
+            .add(KnownAddresses.REQUEST_CLIENT_IP, ctx.getIp())
+            .build();
 
     return producerService.publishDataEvent(initialReqDataSubInfo, ctx, bundle, false);
   }
