@@ -95,6 +95,11 @@ class JettyServlet2Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
   boolean hasExtraErrorInformation() {
     true
   }

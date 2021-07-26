@@ -4,6 +4,7 @@ import groovy.servlet.AbstractHttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -26,6 +27,10 @@ class TestServlet2 {
           case SUCCESS:
             resp.status = endpoint.status
             resp.writer.print(endpoint.body)
+            break
+          case CREATED:
+            resp.status = endpoint.status
+            resp.writer.print("${endpoint.body}: ${req.reader.text}")
             break
           case FORWARDED:
             resp.status = endpoint.status

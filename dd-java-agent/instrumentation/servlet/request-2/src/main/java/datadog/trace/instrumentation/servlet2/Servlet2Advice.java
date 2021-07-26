@@ -28,18 +28,23 @@ public class Servlet2Advice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
       @Advice.This final Object servlet,
-      @Advice.Argument(0) final ServletRequest request,
+      @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
       @Advice.Argument(value = 1, typing = Assigner.Typing.DYNAMIC)
           final ServletResponse response) {
 
-    final boolean hasServletTrace = request.getAttribute(DD_SPAN_ATTRIBUTE) instanceof AgentSpan;
     final boolean invalidRequest = !(request instanceof HttpServletRequest);
-    if (invalidRequest || hasServletTrace) {
-      // Tracing might already be applied by the FilterChain or a parent request (forward/include).
+    if (invalidRequest) {
       return null;
     }
 
     final HttpServletRequest httpServletRequest = (HttpServletRequest) request;
+    Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
+    final boolean hasServletTrace = spanAttr instanceof AgentSpan;
+    if (hasServletTrace) {
+      // Tracing might already be applied by the FilterChain or a parent request (forward/include).
+      request = DECORATE.wrapRequest((AgentSpan) spanAttr, httpServletRequest);
+      return null;
+    }
 
     if (response instanceof HttpServletResponse) {
       // Default value for checking for uncaught error later
@@ -52,6 +57,7 @@ public class Servlet2Advice {
     final AgentSpan span = startSpan(SERVLET_REQUEST, extractedContext).setMeasured(true);
 
     DECORATE.afterStart(span);
+    request = DECORATE.wrapRequest(span, httpServletRequest);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
 
     final AgentScope scope = activateSpan(span);

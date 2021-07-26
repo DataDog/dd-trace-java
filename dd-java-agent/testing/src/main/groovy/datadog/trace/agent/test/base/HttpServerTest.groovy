@@ -13,10 +13,13 @@ import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.http.StoredBodySupplier
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import okhttp3.HttpUrl
+import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
@@ -25,6 +28,7 @@ import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -63,9 +67,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     // Register the Instrumentation Gateway callbacks
     def ig = get().instrumentationGateway()
     def callbacks = new IGCallbacks()
-    ig.registerCallback(Events.REQUEST_STARTED, callbacks)
-    ig.registerCallback(Events.REQUEST_HEADER, callbacks)
-    ig.registerCallback(Events.REQUEST_URI_RAW, callbacks)
+    ig.registerCallback(Events.REQUEST_STARTED, callbacks.requestStartedCb)
+    ig.registerCallback(Events.REQUEST_HEADER, callbacks.requestHeaderCb)
+    ig.registerCallback(Events.REQUEST_URI_RAW, callbacks.requestUriRawCb)
+    ig.registerCallback(Events.REQUEST_BODY_START, callbacks.requestBodyStartCb)
+    ig.registerCallback(Events.REQUEST_BODY_DONE, callbacks.requestBodyEndCb)
   }
 
   @Shared
@@ -208,6 +214,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testRequestBody() {
+    false
+  }
+
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
   boolean testEncodedPath() {
     true
@@ -220,6 +230,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   enum ServerEndpoint {
     SUCCESS("success", 200, "success"),
+    CREATED("created", 201, "created"),
     REDIRECT("redirect", 302, "/redirected"),
     FORWARDED("forwarded", 200, "1.2.3.4"),
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
@@ -817,6 +828,24 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     QUERY_PARAM         | IG_TEST_HEADER      | "whatever"  | false
   }
 
+  def 'test instrumentation gateway request body interception'() {
+    setup:
+    assumeTrue(testRequestBody())
+    def request = request(
+      CREATED, 'POST',
+      RequestBody.create(MediaType.get('text/plain'), 'my body'))
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.body().charStream().text == 'created: my body'
+
+    and:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body') == 'my body'
+    }
+  }
+
   void controllerSpan(TraceAssert trace, ServerEndpoint endpoint = null) {
     def exception = endpoint == CUSTOM_EXCEPTION ? InputMismatchException : expectedExceptionType()
     def errorMessage = endpoint?.body
@@ -906,44 +935,56 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
-  private static final String IG_TEST_HEADER = "x-ig-test-header"
-  class IGCallbacks implements Supplier<Flow<RequestContext>>, TriConsumer<RequestContext, String, String>, BiFunction<RequestContext, URIDataAdapter, Flow<Void>> {
+  static final String IG_TEST_HEADER = "x-ig-test-header"
+
+  class IGCallbacks {
     static class Context implements RequestContext {
-      private String extraSpan = null
+      private String extraSpan
+      private StoredBodySupplier requestBodySupplier
     }
 
-    // REQUEST_STARTED
-    @Override
-    Flow<RequestContext> get() {
-      def result = new Flow.ResultFlow<RequestContext>(new Context())
-      return result
+    final Supplier<Flow<RequestContext>> requestStartedCb =
+    {
+      ->
+      new Flow.ResultFlow<RequestContext>(new Context())
     }
 
-    // REQUEST_HEADER
-    @Override
-    void accept(RequestContext requestContext, String key, String value) {
-      if (IG_TEST_HEADER.equalsIgnoreCase(key)) {
-        Context context = (Context) requestContext
+    final TriConsumer<RequestContext, String, String> requestHeaderCb =
+    { Context context, String key, String value ->
+      if (HttpServerTest.IG_TEST_HEADER.equalsIgnoreCase(key)) {
         context.extraSpan = value
       }
     }
 
     private static final String EXPECTED = "${QUERY_ENCODED_BOTH.rawPath}?${QUERY_ENCODED_BOTH.rawQuery}"
 
-    // REQUEST_URI_RAW
-    @Override
-    Flow<Void> apply(RequestContext requestContext, URIDataAdapter uri) {
-      Context context = (Context) requestContext
-      String raw = uri.supportsRaw() ? uri.raw() : ""
-      raw = uri.hasPlusEncodedSpaces() ? raw.replace("+", "%20") : raw
+    final BiFunction<RequestContext, URIDataAdapter, Flow<Void>> requestUriRawCb =
+    { Context context, URIDataAdapter uri ->
+      String raw = uri.supportsRaw() ? uri.raw() : ''
+      raw = uri.hasPlusEncodedSpaces() ? raw.replace('+', '%20') : raw
       // Only trigger for query path without query parameters and with special header
-      if (raw.endsWith(EXPECTED) && null != context.extraSpan) {
+      if (raw.endsWith(EXPECTED) && context.extraSpan) {
         runUnderTrace("$IG_TEST_HEADER-${context.extraSpan}", false) {}
         // Only do this for the first time since some instrumentations with handler spans may call
         // DECORATE.onRequest multiple times
         context.extraSpan = null
       }
-      return Flow.ResultFlow.empty()
+      Flow.ResultFlow.empty()
+    }
+
+    final BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCb =
+    { Context context, StoredBodySupplier supplier ->
+      context.requestBodySupplier = supplier
+      null
+    }
+
+    final BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyEndCb =
+    { Context context, StoredBodySupplier supplier ->
+      if (!context.requestBodySupplier.is(supplier)) {
+        throw new RuntimeException("Expected same instance: ${context.requestBodySupplier} and $supplier")
+      }
+      AgentTracer.activeSpan().localRootSpan.setTag('request.body', supplier.get())
+      Flow.ResultFlow.empty()
     }
   }
 }

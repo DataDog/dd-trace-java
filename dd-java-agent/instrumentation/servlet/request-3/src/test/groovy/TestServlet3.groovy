@@ -17,6 +17,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 
@@ -43,6 +44,10 @@ class TestServlet3 {
           case SUCCESS:
             resp.status = endpoint.status
             resp.writer.print(endpoint.body)
+            break
+          case CREATED:
+            resp.status = endpoint.status
+            resp.writer.print("${endpoint.body}: ${req.reader.text}")
             break
           case FORWARDED:
             resp.status = endpoint.status
@@ -105,6 +110,10 @@ class TestServlet3 {
                 resp.writer.print(endpoint.body)
                 context.complete()
                 break
+              case CREATED:
+                resp.status = endpoint.status
+                resp.writer.print("${endpoint.body}: ${req.reader.text}")
+                break
               case FORWARDED:
                 resp.status = endpoint.status
                 resp.writer.print(req.getHeader("x-forwarded-for"))
@@ -157,6 +166,10 @@ class TestServlet3 {
             case SUCCESS:
               resp.status = endpoint.status
               resp.writer.print(endpoint.body)
+              break
+            case CREATED:
+              resp.status = endpoint.status
+              resp.writer.print("${endpoint.body}: ${req.reader.text}")
               break
             case FORWARDED:
               resp.status = endpoint.status

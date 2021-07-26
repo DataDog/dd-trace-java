@@ -33,7 +33,13 @@ class AppSecInfo {
     }
 
     ClassLoader instClassloader = bootstrapAgentClass.@AGENT_CLASSLOADER
-    def ddTraceCoreInfoClass = instClassloader.loadClass('datadog.trace.agent.core.DDTraceCoreInfo')
+    def ddTraceCoreInfoClass
+    try {
+      ddTraceCoreInfoClass = instClassloader.loadClass('datadog.trace.agent.core.DDTraceCoreInfo')
+    } catch (ClassNotFoundException cnf) {
+      // for builds with -PdisableShadowRelocate=true
+      ddTraceCoreInfoClass = instClassloader.loadClass('datadog.trace.core.DDTraceCoreInfo')
+    }
     ddVersion = ddTraceCoreInfoClass.@VERSION
 
     problem = null

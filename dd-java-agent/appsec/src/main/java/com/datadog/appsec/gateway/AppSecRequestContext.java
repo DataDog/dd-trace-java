@@ -8,6 +8,7 @@ import com.datadog.appsec.event.data.StringKVPair;
 import com.datadog.appsec.report.ReportService;
 import com.datadog.appsec.report.raw.events.attack.Attack010;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.http.StoredBodySupplier;
 import java.io.Closeable;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -16,10 +17,12 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// XXX: this must be made thread-safe
 // TODO: different methods to be called by different parts perhaps splitting it would make sense
 // or at least create separate interfaces
 public class AppSecRequestContext implements DataBundle, RequestContext, ReportService, Closeable {
@@ -28,11 +31,12 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
   private Collection<Attack010> collectedAttacks;
 
-  // assume this will always be accessed by the same thread
+  // assume these will always be accessed by the same thread
   private String savedRawURI;
   private CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
   private List<StringKVPair> collectedCookies = new ArrayList<StringKVPair>(4);
   private boolean finishedHeaders;
+  private StoredBodySupplier storedRequestBodySupplier;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -119,9 +123,23 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
     return collectedCookies;
   }
 
+  public void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
+    this.storedRequestBodySupplier = storedRequestBodySupplier;
+  }
+
   @Override
   public void close() {
     // currently no-op
+  }
+
+  /* Should be accessible from the modules */
+
+  /** @return the portion of the body read so far, if any */
+  public Optional<String> getStoredRequestBody() {
+    if (this.storedRequestBodySupplier == null) {
+      return Optional.empty();
+    }
+    return Optional.of(this.storedRequestBodySupplier.get());
   }
 
   @Override

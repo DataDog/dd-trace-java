@@ -140,8 +140,7 @@ public class EventDispatcher implements EventProducerService {
   }
 
   @Override
-  public DataSubscriberInfo getDataSubscribers(
-      AppSecRequestContext ctx, Address<?>... newAddresses) {
+  public DataSubscriberInfo getDataSubscribers(Address<?>... newAddresses) {
     if (newAddresses.length == 1) {
       // fast path
       Address<?> addr = newAddresses[0];

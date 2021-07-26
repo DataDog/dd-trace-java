@@ -3,11 +3,10 @@ package datadog.trace.instrumentation.servlet2;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import datadog.trace.instrumentation.servlet.http.common.ServletHttpServerDecorator;
 import javax.servlet.http.HttpServletRequest;
 
-public class Servlet2Decorator
-    extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, Integer> {
+public class Servlet2Decorator extends ServletHttpServerDecorator<Integer> {
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence JAVA_WEB_SERVLET = UTF8BytesString.create("java-web-servlet");
   public static final Servlet2Decorator DECORATE = new Servlet2Decorator();

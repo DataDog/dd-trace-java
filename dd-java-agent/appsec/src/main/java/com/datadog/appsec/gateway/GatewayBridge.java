@@ -2,6 +2,7 @@ package com.datadog.appsec.gateway;
 
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventType;
+import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.MapDataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
@@ -15,6 +16,7 @@ import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -44,6 +46,7 @@ public class GatewayBridge {
 
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
+  private volatile EventProducerService.DataSubscriberInfo rawRequestBodySubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -86,6 +89,38 @@ public class GatewayBridge {
     subscriptionService.registerCallback(Events.REQUEST_HEADER_DONE, new HeadersDoneCallback());
 
     subscriptionService.registerCallback(Events.REQUEST_URI_RAW, new RawURICallback());
+
+    subscriptionService.registerCallback(
+        Events.REQUEST_BODY_START,
+        (RequestContext ctx_, StoredBodySupplier supplier) -> {
+          AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+          ctx.setStoredRequestBodySupplier(supplier);
+          producerService.publishEvent(ctx, EventType.REQUEST_BODY_START);
+          return null;
+        });
+
+    subscriptionService.registerCallback(
+        Events.REQUEST_BODY_DONE,
+        (RequestContext ctx_, StoredBodySupplier supplier) -> {
+          AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+          producerService.publishEvent(ctx, EventType.REQUEST_BODY_END);
+
+          if (rawRequestBodySubInfo == null) {
+            rawRequestBodySubInfo =
+                producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
+          }
+          if (rawRequestBodySubInfo.isEmpty()) {
+            return NoopFlow.INSTANCE;
+          }
+
+          String bodyContent = supplier.get();
+          if (bodyContent == null || bodyContent.isEmpty()) {
+            return NoopFlow.INSTANCE;
+          }
+
+          DataBundle bundle = MapDataBundle.of(KnownAddresses.REQUEST_BODY_RAW, bodyContent);
+          return producerService.publishDataEvent(rawRequestBodySubInfo, ctx, bundle, false);
+        });
   }
 
   private static class RequestContextSupplier implements Flow<RequestContext> {
@@ -178,7 +213,6 @@ public class GatewayBridge {
     if (initialReqDataSubInfo == null) {
       initialReqDataSubInfo =
           producerService.getDataSubscribers(
-              ctx,
               KnownAddresses.HEADERS_NO_COOKIES,
               KnownAddresses.REQUEST_COOKIES,
               KnownAddresses.REQUEST_URI_RAW,

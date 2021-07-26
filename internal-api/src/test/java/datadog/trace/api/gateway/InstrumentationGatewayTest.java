@@ -7,6 +7,7 @@ import datadog.trace.api.Function;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.Supplier;
 import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import org.assertj.core.api.ThrowableAssert;
 import org.junit.Before;
@@ -36,7 +37,7 @@ public class InstrumentationGatewayTest {
     Supplier<Flow<RequestContext>> cback = gateway.getCallback(Events.REQUEST_STARTED);
     assertThat(cback).isEqualTo(callback);
     Flow<RequestContext> flow = cback.get();
-    assertThat(flow.getAction()).isNull();
+    assertThat(flow.getAction()).isEqualTo(Flow.Action.Noop.INSTANCE);
     RequestContext ctxt = flow.getResult();
     assertThat(ctxt).isEqualTo(context);
   }
@@ -115,6 +116,12 @@ public class InstrumentationGatewayTest {
     assertThat(gateway.getCallback(Events.REQUEST_HEADER_DONE).apply(null)).isEqualTo(flow);
     gateway.registerCallback(Events.REQUEST_URI_RAW, callback);
     assertThat(gateway.getCallback(Events.REQUEST_URI_RAW).apply(null, null)).isEqualTo(flow);
+    gateway.registerCallback(Events.REQUEST_BODY_START, callback.asRequestBodyStart());
+    assertThat(gateway.getCallback(Events.REQUEST_BODY_START).apply(null, null)).isNull();
+    gateway.registerCallback(Events.REQUEST_BODY_DONE, callback.asRequestBodyDone());
+    assertThat(gateway.getCallback(Events.REQUEST_BODY_DONE).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
+
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -136,6 +143,12 @@ public class InstrumentationGatewayTest {
     gateway.registerCallback(Events.REQUEST_URI_RAW, throwback);
     assertThat(gateway.getCallback(Events.REQUEST_URI_RAW).apply(null, null))
         .isEqualTo(Flow.ResultFlow.empty());
+    gateway.registerCallback(Events.REQUEST_BODY_START, throwback.asRequestBodyStart());
+    assertThat(gateway.getCallback(Events.REQUEST_BODY_START).apply(null, null)).isNull();
+    gateway.registerCallback(Events.REQUEST_BODY_DONE, throwback.asRequestBodyDone());
+    assertThat(gateway.getCallback(Events.REQUEST_BODY_DONE).apply(null, null).getAction())
+        .isEqualTo(Flow.Action.Noop.INSTANCE);
+
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -176,6 +189,27 @@ public class InstrumentationGatewayTest {
     public void accept(RequestContext requestContext, String s, String s2) {
       count++;
     }
+
+    public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
+      return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
+        @Override
+        public Void apply(RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
+          count++;
+          return null;
+        }
+      };
+    }
+
+    public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
+      return new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
+        @Override
+        public Flow<Void> apply(
+            RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
+          count++;
+          return new Flow.ResultFlow<>(null);
+        }
+      };
+    }
   }
 
   private static class Throwback
@@ -208,6 +242,27 @@ public class InstrumentationGatewayTest {
     public void accept(RequestContext requestContext, String s, String s2) {
       count++;
       throw new IllegalArgumentException();
+    }
+
+    public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
+      return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
+        @Override
+        public Void apply(RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
+          count++;
+          throw new IllegalArgumentException();
+        }
+      };
+    }
+
+    public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
+      return new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
+        @Override
+        public Flow<Void> apply(
+            RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
+          count++;
+          throw new IllegalArgumentException();
+        }
+      };
     }
 
     public int getCount() {

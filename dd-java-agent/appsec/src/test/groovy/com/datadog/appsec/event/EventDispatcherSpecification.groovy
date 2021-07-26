@@ -52,8 +52,7 @@ class EventDispatcherSpecification extends Specification {
     dispatcher.subscribeDataAvailable(set)
 
     when:
-    def subscribers = dispatcher.getDataSubscribers(ctx,
-      KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.REQUEST_METHOD)
+    def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.REQUEST_METHOD)
     DataBundle db = MapDataBundle.of(
       KnownAddresses.REQUEST_CLIENT_IP, '::1',
       KnownAddresses.REQUEST_METHOD, 'GET')
@@ -92,8 +91,7 @@ class EventDispatcherSpecification extends Specification {
     dispatcher.subscribeDataAvailable(set)
 
     when:
-    def subscribers = dispatcher.getDataSubscribers(ctx,
-      KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.HEADERS_NO_COOKIES)
+    def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP, KnownAddresses.HEADERS_NO_COOKIES)
     dispatcher.publishDataEvent(subscribers, ctx, db, true)
 
     then:
@@ -117,7 +115,7 @@ class EventDispatcherSpecification extends Specification {
     dispatcher.subscribeDataAvailable(set)
 
     when:
-    def subscribers = dispatcher.getDataSubscribers(ctx, KnownAddresses.REQUEST_CLIENT_IP)
+    def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
     DataBundle db = MapDataBundle.of(KnownAddresses.REQUEST_CLIENT_IP, '::1')
     ChangeableFlow resultFlow = dispatcher.publishDataEvent(subscribers, ctx, db, true)
 
@@ -143,7 +141,7 @@ class EventDispatcherSpecification extends Specification {
     dispatcher.subscribeDataAvailable(set)
 
     when:
-    def subscribers = dispatcher.getDataSubscribers(ctx, KnownAddresses.REQUEST_CLIENT_IP)
+    def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_CLIENT_IP)
     dispatcher.publishDataEvent(subscribers, ctx, db, false)
 
     then:
@@ -153,7 +151,7 @@ class EventDispatcherSpecification extends Specification {
 
   void 'empty subscriber info if no subscribers for address'() {
     when:
-    def subscribers = dispatcher.getDataSubscribers(ctx, KnownAddresses.REQUEST_URI_RAW)
+    def subscribers = dispatcher.getDataSubscribers(KnownAddresses.REQUEST_URI_RAW)
 
     then:
     subscribers.empty == true
