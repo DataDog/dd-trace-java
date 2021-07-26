@@ -1,24 +1,26 @@
 package datadog.trace.instrumentation.jetty_client;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter.SETTER;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.instrumentation.jetty_client.JettyClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.jetty_client.JettyClientDecorator.HTTP_REQUEST;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.List;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.eclipse.jetty.client.HttpRequest;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 
@@ -43,18 +45,18 @@ public class JettyClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("org.eclipse.jetty.client.HttpRequest", State.class.getName());
+  }
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         isMethod()
             .and(named("send"))
-            .and(
-                takesArgument(
-                    0,
-                    namedOneOf(
-                        "org.eclipse.jetty.client.api.Request",
-                        "org.eclipse.jetty.client.HttpRequest")))
+            .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request")))
             .and(takesArgument(1, List.class)),
-        JettyClientInstrumentation.class.getName() + "$SendAdvice");
+        getClass().getName() + "$SendAdvice");
   }
 
   public static class SendAdvice {
@@ -62,22 +64,21 @@ public class JettyClientInstrumentation extends Instrumenter.Tracing {
     public static AgentScope methodEnter(
         @Advice.Argument(0) final Request request,
         @Advice.Argument(1) final List<Response.ResponseListener> listeners) {
-      final AgentSpan span = startSpan(HTTP_REQUEST);
-      span.setMeasured(true);
-      final AgentScope scope = activateSpan(span);
-
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request);
-      propagate().inject(span, request, SETTER);
-      // Add listener to the front of the list.
-      listeners.add(0, new SpanFinishingCompleteListener(span));
-      return scope;
+      return activateSpan(DECORATE.prepareSpan(startSpan(HTTP_REQUEST), request, listeners));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-      if (throwable != null) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Argument(0) final Request request,
+        @Advice.Thrown final Throwable throwable) {
+      if (throwable == null) {
+        // capture context for JettyListenerInstrumentation
+        capture(
+            InstrumentationContext.get(HttpRequest.class, State.class),
+            (HttpRequest) request,
+            true);
+      } else {
         DECORATE.onError(scope, throwable);
         DECORATE.beforeFinish(scope);
         scope.span().finish();
