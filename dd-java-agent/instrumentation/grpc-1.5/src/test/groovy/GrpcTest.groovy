@@ -89,6 +89,8 @@ class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "status.code" "OK"
+            "request.type" "example.Helloworld\$Request"
+            "response.type" "example.Helloworld\$Response"
             defaultTags()
           }
         }
@@ -210,6 +212,8 @@ class GrpcTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "status.code" "${status.code.name()}"
             "status.description" description
+            "request.type" "example.Helloworld\$Request"
+            "response.type" "example.Helloworld\$Response"
             defaultTags()
           }
         }
@@ -302,6 +306,8 @@ class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "status.code" "UNKNOWN"
+            "request.type" "example.Helloworld\$Request"
+            "response.type" "example.Helloworld\$Response"
             defaultTags()
           }
         }
