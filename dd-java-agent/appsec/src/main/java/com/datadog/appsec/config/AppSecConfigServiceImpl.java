@@ -52,6 +52,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
                 Map<String, Object> stringObjectMap =
                     ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
                 distributeSubConfigurations(stringObjectMap);
+                this.lastConfig.set(stringObjectMap);
               } catch (IOException e) {
                 log.error("Error deserializing appsec config", e);
               }

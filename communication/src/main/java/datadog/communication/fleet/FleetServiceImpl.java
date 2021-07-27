@@ -76,6 +76,15 @@ public class FleetServiceImpl implements FleetService {
     private int consecutiveFailures;
     private OkHttpClient okHttpClient;
     private HttpUrl httpUrl;
+    private MessageDigest digest;
+
+    AgentConfigPollingRunnable() {
+      try {
+        digest = MessageDigest.getInstance("MD5");
+      } catch (NoSuchAlgorithmException e) {
+        throw new UndeclaredThrowableException(e);
+      }
+    }
 
     @Override
     public void run() {
@@ -136,13 +145,8 @@ public class FleetServiceImpl implements FleetService {
           log.warn("IOException when reading fleet service response");
           return false;
         }
-        MessageDigest digest;
-        try {
-          digest = MessageDigest.getInstance("MD5");
-        } catch (NoSuchAlgorithmException e) {
-          throw new UndeclaredThrowableException(e);
-        }
 
+        digest.reset();
         byte[] hash = digest.digest(body);
         if (Arrays.equals(hash, sub.lastHash)) {
           return true;

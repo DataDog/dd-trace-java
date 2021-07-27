@@ -29,12 +29,13 @@ class AppSecConfigServiceImplSpecification extends Specification {
     appSecConfigService.addSubConfigListener("waf2", listener) == Optional.empty()
   }
 
-  void 'provides update configuration to subscription'() {
+  void 'provides updated configuration to subscription'() {
     AppSecConfigService.SubconfigListener subconfigListener = Mock()
     FleetService.ConfigurationListener savedConfigurationListener
+    def initialWafConfig
 
     when:
-    appSecConfigService.addSubConfigListener("waf", subconfigListener)
+    initialWafConfig = appSecConfigService.addSubConfigListener("waf", subconfigListener)
     appSecConfigService.init()
 
     then:
@@ -42,12 +43,21 @@ class AppSecConfigServiceImplSpecification extends Specification {
       savedConfigurationListener = it[1]
       Mock(FleetService.FleetSubscription)
     }
+    initialWafConfig.get() != null
 
     when:
-    savedConfigurationListener.onNewConfiguration(new ByteArrayInputStream('{"waf": "my config"}'.bytes))
+    savedConfigurationListener.onNewConfiguration(
+      new ByteArrayInputStream(
+      '{"waf": "my config", "foo": "another config"}'.bytes))
 
     then:
     1 * subconfigListener.onNewSubconfig('my config')
+
+    when:
+    def fooInitialConfig = appSecConfigService.addSubConfigListener('foo', Mock(AppSecConfigService.SubconfigListener))
+
+    then:
+    fooInitialConfig.get() == 'another config'
   }
 
   void 'error in one listener does not prevent others from running'() {
