@@ -8,7 +8,7 @@ class TimelinePrinter {
       System.err.println("=== Activity checkpoints by thread ordered by time")
       if (!invalidEvents.empty) {
         System.err.println("===== Invalid event sequences were detected. " +
-                            "Affected spans are highlited by '***'")
+          "Affected spans are highlited by '***'")
       }
       // allows rendering threads top to bottom by when they were first encountered
       Map<String, BitSet> timelines = new LinkedHashMap<>()
