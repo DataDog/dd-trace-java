@@ -8,11 +8,6 @@ muzzle {
     module = "jetty-client"
     versions = "[9.1,10)"
   }
-  fail {
-    group = "org.eclipse.jetty"
-    module = "jetty-client"
-    versions = "[,9.1)"
-  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
