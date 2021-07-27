@@ -26,6 +26,9 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
 
   class DropwizardServer implements HttpServer {

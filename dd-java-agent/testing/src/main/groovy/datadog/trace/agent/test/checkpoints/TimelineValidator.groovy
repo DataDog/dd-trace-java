@@ -1,6 +1,23 @@
 package datadog.trace.agent.test.checkpoints
 
 class TimelineValidator {
+  // To verify which tests have the annotation and which are passing, run:
+  //  $> VALIDATE_CHECKPOINTS=true FORCE_VALIDATE_CHECKPOINTS=true ./gradlew \
+  //      `grep -r -l "TimelineValidator.ignoreTest" dd-java-agent/instrumentation/ | \
+  //            sed "s/\/build\/.*$//" | \
+  //            sed "s/\/src\/.*$//" | \
+  //            tr '/' ':' | \
+  //            sort -u | \
+  //            xargs -n 1 -I{} echo :{}:test` \
+  //          --continue --no-parallel
+  // Then check that all of the classes which use TimelineValidator.ignoreTest are indeed failing.
+
+  @Deprecated
+  static boolean ignoreTest() {
+    return Boolean.parseBoolean(System.getenv("VALIDATE_CHECKPOINTS")) &&
+      !Boolean.parseBoolean(System.getenv("FORCE_VALIDATE_CHECKPOINTS"))
+  }
+
   static Set<Event> validate(def spanEvents, def threadEvents, def orderedEvents) {
     def invalidEvents = new HashSet<>()
     for (def events : spanEvents.values()) {

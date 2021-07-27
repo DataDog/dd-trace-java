@@ -12,6 +12,9 @@ import spock.lang.Timeout
 import java.util.concurrent.CountDownLatch
 
 @Timeout(5)
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class ApacheHttpAsyncClientTest extends HttpClientTest {
 
   @Shared

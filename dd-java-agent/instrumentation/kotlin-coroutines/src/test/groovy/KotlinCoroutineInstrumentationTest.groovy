@@ -3,6 +3,9 @@ import datadog.trace.agent.test.AgentTestRunner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ThreadPoolDispatcherKt
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   static dispatchersToTest = [

@@ -14,6 +14,9 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Retry
 @Unroll
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class CouchbaseClientTest extends AbstractCouchbaseTest {
   def "test hasBucket #type"() {
     when:

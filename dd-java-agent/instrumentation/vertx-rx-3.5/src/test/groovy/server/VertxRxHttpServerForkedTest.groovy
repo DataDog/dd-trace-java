@@ -15,6 +15,9 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 @Ignore("This test isn't different from VertxHttpServerTest. Needs rework to meet intent")
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class VertxRxHttpServerForkedTest extends VertxHttpServerForkedTest {
 
   @Override

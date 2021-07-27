@@ -5,6 +5,9 @@ import spock.lang.Shared
 
 import static mule4.MuleTestApplicationConstants.*
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
 
   // TODO since mule uses reactor core, things sometime propagate to places where they're not closed

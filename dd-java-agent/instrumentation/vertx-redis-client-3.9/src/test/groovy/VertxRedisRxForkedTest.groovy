@@ -12,6 +12,9 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class VertxRedisRxForkedTest extends VertxRedisTestBase {
 
   @Shared

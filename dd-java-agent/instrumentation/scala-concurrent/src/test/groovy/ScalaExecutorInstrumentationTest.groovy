@@ -19,6 +19,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
  * Test executor instrumentation for Scala specific classes.
  * This is to large extent a copy of ExecutorInstrumentationTest.
  */
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class ScalaExecutorInstrumentationTest extends AgentTestRunner {
 
   @Shared

@@ -6,6 +6,9 @@ import io.vertx.redis.client.Response
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class VertxRedisForkedTest extends VertxRedisTestBase {
 
   def "set and get command"() {

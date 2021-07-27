@@ -22,6 +22,9 @@ import spock.lang.Shared
 import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class Elasticsearch5RestClientTest extends AgentTestRunner {
   @Shared
   TransportAddress httpTransportAddress

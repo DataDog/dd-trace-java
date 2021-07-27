@@ -3,6 +3,9 @@ import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.ForkJoinPool
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class Scala213PromiseForkJoinPoolTest extends ScalaPromiseTestBase {
   @Override
   protected ExecutionContext getExecutionContext() {
@@ -10,6 +13,9 @@ class Scala213PromiseForkJoinPoolTest extends ScalaPromiseTestBase {
   }
 }
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class Scala213PromiseGlobalTest extends ScalaPromiseTestBase {
   @Override
   protected ExecutionContext getExecutionContext() {
@@ -17,6 +23,9 @@ class Scala213PromiseGlobalTest extends ScalaPromiseTestBase {
   }
 }
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class Scala213PromiseScheduledThreadPoolTest extends ScalaPromiseTestBase {
   @Override
   protected ExecutionContext getExecutionContext() {
@@ -24,6 +33,9 @@ class Scala213PromiseScheduledThreadPoolTest extends ScalaPromiseTestBase {
   }
 }
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class Scala213PromiseThreadPoolTest extends ScalaPromiseTestBase {
   @Override
   protected ExecutionContext getExecutionContext() {

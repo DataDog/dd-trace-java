@@ -13,6 +13,9 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
 @Timeout(5)
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class ApacheHttpAsyncClientCallbackTest extends HttpClientTest {
 
   @Shared

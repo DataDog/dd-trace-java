@@ -18,6 +18,9 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTest {
 
   @Override

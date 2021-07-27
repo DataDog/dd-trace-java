@@ -18,6 +18,9 @@ import spock.lang.Subject
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class OpenTracing32Test extends AgentTestRunner {
 
   @Subject

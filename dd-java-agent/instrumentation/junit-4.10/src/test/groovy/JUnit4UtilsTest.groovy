@@ -1,6 +1,9 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.instrumentation.junit4.JUnit4Utils
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class JUnit4UtilsTest extends AgentTestRunner {
 
   def "test remove trailing brackets from test name"() {

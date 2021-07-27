@@ -17,6 +17,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Retry(count = 10, delay = 500)
 @Unroll
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
 
   @Override

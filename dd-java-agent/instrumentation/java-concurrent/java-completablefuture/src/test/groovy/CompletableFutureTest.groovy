@@ -17,6 +17,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
  * Note: ideally this should live with the rest of ExecutorInstrumentationTest,
  * but this code needs java8 so we put it here for now.
  */
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class CompletableFutureTest extends AgentTestRunner {
 
   def "CompletableFuture test"() {

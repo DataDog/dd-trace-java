@@ -14,6 +14,9 @@ import spock.lang.Timeout
 import java.util.concurrent.CompletableFuture
 
 @Timeout(10)
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class VertxHttpClientForkedTest extends HttpClientTest {
 
   @Override

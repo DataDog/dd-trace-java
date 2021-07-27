@@ -134,12 +134,18 @@ abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
   }
 }
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class VertxRedisAPIRedisForkedTest extends VertxRedisAPITestBase {
   def setupSpec() {
     redisAPI = RedisAPI.api(redis)
   }
 }
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class VertxRedisAPIRedisConnectionForkedTest extends VertxRedisAPITestBase {
   def setupSpec() {
     def latch = new CountDownLatch(1)

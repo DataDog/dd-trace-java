@@ -8,6 +8,9 @@ import spock.lang.Timeout
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Timeout(5)
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class SpringWebfluxHttpClientDoAfterTerminateTest extends SpringWebfluxHttpClientBase {
 
   @Override

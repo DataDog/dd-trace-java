@@ -8,6 +8,9 @@ import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class AkkaActorTest extends AgentTestRunner {
   @Shared
   def akkaTester = new AkkaActors()

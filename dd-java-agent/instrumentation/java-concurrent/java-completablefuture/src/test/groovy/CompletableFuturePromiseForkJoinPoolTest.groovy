@@ -1,6 +1,9 @@
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class CompletableFuturePromiseForkJoinPoolTest extends CompletableFuturePromiseTest {
   @Override
   Executor executor() {

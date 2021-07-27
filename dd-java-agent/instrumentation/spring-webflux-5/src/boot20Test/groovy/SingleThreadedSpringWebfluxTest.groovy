@@ -12,6 +12,9 @@ import reactor.ipc.netty.resources.LoopResources
  * for different requests.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = [SpringWebFluxTestApplication, ForceSingleThreadedNettyAutoConfiguration])
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class SingleThreadedSpringWebfluxTest extends SpringWebfluxTest {
 
   @TestConfiguration

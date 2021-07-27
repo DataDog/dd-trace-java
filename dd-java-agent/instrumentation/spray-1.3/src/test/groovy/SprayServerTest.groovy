@@ -2,6 +2,9 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.spray.SprayHttpServerDecorator
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
 
   @Override

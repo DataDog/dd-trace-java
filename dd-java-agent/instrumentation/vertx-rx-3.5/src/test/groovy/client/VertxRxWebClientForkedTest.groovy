@@ -12,6 +12,9 @@ import spock.lang.Shared
 import spock.lang.Timeout
 
 @Timeout(10)
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class VertxRxWebClientForkedTest extends HttpClientTest {
 
   @Override

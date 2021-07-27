@@ -27,6 +27,9 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class JMS1Test extends AgentTestRunner {
   @Shared
   EmbeddedActiveMQBroker broker = new EmbeddedActiveMQBroker()

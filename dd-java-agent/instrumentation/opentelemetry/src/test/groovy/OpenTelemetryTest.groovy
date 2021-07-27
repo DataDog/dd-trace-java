@@ -14,6 +14,9 @@ import io.opentelemetry.trace.Status
 import io.opentelemetry.trace.TracingContextUtils
 import spock.lang.Subject
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class OpenTelemetryTest extends AgentTestRunner {
   @Subject
   def tracer = OpenTelemetry.tracerProvider.get("test-inst")

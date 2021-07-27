@@ -331,6 +331,7 @@ class TestAccessLogValve extends ValveBase implements AccessLog {
   }
 }
 
+@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestSync extends TomcatServlet3Test {
 
   @Override
@@ -339,6 +340,7 @@ class TomcatServlet3TestSync extends TomcatServlet3Test {
   }
 }
 
+@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestAsync extends TomcatServlet3Test {
 
   @Override
@@ -358,6 +360,7 @@ class TomcatServlet3TestAsync extends TomcatServlet3Test {
   }
 }
 
+@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {
 
   @Override
@@ -366,6 +369,7 @@ class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {
   }
 }
 
+@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestForward extends TomcatServlet3Test {
   @Override
   Class<Servlet> servlet() {
@@ -392,6 +396,7 @@ class TomcatServlet3TestForward extends TomcatServlet3Test {
   }
 }
 
+@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestInclude extends TomcatServlet3Test {
   @Override
   Class<Servlet> servlet() {
@@ -428,6 +433,7 @@ class TomcatServlet3TestInclude extends TomcatServlet3Test {
   }
 }
 
+@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestDispatchImmediate extends TomcatServlet3Test {
   @Override
   Class<Servlet> servlet() {
@@ -457,6 +463,7 @@ class TomcatServlet3TestDispatchImmediate extends TomcatServlet3Test {
   }
 }
 
+@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
   @Override
   Class<Servlet> servlet() {

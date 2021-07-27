@@ -9,6 +9,9 @@ import org.eclipse.jetty.util.ssl.SslContextFactory
 import spock.lang.Shared
 import spock.lang.Subject
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class JettyClientTest extends HttpClientTest {
   @Shared
   @Subject

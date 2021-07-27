@@ -17,6 +17,9 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Unroll
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
   static final Closure<Doc> FIND
   static {

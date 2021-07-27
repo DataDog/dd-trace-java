@@ -7,6 +7,9 @@ import spock.lang.Shared
 
 import java.util.concurrent.Executors
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class ListenableFutureTest extends AbstractPromiseTest<SettableFuture<Boolean>, ListenableFuture<String>> {
   @Shared
   def executor = Executors.newFixedThreadPool(1)

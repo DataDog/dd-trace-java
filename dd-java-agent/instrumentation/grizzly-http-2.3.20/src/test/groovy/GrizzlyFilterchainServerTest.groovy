@@ -37,6 +37,9 @@ import static java.nio.charset.Charset.defaultCharset
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static org.glassfish.grizzly.memory.Buffers.wrap
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
 
   @Override

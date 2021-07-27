@@ -91,6 +91,9 @@ class ResteasyClientAsyncTest extends JaxRsClientAsyncTest {
 }
 
 @Timeout(5)
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class CxfClientAsyncTest extends JaxRsClientAsyncTest {
 
   @Override

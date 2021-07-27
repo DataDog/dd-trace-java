@@ -2,6 +2,9 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import spock.lang.Retry
 
 @Retry
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class CouchbaseAsyncClient26Test extends CouchbaseAsyncClientTest {
 
   @Override

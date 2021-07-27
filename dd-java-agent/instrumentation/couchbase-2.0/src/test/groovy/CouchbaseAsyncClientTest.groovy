@@ -12,6 +12,9 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Unroll
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
   static final int TIMEOUT = 30
 

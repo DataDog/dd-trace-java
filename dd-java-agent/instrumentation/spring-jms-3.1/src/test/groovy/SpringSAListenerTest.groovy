@@ -30,6 +30,9 @@ import salistener.Config
 
 import javax.jms.ConnectionFactory
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class SpringSAListenerTest extends AgentTestRunner {
 
   def "receiving message in spring session aware listener generates spans"() {

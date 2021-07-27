@@ -17,6 +17,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.web.server.ResponseStatusException
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = [SpringWebFluxTestApplication, ForceNettyAutoConfiguration])
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class SpringWebfluxTest extends AgentTestRunner {
 
   @TestConfiguration

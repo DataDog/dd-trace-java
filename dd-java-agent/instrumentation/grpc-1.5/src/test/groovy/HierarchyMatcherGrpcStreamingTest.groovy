@@ -1,3 +1,6 @@
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class HierarchyMatcherGrpcStreamingTest extends GrpcStreamingTest {
   @Override
   protected void configurePreAgent() {

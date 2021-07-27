@@ -7,6 +7,9 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class VertxRedisClientForkedTest extends VertxRedisTestBase {
 
   @AutoCleanup

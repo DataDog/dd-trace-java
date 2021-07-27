@@ -22,6 +22,9 @@ import java.util.concurrent.CountDownLatch
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Timeout(10)
+@spock.lang.IgnoreIf({
+  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
+})
 class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   @Shared
