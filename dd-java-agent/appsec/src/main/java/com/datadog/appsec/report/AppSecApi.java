@@ -112,7 +112,7 @@ public class AppSecApi {
         return;
       }
 
-      if (response.code() != 200) {
+      if (response.code() < 200 || response.code() > 299) {
         counter.incrementErrorCount(Integer.toString(response.code()), 1);
         ResponseBody body = response.body();
         String errorBody = "";
