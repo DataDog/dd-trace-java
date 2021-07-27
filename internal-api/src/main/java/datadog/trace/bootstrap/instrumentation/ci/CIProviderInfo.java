@@ -29,10 +29,7 @@ public abstract class CIProviderInfo {
   public CIProviderInfo() {
     final CIInfo ciInfo = buildCIInfo();
     final GitInfo ciGitInfo = buildCIGitInfo();
-    final GitInfo localGitInfo =
-        new LocalFSGitInfoExtractor()
-            .headCommit(
-                Paths.get(ciInfo.getCiWorkspace(), getGitFolderName()).toFile().getAbsolutePath());
+    final GitInfo localGitInfo = buildCILocalGitInfo(ciInfo);
     final String ciGitCommit = ciGitInfo.getCommit().getSha();
     final String localFSGitCommit = localGitInfo.getCommit().getSha();
 
@@ -67,6 +64,15 @@ public abstract class CIProviderInfo {
 
   protected String getGitFolderName() {
     return ".git";
+  }
+
+  private GitInfo buildCILocalGitInfo(CIInfo ciInfo) {
+    if (ciInfo.getCiWorkspace() == null) {
+      return GitInfo.NOOP;
+    }
+    return new LocalFSGitInfoExtractor()
+        .headCommit(
+            Paths.get(ciInfo.getCiWorkspace(), getGitFolderName()).toFile().getAbsolutePath());
   }
 
   public boolean isCI() {
