@@ -76,7 +76,7 @@ public class Agent {
 
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
-  public static boolean appSecEnabled = false;
+  private static boolean appSecEnabled = false;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createSharedClassloader(bootstrapURL);
