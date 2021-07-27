@@ -72,7 +72,7 @@ public class GatewayBridge {
           AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
-          Collection<Attack010> collectedAttacks = ctx.getCollectedAttacks();
+          Collection<Attack010> collectedAttacks = ctx.transferCollectedAttacks();
           for (Attack010 attack : collectedAttacks) {
             EventEnrichment.enrich(attack, ctx);
             reportService.reportAttack(attack);

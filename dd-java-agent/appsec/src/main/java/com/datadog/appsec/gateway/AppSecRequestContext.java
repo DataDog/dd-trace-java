@@ -142,14 +142,19 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
       if (this.collectedAttacks == null) {
         this.collectedAttacks = new ArrayList<>();
       }
-      this.collectedAttacks.add(attack);
+      try {
+        this.collectedAttacks.add(attack);
+      } catch (UnsupportedOperationException e) {
+        throw new IllegalStateException("Attacks cannot be added anymore");
+      }
     }
   }
 
-  Collection<Attack010> getCollectedAttacks() {
+  Collection<Attack010> transferCollectedAttacks() {
     Collection<Attack010> collectedAttacks;
     synchronized (this) {
       collectedAttacks = this.collectedAttacks;
+      this.collectedAttacks = Collections.emptyList();
     }
     if (collectedAttacks != null) {
       return collectedAttacks;

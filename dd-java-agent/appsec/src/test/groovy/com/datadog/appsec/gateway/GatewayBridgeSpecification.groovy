@@ -65,7 +65,7 @@ class GatewayBridgeSpecification extends Specification {
     def flow = requestEndedCB.apply(mockCtx)
 
     then:
-    1 * mockCtx.collectedAttacks >> [attack]
+    1 * mockCtx.transferCollectedAttacks() >> [attack]
     1 * mockCtx.close()
     1 * reportService.reportAttack(attack)
     1 * eventDispatcher.publishEvent(mockCtx, EventType.REQUEST_END)
