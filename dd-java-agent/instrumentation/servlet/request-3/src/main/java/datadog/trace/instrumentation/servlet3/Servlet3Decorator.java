@@ -3,12 +3,13 @@ package datadog.trace.instrumentation.servlet3;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.instrumentation.servlet.http.common.ServletHttpServerDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-public class Servlet3Decorator extends ServletHttpServerDecorator<HttpServletResponse> {
+public class Servlet3Decorator
+    extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence JAVA_WEB_SERVLET = UTF8BytesString.create("java-web-servlet");
   public static final Servlet3Decorator DECORATE = new Servlet3Decorator();

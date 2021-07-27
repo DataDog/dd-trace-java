@@ -14,29 +14,6 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-sourceSets {
-  common {
-    compileClasspath = sourceSets.main.compileClasspath
-    java {
-      srcDir 'src/common/java'
-    }
-  }
-  test {
-    compileClasspath += common.output
-    runtimeClasspath += common.output
-  }
-}
-
-// to be used a compile-only dependency
-task commonJar(type: Jar) {
-  archiveClassifier = 'common'
-  from sourceSets.common.output
-}
-
-jar {
-  from sourceSets.common.output
-}
-
 dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.3'
 

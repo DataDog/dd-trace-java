@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servlet.http.common;
+package datadog.trace.instrumentation.servlet.http;
 
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;

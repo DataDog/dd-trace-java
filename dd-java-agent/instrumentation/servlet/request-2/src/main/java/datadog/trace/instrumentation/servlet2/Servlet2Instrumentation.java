@@ -42,16 +42,9 @@ public final class Servlet2Instrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.servlet.http.common.ServletHttpServerDecorator",
       packageName + ".Servlet2Decorator",
       packageName + ".ServletRequestURIAdapter",
       packageName + ".HttpServletRequestExtractAdapter",
-      "datadog.trace.instrumentation.servlet.http.common.BodyCapturingHttpServletRequest",
-      "datadog.trace.instrumentation.servlet.http.common.BodyCapturingHttpServletRequest$ServletInputStreamWrapper",
-      "datadog.trace.instrumentation.servlet.http.common.BodyCapturingHttpServletRequest$BufferedReaderWrapper",
-      "datadog.trace.instrumentation.servlet.http.common.IGDelegatingStoredBodyListener",
-      "datadog.trace.instrumentation.servlet.http.common.IGDelegatingStoredBodyListener$1",
-      "datadog.trace.instrumentation.servlet.http.common.IGDelegatingStoredBodyListener$2",
     };
   }
 

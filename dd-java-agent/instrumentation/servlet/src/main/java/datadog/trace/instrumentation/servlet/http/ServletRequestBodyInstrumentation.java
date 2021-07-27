@@ -1,0 +1,152 @@
+package datadog.trace.instrumentation.servlet.http;
+
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.http.StoredByteBody;
+import datadog.trace.api.http.StoredCharBody;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.io.BufferedReader;
+import java.nio.charset.Charset;
+import javax.servlet.ServletInputStream;
+import javax.servlet.ServletRequest;
+import javax.servlet.http.HttpServletRequest;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+
+@AutoService(Instrumenter.class)
+public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
+  public ServletRequestBodyInstrumentation() {
+    super("servlet-request-body");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed("javax.servlet.http.HttpServlet");
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> typeMatcher() {
+    return implementsInterface(named("javax.servlet.ServletRequest"));
+  }
+
+  @Override
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        named("getInputStream")
+            .and(takesNoArguments())
+            .and(returns(named("javax.servlet.ServletInputStream")))
+            .and(isPublic()),
+        getClass().getName() + "$HttpServletGetInputStreamAdvice");
+    transformation.applyAdvice(
+        named("getReader")
+            .and(takesNoArguments())
+            .and(returns(named("java.io.BufferedReader")))
+            .and(isPublic()),
+        getClass().getName() + "$HttpServletGetReaderAdvice");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      "datadog.trace.instrumentation.servlet.http.IGDelegatingStoredBodyListener",
+      "datadog.trace.instrumentation.servlet.http.IGDelegatingStoredBodyListener$1",
+      "datadog.trace.instrumentation.servlet.http.IGDelegatingStoredBodyListener$2",
+      "datadog.trace.instrumentation.servlet.http.ServletInputStreamWrapper",
+      "datadog.trace.instrumentation.servlet.http.BufferedReaderWrapper",
+    };
+  }
+
+  @SuppressWarnings("Duplicates")
+  static class HttpServletGetInputStreamAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(
+        @Advice.This final ServletRequest thiz,
+        @Advice.Return(readOnly = false) ServletInputStream is) {
+      if (!(thiz instanceof HttpServletRequest) || is == null) {
+        return;
+      }
+
+      AgentSpan agentSpan = activeSpan();
+      if (agentSpan == null) {
+        return;
+      }
+      HttpServletRequest req = (HttpServletRequest) thiz;
+      Object alreadyWrapped = req.getAttribute("datadog.wrapped_request_body");
+      if (alreadyWrapped != null || is instanceof ServletInputStreamWrapper) {
+        return;
+      }
+      RequestContext requestContext = agentSpan.getRequestContext();
+      if (requestContext == null) {
+        return;
+      }
+      req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
+
+      CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+      IGDelegatingStoredBodyListener listener =
+          new IGDelegatingStoredBodyListener(cbp, requestContext);
+
+      StoredByteBody storedByteBody = new StoredByteBody(listener);
+      ServletInputStreamWrapper servletInputStreamWrapper =
+          new ServletInputStreamWrapper(is, storedByteBody);
+
+      String encoding = req.getCharacterEncoding();
+      try {
+        if (encoding != null) {
+          Charset charset = Charset.forName(encoding);
+          servletInputStreamWrapper.setCharset(charset);
+        }
+      } catch (IllegalArgumentException iae) {
+        // purposefully left blank
+      }
+
+      is = servletInputStreamWrapper;
+    }
+  }
+
+  @SuppressWarnings("Duplicates")
+  static class HttpServletGetReaderAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(
+        @Advice.This final ServletRequest thiz,
+        @Advice.Return(readOnly = false) BufferedReader reader) {
+      if (!(thiz instanceof HttpServletRequest) || reader == null) {
+        return;
+      }
+
+      AgentSpan agentSpan = activeSpan();
+      if (agentSpan == null) {
+        return;
+      }
+      HttpServletRequest req = (HttpServletRequest) thiz;
+      Object alreadyWrapped = req.getAttribute("datadog.wrapped_request_body");
+      if (alreadyWrapped != null || reader instanceof BufferedReaderWrapper) {
+        return;
+      }
+      RequestContext requestContext = agentSpan.getRequestContext();
+      if (requestContext == null) {
+        return;
+      }
+      req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
+
+      CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+      IGDelegatingStoredBodyListener listener =
+          new IGDelegatingStoredBodyListener(cbp, requestContext);
+
+      StoredCharBody storedCharBody = new StoredCharBody(listener);
+      reader = new BufferedReaderWrapper(reader, storedCharBody);
+    }
+  }
+}
