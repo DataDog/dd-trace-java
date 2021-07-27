@@ -31,8 +31,9 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
   // assume this will always be accessed by the same thread
   private String savedRawURI;
   private CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
-  private List<StringKVPair> collectedCookies = new ArrayList<StringKVPair>(4);
+  private List<StringKVPair> collectedCookies = new ArrayList<>(4);
   private boolean finishedHeaders;
+  private String ip;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -117,6 +118,14 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
 
   List<StringKVPair> getCollectedCookies() {
     return collectedCookies;
+  }
+
+  public String getIp() {
+    return ip;
+  }
+
+  public void setIp(String ip) {
+    this.ip = ip;
   }
 
   @Override
