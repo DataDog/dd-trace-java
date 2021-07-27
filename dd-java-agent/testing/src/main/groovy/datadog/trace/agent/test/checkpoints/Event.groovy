@@ -56,4 +56,12 @@ class Event {
   String getThreadName() {
     return threadName
   }
+
+  StackTraceElement[] getStackTrace() {
+    return stackTrace
+  }
+
+  String toString() {
+    return "${name}/${spanId} (thread: ${threadName})\n"
+  }
 }

@@ -8,8 +8,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 class TimelineCheckpointer implements Checkpointer {
 
-  private static String[] emptySpaces = new String[128]
-
   private final ConcurrentHashMap<DDId, List<Event>> spanEvents = new ConcurrentHashMap<>()
   private final ConcurrentHashMap<String, List<Event>> threadEvents = new ConcurrentHashMap<>()
   private final List<Event> orderedEvents = new CopyOnWriteArrayList<>()
@@ -31,15 +29,13 @@ class TimelineCheckpointer implements Checkpointer {
 
   void publish() {
     def invalidEvents = TimelineValidator.validate(spanEvents, threadEvents, orderedEvents)
-    System.err.println("==== Full checkpoint timeline")
-    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents)
-    System.err.println("===")
     if (!invalidEvents.empty) {
-      System.err.println("=== Invalid checkpoint sub-timeline")
-      TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, invalidEvents)
-      System.err.println("===")
+      System.err.println("=== Invalid checkpoint events encountered")
+      invalidEvents.each { System.err.println(it) }
     }
+    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, invalidEvents)
     TimelineExporter.export(orderedEvents)
+    System.err.println("")
 
     // apparently gradle can not pass system property to spock tests - therefore using env variable instead
     if (!invalidEvents.empty && Boolean.parseBoolean(System.getenv("VALIDATE_CHECKPOINTS"))) {

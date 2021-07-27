@@ -4,12 +4,16 @@ class ThreadContextTracker extends AbstractContextTracker {
   private static class SpanInterval {
     final long spanId
     final int startTick
-    int endTick
+    int endTick = Integer.MAX_VALUE
     boolean suspended = false
 
     SpanInterval(long spanId, int startTick) {
       this.spanId = spanId
       this.startTick = startTick
+    }
+
+    String toString() {
+      return "[span/${spanId}|${suspended}](${startTick}, ${endTick})"
     }
   }
 
@@ -19,16 +23,7 @@ class ThreadContextTracker extends AbstractContextTracker {
   def tick = 0
 
   Boolean onEvent(Event event) {
-    def fromOpenIntervalsByTime = new ArrayList<>(openIntervalsByTime)
-    def fromClosedIntervalsByTime = new ArrayList<>(closedIntervalsByTime)
-    def ret = dispatchEvent(event)
-    if (!ret) {
-      System.err.println("ThreadContextTracker [FAIL] " + event.name + "/" + event.spanId +
-        " ::\n(from open intervals)\n" + fromOpenIntervalsByTime + "\n(to open intervals)\n" + openIntervalsByTime +
-        "\n(from closed intervals)\n" + fromClosedIntervalsByTime + "\n(to closed intervals)\n" + closedIntervalsByTime
-      )
-    }
-    return ret
+    return dispatchEvent(event)
   }
 
   @Override

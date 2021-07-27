@@ -1,7 +1,5 @@
 package datadog.trace.agent.test.checkpoints
 
-import datadog.trace.api.DDId
-
 class TimelineValidator {
   static Set<Event> validate(def spanEvents, def threadEvents, def orderedEvents) {
     def invalidEvents = new HashSet<>()

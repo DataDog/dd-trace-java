@@ -21,16 +21,7 @@ class SpanContextTracker extends AbstractContextTracker {
   }
 
   Boolean onEvent(Event event) {
-    def fromStack = new ArrayList<>(stack)
-    def fromSpanState = spanState
-    def ret = dispatchEvent(event)
-    if (!ret) {
-      System.err.println("SpanContextTracker [FAIL] " + event.name + "/" + event.spanId +
-        " ::\n(from stack)\n" + fromStack + "\n(to stack)\n" + stack +
-        "\n(from span state)\n" + fromSpanState + "\n(to span state)\n" + spanState
-      )
-    }
-    return ret
+    return dispatchEvent(event)
   }
 
   @Override

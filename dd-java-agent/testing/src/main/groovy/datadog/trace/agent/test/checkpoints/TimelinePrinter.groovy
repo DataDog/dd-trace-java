@@ -5,10 +5,9 @@ class TimelinePrinter {
 
   static void print(def spanEvents, def threadEvents, def orderedEvents, def invalidEvents = Collections.emptySet()) {
     if (!orderedEvents.isEmpty()) {
-      System.err.println("Activity checkpoints by thread ordered by time")
+      System.err.println("=== Activity checkpoints by thread ordered by time")
       if (!invalidEvents.empty) {
-        System.err.println("Invalid event sequences were detected.\n" +
-                            "Only the spans and threads related to those sequences are printed.\n" +
+        System.err.println("===== Invalid event sequences were detected. " +
                             "Affected spans are highlited by '***'")
       }
       // allows rendering threads top to bottom by when they were first encountered
@@ -19,20 +18,17 @@ class TimelinePrinter {
         maxNameLength = Math.max(maxNameLength, threadName.length())
       }
       int position = 0
-      def highlightSpans = invalidEvents*.spanId
       for (Event event : orderedEvents) {
-        if (highlightSpans.isEmpty() || highlightSpans.contains(event.spanId)) {
-          if (invalidEvents.contains(event)) {
-            renderings[position] = "***" + event.name + "/" + event.spanId + "***"
-          } else {
-            renderings[position] = event.name + "/" +event.spanId
-          }
-          BitSet timeline = timelines[event.threadName]
-          if (null == timeline) {
-            timelines[event.threadName] = timeline = new BitSet()
-          }
-          timeline.set(position++)
+        if (invalidEvents.contains(event)) {
+          renderings[position] = "***" + event.name + "/" + event.spanId + "***"
+        } else {
+          renderings[position] = event.name + "/" +event.spanId
         }
+        BitSet timeline = timelines[event.threadName]
+        if (null == timeline) {
+          timelines[event.threadName] = timeline = new BitSet()
+        }
+        timeline.set(position++)
       }
       for (Map.Entry<String, BitSet> timeline : timelines) {
         String threadName = timeline.key
