@@ -314,12 +314,15 @@ class GatewayBridgeSpecification extends Specification {
     setup:
     supplier.get() >> 'foobar'
 
+    expect:
+    ctx.storedRequestBody == null
+
     when:
     requestBodyStartCB.apply(ctx, supplier)
 
     then:
     1 * eventDispatcher.publishEvent(ctx, EventType.REQUEST_BODY_START)
-    ctx.getStoredRequestBody() == Optional.of('foobar')
+    ctx.storedRequestBody == 'foobar'
   }
 
   void 'forwards request body done events and distributes the body contents'() {

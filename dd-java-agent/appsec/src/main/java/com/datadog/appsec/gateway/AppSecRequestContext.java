@@ -17,7 +17,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -135,11 +134,11 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
   /* Should be accessible from the modules */
 
   /** @return the portion of the body read so far, if any */
-  public Optional<String> getStoredRequestBody() {
+  public String getStoredRequestBody() {
     if (this.storedRequestBodySupplier == null) {
-      return Optional.empty();
+      return null;
     }
-    return Optional.of(this.storedRequestBodySupplier.get());
+    return this.storedRequestBodySupplier.get();
   }
 
   @Override
