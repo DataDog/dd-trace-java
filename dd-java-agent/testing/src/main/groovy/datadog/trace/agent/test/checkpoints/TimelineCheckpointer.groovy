@@ -3,8 +3,6 @@ package datadog.trace.agent.test.checkpoints
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
 
-import java.util.stream.Collectors
-
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
