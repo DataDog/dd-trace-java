@@ -113,8 +113,8 @@ public class GatewayBridge {
             return NoopFlow.INSTANCE;
           }
 
-          String bodyContent = supplier.get();
-          if (bodyContent == null || bodyContent.isEmpty()) {
+          CharSequence bodyContent = supplier.get();
+          if (bodyContent == null || bodyContent.length() == 0) {
             return NoopFlow.INSTANCE;
           }
 

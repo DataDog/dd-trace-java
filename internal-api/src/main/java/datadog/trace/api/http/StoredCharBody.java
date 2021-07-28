@@ -1,5 +1,6 @@
 package datadog.trace.api.http;
 
+import java.nio.CharBuffer;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -101,10 +102,10 @@ public class StoredCharBody implements StoredBodySupplier {
   }
 
   @Override
-  public String get() {
+  public synchronized CharSequence get() {
     if (this.storedBodyLen == 0) {
       return "";
     }
-    return new String(this.storedBody, 0, this.storedBodyLen);
+    return CharBuffer.wrap(this.storedBody, 0, this.storedBodyLen);
   }
 }

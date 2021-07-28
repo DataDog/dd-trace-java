@@ -134,7 +134,7 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
   /* Should be accessible from the modules */
 
   /** @return the portion of the body read so far, if any */
-  public String getStoredRequestBody() {
+  public CharSequence getStoredRequestBody() {
     if (this.storedRequestBodySupplier == null) {
       return null;
     }

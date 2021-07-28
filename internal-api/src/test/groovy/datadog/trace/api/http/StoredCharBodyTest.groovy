@@ -20,7 +20,7 @@ class StoredCharBodyTest extends Specification {
 
     then:
     1 * listener.onBodyEnd(storedCharBody)
-    storedCharBody.get() == 'a' * 128
+    storedCharBody.get().toString() == 'a' * 128
   }
 
   void 'has a cutoff at 2 MB'() {
