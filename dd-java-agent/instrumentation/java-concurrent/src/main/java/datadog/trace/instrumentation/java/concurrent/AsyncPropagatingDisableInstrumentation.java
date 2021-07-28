@@ -73,9 +73,11 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "rx.internal.util.ObjectPool",
             "io.grpc.internal.ServerImpl$ServerTransportListenerImpl",
             "okhttp3.ConnectionPool",
+            "com.squareup.okhttp.ConnectionPool",
             "org.elasticsearch.transport.netty4.Netty4TcpChannel",
             "org.springframework.cglib.core.internal.LoadingCache",
-            "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher")
+            "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher",
+            "com.datastax.oss.driver.api.core.session.SessionBuilder")
         .or(RX_WORKERS)
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS);
@@ -110,6 +112,9 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
     transformation.applyAdvice(
         named("start").and(isDeclaredBy(named("rx.internal.util.ObjectPool"))), advice);
     transformation.applyAdvice(
+        named("addConnection").and(isDeclaredBy(named("com.squareup.okhttp.ConnectionPool"))),
+        advice);
+    transformation.applyAdvice(
         named("put").and(isDeclaredBy(named("okhttp3.ConnectionPool"))), advice);
     transformation.applyAdvice(
         named("sendMessage")
@@ -125,6 +130,10 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
                 isDeclaredBy(
                     named(
                         "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher"))),
+        advice);
+    transformation.applyAdvice(
+        named("buildAsync")
+            .and(isDeclaredBy(named("com.datastax.oss.driver.api.core.session.SessionBuilder"))),
         advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
