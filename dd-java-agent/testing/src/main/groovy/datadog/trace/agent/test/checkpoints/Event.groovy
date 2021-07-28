@@ -2,20 +2,23 @@ package datadog.trace.agent.test.checkpoints
 
 import static datadog.trace.api.Checkpointer.*
 import datadog.trace.api.DDId
+import java.util.stream.Collectors
 
 class Event {
   private final int flags
   private final long threadId
   private final String threadName
+  private final StackTraceElement[] stackTrace
   private final DDId traceId
   private final DDId spanId
 
-  Event(int flags, DDId traceId, DDId spanId, Thread thread) {
+  Event(int flags, DDId traceId, DDId spanId, Thread thread, StackTraceElement[] stackTrace) {
     this.flags = flags
     this.traceId = traceId
     this.spanId = spanId
     this.threadId = thread.id
     this.threadName = thread.name
+    this.stackTrace = stackTrace
   }
 
   String getName() {
@@ -57,11 +60,15 @@ class Event {
     return threadName
   }
 
-  StackTraceElement[] getStackTrace() {
-    return stackTrace
-  }
-
   String toString() {
-    return "${name}/${spanId} (thread: ${threadName})\n"
+    return "${name}/${spanId} (thread: ${threadName})\n" +
+        String.join("\n",
+            stackTrace.stream()
+                .filter {
+                    !(it.className.startsWith("org.codehaus.groovy") || it.className.startsWith("groovy")) &&
+                    !(it.className.startsWith("org.spockframework")) }
+                .map { "  " + it.toString() }
+                .collect(Collectors.toList())) +
+        "\n"
   }
 }

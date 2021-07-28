@@ -3,6 +3,8 @@ package datadog.trace.agent.test.checkpoints
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
 
+import java.util.stream.Collectors
+
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -15,7 +17,7 @@ class TimelineCheckpointer implements Checkpointer {
   @Override
   void checkpoint(DDId traceId, DDId spanId, int flags) {
     Thread currentThread = Thread.currentThread()
-    Event event = new Event(flags, traceId, spanId, currentThread)
+    Event event = new Event(flags, traceId, spanId, currentThread, currentThread.stackTrace)
     orderedEvents.add(event)
     spanEvents.putIfAbsent(spanId, new CopyOnWriteArrayList<Event>())
     threadEvents.putIfAbsent(currentThread.name, new CopyOnWriteArrayList<Event>())
@@ -31,7 +33,9 @@ class TimelineCheckpointer implements Checkpointer {
     def invalidEvents = TimelineValidator.validate(spanEvents, threadEvents, orderedEvents)
     if (!invalidEvents.empty) {
       System.err.println("=== Invalid checkpoint events encountered")
-      invalidEvents.each { System.err.println(it) }
+      invalidEvents.stream().map { it.spanId }.distinct().forEach {
+        spanEvents.get(it).each { System.err.println(it) }
+      }
     }
     TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, invalidEvents)
     TimelineExporter.export(orderedEvents)
