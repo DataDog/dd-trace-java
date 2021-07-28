@@ -13,8 +13,13 @@ import io.opentelemetry.trace.SpanContext;
 import io.opentelemetry.trace.Tracer;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class OtelTracer implements Tracer {
+
+  private static final Logger log = LoggerFactory.getLogger(OtelTracer.class);
+
   private final String tracerName;
   private final AgentTracer.TracerAPI tracer;
   private final TypeConverter converter;
@@ -34,7 +39,10 @@ public class OtelTracer implements Tracer {
   @Override
   public Scope withSpan(final Span span) {
     if (null == span) {
-      return null;
+      log.warn(
+          "Request to activate null span; returning NoopScope",
+          new IllegalArgumentException("Request to activate null span"));
+      return converter.toScope(AgentTracer.NoopAgentScope.INSTANCE);
     }
 
     final AgentSpan agentSpan = converter.toAgentSpan(span);

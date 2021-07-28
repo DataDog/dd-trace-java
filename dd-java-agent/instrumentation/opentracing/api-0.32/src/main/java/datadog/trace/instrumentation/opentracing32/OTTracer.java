@@ -44,7 +44,10 @@ public class OTTracer implements Tracer {
   @Override
   public Scope activateSpan(final Span span) {
     if (null == span) {
-      return null;
+      log.warn(
+          "Request to activate null span; returning NoopScope",
+          new IllegalArgumentException("Request to activate null span"));
+      return converter.toScope(AgentTracer.NoopAgentScope.INSTANCE, false);
     }
 
     return converter.toScope(

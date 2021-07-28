@@ -9,9 +9,14 @@ import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** One of the two possible scope managers. See CustomScopeManagerWrapper */
 class OTScopeManager implements ScopeManager {
+
+  private static final Logger log = LoggerFactory.getLogger(OTScopeManager.class);
+
   private final TypeConverter converter;
   private final AgentTracer.TracerAPI tracer;
 
@@ -28,7 +33,10 @@ class OTScopeManager implements ScopeManager {
   @Override
   public Scope activate(final Span span, final boolean finishSpanOnClose) {
     if (null == span) {
-      return null;
+      log.warn(
+          "Request to activate null span; returning NoopScope",
+          new IllegalArgumentException("Request to activate null span"));
+      return converter.toScope(AgentTracer.NoopAgentScope.INSTANCE, finishSpanOnClose);
     }
 
     final AgentSpan agentSpan = converter.toAgentSpan(span);
