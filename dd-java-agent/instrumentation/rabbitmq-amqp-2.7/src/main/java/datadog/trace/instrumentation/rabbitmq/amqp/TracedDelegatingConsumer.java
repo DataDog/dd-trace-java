@@ -86,7 +86,8 @@ public class TracedDelegatingConsumer implements Consumer {
               ? null
               : propagate().extract(headers, ContextVisitors.objectValuesMap());
 
-      // TODO: check dynamically bound queues
+      // TODO: check dynamically bound queues -
+      // https://github.com/DataDog/dd-trace-java/pull/2955#discussion_r677787875
       final AgentSpan span =
           startSpan(AMQP_COMMAND, context)
               .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
