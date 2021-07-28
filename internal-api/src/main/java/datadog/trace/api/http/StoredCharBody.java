@@ -2,7 +2,6 @@ package datadog.trace.api.http;
 
 import java.nio.CharBuffer;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Analogous to {@link StoredByteBody}, but Java doesn't support generics with scalar types. */
 @SuppressWarnings("Duplicates")
@@ -11,7 +10,7 @@ public class StoredCharBody implements StoredBodySupplier {
   private static final int MAX_BUFFER_SIZE = 1024 * 1024; // 2 MB (char == 2 bytes)
   private static final int GROW_FACTOR = 4;
 
-  private final AtomicBoolean listenerNotified = new AtomicBoolean();
+  private boolean listenerNotified;
   private final StoredBodyListener listener;
 
   private char[] storedBody;
@@ -93,11 +92,12 @@ public class StoredCharBody implements StoredBodySupplier {
   }
 
   public synchronized void maybeNotify() {
-    if (this.listenerNotified.compareAndSet(false, true)) {
+    if (!listenerNotified) {
+      listenerNotified = true;
       if (!bodyReadStarted) {
-        this.listener.onBodyStart(this);
+        listener.onBodyStart(this);
       }
-      this.listener.onBodyEnd(this);
+      listener.onBodyEnd(this);
     }
   }
 

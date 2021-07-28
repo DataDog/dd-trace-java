@@ -3,7 +3,6 @@ package datadog.trace.api.http;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /** @see StoredCharBody */
 @SuppressWarnings("Duplicates")
@@ -16,7 +15,7 @@ public class StoredByteBody implements StoredBodySupplier {
   private static final Charset ISO_8859_1 = StandardCharsets.ISO_8859_1;
 
   private final StoredBodyListener listener;
-  private final AtomicBoolean listenerNotified = new AtomicBoolean();
+  private boolean listenerNotified;
 
   private Charset charset;
   private byte[] storedBody;
@@ -82,7 +81,8 @@ public class StoredByteBody implements StoredBodySupplier {
   }
 
   public synchronized void maybeNotify() {
-    if (this.listenerNotified.compareAndSet(false, true)) {
+    if (!listenerNotified) {
+      listenerNotified = true;
       if (!bodyReadStarted) {
         this.listener.onBodyStart(this);
       }
