@@ -14,9 +14,9 @@ abstract class AbstractContextTracker<T> implements EventReceiver<Boolean> {
         case "endTask":
           return endTask()
         case "suspend":
-          return suspendTask()
+          return suspendSpan()
         case "resume":
-          return resumeTask()
+          return resumeSpan()
         case "endSpan":
           return endSpan()
         default:
@@ -30,7 +30,11 @@ abstract class AbstractContextTracker<T> implements EventReceiver<Boolean> {
   abstract boolean startSpan()
   abstract boolean startTask()
   abstract boolean endTask()
-  abstract boolean suspendTask()
-  abstract boolean resumeTask()
+  abstract boolean suspendSpan()
+  abstract boolean resumeSpan()
   abstract boolean endSpan()
+
+  boolean endSequence() {
+    return true
+  }
 }

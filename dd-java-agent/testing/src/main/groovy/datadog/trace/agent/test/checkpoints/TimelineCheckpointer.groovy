@@ -28,12 +28,12 @@ class TimelineCheckpointer implements Checkpointer {
   }
 
   void publish() {
-    def invalidEvents = TimelineValidator.validate(spanEvents, threadEvents, orderedEvents)
+    def invalidEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents)
     if (!invalidEvents.empty) {
       System.err.println("=== Invalid checkpoint events encountered")
       invalidEvents.each { System.err.println(it) }
     }
-    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, invalidEvents)
+    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, invalidEvents.collect {it[0]})
     TimelineExporter.export(orderedEvents)
     System.err.println("")
 
@@ -47,5 +47,6 @@ class TimelineCheckpointer implements Checkpointer {
     orderedEvents.clear()
     spanEvents.clear()
     threadEvents.clear()
+    CheckpointValidator.clear()
   }
 }
