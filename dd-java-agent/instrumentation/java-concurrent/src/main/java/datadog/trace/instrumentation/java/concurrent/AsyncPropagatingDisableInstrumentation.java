@@ -73,6 +73,7 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "rx.internal.util.ObjectPool",
             "io.grpc.internal.ServerImpl$ServerTransportListenerImpl",
             "okhttp3.ConnectionPool",
+            "com.squareup.okhttp.ConnectionPool",
             "org.elasticsearch.transport.netty4.Netty4TcpChannel",
             "org.springframework.cglib.core.internal.LoadingCache",
             "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher",
@@ -110,6 +111,9 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
         advice);
     transformation.applyAdvice(
         named("start").and(isDeclaredBy(named("rx.internal.util.ObjectPool"))), advice);
+    transformation.applyAdvice(
+        named("addConnection").and(isDeclaredBy(named("com.squareup.okhttp.ConnectionPool"))),
+        advice);
     transformation.applyAdvice(
         named("put").and(isDeclaredBy(named("okhttp3.ConnectionPool"))), advice);
     transformation.applyAdvice(
