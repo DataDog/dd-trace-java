@@ -75,7 +75,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "okhttp3.ConnectionPool",
             "org.elasticsearch.transport.netty4.Netty4TcpChannel",
             "org.springframework.cglib.core.internal.LoadingCache",
-            "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher")
+            "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher",
+            "com.datastax.oss.driver.api.core.session.SessionBuilder")
         .or(RX_WORKERS)
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS);
@@ -125,6 +126,10 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
                 isDeclaredBy(
                     named(
                         "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher"))),
+        advice);
+    transformation.applyAdvice(
+        named("buildAsync")
+            .and(isDeclaredBy(named("com.datastax.oss.driver.api.core.session.SessionBuilder"))),
         advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
