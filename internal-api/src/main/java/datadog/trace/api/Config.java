@@ -40,6 +40,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RABBIT_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
@@ -151,6 +152,9 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
@@ -386,6 +390,10 @@ public class Config {
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
+
+  private final boolean RabbitPropagationEnabled;
+  private final Set<String> RabbitPropagationDisabledQueues;
+  private final Set<String> RabbitPropagationDisabledExchanges;
 
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
@@ -810,6 +818,15 @@ public class Config {
 
     jmsPropagationDisabledQueues =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_QUEUES));
+
+    RabbitPropagationEnabled =
+        configProvider.getBoolean(RABBIT_PROPAGATION_ENABLED, DEFAULT_RABBIT_PROPAGATION_ENABLED);
+
+    RabbitPropagationDisabledQueues =
+        tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_QUEUES));
+
+    RabbitPropagationDisabledExchanges =
+        tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_EXCHANGES));
 
     grpcIgnoredOutboundMethods =
         tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
@@ -1251,6 +1268,18 @@ public class Config {
 
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
+  }
+
+  public boolean isRabbitPropagationEnabled() {
+    return RabbitPropagationEnabled;
+  }
+
+  public Set<String> getRabbitPropagationDisabledQueues() {
+    return RabbitPropagationDisabledQueues;
+  }
+
+  public Set<String> getRabbitPropagationDisabledExchanges() {
+    return RabbitPropagationDisabledExchanges;
   }
 
   public boolean isHystrixTagsEnabled() {
@@ -1992,6 +2021,12 @@ public class Config {
         + jmsPropagationDisabledTopics
         + ", jmsPropagationDisabledQueues="
         + jmsPropagationDisabledQueues
+        + ", RabbitPropagationEnabled="
+        + RabbitPropagationEnabled
+        + ", RabbitPropagationDisabledQueues="
+        + RabbitPropagationDisabledQueues
+        + ", RabbitPropagationDisabledExchanges="
+        + RabbitPropagationDisabledExchanges
         + ", hystrixTagsEnabled="
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="
