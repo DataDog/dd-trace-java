@@ -9,8 +9,6 @@ import org.asynchttpclient.Response
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.Checkpointer.CPU
@@ -44,10 +42,6 @@ class NettyClientCheckpointsTest extends AgentTestRunner {
   AsyncHttpClient asyncHttpClient = asyncHttpClient(clientConfig)
 
   def "emit checkpoints"() {
-    setup:
-    AtomicInteger migrationsStarted = new AtomicInteger()
-    AtomicInteger migrationsCompleted = new AtomicInteger()
-    AtomicInteger tasksCompleted = new AtomicInteger()
     when:
     runUnderTrace("parent") {
       executeRequest("GET", server.address, [:])
@@ -56,27 +50,15 @@ class NettyClientCheckpointsTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(2)
     then:
     3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION) >> {
-      migrationsStarted.getAndIncrement()
-    }
-    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END) >> {
-      migrationsCompleted.getAndIncrement()
-    }
-    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END) >> {
-      tasksCompleted.getAndIncrement()
-    }
+    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
     3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
-    migrationsStarted.get() == migrationsCompleted.get()
-    migrationsCompleted.get() == tasksCompleted.get()
   }
 
   def "emit checkpoints with callback"() {
-    setup:
-    AtomicInteger migrationsStarted = new AtomicInteger()
-    AtomicInteger migrationsCompleted = new AtomicInteger()
-    AtomicInteger tasksCompleted = new AtomicInteger()
     when:
     runUnderTrace("parent") {
       executeRequest("GET", server.address, [:], {
@@ -87,20 +69,12 @@ class NettyClientCheckpointsTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(2)
     then:
     4 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION) >> {
-      migrationsStarted.getAndIncrement()
-    }
-    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END) >> {
-      migrationsCompleted.getAndIncrement()
-    }
-    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END) >> {
-      tasksCompleted.getAndIncrement()
-    }
+    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
     4 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
-    migrationsStarted.get() == migrationsCompleted.get()
-    migrationsCompleted.get() == tasksCompleted.get()
   }
 
   def executeRequest(String method, URI uri, Map<String, String> headers, Closure callback = null) {

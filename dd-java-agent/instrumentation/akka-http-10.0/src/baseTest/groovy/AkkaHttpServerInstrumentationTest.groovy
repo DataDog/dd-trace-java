@@ -73,10 +73,6 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
   }
 
   def "checkpoints balance"() {
-    setup:
-    AtomicInteger suspends = new AtomicInteger(0)
-    AtomicInteger resumes = new AtomicInteger(0)
-    AtomicInteger completions = new AtomicInteger(0)
     when:
     ThreadUtils.runConcurrently(10, totalInvocations, {
       def id = counter.incrementAndGet()
@@ -86,19 +82,11 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
     then:
     totalInvocations * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
     totalInvocations * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION) >> {
-      suspends.getAndIncrement()
-    }
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END) >> {
-      resumes.getAndIncrement()
-    }
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END) >> {
-      completions.getAndIncrement()
-    }
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
-    suspends.get() == resumes.get()
-    resumes.get() == completions.get()
   }
 }
 
