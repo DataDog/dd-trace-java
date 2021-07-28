@@ -45,8 +45,6 @@ class CheckpointEmissionTest extends AgentTestRunner {
   }
 
   def "emit checkpoints"() {
-    setup:
-    def runnerThreadName = Thread.currentThread().name
     when:
     runUnderTrace("parent") {
       executeRequest("GET", server.address, [:])
@@ -55,20 +53,14 @@ class CheckpointEmissionTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(2)
     then:
     3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION) >> {
-      assert Thread.currentThread().name == runnerThreadName
-    }
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END) >> {
-      assert Thread.currentThread().name.contains("I/O dispatcher")
-    }
+    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
     3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
   }
 
   def "emit checkpoints with callback"() {
-    setup:
-    def runnerThreadName = Thread.currentThread().name
     when:
     runUnderTrace("parent") {
       executeRequest("GET", server.address, [:], {
@@ -79,12 +71,8 @@ class CheckpointEmissionTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(2)
     then:
     4 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION) >> {
-      assert Thread.currentThread().name == runnerThreadName
-    }
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)  >> {
-      assert Thread.currentThread().name.contains("I/O dispatcher")
-    }
+    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
     4 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _

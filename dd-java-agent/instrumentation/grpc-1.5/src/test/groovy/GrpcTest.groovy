@@ -21,7 +21,6 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -40,9 +39,6 @@ class GrpcTest extends AgentTestRunner {
 
   def "test request-response"() {
     setup:
-    AtomicInteger suspends = new AtomicInteger(0)
-    AtomicInteger resumes = new AtomicInteger(0)
-    AtomicInteger completions = new AtomicInteger(0)
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
         @Override
@@ -137,19 +133,11 @@ class GrpcTest extends AgentTestRunner {
     }
     5 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
     5 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION) >> {
-      suspends.getAndIncrement()
-    }
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END) >> {
-      resumes.getAndIncrement()
-    }
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END) >> {
-      completions.getAndIncrement()
-    }
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
-    suspends.get() == resumes.get()
-    resumes.get() == completions.get()
 
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
