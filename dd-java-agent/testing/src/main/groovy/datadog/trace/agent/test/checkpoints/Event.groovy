@@ -62,12 +62,13 @@ class Event {
 
   String toString() {
     return "${name}/${spanId} (thread: ${threadName})\n" +
-        stackTrace.stream()
-            .filter {
-                !(it.className.startsWith("org.codehaus.groovy") || it.className.startsWith("groovy")) &&
-                !(it.className.startsWith("org.spockframework")) }
-            .map { "  " + it.toString() }
-            .collect(Collectors.joining("\n")) +
-        "\n"
+      stackTrace.stream()
+      .filter {
+        !(it.className.startsWith("org.codehaus.groovy") || it.className.startsWith("groovy")) &&
+          !(it.className.startsWith("org.spockframework"))
+      }
+      .map { "  " + it.toString() }
+      .collect(Collectors.joining("\n")) +
+      "\n"
   }
 }
