@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jms;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -24,6 +25,8 @@ public final class JMSDecorator extends ClientDecorator {
 
   private final String spanKind;
   private final String spanType;
+  private final String serviceName;
+
   public static final JMSDecorator PRODUCER_DECORATE =
       new JMSDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
 
@@ -33,6 +36,7 @@ public final class JMSDecorator extends ClientDecorator {
   public JMSDecorator(String spanKind, String spanType) {
     this.spanKind = spanKind;
     this.spanType = spanType;
+    this.serviceName = Config.get().isJmsLegacyTracingEnabled() ? "jms" : null;
   }
 
   @Override
@@ -47,7 +51,7 @@ public final class JMSDecorator extends ClientDecorator {
 
   @Override
   protected String service() {
-    return "jms";
+    return serviceName;
   }
 
   @Override

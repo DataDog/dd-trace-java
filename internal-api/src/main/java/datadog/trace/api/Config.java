@@ -142,6 +142,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_I
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_LEGACY_TRACING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_ENABLED;
@@ -387,6 +388,7 @@ public class Config {
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
 
+  private final boolean jmsLegacyTracingEnabled;
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
@@ -809,6 +811,8 @@ public class Config {
 
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+
+    jmsLegacyTracingEnabled = configProvider.getBoolean(JMS_LEGACY_TRACING_ENABLED, false);
 
     jmsPropagationEnabled =
         configProvider.getBoolean(JMS_PROPAGATION_ENABLED, DEFAULT_JMS_PROPAGATION_ENABLED);
@@ -1252,6 +1256,10 @@ public class Config {
 
   public Set<String> getKafkaClientPropagationDisabledTopics() {
     return kafkaClientPropagationDisabledTopics;
+  }
+
+  public boolean isJmsLegacyTracingEnabled() {
+    return jmsLegacyTracingEnabled;
   }
 
   public boolean isJMSPropagationEnabled() {
@@ -2015,6 +2023,8 @@ public class Config {
         + kafkaClientPropagationDisabledTopics
         + ", kafkaClientBase64DecodingEnabled="
         + kafkaClientBase64DecodingEnabled
+        + ", jmsLegacyTracingEnabled="
+        + jmsLegacyTracingEnabled
         + ", jmsPropagationEnabled="
         + jmsPropagationEnabled
         + ", jmsPropagationDisabledTopics="
