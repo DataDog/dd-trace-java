@@ -40,7 +40,7 @@ class StoredCharBodyTest extends Specification {
     storedCharBody.appendData(-1)
 
     then:
-    storedCharBody.get() == ''
+    storedCharBody.get() as String == ''
   }
 
   void 'insert empty range'() {
@@ -48,7 +48,7 @@ class StoredCharBodyTest extends Specification {
     storedCharBody.appendData([] as char[], 0, 0)
 
     then:
-    storedCharBody.get() == ''
+    storedCharBody.get() as String == ''
   }
 
   void 'exercise maybeNotify and get on empty object'() {
@@ -60,6 +60,6 @@ class StoredCharBodyTest extends Specification {
     then:
     1 * listener.onBodyEnd(storedCharBody)
     then:
-    storedCharBody.get() == ''
+    storedCharBody.get() as String == ''
   }
 }

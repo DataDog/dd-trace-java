@@ -4,11 +4,11 @@ import java.nio.CharBuffer;
 import java.util.Arrays;
 
 /** Analogous to {@link StoredByteBody}, but Java doesn't support generics with scalar types. */
-@SuppressWarnings("Duplicates")
 public class StoredCharBody implements StoredBodySupplier {
   private static final int MIN_BUFFER_SIZE = 128; // chars
   private static final int MAX_BUFFER_SIZE = 1024 * 1024; // 2 MB (char == 2 bytes)
   private static final int GROW_FACTOR = 4;
+  private static final CharBuffer EMPTY_CHAR_BUFFER = CharBuffer.allocate(0);
 
   private boolean listenerNotified;
   private final StoredBodyListener listener;
@@ -33,6 +33,21 @@ public class StoredCharBody implements StoredBodySupplier {
     int lenToCopy = Math.min(newDataLen, capacityLeft());
     System.arraycopy(chars, start, this.storedBody, this.storedBodyLen, lenToCopy);
 
+    this.storedBodyLen += lenToCopy;
+    maybeNotifyStart();
+  }
+
+  public synchronized void appendData(CharBuffer buffer) {
+    int inputLen = buffer.remaining();
+    if (inputLen == 0) {
+      return;
+    }
+    if (!maybeExtendStorage(inputLen)) {
+      return;
+    }
+    int lenToCopy = Math.min(inputLen, capacityLeft());
+
+    buffer.get(this.storedBody, this.storedBodyLen, lenToCopy);
     this.storedBodyLen += lenToCopy;
     maybeNotifyStart();
   }
@@ -71,20 +86,21 @@ public class StoredCharBody implements StoredBodySupplier {
     return this.storedBody.length - this.storedBodyLen;
   }
 
-  public synchronized void appendData(int codeUnit) {
-    if (codeUnit < 0) {
+  /** @param utf16CodeUnit an int in the range 0-0xFFFF */
+  public synchronized void appendData(int utf16CodeUnit) {
+    if (utf16CodeUnit < 0) {
       return;
     }
     if (!maybeExtendStorage(1)) {
       return;
     }
-    this.storedBody[this.storedBodyLen] = (char) codeUnit;
+    this.storedBody[this.storedBodyLen] = (char) utf16CodeUnit;
     this.storedBodyLen += 1;
 
     maybeNotifyStart();
   }
 
-  private void maybeNotifyStart() {
+  void maybeNotifyStart() {
     if (!bodyReadStarted) {
       bodyReadStarted = true;
       listener.onBodyStart(this);
@@ -102,10 +118,15 @@ public class StoredCharBody implements StoredBodySupplier {
   }
 
   @Override
-  public synchronized CharSequence get() {
+  public synchronized CharBuffer get() {
     if (this.storedBodyLen == 0) {
-      return "";
+      return EMPTY_CHAR_BUFFER;
     }
     return CharBuffer.wrap(this.storedBody, 0, this.storedBodyLen);
+  }
+
+  // for StoredByteBody's reencodeAsLatin1
+  synchronized void dropData() {
+    this.storedBodyLen = 0;
   }
 }

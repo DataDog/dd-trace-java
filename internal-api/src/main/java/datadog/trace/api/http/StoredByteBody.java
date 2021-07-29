@@ -1,179 +1,206 @@
 package datadog.trace.api.http;
 
+import java.lang.reflect.UndeclaredThrowableException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CoderResult;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 /** @see StoredCharBody */
-@SuppressWarnings("Duplicates")
 public class StoredByteBody implements StoredBodySupplier {
-  private static final int MIN_BUFFER_SIZE = 128; // bytes
-  private static final int MAX_BUFFER_SIZE = 1024 * 1024; // 1 MB
-  private static final int GROW_FACTOR = 4;
 
-  private static final Charset UTF_8 = StandardCharsets.UTF_8;
-  private static final Charset ISO_8859_1 = StandardCharsets.ISO_8859_1;
+  static final Charset UTF_8 = StandardCharsets.UTF_8;
+  static final Charset ISO_8859_1 = StandardCharsets.ISO_8859_1;
 
-  private final StoredBodyListener listener;
-  private boolean listenerNotified;
-
-  private Charset charset;
-  private byte[] storedBody;
-  private int storedBodyLen;
-  private boolean bodyReadStarted = false;
+  private final ByteBuffer undecodedData = ByteBuffer.allocate(64);
+  // decoded data has double the size to allow for the (unlikely)
+  // prospect that supplementary characters (2 chars) be encoded in 1 byte
+  private final CharBuffer decodedData = CharBuffer.allocate(128);
+  private CharsetDecoder charsetDecoder;
+  private StoredCharBody storedCharBody;
 
   public StoredByteBody(StoredBodyListener listener) {
-    this.listener = listener;
+    this.storedCharBody = new StoredCharBody(listener);
   }
 
   public synchronized void appendData(byte[] bytes, int start, int end) {
-    int newDataLen = end - start;
-    if (!maybeExtendStorage(newDataLen)) {
-      return;
+    for (int i = start; i < end; ) {
+      if (!undecodedData.hasRemaining()) {
+        commit(false);
+      }
+      int write = Math.min(end - i, undecodedData.remaining());
+      undecodedData.put(bytes, i, write);
+      i += write;
     }
 
-    int lenToCopy = Math.min(newDataLen, this.storedBody.length - this.storedBodyLen);
-    System.arraycopy(bytes, start, this.storedBody, this.storedBodyLen, lenToCopy);
-
-    this.storedBodyLen += lenToCopy;
-
-    maybeNotifyStart();
-  }
-
-  private boolean maybeExtendStorage(int newDataLen) {
-    if (this.storedBody == null) {
-      int initialSize = Math.max(Math.min(newDataLen, MAX_BUFFER_SIZE), MIN_BUFFER_SIZE);
-      this.storedBody = new byte[initialSize];
-    } else if (this.storedBodyLen == MAX_BUFFER_SIZE) {
-      return false;
-    } else if (this.storedBody.length - this.storedBodyLen < newDataLen) {
-      int newSize =
-          Math.min(
-              Math.max(this.storedBodyLen + newDataLen, this.storedBodyLen * GROW_FACTOR),
-              MAX_BUFFER_SIZE);
-      this.storedBody = Arrays.copyOf(this.storedBody, newSize);
-    }
-    return true;
+    storedCharBody.maybeNotifyStart();
   }
 
   public synchronized void appendData(int byteValue) {
     if (byteValue < 0 || byteValue > 255) {
       return;
     }
-    if (!maybeExtendStorage(1)) {
-      return;
-    }
-    this.storedBody[this.storedBodyLen] = (byte) byteValue;
-    this.storedBodyLen += 1;
 
-    maybeNotifyStart();
+    if (!undecodedData.hasRemaining()) {
+      commit(false);
+    }
+    undecodedData.put((byte) byteValue);
+
+    storedCharBody.maybeNotifyStart();
   }
 
   public synchronized void setCharset(Charset charset) {
-    this.charset = charset;
+    this.charsetDecoder = ThreadLocalCoders.decoderFor(charset);
   }
 
-  private void maybeNotifyStart() {
-    if (!bodyReadStarted) {
-      bodyReadStarted = true;
-      listener.onBodyStart(this);
-    }
-  }
-
-  public synchronized void maybeNotify() {
-    if (!listenerNotified) {
-      listenerNotified = true;
-      if (!bodyReadStarted) {
-        this.listener.onBodyStart(this);
-      }
-      this.listener.onBodyEnd(this);
-    }
+  public void maybeNotify() {
+    commit(true);
+    storedCharBody.maybeNotify();
   }
 
   @Override
-  public synchronized String get() {
-    if (this.storedBodyLen == 0) {
-      return "";
-    }
-    if (this.charset != null) {
-      return new String(this.storedBody, 0, this.storedBodyLen, this.charset);
-    }
-
-    if (isWellFormed(this.storedBody, 0, this.storedBodyLen)) {
-      return new String(this.storedBody, 0, this.storedBodyLen, UTF_8);
-    }
-
-    return new String(this.storedBody, 0, this.storedBodyLen, ISO_8859_1);
+  public synchronized CharSequence get() {
+    commit(false);
+    return storedCharBody.get();
   }
 
-  // copied from com.google.common.base.Utf8;
-  private static boolean isWellFormed(byte[] bytes, int off, int len) {
-    int end = off + len;
-    // Look for the first non-ASCII character.
-    for (int i = off; i < end; i++) {
-      if (bytes[i] < 0) {
-        return isWellFormedSlowPath(bytes, i, end);
-      }
+  private void commit(boolean endOfInput) {
+    if (undecodedData.position() == 0) {
+      return;
     }
-    return true;
+    if (charsetDecoder == null) {
+      charsetDecoder =
+          ThreadLocalCoders.decoderFor(UTF_8).onMalformedInput(CodingErrorAction.REPORT);
+    }
+
+    this.undecodedData.flip();
+    CoderResult decode = charsetDecoder.decode(this.undecodedData, this.decodedData, endOfInput);
+
+    this.decodedData.flip();
+    this.storedCharBody.appendData(this.decodedData);
+    this.decodedData.position(0);
+    this.decodedData.limit(this.decodedData.capacity());
+
+    this.undecodedData.compact();
+
+    if (decode.isError()) {
+      // should only happen if charset was not explicitly given,
+      // as o/wise we use repl. chars
+      reencodeAsLatin1();
+      this.charsetDecoder = ThreadLocalCoders.decoderFor(ISO_8859_1);
+      commit(endOfInput);
+    }
   }
 
-  private static boolean isWellFormedSlowPath(byte[] bytes, int off, int end) {
-    int index = off;
-    while (true) {
-      int byte1;
+  private void reencodeAsLatin1() {
+    CharBuffer curData = this.storedCharBody.get();
+    // reinterpreting the UTF-8 decoded sequence as latin1 will
+    // possibly result in a bigger result in terms of code points,
+    // so we need to make a copy
 
-      // Optimize for interior runs of ASCII bytes.
-      do {
-        if (index >= end) {
-          return true;
-        }
-      } while ((byte1 = bytes[index++]) >= 0);
+    CharsetEncoder encoder = ThreadLocalCoders.utf8Encoder();
+    ByteBuffer utf8Encoded;
+    try {
+      utf8Encoded = encoder.encode(curData);
+    } catch (CharacterCodingException e) {
+      throw new UndeclaredThrowableException(e); // can't happen
+    }
 
-      if (byte1 < (byte) 0xE0) {
-        // Two-byte form.
-        if (index == end) {
-          return false;
-        }
-        // Simultaneously check for illegal trailing-byte in leading position
-        // and overlong 2-byte form.
-        if (byte1 < (byte) 0xC2 || bytes[index++] > (byte) 0xBF) {
-          return false;
-        }
-      } else if (byte1 < (byte) 0xF0) {
-        // Three-byte form.
-        if (index + 1 >= end) {
-          return false;
-        }
-        int byte2 = bytes[index++];
-        if (byte2 > (byte) 0xBF
-            // Overlong? 5 most significant bits must not all be zero.
-            || (byte1 == (byte) 0xE0 && byte2 < (byte) 0xA0)
-            // Check for illegal surrogate codepoints.
-            || (byte1 == (byte) 0xED && (byte) 0xA0 <= byte2)
-            // Third byte trailing-byte test.
-            || bytes[index++] > (byte) 0xBF) {
-          return false;
-        }
+    this.storedCharBody.dropData();
+
+    int limit = utf8Encoded.limit();
+    for (int i = 0; i < limit; i++) {
+      // & to reverse the sign extension on the int promotion
+      this.storedCharBody.appendData(utf8Encoded.get(i) & 0xFF);
+    }
+  }
+}
+
+// adapted from sun.nio.cs
+class ThreadLocalCoders {
+  private static final int CACHE_SIZE = 3;
+
+  private abstract static class Cache {
+
+    // Thread-local reference to array of cached objects, in LRU order
+    private ThreadLocal<Object[]> cache = new ThreadLocal<>();
+    private final int size;
+
+    Cache(int size) {
+      this.size = size;
+    }
+
+    abstract Object create(Object name);
+
+    private void moveToFront(Object[] oa, int i) {
+      Object ob = oa[i];
+      for (int j = i; j > 0; j--) oa[j] = oa[j - 1];
+      oa[0] = ob;
+    }
+
+    abstract boolean hasName(Object ob, Object name);
+
+    Object forName(Object name) {
+      Object[] oa = cache.get();
+      if (oa == null) {
+        oa = new Object[size];
+        cache.set(oa);
       } else {
-        // Four-byte form.
-        if (index + 2 >= end) {
-          return false;
-        }
-        int byte2 = bytes[index++];
-        if (byte2 > (byte) 0xBF
-            // Check that 1 <= plane <= 16. Tricky optimized form of:
-            // if (byte1 > (byte) 0xF4
-            //     || byte1 == (byte) 0xF0 && byte2 < (byte) 0x90
-            //     || byte1 == (byte) 0xF4 && byte2 > (byte) 0x8F)
-            || (((byte1 << 28) + (byte2 - (byte) 0x90)) >> 30) != 0
-            // Third byte trailing-byte test
-            || bytes[index++] > (byte) 0xBF
-            // Fourth byte trailing-byte test
-            || bytes[index++] > (byte) 0xBF) {
-          return false;
+        for (int i = 0; i < oa.length; i++) {
+          Object ob = oa[i];
+          if (ob == null) continue;
+          if (hasName(ob, name)) {
+            if (i > 0) moveToFront(oa, i);
+            return ob;
+          }
         }
       }
+
+      // Create a new object
+      Object ob = create(name);
+      oa[oa.length - 1] = ob;
+      moveToFront(oa, oa.length - 1);
+      return ob;
     }
+  }
+
+  private static Cache DECODER_CACHE =
+      new Cache(CACHE_SIZE) {
+        boolean hasName(Object ob, Object name) {
+          return ((CharsetDecoder) ob).charset().equals(name);
+        }
+
+        Object create(Object charset) {
+          return ((Charset) charset).newDecoder().onUnmappableCharacter(CodingErrorAction.REPLACE);
+        }
+      };
+
+  public static CharsetDecoder decoderFor(Charset charset) {
+    CharsetDecoder cd = (CharsetDecoder) DECODER_CACHE.forName(charset);
+    cd.onMalformedInput(CodingErrorAction.REPLACE);
+    cd.reset();
+    return cd;
+  }
+
+  private static ThreadLocal<CharsetEncoder> UTF8_ENCODER_CACHE =
+      new ThreadLocal<CharsetEncoder>() {
+        @Override
+        protected CharsetEncoder initialValue() {
+          return StoredByteBody.UTF_8
+              .newEncoder()
+              .onUnmappableCharacter(CodingErrorAction.REPLACE)
+              .onMalformedInput(CodingErrorAction.REPLACE);
+        }
+      };
+
+  public static CharsetEncoder utf8Encoder() {
+    CharsetEncoder charsetEncoder = UTF8_ENCODER_CACHE.get();
+    charsetEncoder.reset();
+    return charsetEncoder;
   }
 }
