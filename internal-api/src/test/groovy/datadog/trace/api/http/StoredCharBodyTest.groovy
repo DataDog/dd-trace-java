@@ -23,10 +23,10 @@ class StoredCharBodyTest extends Specification {
     storedCharBody.get().toString() == 'a' * 128
   }
 
-  void 'has a cutoff at 2 MB'() {
+  void 'has a cutoff at 128k chars'() {
     when:
     storedCharBody.appendData('a')
-    storedCharBody.appendData('a' * (1024 * 1024)) // last ignored
+    storedCharBody.appendData('a' * (128 * 1024)) // last ignored
     storedCharBody.appendData((int) 'a') // ignored
     storedCharBody.appendData('a') // ignored
     storedCharBody.appendData(['a' as char] as char[], 0, 1) // ignored

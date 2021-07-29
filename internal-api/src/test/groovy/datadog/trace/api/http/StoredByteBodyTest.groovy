@@ -24,7 +24,7 @@ class StoredByteBodyTest extends Specification {
     storedByteBody.get() as String == 'a' * 128
   }
 
-  void 'stores at most 1 MB'() {
+  void 'test store limit'() {
     when:
     storedByteBody.appendData((int) 'a')
 
@@ -33,14 +33,14 @@ class StoredByteBodyTest extends Specification {
 
     when:
     // last byte ignored
-    storedByteBody.appendData([(int)'a']* 1024 * 1024 as byte[], 0, 1024 * 1024)
+    storedByteBody.appendData([(int)'a']* 128 * 1024 as byte[], 0, 128 * 1024)
     // ignored
     storedByteBody.appendData(0)
     // ignored
     storedByteBody.appendData([0] as byte[], 0, 1)
 
     then:
-    storedByteBody.get() as String == 'a' * (1024 * 1024)
+    storedByteBody.get() as String == 'a' * (128 * 1024)
   }
 
   void 'ignores invalid integers given to appendData'() {
