@@ -41,12 +41,16 @@ public final class Events {
   public static final EventType<BiFunction<RequestContext, URIDataAdapter, Flow<Void>>>
       REQUEST_URI_RAW = new ET<>("server.request.uri.raw", REQUEST_URI_RAW_ID);
 
-  public static final int REQUEST_BODY_START_ID = 5;
+  public static final int REQUEST_CLIENT_IP_ID = 5;
+  public static final EventType<BiFunction<RequestContext, String, Flow<Void>>> REQUEST_CLIENT_IP =
+      new ET<>("http.server.client_ip", REQUEST_CLIENT_IP_ID);
+
+  public static final int REQUEST_BODY_START_ID = 6;
   /** The request body has started being read */
   public static final EventType<BiFunction<RequestContext, StoredBodySupplier, Void>>
       REQUEST_BODY_START = new ET<>("request.body.started", REQUEST_BODY_START_ID);
 
-  public static final int REQUEST_BODY_DONE_ID = 6;
+  public static final int REQUEST_BODY_DONE_ID = 7;
   public static final EventType<BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>>
       REQUEST_BODY_DONE = new ET<>("request.body.done", REQUEST_BODY_DONE_ID);
 

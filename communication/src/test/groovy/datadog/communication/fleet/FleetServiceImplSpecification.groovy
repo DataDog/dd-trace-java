@@ -67,7 +67,6 @@ class FleetServiceImplSpecification extends Specification{
       it.url() == EXPECTED_URL && it.method() == 'GET' &&
         it.header('Datadog-Client-Config-Product') == 'APPSEC'
     }) >> {
-      Request req = it[0]
       Call call = Mock()
       1 * call.execute() >> { throw new IOException('test exception') }
       call

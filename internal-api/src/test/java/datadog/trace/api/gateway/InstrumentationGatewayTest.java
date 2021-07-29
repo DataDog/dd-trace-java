@@ -8,7 +8,6 @@ import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.Supplier;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.http.StoredBodySupplier;
-import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import org.assertj.core.api.ThrowableAssert;
 import org.junit.Before;
 import org.junit.Test;
@@ -116,12 +115,13 @@ public class InstrumentationGatewayTest {
     assertThat(gateway.getCallback(Events.REQUEST_HEADER_DONE).apply(null)).isEqualTo(flow);
     gateway.registerCallback(Events.REQUEST_URI_RAW, callback);
     assertThat(gateway.getCallback(Events.REQUEST_URI_RAW).apply(null, null)).isEqualTo(flow);
+    gateway.registerCallback(Events.REQUEST_CLIENT_IP, callback);
+    assertThat(gateway.getCallback(Events.REQUEST_CLIENT_IP).apply(null, null)).isEqualTo(flow);
     gateway.registerCallback(Events.REQUEST_BODY_START, callback.asRequestBodyStart());
     assertThat(gateway.getCallback(Events.REQUEST_BODY_START).apply(null, null)).isNull();
     gateway.registerCallback(Events.REQUEST_BODY_DONE, callback.asRequestBodyDone());
     assertThat(gateway.getCallback(Events.REQUEST_BODY_DONE).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
-
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
@@ -143,20 +143,22 @@ public class InstrumentationGatewayTest {
     gateway.registerCallback(Events.REQUEST_URI_RAW, throwback);
     assertThat(gateway.getCallback(Events.REQUEST_URI_RAW).apply(null, null))
         .isEqualTo(Flow.ResultFlow.empty());
+    gateway.registerCallback(Events.REQUEST_CLIENT_IP, throwback);
+    assertThat(gateway.getCallback(Events.REQUEST_CLIENT_IP).apply(null, null))
+        .isEqualTo(Flow.ResultFlow.empty());
     gateway.registerCallback(Events.REQUEST_BODY_START, throwback.asRequestBodyStart());
     assertThat(gateway.getCallback(Events.REQUEST_BODY_START).apply(null, null)).isNull();
     gateway.registerCallback(Events.REQUEST_BODY_DONE, throwback.asRequestBodyDone());
     assertThat(gateway.getCallback(Events.REQUEST_BODY_DONE).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
-
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
-  private static class Callback
+  private static class Callback<T>
       implements Supplier<Flow<RequestContext>>,
           Function<RequestContext, Flow<Void>>,
-          TriConsumer<RequestContext, String, String>,
-          BiFunction<RequestContext, URIDataAdapter, Flow<Void>> {
+          TriConsumer<RequestContext, T, T>,
+          BiFunction<RequestContext, T, Flow<Void>> {
 
     private final RequestContext ctxt;
     private final Flow<Void> flow;
@@ -174,7 +176,7 @@ public class InstrumentationGatewayTest {
     }
 
     @Override
-    public Flow<Void> apply(RequestContext requestContext, URIDataAdapter adapter) {
+    public Flow<Void> apply(RequestContext requestContext, T arg) {
       count++;
       return flow;
     }
@@ -186,7 +188,7 @@ public class InstrumentationGatewayTest {
     }
 
     @Override
-    public void accept(RequestContext requestContext, String s, String s2) {
+    public void accept(RequestContext requestContext, T s, T s2) {
       count++;
     }
 
@@ -212,11 +214,11 @@ public class InstrumentationGatewayTest {
     }
   }
 
-  private static class Throwback
+  private static class Throwback<T>
       implements Supplier<Flow<RequestContext>>,
           Function<RequestContext, Flow<Void>>,
-          TriConsumer<RequestContext, String, String>,
-          BiFunction<RequestContext, URIDataAdapter, Flow<Void>> {
+          TriConsumer<RequestContext, T, T>,
+          BiFunction<RequestContext, T, Flow<Void>> {
 
     private int count = 0;
 
@@ -227,7 +229,7 @@ public class InstrumentationGatewayTest {
     }
 
     @Override
-    public Flow<Void> apply(RequestContext requestContext, URIDataAdapter adapter) {
+    public Flow<Void> apply(RequestContext requestContext, T arg) {
       count++;
       throw new IllegalArgumentException();
     }
@@ -239,7 +241,7 @@ public class InstrumentationGatewayTest {
     }
 
     @Override
-    public void accept(RequestContext requestContext, String s, String s2) {
+    public void accept(RequestContext requestContext, T s, T s2) {
       count++;
       throw new IllegalArgumentException();
     }

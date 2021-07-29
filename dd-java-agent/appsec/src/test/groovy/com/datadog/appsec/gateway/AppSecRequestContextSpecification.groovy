@@ -108,16 +108,28 @@ class AppSecRequestContextSpecification extends Specification {
     AppSecRequestContext ctx = new AppSecRequestContext()
     def now = Instant.now()
 
-    expect:
-    ctx.collectedAttacks.empty
-
     when:
     ctx.reportAttack(new Attack010(detectedAt: now))
     ctx.reportAttack(new Attack010())
+    def attacks = ctx.transferCollectedAttacks()
 
     then:
-    ctx.collectedAttacks.size() == 2
-    ctx.collectedAttacks[0].detectedAt.is(now)
-    ctx.collectedAttacks[1] != null
+    attacks.size() == 2
+    attacks[0].detectedAt.is(now)
+    attacks[1] != null
+
+    when:
+    ctx.reportAttack(new Attack010())
+
+    then:
+    thrown IllegalStateException
+  }
+
+  void 'collect attacks when none reported'() {
+    when:
+    AppSecRequestContext ctx = new AppSecRequestContext()
+
+    then:
+    ctx.transferCollectedAttacks().empty
   }
 }

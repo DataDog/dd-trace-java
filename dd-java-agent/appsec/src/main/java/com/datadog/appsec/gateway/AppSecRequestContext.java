@@ -33,9 +33,10 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
   // assume these will always be accessed by the same thread
   private String savedRawURI;
   private CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
-  private List<StringKVPair> collectedCookies = new ArrayList<StringKVPair>(4);
+  private List<StringKVPair> collectedCookies = new ArrayList<>(4);
   private boolean finishedHeaders;
   private StoredBodySupplier storedRequestBodySupplier;
+  private String ip;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -126,6 +127,14 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
     this.storedRequestBodySupplier = storedRequestBodySupplier;
   }
 
+  public String getIp() {
+    return ip;
+  }
+
+  public void setIp(String ip) {
+    this.ip = ip;
+  }
+
   @Override
   public void close() {
     // currently no-op
@@ -150,14 +159,19 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
       if (this.collectedAttacks == null) {
         this.collectedAttacks = new ArrayList<>();
       }
-      this.collectedAttacks.add(attack);
+      try {
+        this.collectedAttacks.add(attack);
+      } catch (UnsupportedOperationException e) {
+        throw new IllegalStateException("Attacks cannot be added anymore");
+      }
     }
   }
 
-  Collection<Attack010> getCollectedAttacks() {
+  Collection<Attack010> transferCollectedAttacks() {
     Collection<Attack010> collectedAttacks;
     synchronized (this) {
       collectedAttacks = this.collectedAttacks;
+      this.collectedAttacks = Collections.emptyList();
     }
     if (collectedAttacks != null) {
       return collectedAttacks;

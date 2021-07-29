@@ -3,6 +3,7 @@ package datadog.trace.api.gateway;
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_DONE_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_START_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_CLIENT_IP_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_ENDED_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_HEADER_DONE_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_HEADER_ID;
@@ -129,6 +130,24 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
                 try {
                   return ((BiFunction<RequestContext, URIDataAdapter, Flow<Void>>) callback)
                       .apply(ctx, adapter);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
+              }
+              // Make testing easier by delegating equals
+              @Override
+              public boolean equals(Object obj) {
+                return callback.equals(obj);
+              }
+            };
+      case REQUEST_CLIENT_IP_ID:
+        return (C)
+            new BiFunction<RequestContext, String, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext ctx, String ip) {
+                try {
+                  return ((BiFunction<RequestContext, String, Flow<Void>>) callback).apply(ctx, ip);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();

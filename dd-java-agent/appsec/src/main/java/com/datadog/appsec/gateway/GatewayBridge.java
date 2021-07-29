@@ -75,7 +75,7 @@ public class GatewayBridge {
           AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
-          Collection<Attack010> collectedAttacks = ctx.getCollectedAttacks();
+          Collection<Attack010> collectedAttacks = ctx.transferCollectedAttacks();
           for (Attack010 attack : collectedAttacks) {
             EventEnrichment.enrich(attack, ctx);
             reportService.reportAttack(attack);
@@ -117,9 +117,21 @@ public class GatewayBridge {
           if (bodyContent == null || bodyContent.length() == 0) {
             return NoopFlow.INSTANCE;
           }
-
           DataBundle bundle = MapDataBundle.of(KnownAddresses.REQUEST_BODY_RAW, bodyContent);
           return producerService.publishDataEvent(rawRequestBodySubInfo, ctx, bundle, false);
+        });
+
+    subscriptionService.registerCallback(
+        Events.REQUEST_CLIENT_IP,
+        (ctx_, ip) -> {
+          AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+          ctx.setIp(ip);
+
+          if (isInitialRequestDataPublished(ctx)) {
+            return publishInitialRequestData(ctx);
+          } else {
+            return NoopFlow.INSTANCE;
+          }
         });
   }
 
@@ -195,7 +207,7 @@ public class GatewayBridge {
   }
 
   private static boolean isInitialRequestDataPublished(AppSecRequestContext ctx) {
-    return ctx.getSavedRawURI() != null && ctx.isFinishedHeaders();
+    return ctx.getSavedRawURI() != null && ctx.isFinishedHeaders() && ctx.getIp() != null;
   }
 
   private Flow<Void> publishInitialRequestData(AppSecRequestContext ctx) {
@@ -216,19 +228,18 @@ public class GatewayBridge {
               KnownAddresses.HEADERS_NO_COOKIES,
               KnownAddresses.REQUEST_COOKIES,
               KnownAddresses.REQUEST_URI_RAW,
-              KnownAddresses.REQUEST_QUERY);
+              KnownAddresses.REQUEST_QUERY,
+              KnownAddresses.REQUEST_CLIENT_IP);
     }
 
     MapDataBundle bundle =
-        MapDataBundle.of(
-            KnownAddresses.HEADERS_NO_COOKIES,
-            ctx.getCollectedHeaders(),
-            KnownAddresses.REQUEST_COOKIES,
-            ctx.getCollectedCookies(),
-            KnownAddresses.REQUEST_URI_RAW,
-            savedRawURI,
-            KnownAddresses.REQUEST_QUERY,
-            queryParams);
+        new MapDataBundle.Builder()
+            .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getCollectedHeaders())
+            .add(KnownAddresses.REQUEST_COOKIES, ctx.getCollectedCookies())
+            .add(KnownAddresses.REQUEST_URI_RAW, savedRawURI)
+            .add(KnownAddresses.REQUEST_QUERY, queryParams)
+            .add(KnownAddresses.REQUEST_CLIENT_IP, ctx.getIp())
+            .build();
 
     return producerService.publishDataEvent(initialReqDataSubInfo, ctx, bundle, false);
   }

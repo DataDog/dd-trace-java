@@ -134,6 +134,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
         } else {
           span.setTag(Tags.PEER_HOST_IPV4, ip);
         }
+        onRequestIpForInstrumentationGateway(span, ip);
       }
       setPeerPort(span, peerPort(connection));
     }
@@ -204,6 +205,19 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       Function<RequestContext, Flow<Void>> callback = cbp.getCallback(Events.REQUEST_ENDED);
       if (callback != null) {
         callback.apply(requestContext);
+      }
+    }
+  }
+
+  private static void onRequestIpForInstrumentationGateway(
+      @Nonnull final AgentSpan span, @Nonnull final String ip) {
+    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+    RequestContext ctx = span.getRequestContext();
+    if (null != cbp && null != ctx) {
+      BiFunction<RequestContext, String, Flow<Void>> callback =
+          cbp.getCallback(Events.REQUEST_CLIENT_IP);
+      if (null != callback) {
+        callback.apply(ctx, ip);
       }
     }
   }
