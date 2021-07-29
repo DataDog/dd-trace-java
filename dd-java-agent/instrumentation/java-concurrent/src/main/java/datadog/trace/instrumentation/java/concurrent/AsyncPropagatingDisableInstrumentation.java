@@ -80,7 +80,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "com.datastax.oss.driver.api.core.session.SessionBuilder",
             "org.eclipse.jetty.io.SelectorManager",
             "org.jvnet.hk2.internal.ServiceLocatorImpl",
-            "com.zaxxer.hikari.pool.HikariPool")
+            "com.zaxxer.hikari.pool.HikariPool",
+            "net.sf.ehcache.store.disk.DiskStorageFactory")
         .or(RX_WORKERS)
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS);
@@ -144,6 +145,9 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
         advice);
     transformation.applyAdvice(
         named("getConnection").and(isDeclaredBy(named("com.zaxxer.hikari.pool.HikariPool"))),
+        advice);
+    transformation.applyAdvice(
+        named("schedule").and(isDeclaredBy(named("net.sf.ehcache.store.disk.DiskStorageFactory"))),
         advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
