@@ -9,10 +9,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class LegacyConfigJsonAdapter {
 
@@ -24,9 +21,8 @@ public class LegacyConfigJsonAdapter {
 
   @ToJson
   public void toJson(JsonWriter writer, AppSecConfig config) throws IOException {
-    List<String> blockingRulesId = new LinkedList<>();
-    List<String> passRulesId = new LinkedList<>();
     Set<String> parameters = new LinkedHashSet<>();
+    Map<FlowKey, Flow> flows = new HashMap<>();
 
     writer.beginObject();
     writer.name("rules").beginArray();
@@ -40,11 +36,14 @@ public class LegacyConfigJsonAdapter {
         ruleId = md5(event.name);
       }
 
-      if (event.action == Action.BLOCK) {
-        blockingRulesId.add(ruleId);
-      } else if (event.action == Action.LOG){
-        passRulesId.add(ruleId);
+      String type = null;
+      if (event.tags != null) {
+        type = event.tags.get("type");
       }
+
+      FlowKey key = new FlowKey(type, event.action);
+      Flow flow = flows.computeIfAbsent(key, flowKey -> new Flow());
+      flow.ruleIds.add(ruleId);
 
       writer.beginObject();
       writer.name("rule_id").value(ruleId);
@@ -141,38 +140,39 @@ public class LegacyConfigJsonAdapter {
 
     writer.name("flows").beginArray();
 
-    writer.beginObject();
-    writer.name("name").value("flow_map");
-    writer.name("steps").beginArray();
+    for (Map.Entry<FlowKey, Flow> entry : flows.entrySet()) {
+      FlowKey key = entry.getKey();
+      Flow flow = entry.getValue();
 
-    // Block step
-    if (!blockingRulesId.isEmpty()) {
+      writer.beginObject();
+      writer.name("name").value(key.toString());
+      writer.name("steps").beginArray();
+
       writer.beginObject();
       writer.name("id").value("start");
       writer.name("rule_ids").beginArray();
-      for (String s : blockingRulesId) {
+      for (String s : flow.ruleIds) {
         writer.value(s);
       }
       writer.endArray();
-      writer.name("on_match").value("exit_block");
-      writer.endObject();
-    }
 
-    // Monitor step
-    if (!passRulesId.isEmpty()) {
-      writer.beginObject();
-      writer.name("id").value("start");
-      writer.name("rule_ids").beginArray();
-      for (String s : passRulesId) {
-        writer.value(s);
+      switch (key.action) {
+        case BLOCK:
+          writer.name("on_match").value("exit_block");
+          break;
+        case RECORD:
+          writer.name("on_match").value("exit_monitor");
+          break;
+        default:
+          throw new IOException("Unknown action type " + key.action);
       }
+
+      writer.endObject();
+
       writer.endArray();
-      writer.name("on_match").value("exit_monitor");
       writer.endObject();
     }
 
-    writer.endArray();
-    writer.endObject();
     writer.endArray();
 
     writer.endObject();
@@ -198,5 +198,41 @@ public class LegacyConfigJsonAdapter {
       input = input.substring(1);
     }
     return input;
+  }
+
+  /**
+   * Helper classes
+   */
+
+  private static class FlowKey {
+    public final String type;
+    public final Action action;
+
+    public FlowKey(String type, Action action ) {
+      this.type = type;
+      this.action = action;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      FlowKey flowKey = (FlowKey) o;
+      return Objects.equals(type, flowKey.type) && action == flowKey.action;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(type, action);
+    }
+
+    @Override
+    public String toString() {
+      return "" + type + " [" + action + ']';
+    }
+  }
+
+  private static class Flow {
+    public final List<String> ruleIds = new ArrayList<>();
   }
 }

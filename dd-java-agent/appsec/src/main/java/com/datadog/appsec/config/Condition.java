@@ -68,6 +68,12 @@ public abstract class Condition {
           case MATCH_STRING:
             condition = defaultConstructor.constructObject(propsNode, MatchStringCondition.class);
             break;
+          case HAS_SQLI_PATTERN:
+            condition = defaultConstructor.constructObject(propsNode, HasSqliPatternCondition.class);
+            break;
+          case HAS_XSS_PATTERN:
+            condition = defaultConstructor.constructObject(propsNode, HasXssPatternCondition.class);
+            break;
           default:
         }
       }
@@ -106,6 +112,22 @@ public abstract class Condition {
 
     protected MatchStringCondition() {
       super(Operation.MATCH_STRING);
+    }
+  }
+
+  public static class HasSqliPatternCondition extends Condition {
+    public List<String> inputs;
+
+    protected HasSqliPatternCondition() {
+      super(Operation.HAS_SQLI_PATTERN);
+    }
+  }
+
+  public static class HasXssPatternCondition extends Condition {
+    public List<String> inputs;
+
+    protected HasXssPatternCondition() {
+      super(Operation.HAS_XSS_PATTERN);
     }
   }
 }
