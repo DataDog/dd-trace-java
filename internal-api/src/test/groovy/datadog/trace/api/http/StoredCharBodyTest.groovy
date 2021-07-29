@@ -4,7 +4,7 @@ import spock.lang.Specification
 
 class StoredCharBodyTest extends Specification {
   StoredBodyListener listener = Mock()
-  StoredCharBody storedCharBody = new StoredCharBody(listener)
+  StoredCharBody storedCharBody = new StoredCharBody(listener, 1)
 
   void 'basic test with no buffer extension'() {
     when:

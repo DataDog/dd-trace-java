@@ -17,7 +17,11 @@ public class StoredCharBody implements StoredBodySupplier {
   private int storedBodyLen;
   private boolean bodyReadStarted = false;
 
-  public StoredCharBody(StoredBodyListener listener) {
+  public StoredCharBody(StoredBodyListener listener, int lengthHint) {
+    if (lengthHint != 0) {
+      int initialSize = Math.max(MIN_BUFFER_SIZE, Math.min(lengthHint, MAX_BUFFER_SIZE));
+      this.storedBody = new char[initialSize];
+    }
     this.listener = listener;
   }
 

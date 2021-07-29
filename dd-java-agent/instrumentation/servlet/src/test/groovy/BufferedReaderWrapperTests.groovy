@@ -8,7 +8,7 @@ import java.nio.CharBuffer
 class BufferedReaderWrapperTests extends Specification {
 
   StoredBodyListener listener = Mock()
-  StoredCharBody storedCharBody = new StoredCharBody(listener)
+  StoredCharBody storedCharBody = new StoredCharBody(listener, 0)
 
   BufferedReader mockReader = Mock()
   BufferedReader reader = new BufferedReaderWrapper(mockReader, storedCharBody)

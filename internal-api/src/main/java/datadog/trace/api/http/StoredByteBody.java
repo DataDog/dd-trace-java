@@ -24,8 +24,8 @@ public class StoredByteBody implements StoredBodySupplier {
   private CharsetDecoder charsetDecoder;
   private StoredCharBody storedCharBody;
 
-  public StoredByteBody(StoredBodyListener listener) {
-    this.storedCharBody = new StoredCharBody(listener);
+  public StoredByteBody(StoredBodyListener listener, int lengthHint) {
+    this.storedCharBody = new StoredCharBody(listener, lengthHint);
   }
 
   public synchronized void appendData(byte[] bytes, int start, int end) {

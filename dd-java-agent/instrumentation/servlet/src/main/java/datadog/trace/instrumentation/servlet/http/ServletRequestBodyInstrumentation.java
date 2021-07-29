@@ -98,7 +98,17 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
       IGDelegatingStoredBodyListener listener =
           new IGDelegatingStoredBodyListener(cbp, requestContext);
 
-      StoredByteBody storedByteBody = new StoredByteBody(listener);
+      int lengthHint = 0;
+      String lengthHeader = req.getHeader("content-length");
+      if (lengthHeader != null) {
+        try {
+          lengthHint = Integer.parseInt(lengthHeader);
+        } catch (NumberFormatException nfe) {
+          // purposefully left blank
+        }
+      }
+
+      StoredByteBody storedByteBody = new StoredByteBody(listener, lengthHint);
       ServletInputStreamWrapper servletInputStreamWrapper =
           new ServletInputStreamWrapper(is, storedByteBody);
 
@@ -145,7 +155,17 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
       IGDelegatingStoredBodyListener listener =
           new IGDelegatingStoredBodyListener(cbp, requestContext);
 
-      StoredCharBody storedCharBody = new StoredCharBody(listener);
+      int lengthHint = 0;
+      String lengthHeader = req.getHeader("content-length");
+      if (lengthHeader != null) {
+        try {
+          lengthHint = Integer.parseInt(lengthHeader);
+        } catch (NumberFormatException nfe) {
+          // purposefully left blank
+        }
+      }
+
+      StoredCharBody storedCharBody = new StoredCharBody(listener, lengthHint);
       reader = new BufferedReaderWrapper(reader, storedCharBody);
     }
   }

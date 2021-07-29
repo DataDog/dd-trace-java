@@ -6,7 +6,7 @@ import java.nio.charset.Charset
 
 class StoredByteBodyTest extends Specification {
   StoredBodyListener listener = Mock()
-  StoredByteBody storedByteBody = new StoredByteBody(listener)
+  StoredByteBody storedByteBody = new StoredByteBody(listener, 0)
 
   void 'basic test with no buffer extension'() {
     when:

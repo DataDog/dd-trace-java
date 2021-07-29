@@ -9,7 +9,7 @@ import java.nio.charset.Charset
 
 class ServletInputStreamWrapperTests extends Specification {
   StoredBodyListener listener = Mock()
-  StoredByteBody storedByteBody = new StoredByteBody(listener)
+  StoredByteBody storedByteBody = new StoredByteBody(listener, 0)
 
   ServletInputStreamWrapper inputStream
 
