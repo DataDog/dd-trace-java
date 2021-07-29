@@ -3,6 +3,8 @@ package server
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -141,6 +143,13 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
         defaultTags()
       }
     }
+  }
+
+  @Override
+  def setup() {
+    // Vertx + netty instrumentations produce overlapping spans
+    // Disable the checkpoint interval validation
+    CheckpointValidator.excludeValidations(EnumSet.of(CheckpointValidationMode.INTERVALS))
   }
 }
 
