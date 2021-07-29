@@ -1,18 +1,16 @@
 package datadog.trace.instrumentation.jetty_client;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -33,14 +31,12 @@ public class JettyAddListenerInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<String, String> contextStore() {
-    Map<String, String> contexts = new HashMap<>(3);
-    contexts.put(
-        "org.eclipse.jetty.client.api.Request$RequestListener",
-        "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
-    contexts.put(
-        "org.eclipse.jetty.client.api.Response$ResponseListener",
-        "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
-    return contexts;
+    return singletonMap("org.eclipse.jetty.client.api.Request", AgentSpan.class.getName());
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".CallbackWrapper"};
   }
 
   @Override
@@ -48,27 +44,97 @@ public class JettyAddListenerInstrumentation extends Instrumenter.Tracing {
     transformation.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(named("listener").or(nameStartsWith("on")))
-            .and(takesArguments(1)),
-        JettyAddListenerInstrumentation.class.getName() + "$AddSpanAdvice");
+            .and(named("listener"))
+            .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request$RequestListener"))),
+        JettyAddListenerInstrumentation.class.getName() + "$WrapRequestListener");
+    transformation.applyAdvice(
+        isMethod()
+            .and(isPublic())
+            .and(named("onSuccess"))
+            .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request$SuccessListener"))),
+        JettyAddListenerInstrumentation.class.getName() + "$WrapRequestSuccessListener");
+    transformation.applyAdvice(
+        isMethod()
+            .and(isPublic())
+            .and(named("onFailure"))
+            .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request$FailureListener"))),
+        JettyAddListenerInstrumentation.class.getName() + "$WrapRequestFailureListener");
+    transformation.applyAdvice(
+        isMethod()
+            .and(isPublic())
+            .and(named("onComplete"))
+            .and(takesArgument(0, named("org.eclipse.jetty.client.api.Response$CompleteListener"))),
+        JettyAddListenerInstrumentation.class.getName() + "$WrapResponseCompleteListener");
   }
 
-  public static class AddSpanAdvice {
+  public static class WrapRequestListener {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void methodEnter(@Advice.Argument(0) final Object listener) {
-      AgentSpan parent = activeSpan();
-      if (parent == null) {
-        parent = noopSpan();
+    public static void methodEnter(
+        @Advice.This Request request,
+        @Advice.Argument(value = 0, readOnly = false) Request.RequestListener listener) {
+      if (!(listener instanceof CallbackWrapper)) {
+        listener =
+            new CallbackWrapper(
+                activeSpan(),
+                InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+                listener);
       }
+    }
 
-      if (listener instanceof Request.RequestListener) {
-        InstrumentationContext.get(Request.RequestListener.class, AgentSpan.class)
-            .put((Request.RequestListener) listener, parent);
+    private String muzzleCheck(Request request) {
+      return request.getMethod(); // Before 9.1 returns an HttpMethod.
+    }
+  }
+
+  public static class WrapRequestFailureListener {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(
+        @Advice.This Request request,
+        @Advice.Argument(value = 0, readOnly = false) Request.FailureListener listener) {
+      if (!(listener instanceof CallbackWrapper)) {
+        listener =
+            new CallbackWrapper(
+                activeSpan(),
+                InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+                listener);
       }
+    }
 
-      if (listener instanceof Response.ResponseListener) {
-        InstrumentationContext.get(Response.ResponseListener.class, AgentSpan.class)
-            .put((Response.ResponseListener) listener, parent);
+    private String muzzleCheck(Request request) {
+      return request.getMethod(); // Before 9.1 returns an HttpMethod.
+    }
+  }
+
+  public static class WrapRequestSuccessListener {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(
+        @Advice.This Request request,
+        @Advice.Argument(value = 0, readOnly = false) Request.SuccessListener listener) {
+      if (!(listener instanceof CallbackWrapper)) {
+        listener =
+            new CallbackWrapper(
+                activeSpan(),
+                InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+                listener);
+      }
+    }
+
+    private String muzzleCheck(Request request) {
+      return request.getMethod(); // Before 9.1 returns an HttpMethod.
+    }
+  }
+
+  public static class WrapResponseCompleteListener {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(
+        @Advice.This Request request,
+        @Advice.Argument(value = 0, readOnly = false) Response.CompleteListener listener) {
+      if (!(listener instanceof CallbackWrapper)) {
+        listener =
+            new CallbackWrapper(
+                activeSpan(),
+                InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+                listener);
       }
     }
 
