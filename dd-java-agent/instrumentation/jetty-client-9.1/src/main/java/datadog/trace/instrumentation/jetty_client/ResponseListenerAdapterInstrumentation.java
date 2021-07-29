@@ -56,5 +56,9 @@ public final class ResponseListenerAdapterInstrumentation extends Instrumenter.T
         }
       }
     }
+
+    private String muzzleCheck(Request request) {
+      return request.getMethod(); // Before 9.1 returns an HttpMethod.
+    }
   }
 }

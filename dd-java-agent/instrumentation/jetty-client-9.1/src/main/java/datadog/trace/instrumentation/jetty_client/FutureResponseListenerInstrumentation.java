@@ -63,5 +63,9 @@ public final class FutureResponseListenerInstrumentation extends Instrumenter.Tr
       InstrumentationContext.get(Response.ResponseListener.class, Request.class)
           .put(listener, request);
     }
+
+    private String muzzleCheck(Request request) {
+      return request.getMethod(); // Before 9.1 returns an HttpMethod.
+    }
   }
 }
