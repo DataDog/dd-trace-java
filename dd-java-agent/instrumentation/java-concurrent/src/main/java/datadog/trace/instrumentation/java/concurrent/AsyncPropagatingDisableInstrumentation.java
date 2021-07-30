@@ -79,7 +79,8 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher",
             "com.datastax.oss.driver.api.core.session.SessionBuilder",
             "org.eclipse.jetty.io.SelectorManager",
-            "org.jvnet.hk2.internal.ServiceLocatorImpl")
+            "org.jvnet.hk2.internal.ServiceLocatorImpl",
+            "com.zaxxer.hikari.pool.HikariPool")
         .or(RX_WORKERS)
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS);
@@ -140,6 +141,9 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
     transformation.applyAdvice(
         namedOneOf("getInjecteeDescriptor", "getService")
             .and(isDeclaredBy(named("org.jvnet.hk2.internal.ServiceLocatorImpl"))),
+        advice);
+    transformation.applyAdvice(
+        named("getConnection").and(isDeclaredBy(named("com.zaxxer.hikari.pool.HikariPool"))),
         advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
