@@ -18,7 +18,7 @@ class RejectedExecutionTest extends AgentTestRunner {
     // quickly
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.SUSPEND_RESUME)
+      CheckpointValidationMode.SEQUENCE)
 
     ForkJoinPool fjp = new ForkJoinPool()
     fjp.shutdownNow()

@@ -5,11 +5,13 @@ import datadog.trace.instrumentation.junit4.JUnit4Utils
 
 class JUnit4UtilsTest extends AgentTestRunner {
 
-  def "test remove trailing brackets from test name"() {
-    setup:
+  @Override
+  def setup() {
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SANITY)
+      CheckpointValidationMode.SEQUENCE)
+  }
 
+  def "test remove trailing brackets from test name"() {
     when:
     def testNameNoParams = JUnit4Utils.normalizeTestName(testName)
 

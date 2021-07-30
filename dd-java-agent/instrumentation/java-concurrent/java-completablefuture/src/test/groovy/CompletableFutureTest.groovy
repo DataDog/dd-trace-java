@@ -107,7 +107,7 @@ class CompletableFutureTest extends AgentTestRunner {
   def "test thenApply"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
@@ -149,7 +149,7 @@ class CompletableFutureTest extends AgentTestRunner {
   def "test thenApplyAsync"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
@@ -192,7 +192,7 @@ class CompletableFutureTest extends AgentTestRunner {
   def "test thenCompose"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
@@ -238,8 +238,7 @@ class CompletableFutureTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
@@ -289,8 +288,7 @@ class CompletableFutureTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {

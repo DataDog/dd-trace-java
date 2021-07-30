@@ -233,8 +233,7 @@ class JettyServlet3TestAsync extends JettyServlet3Test {
   def setup() {
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -370,7 +369,6 @@ class JettyServlet3TestDispatchAsync extends JettyServlet3Test {
   def setup() {
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
   }
 }

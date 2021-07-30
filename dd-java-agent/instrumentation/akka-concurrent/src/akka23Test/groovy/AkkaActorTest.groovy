@@ -16,7 +16,7 @@ class AkkaActorTest extends AgentTestRunner {
 
   def "akka actor send #name #iterations"() {
     setup:
-    CheckpointValidator.excludeValidations(CheckpointValidationMode.THREAD_SEQUENCE)
+    CheckpointValidator.excludeValidations(CheckpointValidationMode.SEQUENCE)
     def barrier = akkaTester.block(name)
 
     when:
@@ -65,7 +65,7 @@ class AkkaActorTest extends AgentTestRunner {
 
   def "actor message handling should close leaked scopes"() {
     setup:
-    CheckpointValidator.excludeValidations(CheckpointValidationMode.THREAD_SEQUENCE)
+    CheckpointValidator.excludeValidations(CheckpointValidationMode.SEQUENCE)
 
     when:
     akkaTester.leak("Leaker", "drip")
@@ -96,7 +96,7 @@ class AkkaActorTest extends AgentTestRunner {
 
   def "test checkpoints emitted #name x #n"() {
     setup:
-    CheckpointValidator.excludeValidations(CheckpointValidationMode.THREAD_SEQUENCE)
+    CheckpointValidator.excludeValidations(CheckpointValidationMode.SEQUENCE)
     def barrier = akkaTester.block(name)
     when:
     runUnderTrace("parent") {

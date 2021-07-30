@@ -78,8 +78,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def result = repo.findAll()
@@ -131,8 +130,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def doc = new Doc()

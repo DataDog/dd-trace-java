@@ -120,8 +120,7 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     expect:
     template.createIndex(indexName)
@@ -301,8 +300,7 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     template.createIndex(indexName)
     TEST_WRITER.waitForTraces(1)

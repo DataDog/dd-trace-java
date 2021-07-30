@@ -128,7 +128,7 @@ class OpenTracing31Test extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY)
+      CheckpointValidationMode.SEQUENCE)
 
     def scope = tracer.buildSpan("some name").startActive(finishSpan)
 
@@ -150,7 +150,7 @@ class OpenTracing31Test extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY)
+      CheckpointValidationMode.SEQUENCE)
 
     def span = tracer.buildSpan("some name").start()
     def scope = tracer.scopeManager().activate(span, finishSpan)
@@ -194,7 +194,7 @@ class OpenTracing31Test extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY)
+      CheckpointValidationMode.SEQUENCE)
 
     def span = NoopSpan.INSTANCE
     def scope = tracer.scopeManager().activate(span, true)
@@ -218,7 +218,7 @@ class OpenTracing31Test extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY)
+      CheckpointValidationMode.SEQUENCE)
 
     def span = tracer.buildSpan("some name").start()
     TraceScope scope = tracer.scopeManager().activate(span, false)
@@ -283,7 +283,7 @@ class OpenTracing31Test extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY)
+      CheckpointValidationMode.SEQUENCE)
 
     def context = tracer.buildSpan("some name").start().context()
     def textMap = [:]

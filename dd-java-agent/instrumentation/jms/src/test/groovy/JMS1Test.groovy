@@ -58,7 +58,7 @@ class JMS1Test extends AgentTestRunner {
   def "sending a message to #jmsResourceName generates spans"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
@@ -92,8 +92,7 @@ class JMS1Test extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def transactedSession = connection.createSession(true, Session.SESSION_TRANSACTED)
     def producer = session.createProducer(destination)
@@ -128,8 +127,7 @@ class JMS1Test extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def session = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
     def producer = session.createProducer(destination)
@@ -164,7 +162,7 @@ class JMS1Test extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def lock = new CountDownLatch(1)
     def messageRef = new AtomicReference<TextMessage>()
@@ -205,7 +203,7 @@ class JMS1Test extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def consumer = session.createConsumer(destination)
 
@@ -231,7 +229,7 @@ class JMS1Test extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def consumer = session.createConsumer(destination)
 
@@ -257,7 +255,7 @@ class JMS1Test extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
@@ -429,7 +427,7 @@ class JMS1Test extends AgentTestRunner {
   }
 
   def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on consumer side"() {
-    setup:      CheckpointValidationMode.THREAD_SEQUENCE)
+    setup:      CheckpointValidationMode.SEQUENCE)
 
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)

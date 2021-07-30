@@ -21,8 +21,7 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def hasBucket = manager.hasBucket(bucketSettings.name())
@@ -56,9 +55,7 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     // Connect to the bucket and open it
@@ -106,9 +103,7 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     // Only couchbase buckets support queries.
     CouchbaseEnvironment environment = envBuilder(bucketCouchbase).build()

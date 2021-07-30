@@ -71,8 +71,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     MongoDatabase db = client.getDatabase(databaseName)
 
@@ -94,8 +93,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
 
@@ -117,8 +115,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     MongoDatabase db = client.getDatabase(databaseName)
 
@@ -142,8 +139,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def collection = setupCollection(collectionName)
 
@@ -172,8 +168,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     MongoCollection<Document> collection = setupCollection(collectionName)
     insertDocument(collection, new Document("password", "OLDPW"), null)
@@ -208,8 +203,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     MongoCollection<Document> collection = setupCollection(collectionName)
     insertDocument(collection, new Document("password", "SECRET"), null)

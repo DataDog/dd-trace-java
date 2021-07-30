@@ -19,8 +19,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedAcrossChannels()
@@ -41,8 +40,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracePreventedByCancellation()
@@ -63,8 +61,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedAcrossThreadsWithNested()
@@ -84,8 +81,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(Dispatchers.Default)
     int expectedNumberOfSpans = kotlinTest.traceWithDeferred()
@@ -108,8 +104,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(Dispatchers.Default)
     int expectedNumberOfSpans = kotlinTest.tracedWithDeferredFirstCompletions()

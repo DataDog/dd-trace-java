@@ -14,7 +14,7 @@ class ScalaInstrumentationTest extends AgentTestRunner {
   def "scala futures and callbacks"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
     int expectedNumberOfSpans = scalaTest.traceWithFutureAndCallbacks()
@@ -33,7 +33,7 @@ class ScalaInstrumentationTest extends AgentTestRunner {
   def "scala propagates across futures with no traces"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
     int expectedNumberOfSpans = scalaTest.tracedAcrossThreadsWithNoTrace()
@@ -49,7 +49,7 @@ class ScalaInstrumentationTest extends AgentTestRunner {
   def "scala either promise completion"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
     int expectedNumberOfSpans = scalaTest.traceWithPromises()
@@ -68,7 +68,7 @@ class ScalaInstrumentationTest extends AgentTestRunner {
   def "scala first completed future"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
     int expectedNumberOfSpans = scalaTest.tracedWithFutureFirstCompletions()

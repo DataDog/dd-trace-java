@@ -175,6 +175,6 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
   }
 }

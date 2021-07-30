@@ -102,9 +102,7 @@ class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstrumentatio
   def setup() {
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -118,7 +116,7 @@ class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentati
   def setup() {
     CheckpointValidator.excludeValidations(
         CheckpointValidationMode.INTERVALS,
-        CheckpointValidationMode.THREAD_SEQUENCE)
+        CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -137,7 +135,7 @@ class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstr
   def setup() {
     CheckpointValidator.excludeValidations(
         CheckpointValidationMode.INTERVALS,
-        CheckpointValidationMode.THREAD_SEQUENCE)
+        CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -156,7 +154,7 @@ class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest e
   def setup() {
     CheckpointValidator.excludeValidations(
         CheckpointValidationMode.INTERVALS,
-        CheckpointValidationMode.THREAD_SEQUENCE)
+        CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -170,6 +168,6 @@ class AkkaHttpServerInstrumentationAsyncHttp2Test extends AkkaHttpServerInstrume
   def setup() {
     CheckpointValidator.excludeValidations(
         CheckpointValidationMode.INTERVALS,
-        CheckpointValidationMode.THREAD_SEQUENCE)
+        CheckpointValidationMode.SEQUENCE)
   }
 }

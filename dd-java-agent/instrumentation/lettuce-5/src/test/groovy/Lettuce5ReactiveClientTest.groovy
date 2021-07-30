@@ -83,8 +83,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def conds = new AsyncConditions()
     Consumer<String> consumer = new Consumer<String>() {
@@ -125,8 +124,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def conds = new AsyncConditions()
 
@@ -161,8 +159,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def conds = new AsyncConditions()
     final defaultVal = "NOT THIS VALUE"
@@ -201,8 +198,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def conds = new AsyncConditions()
 
@@ -239,8 +235,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     reactiveCommands.command().subscribe()
 
@@ -270,8 +265,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     reactiveCommands.command().take(2).subscribe()
 
@@ -302,7 +296,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     String res = null
 
@@ -318,7 +312,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     reactiveCommands.debugSegfault().subscribe()
 
@@ -347,7 +341,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     reactiveCommands.shutdown(false).subscribe()
 
@@ -376,7 +370,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     runUnderTrace("test-parent") {
@@ -436,7 +430,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     runUnderTrace("test-parent") {
@@ -498,7 +492,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     runUnderTrace("test-parent") {

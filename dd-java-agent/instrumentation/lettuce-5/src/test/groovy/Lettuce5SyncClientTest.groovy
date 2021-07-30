@@ -88,8 +88,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
   def "connect"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     RedisClient testConnectionClient = RedisClient.create(embeddedDbUri)
     testConnectionClient.setOptions(CLIENT_OPTIONS)
@@ -127,8 +126,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
   def "connect exception"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     RedisClient testConnectionClient = RedisClient.create(dbUriNonExistent)
     testConnectionClient.setOptions(CLIENT_OPTIONS)
@@ -165,8 +163,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
   def "set command"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     String res = syncCommands.set("TESTSETKEY", "TESTSETVAL")
 
@@ -195,8 +192,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
   def "get command"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     String res = syncCommands.get("TESTKEY")
 
@@ -225,8 +221,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
   def "get non existent key command"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     String res = syncCommands.get("NON_EXISTENT_KEY")
 
@@ -255,8 +250,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
   def "command with no arguments"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def keyRetrieved = syncCommands.randomkey()
 
@@ -285,8 +279,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
   def "list command"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     long res = syncCommands.lpush("TESTLIST", "TESTLIST ELEMENT")
 
@@ -315,8 +308,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
   def "hash set command"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def res = syncCommands.hmset("user", testHashMap)
 
@@ -345,8 +337,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
   def "hash getall command"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     Map<String, String> res = syncCommands.hgetall("TESTHM")
 
@@ -375,8 +366,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
   def "debug segfault command (returns void) with no argument should produce span"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     syncCommands.debugSegfault()
 
@@ -404,8 +394,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
   def "shutdown command (returns void) should produce a span"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     syncCommands.shutdown(false)
 

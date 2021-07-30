@@ -79,7 +79,7 @@ class JerseyClientAsyncTest extends JaxRsClientAsyncTest {
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -123,7 +123,6 @@ class CxfClientAsyncTest extends JaxRsClientAsyncTest {
   def setup() {
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
   }
 }

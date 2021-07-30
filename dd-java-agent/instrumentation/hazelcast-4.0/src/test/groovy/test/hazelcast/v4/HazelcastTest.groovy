@@ -34,8 +34,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def serverMap = h1.getMap(randomName)
@@ -57,8 +56,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def serverMap = h1.getMap(randomName)
@@ -81,8 +79,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def serverMap = h1.getMap(randomName)
@@ -111,8 +108,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def serverMultiMap = h1.getMultiMap(randomName)
@@ -134,8 +130,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def serverQueue = h1.getQueue(randomName)
@@ -159,8 +154,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     given:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def serverTopic = h1.getTopic(randomName)
 
@@ -195,8 +189,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def serverSet = h1.getSet(randomName)
@@ -216,8 +209,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def clientSet = client.getSet(randomName)
@@ -236,8 +228,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def serverList = h1.getList(randomName)
@@ -257,8 +248,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def serverList = h1.getList(randomName)
@@ -298,8 +288,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     given: "reference to the semaphore retrieved"
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     // Depending on server configuration for test semaphore
     def permits = 3
@@ -337,8 +326,7 @@ class HazelcastTest extends AbstractHazelcastTest {
     given: "setup list"
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     client.getList("sum").addAll(Arrays.asList(1, 2, 3, 4, 5))
 

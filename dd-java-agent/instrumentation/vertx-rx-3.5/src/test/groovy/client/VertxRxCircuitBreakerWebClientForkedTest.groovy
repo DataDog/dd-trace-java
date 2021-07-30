@@ -95,6 +95,6 @@ class VertxRxCircuitBreakerWebClientForkedTest extends HttpClientTest {
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.SUSPEND_RESUME)
+      CheckpointValidationMode.SEQUENCE)
   }
 }

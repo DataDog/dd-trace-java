@@ -14,8 +14,7 @@ class Scala210PromiseCompletionPriorityForkJoinPoolForkedTest extends ScalaPromi
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -28,8 +27,7 @@ class Scala210PromiseCompletionPriorityGlobalForkedTest extends ScalaPromiseComp
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -42,8 +40,7 @@ class Scala210PromiseCompletionPriorityScheduledThreadPoolForkedTest extends Sca
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -56,7 +53,6 @@ class Scala210PromiseCompletionPriorityThreadPoolForkedTest extends ScalaPromise
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
   }
 }

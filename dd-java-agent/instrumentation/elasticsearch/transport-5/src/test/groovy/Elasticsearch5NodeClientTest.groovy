@@ -131,8 +131,7 @@ class Elasticsearch5NodeClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     assert TEST_WRITER == []
     def indexResult = client.admin().indices().prepareCreate(indexName).get()

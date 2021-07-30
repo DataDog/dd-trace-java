@@ -51,8 +51,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     MongoDatabase db = client.getDatabase(databaseName)
 
@@ -74,8 +73,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
 
@@ -97,8 +95,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     MongoDatabase db = client.getDatabase(databaseName)
 
@@ -122,8 +119,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(databaseName)
@@ -161,8 +157,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(databaseName)
@@ -208,8 +203,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(databaseName)

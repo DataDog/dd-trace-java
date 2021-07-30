@@ -82,6 +82,6 @@ class CompletableFuturePromiseNoAsyncTest extends AbstractPromiseTest<Completabl
   def setup() {
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
   }
 }

@@ -76,7 +76,7 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     Response response = client.performRequest("GET", "_cluster/health")
 

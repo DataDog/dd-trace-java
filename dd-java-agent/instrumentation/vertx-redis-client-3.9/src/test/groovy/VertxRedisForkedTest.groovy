@@ -13,7 +13,7 @@ class VertxRedisForkedTest extends VertxRedisTestBase {
   def "set and get command"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def set = runWithParentAndHandler({ Handler<AsyncResult<Response>> h ->
@@ -35,7 +35,7 @@ class VertxRedisForkedTest extends VertxRedisTestBase {
   def "set and get command without parent"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     when:
     def set = runWithHandler({ Handler<AsyncResult<Response>> h ->
@@ -67,7 +67,7 @@ class VertxRedisForkedTest extends VertxRedisTestBase {
   def "work with reused request"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.THREAD_SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
 
     def request = Request.cmd(Command.SET).arg("foo").arg("bar")
 

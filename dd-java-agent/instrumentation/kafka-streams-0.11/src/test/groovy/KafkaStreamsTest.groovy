@@ -36,7 +36,7 @@ class KafkaStreamsTest extends AgentTestRunner {
   def "test kafka produce and consume with streams in-between"() {
     setup:
     CheckpointValidator.excludeValidations(
-      CheckpointValidationMode.SUSPEND_RESUME)
+      CheckpointValidationMode.SEQUENCE)
 
     def config = new Properties()
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())

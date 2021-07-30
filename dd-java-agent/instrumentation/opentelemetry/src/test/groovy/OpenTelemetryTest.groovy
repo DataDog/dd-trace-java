@@ -268,7 +268,7 @@ class OpenTelemetryTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SANITY)
+      CheckpointValidationMode.SEQUENCE)
 
     def span = tracer.spanBuilder("some name").startSpan()
     def context = TracingContextUtils.withSpan(span, Context.current())
