@@ -66,8 +66,10 @@ class TestFanout extends AgentTestRunner {
     then:
     TEST_WRITER.waitForTraces(1)
     (traceChildTasks ? 4 : 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    3 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    3 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    // the precise number of migrations depends on the threadpool,
+    // but the sequence is validated automatically on TEST_CHECKPOINTER
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
     _ * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
     (traceChildTasks ? 4 : 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
 
@@ -96,8 +98,10 @@ class TestFanout extends AgentTestRunner {
     then:
     TEST_WRITER.waitForTraces(1)
     (traceChildTasks ? 7 : 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    6 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    6 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    // the precise number of migrations depends on the threadpool,
+    // but the sequence is validated automatically on TEST_CHECKPOINTER
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
     _ * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
     (traceChildTasks ? 7 : 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
 
