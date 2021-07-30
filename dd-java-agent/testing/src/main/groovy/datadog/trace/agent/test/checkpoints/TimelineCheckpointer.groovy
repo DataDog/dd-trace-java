@@ -50,7 +50,7 @@ class TimelineCheckpointer implements Checkpointer {
 
     // The set of included validations that failed
     def failed = includedValidations.clone()
-    failed.retainAll(invalidEvents.stream().map { it[1] }.collect(Collectors.toSet()))
+    failed.retainAll(invalidEvents.collect { it[1] }.toSet())
 
     // The set of included validations that passed despite being exluded
     def passed = includedValidations.clone()
@@ -63,12 +63,9 @@ class TimelineCheckpointer implements Checkpointer {
       "\tExcluded & Passed: ${passed}\n")
     if (!failed.empty) {
       throw new RuntimeException(
-      "Failed validations: " +
-      failed.stream()
-      .map {
-        it.toString() }
-      .sorted()
-      .collect(Collectors.joining(", ")))
+      "Failed validations: [" +
+      failed.collect { it.toString() }.sort().join(", ") +
+      "]")
     }
   }
 
