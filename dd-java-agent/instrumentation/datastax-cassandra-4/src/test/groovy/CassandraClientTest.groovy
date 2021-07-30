@@ -173,7 +173,8 @@ class CassandraClientTest extends AgentTestRunner {
   def "test async with error"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
 
     def statement = "ILLEGAL STATEMENT"
     CqlSession session = sessionBuilder().withKeyspace((String) keyspace).build()
