@@ -61,6 +61,7 @@ class CassandraClientTest extends AgentTestRunner {
   def "test sync"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
     Session session = cluster.connect(keyspace)
