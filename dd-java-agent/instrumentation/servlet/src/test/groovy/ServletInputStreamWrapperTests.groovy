@@ -45,7 +45,7 @@ class ServletInputStreamWrapperTests extends Specification {
     1 * mockIs.close()
     then:
     1 * listener.onBodyEnd(_)
-    storedByteBody.get() == '\u0000Hello'
+    storedByteBody.get() as String == '\u0000Hello'
   }
 
 
@@ -57,12 +57,12 @@ class ServletInputStreamWrapperTests extends Specification {
     inputStream = new ServletInputStreamWrapper(mockIs, storedByteBody)
 
     when:
-    assert inputStream.read(new byte[1024 * 1024 - 1]) == 1024 * 1024 - 1
+    assert inputStream.read(new byte[128 * 1024 - 1]) == 128 * 1024 - 1
     assert inputStream.read(new byte[300]) == 100
     assert inputStream.read() == ('2' as char) as int
 
     then:
-    1 * mockIs.read(_ as byte[]) >> 1024 * 1024 - 1 // 1 short of limit
+    1 * mockIs.read(_ as byte[]) >> 128 * 1024 - 1 // 1 short of limit
     1 * listener.onBodyStart(_)
 
     then:
@@ -74,10 +74,10 @@ class ServletInputStreamWrapperTests extends Specification {
     then:
     1 * mockIs.read() >> (('2' as char) as int) // ignored
 
-    def body = storedByteBody.get()
-    body[1024 * 1024 - 2] == '\u0000'
-    body[1024 * 1024 - 1] == '1'
-    body.length() == 1024 * 1024
+    def body = storedByteBody.get() as String
+    body[128 * 1024 - 2] == '\u0000'
+    body[128 * 1024 - 1] == '1'
+    body.length() == 128 * 1024
   }
 
 }

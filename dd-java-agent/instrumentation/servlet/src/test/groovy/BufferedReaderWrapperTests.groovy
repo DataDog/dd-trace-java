@@ -59,19 +59,19 @@ class BufferedReaderWrapperTests extends Specification {
     then:
     1 * listener.onBodyEnd(_)
 
-    storedCharBody.get() == 'Hello world!\n'
+    storedCharBody.get() as String == 'Hello world!\n'
   }
 
 
   void 'the buffered reader observes the limit of cached data'() {
     when:
-    assert reader.read(new char[1024 * 1024 - 1]) == 1024 * 1024 -1
+    assert reader.read(new char[128 * 1024 - 1]) == 128 * 1024 -1
     assert reader.read(new char[300]) == 100
     assert reader.read() == ('2' as char) as int
     reader.close()
 
     then:
-    1 * mockReader.read(_ as char[]) >> 1024 * 1024 -1 // 1 short of limit
+    1 * mockReader.read(_ as char[]) >> 128 * 1024 -1 // 1 short of limit
     1 * listener.onBodyStart(_)
     then:
     1 * mockReader.read(_ as char[]) >> {
@@ -85,9 +85,9 @@ class BufferedReaderWrapperTests extends Specification {
     1 * mockReader.close()
 
 
-    def body = storedCharBody.get()
-    body[1024 * 1024 - 2] == '\u0000'
-    body[1024 * 1024 - 1] == '1'
-    assert body.length() == 1024 * 1024
+    def body = storedCharBody.get() as String
+    body[128 * 1024 - 2] == '\u0000'
+    body[128 * 1024 - 1] == '1'
+    assert body.length() == 128 * 1024
   }
 }

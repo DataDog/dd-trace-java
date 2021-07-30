@@ -939,8 +939,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   class IGCallbacks {
     static class Context implements RequestContext {
-      private String extraSpan
-      private StoredBodySupplier requestBodySupplier
+      String extraSpan
+      StoredBodySupplier requestBodySupplier
     }
 
     final Supplier<Flow<RequestContext>> requestStartedCb =
@@ -983,7 +983,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       if (!context.requestBodySupplier.is(supplier)) {
         throw new RuntimeException("Expected same instance: ${context.requestBodySupplier} and $supplier")
       }
-      AgentTracer.activeSpan().localRootSpan.setTag('request.body', supplier.get())
+      AgentTracer.activeSpan().localRootSpan.setTag('request.body', supplier.get() as String)
       Flow.ResultFlow.empty()
     }
   }
