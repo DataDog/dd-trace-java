@@ -6,9 +6,11 @@ import java.nio.charset.Charset
 
 class StoredByteBodyTest extends Specification {
   StoredBodyListener listener = Mock()
-  StoredByteBody storedByteBody = new StoredByteBody(listener, 0)
+  StoredByteBody storedByteBody
 
   void 'basic test with no buffer extension'() {
+    storedByteBody = new StoredByteBody(listener, null, 0)
+
     when:
     storedByteBody.appendData((int) 'a') // not "as int"
 
@@ -25,6 +27,8 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'test store limit'() {
+    storedByteBody = new StoredByteBody(listener, null, 0)
+
     when:
     storedByteBody.appendData((int) 'a')
 
@@ -44,6 +48,8 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'ignores invalid integers given to appendData'() {
+    storedByteBody = new StoredByteBody(listener, null, 0)
+
     when:
     storedByteBody.appendData(-1)
     storedByteBody.appendData(256)
@@ -53,6 +59,8 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'well formed utf8 data'() {
+    storedByteBody = new StoredByteBody(listener, null, 0)
+
     when:
     def data = '\u00E1\u0800\uD800\uDC00'.getBytes(Charset.forName('UTF-8'))
     storedByteBody.appendData(data, 0, data.length)
@@ -62,9 +70,10 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'non UTF8 data with specified encoding'() {
+    storedByteBody = new StoredByteBody(listener, Charset.forName('ISO-8859-1'), 0)
+
     when:
     def data = 'á'.getBytes(Charset.forName('UTF-8'))
-    storedByteBody.setCharset(Charset.forName('ISO-8859-1'))
     storedByteBody.appendData(data, 0, data.length)
 
     then:
@@ -72,6 +81,8 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin1 on first byte'() {
+    storedByteBody = new StoredByteBody(listener, null, 0)
+
     when:
     storedByteBody.appendData([0xFF] as byte[], 0, 1)
 
@@ -80,6 +91,8 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin1 on second byte'() {
+    storedByteBody = new StoredByteBody(listener, null, 0)
+
     when:
     storedByteBody.appendData([0xC3, 0xC3] as byte[], 0, 2)
     then:
@@ -87,6 +100,8 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin1 on third byte'() {
+    storedByteBody = new StoredByteBody(listener, null, 0)
+
     when:
     storedByteBody.appendData([0xE0, 0x80, 0x7F] as byte[], 0, 3)
     then:
@@ -94,6 +109,8 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin1 on fourth byte'() {
+    storedByteBody = new StoredByteBody(listener, null, 0)
+
     when:
     storedByteBody.appendData([0xF0, 0x80, 0x80, 0x7F] as byte[], 0, 4)
     then:
@@ -101,6 +118,8 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin on unfinished 2 byte sequences'() {
+    storedByteBody = new StoredByteBody(listener, null, 0)
+
     when:
     storedByteBody.appendData(0xC3)
     storedByteBody.maybeNotify()
@@ -110,6 +129,8 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin on unfinished 3 byte sequences'() {
+    storedByteBody = new StoredByteBody(listener, null, 0)
+
     when:
     storedByteBody.appendData([0xE0, 0xA0] as byte[], 0, 2)
     storedByteBody.maybeNotify()
@@ -119,6 +140,8 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin on unfinished 4 byte sequences'() {
+    storedByteBody = new StoredByteBody(listener, null, 0)
+
     when:
     storedByteBody.appendData([0xF0, 0x90, 0x80] as byte[], 0, 3)
     storedByteBody.maybeNotify()
@@ -128,6 +151,7 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'utf-8 data can be reencoded as latin1'() {
+    storedByteBody = new StoredByteBody(listener, null, 0)
     def bytes = ("á" * 16).getBytes(Charset.forName('UTF-8'))
 
     when:

@@ -108,19 +108,19 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
         }
       }
 
-      StoredByteBody storedByteBody = new StoredByteBody(listener, lengthHint);
-      ServletInputStreamWrapper servletInputStreamWrapper =
-          new ServletInputStreamWrapper(is, storedByteBody);
-
       String encoding = req.getCharacterEncoding();
+      Charset charset = null;
       try {
         if (encoding != null) {
-          Charset charset = Charset.forName(encoding);
-          servletInputStreamWrapper.setCharset(charset);
+          charset = Charset.forName(encoding);
         }
       } catch (IllegalArgumentException iae) {
         // purposefully left blank
       }
+
+      StoredByteBody storedByteBody = new StoredByteBody(listener, charset, lengthHint);
+      ServletInputStreamWrapper servletInputStreamWrapper =
+          new ServletInputStreamWrapper(is, storedByteBody);
 
       is = servletInputStreamWrapper;
     }

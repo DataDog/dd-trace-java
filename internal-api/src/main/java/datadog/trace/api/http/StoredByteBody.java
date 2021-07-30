@@ -10,6 +10,7 @@ import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import javax.annotation.Nullable;
 
 /** @see StoredCharBody */
 public class StoredByteBody implements StoredBodySupplier {
@@ -24,7 +25,10 @@ public class StoredByteBody implements StoredBodySupplier {
   private CharsetDecoder charsetDecoder;
   private StoredCharBody storedCharBody;
 
-  public StoredByteBody(StoredBodyListener listener, int lengthHint) {
+  public StoredByteBody(StoredBodyListener listener, @Nullable Charset charset, int lengthHint) {
+    if (charset != null) {
+      this.charsetDecoder = ThreadLocalCoders.decoderFor(charset);
+    }
     this.storedCharBody = new StoredCharBody(listener, lengthHint);
   }
 

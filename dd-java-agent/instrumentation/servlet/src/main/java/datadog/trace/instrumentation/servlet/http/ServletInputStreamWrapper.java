@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.servlet.http;
 
 import datadog.trace.api.http.StoredByteBody;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import javax.servlet.ServletInputStream;
 
 public class ServletInputStreamWrapper extends ServletInputStream {
@@ -12,10 +11,6 @@ public class ServletInputStreamWrapper extends ServletInputStream {
   public ServletInputStreamWrapper(ServletInputStream is, StoredByteBody storedByteBody) {
     this.is = is;
     this.storedByteBody = storedByteBody;
-  }
-
-  public void setCharset(Charset charset) {
-    storedByteBody.setCharset(charset);
   }
 
   @Override

@@ -9,17 +9,17 @@ import java.nio.charset.Charset
 
 class ServletInputStreamWrapperTests extends Specification {
   StoredBodyListener listener = Mock()
-  StoredByteBody storedByteBody = new StoredByteBody(listener, 0)
+  StoredByteBody storedByteBody
 
   ServletInputStreamWrapper inputStream
 
   @Test
   void 'forwards several input stream methods'() {
+    storedByteBody = new StoredByteBody(listener, Charset.forName('UTF-8'), 0)
     ServletInputStream mockIs = Mock()
 
     when:
     inputStream = new ServletInputStreamWrapper(mockIs, storedByteBody)
-    inputStream.charset = Charset.forName('UTF-8')
     assert inputStream.read() == 0
     assert inputStream.read() == ('H' as char) as int
     assert inputStream.read(new byte[2]) == 2
@@ -50,11 +50,11 @@ class ServletInputStreamWrapperTests extends Specification {
 
 
   void 'the input stream observes the limit of cached data'() {
+    storedByteBody = new StoredByteBody(listener, Charset.forName('ISO-8859-1'), 0)
     ServletInputStream mockIs = Mock()
 
     setup:
     inputStream = new ServletInputStreamWrapper(mockIs, storedByteBody)
-    inputStream.charset = Charset.forName 'ISO-8859-1'
 
     when:
     assert inputStream.read(new byte[1024 * 1024 - 1]) == 1024 * 1024 - 1
