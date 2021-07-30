@@ -32,16 +32,13 @@ import salistener.Config
 
 import javax.jms.ConnectionFactory
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class SpringSAListenerTest extends AgentTestRunner {
 
   def "receiving message in spring session aware listener generates spans"() {
     setup:
     // Instrumentation is producing interleaved spans
     // Instruct the checkpoint validator to ignore this minor glitch
-    CheckpointValidator.excludeValidations(EnumSet.of(CheckpointValidationMode.INTERVALS))
+    CheckpointValidator.excludeValidations(CheckpointValidationMode.INTERVALS)
     def context = new AnnotationConfigApplicationContext(Config)
     def factory = context.getBean(ConnectionFactory)
     def container = context.getBean(MessageListenerContainer)

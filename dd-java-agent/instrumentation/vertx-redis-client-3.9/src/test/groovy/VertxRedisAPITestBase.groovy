@@ -1,3 +1,5 @@
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import io.vertx.redis.client.RedisAPI
@@ -134,18 +136,17 @@ abstract class VertxRedisAPITestBase extends VertxRedisTestBase {
   }
 }
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class VertxRedisAPIRedisForkedTest extends VertxRedisAPITestBase {
   def setupSpec() {
     redisAPI = RedisAPI.api(redis)
   }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
+  }
 }
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class VertxRedisAPIRedisConnectionForkedTest extends VertxRedisAPITestBase {
   def setupSpec() {
     def latch = new CountDownLatch(1)
@@ -160,5 +161,10 @@ class VertxRedisAPIRedisConnectionForkedTest extends VertxRedisAPITestBase {
     })
     latch.await(10, TimeUnit.SECONDS)
     assert redisAPI
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

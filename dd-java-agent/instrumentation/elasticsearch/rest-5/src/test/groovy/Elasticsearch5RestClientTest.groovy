@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import groovy.json.JsonSlurper
@@ -22,9 +24,6 @@ import spock.lang.Shared
 import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class Elasticsearch5RestClientTest extends AgentTestRunner {
   @Shared
   TransportAddress httpTransportAddress
@@ -75,6 +74,7 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     Response response = client.performRequest("GET", "_cluster/health")
 
     Map result = new JsonSlurper().parseText(EntityUtils.toString(response.entity))

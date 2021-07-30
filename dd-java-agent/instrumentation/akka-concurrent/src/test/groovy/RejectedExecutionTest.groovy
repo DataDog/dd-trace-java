@@ -1,5 +1,7 @@
 import akka.dispatch.forkjoin.ForkJoinPool
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -15,6 +17,7 @@ class RejectedExecutionTest extends AgentTestRunner {
     // provoked (most of the time) by submitting a lot of tasks very
     // quickly
     setup:
+    CheckpointValidator.excludeAllValidations()
     ForkJoinPool fjp = new ForkJoinPool()
     fjp.shutdownNow()
     AtomicBoolean rejected = new AtomicBoolean(false)

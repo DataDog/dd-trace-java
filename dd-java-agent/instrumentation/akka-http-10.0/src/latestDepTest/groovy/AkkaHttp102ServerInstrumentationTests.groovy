@@ -1,9 +1,13 @@
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class AkkaHttp102ServerInstrumentationBindFlowTest extends AkkaHttpServerInstrumentationTest {
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
+  }
+
   @Override
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttp102TestWebServer.ServerBuilderBindFlow())
@@ -15,30 +19,36 @@ class AkkaHttp102ServerInstrumentationBindFlowTest extends AkkaHttpServerInstrum
   }
 }
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class AkkaHttp102ServerInstrumentationBindTest extends AkkaHttpServerInstrumentationTest {
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
+  }
+
   @Override
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttp102TestWebServer.ServerBuilderBind())
   }
 }
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class AkkaHttp102ServerInstrumentationBindSyncTest extends AkkaHttpServerInstrumentationTest {
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
+  }
+
   @Override
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttp102TestWebServer.ServerBuilderBindSync())
   }
 }
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class AkkaHttp102ServerInstrumentationBindAsyncHttp2Test extends AkkaHttpServerInstrumentationTest {
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
+  }
+
   @Override
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttp102TestWebServer.ServerBuilderBindHttp2())

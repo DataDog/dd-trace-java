@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator
 import org.glassfish.grizzly.filterchain.BaseFilter
 import org.glassfish.grizzly.filterchain.FilterChain
@@ -37,9 +39,6 @@ import static java.nio.charset.Charset.defaultCharset
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static org.glassfish.grizzly.memory.Buffers.wrap
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
 
   @Override
@@ -238,6 +237,11 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
         }
       }
     }
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }
 

@@ -1,10 +1,9 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.instrumentation.spray.SprayHttpServerDecorator
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
 
   @Override
@@ -53,5 +52,10 @@ class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
   @Override
   boolean hasPlusEncodedSpaces() {
     true
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

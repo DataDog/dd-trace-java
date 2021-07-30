@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
 import scala.concurrent.forkjoin.ForkJoinPool
@@ -19,9 +21,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
  * Test executor instrumentation for Scala specific classes.
  * This is to large extent a copy of ExecutorInstrumentationTest.
  */
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class ScalaExecutorInstrumentationTest extends AgentTestRunner {
 
   @Shared
@@ -39,6 +38,7 @@ class ScalaExecutorInstrumentationTest extends AgentTestRunner {
 
   def "#poolImpl '#name' propagates"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def pool = poolImpl
     def m = method
 
@@ -86,6 +86,7 @@ class ScalaExecutorInstrumentationTest extends AgentTestRunner {
 
   def "#poolImpl '#name' reports after canceled jobs"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def pool = poolImpl
     def m = method
     List<ScalaAsyncChild> children = new ArrayList<>()

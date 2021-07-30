@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -17,9 +19,6 @@ import java.util.function.Consumer
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class Lettuce5ReactiveClientTest extends AgentTestRunner {
   public static final String HOST = "127.0.0.1"
   public static final int DB_INDEX = 0
@@ -82,6 +81,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "set command with subscribe on a defined consumer"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def conds = new AsyncConditions()
     Consumer<String> consumer = new Consumer<String>() {
         @Override
@@ -119,6 +119,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "get command with lambda function"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def conds = new AsyncConditions()
 
     when:
@@ -150,6 +151,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
   // recording metrics
   def "get non existent key command"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def conds = new AsyncConditions()
     final defaultVal = "NOT THIS VALUE"
 
@@ -185,6 +187,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "command with no arguments"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def conds = new AsyncConditions()
 
     when:
@@ -218,6 +221,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "command flux publisher "() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     reactiveCommands.command().subscribe()
 
     expect:
@@ -244,6 +248,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "command cancel after 2 on flux publisher "() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     reactiveCommands.command().take(2).subscribe()
 
     expect:
@@ -271,6 +276,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "non reactive command should not produce span"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     String res = null
 
     when:
@@ -283,6 +289,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "debug segfault command (returns mono void) with no argument should produce span"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     reactiveCommands.debugSegfault().subscribe()
 
     expect:
@@ -308,6 +315,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "shutdown command (returns void) with argument should produce span"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     reactiveCommands.shutdown(false).subscribe()
 
     expect:
@@ -332,6 +340,9 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
   }
 
   def "blocking subscriber"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     runUnderTrace("test-parent") {
       reactiveCommands.set("a", "1")
@@ -387,6 +398,9 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
   }
 
   def "async subscriber"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     runUnderTrace("test-parent") {
       reactiveCommands.set("a", "1")
@@ -444,6 +458,9 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
   }
 
   def "async subscriber with specific thread pool"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     runUnderTrace("test-parent") {
       reactiveCommands.set("a", "1")

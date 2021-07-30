@@ -1,5 +1,7 @@
 package springdata
 
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import com.couchbase.client.java.Cluster
 import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.env.CouchbaseEnvironment
@@ -17,9 +19,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Unroll
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
   static final Closure<Doc> FIND
   static {
@@ -93,6 +92,9 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
   }
 
   def "test empty repo"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def result = repo.findAll()
 
@@ -109,6 +111,7 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test save"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def doc = new Doc()
 
     when:
@@ -125,6 +128,7 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test save and retrieve"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def doc = new Doc()
     def result
 
@@ -148,6 +152,7 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test save and update"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def doc = new Doc()
 
     when:
@@ -171,6 +176,7 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "save and delete"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def doc = new Doc()
     def result
 

@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
 
@@ -8,15 +10,13 @@ import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class AkkaActorTest extends AgentTestRunner {
   @Shared
   def akkaTester = new AkkaActors()
 
   def "akka actor send #name #iterations"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def barrier = akkaTester.block(name)
 
     when:
@@ -64,6 +64,9 @@ class AkkaActorTest extends AgentTestRunner {
   }
 
   def "actor message handling should close leaked scopes"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     akkaTester.leak("Leaker", "drip")
 
@@ -93,6 +96,7 @@ class AkkaActorTest extends AgentTestRunner {
 
   def "test checkpoints emitted #name x #n"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def barrier = akkaTester.block(name)
     when:
     runUnderTrace("parent") {

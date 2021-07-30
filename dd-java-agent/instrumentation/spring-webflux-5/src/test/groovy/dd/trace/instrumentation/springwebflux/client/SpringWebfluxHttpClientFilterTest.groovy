@@ -1,12 +1,11 @@
 package dd.trace.instrumentation.springwebflux.client
 
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import org.springframework.web.reactive.function.client.WebClient
 import spock.lang.Timeout
 
 @Timeout(5)
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class SpringWebfluxHttpClientFilterTest extends SpringWebfluxHttpClientBase {
 
   CollectingFilter filter = null
@@ -23,5 +22,10 @@ class SpringWebfluxHttpClientFilterTest extends SpringWebfluxHttpClientBase {
   void check() {
     assert filter.count == 1
     assert filter.collected == "$component:"
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

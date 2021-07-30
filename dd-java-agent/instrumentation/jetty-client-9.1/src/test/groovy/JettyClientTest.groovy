@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import org.eclipse.jetty.client.HttpClient
 import org.eclipse.jetty.client.HttpProxy
 import org.eclipse.jetty.client.api.Request
@@ -9,9 +11,6 @@ import org.eclipse.jetty.util.ssl.SslContextFactory
 import spock.lang.Shared
 import spock.lang.Subject
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class JettyClientTest extends HttpClientTest {
 
   @Shared

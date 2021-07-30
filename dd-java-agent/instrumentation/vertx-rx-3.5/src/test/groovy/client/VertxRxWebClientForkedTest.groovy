@@ -1,6 +1,8 @@
 package client
 
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.vertx.core.VertxOptions
 import io.vertx.core.http.HttpMethod
@@ -12,9 +14,6 @@ import spock.lang.Shared
 import spock.lang.Timeout
 
 @Timeout(10)
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class VertxRxWebClientForkedTest extends HttpClientTest {
 
   @Override
@@ -68,5 +67,10 @@ class VertxRxWebClientForkedTest extends HttpClientTest {
   boolean testRemoteConnection() {
     // FIXME: figure out how to configure timeouts.
     false
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

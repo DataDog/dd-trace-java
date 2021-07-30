@@ -1,3 +1,5 @@
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import dd.trace.instrumentation.springwebflux.server.SpringWebFluxTestApplication
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -12,9 +14,6 @@ import reactor.ipc.netty.resources.LoopResources
  * for different requests.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = [SpringWebFluxTestApplication, ForceSingleThreadedNettyAutoConfiguration])
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class SingleThreadedSpringWebfluxTest extends SpringWebfluxTest {
 
   @TestConfiguration

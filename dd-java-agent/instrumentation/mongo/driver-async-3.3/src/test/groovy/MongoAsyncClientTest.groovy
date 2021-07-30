@@ -9,6 +9,8 @@ import com.mongodb.client.result.DeleteResult
 import com.mongodb.client.result.UpdateResult
 import com.mongodb.connection.ClusterSettings
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -24,9 +26,6 @@ import java.util.concurrent.CountDownLatch
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Timeout(10)
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class MongoAsyncClientTest extends MongoBaseTest {
 
   @Shared
@@ -50,6 +49,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test create collection"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     MongoDatabase db = client.getDatabase(databaseName)
 
     when:
@@ -68,6 +68,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test create collection no description"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
 
     when:
@@ -86,6 +87,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test get collection"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     MongoDatabase db = client.getDatabase(databaseName)
 
     when:
@@ -106,6 +108,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test insert"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(databaseName)
       def latch1 = new CountDownLatch(1)
@@ -140,6 +143,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test update"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(databaseName)
       def latch1 = new CountDownLatch(1)
@@ -182,6 +186,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test delete"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(databaseName)
       def latch1 = new CountDownLatch(1)

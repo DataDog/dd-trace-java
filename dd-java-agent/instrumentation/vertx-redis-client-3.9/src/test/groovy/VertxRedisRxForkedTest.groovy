@@ -1,3 +1,5 @@
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.core.DDSpan
 import io.vertx.reactivex.redis.client.Command
 import io.vertx.reactivex.redis.client.RedisConnection
@@ -12,9 +14,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class VertxRedisRxForkedTest extends VertxRedisTestBase {
 
   @Shared
@@ -91,5 +90,10 @@ class VertxRedisRxForkedTest extends VertxRedisTestBase {
     }
     TEST_WRITER.waitUntilReported(parentSpan)
     result
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

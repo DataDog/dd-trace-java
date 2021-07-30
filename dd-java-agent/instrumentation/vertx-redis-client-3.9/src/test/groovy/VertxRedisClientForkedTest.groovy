@@ -1,3 +1,5 @@
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import io.vertx.redis.RedisClient
@@ -7,9 +9,6 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class VertxRedisClientForkedTest extends VertxRedisTestBase {
 
   @AutoCleanup
@@ -21,6 +20,9 @@ class VertxRedisClientForkedTest extends VertxRedisTestBase {
   }
 
   def "set and get command"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     runWithParentAndHandler({ Handler<AsyncResult<Void>> h ->
       redisClient.set("foo", "baz", h)
@@ -38,6 +40,9 @@ class VertxRedisClientForkedTest extends VertxRedisTestBase {
   }
 
   def "set and get command without parent"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     runWithHandler({ Handler<AsyncResult<Void>> h ->
       redisClient.set("foo", "baz", h)

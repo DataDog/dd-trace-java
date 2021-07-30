@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
 
@@ -17,9 +19,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
  * Note: ideally this should live with the rest of ExecutorInstrumentationTest,
  * but this code needs java8 so we put it here for now.
  */
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class CompletableFutureTest extends AgentTestRunner {
 
   def "CompletableFuture test"() {
@@ -106,6 +105,9 @@ class CompletableFutureTest extends AgentTestRunner {
   }
 
   def "test thenApply"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
       def supply = CompletableFuture.supplyAsync {
@@ -144,6 +146,9 @@ class CompletableFutureTest extends AgentTestRunner {
   }
 
   def "test thenApplyAsync"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
       CompletableFuture<String> supply = CompletableFuture.supplyAsync {
@@ -183,6 +188,9 @@ class CompletableFutureTest extends AgentTestRunner {
   }
 
   def "test thenCompose"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
       def supply = CompletableFuture.supplyAsync {
@@ -224,6 +232,9 @@ class CompletableFutureTest extends AgentTestRunner {
   }
 
   def "test thenComposeAsync"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
       def supply = CompletableFuture.supplyAsync {
@@ -269,6 +280,9 @@ class CompletableFutureTest extends AgentTestRunner {
   }
 
   def "test compose and apply"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
       def supply = CompletableFuture.supplyAsync {

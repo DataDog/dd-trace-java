@@ -49,4 +49,9 @@ class TimelineCheckpointer implements Checkpointer {
     threadEvents.clear()
     CheckpointValidator.clear()
   }
+
+  @Deprecated
+  static boolean ignoreTest() {
+    return false
+  }
 }

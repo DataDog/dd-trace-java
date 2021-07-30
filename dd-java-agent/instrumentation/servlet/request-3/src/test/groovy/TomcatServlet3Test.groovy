@@ -1,6 +1,8 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
@@ -331,7 +333,6 @@ class TestAccessLogValve extends ValveBase implements AccessLog {
   }
 }
 
-@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestSync extends TomcatServlet3Test {
 
   @Override
@@ -340,7 +341,6 @@ class TomcatServlet3TestSync extends TomcatServlet3Test {
   }
 }
 
-@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestAsync extends TomcatServlet3Test {
 
   @Override
@@ -358,9 +358,13 @@ class TomcatServlet3TestAsync extends TomcatServlet3Test {
     // The exception will just cause an async timeout
     false
   }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
+  }
 }
 
-@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {
 
   @Override
@@ -369,7 +373,6 @@ class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {
   }
 }
 
-@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestForward extends TomcatServlet3Test {
   @Override
   Class<Servlet> servlet() {
@@ -396,7 +399,6 @@ class TomcatServlet3TestForward extends TomcatServlet3Test {
   }
 }
 
-@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestInclude extends TomcatServlet3Test {
   @Override
   Class<Servlet> servlet() {
@@ -433,7 +435,6 @@ class TomcatServlet3TestInclude extends TomcatServlet3Test {
   }
 }
 
-@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestDispatchImmediate extends TomcatServlet3Test {
   @Override
   Class<Servlet> servlet() {
@@ -463,7 +464,6 @@ class TomcatServlet3TestDispatchImmediate extends TomcatServlet3Test {
   }
 }
 
-@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
   @Override
   Class<Servlet> servlet() {
@@ -494,5 +494,10 @@ class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
     super.setupServlets(context)
     setupDispatchServlets(context, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

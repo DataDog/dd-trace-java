@@ -1,5 +1,7 @@
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import example.GreeterGrpc
@@ -16,9 +18,6 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class GrpcStreamingTest extends AgentTestRunner {
 
   @Override
@@ -29,6 +28,7 @@ class GrpcStreamingTest extends AgentTestRunner {
 
   def "test conversation #name"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def msgCount = serverMessageCount
     def serverReceived = new CopyOnWriteArrayList<>()
     def clientReceived = new CopyOnWriteArrayList<>()

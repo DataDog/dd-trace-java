@@ -1,5 +1,7 @@
 package server
 
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Future
 import io.vertx.ext.web.Router
@@ -15,9 +17,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
 @Ignore("This test isn't different from VertxHttpServerTest. Needs rework to meet intent")
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class VertxRxHttpServerForkedTest extends VertxHttpServerForkedTest {
 
   @Override
@@ -78,5 +77,10 @@ class VertxRxHttpServerForkedTest extends VertxHttpServerForkedTest {
         .requestHandler { router.accept(it) }
         .listen(port) { startFuture.complete() }
     }
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

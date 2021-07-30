@@ -1,5 +1,7 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
 import okhttp3.Request
@@ -50,6 +52,11 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
   @Shared
   AtomicInteger counter = new AtomicInteger(0)
 
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
+  }
+
   void doAndValidateRequest(int id) {
     def type = id & 1 ? "p" : "f"
     String url = address.resolve("/injected-id/${type}ing/$id")
@@ -90,9 +97,6 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
   }
 }
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstrumentationTest {
   @Override
   HttpServer server() {
@@ -100,9 +104,6 @@ class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstrumentatio
   }
 }
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentationTest {
   @Override
   HttpServer server() {
@@ -110,9 +111,6 @@ class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentati
   }
 }
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstrumentationTest {
   @Override
   HttpServer server() {
@@ -125,9 +123,6 @@ class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstr
   }
 }
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest extends AkkaHttpServerInstrumentationTest {
   @Override
   HttpServer server() {
@@ -140,9 +135,6 @@ class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest e
   }
 }
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class AkkaHttpServerInstrumentationAsyncHttp2Test extends AkkaHttpServerInstrumentationTest {
   @Override
   HttpServer server() {

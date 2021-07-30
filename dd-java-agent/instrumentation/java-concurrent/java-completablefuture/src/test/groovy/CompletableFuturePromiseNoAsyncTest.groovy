@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.base.AbstractPromiseTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 
 import java.util.concurrent.CompletableFuture
 import java.util.function.Function
@@ -6,9 +8,6 @@ import java.util.function.Function
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class CompletableFuturePromiseNoAsyncTest extends AbstractPromiseTest<CompletableFuture<Boolean>, CompletableFuture<String>> {
   @Override
   CompletableFuture<Boolean> newPromise() {
@@ -77,5 +76,10 @@ class CompletableFuturePromiseNoAsyncTest extends AbstractPromiseTest<Completabl
 
     where:
     value << [true, false]
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

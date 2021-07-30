@@ -3,6 +3,8 @@ package test.hazelcast.v39
 import com.hazelcast.core.Message
 import com.hazelcast.core.MessageListener
 import com.hazelcast.query.Predicates
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.util.concurrent.BlockingVariable
@@ -12,12 +14,12 @@ import java.util.concurrent.TimeUnit
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class HazelcastTest extends AbstractHazelcastTest {
 
   def "map"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverMap = h1.getMap(randomName)
     serverMap.put("foo", "bar")
@@ -35,6 +37,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "map predicate"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverMap = h1.getMap(randomName)
     serverMap.put("foo", "bar")
@@ -52,6 +57,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "map async"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverMap = h1.getMap(randomName)
     serverMap.put("foo", "bar")
@@ -77,6 +85,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "multimap"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverMultiMap = h1.getMultiMap(randomName)
     serverMultiMap.put("foo", "bar")
@@ -95,6 +106,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "queue"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverQueue = h1.getQueue(randomName)
     serverQueue.offer("foo")
@@ -117,6 +131,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "topic"() {
     given:
+    CheckpointValidator.excludeAllValidations()
     def serverTopic = h1.getTopic(randomName)
 
     and:
@@ -148,6 +163,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "reliable topic"() {
     given:
+    CheckpointValidator.excludeAllValidations()
     def clientTopic = client.getReliableTopic(randomName)
     def receivedMessage = new BlockingVariable<Message>(5, TimeUnit.SECONDS)
     def listener = Stub(MessageListener)
@@ -174,6 +190,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "set"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverSet = h1.getSet(randomName)
     serverSet.add("foo")
@@ -191,6 +210,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "set double value"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def clientSet = client.getSet(randomName)
     clientSet.add("hello")
@@ -208,6 +230,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "list"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverList = h1.getList(randomName)
     serverList.add("foo")
@@ -225,6 +250,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "list error"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverList = h1.getList(randomName)
     serverList.add("foo")
@@ -260,6 +288,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "lock"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverLock = h1.getLock(randomName)
     serverLock.lock()

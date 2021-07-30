@@ -4,6 +4,8 @@ import com.lambdaworks.redis.RedisConnectionException
 import com.lambdaworks.redis.api.StatefulConnection
 import com.lambdaworks.redis.api.sync.RedisCommands
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -12,9 +14,6 @@ import spock.lang.Shared
 
 import static datadog.trace.instrumentation.lettuce4.InstrumentationPoints.AGENT_CRASHING_COMMAND_PREFIX
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class Lettuce4SyncClientTest extends AgentTestRunner {
   public static final String HOST = "127.0.0.1"
   public static final int DB_INDEX = 0
@@ -86,6 +85,7 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
   def "connect"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     RedisClient testConnectionClient = RedisClient.create(embeddedDbUri)
     testConnectionClient.setOptions(CLIENT_OPTIONS)
 
@@ -121,6 +121,7 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
   def "connect exception"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     RedisClient testConnectionClient = RedisClient.create(dbUriNonExistent)
     testConnectionClient.setOptions(CLIENT_OPTIONS)
 
@@ -155,6 +156,7 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
   def "set command"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     String res = syncCommands.set("TESTSETKEY", "TESTSETVAL")
 
     expect:
@@ -181,6 +183,7 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
   def "get command"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     String res = syncCommands.get("TESTKEY")
 
     expect:
@@ -207,6 +210,7 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
   def "get non existent key command"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     String res = syncCommands.get("NON_EXISTENT_KEY")
 
     expect:
@@ -233,6 +237,7 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
   def "command with no arguments"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def keyRetrieved = syncCommands.randomkey()
 
     expect:
@@ -259,6 +264,7 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
   def "list command"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     long res = syncCommands.lpush("TESTLIST", "TESTLIST ELEMENT")
 
     expect:
@@ -285,6 +291,7 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
   def "hash set command"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def res = syncCommands.hmset("user", testHashMap)
 
     expect:
@@ -311,6 +318,7 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
   def "hash getall command"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     Map<String, String> res = syncCommands.hgetall("TESTHM")
 
     expect:
@@ -337,6 +345,7 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
   def "debug segfault command (returns void) with no argument should produce span"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     syncCommands.debugSegfault()
 
     expect:
@@ -362,6 +371,7 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
   def "shutdown command (returns void) should produce a span"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     syncCommands.shutdown(false)
 
     expect:

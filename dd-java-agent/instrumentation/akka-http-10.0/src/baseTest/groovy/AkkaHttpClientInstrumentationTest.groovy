@@ -8,6 +8,8 @@ import akka.http.javadsl.model.headers.RawHeader
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.stream.ActorMaterializer
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator
@@ -74,6 +76,11 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
   boolean testRemoteConnection() {
     // Not sure how to properly set timeouts...
     return false
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 
   def "singleRequest exception trace"() {

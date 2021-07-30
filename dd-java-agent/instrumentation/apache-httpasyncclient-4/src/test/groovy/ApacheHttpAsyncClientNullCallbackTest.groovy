@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.impl.nio.client.HttpAsyncClients
@@ -10,9 +12,6 @@ import spock.lang.Timeout
 import java.util.concurrent.Future
 
 @Timeout(5)
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class ApacheHttpAsyncClientNullCallbackTest extends HttpClientTest {
 
   @Shared

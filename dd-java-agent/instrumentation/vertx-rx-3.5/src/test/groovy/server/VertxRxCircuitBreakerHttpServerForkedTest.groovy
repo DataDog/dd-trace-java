@@ -1,6 +1,8 @@
 package server
 
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import io.vertx.circuitbreaker.CircuitBreakerOptions
 import io.vertx.core.Future
 import io.vertx.reactivex.circuitbreaker.CircuitBreaker
@@ -18,9 +20,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTest {
 
   @Override
@@ -171,5 +170,10 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
         .requestHandler { router.accept(it) }
         .listen(port) { startFuture.complete() }
     }
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

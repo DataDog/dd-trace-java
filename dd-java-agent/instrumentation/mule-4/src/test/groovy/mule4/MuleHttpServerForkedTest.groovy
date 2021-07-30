@@ -1,13 +1,12 @@
 package mule4
 
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import spock.lang.Shared
 
 import static mule4.MuleTestApplicationConstants.*
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
 
   // TODO since mule uses reactor core, things sometime propagate to places where they're not closed
@@ -75,5 +74,10 @@ class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
   void stopServer(MuleTestContainer container) {
     container.undeploy(String.valueOf(buildProperties.get(TEST_APPLICATION_NAME)))
     container.stop()
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

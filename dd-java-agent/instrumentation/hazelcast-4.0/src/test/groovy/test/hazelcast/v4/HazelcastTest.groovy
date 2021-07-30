@@ -5,6 +5,8 @@ import com.hazelcast.config.cp.SemaphoreConfig
 import com.hazelcast.query.Predicates
 import com.hazelcast.topic.Message
 import com.hazelcast.topic.MessageListener
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -16,9 +18,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class HazelcastTest extends AbstractHazelcastTest {
 
   @Override
@@ -32,6 +31,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "map"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverMap = h1.getMap(randomName)
     serverMap.put("foo", "bar")
@@ -49,6 +51,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "map predicate"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverMap = h1.getMap(randomName)
     serverMap.put("foo", "bar")
@@ -67,6 +72,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "map async"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverMap = h1.getMap(randomName)
     serverMap.put("foo", "bar")
@@ -91,6 +99,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "multimap"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverMultiMap = h1.getMultiMap(randomName)
     serverMultiMap.put("foo", "bar")
@@ -108,6 +119,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "queue"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverQueue = h1.getQueue(randomName)
     serverQueue.offer("foo")
@@ -129,6 +143,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "topic"() {
     given:
+    CheckpointValidator.excludeAllValidations()
     def serverTopic = h1.getTopic(randomName)
 
     and:
@@ -159,6 +174,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "set"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverSet = h1.getSet(randomName)
     serverSet.add("foo")
@@ -174,6 +192,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "set double value"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def clientSet = client.getSet(randomName)
     clientSet.add("hello")
@@ -188,6 +209,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "list"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverList = h1.getList(randomName)
     serverList.add("foo")
@@ -203,6 +227,9 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "list error"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     def serverList = h1.getList(randomName)
     serverList.add("foo")
@@ -239,6 +266,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "semaphore"() {
     given: "reference to the semaphore retrieved"
+    CheckpointValidator.excludeAllValidations()
     // Depending on server configuration for test semaphore
     def permits = 3
     def semaphore = client.getCPSubsystem().getSemaphore("test")
@@ -273,6 +301,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "submit callable"() {
     given: "setup list"
+    CheckpointValidator.excludeAllValidations()
     client.getList("sum").addAll(Arrays.asList(1, 2, 3, 4, 5))
 
     and: "get executor service"

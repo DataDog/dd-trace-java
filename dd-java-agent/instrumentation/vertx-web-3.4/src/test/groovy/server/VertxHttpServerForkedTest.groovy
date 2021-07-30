@@ -25,9 +25,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FO
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static server.VertxTestServer.CONFIG_HTTP_SERVER_PORT
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
 
   private class VertxServer implements HttpServer {
@@ -149,11 +146,10 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   def setup() {
     // Vertx + netty instrumentations produce overlapping spans
     // Disable the checkpoint interval validation
-    CheckpointValidator.excludeValidations(EnumSet.of(CheckpointValidationMode.INTERVALS))
+    CheckpointValidator.excludeValidations(CheckpointValidationMode.INTERVALS)
   }
 }
 
-@spock.lang.IgnoreIf({ datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest() })
 class VertxChainingHttpServerForkedTest extends VertxHttpServerForkedTest {
   @Override
   protected Class<AbstractVerticle> verticle() {
@@ -195,5 +191,10 @@ class VertxChainingHttpServerForkedTest extends VertxHttpServerForkedTest {
         defaultTags()
       }
     }
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

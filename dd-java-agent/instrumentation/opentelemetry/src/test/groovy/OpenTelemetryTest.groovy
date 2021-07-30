@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
@@ -14,9 +16,6 @@ import io.opentelemetry.trace.Status
 import io.opentelemetry.trace.TracingContextUtils
 import spock.lang.Subject
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class OpenTelemetryTest extends AgentTestRunner {
   @Subject
   def tracer = OpenTelemetry.tracerProvider.get("test-inst")
@@ -199,6 +198,9 @@ class OpenTelemetryTest extends AgentTestRunner {
   }
 
   def "test closing scope when not on top"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     Span firstSpan = tracer.spanBuilder("someOperation").startSpan()
     Scope firstScope = tracer.withSpan(firstSpan)
@@ -228,6 +230,7 @@ class OpenTelemetryTest extends AgentTestRunner {
 
   def "test continuation"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def span = tracer.spanBuilder("some name").startSpan()
     TraceScope scope = tracer.withSpan(span)
     scope.setAsyncPropagation(true)
@@ -260,6 +263,7 @@ class OpenTelemetryTest extends AgentTestRunner {
 
   def "test inject extract"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def span = tracer.spanBuilder("some name").startSpan()
     def context = TracingContextUtils.withSpan(span, Context.current())
     def textMap = [:]
@@ -297,6 +301,9 @@ class OpenTelemetryTest extends AgentTestRunner {
   }
 
   def "tolerate null span activation"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     try {
       tracer.withSpan(null)?.close()

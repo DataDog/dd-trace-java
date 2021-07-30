@@ -1,3 +1,5 @@
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import com.couchbase.client.java.AsyncCluster
 import com.couchbase.client.java.CouchbaseAsyncCluster
 import com.couchbase.client.java.document.JsonDocument
@@ -12,9 +14,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Unroll
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
   static final int TIMEOUT = 30
 
@@ -26,6 +25,7 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test hasBucket #type"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def hasBucket = new BlockingVariable<Boolean>(TIMEOUT)
 
     when:
@@ -62,6 +62,7 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test upsert #type"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     JsonObject content = JsonObject.create().put("hello", "world")
     def inserted = new BlockingVariable<JsonDocument>(TIMEOUT)
 
@@ -98,6 +99,7 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test upsert and get #type"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     JsonObject content = JsonObject.create().put("hello", "world")
     def inserted = new BlockingVariable<JsonDocument>(TIMEOUT)
     def found = new BlockingVariable<JsonDocument>(TIMEOUT)
@@ -145,6 +147,7 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test query"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     // Only couchbase buckets support queries.
     CouchbaseEnvironment environment = envBuilder(bucketCouchbase).build()
     AsyncCluster cluster = CouchbaseAsyncCluster.create(environment, Arrays.asList("127.0.0.1"))

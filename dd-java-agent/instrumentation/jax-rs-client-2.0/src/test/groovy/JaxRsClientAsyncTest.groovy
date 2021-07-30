@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
 import org.glassfish.jersey.client.ClientConfig
@@ -73,6 +75,11 @@ class JerseyClientAsyncTest extends JaxRsClientAsyncTest {
   boolean testCircularRedirects() {
     false
   }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
+  }
 }
 
 @Timeout(5)
@@ -91,9 +98,6 @@ class ResteasyClientAsyncTest extends JaxRsClientAsyncTest {
 }
 
 @Timeout(5)
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class CxfClientAsyncTest extends JaxRsClientAsyncTest {
 
   @Override
@@ -112,5 +116,10 @@ class CxfClientAsyncTest extends JaxRsClientAsyncTest {
   boolean testRemoteConnection() {
     // FIXME: span not reported correctly.
     false
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

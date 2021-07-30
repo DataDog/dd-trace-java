@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
@@ -18,9 +20,6 @@ import spock.lang.Subject
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class OpenTracing31Test extends AgentTestRunner {
 
   @Subject
@@ -113,6 +112,7 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test ignoreParent"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def otherSpan = runUnderTrace("parent") {
       tracer.buildSpan("other").ignoreActiveSpan().start()
     }
@@ -124,6 +124,7 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test startActive"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def scope = tracer.buildSpan("some name").startActive(finishSpan)
 
     expect:
@@ -142,6 +143,7 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test scopemanager"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def span = tracer.buildSpan("some name").start()
     def scope = tracer.scopeManager().activate(span, finishSpan)
     (scope as TraceScope).setAsyncPropagation(false)
@@ -182,6 +184,7 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test scopemanager with non OTSpan"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def span = NoopSpan.INSTANCE
     def scope = tracer.scopeManager().activate(span, true)
 
@@ -202,6 +205,7 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test continuation"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def span = tracer.buildSpan("some name").start()
     TraceScope scope = tracer.scopeManager().activate(span, false)
     scope.setAsyncPropagation(true)
@@ -232,6 +236,9 @@ class OpenTracing31Test extends AgentTestRunner {
   }
 
   def "closing scope when not on top"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     Span firstSpan = tracer.buildSpan("someOperation").start()
     Scope firstScope = tracer.scopeManager().activate(firstSpan, false)
@@ -259,6 +266,7 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test inject extract"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def context = tracer.buildSpan("some name").start().context()
     def textMap = [:]
     def adapter = new TextMapAdapter(textMap)
@@ -292,6 +300,9 @@ class OpenTracing31Test extends AgentTestRunner {
   }
 
   def "tolerate null span activation"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     try {
       tracer.scopeManager().activate(null, false)?.close()

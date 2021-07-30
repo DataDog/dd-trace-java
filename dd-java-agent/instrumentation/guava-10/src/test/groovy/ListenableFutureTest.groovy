@@ -3,13 +3,12 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import datadog.trace.agent.test.base.AbstractPromiseTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import spock.lang.Shared
 
 import java.util.concurrent.Executors
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class ListenableFutureTest extends AbstractPromiseTest<SettableFuture<Boolean>, ListenableFuture<String>> {
   @Shared
   def executor = Executors.newFixedThreadPool(1)
@@ -38,5 +37,10 @@ class ListenableFutureTest extends AbstractPromiseTest<SettableFuture<Boolean>, 
   @Override
   boolean get(SettableFuture<Boolean> promise) {
     return promise.get()
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeAllValidations()
   }
 }

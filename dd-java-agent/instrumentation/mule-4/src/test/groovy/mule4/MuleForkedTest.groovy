@@ -3,6 +3,8 @@ package mule4
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.trace.agent.test.base.WithHttpServer
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.HttpUrl
@@ -15,9 +17,6 @@ import spock.lang.Shared
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static mule4.MuleTestApplicationConstants.*
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
   // TODO since mule uses reactor core, things sometime propagate to places where they're not closed
@@ -85,6 +84,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
   def "test mule client remote request"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def url = HttpUrl.get(address.resolve("/client-request")).newBuilder().build()
     def request = new Request.Builder().url(url).method("GET", null).build()
 
@@ -133,6 +133,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
   def "test parallel for each"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def names = ["Alyssa", "Ben", "Cy", "Eva", "Lem", "Louis"]
     def jsonAdapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(List, String))
     def input = jsonAdapter.toJson(names)

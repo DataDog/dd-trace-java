@@ -1,5 +1,7 @@
 package springdata
 
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import com.couchbase.client.java.Bucket
 import com.couchbase.client.java.Cluster
 import com.couchbase.client.java.CouchbaseCluster
@@ -17,9 +19,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Retry(count = 10, delay = 500)
 @Unroll
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
 
   @Override
@@ -73,6 +72,7 @@ class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
 
   def "test write #name"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def doc = new Doc()
     def result
 
@@ -102,6 +102,7 @@ class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
 
   def "test remove #name"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def doc = new Doc()
 
     when:

@@ -2,6 +2,8 @@ package springdata
 
 import com.google.common.collect.ImmutableSet
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.elasticsearch.action.search.SearchResponse
@@ -28,9 +30,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
   public static final long TIMEOUT = 10000 // 10 seconds
 
@@ -118,6 +117,9 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
   }
 
   def "test elasticsearch get"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     expect:
     template.createIndex(indexName)
     TEST_WRITER.waitForTraces(1)
@@ -294,6 +296,7 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
 
   def "test results extractor"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     template.createIndex(indexName)
     TEST_WRITER.waitForTraces(1)
     testNode.client().admin().cluster().prepareHealth().setWaitForYellowStatus().execute().actionGet(TIMEOUT)

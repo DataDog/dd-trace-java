@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
@@ -74,6 +76,7 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def result = client.admin().cluster().health(new ClusterHealthRequest())
 
     def status = result.get().status
@@ -105,6 +108,9 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
   }
 
   def "test elasticsearch error"() {
+    setup:
+    CheckpointValidator.excludeAllValidations()
+
     when:
     client.prepareGet(indexName, indexType, id).get()
 
@@ -142,6 +148,7 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
 
   def "test elasticsearch get"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     assert TEST_WRITER == []
     def indexResult = client.admin().indices().prepareCreate(indexName).get()
     TEST_WRITER.waitForTraces(1)

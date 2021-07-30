@@ -1,11 +1,10 @@
 import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ThreadPoolDispatcherKt
 
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   static dispatchersToTest = [
@@ -18,6 +17,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin traced across channels"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedAcrossChannels()
     TEST_WRITER.waitForTraces(1)
@@ -35,6 +35,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin cancellation prevents trace"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracePreventedByCancellation()
     TEST_WRITER.waitForTraces(1)
@@ -52,6 +53,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin propagates across nested jobs"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedAcrossThreadsWithNested()
     TEST_WRITER.waitForTraces(1)
@@ -68,6 +70,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin either deferred completion"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(Dispatchers.Default)
     int expectedNumberOfSpans = kotlinTest.traceWithDeferred()
     TEST_WRITER.waitForTraces(1)
@@ -87,6 +90,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin first completed deferred"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(Dispatchers.Default)
     int expectedNumberOfSpans = kotlinTest.tracedWithDeferredFirstCompletions()
     TEST_WRITER.waitForTraces(1)

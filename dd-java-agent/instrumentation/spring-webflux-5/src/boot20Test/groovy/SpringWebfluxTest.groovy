@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -17,9 +19,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.web.server.ResponseStatusException
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = [SpringWebFluxTestApplication, ForceNettyAutoConfiguration])
-@spock.lang.IgnoreIf({
-  datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
-})
 class SpringWebfluxTest extends AgentTestRunner {
 
   @TestConfiguration
@@ -41,6 +40,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Basic GET test #testName"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
     when:
@@ -116,6 +116,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "GET test with async response #testName"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
     when:
@@ -222,6 +223,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Create span during handler function"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
     when:
@@ -266,6 +268,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "404 GET test"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     String url = "http://localhost:$port/notfoundgreet"
     def request = new Request.Builder().url(url).get().build()
 
@@ -313,6 +316,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Basic POST test"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     String echoString = "TEST"
     String url = "http://localhost:$port/echo"
     RequestBody body = RequestBody.create(PLAIN_TYPE, echoString)
@@ -374,6 +378,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "GET to bad endpoint #testName"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
 
@@ -448,6 +453,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Redirect test"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     String url = "http://localhost:$port/double-greet-redirect"
     String finalUrl = "http://localhost:$port/double-greet"
     def request = new Request.Builder().url(url).get().build()
@@ -534,6 +540,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Multiple GETs to delaying route #testName"() {
     setup:
+    CheckpointValidator.excludeAllValidations()
     def requestsCount = 50 // Should be more than 2x CPUs to fish out some bugs
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
