@@ -164,7 +164,7 @@ class ThreadSequenceValidator implements EventReceiver {
             }
             break
             case SpanState.RESUMED:
-            if (taskState == TaskState.FINISHED) {
+            if (taskState == TaskState.FINISHED || taskState == TaskState.ACTIVE) {
               newSpanState = SpanState.RESUMED
               newTaskState = TaskState.ACTIVE
             } else {
