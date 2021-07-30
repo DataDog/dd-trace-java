@@ -1,5 +1,3 @@
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.agent.test.asserts.TraceAssert
 import spock.lang.Retry
 

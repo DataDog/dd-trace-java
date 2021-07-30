@@ -1,5 +1,3 @@
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.core.DDSpan
 import io.vertx.reactivex.redis.client.Command
 import io.vertx.reactivex.redis.client.RedisConnection

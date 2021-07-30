@@ -1,5 +1,3 @@
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import dd.trace.instrumentation.springwebflux.server.SpringWebFluxTestApplication
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration

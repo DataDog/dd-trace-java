@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 
 class ClassloadingTest extends AgentTestRunner {
   def "delegates to bootstrap class loader for agent classes"() {

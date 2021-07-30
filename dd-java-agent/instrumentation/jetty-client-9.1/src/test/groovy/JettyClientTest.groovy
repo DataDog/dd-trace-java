@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import org.eclipse.jetty.client.HttpClient
 import org.eclipse.jetty.client.HttpProxy
 import org.eclipse.jetty.client.api.Request
