@@ -84,14 +84,14 @@ class Event {
   String toString() {
     def str = "${name}/${spanId} (thread: ${threadName})\n"
     if (stackTrace != null) {
-      str += stackTrace.stream()
-        .filter {
-          !(it.className.startsWith("org.codehaus.groovy") || it.className.startsWith("groovy")) &&
-            !(it.className.startsWith("org.spockframework"))
-        }
-        .map { "  " + it.toString() }
-        .collect(Collectors.joining("\n")) +
-        "\n"
+      str += stackTrace.grep {
+        !(it.className.startsWith("org.codehaus.groovy") || it.className.startsWith("groovy")) &&
+          !(it.className.startsWith("org.spockframework"))
+      }.collect {
+        "  " + it.toString()
+      }
+      .join("\n") +
+      "\n"
     }
     return str
   }

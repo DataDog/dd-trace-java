@@ -58,7 +58,7 @@ class ThreadSequenceValidatorTest extends Specification {
   def "double resume"() {
     expect:
     tracker.resumeSpan()
-    !tracker.resumeSpan()
+    tracker.resumeSpan()
   }
 
   def "check expected transitions"() {
