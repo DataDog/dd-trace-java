@@ -32,7 +32,7 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
 
   // assume these will always be accessed by the same thread
   private String savedRawURI;
-  private CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
+  private final CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
   private List<StringKVPair> collectedCookies = new ArrayList<>(4);
   private boolean finishedHeaders;
   private StoredBodySupplier storedRequestBodySupplier;

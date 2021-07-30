@@ -169,7 +169,7 @@ class ThreadLocalCoders {
     }
   }
 
-  private static Cache DECODER_CACHE =
+  private static final Cache DECODER_CACHE =
       new Cache(CACHE_SIZE) {
         boolean hasName(Object ob, Object name) {
           return ((CharsetDecoder) ob).charset().equals(name);
@@ -187,7 +187,7 @@ class ThreadLocalCoders {
     return cd;
   }
 
-  private static ThreadLocal<CharsetEncoder> UTF8_ENCODER_CACHE =
+  private static final ThreadLocal<CharsetEncoder> UTF8_ENCODER_CACHE =
       new ThreadLocal<CharsetEncoder>() {
         @Override
         protected CharsetEncoder initialValue() {
