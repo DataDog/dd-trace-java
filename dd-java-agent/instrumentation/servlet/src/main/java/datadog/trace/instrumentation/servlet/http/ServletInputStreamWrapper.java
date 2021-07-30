@@ -18,7 +18,7 @@ public class ServletInputStreamWrapper extends ServletInputStream {
     int numRead = is.read(b);
     if (numRead > 0) {
       storedByteBody.appendData(b, 0, numRead);
-    } else {
+    } else if (numRead == -1) {
       storedByteBody.maybeNotify();
     }
     return numRead;
@@ -29,7 +29,7 @@ public class ServletInputStreamWrapper extends ServletInputStream {
     int numRead = is.read(b, off, len);
     if (numRead > 0) {
       storedByteBody.appendData(b, off, off + numRead);
-    } else {
+    } else if (numRead == -1) {
       storedByteBody.maybeNotify();
     }
     return numRead;
@@ -50,9 +50,9 @@ public class ServletInputStreamWrapper extends ServletInputStream {
     int numRead = is.readLine(b, off, len);
     if (numRead > 0) {
       storedByteBody.appendData(b, off, off + numRead);
+    } else if (numRead == -1) {
+      storedByteBody.maybeNotify();
     }
-    // else don't notify
-    // as if it can't find a full line, it fails
 
     return numRead;
   }

@@ -31,7 +31,7 @@ public class BufferedReaderWrapper extends BufferedReader {
     int read = this.reader.read(cbuf, off, len);
     if (read > 0) {
       storedCharBody.appendData(cbuf, off, off + read);
-    } else {
+    } else if (read == -1) {
       storedCharBody.maybeNotify();
     }
     return read;
@@ -85,10 +85,16 @@ public class BufferedReaderWrapper extends BufferedReader {
     int initPos = target.position();
     int read = this.reader.read(target);
     if (read > 0) {
-      for (int i = initPos; i < initPos + read; i++) {
-        storedCharBody.appendData(target.get(i));
-      }
-    } else {
+      int finalLimit = target.limit();
+      int finalPos = target.position(); // or initPos + read
+      target.limit(target.position());
+      target.position(initPos);
+
+      storedCharBody.appendData(target);
+
+      target.limit(finalLimit);
+      target.position(finalPos);
+    } else if (read == -1) {
       storedCharBody.maybeNotify();
     }
     return read;
@@ -99,7 +105,7 @@ public class BufferedReaderWrapper extends BufferedReader {
     int read = this.reader.read(cbuf);
     if (read > 0) {
       storedCharBody.appendData(cbuf, 0, read);
-    } else {
+    } else if (read == -1) {
       storedCharBody.maybeNotify();
     }
     return read;

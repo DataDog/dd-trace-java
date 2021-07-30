@@ -62,7 +62,6 @@ class BufferedReaderWrapperTests extends Specification {
     storedCharBody.get() as String == 'Hello world!\n'
   }
 
-
   void 'the buffered reader observes the limit of cached data'() {
     when:
     assert reader.read(new char[128 * 1024 - 1]) == 128 * 1024 -1
@@ -89,5 +88,45 @@ class BufferedReaderWrapperTests extends Specification {
     body[128 * 1024 - 2] == '\u0000'
     body[128 * 1024 - 1] == '1'
     assert body.length() == 128 * 1024
+  }
+
+  void 'notification issues when read returns eof variant 1'() {
+    when:
+    reader.read()
+
+    then:
+    1 * mockReader.read() >> -1
+    1 * listener.onBodyStart(_)
+    1 * listener.onBodyEnd(_)
+  }
+
+  void 'notification issues when read returns eof variant 2'() {
+    when:
+    reader.read(new char[1], 0, 1)
+
+    then:
+    1 * mockReader.read(_ as char[], _, _) >> -1
+    1 * listener.onBodyStart(_)
+    1 * listener.onBodyEnd(_)
+  }
+
+  void 'notification issues when read returns eof variant 3'() {
+    when:
+    reader.read(CharBuffer.allocate(1))
+
+    then:
+    1 * mockReader.read(_ as CharBuffer) >> -1
+    1 * listener.onBodyStart(_)
+    1 * listener.onBodyEnd(_)
+  }
+
+  void 'notification issues when read returns eof variant 4'() {
+    when:
+    reader.read(new char[1])
+
+    then:
+    1 * mockReader.read(_ as char[]) >> -1
+    1 * listener.onBodyStart(_)
+    1 * listener.onBodyEnd(_)
   }
 }
