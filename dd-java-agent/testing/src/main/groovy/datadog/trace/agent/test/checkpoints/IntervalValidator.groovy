@@ -1,6 +1,6 @@
 package datadog.trace.agent.test.checkpoints
 
-class ThreadContextTracker extends AbstractContextTracker {
+class IntervalValidator extends AbstractContextTracker {
   private static class SpanInterval {
     final long spanId
     final int startTick
@@ -19,6 +19,7 @@ class ThreadContextTracker extends AbstractContextTracker {
 
   def openIntervalsBySpan = new HashMap<Long, SpanInterval>()
   def openIntervalsByTime = new ArrayList<>()
+  def closedIntervalsBySpan = new HashMap<Long, SpanInterval>()
   def closedIntervalsByTime = new ArrayList<>()
   def tick = 0
 
@@ -45,7 +46,7 @@ class ThreadContextTracker extends AbstractContextTracker {
 
   @Override
   boolean startTask() {
-    throw new UnsupportedOperationException()
+    return true
   }
 
   @Override
@@ -59,26 +60,31 @@ class ThreadContextTracker extends AbstractContextTracker {
   }
 
   @Override
-  boolean suspendTask() {
-    return suspendTask(event.spanId.toLong())
+  boolean suspendSpan() {
+    return suspendSpan(event.spanId.toLong())
   }
 
-  boolean suspendTask(def spanId) {
+  boolean suspendSpan(def spanId) {
     tick++
     def interval = openIntervalsBySpan.get(spanId)
     if (interval == null) {
-      return false
+      // allow out-of-order suspension
+      // usually happens in async frameworks
+      interval = closedIntervalsBySpan.get(spanId)
+      if (interval == null) {
+        return false
+      }
     }
     interval.suspended = true
     return true
   }
 
   @Override
-  boolean resumeTask() {
-    return resumeTask(event.spanId.toLong())
+  boolean resumeSpan() {
+    return resumeSpan(event.spanId.toLong())
   }
 
-  boolean resumeTask(def spanId) {
+  boolean resumeSpan(def spanId) {
     tick++
     def interval = openIntervalsBySpan.get(spanId)
     if (interval == null) {
@@ -112,20 +118,30 @@ class ThreadContextTracker extends AbstractContextTracker {
         }
         index--
       }
-      if (index > 0) {
+      if (index >= 0) {
         openIntervalsByTime.remove(index)
       }
-      for (def closed : closedIntervalsByTime.reverse()) {
-        if (closed.endTick < interval.startTick) {
-          break
+      if (closedIntervalsBySpan.containsKey(interval.spanId)) {
+        result = false
+      } else {
+        for (def closed : closedIntervalsByTime.reverse()) {
+          if (closed.endTick < interval.startTick) {
+            break
+          }
+          if (closed.startTick < interval.startTick) {
+            result = false
+          }
         }
-        if (closed.startTick < interval.startTick) {
-          result = false
-        }
+        interval.endTick = tick
+        closedIntervalsByTime.add(interval)
+        closedIntervalsBySpan.put(interval.spanId, interval)
       }
-      interval.endTick = tick
-      closedIntervalsByTime.add(interval)
     }
     return result
+  }
+
+  @Override
+  boolean endSequence() {
+    return openIntervalsByTime.findAll {!it.suspended}.empty
   }
 }

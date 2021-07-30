@@ -9,6 +9,7 @@ class Event {
   private final String threadName
   private final DDId traceId
   private final DDId spanId
+  private final StackTraceElement[] stackTrace
 
   Event(int flags, DDId traceId, DDId spanId, Thread thread) {
     this.flags = flags
@@ -16,6 +17,23 @@ class Event {
     this.spanId = spanId
     this.threadId = thread.id
     this.threadName = thread.name
+
+    def idx = -1
+    def strace = Thread.currentThread().stackTrace
+    for (int i = 0; i < strace.length; i++) {
+      def frame = strace[i]
+      if (frame.className == "datadog.trace.api.SamplingCheckpointer") {
+        // this is SamplingCheckpointer.checkpoint()
+        // the interesting information is in the next frame
+        idx = i + 1
+        break
+      }
+    }
+    if (idx > -1) {
+      stackTrace = Arrays.copyOfRange(strace, idx, strace.length - 1)
+    } else {
+      stackTrace = new StackTraceElement[0]
+    }
   }
 
   String getName() {
@@ -62,6 +80,17 @@ class Event {
   }
 
   String toString() {
-    return "${name}/${spanId} (thread: ${threadName})\n"
+    def str = "${name}/${spanId} (thread: ${threadName})\n"
+    if (stackTrace != null) {
+      str += stackTrace.grep {
+        !(it.className.startsWith("org.codehaus.groovy") || it.className.startsWith("groovy")) &&
+          !(it.className.startsWith("org.spockframework"))
+      }.collect {
+        "  " + it.toString()
+      }
+      .join("\n") +
+      "\n"
+    }
+    return str
   }
 }
