@@ -13,6 +13,9 @@ class CouchbaseSpringRepository26Test extends CouchbaseSpringRepositoryTest {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

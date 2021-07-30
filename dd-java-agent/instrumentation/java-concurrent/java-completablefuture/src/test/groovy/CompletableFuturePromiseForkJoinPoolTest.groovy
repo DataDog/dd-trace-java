@@ -11,6 +11,8 @@ class CompletableFuturePromiseForkJoinPoolTest extends CompletableFuturePromiseT
 
   @Override
   def setup() {
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

@@ -143,7 +143,10 @@ class VertxRedisAPIRedisForkedTest extends VertxRedisAPITestBase {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
 
@@ -165,6 +168,9 @@ class VertxRedisAPIRedisConnectionForkedTest extends VertxRedisAPITestBase {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

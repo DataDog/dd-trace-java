@@ -17,7 +17,11 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin traced across channels"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedAcrossChannels()
     TEST_WRITER.waitForTraces(1)
@@ -35,7 +39,11 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin cancellation prevents trace"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracePreventedByCancellation()
     TEST_WRITER.waitForTraces(1)
@@ -53,7 +61,11 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin propagates across nested jobs"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedAcrossThreadsWithNested()
     TEST_WRITER.waitForTraces(1)
@@ -70,7 +82,11 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin either deferred completion"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(Dispatchers.Default)
     int expectedNumberOfSpans = kotlinTest.traceWithDeferred()
     TEST_WRITER.waitForTraces(1)
@@ -90,7 +106,11 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin first completed deferred"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(Dispatchers.Default)
     int expectedNumberOfSpans = kotlinTest.tracedWithDeferredFirstCompletions()
     TEST_WRITER.waitForTraces(1)

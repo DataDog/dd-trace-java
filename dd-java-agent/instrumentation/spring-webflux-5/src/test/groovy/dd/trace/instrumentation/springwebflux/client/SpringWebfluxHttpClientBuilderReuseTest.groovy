@@ -18,9 +18,4 @@ class SpringWebfluxHttpClientBuilderReuseTest extends SpringWebfluxHttpClientBas
   @Override
   void check() {
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
 }

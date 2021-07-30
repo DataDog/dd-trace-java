@@ -16,9 +16,4 @@ class SpringWebfluxHttpClientBasicTest extends SpringWebfluxHttpClientBase {
   @Override
   void check() {
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
 }

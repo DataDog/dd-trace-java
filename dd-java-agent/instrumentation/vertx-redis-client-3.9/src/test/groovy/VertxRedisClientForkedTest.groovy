@@ -21,7 +21,8 @@ class VertxRedisClientForkedTest extends VertxRedisTestBase {
 
   def "set and get command"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runWithParentAndHandler({ Handler<AsyncResult<Void>> h ->
@@ -41,7 +42,8 @@ class VertxRedisClientForkedTest extends VertxRedisTestBase {
 
   def "set and get command without parent"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runWithHandler({ Handler<AsyncResult<Void>> h ->

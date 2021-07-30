@@ -18,9 +18,4 @@ class SpringWebfluxHttpClientFiltersRemovedTest extends SpringWebfluxHttpClientB
   @Override
   void check() {
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
 }

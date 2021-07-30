@@ -78,11 +78,6 @@ abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
     return false
   }
 
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
-
   def "singleRequest exception trace"() {
     when:
     // Passing null causes NPE in singleRequest
@@ -125,6 +120,13 @@ class AkkaHttpJavaClientInstrumentationTest extends AkkaHttpClientInstrumentatio
     }
     return Http.get(system).singleRequest(request)
   }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations(
+        CheckpointValidationMode.INTERVALS,
+        CheckpointValidationMode.THREAD_SEQUENCE)
+  }
 }
 
 class AkkaHttpScalaClientInstrumentationTest extends AkkaHttpClientInstrumentationTest {
@@ -139,5 +141,12 @@ class AkkaHttpScalaClientInstrumentationTest extends AkkaHttpClientInstrumentati
       f = http.singleRequest(sRequest, http.defaultClientHttpsContext(), (ConnectionPoolSettings) ConnectionPoolSettings.apply(system), system.log())
     }
     return FutureConverters.toJava(f)
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations(
+        CheckpointValidationMode.INTERVALS,
+        CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

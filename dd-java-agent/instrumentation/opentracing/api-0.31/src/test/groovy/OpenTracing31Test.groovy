@@ -112,7 +112,9 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test ignoreParent"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS)
+
     def otherSpan = runUnderTrace("parent") {
       tracer.buildSpan("other").ignoreActiveSpan().start()
     }
@@ -124,7 +126,10 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test startActive"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY)
+
     def scope = tracer.buildSpan("some name").startActive(finishSpan)
 
     expect:
@@ -143,7 +148,10 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test scopemanager"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY)
+
     def span = tracer.buildSpan("some name").start()
     def scope = tracer.scopeManager().activate(span, finishSpan)
     (scope as TraceScope).setAsyncPropagation(false)
@@ -184,7 +192,10 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test scopemanager with non OTSpan"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY)
+
     def span = NoopSpan.INSTANCE
     def scope = tracer.scopeManager().activate(span, true)
 
@@ -205,7 +216,10 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test continuation"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY)
+
     def span = tracer.buildSpan("some name").start()
     TraceScope scope = tracer.scopeManager().activate(span, false)
     scope.setAsyncPropagation(true)
@@ -237,7 +251,8 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "closing scope when not on top"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS)
 
     when:
     Span firstSpan = tracer.buildSpan("someOperation").start()
@@ -266,7 +281,10 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test inject extract"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY)
+
     def context = tracer.buildSpan("some name").start().context()
     def textMap = [:]
     def adapter = new TextMapAdapter(textMap)
@@ -301,7 +319,8 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "tolerate null span activation"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS)
 
     when:
     try {

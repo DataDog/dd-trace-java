@@ -19,7 +19,10 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 class CouchbaseClientTest extends AbstractCouchbaseTest {
   def "test hasBucket #type"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def hasBucket = manager.hasBucket(bucketSettings.name())
@@ -51,7 +54,11 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
 
   def "test upsert and get #type"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     // Connect to the bucket and open it
@@ -97,7 +104,12 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
 
   def "test query"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     // Only couchbase buckets support queries.
     CouchbaseEnvironment environment = envBuilder(bucketCouchbase).build()
     Cluster cluster = CouchbaseCluster.create(environment, Arrays.asList("127.0.0.1"))

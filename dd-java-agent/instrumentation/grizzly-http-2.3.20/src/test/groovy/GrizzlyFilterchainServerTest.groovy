@@ -241,7 +241,8 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS)
   }
 }
 

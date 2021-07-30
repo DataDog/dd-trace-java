@@ -102,7 +102,11 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "connect using get on ConnectionFuture"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     RedisClient testConnectionClient = RedisClient.create(embeddedDbUri)
     testConnectionClient.setOptions(CLIENT_OPTIONS)
 
@@ -140,7 +144,11 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "connect exception inside the connection future"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     RedisClient testConnectionClient = RedisClient.create(dbUriNonExistent)
     testConnectionClient.setOptions(CLIENT_OPTIONS)
 
@@ -177,7 +185,11 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "set command using Future get with timeout"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     RedisFuture<String> redisFuture = asyncCommands.set("TESTSETKEY", "TESTSETVAL")
     String res = redisFuture.get(3, TimeUnit.SECONDS)
 
@@ -205,7 +217,11 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "get command chained with thenAccept"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def conds = new AsyncConditions()
     Consumer<String> consumer = new Consumer<String>() {
         @Override
@@ -246,7 +262,11 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
   // recording metrics
   def "get non existent key command with handleAsync and chained with thenApply"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def conds = new AsyncConditions()
     final String successStr = "KEY MISSING"
     BiFunction<String, Throwable, String> firstStage = new BiFunction<String, Throwable, String>() {
@@ -297,7 +317,11 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "command with no arguments using a biconsumer"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def conds = new AsyncConditions()
     BiConsumer<String, Throwable> biConsumer = new BiConsumer<String, Throwable>() {
         @Override
@@ -336,7 +360,11 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "hash set and then nest apply to hash getall"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def conds = new AsyncConditions()
 
     when:
@@ -410,7 +438,11 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "command completes exceptionally"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     // turn off auto flush to complete the command exceptionally manually
     asyncCommands.setAutoFlushCommands(false)
     def conds = new AsyncConditions()
@@ -457,7 +489,11 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "cancel command before it finishes"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     asyncCommands.setAutoFlushCommands(false)
     def conds = new AsyncConditions()
     RedisFuture redisFuture = asyncCommands.sadd("SKEY", "1", "2")
@@ -498,7 +534,11 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "debug segfault command (returns void) with no argument should produce span"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     asyncCommands.debugSegfault()
 
     expect:
@@ -525,7 +565,11 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "shutdown command (returns void) should produce a span"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     asyncCommands.shutdown(false)
 
     expect:

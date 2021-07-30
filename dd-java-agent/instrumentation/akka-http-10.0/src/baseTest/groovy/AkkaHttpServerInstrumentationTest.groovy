@@ -52,11 +52,6 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
   @Shared
   AtomicInteger counter = new AtomicInteger(0)
 
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
-
   void doAndValidateRequest(int id) {
     def type = id & 1 ? "p" : "f"
     String url = address.resolve("/injected-id/${type}ing/$id")
@@ -102,12 +97,28 @@ class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstrumentatio
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleSync())
   }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+  }
 }
 
 class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentationTest {
   @Override
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleAsync())
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations(
+        CheckpointValidationMode.INTERVALS,
+        CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
 
@@ -121,6 +132,13 @@ class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstr
   boolean redirectHasBody() {
     return true
   }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations(
+        CheckpointValidationMode.INTERVALS,
+        CheckpointValidationMode.THREAD_SEQUENCE)
+  }
 }
 
 class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest extends AkkaHttpServerInstrumentationTest {
@@ -133,11 +151,25 @@ class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest e
   boolean redirectHasBody() {
     return true
   }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations(
+        CheckpointValidationMode.INTERVALS,
+        CheckpointValidationMode.THREAD_SEQUENCE)
+  }
 }
 
 class AkkaHttpServerInstrumentationAsyncHttp2Test extends AkkaHttpServerInstrumentationTest {
   @Override
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleAsyncHttp2())
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations(
+        CheckpointValidationMode.INTERVALS,
+        CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

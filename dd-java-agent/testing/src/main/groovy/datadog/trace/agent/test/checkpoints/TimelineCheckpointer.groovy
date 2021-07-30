@@ -5,6 +5,7 @@ import datadog.trace.api.DDId
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.stream.Collectors
 
 class TimelineCheckpointer implements Checkpointer {
 
@@ -39,7 +40,14 @@ class TimelineCheckpointer implements Checkpointer {
 
     // apparently gradle can not pass system property to spock tests - therefore using env variable instead
     if (!invalidEvents.empty && Boolean.parseBoolean(System.getenv("VALIDATE_CHECKPOINTS"))) {
-      throw new RuntimeException()
+      throw new RuntimeException(
+          "Failed validations: " +
+          invalidEvents.stream()
+              .map { it[1] }
+              .distinct()
+              .map { it.toString() }
+              .sorted()
+              .collect(Collectors.joining(", ")))
     }
   }
 

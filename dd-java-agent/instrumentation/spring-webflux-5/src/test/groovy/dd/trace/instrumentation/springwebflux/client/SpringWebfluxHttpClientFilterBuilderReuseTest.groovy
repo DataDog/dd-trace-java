@@ -31,9 +31,4 @@ class SpringWebfluxHttpClientFilterBuilderReuseTest extends SpringWebfluxHttpCli
     assert filter.count == 2
     assert filter.collected == "$component:$component:"
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
 }

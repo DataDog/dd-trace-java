@@ -42,9 +42,4 @@ class SpringWebfluxHttpClientDoOnSuccessOrErrorTest extends SpringWebfluxHttpCli
   @Override
   void check() {
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
 }

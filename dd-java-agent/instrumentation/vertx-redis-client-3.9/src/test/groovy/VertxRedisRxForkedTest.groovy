@@ -91,9 +91,4 @@ class VertxRedisRxForkedTest extends VertxRedisTestBase {
     TEST_WRITER.waitUntilReported(parentSpan)
     result
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
 }

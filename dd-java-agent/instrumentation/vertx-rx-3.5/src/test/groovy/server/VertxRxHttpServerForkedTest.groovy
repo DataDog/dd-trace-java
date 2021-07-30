@@ -78,9 +78,4 @@ class VertxRxHttpServerForkedTest extends VertxHttpServerForkedTest {
         .listen(port) { startFuture.complete() }
     }
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
 }

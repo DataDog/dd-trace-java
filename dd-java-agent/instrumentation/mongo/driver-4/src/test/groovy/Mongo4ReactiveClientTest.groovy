@@ -69,7 +69,11 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test create collection"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     MongoDatabase db = client.getDatabase(databaseName)
 
     when:
@@ -88,7 +92,11 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test create collection no description"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
 
     when:
@@ -107,7 +115,11 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test get collection"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     MongoDatabase db = client.getDatabase(databaseName)
 
     when:
@@ -128,7 +140,11 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test insert"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def collection = setupCollection(collectionName)
 
     when:
@@ -154,7 +170,11 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test update"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     MongoCollection<Document> collection = setupCollection(collectionName)
     insertDocument(collection, new Document("password", "OLDPW"), null)
 
@@ -186,7 +206,11 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test delete"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     MongoCollection<Document> collection = setupCollection(collectionName)
     insertDocument(collection, new Document("password", "SECRET"), null)
 

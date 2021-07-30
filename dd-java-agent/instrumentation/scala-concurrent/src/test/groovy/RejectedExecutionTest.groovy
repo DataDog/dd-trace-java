@@ -17,7 +17,9 @@ class RejectedExecutionTest extends AgentTestRunner {
     // provoked (most of the time) by submitting a lot of tasks very
     // quickly
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.SUSPEND_RESUME)
+
     ForkJoinPool fjp = new ForkJoinPool()
     fjp.shutdownNow()
     AtomicBoolean rejected = new AtomicBoolean(false)

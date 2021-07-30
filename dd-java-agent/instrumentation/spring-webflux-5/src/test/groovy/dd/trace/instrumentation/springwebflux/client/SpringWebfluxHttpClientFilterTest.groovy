@@ -23,9 +23,4 @@ class SpringWebfluxHttpClientFilterTest extends SpringWebfluxHttpClientBase {
     assert filter.count == 1
     assert filter.collected == "$component:"
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
 }

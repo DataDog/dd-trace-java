@@ -93,7 +93,12 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test empty repo"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
 
     when:
     def result = repo.findAll()
@@ -111,7 +116,12 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test save"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def doc = new Doc()
 
     when:
@@ -128,7 +138,12 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test save and retrieve"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def doc = new Doc()
     def result
 
@@ -152,7 +167,12 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test save and update"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def doc = new Doc()
 
     when:
@@ -176,7 +196,12 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "save and delete"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def doc = new Doc()
     def result
 

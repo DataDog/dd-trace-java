@@ -18,7 +18,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "map"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverMap = h1.getMap(randomName)
@@ -38,7 +41,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "map predicate"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverMap = h1.getMap(randomName)
@@ -58,7 +64,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "map async"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverMap = h1.getMap(randomName)
@@ -86,7 +95,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "multimap"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverMultiMap = h1.getMultiMap(randomName)
@@ -107,7 +119,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "queue"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverQueue = h1.getQueue(randomName)
@@ -128,10 +143,13 @@ class HazelcastTest extends AbstractHazelcastTest {
     serverQueue?.destroy()
   }
 
-
   def "topic"() {
     given:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def serverTopic = h1.getTopic(randomName)
 
     and:
@@ -163,7 +181,11 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "reliable topic"() {
     given:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def clientTopic = client.getReliableTopic(randomName)
     def receivedMessage = new BlockingVariable<Message>(5, TimeUnit.SECONDS)
     def listener = Stub(MessageListener)
@@ -191,7 +213,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "set"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverSet = h1.getSet(randomName)
@@ -211,7 +236,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "set double value"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def clientSet = client.getSet(randomName)
@@ -231,7 +259,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "list"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverList = h1.getList(randomName)
@@ -251,7 +282,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "list error"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverList = h1.getList(randomName)
@@ -289,7 +323,10 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "lock"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     def serverLock = h1.getLock(randomName)

@@ -118,7 +118,10 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
 
   def "test elasticsearch get"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     expect:
     template.createIndex(indexName)
@@ -296,7 +299,11 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
 
   def "test results extractor"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     template.createIndex(indexName)
     TEST_WRITER.waitForTraces(1)
     testNode.client().admin().cluster().prepareHealth().setWaitForYellowStatus().execute().actionGet(TIMEOUT)

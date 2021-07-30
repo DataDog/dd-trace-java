@@ -192,9 +192,4 @@ class VertxChainingHttpServerForkedTest extends VertxHttpServerForkedTest {
       }
     }
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
 }

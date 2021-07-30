@@ -42,9 +42,4 @@ class SpringWebfluxHttpClientDoAfterTerminateTest extends SpringWebfluxHttpClien
   @Override
   void check() {
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
 }

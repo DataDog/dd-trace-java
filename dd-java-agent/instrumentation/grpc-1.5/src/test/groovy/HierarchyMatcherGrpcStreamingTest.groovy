@@ -7,9 +7,4 @@ class HierarchyMatcherGrpcStreamingTest extends GrpcStreamingTest {
     super.configurePreAgent()
     injectSysConfig("dd.integration.grpc.matching.shortcut.enabled", "false")
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeAllValidations()
-  }
 }

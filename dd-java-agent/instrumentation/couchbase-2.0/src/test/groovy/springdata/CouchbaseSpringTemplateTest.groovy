@@ -72,7 +72,11 @@ class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
 
   def "test write #name"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
     def doc = new Doc()
     def result
 
@@ -102,7 +106,11 @@ class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
 
   def "test remove #name"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
     def doc = new Doc()
 
     when:

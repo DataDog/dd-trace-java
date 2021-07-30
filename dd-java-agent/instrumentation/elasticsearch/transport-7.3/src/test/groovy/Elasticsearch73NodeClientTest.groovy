@@ -131,7 +131,11 @@ class Elasticsearch73NodeClientTest extends AgentTestRunner {
 
   def "test elasticsearch get"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     assert TEST_WRITER == []
     def indexResult = client.admin().indices().prepareCreate(indexName).get()
     TEST_WRITER.waitForTraces(1)

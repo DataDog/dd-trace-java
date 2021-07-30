@@ -78,6 +78,9 @@ class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SANITY,
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

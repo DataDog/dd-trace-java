@@ -20,16 +20,16 @@ class CheckpointValidator {
    *
    * @param modes validation modes
    */
-  static void excludeValidations(CheckpointValidationMode... modes) {
+  static void excludeValidations(Set<CheckpointValidationMode> modes) {
     // if `FORCE_VALIDATE_CHECKPOINTS` is defined, make sure we do not exclude any test
     // if (Boolean.parseBoolean(System.getenv("FORCE_VALIDATE_CHECKPOINTS"))) {
     //   return;
     // }
-    excludedValidations.addAll(EnumSet.of(modes))
+    excludedValidations.addAll(modes)
   }
 
-  static void excludeAllValidations() {
-    excludedValidations = EnumSet.allOf(CheckpointValidationMode)
+  static void excludeValidations(CheckpointValidationMode... modes) {
+    excludeValidations(EnumSet.of(modes))
   }
 
   static void clear() {
@@ -84,7 +84,7 @@ class CheckpointValidator {
       }
       if (!excludedValidations.contains(CheckpointValidationMode.THREAD_SEQUENCE)) {
         if (!threadSequenceValidator.onEvent(event)) {
-          invalidEvents.add([event, CheckpointValidationMode.THREAD_SANITY])
+          invalidEvents.add([event, CheckpointValidationMode.THREAD_SEQUENCE])
         }
       }
     }

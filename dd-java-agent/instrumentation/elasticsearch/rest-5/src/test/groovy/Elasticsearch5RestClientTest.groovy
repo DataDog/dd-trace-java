@@ -74,7 +74,10 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     Response response = client.performRequest("GET", "_cluster/health")
 
     Map result = new JsonSlurper().parseText(EntityUtils.toString(response.entity))

@@ -14,7 +14,8 @@ class Scala210PromiseForkJoinPoolTest extends ScalaPromiseTestBase {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
 
@@ -26,7 +27,8 @@ class Scala210PromiseGlobalTest extends ScalaPromiseTestBase {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
 
@@ -38,7 +40,8 @@ class Scala210PromiseScheduledThreadPoolTest extends ScalaPromiseTestBase {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
 
@@ -50,6 +53,7 @@ class Scala210PromiseThreadPoolTest extends ScalaPromiseTestBase {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

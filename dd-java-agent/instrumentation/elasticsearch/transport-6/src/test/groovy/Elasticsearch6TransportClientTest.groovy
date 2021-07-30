@@ -76,7 +76,9 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def result = client.admin().cluster().health(new ClusterHealthRequest())
 
     def status = result.get().status
@@ -109,7 +111,8 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
 
   def "test elasticsearch error"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     client.prepareGet(indexName, indexType, id).get()
@@ -148,7 +151,9 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
 
   def "test elasticsearch get"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     assert TEST_WRITER == []
     def indexResult = client.admin().indices().prepareCreate(indexName).get()
     TEST_WRITER.waitForTraces(1)

@@ -7,7 +7,8 @@ class JUnit4UtilsTest extends AgentTestRunner {
 
   def "test remove trailing brackets from test name"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.THREAD_SANITY)
 
     when:
     def testNameNoParams = JUnit4Utils.normalizeTestName(testName)

@@ -40,7 +40,9 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Basic GET test #testName"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS)
+
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
     when:
@@ -116,7 +118,9 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "GET test with async response #testName"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS)
+
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
     when:
@@ -223,7 +227,9 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Create span during handler function"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS)
+
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
     when:
@@ -268,7 +274,9 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "404 GET test"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS)
+
     String url = "http://localhost:$port/notfoundgreet"
     def request = new Request.Builder().url(url).get().build()
 
@@ -316,7 +324,9 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Basic POST test"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS)
+
     String echoString = "TEST"
     String url = "http://localhost:$port/echo"
     RequestBody body = RequestBody.create(PLAIN_TYPE, echoString)
@@ -378,7 +388,9 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "GET to bad endpoint #testName"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS)
+
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
 
@@ -453,7 +465,9 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Redirect test"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS)
+
     String url = "http://localhost:$port/double-greet-redirect"
     String finalUrl = "http://localhost:$port/double-greet"
     def request = new Request.Builder().url(url).get().build()
@@ -540,7 +554,9 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Multiple GETs to delaying route #testName"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS)
+
     def requestsCount = 50 // Should be more than 2x CPUs to fish out some bugs
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()

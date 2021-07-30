@@ -25,7 +25,11 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test hasBucket #type"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def hasBucket = new BlockingVariable<Boolean>(TIMEOUT)
 
     when:
@@ -62,7 +66,11 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test upsert #type"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     JsonObject content = JsonObject.create().put("hello", "world")
     def inserted = new BlockingVariable<JsonDocument>(TIMEOUT)
 
@@ -99,7 +107,11 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test upsert and get #type"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     JsonObject content = JsonObject.create().put("hello", "world")
     def inserted = new BlockingVariable<JsonDocument>(TIMEOUT)
     def found = new BlockingVariable<JsonDocument>(TIMEOUT)
@@ -147,7 +159,11 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test query"() {
     setup:
-    CheckpointValidator.excludeAllValidations()
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     // Only couchbase buckets support queries.
     CouchbaseEnvironment environment = envBuilder(bucketCouchbase).build()
     AsyncCluster cluster = CouchbaseAsyncCluster.create(environment, Arrays.asList("127.0.0.1"))
