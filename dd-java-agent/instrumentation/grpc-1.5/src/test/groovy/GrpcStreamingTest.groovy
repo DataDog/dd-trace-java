@@ -29,6 +29,7 @@ class GrpcStreamingTest extends AgentTestRunner {
   def "test conversation #name"() {
     setup:
     CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
     def msgCount = serverMessageCount

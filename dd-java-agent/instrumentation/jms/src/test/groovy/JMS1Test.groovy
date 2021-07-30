@@ -314,6 +314,9 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a message with disabled timestamp generates spans without specific tag"() {
     setup:
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
 
     def producer = session.createProducer(session.createQueue("someQueue"))
     def consumer = session.createConsumer(session.createQueue("someQueue"))
@@ -339,7 +342,10 @@ class JMS1Test extends AgentTestRunner {
   }
 
   def "traceable work between two receive calls has jms.consume parent"() {
-    setup:    CheckpointValidator.excludeValidations(
+    setup:
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
 
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
@@ -377,7 +383,10 @@ class JMS1Test extends AgentTestRunner {
   }
 
   def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on producer side"() {
-    setup:      CheckpointValidationMode.INTERVALS,
+    setup:
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
 
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)
@@ -427,7 +436,10 @@ class JMS1Test extends AgentTestRunner {
   }
 
   def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on consumer side"() {
-    setup:      CheckpointValidationMode.SEQUENCE)
+    setup:
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
 
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)

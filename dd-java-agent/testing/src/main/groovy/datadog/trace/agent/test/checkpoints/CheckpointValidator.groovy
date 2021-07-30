@@ -8,7 +8,7 @@ class CheckpointValidator {
    * By default all validation modes defined by {@linkplain CheckpointValidationMode} are enabled.
    *
    * To verify which tests have the annotation and which are passing, run:
-   *  $> VALIDATE_CHECKPOINTS=true FORCE_VALIDATE_CHECKPOINTS=true ./gradlew \
+   *  $> FORCE_VALIDATE_CHECKPOINTS=true ./gradlew \
    *      `grep -r -l "CheckpointValidator.excludeValidations" dd-java-agent/instrumentation/ | \
    *            sed "s/\/build\/.*$//" | \
    *            sed "s/\/src\/.*$//" | \
@@ -21,15 +21,15 @@ class CheckpointValidator {
    * @param modes validation modes
    */
   static void excludeValidations(Set<CheckpointValidationMode> modes) {
-    // if `FORCE_VALIDATE_CHECKPOINTS` is defined, make sure we do not exclude any test
-    // if (Boolean.parseBoolean(System.getenv("FORCE_VALIDATE_CHECKPOINTS"))) {
-    //   return;
-    // }
     excludedValidations.addAll(modes)
   }
 
   static void excludeValidations(CheckpointValidationMode... modes) {
     excludeValidations(EnumSet.of(modes))
+  }
+
+  static Set<CheckpointValidationMode> getExcludedValidations() {
+    return excludedValidations.clone();
   }
 
   static void clear() {
@@ -38,43 +38,9 @@ class CheckpointValidator {
   }
 
   static Set<Event> validate(def spanEvents, def threadEvents, def orderedEvents) {
-    if (!excludedValidations.empty) {
-      System.err.println("Checkpoint validator is running with the following checks disabled: ${excludedValidations}\n")
-    }
     def invalidEvents = new HashSet<>()
     for (def events : spanEvents.values()) {
       // validate global span sequence
-      validateSpanSequence(events, invalidEvents)
-    }
-
-    for (def events : threadEvents.values()) {
-      if (!excludedValidations.contains(CheckpointValidationMode.SEQUENCE)) {
-        // first sanity check that each thread timeline starts with a 'startSpan' or 'resume'
-        // and ends with 'endSpan', 'endTask' or 'suspend'
-        def startEvent = events[0]
-        def endEvent = events[events.size() - 1]
-        if (startEvent.name != "startSpan" && startEvent.name != "resume") {
-          invalidEvents.add([startEvent, CheckpointValidationMode.SEQUENCE])
-        }
-        if (endEvent.name != "endSpan" && endEvent.name != "suspend" && endEvent.name != "endTask") {
-          invalidEvents.add([endEvent, CheckpointValidationMode.SEQUENCE])
-        }
-      }
-      if (!excludedValidations.contains(CheckpointValidationMode.INTERVALS)) {
-        // do more thorough checks eg. for overlapping spans
-        IntervalValidator checker = new IntervalValidator()
-        for (def event : events) {
-          if (!checker.onEvent(event)) {
-            invalidEvents.add([event, CheckpointValidationMode.INTERVALS])
-          }
-        }
-      }
-    }
-    return invalidEvents
-  }
-
-  private static void validateSpanSequence(def events, def invalidEvents) {
-    if (!excludedValidations.contains(CheckpointValidationMode.SEQUENCE)) {
       def suspendResumeValidator = new SuspendResumeValidator()
       def threadSequenceValidator = new ThreadSequenceValidator()
       for (def event : events) {
@@ -94,5 +60,26 @@ class CheckpointValidator {
         }
       }
     }
+
+    for (def events : threadEvents.values()) {
+      // first sanity check that each thread timeline starts with a 'startSpan' or 'resume'
+      // and ends with 'endSpan', 'endTask' or 'suspend'
+      def startEvent = events[0]
+      def endEvent = events[events.size() - 1]
+      if (startEvent.name != "startSpan" && startEvent.name != "resume") {
+        invalidEvents.add([startEvent, CheckpointValidationMode.SEQUENCE])
+      }
+      if (endEvent.name != "endSpan" && endEvent.name != "suspend" && endEvent.name != "endTask") {
+        invalidEvents.add([endEvent, CheckpointValidationMode.SEQUENCE])
+      }
+      // do more thorough checks eg. for overlapping spans
+      IntervalValidator checker = new IntervalValidator()
+      for (def event : events) {
+        if (!checker.onEvent(event)) {
+          invalidEvents.add([event, CheckpointValidationMode.INTERVALS])
+        }
+      }
+    }
+    return invalidEvents
   }
 }

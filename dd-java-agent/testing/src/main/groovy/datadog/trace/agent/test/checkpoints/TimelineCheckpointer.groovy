@@ -38,13 +38,30 @@ class TimelineCheckpointer implements Checkpointer {
     TimelineExporter.export(orderedEvents)
     System.err.println("")
 
-    // apparently gradle can not pass system property to spock tests - therefore using env variable instead
-    if (!invalidEvents.empty && Boolean.parseBoolean(System.getenv("VALIDATE_CHECKPOINTS"))) {
+    // The set of included validations
+    def includedValidations = EnumSet.allOf(CheckpointValidationMode)
+    // if `FORCE_VALIDATE_CHECKPOINTS` is defined, make sure we do not exclude any validation
+    if (!Boolean.parseBoolean(System.getenv("FORCE_VALIDATE_CHECKPOINTS"))) {
+      includedValidations.removeAll(CheckpointValidator.excludedValidations)
+    }
+
+    // The set of included validations that failed
+    def failed = includedValidations.clone()
+    failed.retainAll(invalidEvents.stream().map { it[1] }.collect(Collectors.toSet()))
+
+    // The set of included validations that passed despite being exluded
+    def passed = includedValidations.clone()
+    passed.removeAll(CheckpointValidator.excludedValidations)
+    passed.removeAll(failed)
+
+    System.err.println(
+        "Checkpoint validator is running with the following checks enabled: ${includedValidations}\n" +
+        "\tFailed: ${failed}\n" +
+        "\tPassed & Excluded: ${passed}\n")
+    if (!failed.empty) {
       throw new RuntimeException(
           "Failed validations: " +
-          invalidEvents.stream()
-              .map { it[1] }
-              .distinct()
+          failed.stream()
               .map { it.toString() }
               .sorted()
               .collect(Collectors.joining(", ")))

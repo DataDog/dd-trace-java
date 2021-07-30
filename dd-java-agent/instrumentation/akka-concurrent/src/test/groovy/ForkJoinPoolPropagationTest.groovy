@@ -1,9 +1,16 @@
 import akka.dispatch.forkjoin.ForkJoinPool
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.core.DDSpan
 
 class ForkJoinPoolPropagationTest extends AgentTestRunner {
   def "test imbalanced recursive task propagation #parallelism FJP threads" () {
+    setup:
+    CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
+
     when:
     ForkJoinPool fjp = new ForkJoinPool(parallelism)
 
