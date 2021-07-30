@@ -29,6 +29,9 @@ public class StoredByteBody implements StoredBodySupplier {
   }
 
   public synchronized void appendData(byte[] bytes, int start, int end) {
+    if (storedCharBody.isLimitReached()) {
+      return;
+    }
     for (int i = start; i < end; ) {
       if (!undecodedData.hasRemaining()) {
         commit(false);
@@ -42,6 +45,9 @@ public class StoredByteBody implements StoredBodySupplier {
   }
 
   public synchronized void appendData(int byteValue) {
+    if (storedCharBody.isLimitReached()) {
+      return;
+    }
     if (byteValue < 0 || byteValue > 255) {
       return;
     }

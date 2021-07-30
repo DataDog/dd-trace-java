@@ -129,6 +129,10 @@ public class StoredCharBody implements StoredBodySupplier {
     return CharBuffer.wrap(this.storedBody, 0, this.storedBodyLen);
   }
 
+  synchronized boolean isLimitReached() {
+    return this.storedBodyLen == MAX_BUFFER_SIZE;
+  }
+
   // for StoredByteBody's reencodeAsLatin1
   synchronized void dropData() {
     this.storedBodyLen = 0;
