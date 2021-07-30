@@ -6,18 +6,6 @@ class CheckpointValidator {
   /**
    * Exclude some validations modes from the checks for the current test case.
    * By default all validation modes defined by {@linkplain CheckpointValidationMode} are enabled.
-   *
-   * To verify which tests have the annotation and which are passing, run:
-   *  $> FORCE_VALIDATE_CHECKPOINTS=true ./gradlew \
-   *      `grep -r -l "CheckpointValidator.excludeValidations" dd-java-agent/instrumentation/ | \
-   *            sed "s/\/build\/.*$//" | \
-   *            sed "s/\/src\/.*$//" | \
-   *            tr '/' ':' | \
-   *            sort -u | \
-   *            xargs -n 1 -I{} echo :{}:test` \
-   *          --continue --no-parallel
-   * Then check that all of the classes which use CheckpointValidator.excludeValidations are indeed failing.
-   *
    * @param modes validation modes
    */
   static void excludeValidations(Set<CheckpointValidationMode> modes) {
