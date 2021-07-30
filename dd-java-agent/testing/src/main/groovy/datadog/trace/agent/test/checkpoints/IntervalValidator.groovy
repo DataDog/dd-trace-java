@@ -19,6 +19,7 @@ class IntervalValidator extends AbstractContextTracker {
 
   def openIntervalsBySpan = new HashMap<Long, SpanInterval>()
   def openIntervalsByTime = new ArrayList<>()
+  def closedIntervalsBySpan = new HashMap<Long, SpanInterval>()
   def closedIntervalsByTime = new ArrayList<>()
   def tick = 0
 
@@ -67,7 +68,12 @@ class IntervalValidator extends AbstractContextTracker {
     tick++
     def interval = openIntervalsBySpan.get(spanId)
     if (interval == null) {
-      return false
+      // allow out-of-order suspension
+      // usually happens in async frameworks
+      interval = closedIntervalsBySpan.get(spanId)
+      if (interval == null) {
+        return false
+      }
     }
     interval.suspended = true
     return true
@@ -115,16 +121,21 @@ class IntervalValidator extends AbstractContextTracker {
       if (index >= 0) {
         openIntervalsByTime.remove(index)
       }
-      for (def closed : closedIntervalsByTime.reverse()) {
-        if (closed.endTick < interval.startTick) {
-          break
+      if (closedIntervalsBySpan.containsKey(interval.spanId)) {
+        result = false
+      } else {
+        for (def closed : closedIntervalsByTime.reverse()) {
+          if (closed.endTick < interval.startTick) {
+            break
+          }
+          if (closed.startTick < interval.startTick) {
+            result = false
+          }
         }
-        if (closed.startTick < interval.startTick) {
-          result = false
-        }
+        interval.endTick = tick
+        closedIntervalsByTime.add(interval)
+        closedIntervalsBySpan.put(interval.spanId, interval)
       }
-      interval.endTick = tick
-      closedIntervalsByTime.add(interval)
     }
     return result
   }

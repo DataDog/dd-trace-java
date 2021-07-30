@@ -48,16 +48,16 @@ class CheckpointValidator {
     }
 
     for (def events : threadEvents.values()) {
-      if (!excludedValidations.contains(CheckpointValidationMode.THREAD_SANITY)) {
+      if (!excludedValidations.contains(CheckpointValidationMode.SEQUENCE)) {
         // first sanity check that each thread timeline starts with a 'startSpan' or 'resume'
         // and ends with 'endSpan', 'endTask' or 'suspend'
         def startEvent = events[0]
         def endEvent = events[events.size() - 1]
         if (startEvent.name != "startSpan" && startEvent.name != "resume") {
-          invalidEvents.add([startEvent, CheckpointValidationMode.THREAD_SANITY])
+          invalidEvents.add([startEvent, CheckpointValidationMode.SEQUENCE])
         }
         if (endEvent.name != "endSpan" && endEvent.name != "suspend" && endEvent.name != "endTask") {
-          invalidEvents.add([endEvent, CheckpointValidationMode.THREAD_SANITY])
+          invalidEvents.add([endEvent, CheckpointValidationMode.SEQUENCE])
         }
       }
       if (!excludedValidations.contains(CheckpointValidationMode.INTERVALS)) {
@@ -74,26 +74,22 @@ class CheckpointValidator {
   }
 
   private static void validateSpanSequence(def events, def invalidEvents) {
-    def suspendResumeValidator = new SuspendResumeValidator()
-    def threadSequenceValidator = new ThreadSequenceValidator()
-    for (def event : events) {
-      if (!excludedValidations.contains(CheckpointValidationMode.SUSPEND_RESUME)) {
+    if (!excludedValidations.contains(CheckpointValidationMode.SEQUENCE)) {
+      def suspendResumeValidator = new SuspendResumeValidator()
+      def threadSequenceValidator = new ThreadSequenceValidator()
+      for (def event : events) {
         if (!suspendResumeValidator.onEvent(event)) {
-          invalidEvents.add([event, CheckpointValidationMode.SUSPEND_RESUME])
+          invalidEvents.add([event, CheckpointValidationMode.SEQUENCE])
         }
-      }
-      if (!excludedValidations.contains(CheckpointValidationMode.THREAD_SEQUENCE)) {
         if (!threadSequenceValidator.onEvent(event)) {
-          invalidEvents.add([event, CheckpointValidationMode.THREAD_SEQUENCE])
+          invalidEvents.add([event, CheckpointValidationMode.SEQUENCE])
         }
       }
-    }
-    // run end-sequence validations
-    if (!excludedValidations.contains(CheckpointValidationMode.SUSPEND_RESUME)) {
+      // run end-sequence validations
       if (!suspendResumeValidator.endSequence()) {
         for (def event : events) {
           if (event.name == "suspend" || event.name == "resume") {
-            invalidEvents.add([event, CheckpointValidationMode.SUSPEND_RESUME])
+            invalidEvents.add([event, CheckpointValidationMode.SEQUENCE])
           }
         }
       }
