@@ -13,6 +13,7 @@ import spock.lang.Subject
   datadog.trace.agent.test.checkpoints.TimelineValidator.ignoreTest()
 })
 class JettyClientTest extends HttpClientTest {
+
   @Shared
   @Subject
   HttpClient client = new HttpClient(new SslContextFactory(true))

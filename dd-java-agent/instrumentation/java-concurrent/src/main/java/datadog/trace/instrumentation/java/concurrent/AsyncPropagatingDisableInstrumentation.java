@@ -78,6 +78,7 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "org.springframework.cglib.core.internal.LoadingCache",
             "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher",
             "com.datastax.oss.driver.api.core.session.SessionBuilder",
+            "org.eclipse.jetty.io.SelectorManager",
             "org.jvnet.hk2.internal.ServiceLocatorImpl")
         .or(RX_WORKERS)
         .or(GRPC_MANAGED_CHANNEL)

@@ -29,15 +29,17 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     this.delegate = delegate;
   }
 
-  public void responseReceived() {
-    // happens once the the response has been received,
-    // and captures activity like serialization which
-    // we want to notify profiling about
+  public void resume() {
     clientSpan.finishThreadMigration();
+  }
+
+  public void suspend() {
+    clientSpan.startThreadMigration();
   }
 
   @Override
   public void completed(final T result) {
+    resume();
     DECORATE.onResponse(clientSpan, context);
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish(); // Finish span before calling delegate
@@ -54,6 +56,10 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
 
   @Override
   public void failed(final Exception ex) {
+    // always resume here to keep profiling backend happy,
+    // instrumentation ensures that all content marshalling
+    // is wrapped in pairs of resumes and suspends
+    resume();
     DECORATE.onResponse(clientSpan, context);
     DECORATE.onError(clientSpan, ex);
     DECORATE.beforeFinish(clientSpan);
@@ -71,6 +77,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
 
   @Override
   public void cancelled() {
+    resume();
     DECORATE.onResponse(clientSpan, context);
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish(); // Finish span before calling delegate
