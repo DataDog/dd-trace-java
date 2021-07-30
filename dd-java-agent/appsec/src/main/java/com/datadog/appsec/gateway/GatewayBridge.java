@@ -5,6 +5,9 @@ import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.MapDataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
+import com.datadog.appsec.report.EventEnrichment;
+import com.datadog.appsec.report.ReportService;
+import com.datadog.appsec.report.raw.events.attack.Attack010;
 import datadog.trace.api.Function;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.TriConsumer;
@@ -18,6 +21,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -36,14 +40,18 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
+  private final ReportService reportService;
 
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
 
   public GatewayBridge(
-      SubscriptionService subscriptionService, EventProducerService producerService) {
+      SubscriptionService subscriptionService,
+      EventProducerService producerService,
+      ReportService reportService) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
+    this.reportService = reportService;
   }
 
   public void init() {
@@ -63,6 +71,12 @@ public class GatewayBridge {
         (RequestContext ctx_) -> {
           AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
           producerService.publishEvent(ctx, EventType.REQUEST_END);
+
+          Collection<Attack010> collectedAttacks = ctx.transferCollectedAttacks();
+          for (Attack010 attack : collectedAttacks) {
+            EventEnrichment.enrich(attack, ctx);
+            reportService.reportAttack(attack);
+          }
 
           ctx.close();
           return NoopFlow.INSTANCE;

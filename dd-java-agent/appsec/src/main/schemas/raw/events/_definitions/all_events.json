@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "../attack/attack_0.1.0.json"
+    },
+    {
+      "$ref": "../sign_in/sign_in_0.1.0.json"
+    },
+    {
+      "$ref": "../sign_up/sign_up_0.1.0.json"
+    },
+    {
+      "$ref": "../vulnerability_exploit/vulnerability_exploit_0.1.0.json"
+    }
+  ]
+}

@@ -1,6 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <FindBugsFilter>
   <Match>
-    <Package name="io.sqreen.testapp.sampleapp" />
+    <Or>
+      <Package name="io.sqreen.testapp.sampleapp" />
+      <!-- these are (mostly) auto-generated -->
+      <Package name="com.datadog.appsec.report.raw.contexts._definitions.service" />
+      <Package name="com.datadog.appsec.report.raw.contexts.actor" />
+      <Package name="com.datadog.appsec.report.raw.contexts.agent" />
+      <Package name="com.datadog.appsec.report.raw.contexts.code_location" />
+      <Package name="com.datadog.appsec.report.raw.contexts.host" />
+      <Package name="com.datadog.appsec.report.raw.contexts.http" />
+      <Package name="com.datadog.appsec.report.raw.contexts.service" />
+      <Package name="com.datadog.appsec.report.raw.contexts.service_stack" />
+      <Package name="com.datadog.appsec.report.raw.contexts.span" />
+      <Package name="com.datadog.appsec.report.raw.contexts.sqreen" />
+      <Package name="com.datadog.appsec.report.raw.contexts.trace" />
+      <Package name="com.datadog.appsec.report.raw.contexts.tracer" />
+      <Package name="com.datadog.appsec.report.raw.events.attack" />
+      <Package name="com.datadog.appsec.report.raw.events.attack._definitions.rule" />
+      <Package name="com.datadog.appsec.report.raw.events.attack._definitions.rule_match" />
+      <Package name="com.datadog.appsec.report.raw.events.sign_in" />
+      <Package name="com.datadog.appsec.report.raw.events.sign_up" />
+      <Package name="com.datadog.appsec.report.raw.events.vulnerability_exploit" />
+      <Package name="com.datadog.appsec.report.raw.events.vulnerability_exploit._definitions.trigger" />
+    </Or>
   </Match>
 </FindBugsFilter>

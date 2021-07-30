@@ -26,7 +26,11 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     PROFILER_STARTUP("dd-agent-startup-datadog-profiler"),
     PROFILER_RECORDING_SCHEDULER("dd-profiler-recording-scheduler"),
-    PROFILER_HTTP_DISPATCHER("dd-profiler-http-dispatcher");
+    PROFILER_HTTP_DISPATCHER("dd-profiler-http-dispatcher"),
+
+    APPSEC_HTTP_DISPATCHER("dd-appsec-http-dispatcher"),
+
+    FLEET_MANAGEMENT_POLLER("dd-fleet-management-poller");
 
     public final String threadName;
 

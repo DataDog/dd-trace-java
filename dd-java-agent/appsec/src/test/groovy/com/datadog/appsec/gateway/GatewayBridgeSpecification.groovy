@@ -6,6 +6,8 @@ import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.StringKVPair
+import com.datadog.appsec.report.ReportService
+import com.datadog.appsec.report.raw.events.attack.Attack010
 import datadog.trace.api.Function
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
@@ -21,6 +23,7 @@ import spock.lang.Specification
 class GatewayBridgeSpecification extends Specification {
   SubscriptionService ig = Mock()
   EventDispatcher eventDispatcher = Mock()
+  ReportService reportService = Mock()
   AppSecRequestContext ctx = new AppSecRequestContext()
 
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
@@ -29,7 +32,7 @@ class GatewayBridgeSpecification extends Specification {
     i
   }()
 
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher)
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, reportService)
 
   Supplier<Flow<RequestContext>> requestStartedCB
   Function<RequestContext, Flow<Void>> requestEndedCB
@@ -54,18 +57,22 @@ class GatewayBridgeSpecification extends Specification {
     startFlow.action == Flow.Action.Noop.INSTANCE
   }
 
-  void 'request_end closes context and publishes event'() {
+  void 'request_end closes context reports attacks and publishes event'() {
+    Attack010 attack = Mock()
     AppSecRequestContext mockCtx = Mock()
 
     when:
     def flow = requestEndedCB.apply(mockCtx)
 
     then:
+    1 * mockCtx.transferCollectedAttacks() >> [attack]
     1 * mockCtx.close()
+    1 * reportService.reportAttack(attack)
     1 * eventDispatcher.publishEvent(mockCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
+
 
   void 'bridge can collect headers'() {
     when:

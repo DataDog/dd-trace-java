@@ -90,9 +90,7 @@ final class CachedData {
       // transitive dependency.  Since okhttp is declared here and moshi is not, this lead to an incompatible version
       "com.squareup.okio:okio:${versions.okio}",
       "com.datadoghq:java-dogstatsd-client:${versions.dogstatsd}",
-      "com.github.jnr:jnr-unixsocket:${versions.jnr_unixsocket}"
-      // TODO: not adding new stuff here because it results in redundant dependencies
-      // moshi, :communication and :utils:container-utils are also part of shared jar
+      "com.github.jnr:jnr-unixsocket:${versions.jnr_unixsocket}",
     ],
 
     // Inverse of "shared".  These exclude directives are part of shadowJar's DSL
