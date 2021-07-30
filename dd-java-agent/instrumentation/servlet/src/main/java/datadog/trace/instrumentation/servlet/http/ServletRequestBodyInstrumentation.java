@@ -10,8 +10,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Events;
+import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.http.StoredByteBody;
 import datadog.trace.api.http.StoredCharBody;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -92,11 +96,20 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
       if (requestContext == null) {
         return;
       }
-      req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
 
       CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+      BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
+          cbp.getCallback(Events.REQUEST_BODY_START);
+      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
+          cbp.getCallback(Events.REQUEST_BODY_DONE);
+      if (requestEndedCb == null && requestEndedCb == null) {
+        return;
+      }
+
+      req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
+
       IGDelegatingStoredBodyListener listener =
-          new IGDelegatingStoredBodyListener(cbp, requestContext);
+          new IGDelegatingStoredBodyListener(requestStartCb, requestEndedCb, requestContext);
 
       int lengthHint = 0;
       String lengthHeader = req.getHeader("content-length");
@@ -149,11 +162,19 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
       if (requestContext == null) {
         return;
       }
+      CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+      BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
+          cbp.getCallback(Events.REQUEST_BODY_START);
+      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
+          cbp.getCallback(Events.REQUEST_BODY_DONE);
+      if (requestEndedCb == null && requestEndedCb == null) {
+        return;
+      }
+
       req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
 
-      CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
       IGDelegatingStoredBodyListener listener =
-          new IGDelegatingStoredBodyListener(cbp, requestContext);
+          new IGDelegatingStoredBodyListener(requestStartCb, requestEndedCb, requestContext);
 
       int lengthHint = 0;
       String lengthHeader = req.getHeader("content-length");

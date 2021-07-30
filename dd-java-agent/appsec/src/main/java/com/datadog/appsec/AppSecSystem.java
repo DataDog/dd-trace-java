@@ -50,7 +50,6 @@ public class AppSecSystem {
             new ReportStrategy.Default(JvmTime.Default.INSTANCE),
             ReportServiceImpl.TaskScheduler.of(taskScheduler));
     GatewayBridge gatewayBridge = new GatewayBridge(gw, eventDispatcher, reportService);
-    gatewayBridge.init();
 
     //  TODO: FleetService should be shared with other components
     FleetService fleetService =
@@ -63,6 +62,7 @@ public class AppSecSystem {
     //    APP_SEC_CONFIG_SERVICE.init();
 
     loadModules(eventDispatcher);
+    gatewayBridge.init();
 
     STARTED.set(true);
   }

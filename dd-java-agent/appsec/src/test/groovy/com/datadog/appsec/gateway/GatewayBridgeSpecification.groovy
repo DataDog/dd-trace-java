@@ -76,7 +76,6 @@ class GatewayBridgeSpecification extends Specification {
     flow.action == Flow.Action.Noop.INSTANCE
   }
 
-
   void 'bridge can collect headers'() {
     when:
     headerCB.accept(ctx, 'header1', 'value 1.1')
@@ -227,6 +226,10 @@ class GatewayBridgeSpecification extends Specification {
   }
 
   void callInitAndCaptureCBs() {
+    // force all callbacks to be registered
+    1 * eventDispatcher.allSubscribedEvents() >> [EventType.REQUEST_BODY_START, EventType.REQUEST_BODY_END]
+    1 * eventDispatcher.allSubscribedDataAddresses() >> []
+
     1 * ig.registerCallback(Events.REQUEST_STARTED, _) >> { requestStartedCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_ENDED, _) >> { requestEndedCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_URI_RAW, _) >> { requestURICB = it[1]; null }

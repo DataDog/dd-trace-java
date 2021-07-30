@@ -8,6 +8,9 @@ import com.datadog.appsec.event.data.MapDataBundle
 import datadog.trace.api.gateway.Flow
 import spock.lang.Specification
 
+import static org.hamcrest.Matchers.containsInAnyOrder
+import static spock.util.matcher.HamcrestSupport.expect
+
 class EventDispatcherSpecification extends Specification {
   EventDispatcher dispatcher = new EventDispatcher()
   AppSecRequestContext ctx = Mock()
@@ -155,5 +158,24 @@ class EventDispatcherSpecification extends Specification {
 
     then:
     subscribers.empty == true
+  }
+
+  void 'saves the subscribed to events and addresses'() {
+    when:
+    EventListener eventListener = Mock()
+    eventListener.priority >> OrderedCallback.Priority.DEFAULT
+    def set = new EventDispatcher.EventSubscriptionSet()
+    set.addSubscription(EventType.REQUEST_END, eventListener)
+
+    DataListener dataListener = Mock()
+    dataListener.priority >> OrderedCallback.Priority.DEFAULT
+    dispatcher.subscribeEvents(set)
+    def addressSet = new EventDispatcher.DataSubscriptionSet()
+    addressSet.addSubscription([KnownAddresses.REQUEST_CLIENT_IP], dataListener)
+    dispatcher.subscribeDataAvailable(addressSet)
+
+    then:
+    expect dispatcher.allSubscribedDataAddresses(), containsInAnyOrder(KnownAddresses.REQUEST_CLIENT_IP)
+    expect dispatcher.allSubscribedEvents(), containsInAnyOrder(EventType.REQUEST_END)
   }
 }
