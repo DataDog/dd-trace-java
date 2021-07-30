@@ -8,6 +8,7 @@ class JUnit4UtilsTest extends AgentTestRunner {
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
+      CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
   }
 
