@@ -85,6 +85,7 @@ include ':dd-smoke-tests:springboot'
 include ':dd-smoke-tests:springboot-grpc'
 include ':dd-smoke-tests:springboot-mongo'
 include ':dd-smoke-tests:springboot-openliberty'
+include ':dd-smoke-tests:vertx-3.9'
 include ':dd-smoke-tests:wildfly'
 
 // instrumentation:
