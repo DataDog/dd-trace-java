@@ -84,7 +84,7 @@ class Event {
   String toString() {
     def str = "${name}/${spanId} (thread: ${threadName})\n"
     if (stackTrace != null) {
-      str += stackTrace.stream()
+      str += Arrays.stream(stackTrace)
         .filter {
           !(it.className.startsWith("org.codehaus.groovy") || it.className.startsWith("groovy")) &&
             !(it.className.startsWith("org.spockframework"))
