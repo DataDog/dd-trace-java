@@ -40,7 +40,8 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
 
   def "#poolImpl '#name' propagates"() {
     setup:
-    CheckpointValidator.excludeValidations(CheckpointValidationMode.SEQUENCE)
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+      CheckpointValidationMode.SEQUENCE)
     def pool = poolImpl
     def m = method
 
@@ -95,7 +96,8 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
 
   def "dispatcher propagates context" () {
     setup:
-    CheckpointValidator.excludeValidations(CheckpointValidationMode.SEQUENCE)
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+      CheckpointValidationMode.SEQUENCE)
     ActorSystem actorSystem = ActorSystem.create("test", ConfigFactory.defaultApplication())
     def dispatcher = actorSystem.dispatchers().defaultGlobalDispatcher()
 
@@ -125,7 +127,7 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
 
   def "#poolImpl '#name' reports after canceled jobs"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
     def pool = poolImpl
     def m = method

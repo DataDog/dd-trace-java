@@ -17,7 +17,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin traced across channels"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -38,7 +38,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin cancellation prevents trace"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -59,7 +59,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin propagates across nested jobs"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -79,7 +79,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin either deferred completion"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -102,7 +102,7 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
 
   def "kotlin first completed deferred"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 

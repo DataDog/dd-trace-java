@@ -84,7 +84,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
   def "test mule client remote request"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -136,7 +136,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
   def "test parallel for each"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 

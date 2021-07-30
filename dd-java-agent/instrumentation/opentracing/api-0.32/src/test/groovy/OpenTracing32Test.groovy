@@ -112,7 +112,7 @@ class OpenTracing32Test extends AgentTestRunner {
 
   def "test ignoreParent"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS)
 
     def otherSpan = runUnderTrace("parent") {
@@ -126,7 +126,7 @@ class OpenTracing32Test extends AgentTestRunner {
 
   def "test startActive"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -153,7 +153,7 @@ class OpenTracing32Test extends AgentTestRunner {
 
   def "test scopemanager"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -202,7 +202,7 @@ class OpenTracing32Test extends AgentTestRunner {
 
   def "test scopemanager with non OTSpan"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -226,7 +226,7 @@ class OpenTracing32Test extends AgentTestRunner {
 
   def "test continuation"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -261,7 +261,7 @@ class OpenTracing32Test extends AgentTestRunner {
 
   def "closing scope when not on top"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS)
 
     when:
@@ -291,7 +291,7 @@ class OpenTracing32Test extends AgentTestRunner {
 
   def "test inject extract"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -329,7 +329,7 @@ class OpenTracing32Test extends AgentTestRunner {
 
   def "tolerate null span activation"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS)
 
     when:

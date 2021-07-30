@@ -56,7 +56,7 @@ class SprayServerTest extends HttpServerTest<SprayHttpTestWebServer> {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS)
   }
 }

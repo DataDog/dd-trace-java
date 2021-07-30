@@ -93,7 +93,7 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test empty repo"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -114,7 +114,7 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test save"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -134,7 +134,7 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test save and retrieve"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -161,7 +161,7 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "test save and update"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -188,7 +188,7 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
   def "save and delete"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 

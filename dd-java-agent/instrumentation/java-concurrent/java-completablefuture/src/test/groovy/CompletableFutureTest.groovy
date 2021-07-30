@@ -106,7 +106,7 @@ class CompletableFutureTest extends AgentTestRunner {
 
   def "test thenApply"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     when:
@@ -148,7 +148,7 @@ class CompletableFutureTest extends AgentTestRunner {
 
   def "test thenApplyAsync"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     when:
@@ -191,7 +191,7 @@ class CompletableFutureTest extends AgentTestRunner {
 
   def "test thenCompose"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     when:
@@ -236,7 +236,7 @@ class CompletableFutureTest extends AgentTestRunner {
 
   def "test thenComposeAsync"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -286,7 +286,7 @@ class CompletableFutureTest extends AgentTestRunner {
 
   def "test compose and apply"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 

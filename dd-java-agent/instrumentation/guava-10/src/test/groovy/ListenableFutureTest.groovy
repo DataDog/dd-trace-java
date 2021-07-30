@@ -41,7 +41,7 @@ class ListenableFutureTest extends AbstractPromiseTest<SettableFuture<Boolean>, 
 
   @Override
   def setup() {
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
   }
 }

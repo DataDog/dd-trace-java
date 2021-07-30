@@ -21,7 +21,7 @@ class VertxRedisClientForkedTest extends VertxRedisTestBase {
 
   def "set and get command"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     when:
@@ -42,7 +42,7 @@ class VertxRedisClientForkedTest extends VertxRedisTestBase {
 
   def "set and get command without parent"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     when:

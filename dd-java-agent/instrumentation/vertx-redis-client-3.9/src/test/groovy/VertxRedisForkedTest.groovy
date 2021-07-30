@@ -12,7 +12,7 @@ class VertxRedisForkedTest extends VertxRedisTestBase {
 
   def "set and get command"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     when:
@@ -34,7 +34,7 @@ class VertxRedisForkedTest extends VertxRedisTestBase {
 
   def "set and get command without parent"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     when:
@@ -66,7 +66,7 @@ class VertxRedisForkedTest extends VertxRedisTestBase {
 
   def "work with reused request"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     def request = Request.cmd(Command.SET).arg("foo").arg("bar")

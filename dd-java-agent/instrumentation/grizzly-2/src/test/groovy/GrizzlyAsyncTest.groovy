@@ -111,7 +111,7 @@ class GrizzlyAsyncTest extends GrizzlyTest {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS)
   }
 }

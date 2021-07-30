@@ -146,7 +146,8 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   def setup() {
     // Vertx + netty instrumentations produce overlapping spans
     // Disable the checkpoint interval validation
-    CheckpointValidator.excludeValidations(CheckpointValidationMode.INTERVALS)
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+      CheckpointValidationMode.INTERVALS)
   }
 }
 

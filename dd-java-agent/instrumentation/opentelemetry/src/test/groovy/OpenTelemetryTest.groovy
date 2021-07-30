@@ -199,7 +199,7 @@ class OpenTelemetryTest extends AgentTestRunner {
 
   def "test closing scope when not on top"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS)
 
     when:
@@ -231,7 +231,7 @@ class OpenTelemetryTest extends AgentTestRunner {
 
   def "test continuation"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS)
 
     def span = tracer.spanBuilder("some name").startSpan()
@@ -266,7 +266,7 @@ class OpenTelemetryTest extends AgentTestRunner {
 
   def "test inject extract"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -308,7 +308,7 @@ class OpenTelemetryTest extends AgentTestRunner {
 
   def "tolerate null span activation"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS)
 
     when:

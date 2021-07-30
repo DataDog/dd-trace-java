@@ -106,7 +106,7 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
 
   def "connect using get on ConnectionFuture"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     RedisClient testConnectionClient = RedisClient.create(embeddedDbUri)
@@ -150,7 +150,7 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
 
   def "connect exception inside the connection future"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     RedisClient testConnectionClient = RedisClient.create(dbUriNonExistent)
@@ -190,7 +190,7 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
 
   def "set command using Future get with timeout"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     RedisFuture<String> redisFuture = asyncCommands.set("TESTSETKEY", "TESTSETVAL")
@@ -220,7 +220,7 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
 
   def "get command chained with thenAccept"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     def conds = new AsyncConditions()
@@ -263,7 +263,7 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
   // recording metrics
   def "get non existent key command with handleAsync and chained with thenApply"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     def conds = new AsyncConditions()
@@ -316,7 +316,7 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
 
   def "command with no arguments using a biconsumer"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     def conds = new AsyncConditions()
@@ -357,7 +357,7 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
 
   def "hash set and then nest apply to hash getall"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     def conds = new AsyncConditions()
@@ -433,7 +433,7 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
 
   def "command completes exceptionally"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     // turn off auto flush to complete the command exceptionally manually
@@ -482,7 +482,7 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
 
   def "cancel command before it finishes"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     asyncCommands.setAutoFlushCommands(false)
@@ -525,7 +525,7 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
 
   def "debug segfault command (returns void) with no argument should produce span"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     asyncCommands.debugSegfault()
@@ -554,7 +554,7 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
 
   def "shutdown command (returns void) should produce a span"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     asyncCommands.shutdown(false)

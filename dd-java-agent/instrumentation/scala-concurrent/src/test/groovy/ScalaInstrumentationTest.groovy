@@ -13,7 +13,7 @@ class ScalaInstrumentationTest extends AgentTestRunner {
 
   def "scala futures and callbacks"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
@@ -32,7 +32,7 @@ class ScalaInstrumentationTest extends AgentTestRunner {
 
   def "scala propagates across futures with no traces"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
@@ -48,7 +48,7 @@ class ScalaInstrumentationTest extends AgentTestRunner {
 
   def "scala either promise completion"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
@@ -67,7 +67,7 @@ class ScalaInstrumentationTest extends AgentTestRunner {
 
   def "scala first completed future"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.SEQUENCE)
 
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()

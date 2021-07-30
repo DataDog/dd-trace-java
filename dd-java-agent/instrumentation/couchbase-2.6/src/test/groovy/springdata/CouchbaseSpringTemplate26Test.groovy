@@ -12,7 +12,7 @@ class CouchbaseSpringTemplate26Test extends CouchbaseSpringTemplateTest {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
   }

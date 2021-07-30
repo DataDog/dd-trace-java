@@ -81,7 +81,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "set command with subscribe on a defined consumer"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -122,7 +122,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "get command with lambda function"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -157,7 +157,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
   // recording metrics
   def "get non existent key command"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -196,7 +196,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "command with no arguments"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -233,7 +233,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "command flux publisher "() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -263,7 +263,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "command cancel after 2 on flux publisher "() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -294,7 +294,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "non reactive command should not produce span"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -310,7 +310,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "debug segfault command (returns mono void) with no argument should produce span"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -339,7 +339,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "shutdown command (returns void) with argument should produce span"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -368,7 +368,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "blocking subscriber"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -428,7 +428,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "async subscriber"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -490,7 +490,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "async subscriber with specific thread pool"() {
     setup:
-    CheckpointValidator.excludeValidations(
+    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
