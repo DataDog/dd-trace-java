@@ -58,13 +58,11 @@ class CheckpointValidator {
       def suspendResumeValidator = new SuspendResumeValidator()
       def threadSequenceValidator = new ThreadSequenceValidator()
       for (def event : events) {
-        if (!excludedValidations.contains(CheckpointValidationMode.SEQUENCE)) {
-          if (!suspendResumeValidator.onEvent(event)) {
-            invalidEvents.add([event, CheckpointValidationMode.SEQUENCE])
-          }
-          if (!threadSequenceValidator.onEvent(event)) {
-            invalidEvents.add([event, CheckpointValidationMode.SEQUENCE])
-          }
+        if (!suspendResumeValidator.onEvent(event)) {
+          invalidEvents.add([event, CheckpointValidationMode.SEQUENCE])
+        }
+        if (!threadSequenceValidator.onEvent(event)) {
+          invalidEvents.add([event, CheckpointValidationMode.SEQUENCE])
         }
       }
       // run end-sequence validations
