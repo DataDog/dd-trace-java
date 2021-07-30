@@ -21,8 +21,8 @@ class CheckpointValidator {
    * integration is broken for Tracing Context (Code Hotspots). If you are unsure, reach out
    * to the profiling team.
    */
-  static void excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode... modes) {
-    excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(EnumSet.of(modes))
+  static void excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode mode0, CheckpointValidationMode... modes) {
+    excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(EnumSet.of(mode0, modes))
   }
 
   static Set<CheckpointValidationMode> getExcludedValidations() {
