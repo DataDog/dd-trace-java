@@ -100,6 +100,6 @@ class IntervalValidatorTest extends Specification {
     expect:
     tracker.startSpan(1)
     tracker.suspendSpan(1)
-    !tracker.endSequence()
+    tracker.endSequence()
   }
 }
