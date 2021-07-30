@@ -29,7 +29,7 @@ class CheckpointValidator {
   }
 
   static Set<CheckpointValidationMode> getExcludedValidations() {
-    return excludedValidations.clone();
+    return excludedValidations.clone()
   }
 
   static void clear() {

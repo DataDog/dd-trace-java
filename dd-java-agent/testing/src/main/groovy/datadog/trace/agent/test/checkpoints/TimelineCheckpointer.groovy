@@ -55,16 +55,17 @@ class TimelineCheckpointer implements Checkpointer {
     passed.removeAll(failed)
 
     System.err.println(
-        "Checkpoint validator is running with the following checks enabled: ${includedValidations}\n" +
-        "\tFailed: ${failed}\n" +
-        "\tPassed & Excluded: ${passed}\n")
+      "Checkpoint validator is running with the following checks enabled: ${includedValidations}\n" +
+      "\tFailed: ${failed}\n" +
+      "\tPassed & Excluded: ${passed}\n")
     if (!failed.empty) {
       throw new RuntimeException(
-          "Failed validations: " +
-          failed.stream()
-              .map { it.toString() }
-              .sorted()
-              .collect(Collectors.joining(", ")))
+      "Failed validations: " +
+      failed.stream()
+      .map {
+        it.toString() }
+      .sorted()
+      .collect(Collectors.joining(", ")))
     }
   }
 

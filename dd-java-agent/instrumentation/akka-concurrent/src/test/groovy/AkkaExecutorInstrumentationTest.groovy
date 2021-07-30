@@ -126,7 +126,7 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
   def "#poolImpl '#name' reports after canceled jobs"() {
     setup:
     CheckpointValidator.excludeValidations(
-        CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SEQUENCE)
     def pool = poolImpl
     def m = method
     List<AkkaAsyncChild> children = new ArrayList<>()

@@ -115,8 +115,8 @@ class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentati
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-        CheckpointValidationMode.INTERVALS,
-        CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -134,8 +134,8 @@ class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstr
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-        CheckpointValidationMode.INTERVALS,
-        CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -153,8 +153,8 @@ class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest e
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-        CheckpointValidationMode.INTERVALS,
-        CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -167,7 +167,7 @@ class AkkaHttpServerInstrumentationAsyncHttp2Test extends AkkaHttpServerInstrume
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-        CheckpointValidationMode.INTERVALS,
-        CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
   }
 }

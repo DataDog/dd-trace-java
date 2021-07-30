@@ -124,8 +124,8 @@ class AkkaHttpJavaClientInstrumentationTest extends AkkaHttpClientInstrumentatio
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-        CheckpointValidationMode.INTERVALS,
-        CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
   }
 }
 
@@ -146,7 +146,7 @@ class AkkaHttpScalaClientInstrumentationTest extends AkkaHttpClientInstrumentati
   @Override
   def setup() {
     CheckpointValidator.excludeValidations(
-        CheckpointValidationMode.INTERVALS,
-        CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
   }
 }
