@@ -197,10 +197,7 @@ class MuzzlePlugin implements Plugin<Project> {
       project.getLogger().info('--' + f)
       ddUrls.add(f.toURI().toURL())
     }
-    def cl = new URLClassLoader(ddUrls.toArray(new URL[0]), getOrCreateToolingLoader(toolingProject))
-    def insClass = cl.loadClass("datadog.trace.agent.tooling.Instrumenter")
-    assert ServiceLoader.load(insClass, cl).iterator().hasNext()
-    return cl
+    return new URLClassLoader(ddUrls.toArray(new URL[0]), getOrCreateToolingLoader(toolingProject))
   }
 
   /**
@@ -357,7 +354,7 @@ class MuzzlePlugin implements Plugin<Project> {
       dep.exclude group: 'com.sun.jdmk', module: 'jmxtools'
       dep.exclude group: 'com.sun.jmx', module: 'jmxri'
       // Also exclude specifically excluded dependencies
-      for (String excluded: muzzleDirective.excludedDependencies) {
+      for (String excluded : muzzleDirective.excludedDependencies) {
         String[] parts = excluded.split(':')
         dep.exclude group: parts[0], module: parts[1]
       }
