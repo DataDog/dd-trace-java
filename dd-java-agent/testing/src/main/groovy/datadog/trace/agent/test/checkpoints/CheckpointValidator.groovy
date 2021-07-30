@@ -64,7 +64,7 @@ class CheckpointValidator {
       }
       if (!excludedValidations.contains(CheckpointValidationMode.THREAD_SEQUENCE)) {
         if (!threadSequenceValidator.onEvent(event)) {
-          invalidEvents.add([event, CheckpointValidationMode.THREAD_SANITY])
+          invalidEvents.add([event, CheckpointValidationMode.THREAD_SEQUENCE])
         }
       }
     }

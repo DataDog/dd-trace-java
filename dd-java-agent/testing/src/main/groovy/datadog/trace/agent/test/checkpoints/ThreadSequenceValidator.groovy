@@ -95,88 +95,101 @@ class ThreadSequenceValidator implements EventReceiver {
           if (spanState == SpanState.INIT) {
             newSpanState = SpanState.STARTED
           } else {
-            // do not replace for Spock wildcards
-            if (spanState instanceof SpanState) {
-              newSpanState = SpanState.INVALID
-            }
+            newSpanState = toInvalid(spanState)
           }
           if (taskState == TaskState.INIT || taskState == TaskState.INACTIVE) {
             newTaskState = TaskState.ACTIVE
           } else {
-            // do not replace for Spock wildcards
-            if (taskState instanceof TaskState) {
-              newTaskState = TaskState.INVALID
-            }
+            newTaskState = toInvalid(taskState)
           }
           break
         case Signal.END_SPAN:
           if (spanState == SpanState.STARTED || spanState == SpanState.RESUMED || spanState == SpanState.SUSPENDED) {
             newSpanState = SpanState.ENDED
           } else {
-            // do not replace for Spock wildcards
-            if (spanState instanceof SpanState) {
-              newSpanState = SpanState.INVALID
-            }
+            newSpanState = toInvalid(spanState)
           }
           break
         case Signal.START_TASK:
           if (taskState == TaskState.INIT || taskState == TaskState.INACTIVE) {
             newTaskState = TaskState.ACTIVE
           } else {
-            // do not replace for Spock wildcards
-            if (taskState instanceof TaskState) {
-              newTaskState = TaskState.INVALID
-            }
+            newTaskState = toInvalid(taskState)
           }
           break
         case Signal.END_TASK:
-          if (taskState == TaskState.ACTIVE || taskState == TaskState.INACTIVE) {
-            newTaskState = TaskState.FINISHED
+          if (spanState == SpanState.INIT) {
+            newSpanState = toInvalid(spanState)
           } else {
-            // do not replace for Spock wildcards
-            if (taskState instanceof TaskState) {
-              newTaskState = TaskState.INVALID
+            if (taskState == TaskState.ACTIVE || taskState == TaskState.INACTIVE || taskState == TaskState.FINISHED) {
+              newTaskState = TaskState.FINISHED
+            } else {
+              newTaskState = toInvalid(taskState)
             }
           }
           break
         case Signal.SUSPEND_SPAN:
-          if (spanState == SpanState.STARTED || spanState == SpanState.RESUMED || spanState == SpanState.SUSPENDED) {
+          switch (spanState) {
+            case SpanState.STARTED:
+            case SpanState.RESUMED:
+            case SpanState.SUSPENDED:
             newSpanState = SpanState.SUSPENDED
-          } else {
-            // do not replace for Spock wildcards
-            if (spanState instanceof SpanState) {
-              newSpanState = SpanState.INVALID
+            if (taskState == TaskState.ACTIVE || taskState == TaskState.INACTIVE || taskState == TaskState.FINISHED) {
+              newTaskState = TaskState.INACTIVE
+            } else {
+              newSpanState = toInvalid(spanState)
             }
-          }
-          if (taskState == TaskState.ACTIVE || taskState == TaskState.INACTIVE || taskState == TaskState.FINISHED) {
-            newTaskState = TaskState.INACTIVE
-          } else {
-            // do not replace for Spock wildcards
-            if (taskState instanceof TaskState) {
-              newTaskState = TaskState.INVALID
+            break
+            case SpanState.ENDED:
+            if (taskState == TaskState.ACTIVE || taskState == TaskState.INACTIVE) {
+              newSpanState = SpanState.SUSPENDED
+              newTaskState = TaskState.INACTIVE
+            } else {
+              newSpanState = toInvalid(spanState)
             }
+            break
+            default:
+            newSpanState = toInvalid(spanState)
           }
           break
         case Signal.RESUME_SPAN:
-          if (spanState == SpanState.INIT || spanState == SpanState.SUSPENDED) {
-            newSpanState = SpanState.RESUMED
-          } else {
-            // do not replace for Spock wildcards
-            if (spanState instanceof SpanState) {
-              newSpanState = SpanState.INVALID
+          switch (spanState) {
+            case SpanState.INIT:
+            case SpanState.SUSPENDED:
+            if (taskState == TaskState.INIT || taskState == TaskState.INACTIVE || taskState == TaskState.FINISHED) {
+              newSpanState = SpanState.RESUMED
+              newTaskState = TaskState.ACTIVE
+            } else {
+              newSpanState = toInvalid(spanState)
             }
-          }
-          if (taskState == TaskState.INIT || taskState == TaskState.INACTIVE || taskState == TaskState.FINISHED) {
-            newTaskState = TaskState.ACTIVE
-          } else {
-            // do not replace for Spock wildcards
-            if (taskState instanceof TaskState) {
-              newTaskState = TaskState.INVALID
+            break
+            case SpanState.RESUMED:
+            if (taskState == TaskState.FINISHED) {
+              newSpanState = SpanState.RESUMED
+              newTaskState = TaskState.ACTIVE
+            } else {
+              newSpanState = toInvalid(spanState)
             }
+            break
+            default:
+            newSpanState = toInvalid(spanState)
           }
           break
       }
       return [newSpanState, newTaskState]
+    }
+
+    private static toInvalid(def state) {
+      if (state instanceof SpanState || state instanceof TaskState) {
+        if (state instanceof SpanState) {
+          return SpanState.INVALID
+        }
+        if (state instanceof TaskState) {
+          return TaskState.INVALID
+        }
+      }
+      // do not replace for Spock wildcards
+      return state
     }
 
     @Override
