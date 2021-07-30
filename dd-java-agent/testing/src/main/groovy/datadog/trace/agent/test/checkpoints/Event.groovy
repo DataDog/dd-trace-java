@@ -1,7 +1,5 @@
 package datadog.trace.agent.test.checkpoints
 
-import java.util.stream.Collectors
-
 import static datadog.trace.api.Checkpointer.*
 import datadog.trace.api.DDId
 
