@@ -5,8 +5,11 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.notExcludedByName;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -15,8 +18,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
@@ -76,20 +77,21 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Tracing
   public static final class Exec {
     @Advice.OnMethodEnter
     public static <T> TraceScope before(@Advice.This ForkJoinTask<T> task) {
-      return AdviceUtils.startTaskScope(
-          InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+      return exclude(FORK_JOIN_TASK, task)
+          ? null
+          : startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter TraceScope scope) {
-      AdviceUtils.endTaskScope(scope);
+      endTaskScope(scope);
     }
   }
 
   public static final class Fork {
     @Advice.OnMethodEnter
     public static <T> void fork(@Advice.This ForkJoinTask<T> task) {
-      if (!ExcludeFilter.exclude(FORK_JOIN_TASK, task)) {
+      if (!exclude(FORK_JOIN_TASK, task)) {
         capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
       }
     }
