@@ -34,7 +34,7 @@ class Event {
     if (idx > -1) {
       stackTrace = Arrays.copyOfRange(strace, idx, strace.length - 1)
     } else {
-      stackTrace = []
+      stackTrace = new StackTraceElement[0]
     }
   }
 
