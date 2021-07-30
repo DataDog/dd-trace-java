@@ -15,7 +15,7 @@ class TestFanout extends AgentTestRunner {
 
   def "test propagate with fanout"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     when:
@@ -56,7 +56,7 @@ class TestFanout extends AgentTestRunner {
 
   def "test completablefuture fanout checkpoints"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     when:
@@ -86,7 +86,7 @@ class TestFanout extends AgentTestRunner {
 
   def "test completablefuture two level fanout checkpoints"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     when:

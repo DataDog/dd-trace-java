@@ -69,7 +69,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test create collection"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -91,7 +91,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test create collection no description"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -113,7 +113,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test get collection"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -137,7 +137,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test insert"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -166,7 +166,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test update"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -201,7 +201,7 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
 
   def "test delete"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 

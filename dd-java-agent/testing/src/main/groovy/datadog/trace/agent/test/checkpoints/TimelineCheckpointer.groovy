@@ -5,7 +5,6 @@ import datadog.trace.api.DDId
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.stream.Collectors
 
 class TimelineCheckpointer implements Checkpointer {
 

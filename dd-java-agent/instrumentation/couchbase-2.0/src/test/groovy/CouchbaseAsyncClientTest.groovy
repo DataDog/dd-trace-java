@@ -25,7 +25,7 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test hasBucket #type"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -65,7 +65,7 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test upsert #type"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -105,7 +105,7 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test upsert and get #type"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -156,7 +156,7 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test query"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 

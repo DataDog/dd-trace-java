@@ -18,7 +18,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "map"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -40,7 +40,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "map predicate"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -62,7 +62,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "map async"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -92,7 +92,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "multimap"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -115,7 +115,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "queue"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -140,7 +140,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "topic"() {
     given:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -175,7 +175,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "reliable topic"() {
     given:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -206,7 +206,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "set"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -228,7 +228,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "set double value"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -250,7 +250,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "list"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -272,7 +272,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "list error"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -312,7 +312,7 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "lock"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 

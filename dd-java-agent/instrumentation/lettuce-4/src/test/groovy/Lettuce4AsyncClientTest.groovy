@@ -102,7 +102,7 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "connect using get on ConnectionFuture"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -143,7 +143,7 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "connect exception inside the connection future"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -183,7 +183,7 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "set command using Future get with timeout"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -214,7 +214,7 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "get command chained with thenAccept"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -258,7 +258,7 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
   // recording metrics
   def "get non existent key command with handleAsync and chained with thenApply"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -312,7 +312,7 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "command with no arguments using a biconsumer"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -354,7 +354,7 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "hash set and then nest apply to hash getall"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -431,7 +431,7 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "command completes exceptionally"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -481,7 +481,7 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "cancel command before it finishes"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -525,7 +525,7 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "debug segfault command (returns void) with no argument should produce span"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -555,7 +555,7 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
 
   def "shutdown command (returns void) should produce a span"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 

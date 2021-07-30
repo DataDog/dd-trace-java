@@ -12,7 +12,7 @@ class CheckpointValidator {
    * By default all validation modes defined by {@linkplain CheckpointValidationMode} are enabled.
    * @param modes validation modes
    */
-  static void DONOTUSE_excludeValidations_DONOTUSE(Set<CheckpointValidationMode> modes) {
+  static void excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(Set<CheckpointValidationMode> modes) {
     excludedValidations.addAll(modes)
   }
 
@@ -21,8 +21,8 @@ class CheckpointValidator {
    * integration is broken for Tracing Context (Code Hotspots). If you are unsure, reach out
    * to the profiling team.
    */
-  static void DONOTUSE_excludeValidations_DONOTUSE(CheckpointValidationMode... modes) {
-    DONOTUSE_excludeValidations_DONOTUSE(EnumSet.of(modes))
+  static void excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode... modes) {
+    excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(EnumSet.of(modes))
   }
 
   static Set<CheckpointValidationMode> getExcludedValidations() {

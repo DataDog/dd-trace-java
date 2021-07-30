@@ -38,7 +38,7 @@ class ScalaExecutorInstrumentationTest extends AgentTestRunner {
 
   def "#poolImpl '#name' propagates"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     def pool = poolImpl
@@ -88,7 +88,7 @@ class ScalaExecutorInstrumentationTest extends AgentTestRunner {
 
   def "#poolImpl '#name' reports after canceled jobs"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     def pool = poolImpl

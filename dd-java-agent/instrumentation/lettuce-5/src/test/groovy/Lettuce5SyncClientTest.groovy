@@ -87,7 +87,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "connect"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     RedisClient testConnectionClient = RedisClient.create(embeddedDbUri)
@@ -125,7 +125,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "connect exception"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     RedisClient testConnectionClient = RedisClient.create(dbUriNonExistent)
@@ -162,7 +162,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "set command"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     String res = syncCommands.set("TESTSETKEY", "TESTSETVAL")
@@ -191,7 +191,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "get command"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     String res = syncCommands.get("TESTKEY")
@@ -220,7 +220,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "get non existent key command"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     String res = syncCommands.get("NON_EXISTENT_KEY")
@@ -249,7 +249,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "command with no arguments"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     def keyRetrieved = syncCommands.randomkey()
@@ -278,7 +278,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "list command"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     long res = syncCommands.lpush("TESTLIST", "TESTLIST ELEMENT")
@@ -307,7 +307,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "hash set command"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     def res = syncCommands.hmset("user", testHashMap)
@@ -336,7 +336,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "hash getall command"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     Map<String, String> res = syncCommands.hgetall("TESTHM")
@@ -365,7 +365,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "debug segfault command (returns void) with no argument should produce span"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     syncCommands.debugSegfault()
@@ -393,7 +393,7 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "shutdown command (returns void) should produce a span"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     syncCommands.shutdown(false)

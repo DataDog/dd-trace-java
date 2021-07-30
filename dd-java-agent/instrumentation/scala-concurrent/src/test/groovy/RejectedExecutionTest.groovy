@@ -17,7 +17,7 @@ class RejectedExecutionTest extends AgentTestRunner {
     // provoked (most of the time) by submitting a lot of tasks very
     // quickly
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     ForkJoinPool fjp = new ForkJoinPool()

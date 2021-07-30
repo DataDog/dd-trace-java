@@ -16,7 +16,7 @@ class AkkaActorTest extends AgentTestRunner {
 
   def "akka actor send #name #iterations"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
     def barrier = akkaTester.block(name)
 
@@ -66,7 +66,7 @@ class AkkaActorTest extends AgentTestRunner {
 
   def "actor message handling should close leaked scopes"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     when:
@@ -98,7 +98,7 @@ class AkkaActorTest extends AgentTestRunner {
 
   def "test checkpoints emitted #name x #n"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
     def barrier = akkaTester.block(name)
     when:

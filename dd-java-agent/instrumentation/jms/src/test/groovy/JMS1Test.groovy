@@ -57,7 +57,7 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a message to #jmsResourceName generates spans"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     def producer = session.createProducer(destination)
@@ -90,7 +90,7 @@ class JMS1Test extends AgentTestRunner {
 
   def "receiving a message from #jmsResourceName in a transacted session"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -125,7 +125,7 @@ class JMS1Test extends AgentTestRunner {
 
   def "receiving a message from #jmsResourceName with manual acknowledgement"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -160,7 +160,7 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending to a MessageListener on #jmsResourceName generates a span"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -201,7 +201,7 @@ class JMS1Test extends AgentTestRunner {
 
   def "failing to receive message with receiveNoWait on #jmsResourceName works"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -227,7 +227,7 @@ class JMS1Test extends AgentTestRunner {
 
   def "failing to receive message with wait(timeout) on #jmsResourceName works"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -253,7 +253,7 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a read-only message to #jmsResourceName fails"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -314,7 +314,7 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a message with disabled timestamp generates spans without specific tag"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -343,7 +343,7 @@ class JMS1Test extends AgentTestRunner {
 
   def "traceable work between two receive calls has jms.consume parent"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -384,7 +384,7 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on producer side"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -437,7 +437,7 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on consumer side"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 

@@ -76,7 +76,7 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     def result = client.admin().cluster().health(new ClusterHealthRequest())
@@ -111,7 +111,7 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
 
   def "test elasticsearch error"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     when:
@@ -151,7 +151,7 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
 
   def "test elasticsearch get"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.SEQUENCE)
 
     assert TEST_WRITER == []

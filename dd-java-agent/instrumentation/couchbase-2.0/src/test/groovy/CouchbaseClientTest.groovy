@@ -19,7 +19,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 class CouchbaseClientTest extends AbstractCouchbaseTest {
   def "test hasBucket #type"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -53,7 +53,7 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
 
   def "test upsert and get #type"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 
@@ -101,7 +101,7 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
 
   def "test query"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
 

@@ -361,7 +361,7 @@ class TomcatServlet3TestAsync extends TomcatServlet3Test {
 
   @Override
   def setup() {
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
   }
@@ -500,7 +500,7 @@ class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
 
   @Override
   def setup() {
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
   }

@@ -40,7 +40,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Basic GET test #testName"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS)
 
     String url = "http://localhost:$port$urlPath"
@@ -118,7 +118,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "GET test with async response #testName"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS)
 
     String url = "http://localhost:$port$urlPath"
@@ -227,7 +227,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Create span during handler function"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS)
 
     String url = "http://localhost:$port$urlPath"
@@ -274,7 +274,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "404 GET test"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS)
 
     String url = "http://localhost:$port/notfoundgreet"
@@ -324,7 +324,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Basic POST test"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS)
 
     String echoString = "TEST"
@@ -388,7 +388,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "GET to bad endpoint #testName"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS)
 
     String url = "http://localhost:$port$urlPath"
@@ -465,7 +465,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Redirect test"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS)
 
     String url = "http://localhost:$port/double-greet-redirect"
@@ -554,7 +554,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Multiple GETs to delaying route #testName"() {
     setup:
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS)
 
     def requestsCount = 50 // Should be more than 2x CPUs to fish out some bugs

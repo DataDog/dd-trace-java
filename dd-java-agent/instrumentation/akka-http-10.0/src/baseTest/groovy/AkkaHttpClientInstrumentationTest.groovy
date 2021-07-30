@@ -123,7 +123,7 @@ class AkkaHttpJavaClientInstrumentationTest extends AkkaHttpClientInstrumentatio
 
   @Override
   def setup() {
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
   }
@@ -145,7 +145,7 @@ class AkkaHttpScalaClientInstrumentationTest extends AkkaHttpClientInstrumentati
 
   @Override
   def setup() {
-    CheckpointValidator.DONOTUSE_excludeValidations_DONOTUSE(
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.SEQUENCE)
   }
