@@ -58,7 +58,7 @@ class ThreadSequenceValidatorTest extends Specification {
   def "double resume"() {
     expect:
     tracker.resumeSpan()
-    !tracker.resumeSpan()
+    tracker.resumeSpan()
   }
 
   def "check expected transitions"() {
@@ -106,8 +106,8 @@ class ThreadSequenceValidatorTest extends Specification {
     Signal.RESUME_SPAN  | SpanState.SUSPENDED   | TaskState.ACTIVE      || SpanState.INVALID    | TaskState.ACTIVE
     Signal.RESUME_SPAN  | SpanState.SUSPENDED   | TaskState.FINISHED    || SpanState.RESUMED    | TaskState.ACTIVE
     Signal.RESUME_SPAN  | SpanState.RESUMED     | TaskState.FINISHED    || SpanState.RESUMED    | TaskState.ACTIVE
+    Signal.RESUME_SPAN  | SpanState.RESUMED     | TaskState.ACTIVE      || SpanState.RESUMED    | TaskState.ACTIVE
     Signal.RESUME_SPAN  | SpanState.RESUMED     | TaskState.INIT        || SpanState.INVALID    | TaskState.INIT
-    Signal.RESUME_SPAN  | SpanState.RESUMED     | TaskState.ACTIVE      || SpanState.INVALID    | TaskState.ACTIVE
     Signal.RESUME_SPAN  | SpanState.RESUMED     | TaskState.INACTIVE    || SpanState.INVALID    | TaskState.INACTIVE
     Signal.RESUME_SPAN  | SpanState.RESUMED     | TaskState.FINISHED    || SpanState.RESUMED    | TaskState.ACTIVE
     Signal.RESUME_SPAN  | SpanState.STARTED     | _                     || SpanState.INVALID    | _
