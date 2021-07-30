@@ -60,6 +60,9 @@ class CassandraClientTest extends AgentTestRunner {
 
   def "test sync"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SEQUENCE)
+
     Session session = cluster.connect(keyspace)
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
 
@@ -93,7 +96,8 @@ class CassandraClientTest extends AgentTestRunner {
   def "test async"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
 
     def callbackExecuted = new CountDownLatch(1)
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")

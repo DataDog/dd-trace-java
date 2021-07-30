@@ -67,6 +67,9 @@ class CassandraClientTest extends AgentTestRunner {
 
   def "test sync"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SEQUENCE)
+
     Session session = sessionBuilder().withKeyspace((String) keyspace).build()
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
 
@@ -93,6 +96,9 @@ class CassandraClientTest extends AgentTestRunner {
 
   def "test sync with error"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SEQUENCE)
+
     def statement = "ILLEGAL STATEMENT"
     Session session = sessionBuilder().withKeyspace((String) keyspace).build()
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
@@ -122,7 +128,8 @@ class CassandraClientTest extends AgentTestRunner {
   def "test async"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SEQUENCE)
 
     CqlSession session = sessionBuilder().withKeyspace((String) keyspace).build()
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
