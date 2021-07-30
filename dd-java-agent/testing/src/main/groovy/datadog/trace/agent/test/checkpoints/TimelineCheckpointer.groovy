@@ -38,11 +38,14 @@ class TimelineCheckpointer implements Checkpointer {
     TimelineExporter.export(orderedEvents)
     System.err.println("")
 
+    // The set of excluded validations
+    def excludedValidations = CheckpointValidator.excludedValidations
+
     // The set of included validations
     def includedValidations = EnumSet.allOf(CheckpointValidationMode)
     // if `FORCE_VALIDATE_CHECKPOINTS` is defined, make sure we do not exclude any validation
     if (!Boolean.parseBoolean(System.getenv("FORCE_VALIDATE_CHECKPOINTS"))) {
-      includedValidations.removeAll(CheckpointValidator.excludedValidations)
+      includedValidations.removeAll(excludedValidations)
     }
 
     // The set of included validations that failed
@@ -51,11 +54,11 @@ class TimelineCheckpointer implements Checkpointer {
 
     // The set of included validations that passed despite being exluded
     def passed = includedValidations.clone()
-    passed.removeAll(CheckpointValidator.excludedValidations)
+    passed.removeAll(excludedValidations)
     passed.removeAll(failed)
 
     System.err.println(
-      "Checkpoint validator is running with the following checks disabled: ${CheckpointValidator.excludedValidations}, and enabled: ${includedValidations}\n" +
+      "Checkpoint validator is running with the following checks disabled: ${excludedValidations}, and enabled: ${includedValidations}\n" +
       "\tFailed: ${failed}\n" +
       "\tExcluded & Passed: ${passed}\n")
     if (!failed.empty) {
