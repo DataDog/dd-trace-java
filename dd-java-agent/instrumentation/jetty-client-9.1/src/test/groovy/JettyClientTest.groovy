@@ -10,6 +10,7 @@ import spock.lang.Shared
 import spock.lang.Subject
 
 class JettyClientTest extends HttpClientTest {
+
   @Shared
   @Subject
   HttpClient client = new HttpClient(new SslContextFactory(true))

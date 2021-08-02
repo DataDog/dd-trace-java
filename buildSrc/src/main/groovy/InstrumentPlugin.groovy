@@ -61,6 +61,7 @@ class InstrumentPlugin implements Plugin<Project> {
 
           // insert task between compile and jar, and before test*
           byteBuddyTask.dependsOn(compileTask)
+          compileTask.finalizedBy(byteBuddyTask)
           project.tasks.findByName('jar')?.dependsOn(byteBuddyTask)
           project.tasks.withType(Test).configureEach {
             dependsOn(byteBuddyTask)
@@ -100,8 +101,7 @@ class InstrumentLoader implements net.bytebuddy.build.Plugin {
   @Override
   DynamicType.Builder<?> apply(DynamicType.Builder<?> builder,
                                TypeDescription typeDescription,
-                               ClassFileLocator classFileLocator)
-  {
+                               ClassFileLocator classFileLocator) {
     for (net.bytebuddy.build.Plugin plugin : plugins()) {
       if (plugin.matches(typeDescription)) {
         builder = plugin.apply(builder, typeDescription, classFileLocator)

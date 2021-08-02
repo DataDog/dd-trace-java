@@ -85,6 +85,8 @@ class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "status.code" "OK"
+            "request.type" "example.Helloworld\$Request"
+            "response.type" "example.Helloworld\$Response"
             defaultTags()
           }
         }
@@ -133,9 +135,9 @@ class GrpcTest extends AgentTestRunner {
     }
     5 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
     5 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
-    (minContexts..contexts) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    (minContexts..contexts) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    (minContexts..contexts) * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
 
@@ -147,19 +149,19 @@ class GrpcTest extends AgentTestRunner {
     }
 
     where:
-    name              | executor                            | contexts | extraBuildCalls | minContexts
-    "some name"       | MoreExecutors.directExecutor()      | 1        | 0               | 1
-    "some other name" | MoreExecutors.directExecutor()      | 1        | 0               | 1
-    "some name"       | newWorkStealingPool()               | 3        | 0               | 1
-    "some other name" | newWorkStealingPool()               | 3        | 0               | 1
-    "some name"       | Executors.newSingleThreadExecutor() | 3        | 0               | 3
-    "some other name" | Executors.newSingleThreadExecutor() | 3        | 0               | 3
-    "some name"       | MoreExecutors.directExecutor()      | 1        | 1               | 1
-    "some other name" | MoreExecutors.directExecutor()      | 1        | 1               | 1
-    "some name"       | newWorkStealingPool()               | 3        | 1               | 1
-    "some other name" | newWorkStealingPool()               | 3        | 1               | 1
-    "some name"       | Executors.newSingleThreadExecutor() | 3        | 1               | 3
-    "some other name" | Executors.newSingleThreadExecutor() | 3        | 1               | 3
+    name              | executor                            | extraBuildCalls
+    "some name"       | MoreExecutors.directExecutor()      | 0
+    "some other name" | MoreExecutors.directExecutor()      | 0
+    "some name"       | newWorkStealingPool()               | 0
+    "some other name" | newWorkStealingPool()               | 0
+    "some name"       | Executors.newSingleThreadExecutor() | 0
+    "some other name" | Executors.newSingleThreadExecutor() | 0
+    "some name"       | MoreExecutors.directExecutor()      | 1
+    "some other name" | MoreExecutors.directExecutor()      | 1
+    "some name"       | newWorkStealingPool()               | 1
+    "some other name" | newWorkStealingPool()               | 1
+    "some name"       | Executors.newSingleThreadExecutor() | 1
+    "some other name" | Executors.newSingleThreadExecutor() | 1
   }
 
   def "test error - #name"() {
@@ -198,6 +200,8 @@ class GrpcTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "status.code" "${status.code.name()}"
             "status.description" description
+            "request.type" "example.Helloworld\$Request"
+            "response.type" "example.Helloworld\$Response"
             defaultTags()
           }
         }
@@ -290,6 +294,8 @@ class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "status.code" "UNKNOWN"
+            "request.type" "example.Helloworld\$Request"
+            "response.type" "example.Helloworld\$Response"
             defaultTags()
           }
         }

@@ -15,6 +15,7 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.ShutdownSignalException;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -35,10 +36,12 @@ public class TracedDelegatingConsumer implements Consumer {
   private final String queue;
   private final Consumer delegate;
   private final boolean traceStartTimeEnabled;
+  private final boolean propagate;
 
   public TracedDelegatingConsumer(
       final String queue, final Consumer delegate, boolean traceStartTimeEnabled) {
     this.queue = queue;
+    this.propagate = !Config.get().getRabbitPropagationDisabledQueues().contains(queue);
     this.delegate = delegate;
     this.traceStartTimeEnabled = traceStartTimeEnabled;
   }
@@ -79,12 +82,17 @@ public class TracedDelegatingConsumer implements Consumer {
     try {
       final Map<String, Object> headers = properties.getHeaders();
       final Context context =
-          headers == null ? null : propagate().extract(headers, ContextVisitors.objectValuesMap());
+          (headers == null || !propagate)
+              ? null
+              : propagate().extract(headers, ContextVisitors.objectValuesMap());
 
+      // TODO: check dynamically bound queues -
+      // https://github.com/DataDog/dd-trace-java/pull/2955#discussion_r677787875
       final AgentSpan span =
           startSpan(AMQP_COMMAND, context)
               .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
               .setMeasured(true);
+
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
       final long spanStartTime = NANOSECONDS.toMillis(span.getStartTime());

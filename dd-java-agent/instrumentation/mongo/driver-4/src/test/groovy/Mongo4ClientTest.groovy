@@ -34,7 +34,6 @@ class Mongo4ClientTest extends MongoBaseTest {
 
   def "test create collection"() {
     setup:
-    long callerId = Thread.currentThread().id
     MongoDatabase db = client.getDatabase(databaseName)
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
 
@@ -49,8 +48,8 @@ class Mongo4ClientTest extends MongoBaseTest {
       }
     }
     and: "synchronous checkpoints span the driver activity"
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN) >> { Thread.currentThread().id == callerId }
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END) >> { Thread.currentThread().id == callerId }
+    1 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    1 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
 
@@ -79,7 +78,6 @@ class Mongo4ClientTest extends MongoBaseTest {
 
   def "test get collection"() {
     setup:
-    long callerId = Thread.currentThread().id
     MongoDatabase db = client.getDatabase(databaseName)
 
     when:
@@ -93,8 +91,8 @@ class Mongo4ClientTest extends MongoBaseTest {
       }
     }
     and: "synchronous checkpoints span the driver activity"
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN) >> { Thread.currentThread().id == callerId }
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END) >> { Thread.currentThread().id == callerId }
+    1 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    1 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
 
@@ -104,7 +102,6 @@ class Mongo4ClientTest extends MongoBaseTest {
 
   def "test insert"() {
     setup:
-    long callerId = Thread.currentThread().id
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(databaseName)
       db.createCollection(collectionName)
@@ -129,8 +126,8 @@ class Mongo4ClientTest extends MongoBaseTest {
       }
     }
     and: "syncronous checkpoints span the driver activity"
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN) >> { Thread.currentThread().id == callerId }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END) >> { Thread.currentThread().id == callerId }
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
 
@@ -140,7 +137,6 @@ class Mongo4ClientTest extends MongoBaseTest {
 
   def "test update"() {
     setup:
-    long callerId = Thread.currentThread().id
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(databaseName)
       db.createCollection(collectionName)
@@ -170,8 +166,8 @@ class Mongo4ClientTest extends MongoBaseTest {
       }
     }
     and: "syncronous checkpoints span the driver activity"
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN) >> { Thread.currentThread().id == callerId }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END) >> { Thread.currentThread().id == callerId }
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
 
@@ -181,7 +177,6 @@ class Mongo4ClientTest extends MongoBaseTest {
 
   def "test delete"() {
     setup:
-    long callerId = Thread.currentThread().id
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(databaseName)
       db.createCollection(collectionName)
@@ -209,8 +204,8 @@ class Mongo4ClientTest extends MongoBaseTest {
       }
     }
     and: "syncronous checkpoints span the driver activity"
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN) >> { Thread.currentThread().id == callerId }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END) >> { Thread.currentThread().id == callerId }
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
 

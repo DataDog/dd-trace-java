@@ -3,10 +3,9 @@ package datadog.trace.instrumentation.apachehttpasyncclient;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.declaresField;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -70,20 +69,28 @@ public class HttpAsyncClientExchangeHandlerInstrumentation extends Instrumenter.
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("responseReceived")
-            .and(takesArguments(1).and(takesArgument(0, named("org.apache.http.HttpResponse")))),
-        getClass().getName() + "$ResponseReceived");
+        namedOneOf("consumeContent", "produceContent"), getClass().getName() + "$RecordActivity");
   }
 
-  public static final class ResponseReceived {
-    // callback executed once the remote server responds
+  public static final class RecordActivity {
+    // executed when content is being consumed or produced
     @Advice.OnMethodEnter
-    public static void responseReceived(
+    public static TraceContinuedFutureCallback<?> before(
         @Advice.FieldValue("resultFuture") BasicFuture<?> resultFuture) {
       FutureCallback<?> callback =
           InstrumentationContext.get(BasicFuture.class, FutureCallback.class).get(resultFuture);
       if (callback instanceof TraceContinuedFutureCallback) {
-        ((TraceContinuedFutureCallback<?>) callback).responseReceived();
+        TraceContinuedFutureCallback<?> tracedCallback = (TraceContinuedFutureCallback<?>) callback;
+        tracedCallback.resume();
+        return tracedCallback;
+      }
+      return null;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void after(@Advice.Enter TraceContinuedFutureCallback<?> callback) {
+      if (null != callback) {
+        callback.suspend();
       }
     }
   }

@@ -7,18 +7,24 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.notExcludedByName;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -32,7 +38,8 @@ import scala.concurrent.forkjoin.ForkJoinTask;
  * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles Scala version.
  */
 @AutoService(Instrumenter.class)
-public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing {
+public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
+    implements ExcludeFilterProvider {
 
   public ScalaForkJoinTaskInstrumentation() {
     super("java_concurrent", "scala_concurrent");
@@ -59,9 +66,20 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(isMethod().and(named("exec")), getClass().getName() + "$Exec");
+    transformation.applyAdvice(
+        isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
     transformation.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
     transformation.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
+  }
+
+  @Override
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+    return singletonMap(
+        RUNNABLE_FUTURE,
+        Arrays.asList(
+            "scala.concurrent.forkjoin.ForkJoinTask$AdaptedCallable",
+            "scala.concurrent.forkjoin.ForkJoinTask$AdaptedRunnable",
+            "scala.concurrent.forkjoin.ForkJoinTask$AdaptedRunnableAction"));
   }
 
   public static final class Exec {
@@ -72,9 +90,7 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter TraceScope scope) {
-      if (null != scope) {
-        scope.close();
-      }
+      endTaskScope(scope);
     }
   }
 

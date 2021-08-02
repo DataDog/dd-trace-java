@@ -20,7 +20,6 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.BiConsumer
 import java.util.function.BiFunction
 import java.util.function.Consumer
@@ -107,8 +106,6 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
     setup:
     RedisClient testConnectionClient = RedisClient.create(embeddedDbUri)
     testConnectionClient.setOptions(CLIENT_OPTIONS)
-    AtomicInteger suspends = new AtomicInteger(0)
-    AtomicInteger resumes = new AtomicInteger(0)
 
     when:
     ConnectionFuture connectionFuture = testConnectionClient.connectAsync(StringCodec.UTF8,
@@ -139,13 +136,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
         }
       }
     }
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION) >> {
-      suspends.incrementAndGet()
-    }
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END) >> {
-      resumes.incrementAndGet()
-    }
-    suspends.get() == resumes.get()
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
+    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
 
     cleanup:
     connection.close()

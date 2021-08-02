@@ -33,6 +33,10 @@ public class OtelTracer implements Tracer {
 
   @Override
   public Scope withSpan(final Span span) {
+    if (null == span) {
+      return null;
+    }
+
     final AgentSpan agentSpan = converter.toAgentSpan(span);
     final AgentScope agentScope = tracer.activateSpan(agentSpan, ScopeSource.MANUAL);
     return converter.toScope(agentScope);

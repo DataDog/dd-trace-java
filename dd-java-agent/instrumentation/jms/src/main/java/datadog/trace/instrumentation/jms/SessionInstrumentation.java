@@ -82,22 +82,23 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
         // logic inlined from JMSDecorator to avoid
         // JMSException: A consumer is consuming from the temporary destination
         String resourceName = "Consumed from Destination";
+        String destinationName = "";
         try {
           // put the common case first
           if (destination instanceof Queue) {
-            String queueName = ((Queue) destination).getQueueName();
-            if ((destination instanceof TemporaryQueue || queueName.startsWith("$TMP$"))) {
+            destinationName = ((Queue) destination).getQueueName();
+            if ((destination instanceof TemporaryQueue || destinationName.startsWith("$TMP$"))) {
               resourceName = "Consumed from Temporary Queue";
             } else {
-              resourceName = "Consumed from Queue " + queueName;
+              resourceName = "Consumed from Queue " + destinationName;
             }
           } else if (destination instanceof Topic) {
-            String topicName = ((Topic) destination).getTopicName();
+            destinationName = ((Topic) destination).getTopicName();
             // this is an odd thing to do so put it second
-            if (destination instanceof TemporaryTopic || topicName.startsWith("$TMP$")) {
+            if (destination instanceof TemporaryTopic || destinationName.startsWith("$TMP$")) {
               resourceName = "Consumed from Temporary Topic";
             } else {
-              resourceName = "Consumed from Topic " + topicName;
+              resourceName = "Consumed from Topic " + destinationName;
             }
           }
         } catch (JMSException ignore) {
@@ -110,7 +111,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
         contextStore.put(
             consumer,
             new MessageConsumerState(
-                session, acknowledgeMode, UTF8BytesString.create(resourceName)));
+                session, acknowledgeMode, UTF8BytesString.create(resourceName), destinationName));
       }
     }
   }
@@ -129,14 +130,8 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
   public static final class Construct {
     @Advice.OnMethodExit
     public static void createSessionState(@Advice.This Session session) {
-      boolean transacted;
-      try {
-        transacted = session.getTransacted();
-      } catch (JMSException ignore) {
-        transacted = false;
-      }
       InstrumentationContext.get(Session.class, SessionState.class)
-          .put(session, new SessionState(transacted));
+          .put(session, new SessionState());
     }
   }
 }
