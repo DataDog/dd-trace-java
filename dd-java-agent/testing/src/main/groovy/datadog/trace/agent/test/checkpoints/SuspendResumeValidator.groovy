@@ -51,7 +51,7 @@ class SuspendResumeValidator extends AbstractValidator {
       suspendedCount++
       return Result.OK
     }
-    if (activeCount == 0) {
+    if (activeCount <= 0) {
       return Result.FAILED.withMessage("Span ${event?.spanId} has no active tasks")
     }
     if (!spanStarted) {
@@ -67,7 +67,7 @@ class SuspendResumeValidator extends AbstractValidator {
       activeCount++
       return Result.OK
     }
-    if (suspendCount == 0) {
+    if (suspendCount <= 0) {
       return Result.FAILED.withMessage("Span ${event?.spanId} has no migrations in progress")
     }
     if (!spanStarted) {

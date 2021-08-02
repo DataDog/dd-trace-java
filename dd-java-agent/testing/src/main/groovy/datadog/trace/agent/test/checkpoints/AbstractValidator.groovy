@@ -86,11 +86,11 @@ abstract class AbstractValidator {
         default:
           result = Result.FAILED.withMessage("Unknown event type: ${event.name}")
       }
-    } catch (Throwable t) {
-      t.printStackTrace()
+    } catch (Throwable sneaky) {
+      sneaky.printStackTrace(System.err)
     } finally {
       if (result != Result.OK) {
-        markInvalid(event, result.message)
+        markInvalid(event, result?.message)
       }
       this.event = null
     }

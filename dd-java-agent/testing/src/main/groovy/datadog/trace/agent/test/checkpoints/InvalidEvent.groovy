@@ -34,7 +34,7 @@ class InvalidEvent {
 
   int hashCode() {
     int result
-    result = event.hashCode()
+    result = event == null ? 0 : event.hashCode()
     result = 31 * result + mode.hashCode()
     result = 31 * result + source.hashCode()
     return result
