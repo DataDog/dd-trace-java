@@ -29,7 +29,7 @@ class TypeConverter {
     }
   }
 
-  public Span toSpan(final AgentSpan agentSpan) {
+  public OTSpan toSpan(final AgentSpan agentSpan) {
     if (agentSpan == null) {
       return null;
     }

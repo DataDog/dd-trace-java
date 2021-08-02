@@ -55,13 +55,23 @@ class MuzzlePlugin implements Plugin<Project> {
 
   @Override
   void apply(Project project) {
-    def bootstrapProject = project.rootProject.getChildProjects().get('dd-java-agent').getChildProjects().get('agent-bootstrap')
-    def toolingProject = project.rootProject.getChildProjects().get('dd-java-agent').getChildProjects().get('agent-tooling')
+    def childProjects = project.rootProject.getChildProjects().get('dd-java-agent').getChildProjects()
+    def bootstrapProject = childProjects.get('agent-bootstrap')
+    def toolingProject = childProjects.get('agent-tooling')
     project.extensions.create("muzzle", MuzzleExtension, project.objects)
 
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
     def compileMuzzle = project.task('compileMuzzle')
+    toolingProject.afterEvaluate {
+      compileMuzzle.dependsOn(toolingProject.tasks.named("compileJava"))
+    }
+    project.afterEvaluate {
+      project.tasks.matching { it.name in ['instrumentJava', 'instrumentScala', 'instrumentKotlin'] }.all {
+        compileMuzzle.dependsOn(it)
+      }
+    }
+
     def muzzle = project.task('muzzle') {
       group = 'Muzzle'
       description = "Run instrumentation muzzle on compile time dependencies"
@@ -89,12 +99,6 @@ class MuzzlePlugin implements Plugin<Project> {
     }
     [bootstrapProject, toolingProject]*.afterEvaluate {
       compileMuzzle.dependsOn it.tasks.compileJava
-    }
-    project.afterEvaluate {
-      compileMuzzle.dependsOn(project.tasks.compileJava)
-      if (project.tasks.getNames().contains('compileScala')) {
-        compileMuzzle.dependsOn(project.tasks.compileScala)
-      }
     }
     muzzle.dependsOn(compileMuzzle)
     printReferences.dependsOn(compileMuzzle)
@@ -193,7 +197,6 @@ class MuzzlePlugin implements Plugin<Project> {
       project.getLogger().info('--' + f)
       ddUrls.add(f.toURI().toURL())
     }
-
     return new URLClassLoader(ddUrls.toArray(new URL[0]), getOrCreateToolingLoader(toolingProject))
   }
 
@@ -351,7 +354,7 @@ class MuzzlePlugin implements Plugin<Project> {
       dep.exclude group: 'com.sun.jdmk', module: 'jmxtools'
       dep.exclude group: 'com.sun.jmx', module: 'jmxri'
       // Also exclude specifically excluded dependencies
-      for (String excluded: muzzleDirective.excludedDependencies) {
+      for (String excluded : muzzleDirective.excludedDependencies) {
         String[] parts = excluded.split(':')
         dep.exclude group: parts[0], module: parts[1]
       }

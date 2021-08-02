@@ -15,6 +15,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMS_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
@@ -28,6 +29,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_DELAY;
@@ -38,6 +40,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RABBIT_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
@@ -109,6 +112,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTO
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HOTSPOTS_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_LEGACY_TRACING_INTEGRATION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_PROXY_HOST;
@@ -138,6 +142,9 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.IGNITE_CACHE_I
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
@@ -145,6 +152,9 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.OSGI_SEARCH_DEPTH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HTTP_STATUS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
@@ -350,6 +360,7 @@ public class Config {
 
   private final boolean profilingEnabled;
   private final boolean profilingAllocationEnabled;
+  private final boolean profilingHeapEnabled;
   private final boolean profilingAgentless;
   private final boolean profilingLegacyTracingIntegrationEnabled;
   @Deprecated private final String profilingUrl;
@@ -375,6 +386,14 @@ public class Config {
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
+
+  private final boolean jmsPropagationEnabled;
+  private final Set<String> jmsPropagationDisabledTopics;
+  private final Set<String> jmsPropagationDisabledQueues;
+
+  private final boolean RabbitPropagationEnabled;
+  private final Set<String> RabbitPropagationDisabledQueues;
+  private final Set<String> RabbitPropagationDisabledExchanges;
 
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
@@ -698,6 +717,8 @@ public class Config {
     profilingAllocationEnabled =
         configProvider.getBoolean(
             PROFILING_ALLOCATION_ENABLED, DEFAULT_PROFILING_ALLOCATION_ENABLED);
+    profilingHeapEnabled =
+        configProvider.getBoolean(PROFILING_HEAP_ENABLED, DEFAULT_PROFILING_HEAP_ENABLED);
     profilingAgentless =
         configProvider.getBoolean(PROFILING_AGENTLESS, DEFAULT_PROFILING_AGENTLESS);
     profilingLegacyTracingIntegrationEnabled =
@@ -788,6 +809,24 @@ public class Config {
 
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+
+    jmsPropagationEnabled =
+        configProvider.getBoolean(JMS_PROPAGATION_ENABLED, DEFAULT_JMS_PROPAGATION_ENABLED);
+
+    jmsPropagationDisabledTopics =
+        tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
+
+    jmsPropagationDisabledQueues =
+        tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_QUEUES));
+
+    RabbitPropagationEnabled =
+        configProvider.getBoolean(RABBIT_PROPAGATION_ENABLED, DEFAULT_RABBIT_PROPAGATION_ENABLED);
+
+    RabbitPropagationDisabledQueues =
+        tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_QUEUES));
+
+    RabbitPropagationDisabledExchanges =
+        tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_EXCHANGES));
 
     grpcIgnoredOutboundMethods =
         tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
@@ -1131,6 +1170,10 @@ public class Config {
     return profilingAllocationEnabled;
   }
 
+  public boolean isProfilingHeapEnabled() {
+    return profilingHeapEnabled;
+  }
+
   public boolean isProfilingAgentless() {
     return profilingAgentless;
   }
@@ -1211,8 +1254,32 @@ public class Config {
     return kafkaClientPropagationDisabledTopics;
   }
 
+  public boolean isJMSPropagationEnabled() {
+    return jmsPropagationEnabled;
+  }
+
+  public Set<String> getJMSPropagationDisabledTopics() {
+    return jmsPropagationDisabledTopics;
+  }
+
+  public Set<String> getJMSPropagationDisabledQueues() {
+    return jmsPropagationDisabledQueues;
+  }
+
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
+  }
+
+  public boolean isRabbitPropagationEnabled() {
+    return RabbitPropagationEnabled;
+  }
+
+  public Set<String> getRabbitPropagationDisabledQueues() {
+    return RabbitPropagationDisabledQueues;
+  }
+
+  public Set<String> getRabbitPropagationDisabledExchanges() {
+    return RabbitPropagationDisabledExchanges;
   }
 
   public boolean isHystrixTagsEnabled() {
@@ -1901,6 +1968,8 @@ public class Config {
         + profilingEnabled
         + ", profilingAllocationEnabled="
         + profilingAllocationEnabled
+        + ", profilingHeapEnabled="
+        + profilingHeapEnabled
         + ", profilingAgentless="
         + profilingAgentless
         + ", profilingUrl='"
@@ -1946,6 +2015,18 @@ public class Config {
         + kafkaClientPropagationDisabledTopics
         + ", kafkaClientBase64DecodingEnabled="
         + kafkaClientBase64DecodingEnabled
+        + ", jmsPropagationEnabled="
+        + jmsPropagationEnabled
+        + ", jmsPropagationDisabledTopics="
+        + jmsPropagationDisabledTopics
+        + ", jmsPropagationDisabledQueues="
+        + jmsPropagationDisabledQueues
+        + ", RabbitPropagationEnabled="
+        + RabbitPropagationEnabled
+        + ", RabbitPropagationDisabledQueues="
+        + RabbitPropagationDisabledQueues
+        + ", RabbitPropagationDisabledExchanges="
+        + RabbitPropagationDisabledExchanges
         + ", hystrixTagsEnabled="
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="

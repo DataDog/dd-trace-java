@@ -288,6 +288,22 @@ class OpenTracing31Test extends AgentTestRunner {
     PrioritySampling.USER_DROP    | PrioritySampling.USER_DROP
   }
 
+  def "tolerate null span activation"() {
+    when:
+    try {
+      tracer.scopeManager().activate(null, false)?.close()
+    } catch (Exception ignored) {}
+
+    // make sure scope stack has been left in a valid state
+    Span testSpan = tracer.buildSpan("someOperation").start()
+    Scope testScope =  tracer.scopeManager().activate(testSpan, false)
+    testSpan.finish()
+    testScope.close()
+
+    then:
+    assert tracer.scopeManager().active() == null
+  }
+
   static class TextMapAdapter implements TextMap {
     private final Map<String, String> map
 

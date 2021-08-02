@@ -22,9 +22,7 @@ public final class CompletableFutureAdvice {
         ContextStore<UniCompletion, ConcurrentState> contextStore =
             InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
         ConcurrentState state = ConcurrentState.captureScope(contextStore, zis, scope);
-        if (state != null
-            && (zis instanceof CompletableFuture.UniRun
-                || zis instanceof CompletableFuture.UniApply)) {
+        if (state != null) {
           state.startThreadMigration();
         }
       }
@@ -79,9 +77,7 @@ public final class CompletableFutureAdvice {
       if (mode == ASYNC || (mode < ASYNC && claimed) || !zis.isLive()) {
         contextStore = InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
         ConcurrentState.closeAndClearContinuation(contextStore, zis);
-      } else if (scope instanceof AgentScope
-          && (zis instanceof CompletableFuture.UniRun
-              || zis instanceof CompletableFuture.UniApply)) {
+      } else if (scope instanceof AgentScope) {
         // then there was some actual work done under a scope here
         ((AgentScope) scope).span().finishWork();
       }

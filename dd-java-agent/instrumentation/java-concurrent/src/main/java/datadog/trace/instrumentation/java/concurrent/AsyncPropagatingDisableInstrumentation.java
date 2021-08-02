@@ -72,7 +72,16 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
             "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
             "rx.internal.util.ObjectPool",
             "io.grpc.internal.ServerImpl$ServerTransportListenerImpl",
-            "okhttp3.ConnectionPool")
+            "okhttp3.ConnectionPool",
+            "com.squareup.okhttp.ConnectionPool",
+            "org.elasticsearch.transport.netty4.Netty4TcpChannel",
+            "org.springframework.cglib.core.internal.LoadingCache",
+            "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher",
+            "com.datastax.oss.driver.api.core.session.SessionBuilder",
+            "org.jvnet.hk2.internal.ServiceLocatorImpl",
+            "com.zaxxer.hikari.pool.HikariPool",
+            "net.sf.ehcache.store.disk.DiskStorageFactory",
+            "org.springframework.jms.listener.DefaultMessageListenerContainer")
         .or(RX_WORKERS)
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS);
@@ -107,7 +116,45 @@ public final class AsyncPropagatingDisableInstrumentation extends Instrumenter.T
     transformation.applyAdvice(
         named("start").and(isDeclaredBy(named("rx.internal.util.ObjectPool"))), advice);
     transformation.applyAdvice(
+        named("addConnection").and(isDeclaredBy(named("com.squareup.okhttp.ConnectionPool"))),
+        advice);
+    transformation.applyAdvice(
         named("put").and(isDeclaredBy(named("okhttp3.ConnectionPool"))), advice);
+    transformation.applyAdvice(
+        named("sendMessage")
+            .and(isDeclaredBy(named("org.elasticsearch.transport.netty4.Netty4TcpChannel"))),
+        advice);
+    transformation.applyAdvice(
+        named("createEntry")
+            .and(isDeclaredBy(named("org.springframework.cglib.core.internal.LoadingCache"))),
+        advice);
+    transformation.applyAdvice(
+        named("runOnEventLoop")
+            .and(
+                isDeclaredBy(
+                    named(
+                        "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher"))),
+        advice);
+    transformation.applyAdvice(
+        named("buildAsync")
+            .and(isDeclaredBy(named("com.datastax.oss.driver.api.core.session.SessionBuilder"))),
+        advice);
+    transformation.applyAdvice(
+        namedOneOf("getInjecteeDescriptor", "getService")
+            .and(isDeclaredBy(named("org.jvnet.hk2.internal.ServiceLocatorImpl"))),
+        advice);
+    transformation.applyAdvice(
+        named("getConnection").and(isDeclaredBy(named("com.zaxxer.hikari.pool.HikariPool"))),
+        advice);
+    transformation.applyAdvice(
+        named("schedule").and(isDeclaredBy(named("net.sf.ehcache.store.disk.DiskStorageFactory"))),
+        advice);
+    transformation.applyAdvice(
+        named("doRescheduleTask")
+            .and(
+                isDeclaredBy(
+                    named("org.springframework.jms.listener.DefaultMessageListenerContainer"))),
+        advice);
     transformation.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
   }

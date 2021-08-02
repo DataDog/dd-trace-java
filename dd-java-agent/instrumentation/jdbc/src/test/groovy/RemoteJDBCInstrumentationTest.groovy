@@ -176,7 +176,6 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
   @Unroll
   def "basic statement with #connection.getClass().getCanonicalName() on #driver generates spans"() {
     setup:
-    long callerId = Thread.currentThread().id
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
 
     when:
@@ -216,8 +215,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN) >> { Thread.currentThread().id == callerId }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)  >> { Thread.currentThread().id == callerId }
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
 
@@ -240,7 +239,6 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
   @Unroll
   def "prepared statement execute on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
-    long callerId = Thread.currentThread().id
     PreparedStatement statement = connection.prepareStatement(query)
 
     when:
@@ -281,8 +279,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN) >> { Thread.currentThread().id == callerId }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)  >> { Thread.currentThread().id == callerId }
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
 
@@ -305,7 +303,6 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
   @Unroll
   def "prepared statement query on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
-    long callerId = Thread.currentThread().id
     PreparedStatement statement = connection.prepareStatement(query)
     when:
     ResultSet resultSet = runUnderTrace("parent") {
@@ -344,8 +341,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN) >> { Thread.currentThread().id == callerId }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)  >> { Thread.currentThread().id == callerId }
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
 
@@ -368,7 +365,6 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
   @Unroll
   def "prepared call on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
-    long callerId = Thread.currentThread().id
     CallableStatement statement = connection.prepareCall(query)
     when:
     ResultSet resultSet = runUnderTrace("parent") {
@@ -407,8 +403,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN) >> { Thread.currentThread().id == callerId }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)  >> { Thread.currentThread().id == callerId }
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
 
@@ -431,7 +427,6 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
   @Unroll
   def "statement update on #driver with #connection.getClass().getCanonicalName() generates a span"() {
     setup:
-    long callerId = Thread.currentThread().id
     Statement statement = connection.createStatement()
     def sql = connection.nativeSQL(query)
 
@@ -470,8 +465,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN) >> { Thread.currentThread().id == callerId }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)  >> { Thread.currentThread().id == callerId }
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
 

@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPackagePrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -103,7 +104,11 @@ public class KafkaStreamsProcessorInstrumentation {
     @Override
     public void adviceTransformations(AdviceTransformation transformation) {
       transformation.applyAdvice(
-          isMethod().and(isPublic()).and(named("process")).and(takesArguments(0)),
+          isMethod()
+              .and(isPublic())
+              .and(named("process"))
+              // Method signature changed in 2.6.
+              .and(takesArguments(0).or(takesArguments(1).and(takesArgument(0, long.class)))),
           StopInstrumentation.class.getName() + "$StopSpanAdvice");
     }
 

@@ -121,13 +121,10 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
       }
 
       if (name.startsWith("org.springframework.cglib.")) {
-        // This class contains nested Callable instance that we'd happily not touch, but
-        // unfortunately our field injection code is not flexible enough to realize that, so instead
-        // we instrument this Callable to make tests happy.
-        if (name.startsWith("org.springframework.cglib.core.internal.LoadingCache$")) {
-          return false;
-        }
-        return true;
+        // LoadingCache.createEntry constructs FutureTasks which it executes synchronously,
+        // which leads to pointless context propagation and checkpoint emission, so we need
+        // to instrument this class to disable async propagation to make the tests happy
+        return !name.startsWith("org.springframework.cglib.core.internal.LoadingCache");
       }
 
       if (name.startsWith("org.springframework.context.")) {

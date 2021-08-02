@@ -493,4 +493,38 @@ class OpenTracingAPITest extends DDSpecification {
       }
     }
   }
+
+  def "tolerate null span activation"() {
+    when:
+    try {
+      tracer.scopeManager().activate(null)?.close()
+    } catch (Exception ignored) {}
+
+    try {
+      tracer.activateSpan(null)?.close()
+    } catch (Exception ignored) {}
+
+    // make sure scope stack has been left in a valid state
+    Span testSpan = tracer.buildSpan("someOperation").withServiceName("someService").start()
+    Scope testScope = tracer.scopeManager().activate(testSpan)
+    testSpan.finish()
+    testScope.close()
+    writer.waitForTraces(1)
+
+    then:
+    1 * traceInterceptor.onTraceComplete({ it.size() == 1 }) >> { args -> args[0] }
+
+    assertTraces(writer, 1) {
+      trace(1) {
+        span {
+          serviceName "someService"
+          operationName "someOperation"
+          resourceName "someOperation"
+          tags {
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
 }

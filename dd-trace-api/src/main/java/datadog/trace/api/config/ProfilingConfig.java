@@ -9,6 +9,7 @@ package datadog.trace.api.config;
 public final class ProfilingConfig {
   public static final String PROFILING_ENABLED = "profiling.enabled";
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
+  public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
   @Deprecated // Use dd.site instead
   public static final String PROFILING_URL = "profiling.url";
   @Deprecated // Use dd.api-key instead
