@@ -61,6 +61,15 @@ class ThreadSequenceValidatorTest extends Specification {
     tracker.resumeSpan()
   }
 
+  def "resume after end span"() {
+    expect:
+    tracker.startSpan()
+    tracker.suspendSpan()
+    tracker.endSpan()
+    tracker.resumeSpan()
+    tracker.endTask()
+  }
+
   def "check expected transitions"() {
     expect:
     stateEquals(ThreadSequenceValidator.SingleThreadTracker.transit(fromSpan, fromTask, signal), [toSpan, toTask])
@@ -111,7 +120,10 @@ class ThreadSequenceValidatorTest extends Specification {
     Signal.RESUME_SPAN  | SpanState.RESUMED     | TaskState.INACTIVE    || SpanState.INVALID    | TaskState.INACTIVE
     Signal.RESUME_SPAN  | SpanState.RESUMED     | TaskState.FINISHED    || SpanState.RESUMED    | TaskState.ACTIVE
     Signal.RESUME_SPAN  | SpanState.STARTED     | _                     || SpanState.INVALID    | _
-    Signal.RESUME_SPAN  | SpanState.ENDED       | _                     || SpanState.INVALID    | _
+    Signal.RESUME_SPAN  | SpanState.ENDED       | TaskState.INACTIVE    || SpanState.RESUMED    | TaskState.ACTIVE
+    Signal.RESUME_SPAN  | SpanState.ENDED       | TaskState.INIT        || SpanState.INVALID    | _
+    Signal.RESUME_SPAN  | SpanState.ENDED       | TaskState.ACTIVE      || SpanState.INVALID    | _
+    Signal.RESUME_SPAN  | SpanState.ENDED       | TaskState.FINISHED    || SpanState.INVALID    | _
     Signal.START_TASK   | _                     | TaskState.INIT        || _                    | TaskState.ACTIVE
     Signal.START_TASK   | _                     | TaskState.INACTIVE    || _                    | TaskState.ACTIVE
     Signal.START_TASK   | _                     | TaskState.ACTIVE      || _                    | TaskState.INVALID
