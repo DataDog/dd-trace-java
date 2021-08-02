@@ -21,22 +21,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// XXX: this must be made thread-safe
 // TODO: different methods to be called by different parts perhaps splitting it would make sense
 // or at least create separate interfaces
 public class AppSecRequestContext implements DataBundle, RequestContext, ReportService, Closeable {
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
-  private Collection<Attack010> collectedAttacks;
+  private Collection<Attack010> collectedAttacks; // guarded by this
 
-  // assume these will always be accessed by the same thread
+  // assume these will always be written and read by the same thread
   private String savedRawURI;
   private final CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
   private List<StringKVPair> collectedCookies = new ArrayList<>(4);
   private boolean finishedHeaders;
-  private StoredBodySupplier storedRequestBodySupplier;
   private String ip;
+
+  private volatile StoredBodySupplier storedRequestBodySupplier;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -123,16 +123,16 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
     return collectedCookies;
   }
 
-  public void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
-    this.storedRequestBodySupplier = storedRequestBodySupplier;
-  }
-
-  public String getIp() {
+  String getIp() {
     return ip;
   }
 
-  public void setIp(String ip) {
+  void setIp(String ip) {
     this.ip = ip;
+  }
+
+  void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
+    this.storedRequestBodySupplier = storedRequestBodySupplier;
   }
 
   @Override
@@ -140,14 +140,17 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
     // currently no-op
   }
 
+  /* end interface for GatewayBridge */
+
   /* Should be accessible from the modules */
 
   /** @return the portion of the body read so far, if any */
   public CharSequence getStoredRequestBody() {
-    if (this.storedRequestBodySupplier == null) {
+    StoredBodySupplier storedRequestBodySupplier = this.storedRequestBodySupplier;
+    if (storedRequestBodySupplier == null) {
       return null;
     }
-    return this.storedRequestBodySupplier.get();
+    return storedRequestBodySupplier.get();
   }
 
   @Override
