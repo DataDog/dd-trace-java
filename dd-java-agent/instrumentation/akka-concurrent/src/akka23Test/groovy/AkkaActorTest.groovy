@@ -98,11 +98,11 @@ class AkkaActorTest extends AgentTestRunner {
     barrier.release()
     TEST_WRITER.waitForTraces(1)
     then:
-    (2 * n + 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    n * envelopes * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    n * envelopes * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    n * envelopes * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
-    (2 * n + 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    (2 * n + 1) * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    n * envelopes * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    n * envelopes * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    n * envelopes * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
+    (2 * n + 1) * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
 
     where:
     name      | n   | envelopes

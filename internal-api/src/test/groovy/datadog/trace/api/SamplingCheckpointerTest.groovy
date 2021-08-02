@@ -26,48 +26,49 @@ class SamplingCheckpointerTest extends DDSpecification {
     span.getTraceId() >> traceId
     span.getSpanId() >> spanId
     span.getResourceName() >> UTF8BytesString.create(resource)
+    span.isEmittingCheckpoints() >> true
     int count = register ? drop ? 0 : 1 : 0
 
     when:
     sut.onStart(span)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, SPAN)
+    count * checkpointer.checkpoint(span, SPAN)
     0 * _
 
     when:
     sut.onStartWork(span)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, CPU)
+    count * checkpointer.checkpoint(span, CPU)
     0 * _
 
     when:
     sut.onFinishWork(span)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, CPU | END)
+    count * checkpointer.checkpoint(span, CPU | END)
     0 * _
 
     when:
     sut.onStartThreadMigration(span)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, THREAD_MIGRATION)
+    count * checkpointer.checkpoint(span, THREAD_MIGRATION)
     0 * _
 
     when:
     sut.onFinishThreadMigration(span)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, THREAD_MIGRATION | END)
+    count * checkpointer.checkpoint(span, THREAD_MIGRATION | END)
     0 * _
 
     when:
     sut.checkpoint(span, CPU | SPAN)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, CPU | SPAN)
+    count * checkpointer.checkpoint(span, CPU | SPAN)
     0 * _
 
     when:
     sut.onFinish(span)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, SPAN | END)
+    count * checkpointer.checkpoint(span, SPAN | END)
     0 * _
 
     when:

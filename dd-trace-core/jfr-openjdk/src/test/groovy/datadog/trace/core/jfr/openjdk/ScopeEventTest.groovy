@@ -2,6 +2,7 @@ package datadog.trace.core.jfr.openjdk
 
 import datadog.trace.api.GlobalTracer
 import datadog.trace.api.config.ProfilingConfig
+import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
@@ -167,6 +168,7 @@ class ScopeEventTest extends DDSpecification {
     then:
     events.size() == 2
 
+    println "span ends: ${events[0].getEndTime()}, ${events[1].getEndTime()}"
     with(events[0]) {
       getLong("traceId") == span2.context().traceId.toLong()
       getLong("spanId") == span2.context().spanId.toLong()
@@ -320,7 +322,7 @@ class ScopeEventTest extends DDSpecification {
     addScopeEventFactory()
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
-    tracer.registerCheckpointer(new JFRCheckpointer())
+    tracer.registerCheckpointer(new JFRCheckpointer(null, ConfigProvider.getInstance()))
 
     when: "span goes through lifecycle without activation"
     AgentSpan span = tracer.startSpan("test")
@@ -335,13 +337,6 @@ class ScopeEventTest extends DDSpecification {
       assert it.getLong("traceId") == span.getTraceId().toLong()
       if (it.eventType.name == "datadog.Checkpoint") {
         assert it.getLong("spanId") == span.getSpanId().toLong()
-        int flags = it.getInt("flags")
-        long cpuTime = it.getLong("cpuTime")
-        if ((flags & CPU) != 0) {
-          assert cpuTime > 0
-        } else {
-          assert cpuTime == 0L
-        }
       } else {
         it.getString("endpoint") == "foo"
       }

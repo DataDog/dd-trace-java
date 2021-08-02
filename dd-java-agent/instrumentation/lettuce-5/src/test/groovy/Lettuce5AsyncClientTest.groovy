@@ -136,8 +136,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
         }
       }
     }
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
 
     cleanup:
     connection.close()

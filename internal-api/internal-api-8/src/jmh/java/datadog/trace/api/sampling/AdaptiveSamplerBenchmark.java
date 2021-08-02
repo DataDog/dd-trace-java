@@ -33,13 +33,13 @@ public class AdaptiveSamplerBenchmark {
   @Param("500")
   long durationWindowMillis;
 
-  private AdaptiveSampler sampler;
+  private AdaptiveSampler8 sampler;
 
   @Setup(Level.Iteration)
   public void setup() {
     int lookback = (int) (ITERATION_TIME_MILLIS / durationWindowMillis);
     sampler =
-        new AdaptiveSampler(
+        new AdaptiveSampler8(
             Duration.of(durationWindowMillis, ChronoUnit.MILLIS), samplesPerWindow, lookback);
   }
 

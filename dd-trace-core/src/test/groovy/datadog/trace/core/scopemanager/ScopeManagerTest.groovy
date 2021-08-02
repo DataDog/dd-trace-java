@@ -461,8 +461,8 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     assertEvents([ACTIVATE, ACTIVATE])
-    2 * checkpointer.checkpoint(_, _, SPAN) // two spans started by test
-    1 * checkpointer.checkpoint(_, _, SPAN | END) // span ended by test
+    2 * checkpointer.checkpoint(_, SPAN) // two spans started by test
+    1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
     1 * statsDClient.incrementCounter("scope.close.error")
     0 * _
 
@@ -471,7 +471,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     secondScope.close()
 
     then:
-    1 * checkpointer.checkpoint(_, _, SPAN | END) // span ended by test
+    1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
     1 * checkpointer.onRootSpanPublished("foo", _)
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
@@ -498,7 +498,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     tracer.activeSpan() == firstSpan
     tracer.activeScope() == firstScope
     assertEvents([ACTIVATE])
-    1 * checkpointer.checkpoint(_, _, SPAN) // span started by test
+    1 * checkpointer.checkpoint(_, SPAN) // span started by test
     0 * _
 
     when:
@@ -506,7 +506,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope secondScope = tracer.activateSpan(secondSpan)
 
     then:
-    1 * checkpointer.checkpoint(_, _, SPAN) // span started by test
+    1 * checkpointer.checkpoint(_, SPAN) // span started by test
     assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == secondSpan
     tracer.activeScope() == secondScope
@@ -518,7 +518,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     AgentScope thirdScope = tracer.activateSpan(thirdSpan)
 
     then:
-    1 * checkpointer.checkpoint(_, _, SPAN) // span started by test
+    1 * checkpointer.checkpoint(_, SPAN) // span started by test
     assertEvents([ACTIVATE, ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
@@ -595,7 +595,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     0 * _
 
     then:
-    1 * checkpointer.checkpoint(_, _, SPAN) // span started by test
+    1 * checkpointer.checkpoint(_, SPAN) // span started by test
     assertEvents([ACTIVATE, ACTIVATE])
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
@@ -616,7 +616,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then: 'Closing scope above multiple activated scope does not close it'
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, ACTIVATE])
-    1 * checkpointer.checkpoint(_, _, SPAN | END) // span finished by test
+    1 * checkpointer.checkpoint(_, SPAN | END) // span finished by test
     0 * _
 
     when:

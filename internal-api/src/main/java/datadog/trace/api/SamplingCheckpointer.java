@@ -12,6 +12,13 @@ import org.slf4j.LoggerFactory;
 
 public final class SamplingCheckpointer implements SpanCheckpointer {
 
+  /**
+   * Creates a new, pre-configured instance bound to {@linkplain NoOpCheckpointer#NO_OP}.<br>
+   * A different {@linkplain Checkpointer} implementation can be set via {@linkplain
+   * SamplingCheckpointer#register(Checkpointer)}.
+   *
+   * @return a new, pre-configured instance
+   */
   public static SamplingCheckpointer create() {
     return new SamplingCheckpointer(NoOpCheckpointer.NO_OP);
   }
@@ -34,13 +41,15 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
           "failed to register checkpointer {} - {} already registered",
           checkpointer.getClass(),
           this.checkpointer.getClass());
+    } else {
+      log.debug("Registered checkpointer implementation: {}", checkpointer);
     }
   }
 
   @Override
   public void checkpoint(AgentSpan span, int flags) {
     if (!span.eligibleForDropping()) {
-      checkpointer.checkpoint(span.getTraceId(), span.getSpanId(), flags);
+      checkpointer.checkpoint(span, flags);
     }
   }
 
@@ -86,7 +95,7 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
     static final NoOpCheckpointer NO_OP = new NoOpCheckpointer();
 
     @Override
-    public void checkpoint(DDId traceId, DDId spanId, int flags) {}
+    public void checkpoint(AgentSpan span, int flags) {}
 
     @Override
     public void onRootSpanPublished(String route, DDId traceId) {}

@@ -29,6 +29,8 @@ import org.slf4j.LoggerFactory;
 public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
+  public static final String CHECKPOINTED_TAG = "checkpointed";
+
   static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
     final DDSpan span = new DDSpan(timestampMicro, context);
     log.debug("Started span: {}", span);
@@ -59,6 +61,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private final AtomicLong durationNano = new AtomicLong();
 
   private boolean forceKeep;
+  private Boolean emittingCheckpoints = null;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -123,6 +126,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     return this;
   }
 
+  @Override
   public DDSpan forceKeep(boolean forceKeep) {
     this.forceKeep = forceKeep;
     return this;
@@ -131,6 +135,30 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public boolean isForceKeep() {
     return forceKeep;
+  }
+
+  @Override
+  public void setEmittingCheckpoints(boolean value) {
+    AgentSpan rootSpan = getLocalRootSpan();
+    if (rootSpan == null) {
+      rootSpan = this;
+    }
+    // rootSpan will always be an instance of DDSpan
+    DDSpan span = (DDSpan) rootSpan;
+    if (span.emittingCheckpoints == null) {
+      span.emittingCheckpoints = value;
+      if (value) {
+        span.setTag(CHECKPOINTED_TAG, value);
+      }
+    }
+  }
+
+  @Override
+  public Boolean isEmittingCheckpoints() {
+    AgentSpan rootSpan = getLocalRootSpan();
+    return (rootSpan != null && this != rootSpan)
+        ? rootSpan.isEmittingCheckpoints()
+        : emittingCheckpoints;
   }
 
   /**

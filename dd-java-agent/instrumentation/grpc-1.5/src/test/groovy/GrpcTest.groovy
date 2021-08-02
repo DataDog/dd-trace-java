@@ -133,11 +133,11 @@ class GrpcTest extends AgentTestRunner {
         }
       }
     }
-    5 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    5 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
+    5 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    5 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
 
@@ -240,8 +240,8 @@ class GrpcTest extends AgentTestRunner {
       }
     }
 
-    3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
 
@@ -330,8 +330,8 @@ class GrpcTest extends AgentTestRunner {
       }
     }
 
-    3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * TEST_CHECKPOINTER._
 

@@ -53,6 +53,14 @@ public interface AgentSpan extends MutableSpan {
 
   AgentSpan addThrowable(Throwable throwable);
 
+  <T extends AgentSpan> T forceKeep(boolean forceKeep);
+
+  boolean isForceKeep();
+
+  void setEmittingCheckpoints(boolean value);
+
+  Boolean isEmittingCheckpoints();
+
   @Override
   AgentSpan getLocalRootSpan();
 

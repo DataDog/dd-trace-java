@@ -537,6 +537,24 @@ public class AgentTracer {
     public boolean hasResourceName() {
       return false;
     }
+
+    @Override
+    public NoopAgentSpan forceKeep(boolean forceKeep) {
+      return this;
+    }
+
+    @Override
+    public boolean isForceKeep() {
+      return false;
+    }
+
+    @Override
+    public void setEmittingCheckpoints(boolean value) {}
+
+    @Override
+    public Boolean isEmittingCheckpoints() {
+      return Boolean.FALSE;
+    }
   }
 
   public static class NoopAgentScope implements AgentScope, TraceScope {

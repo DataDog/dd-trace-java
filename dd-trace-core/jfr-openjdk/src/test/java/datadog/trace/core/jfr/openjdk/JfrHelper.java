@@ -9,7 +9,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
 
 public class JfrHelper {
@@ -26,6 +29,11 @@ public class JfrHelper {
     output.deleteOnExit();
     stream.transferTo(new FileOutputStream(output));
 
-    return RecordingFile.readAllEvents(output.toPath());
+    List<RecordedEvent> events = RecordingFile.readAllEvents(output.toPath());
+    Collections.sort(
+        events,
+        Comparator.comparingLong(
+            it -> it.getEndTime().getEpochSecond() * 1_000_000_000L + it.getEndTime().getNano()));
+    return events;
   }
 }

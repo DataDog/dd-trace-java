@@ -49,11 +49,11 @@ class NettyClientCheckpointsTest extends AgentTestRunner {
     // note that the test http server is also traced and needs to be accounted for below
     TEST_WRITER.waitForTraces(2)
     then:
-    3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
-    3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    (2.._) * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    (2.._) * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    (2.._) * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
+    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
   }
@@ -68,11 +68,11 @@ class NettyClientCheckpointsTest extends AgentTestRunner {
     // note that the test http server is also traced and needs to be accounted for below
     TEST_WRITER.waitForTraces(2)
     then:
-    4 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    (2.._) * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
-    4 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    4 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    (2.._) * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    (2.._) * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    (2.._) * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
+    4 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
   }

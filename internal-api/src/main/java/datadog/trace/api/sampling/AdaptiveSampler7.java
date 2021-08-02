@@ -2,12 +2,11 @@ package datadog.trace.api.sampling;
 
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Task;
-import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.LongAdder;
 
 /**
  * An adaptive streaming (non-remembering) sampler.
@@ -31,7 +30,7 @@ import java.util.concurrent.atomic.LongAdder;
  * to compensate for too rapid changes in the incoming events rate and maintain the target average
  * number of samples per window.
  */
-public final class AdaptiveSampler {
+final class AdaptiveSampler7 extends AdaptiveSampler {
 
   /*
    * Number of windows to look back when computing carried over budget.
@@ -40,22 +39,32 @@ public final class AdaptiveSampler {
   private static final int CARRIED_OVER_BUDGET_LOOK_BACK = 16;
 
   private static final class Counts {
-    private final LongAdder testCount = new LongAdder();
+    private final AtomicLong testCount = new AtomicLong();
     private static final AtomicLongFieldUpdater<Counts> SAMPLE_COUNT =
         AtomicLongFieldUpdater.newUpdater(Counts.class, "sampleCount");
     private volatile long sampleCount = 0L;
 
     void addTest() {
-      testCount.increment();
+      testCount.incrementAndGet();
     }
 
     boolean addSample(final long limit) {
-      return SAMPLE_COUNT.getAndAccumulate(this, limit, (prev, lim) -> Math.min(prev + 1, lim))
-          < limit;
+      long prev = -1;
+      while (true) {
+        prev = SAMPLE_COUNT.get(this);
+        long next = Math.min(prev + 1, limit);
+        if (SAMPLE_COUNT.compareAndSet(this, prev, next)) {
+          return next < limit;
+        }
+      }
+    }
+
+    void addSample() {
+      SAMPLE_COUNT.incrementAndGet(this);
     }
 
     void reset() {
-      testCount.reset();
+      testCount.set(0);
       SAMPLE_COUNT.set(this, 0);
     }
 
@@ -64,7 +73,7 @@ public final class AdaptiveSampler {
     }
 
     long testCount() {
-      return testCount.sum();
+      return testCount.get();
     }
   }
 
@@ -102,12 +111,14 @@ public final class AdaptiveSampler {
    * Create a new sampler instance
    *
    * @param windowDuration the sampling window duration
+   * @param windowDurationUnit the sampling window duration unit
    * @param samplesPerWindow the maximum number of samples in the sampling window
    * @param lookback the number of windows to consider in averaging the sampling rate
    * @param taskScheduler agent task scheduler to use for periodic rolls
    */
-  public AdaptiveSampler(
-      final Duration windowDuration,
+  public AdaptiveSampler7(
+      final long windowDuration,
+      final TimeUnit windowDurationUnit,
       final int samplesPerWindow,
       final int lookback,
       final AgentTaskScheduler taskScheduler) {
@@ -121,8 +132,8 @@ public final class AdaptiveSampler {
     taskScheduler.weakScheduleAtFixedRate(
         RollWindowTask.INSTANCE,
         this,
-        windowDuration.toNanos(),
-        windowDuration.toNanos(),
+        TimeUnit.NANOSECONDS.convert(windowDuration, windowDurationUnit),
+        TimeUnit.NANOSECONDS.convert(windowDuration, windowDurationUnit),
         TimeUnit.NANOSECONDS);
   }
 
@@ -130,12 +141,21 @@ public final class AdaptiveSampler {
    * Create a new sampler instance with automatic window roll.
    *
    * @param windowDuration the sampling window duration
+   * @param windowDurationUnit the sampling window duration unit
    * @param samplesPerWindow the maximum number of samples in the sampling window
    * @param lookback the number of windows to consider in averaging the sampling rate
    */
-  public AdaptiveSampler(
-      final Duration windowDuration, final int samplesPerWindow, final int lookback) {
-    this(windowDuration, samplesPerWindow, lookback, AgentTaskScheduler.INSTANCE);
+  public AdaptiveSampler7(
+      final long windowDuration,
+      TimeUnit windowDurationUnit,
+      final int samplesPerWindow,
+      final int lookback) {
+    this(
+        windowDuration,
+        windowDurationUnit,
+        samplesPerWindow,
+        lookback,
+        AgentTaskScheduler.INSTANCE);
   }
 
   /**
@@ -143,13 +163,28 @@ public final class AdaptiveSampler {
    *
    * @return {@literal true} if the event should be sampled
    */
-  public final boolean sample() {
+  @Override
+  public boolean sample() {
     final Counts counts = countsRef.get();
     counts.addTest();
     if (ThreadLocalRandom.current().nextDouble() < probability) {
       return counts.addSample(samplesBudget);
     }
 
+    return false;
+  }
+
+  @Override
+  public boolean keep() {
+    final Counts counts = countsRef.get();
+    counts.addTest();
+    counts.addSample();
+    return true;
+  }
+
+  public boolean drop() {
+    final Counts counts = countsRef.get();
+    counts.addTest();
     return false;
   }
 
@@ -205,13 +240,22 @@ public final class AdaptiveSampler {
     return 1 - Math.pow(lookback, -1d / lookback);
   }
 
-  private static class RollWindowTask implements Task<AdaptiveSampler> {
+  private static class RollWindowTask implements Task<AdaptiveSampler7> {
 
     static final RollWindowTask INSTANCE = new RollWindowTask();
 
     @Override
-    public void run(final AdaptiveSampler target) {
+    public void run(final AdaptiveSampler7 target) {
       target.rollWindow();
     }
+  }
+
+  // access for tests
+  long testCount() {
+    return countsRef.get().testCount();
+  }
+
+  long sampleCount() {
+    return countsRef.get().sampleCount();
   }
 }

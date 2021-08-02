@@ -215,8 +215,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
 
@@ -279,8 +279,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
 
@@ -341,8 +341,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
 
@@ -403,8 +403,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
 
@@ -465,8 +465,8 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
     0 * _
 

@@ -2,6 +2,7 @@ package datadog.trace.agent.test.checkpoints
 
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -13,8 +14,10 @@ class TimelineCheckpointer implements Checkpointer {
   private final List<Event> orderedEvents = new CopyOnWriteArrayList<>()
 
   @Override
-  void checkpoint(DDId traceId, DDId spanId, int flags) {
+  void checkpoint(AgentSpan span, int flags) {
     Thread currentThread = Thread.currentThread()
+    DDId spanId = span.getSpanId()
+    DDId traceId = span.getTraceId()
     Event event = new Event(flags, traceId, spanId, currentThread)
     orderedEvents.add(event)
     spanEvents.putIfAbsent(spanId, new CopyOnWriteArrayList<Event>())

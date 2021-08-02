@@ -2,6 +2,8 @@ package datadog.trace.api.sampling;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.round;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
@@ -39,8 +41,9 @@ import org.slf4j.LoggerFactory;
  * com.datadog.profiling.exceptions.test-iterations} system property.
  */
 @ExtendWith(MockitoExtension.class)
-class AdaptiveSamplerTest {
-  private static final Logger log = LoggerFactory.getLogger(AdaptiveSamplerTest.class);
+class AdaptiveSampler7Test {
+  // delete me
+  private static final Logger log = LoggerFactory.getLogger(AdaptiveSampler7Test.class);
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
 
   /** Generates windows with numbers of events according to Poisson distribution */
@@ -177,8 +180,8 @@ class AdaptiveSamplerTest {
   private static final int LOOKBACK = 30;
 
   @Mock AgentTaskScheduler taskScheduler;
-  @Captor ArgumentCaptor<Task<AdaptiveSampler>> rollWindowTaskCaptor;
-  @Captor ArgumentCaptor<AdaptiveSampler> rollWindowTargetCaptor;
+  @Captor ArgumentCaptor<Task<AdaptiveSampler7>> rollWindowTaskCaptor;
+  @Captor ArgumentCaptor<AdaptiveSampler7> rollWindowTargetCaptor;
 
   @BeforeEach
   public void setup() {
@@ -254,6 +257,28 @@ class AdaptiveSamplerTest {
     testSampler(new RepeatingWindowsEventsSupplier(0, 1000, 0, 1000, 0, 1000), 15);
   }
 
+  @Test
+  public void testKeep() {
+    final AdaptiveSampler7 sampler =
+        new AdaptiveSampler7(WINDOW_DURATION.toNanos(), TimeUnit.NANOSECONDS, 1, 0, taskScheduler);
+    long tests = sampler.testCount();
+    long samples = sampler.sampleCount();
+    assertTrue(sampler.keep());
+    assertEquals(tests + 1, sampler.testCount());
+    assertEquals(samples + 1, sampler.sampleCount());
+  }
+
+  @Test
+  public void testDrop() {
+    final AdaptiveSampler7 sampler =
+        new AdaptiveSampler7(WINDOW_DURATION.toNanos(), TimeUnit.NANOSECONDS, 1, 0, taskScheduler);
+    long tests = sampler.testCount();
+    long samples = sampler.sampleCount();
+    assertFalse(sampler.drop());
+    assertEquals(tests + 1, sampler.testCount());
+    assertEquals(samples, sampler.sampleCount());
+  }
+
   private void testSampler(final IntSupplier windowEventsSupplier, final int maxErrorPercent)
       throws Exception {
     int iterations =
@@ -272,8 +297,13 @@ class AdaptiveSamplerTest {
     log.info(
         "> mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}%",
         windowEventsSupplier, WINDOWS, SAMPLES_PER_WINDOW, LOOKBACK, maxErrorPercent);
-    final AdaptiveSampler sampler =
-        new AdaptiveSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
+    final AdaptiveSampler7 sampler =
+        new AdaptiveSampler7(
+            WINDOW_DURATION.toNanos(),
+            TimeUnit.NANOSECONDS,
+            SAMPLES_PER_WINDOW,
+            LOOKBACK,
+            taskScheduler);
 
     // simulate event generation and sampling for the given number of sampling windows
     final long expectedSamples = WINDOWS * SAMPLES_PER_WINDOW;
@@ -356,7 +386,7 @@ class AdaptiveSamplerTest {
    *     samples and the sample index skew
    */
   private WindowSamplingResult generateWindowEventsAndSample(
-      IntSupplier windowEventsSupplier, AdaptiveSampler sampler, Mean mean) {
+      IntSupplier windowEventsSupplier, AdaptiveSampler7 sampler, Mean mean) {
     int samples = 0;
     int events = windowEventsSupplier.getAsInt();
     mean.clear();
@@ -427,8 +457,13 @@ class AdaptiveSamplerTest {
     final AtomicLong allSamples = new AtomicLong(0);
     final AtomicLong receivedEvents = new AtomicLong(0);
 
-    final AdaptiveSampler sampler =
-        new AdaptiveSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
+    final AdaptiveSampler7 sampler =
+        new AdaptiveSampler7(
+            WINDOW_DURATION.toNanos(),
+            TimeUnit.NANOSECONDS,
+            SAMPLES_PER_WINDOW,
+            LOOKBACK,
+            taskScheduler);
     final CyclicBarrier startBarrier = new CyclicBarrier(threadCount);
     final CyclicBarrier endBarrier = new CyclicBarrier(threadCount, this::rollWindow);
     final Mean[] means = new Mean[threadCount];
