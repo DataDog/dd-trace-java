@@ -1,5 +1,8 @@
 package datadog.trace.api.http;
 
+import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
 import java.nio.CharBuffer;
 import java.util.Arrays;
 
@@ -10,19 +13,41 @@ public class StoredCharBody implements StoredBodySupplier {
   private static final int GROW_FACTOR = 4;
   private static final CharBuffer EMPTY_CHAR_BUFFER = CharBuffer.allocate(0);
 
+  private final RequestContext httpContext;
+  private final BiFunction<RequestContext, StoredBodySupplier, Void> startCb;
+  private final BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb;
+  private final StoredBodySupplier supplierInNotifications;
+
   private boolean listenerNotified;
-  private final StoredBodyListener listener;
 
   private char[] storedBody;
   private int storedBodyLen;
   private boolean bodyReadStarted = false;
 
-  public StoredCharBody(StoredBodyListener listener, int lengthHint) {
+  public StoredCharBody(
+      RequestContext httpContext,
+      BiFunction<RequestContext, StoredBodySupplier, Void> startCb,
+      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb,
+      int lengthHint) {
+    this(httpContext, startCb, endCb, lengthHint, null);
+  }
+
+  StoredCharBody(
+      RequestContext httpContext,
+      BiFunction<RequestContext, StoredBodySupplier, Void> startCb,
+      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb,
+      int lengthHint,
+      StoredBodySupplier supplierInNotifications) {
+    this.httpContext = httpContext;
+    this.startCb = startCb;
+    this.endCb = endCb;
+
     if (lengthHint != 0) {
       int initialSize = Math.max(MIN_BUFFER_SIZE, Math.min(lengthHint, MAX_BUFFER_SIZE));
       this.storedBody = new char[initialSize];
     }
-    this.listener = listener;
+
+    this.supplierInNotifications = supplierInNotifications != null ? supplierInNotifications : this;
   }
 
   public synchronized void appendData(char[] chars, int start, int end) {
@@ -107,7 +132,7 @@ public class StoredCharBody implements StoredBodySupplier {
   void maybeNotifyStart() {
     if (!bodyReadStarted) {
       bodyReadStarted = true;
-      listener.onBodyStart(this);
+      this.startCb.apply(httpContext, supplierInNotifications);
     }
   }
 
@@ -115,9 +140,9 @@ public class StoredCharBody implements StoredBodySupplier {
     if (!listenerNotified) {
       listenerNotified = true;
       if (!bodyReadStarted) {
-        listener.onBodyStart(this);
+        this.startCb.apply(httpContext, supplierInNotifications);
       }
-      listener.onBodyEnd(this);
+      this.endCb.apply(httpContext, supplierInNotifications);
     }
   }
 

@@ -1,17 +1,23 @@
 package datadog.trace.api.http
 
+import datadog.trace.api.function.BiFunction
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.RequestContext
 import spock.lang.Specification
 
 class StoredCharBodyTest extends Specification {
-  StoredBodyListener listener = Mock()
-  StoredCharBody storedCharBody = new StoredCharBody(listener, 1)
+  RequestContext requestContext = Mock()
+  BiFunction<RequestContext, StoredBodySupplier, Void> startCb = Mock()
+  BiFunction<RequestContext, StoredBodySupplier, Flow<Void> > endCb = Mock()
+
+  StoredCharBody storedCharBody = new StoredCharBody(requestContext, startCb, endCb, 1)
 
   void 'basic test with no buffer extension'() {
     when:
     storedCharBody.appendData('a')
 
     then:
-    1 * listener.onBodyStart(storedCharBody)
+    1 * startCb.apply(requestContext, storedCharBody)
 
     when:
     storedCharBody.appendData((int) 'a')
@@ -19,7 +25,7 @@ class StoredCharBodyTest extends Specification {
     storedCharBody.maybeNotify()
 
     then:
-    1 * listener.onBodyEnd(storedCharBody)
+    1 * endCb.apply(requestContext, storedCharBody)
     storedCharBody.get().toString() == 'a' * 128
   }
 
@@ -32,7 +38,7 @@ class StoredCharBodyTest extends Specification {
     storedCharBody.appendData(['a' as char] as char[], 0, 1) // ignored
 
     then:
-    1 * listener.onBodyStart(storedCharBody)
+    1 * startCb.apply(requestContext, storedCharBody)
   }
 
   void 'insert invalid data'() {
@@ -56,9 +62,9 @@ class StoredCharBodyTest extends Specification {
     storedCharBody.maybeNotify()
 
     then:
-    1 * listener.onBodyStart(storedCharBody)
+    1 * startCb.apply(requestContext, storedCharBody)
     then:
-    1 * listener.onBodyEnd(storedCharBody)
+    1 * endCb.apply(requestContext, storedCharBody)
     then:
     storedCharBody.get() as String == ''
   }

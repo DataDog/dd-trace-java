@@ -1,5 +1,8 @@
 package datadog.trace.api.http;
 
+import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -25,11 +28,16 @@ public class StoredByteBody implements StoredBodySupplier {
   private CharsetDecoder charsetDecoder;
   private StoredCharBody storedCharBody;
 
-  public StoredByteBody(StoredBodyListener listener, @Nullable Charset charset, int lengthHint) {
+  public StoredByteBody(
+      RequestContext requestContext,
+      BiFunction<RequestContext, StoredBodySupplier, Void> startCb,
+      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb,
+      @Nullable Charset charset,
+      int lengthHint) {
     if (charset != null) {
       this.charsetDecoder = ThreadLocalCoders.decoderFor(charset);
     }
-    this.storedCharBody = new StoredCharBody(listener, lengthHint);
+    this.storedCharBody = new StoredCharBody(requestContext, startCb, endCb, lengthHint, this);
   }
 
   public synchronized void appendData(byte[] bytes, int start, int end) {

@@ -65,9 +65,6 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.servlet.http.IGDelegatingStoredBodyListener",
-      "datadog.trace.instrumentation.servlet.http.IGDelegatingStoredBodyListener$1",
-      "datadog.trace.instrumentation.servlet.http.IGDelegatingStoredBodyListener$2",
       "datadog.trace.instrumentation.servlet.http.ServletInputStreamWrapper",
       "datadog.trace.instrumentation.servlet.http.BufferedReaderWrapper",
     };
@@ -108,9 +105,6 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
 
       req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
 
-      IGDelegatingStoredBodyListener listener =
-          new IGDelegatingStoredBodyListener(requestStartCb, requestEndedCb, requestContext);
-
       int lengthHint = 0;
       String lengthHeader = req.getHeader("content-length");
       if (lengthHeader != null) {
@@ -131,7 +125,8 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
         // purposefully left blank
       }
 
-      StoredByteBody storedByteBody = new StoredByteBody(listener, charset, lengthHint);
+      StoredByteBody storedByteBody =
+          new StoredByteBody(requestContext, requestStartCb, requestEndedCb, charset, lengthHint);
       ServletInputStreamWrapper servletInputStreamWrapper =
           new ServletInputStreamWrapper(is, storedByteBody);
 
@@ -173,9 +168,6 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
 
       req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
 
-      IGDelegatingStoredBodyListener listener =
-          new IGDelegatingStoredBodyListener(requestStartCb, requestEndedCb, requestContext);
-
       int lengthHint = 0;
       String lengthHeader = req.getHeader("content-length");
       if (lengthHeader != null) {
@@ -186,7 +178,8 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
         }
       }
 
-      StoredCharBody storedCharBody = new StoredCharBody(listener, lengthHint);
+      StoredCharBody storedCharBody =
+          new StoredCharBody(requestContext, requestStartCb, requestEndedCb, lengthHint);
       reader = new BufferedReaderWrapper(reader, storedCharBody);
     }
   }

@@ -1,39 +1,45 @@
 package datadog.trace.api.http
 
+import datadog.trace.api.function.BiFunction
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.RequestContext
 import spock.lang.Specification
 
 import java.nio.charset.Charset
 
 class StoredByteBodyTest extends Specification {
-  StoredBodyListener listener = Mock()
+  RequestContext requestContext = Mock()
+  BiFunction<RequestContext, StoredBodySupplier, Void> startCb = Mock()
+  BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb = Mock()
+
   StoredByteBody storedByteBody
 
   void 'basic test with no buffer extension'() {
-    storedByteBody = new StoredByteBody(listener, null, 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     when:
     storedByteBody.appendData((int) 'a') // not "as int"
 
     then:
-    listener.onBodyStart(storedByteBody)
+    1 * startCb.apply(requestContext, storedByteBody)
 
     when:
     storedByteBody.appendData([(int)'a']* 127 as byte[], 0, 127)
     storedByteBody.maybeNotify()
 
     then:
-    listener.onBodyEnd(storedByteBody)
+    1 * endCb.apply(requestContext, storedByteBody)
     storedByteBody.get() as String == 'a' * 128
   }
 
   void 'test store limit'() {
-    storedByteBody = new StoredByteBody(listener, null, 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     when:
     storedByteBody.appendData((int) 'a')
 
     then:
-    listener.onBodyStart(storedByteBody)
+    1 * startCb.apply(requestContext, storedByteBody)
 
     when:
     // last byte ignored
@@ -48,7 +54,7 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'ignores invalid integers given to appendData'() {
-    storedByteBody = new StoredByteBody(listener, null, 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     when:
     storedByteBody.appendData(-1)
@@ -59,7 +65,7 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'well formed utf8 data'() {
-    storedByteBody = new StoredByteBody(listener, null, 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     when:
     def data = '\u00E1\u0800\uD800\uDC00'.getBytes(Charset.forName('UTF-8'))
@@ -70,7 +76,7 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'non UTF8 data with specified encoding'() {
-    storedByteBody = new StoredByteBody(listener, Charset.forName('ISO-8859-1'), 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, Charset.forName('ISO-8859-1'), 0)
 
     when:
     def data = 'á'.getBytes(Charset.forName('UTF-8'))
@@ -81,7 +87,7 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin1 on first byte'() {
-    storedByteBody = new StoredByteBody(listener, null, 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     when:
     storedByteBody.appendData([0xFF] as byte[], 0, 1)
@@ -91,7 +97,7 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin1 on second byte'() {
-    storedByteBody = new StoredByteBody(listener, null, 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     when:
     storedByteBody.appendData([0xC3, 0xC3] as byte[], 0, 2)
@@ -100,7 +106,7 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin1 on third byte'() {
-    storedByteBody = new StoredByteBody(listener, null, 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     when:
     storedByteBody.appendData([0xE0, 0x80, 0x7F] as byte[], 0, 3)
@@ -109,7 +115,7 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin1 on fourth byte'() {
-    storedByteBody = new StoredByteBody(listener, null, 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     when:
     storedByteBody.appendData([0xF0, 0x80, 0x80, 0x7F] as byte[], 0, 4)
@@ -118,7 +124,7 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin on unfinished 2 byte sequences'() {
-    storedByteBody = new StoredByteBody(listener, null, 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     when:
     storedByteBody.appendData(0xC3)
@@ -129,7 +135,7 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin on unfinished 3 byte sequences'() {
-    storedByteBody = new StoredByteBody(listener, null, 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     when:
     storedByteBody.appendData([0xE0, 0xA0] as byte[], 0, 2)
@@ -140,7 +146,7 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'fallback to latin on unfinished 4 byte sequences'() {
-    storedByteBody = new StoredByteBody(listener, null, 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
 
     when:
     storedByteBody.appendData([0xF0, 0x90, 0x80] as byte[], 0, 3)
@@ -151,7 +157,7 @@ class StoredByteBodyTest extends Specification {
   }
 
   void 'utf-8 data can be reencoded as latin1'() {
-    storedByteBody = new StoredByteBody(listener, null, 0)
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
     def bytes = ("á" * 16).getBytes(Charset.forName('UTF-8'))
 
     when:
