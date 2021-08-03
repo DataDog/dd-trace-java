@@ -840,7 +840,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     expect:
     response.body().charStream().text == 'created: my body'
 
-    and:
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
     TEST_WRITER.get(0).any {
       it.getTag('request.body') == 'my body'
     }
