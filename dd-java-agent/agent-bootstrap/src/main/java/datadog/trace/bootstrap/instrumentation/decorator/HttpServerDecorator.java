@@ -141,10 +141,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     return span;
   }
 
-  public REQUEST wrapRequest(AgentSpan span, REQUEST request) {
-    return request;
-  }
-
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);

@@ -43,14 +43,12 @@ public class Servlet3Advice {
       // Activate the dispatch span as the request span so it can be finished with the request.
       // We don't want to create a new servlet.request span since this is internal processing.
       AgentSpan castDispatchSpan = (AgentSpan) dispatchSpan;
-      request = DECORATE.wrapRequest(castDispatchSpan, httpServletRequest);
       return activateSpan(castDispatchSpan);
     }
 
     Object spanAttrValue = request.getAttribute(DD_SPAN_ATTRIBUTE);
     final boolean hasServletTrace = spanAttrValue instanceof AgentSpan;
     if (hasServletTrace) {
-      request = DECORATE.wrapRequest((AgentSpan) spanAttrValue, httpServletRequest);
       // Tracing might already be applied by other instrumentation,
       // the FilterChain or a parent request (forward/include).
       return null;
@@ -62,7 +60,6 @@ public class Servlet3Advice {
     final AgentSpan span = startSpan(SERVLET_REQUEST, extractedContext).setMeasured(true);
 
     DECORATE.afterStart(span);
-    request = DECORATE.wrapRequest(span, httpServletRequest);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
 
     final AgentScope scope = activateSpan(span);

@@ -42,7 +42,6 @@ public class Servlet2Advice {
     final boolean hasServletTrace = spanAttr instanceof AgentSpan;
     if (hasServletTrace) {
       // Tracing might already be applied by the FilterChain or a parent request (forward/include).
-      request = DECORATE.wrapRequest((AgentSpan) spanAttr, httpServletRequest);
       return null;
     }
 
@@ -57,7 +56,6 @@ public class Servlet2Advice {
     final AgentSpan span = startSpan(SERVLET_REQUEST, extractedContext).setMeasured(true);
 
     DECORATE.afterStart(span);
-    request = DECORATE.wrapRequest(span, httpServletRequest);
     DECORATE.onRequest(span, httpServletRequest, httpServletRequest, extractedContext);
 
     final AgentScope scope = activateSpan(span);
