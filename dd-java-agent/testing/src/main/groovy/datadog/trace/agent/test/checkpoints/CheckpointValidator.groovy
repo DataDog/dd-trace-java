@@ -25,28 +25,31 @@ class CheckpointValidator {
     def invalidEvents = new HashSet()
     // validate per-span sequence
     for (def events : spanEvents.values()) {
-      if (!excludedValidations.contains(CheckpointValidationMode.SEQUENCE)) {
-        def perSpanValidator = new CompositeValidator(new SuspendResumeValidator(), new ThreadSequenceValidator())
-        for (def event : events) {
-          perSpanValidator.onEvent(event)
-        }
-        perSpanValidator.onEnd()
-        invalidEvents.addAll(perSpanValidator.invalidEvents())
+      def perSpanValidator = new CompositeValidator(new SuspendResumeValidator(), new ThreadSequenceValidator())
+      for (def event : events) {
+        perSpanValidator.onEvent(event)
       }
+      perSpanValidator.onEnd()
+      invalidEvents.addAll(perSpanValidator.invalidEvents())
     }
 
     // validate per-thread sequence
     for (def events : threadEvents.values()) {
-      if (!excludedValidations.contains(CheckpointValidationMode.INTERVALS)) {
-        def perThreadValidator = new IntervalValidator()
-        for (def event : events) {
-          perThreadValidator.onEvent(event)
-        }
-        perThreadValidator.endSequence()
-        invalidEvents.addAll(perThreadValidator.invalidEvents)
+      def perThreadValidator = new IntervalValidator()
+      for (def event : events) {
+        perThreadValidator.onEvent(event)
       }
+      perThreadValidator.endSequence()
+      invalidEvents.addAll(perThreadValidator.invalidEvents)
     }
 
-    return invalidEvents
+    if (!invalidEvents.empty) {
+      System.err.println("=== Invalid checkpoint events encountered")
+      invalidEvents.each { System.err.println(it) }
+    }
+
+    return invalidEvents.collectEntries {
+      [(it) : !excludedValidations.contains(it.mode)]
+    }
   }
 }
