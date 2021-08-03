@@ -36,7 +36,7 @@ class SuspendResumeValidator extends AbstractValidator {
       activeCount--
       return Result.OK
     }
-    if (activeCount == 0) {
+    if (activeCount <= 0) {
       return Result.FAILED.withMessage("Span ${event?.spanId} has no active tasks")
     }
     if (!spanStarted) {
