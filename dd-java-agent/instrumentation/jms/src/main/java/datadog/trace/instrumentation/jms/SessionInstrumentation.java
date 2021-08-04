@@ -14,12 +14,14 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
+import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import java.util.HashMap;
 import java.util.Map;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.MessageConsumer;
+import javax.jms.MessageProducer;
 import javax.jms.Queue;
 import javax.jms.Session;
 import javax.jms.TemporaryQueue;
@@ -44,6 +46,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>(4);
     contextStore.put("javax.jms.MessageConsumer", MessageConsumerState.class.getName());
+    contextStore.put("javax.jms.MessageProducer", MessageProducerState.class.getName());
     contextStore.put("javax.jms.Session", SessionState.class.getName());
     return contextStore;
   }
@@ -57,13 +60,19 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
             .and(takesArgument(0, named("javax.jms.Destination"))),
         getClass().getName() + "$CreateConsumer");
     transformation.applyAdvice(
+        isMethod()
+            .and(named("createProducer"))
+            .and(isPublic())
+            .and(takesArgument(0, named("javax.jms.Destination"))),
+        getClass().getName() + "$CreateProducer");
+    transformation.applyAdvice(
         namedOneOf("commit", "close", "rollback").and(takesNoArguments()),
         getClass().getName() + "$Commit");
   }
 
   public static final class CreateConsumer {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void bindDestinationName(
+    public static void bindConsumerState(
         @Advice.This Session session,
         @Advice.Argument(0) Destination destination,
         @Advice.Return MessageConsumer consumer) {
@@ -118,6 +127,26 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
                 acknowledgeMode,
                 UTF8BytesString.create(resourceName),
                 destinationName));
+      }
+    }
+  }
+
+  public static final class CreateProducer {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void bindProducerState(
+        @Advice.This Session session, @Advice.Return MessageProducer producer) {
+
+      ContextStore<MessageProducer, MessageProducerState> producerStateStore =
+          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class);
+
+      // avoid doing the same thing more than once when there is delegation to overloads
+      if (producerStateStore.get(producer) == null) {
+
+        SessionState sessionState =
+            InstrumentationContext.get(Session.class, SessionState.class)
+                .putIfAbsent(session, SessionState.FACTORY);
+
+        producerStateStore.put(producer, new MessageProducerState(sessionState));
       }
     }
   }
