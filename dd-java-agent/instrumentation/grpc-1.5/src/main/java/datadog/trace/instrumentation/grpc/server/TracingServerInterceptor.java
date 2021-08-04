@@ -18,6 +18,7 @@ import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
+import java.util.concurrent.CancellationException;
 
 public class TracingServerInterceptor implements ServerInterceptor {
 
@@ -124,6 +125,9 @@ public class TracingServerInterceptor implements ServerInterceptor {
       try (final AgentScope scope = activateSpan(span)) {
         delegate().onCancel();
         span.setTag("canceled", true);
+      } catch (CancellationException e) {
+        // No need to report an exception or mark as error that it was canceled.
+        throw e;
       } catch (final Throwable e) {
         DECORATE.onError(span, e);
         throw e;
