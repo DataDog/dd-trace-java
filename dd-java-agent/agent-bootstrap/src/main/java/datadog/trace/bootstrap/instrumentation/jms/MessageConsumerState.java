@@ -47,7 +47,8 @@ public final class MessageConsumerState {
     return destinationName;
   }
 
-  public void capture(AgentScope scope) {
+  /** Closes the given message scope when the next message is consumed or the consumer is closed. */
+  public void closeOnIteration(AgentScope scope) {
     currentScope.set(scope);
   }
 

@@ -46,7 +46,7 @@ public class DatadogMessageListener implements MessageListener {
       } else if (messageConsumerState.isAutoAcknowledge()) {
         span.finish();
       } else if (messageConsumerState.isTransactedSession()) {
-        messageConsumerState.getSessionState().capture(span);
+        messageConsumerState.getSessionState().finishOnCommit(span);
       }
     }
   }

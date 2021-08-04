@@ -39,7 +39,8 @@ public final class SessionState {
     return null == q || q.isEmpty();
   }
 
-  public void capture(AgentSpan span) {
+  /** Finishes the given message span when the session is committed, rolled back, or closed. */
+  public void finishOnCommit(AgentSpan span) {
     Queue<AgentSpan> q = capturedSpans;
     if (null == q) {
       q = new ArrayBlockingQueue<AgentSpan>(CAPACITY);
@@ -55,7 +56,7 @@ public final class SessionState {
     }
   }
 
-  public void onCommit() {
+  public void onCommit() { // also called on rollback or close
     Queue<AgentSpan> q = capturedSpans;
     if (null != q) {
       synchronized (this) {

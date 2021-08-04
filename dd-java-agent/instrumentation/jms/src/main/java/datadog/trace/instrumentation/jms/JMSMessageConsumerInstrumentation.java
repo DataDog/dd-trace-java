@@ -131,7 +131,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         // it stays open until the next call to get a
         // message, or the consumer is closed
         AgentScope scope = activateSpan(span);
-        messageConsumerState.capture(scope);
+        messageConsumerState.closeOnIteration(scope);
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, message, messageConsumerState.getResourceName());
         CONSUMER_DECORATE.onError(span, throwable);
@@ -140,7 +140,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
           InstrumentationContext.get(Message.class, AgentSpan.class).put(message, span);
         } else if (messageConsumerState.isTransactedSession()) {
           // span will be finished by Session.commit
-          messageConsumerState.getSessionState().capture(span);
+          messageConsumerState.getSessionState().finishOnCommit(span);
         }
         // for AUTO_ACKNOWLEDGE, span is not finished until next call to receive, or close
       }
