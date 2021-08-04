@@ -11,8 +11,8 @@ class SessionStateTest extends DDSpecification {
     def span1 = Mock(AgentSpan)
     def span2 = Mock(AgentSpan)
     when:
-    sessionState.add(span1)
-    sessionState.add(span2)
+    sessionState.capture(span1)
+    sessionState.capture(span2)
     then:
     0 * span1.finish()
     0 * span2.finish()
@@ -31,17 +31,17 @@ class SessionStateTest extends DDSpecification {
     AgentSpan span2 = Mock(AgentSpan)
     when: "fill the buffer"
     for (int i = 0; i < SessionState.CAPACITY; ++i) {
-      sessionState.add(span1)
+      sessionState.capture(span1)
     }
     then: "spans are not finished on entry"
     0 * span1.finish()
     when: "buffer overflows"
-    sessionState.add(span2)
+    sessionState.capture(span2)
     then: "span is finished on entry"
     1 * span2.finish()
     when: "commit and add span"
     sessionState.onCommit()
-    sessionState.add(span2)
+    sessionState.capture(span2)
     then: "span is enqueued and not finished"
     0 * span2.finish()
   }

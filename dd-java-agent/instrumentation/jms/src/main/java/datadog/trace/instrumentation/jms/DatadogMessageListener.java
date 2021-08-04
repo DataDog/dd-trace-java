@@ -50,7 +50,7 @@ public class DatadogMessageListener implements MessageListener {
       } else if (messageConsumerState.isAutoAcknowledge()) {
         span.finish();
       } else if (messageConsumerState.isTransactedSession()) {
-        sessionState.add(span);
+        sessionState.capture(span);
       }
     }
   }
