@@ -4,24 +4,27 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public final class MessageConsumerState {
+  private final ThreadLocal<AgentScope> currentScope = new ThreadLocal<>();
 
-  private final Object session;
+  private final SessionState sessionState;
   private final int ackMode;
   private final UTF8BytesString resourceName;
-  private final ThreadLocal<AgentScope> currentScope = new ThreadLocal<>();
   private final String destinationName;
 
   public MessageConsumerState(
-      Object session, int ackMode, UTF8BytesString resourceName, String destinationName) {
-    this.session = session;
+      SessionState sessionState,
+      int ackMode,
+      UTF8BytesString resourceName,
+      String destinationName) {
+
+    this.sessionState = sessionState;
     this.ackMode = ackMode;
     this.resourceName = resourceName;
     this.destinationName = destinationName;
   }
 
-  @SuppressWarnings("unchecked")
-  public <T> T getSession() {
-    return (T) session;
+  public SessionState getSessionState() {
+    return sessionState;
   }
 
   public boolean isTransactedSession() {
@@ -33,8 +36,7 @@ public final class MessageConsumerState {
   }
 
   public boolean isClientAcknowledge() {
-    /* Session.CLIENT_ACKNOWLEDGE */
-    return ackMode == 2;
+    return ackMode == 2; /* Session.CLIENT_ACKNOWLEDGE */
   }
 
   public UTF8BytesString getResourceName() {
@@ -46,7 +48,7 @@ public final class MessageConsumerState {
   }
 
   public void capture(AgentScope scope) {
-    this.currentScope.set(scope);
+    currentScope.set(scope);
   }
 
   public void closePreviousMessageScope() {

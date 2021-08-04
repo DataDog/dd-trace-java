@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -12,6 +13,14 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  */
 public final class SessionState {
 
+  public static ContextStore.Factory<SessionState> FACTORY =
+      new ContextStore.Factory<SessionState>() {
+        @Override
+        public SessionState create() {
+          return new SessionState();
+        }
+      };
+
   private static final AtomicReferenceFieldUpdater<SessionState, Queue> CAPTURED_SPANS =
       AtomicReferenceFieldUpdater.newUpdater(SessionState.class, Queue.class, "capturedSpans");
   private static final AtomicIntegerFieldUpdater<SessionState> SPAN_COUNT =
@@ -20,6 +29,7 @@ public final class SessionState {
   // hard bound at 8192 captured spans, degrade to finishing spans early
   // if transactions are very large, rather than use lots of space
   static final int CAPACITY = 8192;
+
   private volatile Queue<AgentSpan> capturedSpans;
   private volatile int spanCount;
 

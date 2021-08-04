@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -60,7 +59,6 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
     transformation.applyAdvice(
         namedOneOf("commit", "close", "rollback").and(takesNoArguments()),
         getClass().getName() + "$Commit");
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
   }
 
   public static final class CreateConsumer {
@@ -69,16 +67,20 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
         @Advice.This Session session,
         @Advice.Argument(0) Destination destination,
         @Advice.Return MessageConsumer consumer) {
-      int acknowledgeMode;
-      try {
-        acknowledgeMode = session.getAcknowledgeMode();
-      } catch (JMSException e) {
-        acknowledgeMode = Session.AUTO_ACKNOWLEDGE;
-      }
-      ContextStore<MessageConsumer, MessageConsumerState> contextStore =
+
+      ContextStore<MessageConsumer, MessageConsumerState> consumerStateStore =
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class);
+
       // avoid doing the same thing more than once when there is delegation to overloads
-      if (contextStore.get(consumer) == null) {
+      if (consumerStateStore.get(consumer) == null) {
+
+        int acknowledgeMode;
+        try {
+          acknowledgeMode = session.getAcknowledgeMode();
+        } catch (JMSException ignore) {
+          acknowledgeMode = Session.AUTO_ACKNOWLEDGE;
+        }
+
         // logic inlined from JMSDecorator to avoid
         // JMSException: A consumer is consuming from the temporary destination
         String resourceName = "Consumed from Destination";
@@ -102,16 +104,20 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
             }
           }
         } catch (JMSException ignore) {
+          // fall back to default
         }
-        // all known MessageConsumer implementations reference
-        // the Session so there is no risk of creating a memory
-        // leak here. MessageConsumerState could drop the reference
-        // to the session to save a bit of space if the implementations
-        // were instrumented instead of the interfaces.
-        contextStore.put(
+
+        SessionState sessionState =
+            InstrumentationContext.get(Session.class, SessionState.class)
+                .putIfAbsent(session, SessionState.FACTORY);
+
+        consumerStateStore.put(
             consumer,
             new MessageConsumerState(
-                session, acknowledgeMode, UTF8BytesString.create(resourceName), destinationName));
+                sessionState,
+                acknowledgeMode,
+                UTF8BytesString.create(resourceName),
+                destinationName));
       }
     }
   }
@@ -124,14 +130,6 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
       if (null != state) {
         state.onCommit();
       }
-    }
-  }
-
-  public static final class Construct {
-    @Advice.OnMethodExit
-    public static void createSessionState(@Advice.This Session session) {
-      InstrumentationContext.get(Session.class, SessionState.class)
-          .put(session, new SessionState());
     }
   }
 }

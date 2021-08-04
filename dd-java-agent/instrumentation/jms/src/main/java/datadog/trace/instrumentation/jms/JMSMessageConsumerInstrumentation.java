@@ -29,7 +29,6 @@ import java.util.Map;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageListener;
-import javax.jms.Session;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -141,9 +140,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
           InstrumentationContext.get(Message.class, AgentSpan.class).put(message, span);
         } else if (messageConsumerState.isTransactedSession()) {
           // span will be finished by Session.commit
-          InstrumentationContext.get(Session.class, SessionState.class)
-              .get((Session) messageConsumerState.getSession())
-              .capture(span);
+          messageConsumerState.getSessionState().capture(span);
         }
         // for AUTO_ACKNOWLEDGE, span is not finished until next call to receive, or close
       }
@@ -172,17 +169,11 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
             InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
                 .get(messageConsumer);
         if (null != messageConsumerState) {
-          SessionState sessionState =
-              InstrumentationContext.get(Session.class, SessionState.class)
-                  .get((Session) messageConsumerState.getSession());
-          if (null != sessionState) {
-            listener =
-                new DatadogMessageListener(
-                    InstrumentationContext.get(Message.class, AgentSpan.class),
-                    listener,
-                    messageConsumerState,
-                    sessionState);
-          }
+          listener =
+              new DatadogMessageListener(
+                  InstrumentationContext.get(Message.class, AgentSpan.class),
+                  listener,
+                  messageConsumerState);
         }
       }
     }
