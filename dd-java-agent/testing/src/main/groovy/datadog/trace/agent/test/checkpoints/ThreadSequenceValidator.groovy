@@ -3,7 +3,7 @@ package datadog.trace.agent.test.checkpoints
 /**
  * State machine based thread specific checkpoint sequence checker
  */
-class ThreadSequenceValidator implements EventReceiver {
+class ThreadSequenceValidator {
   static enum TaskState {
     INIT, INACTIVE, ACTIVE, FINISHED, INVALID
   }
@@ -64,8 +64,7 @@ class ThreadSequenceValidator implements EventReceiver {
 
   private final Map<Long, SingleThreadTracker> threadTrackers = new HashMap<>()
 
-  @Override
-  Boolean onEvent(Event event) {
+  boolean onEvent(Event event) {
     def threadTracker = threadTrackers.get(event.threadId)
     if (threadTracker == null) {
       threadTrackers.put(event.threadId, threadTracker = new SingleThreadTracker())
@@ -73,13 +72,20 @@ class ThreadSequenceValidator implements EventReceiver {
     return threadTracker.onEvent(event)
   }
 
-  static class SingleThreadTracker extends AbstractContextTracker {
-    private State state = new State()
+  def endSequence() {
+    threadTrackers.each {it.value.endSequence()}
+  }
 
-    @Override
-    Boolean onEvent(Event event) {
-      return dispatchEvent(event)
+  def getInvalidEvents() {
+    def rslt = new HashSet()
+    threadTrackers.values().each {
+      rslt.addAll(it.invalidEvents)
     }
+    return rslt
+  }
+
+  static class SingleThreadTracker extends AbstractValidator {
+    private State state = new State()
 
     static State transit(State fromState, Signal signal) {
       def states = transit(fromState.spanState, fromState.taskState, signal)
@@ -192,40 +198,44 @@ class ThreadSequenceValidator implements EventReceiver {
       return state
     }
 
+    SingleThreadTracker() {
+      super("thread-sequence", CheckpointValidationMode.SEQUENCE)
+    }
+
     @Override
-    boolean startSpan() {
+    def startSpan() {
       state = transit(state, Signal.START_SPAN)
-      return state.valid
+      return state.valid ? Result.OK : Result.FAILED.withMessage("Can not start span ${event?.spanId}. State = ${state}")
     }
 
     @Override
-    boolean startTask() {
+    def startTask() {
       state = transit(state, Signal.START_TASK)
-      return state.valid
+      return state.valid ? Result.OK : Result.FAILED.withMessage("Can not start task for span ${event?.spanId}. State = ${state}")
     }
 
     @Override
-    boolean endTask() {
+    def endTask() {
       state = transit(state, Signal.END_TASK)
-      return state.valid
+      return state.valid ? Result.OK : Result.FAILED.withMessage("Can not end task for span ${event?.spanId}. State = ${state}")
     }
 
     @Override
-    boolean suspendSpan() {
+    def suspendSpan() {
       state = transit(state, Signal.SUSPEND_SPAN)
-      return state.valid
+      return state.valid ? Result.OK : Result.FAILED.withMessage("Can not suspend span ${event?.spanId}. State = ${state}")
     }
 
     @Override
-    boolean resumeSpan() {
+    def resumeSpan() {
       state = transit(state, Signal.RESUME_SPAN)
-      return state.valid
+      return state.valid ? Result.OK : Result.FAILED.withMessage("Can not resume span ${event?.spanId}. State = ${state}")
     }
 
     @Override
-    boolean endSpan() {
+    def endSpan() {
       state = transit(state, Signal.END_SPAN)
-      return state.valid
+      return state.valid ? Result.OK : Result.FAILED.withMessage("Can not finish span ${event?.spanId}. State = ${state}")
     }
   }
 }

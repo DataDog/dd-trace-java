@@ -28,18 +28,15 @@ class TimelineCheckpointer implements Checkpointer {
   }
 
   void publish() {
-    def invalidEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents)
-    if (!invalidEvents.empty) {
-      System.err.println("=== Invalid checkpoint events encountered")
-      invalidEvents.each { System.err.println(it) }
-    }
-    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, invalidEvents.collect {it[0]})
+    def validatedEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents)
+
+    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, validatedEvents*.key.event)
     TimelineExporter.export(orderedEvents)
     System.err.println("")
 
     // apparently gradle can not pass system property to spock tests - therefore using env variable instead
-    if (!invalidEvents.empty && Boolean.parseBoolean(System.getenv("VALIDATE_CHECKPOINTS"))) {
-      throw new RuntimeException()
+    if (Boolean.parseBoolean(System.getenv("VALIDATE_CHECKPOINTS")) && validatedEvents.find {it.value} != null) {
+      throw new IllegalStateException("Checkpoint validation failed")
     }
   }
 
