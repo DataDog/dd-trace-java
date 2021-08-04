@@ -146,7 +146,7 @@ class ThreadLocalCoders {
   private abstract static class Cache {
 
     // Thread-local reference to array of cached objects, in LRU order
-    private ThreadLocal<Object[]> cache = new ThreadLocal<>();
+    private final ThreadLocal<Object[]> cache = new ThreadLocal<>();
     private final int size;
 
     Cache(int size) {
