@@ -6,6 +6,7 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.writer.ListWriter
@@ -176,6 +177,31 @@ class TagInterceptorTest extends DDCoreSpecification {
       .tagInterceptor(new TagInterceptor(true, "my-service",
       Collections.singleton(tag), new RuleFlags()))
       .build()
+  }
+
+  def "split-by-tags for servlet.context"() {
+    setup:
+    def tracer = createSplittingTracer(InstrumentationTags.SERVLET_CONTEXT)
+
+    when:
+    def span = tracer.buildSpan("some span")
+      .withTag(InstrumentationTags.SERVLET_CONTEXT, "some-context")
+      .start()
+    span.finish()
+
+    then:
+    span.serviceName == "some-context"
+
+    when:
+    span = tracer.buildSpan("some span").start()
+    span.setTag(InstrumentationTags.SERVLET_CONTEXT, "some-context")
+    span.finish()
+
+    then:
+    span.serviceName == "some-context"
+
+    cleanup:
+    tracer.close()
   }
 
   def "peer.service then split-by-tags via builder"() {

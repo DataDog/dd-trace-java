@@ -24,6 +24,7 @@ public class TagInterceptor {
 
   private final RuleFlags ruleFlags;
   private final boolean isServiceNameSetByUser;
+  private final boolean splitByServletContext;
   private final String inferredServiceName;
   private final Set<String> splitServiceTags;
 
@@ -44,6 +45,7 @@ public class TagInterceptor {
     this.inferredServiceName = inferredServiceName;
     this.splitServiceTags = splitServiceTags;
     this.ruleFlags = ruleFlags;
+    splitByServletContext = splitServiceTags.contains(InstrumentationTags.SERVLET_CONTEXT);
   }
 
   public boolean interceptTag(DDSpanContext span, String tag, Object value) {
@@ -160,11 +162,12 @@ public class TagInterceptor {
     // (which has the side effect of marking the span as eligible for metrics
     // in the trace agent) we also want to store it in the tags no matter what,
     // so will always return false here.
-    if (isServiceNameSetByUser
-        || !ruleFlags.isEnabled(RuleFlags.Feature.SERVLET_CONTEXT)
-        || (!span.getServiceName().isEmpty()
-            && !span.getServiceName().equals(inferredServiceName)
-            && !span.getServiceName().equals(ConfigDefaults.DEFAULT_SERVICE_NAME))) {
+    if (!splitByServletContext
+        && (isServiceNameSetByUser
+            || !ruleFlags.isEnabled(RuleFlags.Feature.SERVLET_CONTEXT)
+            || !span.getServiceName().isEmpty()
+                && !span.getServiceName().equals(inferredServiceName)
+                && !span.getServiceName().equals(ConfigDefaults.DEFAULT_SERVICE_NAME))) {
       return false;
     }
     String contextName = String.valueOf(value).trim();
