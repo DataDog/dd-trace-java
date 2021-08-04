@@ -26,7 +26,7 @@ public class TypeConverter {
     return null == span ? null : AgentTracer.NoopAgentSpan.INSTANCE;
   }
 
-  public Span toSpan(final AgentSpan agentSpan) {
+  public OTSpan toSpan(final AgentSpan agentSpan) {
     if (agentSpan == null) {
       return null;
     }
