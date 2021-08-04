@@ -11,25 +11,21 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
-import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import javax.jms.Message;
 import javax.jms.MessageListener;
 
 public class DatadogMessageListener implements MessageListener {
 
-  private final ContextStore<Message, AgentSpan> contextStore;
-  private final SessionState sessionState;
+  private final ContextStore<Message, AgentSpan> messageSpanStore;
   private final MessageConsumerState messageConsumerState;
   private final MessageListener messageListener;
 
   public DatadogMessageListener(
-      ContextStore<Message, AgentSpan> contextStore,
+      ContextStore<Message, AgentSpan> messageSpanStore,
       MessageListener messageListener,
-      MessageConsumerState messageConsumerState,
-      SessionState sessionState) {
-    this.contextStore = contextStore;
+      MessageConsumerState messageConsumerState) {
+    this.messageSpanStore = messageSpanStore;
     this.messageConsumerState = messageConsumerState;
-    this.sessionState = sessionState;
     this.messageListener = messageListener;
   }
 
@@ -46,11 +42,11 @@ public class DatadogMessageListener implements MessageListener {
       throw thrown;
     } finally {
       if (messageConsumerState.isClientAcknowledge()) {
-        contextStore.put(message, span);
+        messageSpanStore.put(message, span);
       } else if (messageConsumerState.isAutoAcknowledge()) {
         span.finish();
       } else if (messageConsumerState.isTransactedSession()) {
-        sessionState.capture(span);
+        messageConsumerState.getSessionState().capture(span);
       }
     }
   }
