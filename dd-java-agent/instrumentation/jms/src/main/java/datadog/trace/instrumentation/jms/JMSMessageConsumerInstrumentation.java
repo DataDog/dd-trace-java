@@ -115,14 +115,10 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
       if (null != messageConsumerState) {
-        final AgentSpan span;
-
+        AgentSpan span;
         String destinationName = messageConsumerState.getDestinationName();
-
-        if (destinationName == null
-            || (!Config.get().getJMSPropagationDisabledTopics().contains(destinationName)
-                && !Config.get().getJMSPropagationDisabledQueues().contains(destinationName))) {
-          final Context extractedContext = propagate().extract(message, GETTER);
+        if (!Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
+          Context extractedContext = propagate().extract(message, GETTER);
           span = startSpan(JMS_CONSUME, extractedContext);
         } else {
           span = startSpan(JMS_CONSUME, null);
@@ -139,7 +135,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
           // span will be finished by a call to Message.acknowledge
           InstrumentationContext.get(Message.class, AgentSpan.class).put(message, span);
         } else if (messageConsumerState.isTransactedSession()) {
-          // span will be finished by Session.commit
+          // span will be finished by Session.commit/rollback/close
           messageConsumerState.getSessionState().finishOnCommit(span);
         }
         // for AUTO_ACKNOWLEDGE, span is not finished until next call to receive, or close

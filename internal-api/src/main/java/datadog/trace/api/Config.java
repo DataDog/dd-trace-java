@@ -1266,12 +1266,10 @@ public class Config {
     return jmsPropagationEnabled;
   }
 
-  public Set<String> getJMSPropagationDisabledTopics() {
-    return jmsPropagationDisabledTopics;
-  }
-
-  public Set<String> getJMSPropagationDisabledQueues() {
-    return jmsPropagationDisabledQueues;
+  public boolean isJMSPropagationDisabledForDestination(final String topicOrQueue) {
+    return null != topicOrQueue
+        && (jmsPropagationDisabledTopics.contains(topicOrQueue)
+            || jmsPropagationDisabledQueues.contains(topicOrQueue));
   }
 
   public boolean isKafkaClientBase64DecodingEnabled() {
