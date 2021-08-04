@@ -143,7 +143,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
           // span will be finished by Session.commit
           InstrumentationContext.get(Session.class, SessionState.class)
               .get((Session) messageConsumerState.getSession())
-              .add(span);
+              .capture(span);
         }
         // for AUTO_ACKNOWLEDGE, span is not finished until next call to receive, or close
       }
