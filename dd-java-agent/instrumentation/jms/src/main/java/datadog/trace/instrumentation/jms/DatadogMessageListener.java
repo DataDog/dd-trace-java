@@ -20,6 +20,7 @@ public class DatadogMessageListener implements MessageListener {
   private final ContextStore<Message, AgentSpan> messageAckStore;
   private final MessageConsumerState messageConsumerState;
   private final MessageListener messageListener;
+  private final boolean extractMessageContext;
 
   public DatadogMessageListener(
       ContextStore<Message, AgentSpan> messageAckStore,
@@ -28,13 +29,16 @@ public class DatadogMessageListener implements MessageListener {
     this.messageAckStore = messageAckStore;
     this.messageConsumerState = messageConsumerState;
     this.messageListener = messageListener;
+
+    String destinationName = messageConsumerState.getDestinationName();
+    this.extractMessageContext =
+        !Config.get().isJMSPropagationDisabledForDestination(destinationName);
   }
 
   @Override
   public void onMessage(Message message) {
     AgentSpan span;
-    String destinationName = messageConsumerState.getDestinationName();
-    if (!Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
+    if (extractMessageContext) {
       AgentSpan.Context extractedContext = propagate().extract(message, GETTER);
       span = startSpan(JMS_CONSUME, extractedContext);
     } else {
