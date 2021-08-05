@@ -1,9 +1,12 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
+import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -28,6 +31,12 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER
 
 class JMS1Test extends AgentTestRunner {
+
+  static String expectedServiceName() {
+    Config.get().isJmsLegacyTracingEnabled()
+      ? 'jms' : CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
+  }
+
   @Shared
   EmbeddedActiveMQBroker broker = new EmbeddedActiveMQBroker()
   @Shared
@@ -255,7 +264,7 @@ class JMS1Test extends AgentTestRunner {
         // Consumer trace
         span {
           parent()
-          serviceName "jms"
+          serviceName expectedServiceName()
           operationName "jms.consume"
           resourceName "Consumed from $jmsResourceName"
           spanType DDSpanTypes.MESSAGE_CONSUMER
@@ -368,7 +377,7 @@ class JMS1Test extends AgentTestRunner {
         trace(1) {
           span {
             parentId(0 as BigInteger)
-            serviceName "jms"
+            serviceName expectedServiceName()
             operationName "jms.consume"
             resourceName "Consumed from $jmsResourceName"
             spanType DDSpanTypes.MESSAGE_CONSUMER
@@ -425,7 +434,7 @@ class JMS1Test extends AgentTestRunner {
         trace(1) {
           span {
             parentId(0 as BigInteger)
-            serviceName "jms"
+            serviceName expectedServiceName()
             operationName "jms.consume"
             resourceName "Consumed from $jmsResourceName"
             spanType DDSpanTypes.MESSAGE_CONSUMER
@@ -460,7 +469,7 @@ class JMS1Test extends AgentTestRunner {
 
   static producerSpan(TraceAssert traceAssert, String jmsResourceName) {
     return traceAssert.span {
-      serviceName "jms"
+      serviceName expectedServiceName()
       operationName "jms.produce"
       resourceName "Produced for $jmsResourceName"
       spanType DDSpanTypes.MESSAGE_PRODUCER
@@ -484,7 +493,7 @@ class JMS1Test extends AgentTestRunner {
 
   static consumerSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
     return traceAssert.span {
-      serviceName "jms"
+      serviceName expectedServiceName()
       operationName "jms.consume"
       resourceName "Consumed from $jmsResourceName"
       spanType DDSpanTypes.MESSAGE_CONSUMER
