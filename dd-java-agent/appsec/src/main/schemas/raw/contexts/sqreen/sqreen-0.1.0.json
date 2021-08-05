@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://appsec-schema.datadoghq.com/jsonschema/raw/contexts/sqreen/sqreen-0.1.0.json",
+  "type": "object",
+  "properties": {
+    "context_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "application_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "instance_id": {
+      "type": "string"
+    },
+    "trace_id": {
+      "type": "string"
+    },
+    "signal_id": {
+      "type": "string"
+    },
+    "is_from_backend": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "context_version",
+    "application_id",
+    "organization_id",
+    "instance_id",
+    "signal_id",
+    "is_from_backend"
+  ],
+  "additionalProperties": false
+}

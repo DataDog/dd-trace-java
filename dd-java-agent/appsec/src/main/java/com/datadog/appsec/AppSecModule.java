@@ -1,5 +1,6 @@
 package com.datadog.appsec;
 
+import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.event.DataListener;
 import com.datadog.appsec.event.EventListener;
 import com.datadog.appsec.event.EventType;
@@ -8,6 +9,8 @@ import com.datadog.appsec.event.data.Address;
 import java.util.Collection;
 
 public interface AppSecModule {
+  void config(AppSecConfigService appSecConfigService);
+
   String getName();
 
   Collection<EventSubscription> getEventSubscriptions();

@@ -6,6 +6,8 @@ import com.datadog.appsec.event.EventType
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.StringKVPair
+import com.datadog.appsec.report.ReportService
+import com.datadog.appsec.report.raw.events.attack.Attack010
 import datadog.trace.api.Function
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
@@ -21,6 +23,7 @@ import spock.lang.Specification
 class GatewayBridgeSpecification extends Specification {
   SubscriptionService ig = Mock()
   EventDispatcher eventDispatcher = Mock()
+  ReportService reportService = Mock()
   AppSecRequestContext ctx = new AppSecRequestContext()
 
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
@@ -29,13 +32,14 @@ class GatewayBridgeSpecification extends Specification {
     i
   }()
 
-  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher)
+  GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, reportService)
 
   Supplier<Flow<RequestContext>> requestStartedCB
   Function<RequestContext, Flow<Void>> requestEndedCB
   TriConsumer<RequestContext, String, String> headerCB
   Function<RequestContext, Flow<Void>> headersDoneCB
   BiFunction<RequestContext, URIDataAdapter, Flow<Void>> requestURICB
+  BiFunction<RequestContext, String, Flow<Void>> requestIpCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -53,18 +57,22 @@ class GatewayBridgeSpecification extends Specification {
     startFlow.action == Flow.Action.Noop.INSTANCE
   }
 
-  void 'request_end closes context and publishes event'() {
+  void 'request_end closes context reports attacks and publishes event'() {
+    Attack010 attack = Mock()
     AppSecRequestContext mockCtx = Mock()
 
     when:
     def flow = requestEndedCB.apply(mockCtx)
 
     then:
+    1 * mockCtx.transferCollectedAttacks() >> [attack]
     1 * mockCtx.close()
+    1 * reportService.reportAttack(attack)
     1 * eventDispatcher.publishEvent(mockCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
+
 
   void 'bridge can collect headers'() {
     when:
@@ -101,6 +109,7 @@ class GatewayBridgeSpecification extends Specification {
 
     when:
     ctx.rawURI = '/'
+    ctx.ip = '0.0.0.0'
     eventDispatcher.getDataSubscribers(_, _) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
@@ -114,10 +123,11 @@ class GatewayBridgeSpecification extends Specification {
     assert bundle.get(KnownAddresses.HEADERS_NO_COOKIES).isEmpty()
   }
 
-  void 'setting headers then request uri triggers initial data event'() {
+  void 'the ip provided and distributed'() {
     DataBundle bundle
 
     when:
+    ctx.ip = '0.0.0.0'
     eventDispatcher.getDataSubscribers(_, _) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
@@ -125,6 +135,25 @@ class GatewayBridgeSpecification extends Specification {
     and:
     headersDoneCB.apply(ctx)
     requestURICB.apply(ctx, TestURIDataAdapter.create('/a'))
+    requestIpCB.apply(ctx, '0.0.0.0')
+
+    then:
+    bundle.get(KnownAddresses.REQUEST_CLIENT_IP) == '0.0.0.0'
+  }
+
+  void 'setting headers then request uri triggers initial data event'() {
+    DataBundle bundle
+
+    when:
+    ctx.ip = '0.0.0.0'
+    eventDispatcher.getDataSubscribers(_, _) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    { bundle = it[2]; NoopFlow.INSTANCE }
+
+    and:
+    headersDoneCB.apply(ctx)
+    requestURICB.apply(ctx, TestURIDataAdapter.create('/a'))
+    requestIpCB.apply(ctx, '0.0.0.0')
 
     then:
     bundle.get(KnownAddresses.REQUEST_URI_RAW) == '/a'
@@ -135,6 +164,7 @@ class GatewayBridgeSpecification extends Specification {
     def adapter = TestURIDataAdapter.create(uri, supportsRaw)
 
     when:
+    ctx.ip = '0.0.0.0'
     eventDispatcher.getDataSubscribers(ctx, { KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
@@ -142,6 +172,7 @@ class GatewayBridgeSpecification extends Specification {
     and:
     requestURICB.apply(ctx, adapter)
     headersDoneCB.apply(ctx)
+    requestIpCB.apply(ctx, '0.0.0.0')
 
     then:
     assert bundle.get(KnownAddresses.REQUEST_URI_RAW) == expected
@@ -165,6 +196,7 @@ class GatewayBridgeSpecification extends Specification {
     def adapter = TestURIDataAdapter.create(uri)
 
     when:
+    ctx.ip = '0.0.0.0'
     eventDispatcher.getDataSubscribers(ctx, { KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
@@ -172,6 +204,7 @@ class GatewayBridgeSpecification extends Specification {
     and:
     requestURICB.apply(ctx, adapter)
     headersDoneCB.apply(ctx)
+    requestIpCB.apply(ctx, '0.0.0.0')
 
     then:
     def query = bundle.get(KnownAddresses.REQUEST_QUERY)
@@ -196,6 +229,7 @@ class GatewayBridgeSpecification extends Specification {
     1 * ig.registerCallback(Events.REQUEST_URI_RAW, _) >> { requestURICB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_HEADER, _) >> { headerCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_HEADER_DONE, _) >> { headersDoneCB = it[1]; null }
+    1 * ig.registerCallback(Events.REQUEST_CLIENT_IP, _) >> { requestIpCB = it[1]; null }
 
     bridge.init()
   }

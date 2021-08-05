@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://appsec-schema.datadoghq.com/jsonschema/struct/events/attack/attack-0.1.0.json",
+  "allOf": [
+    {
+      "$ref": "../../../raw/events/attack/attack_0.1.0.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "appsec": {
+          "type": "object",
+          "properties": {
+            "attack": {
+              "type": "object",
+              "properties": {
+                "rule_id": {
+                  "type": "string",
+                  "description": "Copied from rule.id"
+                }
+              }
+            },
+            "protection": {
+              "type": "object",
+              "properties": {
+                "triggered_blocking": {
+                  "type": "boolean",
+                  "description": "Did this event trigger HTTP response blocking? Can be false even if response was blocked. Copied from 'blocked'."
+                }
+              }
+            },
+            "detection": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "[INDEXED] The type of the detection (for instance SQL injection). Copied from type."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

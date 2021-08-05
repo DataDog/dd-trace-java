@@ -42,7 +42,7 @@ public interface EventProducerService {
       DataSubscriberInfo subscribers,
       AppSecRequestContext ctx,
       DataBundle newData,
-      boolean transyent);
+      boolean isTransient);
 
   interface DataSubscriberInfo {
     boolean isEmpty();

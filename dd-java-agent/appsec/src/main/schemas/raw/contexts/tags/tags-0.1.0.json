@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://appsec-schema.datadoghq.com/jsonschema/raw/contexts/tags/tags=0.1.0.json",
+  "type": "object",
+  "properties": {
+    "context_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "values": {
+      "type": "array",
+      "description": "A list of tags.",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "A tag as described in https://docs.datadoghq.com/getting_started/tagging/#defining-tags.",
+        "$comment": "See https://docs.datadoghq.com/getting_started/tagging/#defining-tags"
+      }
+    }
+  },
+  "required": [
+    "context_version",
+    "values"
+  ],
+  "additionalProperties": false
+}

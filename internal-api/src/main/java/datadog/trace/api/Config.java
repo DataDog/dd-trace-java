@@ -1725,7 +1725,7 @@ public class Config {
   }
 
   /** Returns the detected hostname. First tries locally, then using DNS */
-  private static String getHostName() {
+  public static String getHostName() {
     String possibleHostname;
 
     // Try environment variable.  This works in almost all environments

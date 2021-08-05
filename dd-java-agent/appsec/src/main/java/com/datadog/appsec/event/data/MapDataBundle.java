@@ -13,7 +13,7 @@ public class MapDataBundle implements DataBundle {
     this.map = map;
   }
 
-  public static <T> MapDataBundle ofDelegate(Map<Address<?>, Object> delegate) {
+  public static MapDataBundle ofDelegate(Map<Address<?>, Object> delegate) {
     return new MapDataBundle(delegate);
   }
 
@@ -34,23 +34,6 @@ public class MapDataBundle implements DataBundle {
     map.put(addr1, value1);
     map.put(addr2, value2);
     map.put(addr3, value3);
-    return new MapDataBundle(map);
-  }
-
-  public static <T, U, V, W> MapDataBundle of(
-      Address<T> addr1,
-      T value1,
-      Address<U> addr2,
-      U value2,
-      Address<V> addr3,
-      V value3,
-      Address<W> addr4,
-      W value4) {
-    Map<Address<?>, Object> map = new IdentityHashMap<>();
-    map.put(addr1, value1);
-    map.put(addr2, value2);
-    map.put(addr3, value3);
-    map.put(addr4, value4);
     return new MapDataBundle(map);
   }
 
@@ -77,5 +60,19 @@ public class MapDataBundle implements DataBundle {
   @Override
   public Iterator<Map.Entry<Address<?>, Object>> iterator() {
     return map.entrySet().iterator();
+  }
+
+  public static class Builder {
+
+    private final Map<Address<?>, Object> map = new IdentityHashMap<>();
+
+    public <A extends Address<?>, V> Builder add(A address, V value) {
+      map.put(address, value);
+      return this;
+    }
+
+    public MapDataBundle build() {
+      return new MapDataBundle(map);
+    }
   }
 }
