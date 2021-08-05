@@ -99,7 +99,7 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
           cbp.getCallback(Events.REQUEST_BODY_START);
       BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
           cbp.getCallback(Events.REQUEST_BODY_DONE);
-      if (requestEndedCb == null && requestEndedCb == null) {
+      if (requestStartCb == null || requestEndedCb == null) {
         return;
       }
 
@@ -162,7 +162,7 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
           cbp.getCallback(Events.REQUEST_BODY_START);
       BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
           cbp.getCallback(Events.REQUEST_BODY_DONE);
-      if (requestEndedCb == null && requestEndedCb == null) {
+      if (requestStartCb == null || requestEndedCb == null) {
         return;
       }
 
