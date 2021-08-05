@@ -1,0 +1,209 @@
+package datadog.trace.instrumentation.grizzlyhttp232;
+
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.http.StoredBodyFactories;
+import datadog.trace.api.http.StoredCharBody;
+import datadog.trace.bootstrap.InstrumentationContext;
+import java.lang.reflect.Field;
+import java.lang.reflect.UndeclaredThrowableException;
+import java.nio.CharBuffer;
+import java.util.Collections;
+import java.util.Map;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+import org.glassfish.grizzly.attributes.AttributeHolder;
+import org.glassfish.grizzly.http.HttpHeader;
+import org.glassfish.grizzly.http.io.InputBuffer;
+import org.glassfish.grizzly.http.io.NIOReader;
+
+@AutoService(Instrumenter.class)
+public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
+  public GrizzlyCharBodyInstrumentation() {
+    super("grizzly-char-body");
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> typeMatcher() {
+    return named("org.glassfish.grizzly.http.server.NIOReaderImpl");
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "org.glassfish.grizzly.http.io.NIOReader", "datadog.trace.api.http.StoredCharBody");
+  }
+
+  @Override
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        named("setInputBuffer")
+            .and(takesArguments(1))
+            .and(takesArgument(0, named("org.glassfish.grizzly.http.io.InputBuffer"))),
+        getClass().getName() + "$NIOReaderSetInputBufferAdvice");
+    transformation.applyAdvice(
+        named("read").and(takesArguments(0)), getClass().getName() + "$NIOReaderReadAdvice");
+    transformation.applyAdvice(
+        named("read").and(takesArguments(1)).and(takesArgument(0, char[].class)),
+        getClass().getName() + "$NIOReaderReadCharArrayAdvice");
+    transformation.applyAdvice(
+        named("read").and(takesArguments(char[].class, int.class, int.class)),
+        getClass().getName() + "$NIOReaderReadCharArrayIntIntAdvice");
+    transformation.applyAdvice(
+        named("read").and(takesArguments(CharBuffer.class)),
+        getClass().getName() + "$NIOReaderReadCharBufferAdvice");
+    transformation.applyAdvice(
+        named("isFinished").and(takesArguments(0)),
+        getClass().getName() + "$NIOReaderIsFinishedAdvice");
+    transformation.applyAdvice(
+        named("recycle").and(takesArguments(0)), getClass().getName() + "$NIOReaderRecycleAdvice");
+  }
+
+  @SuppressWarnings("Duplicates")
+  static class NIOReaderSetInputBufferAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(
+        @Advice.This final NIOReader thiz, @Advice.Argument(0) final InputBuffer inputBuffer) {
+      String lengthHeader = null;
+      try {
+        Field request = InputBuffer.class.getDeclaredField("httpHeader");
+        request.setAccessible(true);
+        HttpHeader header = (HttpHeader) request.get(inputBuffer);
+
+        AttributeHolder attributes = header.getAttributes();
+        Object attribute = attributes.getAttribute("datadog.intercepted_request_body");
+        if (attribute != null) {
+          return;
+        }
+        attributes.setAttribute("datadog.intercepted_request_body", Boolean.TRUE);
+
+        lengthHeader = header.getHeader("content-length");
+      } catch (NoSuchFieldException | IllegalAccessException e) {
+        throw new UndeclaredThrowableException(e);
+      }
+
+      StoredCharBody storedCharBody = StoredBodyFactories.maybeCreateForChar(lengthHeader);
+
+      InstrumentationContext.get(NIOReader.class, StoredCharBody.class).put(thiz, storedCharBody);
+    }
+  }
+
+  static class NIOReaderReadAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(@Advice.This final NIOReader thiz, @Advice.Return int ret) {
+      StoredCharBody storedCharBody =
+          InstrumentationContext.get(NIOReader.class, StoredCharBody.class).get(thiz);
+      if (storedCharBody == null) {
+        return;
+      }
+      if (ret == -1) {
+        storedCharBody.maybeNotify();
+        return;
+      }
+      storedCharBody.appendData(ret);
+    }
+  }
+
+  static class NIOReaderReadCharArrayAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(
+        @Advice.This final NIOReader thiz,
+        @Advice.Argument(0) char[] charArray,
+        @Advice.Return int ret) {
+      StoredCharBody storedCharBody =
+          InstrumentationContext.get(NIOReader.class, StoredCharBody.class).get(thiz);
+      if (storedCharBody == null) {
+        return;
+      }
+      if (ret == -1) {
+        storedCharBody.maybeNotify();
+        return;
+      }
+      storedCharBody.appendData(charArray, 0, ret);
+    }
+  }
+
+  static class NIOReaderReadCharArrayIntIntAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(
+        @Advice.This final NIOReader thiz,
+        @Advice.Argument(0) char[] charArray,
+        @Advice.Argument(1) int off,
+        @Advice.Return int ret) {
+      StoredCharBody storedCharBody =
+          InstrumentationContext.get(NIOReader.class, StoredCharBody.class).get(thiz);
+      if (storedCharBody == null) {
+        return;
+      }
+      if (ret == -1) {
+        storedCharBody.maybeNotify();
+        return;
+      }
+      storedCharBody.appendData(charArray, off, off + ret);
+    }
+  }
+
+  static class NIOReaderReadCharBufferAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static int before(
+        @Advice.This final NIOReader thiz,
+        @Advice.Local("storedCharBody") StoredCharBody storedCharBody,
+        @Advice.Argument(0) CharBuffer charBuffer) {
+      storedCharBody = InstrumentationContext.get(NIOReader.class, StoredCharBody.class).get(thiz);
+      if (storedCharBody == null) {
+        return 0;
+      }
+      return charBuffer.position();
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(
+        @Advice.Local("storedCharBody") StoredCharBody storedCharBody,
+        @Advice.Argument(0) CharBuffer charBuffer,
+        @Advice.Enter int initPos,
+        @Advice.Return int ret) {
+      if (storedCharBody == null) {
+        return;
+      }
+      if (ret > 0) {
+        int finalLimit = charBuffer.limit();
+        int finalPos = charBuffer.position();
+        charBuffer.limit(charBuffer.position());
+        charBuffer.position(initPos);
+
+        storedCharBody.appendData(charBuffer);
+
+        charBuffer.limit(finalLimit);
+        charBuffer.position(finalPos);
+      } else if (ret == -1) {
+        storedCharBody.maybeNotify();
+      }
+    }
+  }
+
+  static class NIOReaderIsFinishedAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(@Advice.This final NIOReader thiz, @Advice.Return boolean ret) {
+      StoredCharBody storedCharBody =
+          InstrumentationContext.get(NIOReader.class, StoredCharBody.class).get(thiz);
+      if (storedCharBody == null) {
+        return;
+      }
+      if (ret) {
+        storedCharBody.maybeNotify();
+      }
+    }
+  }
+
+  static class NIOReaderRecycleAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(@Advice.This final NIOReader thiz) {
+      InstrumentationContext.get(NIOReader.class, StoredCharBody.class).put(thiz, null);
+    }
+  }
+}

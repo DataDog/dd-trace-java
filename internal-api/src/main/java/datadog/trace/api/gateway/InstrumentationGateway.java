@@ -33,6 +33,13 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
     callbacks = new AtomicReferenceArray<>(MAX_EVENTS);
   }
 
+  // for tests
+  void reset() {
+    for (int i = 0; i < MAX_EVENTS; i++) {
+      callbacks.set(i, null);
+    }
+  }
+
   @Override
   @SuppressWarnings("unchecked")
   public <C> C getCallback(EventType<C> eventType) {
