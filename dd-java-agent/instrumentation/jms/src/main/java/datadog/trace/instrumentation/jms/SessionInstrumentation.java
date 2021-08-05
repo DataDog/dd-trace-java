@@ -142,11 +142,18 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
       // avoid doing the same thing more than once when there is delegation to overloads
       if (producerStateStore.get(producer) == null) {
 
+        int acknowledgeMode;
+        try {
+          acknowledgeMode = session.getAcknowledgeMode();
+        } catch (JMSException ignore) {
+          acknowledgeMode = Session.AUTO_ACKNOWLEDGE;
+        }
+
         SessionState sessionState =
             InstrumentationContext.get(Session.class, SessionState.class)
                 .putIfAbsent(session, SessionState.FACTORY);
 
-        producerStateStore.put(producer, new MessageProducerState(sessionState));
+        producerStateStore.put(producer, new MessageProducerState(sessionState, acknowledgeMode));
       }
     }
   }
