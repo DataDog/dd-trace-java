@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
@@ -25,6 +26,8 @@ public final class SessionState {
       AtomicReferenceFieldUpdater.newUpdater(SessionState.class, Queue.class, "capturedSpans");
   private static final AtomicIntegerFieldUpdater<SessionState> SPAN_COUNT =
       AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "spanCount");
+  private static final AtomicLongFieldUpdater<SessionState> COMMIT_ID =
+      AtomicLongFieldUpdater.newUpdater(SessionState.class, "commitId");
 
   // hard bound at 8192 captured spans, degrade to finishing spans early
   // if transactions are very large, rather than use lots of space
@@ -32,6 +35,7 @@ public final class SessionState {
 
   private volatile Queue<AgentSpan> capturedSpans;
   private volatile int spanCount;
+  private volatile long commitId;
 
   // only used for testing
   boolean isEmpty() {
@@ -57,6 +61,7 @@ public final class SessionState {
   }
 
   public void onCommit() { // also called on rollback or close
+    COMMIT_ID.incrementAndGet(this);
     Queue<AgentSpan> q = capturedSpans;
     if (null != q) {
       synchronized (this) {
@@ -73,5 +78,9 @@ public final class SessionState {
         SPAN_COUNT.getAndAdd(this, -taken);
       }
     }
+  }
+
+  public long currentCommitId() {
+    return commitId;
   }
 }
