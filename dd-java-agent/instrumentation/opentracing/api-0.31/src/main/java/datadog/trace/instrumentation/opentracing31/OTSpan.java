@@ -71,46 +71,47 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public MutableSpan setError(final boolean value) {
-    return delegate.setError(value);
+  public OTSpan setError(final boolean value) {
+    delegate.setError(value);
+    return this;
   }
 
   @Override
-  public MutableSpan getRootSpan() {
-    return delegate.getLocalRootSpan();
+  public OTSpan getRootSpan() {
+    return getLocalRootSpan();
   }
 
   @Override
-  public MutableSpan getLocalRootSpan() {
-    return delegate.getLocalRootSpan();
+  public OTSpan getLocalRootSpan() {
+    return converter.toSpan(delegate.getLocalRootSpan());
   }
 
   @Override
-  public Span log(final Map<String, ?> fields) {
+  public OTSpan log(final Map<String, ?> fields) {
     logHandler.log(fields, delegate);
     return this;
   }
 
   @Override
-  public Span log(final long timestampMicroseconds, final Map<String, ?> fields) {
+  public OTSpan log(final long timestampMicroseconds, final Map<String, ?> fields) {
     logHandler.log(timestampMicroseconds, fields, delegate);
     return this;
   }
 
   @Override
-  public Span log(final String event) {
+  public OTSpan log(final String event) {
     logHandler.log(event, delegate);
     return this;
   }
 
   @Override
-  public Span log(final long timestampMicroseconds, final String event) {
+  public OTSpan log(final long timestampMicroseconds, final String event) {
     logHandler.log(timestampMicroseconds, event, delegate);
     return this;
   }
 
   @Override
-  public Span setBaggageItem(final String key, final String value) {
+  public OTSpan setBaggageItem(final String key, final String value) {
     delegate.setBaggageItem(key, value);
     return this;
   }
@@ -131,13 +132,13 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public String getOperationName() {
-    return String.valueOf(delegate.getOperationName());
+  public CharSequence getOperationName() {
+    return delegate.getOperationName();
   }
 
   @Override
-  public MutableSpan setOperationName(final CharSequence serviceName) {
-    delegate.setOperationName(serviceName);
+  public OTSpan setOperationName(final CharSequence operationName) {
+    delegate.setOperationName(operationName);
     return this;
   }
 
@@ -153,8 +154,9 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public MutableSpan setServiceName(final String serviceName) {
-    return delegate.setServiceName(serviceName);
+  public OTSpan setServiceName(final String serviceName) {
+    delegate.setServiceName(serviceName);
+    return this;
   }
 
   @Override
@@ -163,8 +165,9 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public MutableSpan setResourceName(final CharSequence resourceName) {
-    return delegate.setResourceName(resourceName);
+  public OTSpan setResourceName(final CharSequence resourceName) {
+    delegate.setResourceName(resourceName);
+    return this;
   }
 
   @Override
@@ -173,8 +176,9 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public MutableSpan setSamplingPriority(final int newPriority) {
-    return delegate.setSamplingPriority(newPriority);
+  public OTSpan setSamplingPriority(final int newPriority) {
+    delegate.setSamplingPriority(newPriority);
+    return this;
   }
 
   @Override
@@ -183,8 +187,9 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public MutableSpan setSpanType(final CharSequence type) {
-    return delegate.setSpanType(type);
+  public OTSpan setSpanType(final CharSequence type) {
+    delegate.setSpanType(type);
+    return this;
   }
 
   @Override
