@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
-import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -14,33 +13,64 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  */
 public final class SessionState {
 
-  public static ContextStore.Factory<SessionState> FACTORY =
-      new ContextStore.Factory<SessionState>() {
-        @Override
-        public SessionState create() {
-          return new SessionState();
-        }
-      };
-
+  private static final AtomicReferenceFieldUpdater<SessionState, MessageBatchState> BATCH_STATE =
+      AtomicReferenceFieldUpdater.newUpdater(
+          SessionState.class, MessageBatchState.class, "batchState");
+  private static final AtomicLongFieldUpdater<SessionState> COMMIT_SEQUENCE =
+      AtomicLongFieldUpdater.newUpdater(SessionState.class, "commitSequence");
   private static final AtomicReferenceFieldUpdater<SessionState, Queue> CAPTURED_SPANS =
       AtomicReferenceFieldUpdater.newUpdater(SessionState.class, Queue.class, "capturedSpans");
   private static final AtomicIntegerFieldUpdater<SessionState> SPAN_COUNT =
       AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "spanCount");
-  private static final AtomicLongFieldUpdater<SessionState> COMMIT_ID =
-      AtomicLongFieldUpdater.newUpdater(SessionState.class, "commitId");
 
   // hard bound at 8192 captured spans, degrade to finishing spans early
   // if transactions are very large, rather than use lots of space
   static final int CAPACITY = 8192;
 
+  private final int ackMode;
+
+  // transactional producer state
+  private volatile MessageBatchState batchState;
+  private volatile long commitSequence;
+
+  // transactional consumer state
   private volatile Queue<AgentSpan> capturedSpans;
   private volatile int spanCount;
-  private volatile long commitId;
+
+  public SessionState(int ackMode) {
+    this.ackMode = ackMode;
+    // defer creating capturedSpans queue as we only need it for consumer sessions
+  }
+
+  public boolean isTransactedSession() {
+    return ackMode == 0; /* Session.SESSION_TRANSACTED */
+  }
+
+  public boolean isAutoAcknowledge() {
+    return ackMode == 1 || ackMode == 3; /* Session.AUTO_ACKNOWLEDGE, Session.DUPS_OK_ACKNOWLEDGE */
+  }
+
+  public boolean isClientAcknowledge() {
+    return ackMode == 2; /* Session.CLIENT_ACKNOWLEDGE */
+  }
+
+  public MessageBatchState getBatchState() {
+    MessageBatchState oldBatch = batchState;
+    if (null != oldBatch && oldBatch.commitSequence == commitSequence) {
+      return oldBatch;
+    }
+    MessageBatchState newBatch = new MessageBatchState(commitSequence);
+    if (!BATCH_STATE.compareAndSet(this, oldBatch, newBatch)) {
+      newBatch = batchState;
+    }
+    return newBatch;
+  }
 
   // only used for testing
-  boolean isEmpty() {
+  int getCapturedSpanCount() {
     Queue<AgentSpan> q = capturedSpans;
-    return null == q || q.isEmpty();
+    assert spanCount == (null != q ? q.size() : 0);
+    return spanCount;
   }
 
   /** Finishes the given message span when the session is committed, rolled back, or closed. */
@@ -61,7 +91,7 @@ public final class SessionState {
   }
 
   public void onCommit() { // also called on rollback or close
-    COMMIT_ID.incrementAndGet(this);
+    COMMIT_SEQUENCE.incrementAndGet(this);
     Queue<AgentSpan> q = capturedSpans;
     if (null != q) {
       synchronized (this) {
@@ -78,9 +108,5 @@ public final class SessionState {
         SPAN_COUNT.getAndAdd(this, -taken);
       }
     }
-  }
-
-  public long currentCommitId() {
-    return commitId;
   }
 }

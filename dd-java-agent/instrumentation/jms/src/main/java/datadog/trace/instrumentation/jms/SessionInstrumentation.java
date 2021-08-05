@@ -116,17 +116,18 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
           // fall back to default
         }
 
-        SessionState sessionState =
-            InstrumentationContext.get(Session.class, SessionState.class)
-                .putIfAbsent(session, SessionState.FACTORY);
+        ContextStore<Session, SessionState> sessionStateStore =
+            InstrumentationContext.get(Session.class, SessionState.class);
+
+        SessionState sessionState = sessionStateStore.get(session);
+        if (null == sessionState) {
+          sessionState = sessionStateStore.putIfAbsent(session, new SessionState(acknowledgeMode));
+        }
 
         consumerStateStore.put(
             consumer,
             new MessageConsumerState(
-                sessionState,
-                acknowledgeMode,
-                UTF8BytesString.create(resourceName),
-                destinationName));
+                sessionState, UTF8BytesString.create(resourceName), destinationName));
       }
     }
   }
@@ -149,11 +150,15 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
           acknowledgeMode = Session.AUTO_ACKNOWLEDGE;
         }
 
-        SessionState sessionState =
-            InstrumentationContext.get(Session.class, SessionState.class)
-                .putIfAbsent(session, SessionState.FACTORY);
+        ContextStore<Session, SessionState> sessionStateStore =
+            InstrumentationContext.get(Session.class, SessionState.class);
 
-        producerStateStore.put(producer, new MessageProducerState(sessionState, acknowledgeMode));
+        SessionState sessionState = sessionStateStore.get(session);
+        if (null == sessionState) {
+          sessionState = sessionStateStore.putIfAbsent(session, new SessionState(acknowledgeMode));
+        }
+
+        producerStateStore.put(producer, new MessageProducerState(sessionState));
       }
     }
   }

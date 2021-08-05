@@ -131,12 +131,13 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, message, messageConsumerState.getResourceName());
         CONSUMER_DECORATE.onError(span, throwable);
-        if (messageConsumerState.isClientAcknowledge()) {
+        SessionState sessionState = messageConsumerState.getSessionState();
+        if (sessionState.isClientAcknowledge()) {
           // span will be finished by a call to Message.acknowledge
           InstrumentationContext.get(Message.class, AgentSpan.class).put(message, span);
-        } else if (messageConsumerState.isTransactedSession()) {
+        } else if (sessionState.isTransactedSession()) {
           // span will be finished by Session.commit/rollback/close
-          messageConsumerState.getSessionState().finishOnCommit(span);
+          sessionState.finishOnCommit(span);
         }
         // for AUTO_ACKNOWLEDGE, span is not finished until next call to receive, or close
       }
