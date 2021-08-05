@@ -1,6 +1,11 @@
 package datadog.trace.instrumentation.jms;
 
+import static datadog.trace.bootstrap.instrumentation.jms.MessageBatchState.JMS_BATCH_ID_KEY;
+import static datadog.trace.bootstrap.instrumentation.jms.MessageProducerState.JMS_PRODUCED_KEY;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.jms.MessageBatchState;
+import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -8,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
-
   private static final Logger log = LoggerFactory.getLogger(MessageInjectAdapter.class);
 
   public static final MessageInjectAdapter SETTER = new MessageInjectAdapter();
@@ -23,6 +27,19 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
       if (log.isDebugEnabled()) {
         log.debug("Failure setting jms property: " + propName, e);
       }
+    }
+  }
+
+  public void injectTimeInQueue(final Message carrier, final SessionState sessionState) {
+    try {
+      if (sessionState.isTransactedSession()) {
+        MessageBatchState batchState = sessionState.currentBatchState();
+        carrier.setLongProperty(JMS_BATCH_ID_KEY, batchState.getBatchId());
+        carrier.setLongProperty(JMS_PRODUCED_KEY, batchState.getStartMillis());
+      } else {
+        carrier.setLongProperty(JMS_PRODUCED_KEY, System.currentTimeMillis());
+      }
+    } catch (final JMSException ignore) {
     }
   }
 }

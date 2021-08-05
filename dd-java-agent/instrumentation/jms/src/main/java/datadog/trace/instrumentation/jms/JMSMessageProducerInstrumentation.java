@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -16,8 +17,11 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
+import java.util.Map;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -54,6 +58,11 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       packageName + ".MessageExtractAdapter$1",
       packageName + ".MessageInjectAdapter"
     };
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("javax.jms.MessageProducer", MessageProducerState.class.getName());
   }
 
   @Override
@@ -99,6 +108,14 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       if (Config.get().isJMSPropagationEnabled()
           && !Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
         propagate().inject(span, message, SETTER);
+
+        MessageProducerState producerState =
+            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
+                .get(producer);
+
+        if (null != producerState) {
+          SETTER.injectTimeInQueue(message, producerState.getSessionState());
+        }
       }
       return activateSpan(span);
     }
@@ -125,14 +142,9 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         @Advice.Argument(1) final Message message,
         @Advice.This final MessageProducer producer) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
-
       if (callDepth > 0) {
         return null;
       }
-
-      final AgentSpan span = startSpan(JMS_PRODUCE);
-      PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, message, destination);
 
       String destinationName = null;
       try {
@@ -144,9 +156,21 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       } catch (final JMSException e) {
       }
 
+      final AgentSpan span = startSpan(JMS_PRODUCE);
+      PRODUCER_DECORATE.afterStart(span);
+      PRODUCER_DECORATE.onProduce(span, message, destination);
+
       if (Config.get().isJMSPropagationEnabled()
           && !Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
         propagate().inject(span, message, SETTER);
+
+        MessageProducerState producerState =
+            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
+                .get(producer);
+
+        if (null != producerState) {
+          SETTER.injectTimeInQueue(message, producerState.getSessionState());
+        }
       }
       return activateSpan(span);
     }

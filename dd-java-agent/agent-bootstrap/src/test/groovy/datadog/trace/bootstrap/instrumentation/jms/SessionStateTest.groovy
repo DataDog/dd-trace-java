@@ -31,17 +31,17 @@ class SessionStateTest extends DDSpecification {
     AgentSpan span1 = Mock(AgentSpan)
     AgentSpan span2 = Mock(AgentSpan)
     when: "fill the buffer"
-    for (int i = 0; i < SessionState.CAPACITY; ++i) {
+    for (int i = 0; i < SessionState.MAX_CAPTURED_SPANS; ++i) {
       sessionState.finishOnCommit(span1)
     }
     then: "spans are not finished on entry"
     0 * span1.finish()
-    sessionState.capturedSpanCount == SessionState.CAPACITY
+    sessionState.capturedSpanCount == SessionState.MAX_CAPTURED_SPANS
     when: "buffer overflows"
     sessionState.finishOnCommit(span2)
     then: "span is finished on entry"
     1 * span2.finish()
-    sessionState.capturedSpanCount == SessionState.CAPACITY
+    sessionState.capturedSpanCount == SessionState.MAX_CAPTURED_SPANS
     when: "commit and add span"
     sessionState.onCommit()
     sessionState.finishOnCommit(span2)
