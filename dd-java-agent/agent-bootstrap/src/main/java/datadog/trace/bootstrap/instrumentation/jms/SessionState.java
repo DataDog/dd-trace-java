@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
@@ -16,8 +15,8 @@ public final class SessionState {
   private static final AtomicReferenceFieldUpdater<SessionState, MessageBatchState> BATCH_STATE =
       AtomicReferenceFieldUpdater.newUpdater(
           SessionState.class, MessageBatchState.class, "batchState");
-  private static final AtomicLongFieldUpdater<SessionState> COMMIT_SEQUENCE =
-      AtomicLongFieldUpdater.newUpdater(SessionState.class, "commitSequence");
+  private static final AtomicIntegerFieldUpdater<SessionState> COMMIT_SEQUENCE =
+      AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "commitSequence");
   private static final AtomicReferenceFieldUpdater<SessionState, Queue> CAPTURED_SPANS =
       AtomicReferenceFieldUpdater.newUpdater(SessionState.class, Queue.class, "capturedSpans");
   private static final AtomicIntegerFieldUpdater<SessionState> SPAN_COUNT =
