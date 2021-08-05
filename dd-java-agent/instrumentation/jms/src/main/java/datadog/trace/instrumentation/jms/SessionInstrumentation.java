@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -59,12 +60,14 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
             .and(isPublic())
             .and(takesArgument(0, named("javax.jms.Destination"))),
         getClass().getName() + "$CreateConsumer");
-    transformation.applyAdvice(
-        isMethod()
-            .and(named("createProducer"))
-            .and(isPublic())
-            .and(takesArgument(0, named("javax.jms.Destination"))),
-        getClass().getName() + "$CreateProducer");
+    if (!Config.get().isJmsLegacyTracingEnabled()) {
+      transformation.applyAdvice(
+          isMethod()
+              .and(named("createProducer"))
+              .and(isPublic())
+              .and(takesArgument(0, named("javax.jms.Destination"))),
+          getClass().getName() + "$CreateProducer");
+    }
     transformation.applyAdvice(
         namedOneOf("commit", "close", "rollback").and(takesNoArguments()),
         getClass().getName() + "$Commit");

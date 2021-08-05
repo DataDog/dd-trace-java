@@ -25,13 +25,13 @@ public final class SessionState {
 
   // hard bound at 8192 captured spans, degrade to finishing spans early
   // if transactions are very large, rather than use lots of space
-  static final int CAPACITY = 8192;
+  static final int MAX_CAPTURED_SPANS = 8192;
 
   private final int ackMode;
 
   // transactional producer state
   private volatile MessageBatchState batchState;
-  private volatile long commitSequence;
+  private volatile int commitSequence;
 
   // transactional consumer state
   private volatile Queue<AgentSpan> capturedSpans;
@@ -54,7 +54,7 @@ public final class SessionState {
     return ackMode == 2; /* Session.CLIENT_ACKNOWLEDGE */
   }
 
-  public MessageBatchState getBatchState() {
+  public MessageBatchState currentBatchState() {
     MessageBatchState oldBatch = batchState;
     if (null != oldBatch && oldBatch.commitSequence == commitSequence) {
       return oldBatch;
@@ -77,7 +77,7 @@ public final class SessionState {
   public void finishOnCommit(AgentSpan span) {
     Queue<AgentSpan> q = capturedSpans;
     if (null == q) {
-      q = new ArrayBlockingQueue<AgentSpan>(CAPACITY);
+      q = new ArrayBlockingQueue<AgentSpan>(MAX_CAPTURED_SPANS);
       if (!CAPTURED_SPANS.compareAndSet(this, null, q)) {
         q = capturedSpans; // another thread won, use their value
       }
