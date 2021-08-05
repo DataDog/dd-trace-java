@@ -8,11 +8,19 @@ public final class MessageBatchState {
 
   final long batchId;
   final long startMillis;
-  final long contextId;
+  final long commitSequence;
 
-  MessageBatchState(long contextId) {
+  MessageBatchState(long commitSequence) {
     this.batchId = ID_STRATEGY.generate().toLong();
     this.startMillis = System.currentTimeMillis();
-    this.contextId = contextId;
+    this.commitSequence = commitSequence;
+  }
+
+  public long getBatchId() {
+    return batchId;
+  }
+
+  public long getStartMillis() {
+    return startMillis;
   }
 }

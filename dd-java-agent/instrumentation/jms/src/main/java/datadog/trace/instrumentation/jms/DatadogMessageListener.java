@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
+import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import javax.jms.Message;
 import javax.jms.MessageListener;
 
@@ -52,14 +53,15 @@ public class DatadogMessageListener implements MessageListener {
       CONSUMER_DECORATE.onError(span, thrown);
       throw thrown;
     } finally {
-      if (messageConsumerState.isClientAcknowledge()) {
+      SessionState sessionState = messageConsumerState.getSessionState();
+      if (sessionState.isClientAcknowledge()) {
         // span will be finished by a call to Message.acknowledge
         messageAckStore.put(message, span);
-      } else if (messageConsumerState.isAutoAcknowledge()) {
+      } else if (sessionState.isAutoAcknowledge()) {
         span.finish();
-      } else if (messageConsumerState.isTransactedSession()) {
+      } else if (sessionState.isTransactedSession()) {
         // span will be finished by Session.commit/rollback/close
-        messageConsumerState.getSessionState().finishOnCommit(span);
+        sessionState.finishOnCommit(span);
       }
     }
   }

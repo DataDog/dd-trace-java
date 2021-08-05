@@ -7,36 +7,19 @@ public final class MessageConsumerState {
   private final ThreadLocal<AgentScope> currentScope = new ThreadLocal<>();
 
   private final SessionState sessionState;
-  private final int ackMode;
   private final UTF8BytesString resourceName;
   private final String destinationName;
 
   public MessageConsumerState(
-      SessionState sessionState,
-      int ackMode,
-      UTF8BytesString resourceName,
-      String destinationName) {
+      SessionState sessionState, UTF8BytesString resourceName, String destinationName) {
 
     this.sessionState = sessionState;
-    this.ackMode = ackMode;
     this.resourceName = resourceName;
     this.destinationName = destinationName;
   }
 
   public SessionState getSessionState() {
     return sessionState;
-  }
-
-  public boolean isTransactedSession() {
-    return ackMode == 0; /* Session.SESSION_TRANSACTED */
-  }
-
-  public boolean isAutoAcknowledge() {
-    return ackMode == 1 || ackMode == 3; /*Session.AUTO_ACKNOWLEDGE Session.DUPS_OK_ACKNOWLEDGE */
-  }
-
-  public boolean isClientAcknowledge() {
-    return ackMode == 2; /* Session.CLIENT_ACKNOWLEDGE */
   }
 
   public UTF8BytesString getResourceName() {
@@ -59,7 +42,7 @@ public final class MessageConsumerState {
       // be quite a long time before another message arrives
       currentScope.remove();
       scope.close();
-      if (isAutoAcknowledge()) {
+      if (sessionState.isAutoAcknowledge()) {
         scope.span().finish();
       }
     }
