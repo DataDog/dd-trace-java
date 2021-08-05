@@ -9,8 +9,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.http.StoredBodyFactories;
 import datadog.trace.api.http.StoredCharBody;
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.lang.reflect.Field;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.CharBuffer;
 import java.util.Collections;
 import java.util.Map;
@@ -37,6 +35,11 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "org.glassfish.grizzly.http.io.NIOReader", "datadog.trace.api.http.StoredCharBody");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {"datadog.trace.instrumentation.grizzlyhttp232.HttpHeaderFetchingHelper"};
   }
 
   @Override
@@ -69,24 +72,16 @@ public class GrizzlyCharBodyInstrumentation extends Instrumenter.AppSec {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
         @Advice.This final NIOReader thiz, @Advice.Argument(0) final InputBuffer inputBuffer) {
-      String lengthHeader = null;
-      try {
-        Field request = InputBuffer.class.getDeclaredField("httpHeader");
-        request.setAccessible(true);
-        HttpHeader header = (HttpHeader) request.get(inputBuffer);
-
-        AttributeHolder attributes = header.getAttributes();
-        Object attribute = attributes.getAttribute("datadog.intercepted_request_body");
-        if (attribute != null) {
-          return;
-        }
-        attributes.setAttribute("datadog.intercepted_request_body", Boolean.TRUE);
-
-        lengthHeader = header.getHeader("content-length");
-      } catch (NoSuchFieldException | IllegalAccessException e) {
-        throw new UndeclaredThrowableException(e);
+      HttpHeader header = HttpHeaderFetchingHelper.fetchHttpHeader(inputBuffer);
+      AttributeHolder attributes = header.getAttributes();
+      Object attribute = attributes.getAttribute("datadog.intercepted_request_body");
+      if (attribute != null) {
+        return;
       }
 
+      attributes.setAttribute("datadog.intercepted_request_body", Boolean.TRUE);
+
+      String lengthHeader = header.getHeader("content-length");
       StoredCharBody storedCharBody = StoredBodyFactories.maybeCreateForChar(lengthHeader);
 
       InstrumentationContext.get(NIOReader.class, StoredCharBody.class).put(thiz, storedCharBody);

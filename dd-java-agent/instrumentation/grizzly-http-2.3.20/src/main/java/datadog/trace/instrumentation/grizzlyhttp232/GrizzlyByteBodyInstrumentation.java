@@ -9,8 +9,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.http.StoredBodyFactories;
 import datadog.trace.api.http.StoredByteBody;
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.lang.reflect.Field;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
@@ -41,6 +39,11 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "org.glassfish.grizzly.http.io.NIOInputStream", "datadog.trace.api.http.StoredByteBody");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {"datadog.trace.instrumentation.grizzlyhttp232.HttpHeaderFetchingHelper"};
   }
 
   @Override
@@ -77,31 +80,24 @@ public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
         @Advice.This final NIOInputStream thiz, @Advice.Argument(0) final InputBuffer inputBuffer) {
-      String lengthHeader = null;
       // this is what grizzly defaults to
       Charset charset = StandardCharsets.ISO_8859_1;
-      try {
-        Field httpHeaderField = InputBuffer.class.getDeclaredField("httpHeader");
-        httpHeaderField.setAccessible(true);
-        HttpHeader header = (HttpHeader) httpHeaderField.get(inputBuffer);
+      HttpHeader header = HttpHeaderFetchingHelper.fetchHttpHeader(inputBuffer);
+      AttributeHolder attributes = header.getAttributes();
+      Object attribute = attributes.getAttribute("datadog.intercepted_request_body");
+      if (attribute != null) {
+        return;
+      }
+      attributes.setAttribute("datadog.intercepted_request_body", Boolean.TRUE);
 
-        AttributeHolder attributes = header.getAttributes();
-        if (attributes == null) System.out.println("attributes is null");
-        Object attribute = attributes.getAttribute("datadog.intercepted_request_body");
-        if (attribute != null) {
-          return;
-        }
-        attributes.setAttribute("datadog.intercepted_request_body", Boolean.TRUE);
-
-        lengthHeader = header.getHeader("content-length");
-        String encodingString = header.getCharacterEncoding();
-        if (encodingString != null) {
+      String lengthHeader = header.getHeader("content-length");
+      String encodingString = header.getCharacterEncoding();
+      if (encodingString != null) {
+        try {
           charset = Charsets.lookupCharset(encodingString);
+        } catch (UnsupportedCharsetException use) {
+          // purposefully left blank
         }
-      } catch (NoSuchFieldException | IllegalAccessException e) {
-        throw new UndeclaredThrowableException(e);
-      } catch (UnsupportedCharsetException use) {
-        // purposefully left blank
       }
 
       StoredByteBody storedByteBody = StoredBodyFactories.maybeCreateForByte(charset, lengthHeader);
