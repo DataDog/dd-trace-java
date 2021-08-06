@@ -147,12 +147,12 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
   public static class Close {
     @Advice.OnMethodEnter
     public static void beforeClose(@Advice.This final MessageConsumer consumer) {
-      MessageConsumerState messageConsumerState =
+      MessageConsumerState consumerState =
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
-      if (null != messageConsumerState) {
-        messageConsumerState.closePreviousMessageScope();
-        messageConsumerState.finishCurrentTimeInQueueSpan();
+      if (null != consumerState) {
+        consumerState.closePreviousMessageScope();
+        consumerState.finishCurrentTimeInQueueSpan();
       }
     }
   }
