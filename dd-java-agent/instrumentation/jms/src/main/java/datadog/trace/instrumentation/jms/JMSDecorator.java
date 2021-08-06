@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.concurrent.TimeUnit;
 import javax.jms.Destination;
-import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.Queue;
 import javax.jms.TemporaryQueue;
@@ -75,7 +74,7 @@ public final class JMSDecorator extends ClientDecorator {
         final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
         span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
       }
-    } catch (final JMSException ignored) {
+    } catch (Exception ignored) {
     }
     span.setMeasured(true);
   }
@@ -92,7 +91,7 @@ public final class JMSDecorator extends ClientDecorator {
     Destination jmsDestination = null;
     try {
       jmsDestination = message.getJMSDestination();
-    } catch (final Exception e) {
+    } catch (Exception ignored) {
     }
     if (jmsDestination == null) {
       jmsDestination = destination;
@@ -114,7 +113,7 @@ public final class JMSDecorator extends ClientDecorator {
           return "Topic " + topicName;
         }
       }
-    } catch (final Exception e) {
+    } catch (Exception ignored) {
     }
     return "Destination";
   }
