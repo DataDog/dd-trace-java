@@ -1,18 +1,16 @@
 package datadog.trace.instrumentation.jms;
 
+import static datadog.trace.instrumentation.jms.MessageInjectAdapter.JMS_BATCH_ID_KEY;
+import static datadog.trace.instrumentation.jms.MessageInjectAdapter.JMS_PRODUCED_KEY;
+
 import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.jms.MessageBatchState;
-import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Enumeration;
 import javax.jms.JMSException;
 import javax.jms.Message;
-
-import static datadog.trace.instrumentation.jms.MessageInjectAdapter.JMS_BATCH_ID_KEY;
-import static datadog.trace.instrumentation.jms.MessageInjectAdapter.JMS_PRODUCED_KEY;
 
 public final class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
 
@@ -53,7 +51,7 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
       if (carrier.propertyExists(JMS_PRODUCED_KEY)) {
         return carrier.getLongProperty(JMS_PRODUCED_KEY);
       }
-    } catch (final Exception ignore) {
+    } catch (Exception ignored) {
     }
     return 0;
   }
@@ -63,7 +61,7 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
       if (carrier.propertyExists(JMS_BATCH_ID_KEY)) {
         return carrier.getLongProperty(JMS_BATCH_ID_KEY);
       }
-    } catch (final Exception ignore) {
+    } catch (Exception ignored) {
     }
     return 0;
   }

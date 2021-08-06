@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.jms.MessageBatchState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import javax.jms.JMSException;
 import javax.jms.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +22,7 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
     final String propName = key.replace("-", "__dash__");
     try {
       carrier.setStringProperty(propName, value);
-    } catch (final JMSException e) {
+    } catch (Exception ignored) {
       if (log.isDebugEnabled()) {
         log.debug("Failure setting jms property: " + propName, e);
       }
@@ -39,7 +38,7 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
       } else {
         carrier.setLongProperty(JMS_PRODUCED_KEY, System.currentTimeMillis());
       }
-    } catch (final Exception ignore) {
+    } catch (Exception ignored) {
     }
   }
 }

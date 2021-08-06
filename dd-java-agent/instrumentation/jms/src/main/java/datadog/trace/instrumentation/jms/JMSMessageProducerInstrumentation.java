@@ -23,7 +23,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
 import java.util.Map;
 import javax.jms.Destination;
-import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageProducer;
 import javax.jms.Queue;
@@ -97,7 +96,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         } else if (defaultDestination instanceof Topic) {
           destinationName = ((Topic) defaultDestination).getTopicName();
         }
-      } catch (final JMSException e) {
+      } catch (Exception ignored) {
         defaultDestination = null;
       }
 
@@ -153,7 +152,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         } else if (destination instanceof Topic) {
           destinationName = ((Topic) destination).getTopicName();
         }
-      } catch (final JMSException e) {
+      } catch (Exception ignored) {
       }
 
       final AgentSpan span = startSpan(JMS_PRODUCE);

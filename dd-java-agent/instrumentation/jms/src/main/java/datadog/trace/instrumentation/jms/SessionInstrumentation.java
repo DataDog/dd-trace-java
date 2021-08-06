@@ -20,7 +20,6 @@ import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import java.util.HashMap;
 import java.util.Map;
 import javax.jms.Destination;
-import javax.jms.JMSException;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
 import javax.jms.Queue;
@@ -89,7 +88,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
         int acknowledgeMode;
         try {
           acknowledgeMode = session.getAcknowledgeMode();
-        } catch (JMSException ignore) {
+        } catch (Exception ignored) {
           acknowledgeMode = Session.AUTO_ACKNOWLEDGE;
         }
 
@@ -115,7 +114,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
               resourceName = "Consumed from Topic " + destinationName;
             }
           }
-        } catch (JMSException ignore) {
+        } catch (Exception ignored) {
           // fall back to default
         }
 
@@ -149,7 +148,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
         int acknowledgeMode;
         try {
           acknowledgeMode = session.getAcknowledgeMode();
-        } catch (JMSException ignore) {
+        } catch (Exception ignored) {
           acknowledgeMode = Session.AUTO_ACKNOWLEDGE;
         }
 
