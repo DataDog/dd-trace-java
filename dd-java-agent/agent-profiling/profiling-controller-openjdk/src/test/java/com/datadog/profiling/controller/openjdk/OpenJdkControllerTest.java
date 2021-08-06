@@ -74,7 +74,8 @@ public class OpenJdkControllerTest {
   public void testOldObjectSampleIsStillOverriddenThroughConfig() throws Exception {
     when(config.isProfilingHeapEnabled()).thenReturn(true);
     OpenJdkController controller = new OpenJdkController(config);
-    try (final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording()) {
+    try (final Recording recording =
+        ((OpenJdkRecordingData) controller.createRecording(TEST_NAME).stop()).getRecording()) {
       assertEquals(
           Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")), true);
     }

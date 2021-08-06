@@ -1,5 +1,6 @@
 plugins {
   id "de.undercouch.download" version "4.1.1"
+  id "com.github.johnrengelman.shadow"
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -16,10 +17,19 @@ excludedClassesCoverage += [
   'com.datadog.profiling.auxiliary.async.AsyncProfilerRecording'
 ]
 
+def AP_VERSION = project.findProperty("dd.async_profiler")
+AP_VERSION = AP_VERSION != null ? AP_VERSION : "1.8.3"
+
+repositories {
+  maven {
+    url = uri("https://gitlab.ddbuild.io/api/v4/projects/2193/packages/maven")
+  }
+}
+
 dependencies {
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-auxiliary')
-  implementation 'tools.profiler:async-profiler:1.8.3'
+  implementation "tools.profiler:async-profiler:${AP_VERSION}"
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
@@ -35,7 +45,7 @@ targetCompatibility = JavaVersion.VERSION_1_8
 
 // TODO: There might be more os/arch supports coming
 // Monitor https://github.com/jvm-profiling-tools/async-profiler/releases for newly supported archs
-['macos-x64', 'linux-x64', 'linux-x86', 'linux-musl-x64', 'linux-arm', 'linux-aarch64'].each {
+['macos-x64', 'linux-x86', 'linux-musl-x64', 'linux-arm', 'linux-aarch64'].each {
   def platform = it
 
   tasks.create(type: Download, name: "downloadAsyncProfiler_${platform}") {
@@ -61,3 +71,18 @@ targetCompatibility = JavaVersion.VERSION_1_8
 
   processResources.dependsOn "asyncProfilerResources_${platform}"
 }
+
+shadowJar {
+  classifier ""
+  include {
+    def rslt = false
+    rslt |= it.path == "com" || it.path == "com/datadog" || it.path.startsWith("com/datadog/")
+    rslt |= it.path == "META-INF" || it.path == "META-INF/services" || it.path.startsWith("META-INF/services/")
+    rslt |= it.path == "native-libs" || it.path.startsWith("native-libs")
+    rslt |= (it.path.contains("async-profiler") && it.path.endsWith(".jar"))
+
+    return rslt
+  }
+}
+
+build.dependsOn shadowJar
