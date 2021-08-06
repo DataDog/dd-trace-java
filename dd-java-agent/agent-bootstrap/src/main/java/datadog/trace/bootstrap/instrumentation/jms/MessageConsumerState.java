@@ -1,10 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public final class MessageConsumerState {
   private final ThreadLocal<AgentScope> currentScope = new ThreadLocal<>();
+  private final ThreadLocal<TimeInQueue> timeInQueue = new ThreadLocal<>();
 
   private final SessionState sessionState;
   private final UTF8BytesString resourceName;
@@ -45,6 +47,30 @@ public final class MessageConsumerState {
       if (sessionState.isAutoAcknowledge()) {
         scope.span().finish();
       }
+    }
+  }
+
+  public AgentSpan getTimeInQueueSpan(long batchId) {
+    TimeInQueue holder = timeInQueue.get();
+    if (null != holder) {
+      if (sessionState.isTransactedSession() || batchId == holder.batchId) {
+        return holder.span;
+      }
+      timeInQueue.remove();
+      holder.span.finish();
+    }
+    return null;
+  }
+
+  public void setTimeInQueueSpan(long batchId, AgentSpan span) {
+    timeInQueue.set(new TimeInQueue(batchId, span));
+  }
+
+  public void finishCurrentTimeInQueueSpan() {
+    TimeInQueue holder = timeInQueue.get();
+    if (null != holder) {
+      timeInQueue.remove();
+      holder.span.finish();
     }
   }
 }

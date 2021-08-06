@@ -1,8 +1,5 @@
 package datadog.trace.instrumentation.jms;
 
-import static datadog.trace.bootstrap.instrumentation.jms.MessageBatchState.JMS_BATCH_ID_KEY;
-import static datadog.trace.bootstrap.instrumentation.jms.MessageProducerState.JMS_PRODUCED_KEY;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.jms.MessageBatchState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
@@ -16,6 +13,9 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
   private static final Logger log = LoggerFactory.getLogger(MessageInjectAdapter.class);
 
   public static final MessageInjectAdapter SETTER = new MessageInjectAdapter();
+
+  public static final String JMS_PRODUCED_KEY = "x_datadog_jms_produced";
+  public static final String JMS_BATCH_ID_KEY = "x_datadog_jms_batch_id";
 
   @SuppressForbidden
   @Override
@@ -39,7 +39,7 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
       } else {
         carrier.setLongProperty(JMS_PRODUCED_KEY, System.currentTimeMillis());
       }
-    } catch (final JMSException ignore) {
+    } catch (final Exception ignore) {
     }
   }
 }
