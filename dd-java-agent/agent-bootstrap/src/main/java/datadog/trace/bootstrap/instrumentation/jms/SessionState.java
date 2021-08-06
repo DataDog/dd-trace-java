@@ -7,8 +7,9 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
- * This is a holder for spans created in a transacted session. It needs to be thread-safe since some
- * JMS providers allow concurrent transactions.
+ * Holds message spans consumed in client-acknowledged or transacted sessions. It also assigns ids
+ * to batches of messages produced from transacted sessions. This class needs to be thread-safe as
+ * some JMS providers allow concurrent transactions.
  */
 public final class SessionState {
 
@@ -28,17 +29,17 @@ public final class SessionState {
 
   private final int ackMode;
 
-  // transactional producer state
+  // producer-related session state
   private volatile MessageBatchState batchState;
   private volatile int commitSequence;
 
-  // transactional consumer state
+  // consumer-related session state
   private volatile Queue<AgentSpan> capturedSpans;
   private volatile int spanCount;
 
   public SessionState(int ackMode) {
     this.ackMode = ackMode;
-    // defer creating capturedSpans queue as we only need it for consumer sessions
+    // defer creating queue as we only need it for consumer client-ack/transacted sessions
   }
 
   public boolean isTransactedSession() {
@@ -53,6 +54,7 @@ public final class SessionState {
     return ackMode == 2; /* Session.CLIENT_ACKNOWLEDGE */
   }
 
+  /** Retrieves details about the current message batch being produced in this session. */
   public MessageBatchState currentBatchState() {
     MessageBatchState oldBatch = batchState;
     if (null != oldBatch && oldBatch.commitSequence == commitSequence) {
@@ -72,7 +74,7 @@ public final class SessionState {
     return spanCount;
   }
 
-  /** Finishes the given message span when a message from the session is acknowledged. */
+  /** Finishes the given message span when a message from the same session is acknowledged. */
   public void finishOnAcknowledge(AgentSpan span) {
     captureMessageSpan(span);
   }
