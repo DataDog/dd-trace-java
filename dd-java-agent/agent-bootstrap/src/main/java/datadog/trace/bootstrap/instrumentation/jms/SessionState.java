@@ -18,6 +18,7 @@ public final class SessionState {
           SessionState.class, MessageBatchState.class, "batchState");
   private static final AtomicIntegerFieldUpdater<SessionState> COMMIT_SEQUENCE =
       AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "commitSequence");
+
   private static final AtomicReferenceFieldUpdater<SessionState, Queue> CAPTURED_SPANS =
       AtomicReferenceFieldUpdater.newUpdater(SessionState.class, Queue.class, "capturedSpans");
   private static final AtomicIntegerFieldUpdater<SessionState> SPAN_COUNT =
