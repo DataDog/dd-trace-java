@@ -170,8 +170,8 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
           listener =
               new DatadogMessageListener(
                   InstrumentationContext.get(Message.class, SessionState.class),
-                  listener,
-                  consumerState);
+                  consumerState,
+                  listener);
         }
       }
     }

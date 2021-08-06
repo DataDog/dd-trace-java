@@ -25,8 +25,8 @@ public class DatadogMessageListener implements MessageListener {
 
   public DatadogMessageListener(
       ContextStore<Message, SessionState> messageAckStore,
-      MessageListener messageListener,
-      MessageConsumerState consumerState) {
+      MessageConsumerState consumerState,
+      MessageListener messageListener) {
     this.messageAckStore = messageAckStore;
     this.consumerState = consumerState;
     this.messageListener = messageListener;
