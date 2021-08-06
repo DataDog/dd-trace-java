@@ -133,6 +133,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         SessionState sessionState = consumerState.getSessionState();
         if (sessionState.isClientAcknowledge()) {
           // consumed spans will be finished by a call to Message.acknowledge
+          sessionState.finishOnAcknowledge(span);
           InstrumentationContext.get(Message.class, SessionState.class).put(message, sessionState);
         } else if (sessionState.isTransactedSession()) {
           // span will be finished by Session.commit/rollback/close
