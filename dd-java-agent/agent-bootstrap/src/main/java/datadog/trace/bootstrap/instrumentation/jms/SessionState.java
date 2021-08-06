@@ -72,8 +72,17 @@ public final class SessionState {
     return spanCount;
   }
 
+  /** Finishes the given message span when a message from the session is acknowledged. */
+  public void finishOnAcknowledge(AgentSpan span) {
+    captureMessageSpan(span);
+  }
+
   /** Finishes the given message span when the session is committed, rolled back, or closed. */
   public void finishOnCommit(AgentSpan span) {
+    captureMessageSpan(span);
+  }
+
+  private void captureMessageSpan(AgentSpan span) {
     Queue<AgentSpan> q = capturedSpans;
     if (null == q) {
       q = new ArrayBlockingQueue<AgentSpan>(MAX_CAPTURED_SPANS);
@@ -91,11 +100,19 @@ public final class SessionState {
 
   public void onCommit() { // also called on rollback or close
     COMMIT_SEQUENCE.incrementAndGet(this);
+    finishCapturedSpans();
+  }
+
+  public void onAcknowledge() {
+    finishCapturedSpans();
+  }
+
+  private void finishCapturedSpans() {
     Queue<AgentSpan> q = capturedSpans;
     if (null != q) {
       synchronized (this) {
-        // synchronized in case the second commit
-        // happens quicker than we can close the spans
+        // synchronized in case incoming requests
+        // happen quicker than we can close the spans
         int taken = SPAN_COUNT.get(this);
         for (int i = 0; i < taken; ++i) {
           AgentSpan span = q.poll();
