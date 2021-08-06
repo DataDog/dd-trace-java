@@ -58,11 +58,11 @@ public class DatadogMessageListener implements MessageListener {
         // consumed spans will be finished by a call to Message.acknowledge
         sessionState.finishOnAcknowledge(span);
         messageAckStore.put(message, sessionState);
-      } else if (sessionState.isAutoAcknowledge()) {
-        span.finish();
       } else if (sessionState.isTransactedSession()) {
         // span will be finished by Session.commit/rollback/close
         sessionState.finishOnCommit(span);
+      } else { // Session.AUTO_ACKNOWLEDGE
+        span.finish();
       }
     }
   }
