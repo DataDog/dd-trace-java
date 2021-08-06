@@ -92,12 +92,12 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
 
     @Advice.OnMethodEnter
     public static void beforeReceive(@Advice.This final MessageConsumer consumer) {
-      MessageConsumerState messageConsumerState =
+      MessageConsumerState consumerState =
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
-      if (null != messageConsumerState) {
+      if (null != consumerState) {
         // closes the scope, and finishes the span for AUTO_ACKNOWLEDGE
-        messageConsumerState.closePreviousMessageScope();
+        consumerState.closePreviousMessageScope();
       }
     }
 
@@ -151,6 +151,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
               .get(consumer);
       if (null != messageConsumerState) {
         messageConsumerState.closePreviousMessageScope();
+        messageConsumerState.finishCurrentTimeInQueueSpan();
       }
     }
   }
