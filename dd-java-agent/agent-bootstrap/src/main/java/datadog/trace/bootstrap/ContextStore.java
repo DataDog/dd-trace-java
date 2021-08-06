@@ -25,7 +25,7 @@ public interface ContextStore<K, C> {
   /**
    * Get context given the key
    *
-   * @param key the key to looup
+   * @param key the key to lookup
    * @return context object
    */
   C get(K key);
@@ -56,4 +56,12 @@ public interface ContextStore<K, C> {
    * @return old instance if it was present, or new instance
    */
   C putIfAbsent(K key, Factory<C> contextFactory);
+
+  /**
+   * Removes the existing value for key and return it.
+   *
+   * @param key the key remove
+   * @return removed context object
+   */
+  C remove(K key);
 }

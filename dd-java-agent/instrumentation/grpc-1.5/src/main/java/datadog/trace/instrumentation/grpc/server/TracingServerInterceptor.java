@@ -19,6 +19,7 @@ import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TracingServerInterceptor implements ServerInterceptor {
 
@@ -34,6 +35,11 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     final Context spanContext = propagate().extract(headers, GETTER);
     final AgentSpan span = startSpan(GRPC_SERVER, spanContext).setMeasured(true);
+    /**
+     * grpc has quite a few states that can finish the span. rather than track down the correct
+     * combination of them to exclusively finish the span, just guard against double finish.
+     */
+    final AtomicBoolean finishSpan = new AtomicBoolean(true);
     DECORATE.afterStart(span);
     DECORATE.onCall(span, call);
 
@@ -41,27 +47,33 @@ public class TracingServerInterceptor implements ServerInterceptor {
     try (AgentScope scope = activateSpan(span)) {
       // Wrap the server call so that we can decorate the span
       // with the resulting status
-      final TracingServerCall<ReqT, RespT> tracingServerCall = new TracingServerCall<>(span, call);
+      final TracingServerCall<ReqT, RespT> tracingServerCall =
+          new TracingServerCall<>(span, finishSpan, call);
       // call other interceptors
       result = next.startCall(tracingServerCall, headers);
     } catch (final Throwable e) {
-      DECORATE.onError(span, e);
-      DECORATE.beforeFinish(span);
-      span.finish();
+      if (finishSpan.getAndSet(false)) {
+        DECORATE.onError(span, e);
+        DECORATE.beforeFinish(span);
+        span.finish();
+      }
       throw e;
     }
 
     // This ensures the server implementation can see the span in scope
-    return new TracingServerCallListener<>(span, result);
+    return new TracingServerCallListener<>(span, finishSpan, result);
   }
 
   static final class TracingServerCall<ReqT, RespT>
       extends ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT> {
     final AgentSpan span;
+    final AtomicBoolean finishSpan;
 
-    TracingServerCall(final AgentSpan span, final ServerCall<ReqT, RespT> delegate) {
+    TracingServerCall(
+        final AgentSpan span, AtomicBoolean finishSpan, final ServerCall<ReqT, RespT> delegate) {
       super(delegate);
       this.span = span;
+      this.finishSpan = finishSpan;
     }
 
     @Override
@@ -73,8 +85,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
         DECORATE.onError(span, e);
         throw e;
       } finally {
-        DECORATE.beforeFinish(span);
-        span.finish();
+        if (finishSpan.getAndSet(false)) {
+          DECORATE.beforeFinish(span);
+          span.finish();
+        }
       }
     }
   }
@@ -82,28 +96,34 @@ public class TracingServerInterceptor implements ServerInterceptor {
   static final class TracingServerCallListener<ReqT>
       extends ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT> {
     private final AgentSpan span;
+    private final AtomicBoolean finishSpan;
 
-    TracingServerCallListener(final AgentSpan span, final ServerCall.Listener<ReqT> delegate) {
+    TracingServerCallListener(
+        final AgentSpan span, AtomicBoolean finishSpan, final ServerCall.Listener<ReqT> delegate) {
       super(delegate);
       this.span = span;
+      this.finishSpan = finishSpan;
     }
 
     @Override
     public void onMessage(final ReqT message) {
-      final AgentSpan span =
+      final AgentSpan msgSpan =
           startSpan(GRPC_MESSAGE, this.span.context())
               .setTag("message.type", message.getClass().getName());
-      DECORATE.afterStart(span);
-      try (AgentScope scope = activateSpan(span)) {
+      DECORATE.afterStart(msgSpan);
+      try (AgentScope scope = activateSpan(msgSpan)) {
         delegate().onMessage(message);
       } catch (final Throwable e) {
-        DECORATE.onError(span, e);
-        DECORATE.beforeFinish(this.span);
-        this.span.finish();
+        // I'm not convinced we should actually be finishing the span here...
+        if (finishSpan.getAndSet(false)) {
+          DECORATE.onError(msgSpan, e);
+          DECORATE.beforeFinish(this.span);
+          this.span.finish();
+        }
         throw e;
       } finally {
-        DECORATE.beforeFinish(span);
-        span.finish();
+        DECORATE.beforeFinish(msgSpan);
+        msgSpan.finish();
       }
     }
 
@@ -112,9 +132,11 @@ public class TracingServerInterceptor implements ServerInterceptor {
       try (final AgentScope scope = activateSpan(span)) {
         delegate().onHalfClose();
       } catch (final Throwable e) {
-        DECORATE.onError(span, e);
-        DECORATE.beforeFinish(span);
-        span.finish();
+        if (finishSpan.getAndSet(false)) {
+          DECORATE.onError(span, e);
+          DECORATE.beforeFinish(span);
+          span.finish();
+        }
         throw e;
       }
     }
@@ -132,8 +154,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
         DECORATE.onError(span, e);
         throw e;
       } finally {
-        DECORATE.beforeFinish(span);
-        span.finish();
+        if (finishSpan.getAndSet(false)) {
+          DECORATE.beforeFinish(span);
+          span.finish();
+        }
       }
     }
 
@@ -146,8 +170,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
         DECORATE.onError(span, e);
         throw e;
       } finally {
-        DECORATE.beforeFinish(span);
-        span.finish();
+        if (finishSpan.getAndSet(false)) {
+          DECORATE.beforeFinish(span);
+          span.finish();
+        }
       }
     }
 
@@ -156,9 +182,11 @@ public class TracingServerInterceptor implements ServerInterceptor {
       try (final AgentScope scope = activateSpan(span)) {
         delegate().onReady();
       } catch (final Throwable e) {
-        DECORATE.onError(span, e);
-        DECORATE.beforeFinish(span);
-        span.finish();
+        if (finishSpan.getAndSet(false)) {
+          DECORATE.onError(span, e);
+          DECORATE.beforeFinish(span);
+          span.finish();
+        }
         throw e;
       }
     }

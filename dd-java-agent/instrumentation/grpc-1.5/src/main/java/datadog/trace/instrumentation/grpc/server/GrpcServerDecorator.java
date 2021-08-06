@@ -81,8 +81,8 @@ public class GrpcServerDecorator extends ServerDecorator {
     span.setTag("status.code", status.getCode().name());
     span.setTag("status.description", status.getDescription());
 
-    onError(span, status.getCause());
-    if (!status.isOk()) {
+    if (!status.isOk() && status != Status.CANCELLED) {
+      onError(span, status.getCause());
       span.setError(true);
     }
 
