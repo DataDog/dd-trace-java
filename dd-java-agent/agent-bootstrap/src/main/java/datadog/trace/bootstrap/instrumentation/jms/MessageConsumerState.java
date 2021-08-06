@@ -54,7 +54,7 @@ public final class MessageConsumerState {
   public AgentSpan getTimeInQueueSpan(long batchId) {
     TimeInQueue holder = timeInQueue.get();
     if (null != holder) {
-      // maintain time-in-queue for messages in same batch/manual session
+      // maintain same time-in-queue for messages in same batch/manual session
       if (batchId == holder.batchId || !sessionState.isAutoAcknowledge()) {
         return holder.span;
       }
