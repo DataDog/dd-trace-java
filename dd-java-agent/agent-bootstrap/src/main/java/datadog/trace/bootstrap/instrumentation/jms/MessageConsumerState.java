@@ -4,6 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
+/** Tracks message scopes and spans when consuming messages with {@code receive}. */
 public final class MessageConsumerState {
   private final ThreadLocal<AgentScope> currentScope = new ThreadLocal<>();
   private final ThreadLocal<TimeInQueue> timeInQueue = new ThreadLocal<>();
@@ -53,7 +54,8 @@ public final class MessageConsumerState {
   public AgentSpan getTimeInQueueSpan(long batchId) {
     TimeInQueue holder = timeInQueue.get();
     if (null != holder) {
-      if (sessionState.isTransactedSession() || batchId == holder.batchId) {
+      // maintain time-in-queue for messages in same batch/manual session
+      if (batchId == holder.batchId || !sessionState.isAutoAcknowledge()) {
         return holder.span;
       }
       timeInQueue.remove();
