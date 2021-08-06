@@ -168,10 +168,10 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
   public static final class Commit {
     @Advice.OnMethodEnter
     public static void commit(@Advice.This Session session) {
-      SessionState state =
+      SessionState sessionState =
           InstrumentationContext.get(Session.class, SessionState.class).get(session);
-      if (null != state) {
-        state.onCommit();
+      if (null != sessionState && sessionState.isTransactedSession()) {
+        sessionState.onCommit();
       }
     }
   }
