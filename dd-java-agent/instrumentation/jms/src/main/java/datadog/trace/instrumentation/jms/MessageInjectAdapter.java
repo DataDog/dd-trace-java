@@ -22,7 +22,7 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
     final String propName = key.replace("-", "__dash__");
     try {
       carrier.setStringProperty(propName, value);
-    } catch (Exception ignored) {
+    } catch (Exception e) {
       if (log.isDebugEnabled()) {
         log.debug("Failure setting jms property: " + propName, e);
       }
