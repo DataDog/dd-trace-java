@@ -56,6 +56,7 @@ public class DatadogMessageListener implements MessageListener {
       SessionState sessionState = messageConsumerState.getSessionState();
       if (sessionState.isClientAcknowledge()) {
         // consumed spans will be finished by a call to Message.acknowledge
+        sessionState.finishOnAcknowledge(span);
         messageAckStore.put(message, sessionState);
       } else if (sessionState.isAutoAcknowledge()) {
         span.finish();
