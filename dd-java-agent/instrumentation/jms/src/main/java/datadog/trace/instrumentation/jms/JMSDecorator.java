@@ -36,7 +36,8 @@ public final class JMSDecorator extends ClientDecorator {
   public JMSDecorator(String spanKind, String spanType) {
     this.spanKind = spanKind;
     this.spanType = spanType;
-    this.serviceName = Config.get().isJmsLegacyTracingEnabled() ? "jms" : Config.get().getServiceName();
+    this.serviceName =
+        Config.get().isJmsLegacyTracingEnabled() ? "jms" : Config.get().getServiceName();
   }
 
   @Override
