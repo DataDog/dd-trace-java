@@ -10,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -21,7 +22,6 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import java.util.HashMap;
@@ -98,6 +98,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
       if (null != consumerState) {
         // closes the scope, and finishes the span for AUTO_ACKNOWLEDGE
         consumerState.closePreviousMessageScope();
+        consumerState.finishCurrentTimeInQueueSpan(false);
       }
     }
 
@@ -115,12 +116,32 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
               .get(consumer);
       if (null != consumerState) {
         AgentSpan span;
+        AgentSpan.Context extractedContext = null;
         String destinationName = consumerState.getDestinationName();
         if (!Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
-          Context extractedContext = propagate().extract(message, GETTER);
+          extractedContext = propagate().extract(message, GETTER);
+        }
+        if (Config.get().isJmsLegacyTracingEnabled()) {
           span = startSpan(JMS_CONSUME, extractedContext);
         } else {
-          span = startSpan(JMS_CONSUME, null);
+          long batchId = GETTER.extractMessageBatchId(message);
+          AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
+          if (null == timeInQueue) {
+            long startMillis = GETTER.extractTimeInQueueStart(message);
+            timeInQueue =
+                startSpan(JMS_CONSUME, extractedContext, MILLISECONDS.toMicros(startMillis));
+            CONSUMER_DECORATE.afterStart(timeInQueue);
+            CONSUMER_DECORATE.onTimeInQueue(
+                timeInQueue, destinationName, consumerState.getResourceName());
+            SessionState sessionState = consumerState.getSessionState();
+            if (sessionState.isClientAcknowledge()) {
+              sessionState.finishOnAcknowledge(timeInQueue);
+            } else if (sessionState.isTransactedSession()) {
+              sessionState.finishOnCommit(timeInQueue);
+            }
+            consumerState.setTimeInQueueSpan(batchId, timeInQueue);
+          }
+          span = startSpan(JMS_CONSUME, timeInQueue.context());
         }
         // this scope is intentionally not closed here
         // it stays open until the next call to get a
@@ -152,7 +173,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
               .get(consumer);
       if (null != consumerState) {
         consumerState.closePreviousMessageScope();
-        consumerState.finishCurrentTimeInQueueSpan();
+        consumerState.finishCurrentTimeInQueueSpan(true);
       }
     }
   }
