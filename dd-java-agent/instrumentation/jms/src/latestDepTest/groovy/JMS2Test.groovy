@@ -219,7 +219,6 @@ class JMS2Test extends AgentTestRunner {
     writer.trace(1) {
       span {
         parent()
-        serviceName "jms"
         operationName "jms.produce"
         resourceName "Produced for $jmsResourceName"
         spanType DDSpanTypes.MESSAGE_PRODUCER
@@ -235,10 +234,22 @@ class JMS2Test extends AgentTestRunner {
   }
 
   static consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
-    writer.trace(1) {
+    writer.trace(2) {
       span {
         childOf parentSpan
-        serviceName "jms"
+        operationName "jms.deliver"
+        resourceName "jms.deliver"
+        spanType DDSpanTypes.MESSAGE_CONSUMER
+        errored false
+
+        tags {
+          "${Tags.COMPONENT}" "jms"
+          "${Tags.SPAN_KIND}" "consumer"
+          defaultTags(true)
+        }
+      }
+      span {
+        childOf span(0)
         operationName "jms.consume"
         resourceName "Consumed from $jmsResourceName"
         spanType DDSpanTypes.MESSAGE_CONSUMER
@@ -250,7 +261,7 @@ class JMS2Test extends AgentTestRunner {
           if (!isTimestampDisabled) {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
           }
-          defaultTags(true)
+          defaultTags(false)
         }
       }
     }
