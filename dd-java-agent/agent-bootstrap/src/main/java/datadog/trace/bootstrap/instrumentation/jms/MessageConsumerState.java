@@ -71,9 +71,10 @@ public final class MessageConsumerState {
   public void finishCurrentTimeInQueueSpan(boolean closing) {
     TimeInQueue holder = timeInQueue.get();
     if (null != holder) {
+      // leave in place unless closing, so messages in same batch can link to it
       if (closing) {
         timeInQueue.remove();
-      } // else leave time-in-queue span in place so messages in same batch can link to it
+      }
       holder.span.finish();
     }
   }
