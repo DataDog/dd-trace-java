@@ -117,12 +117,20 @@ public final class SessionState {
         // synchronized in case incoming requests
         // happen quicker than we can close the spans
         int taken = SPAN_COUNT.get(this);
+        AgentSpan timeInQueue = null;
         for (int i = 0; i < taken; ++i) {
           AgentSpan span = q.poll();
           // it won't be null, but just in case...
           if (null != span) {
-            span.finish();
+            if (0 == i) {
+              timeInQueue = span;
+            } else {
+              span.finish();
+            }
           }
+        }
+        if (null != timeInQueue) {
+          timeInQueue.finish();
         }
         SPAN_COUNT.getAndAdd(this, -taken);
       }

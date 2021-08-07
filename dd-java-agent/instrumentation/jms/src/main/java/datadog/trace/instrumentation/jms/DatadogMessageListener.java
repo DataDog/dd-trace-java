@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -45,17 +46,16 @@ public class DatadogMessageListener implements MessageListener {
     if (extractMessageContext) {
       extractedContext = propagate().extract(message, GETTER);
     }
-    if (Config.get().isJmsLegacyTracingEnabled()) {
+    long startMillis = GETTER.extractTimeInQueueStart(message);
+    if (startMillis == 0 || Config.get().isJmsLegacyTracingEnabled()) {
       span = startSpan(JMS_CONSUME, extractedContext);
     } else {
       long batchId = GETTER.extractMessageBatchId(message);
       AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
       if (null == timeInQueue) {
-        long startMillis = GETTER.extractTimeInQueueStart(message);
-        timeInQueue = startSpan(JMS_CONSUME, extractedContext, MILLISECONDS.toMicros(startMillis));
+        timeInQueue = startSpan(JMS_DELIVER, extractedContext, MILLISECONDS.toMicros(startMillis));
         CONSUMER_DECORATE.afterStart(timeInQueue);
-        CONSUMER_DECORATE.onTimeInQueue(
-            timeInQueue, consumerState.getDestinationName(), consumerState.getResourceName());
+        timeInQueue.setServiceName(consumerState.getDestinationName());
         SessionState sessionState = consumerState.getSessionState();
         if (sessionState.isClientAcknowledge()) {
           sessionState.finishOnAcknowledge(timeInQueue);

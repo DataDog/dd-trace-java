@@ -317,7 +317,7 @@ class JMS1Test extends AgentTestRunner {
 
   }
 
-  def "traceable work between two receive calls has jms.consume parent"() {
+  def "traceable work between two receive calls has jms.deliver parent"() {
     setup:
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
@@ -333,11 +333,12 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage.text == messageText
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
-      trace(2) {
-        consumerSpan(it, jmsResourceName, trace(0)[0])
+      trace(3) {
+        timeInQueueSpan(it, trace(0)[0])
+        consumerSpan(it, jmsResourceName, trace(1)[0])
         span {
           operationName "do.stuff"
-          childOf(trace(1)[0])
+          childOf(trace(1)[1])
         }
       }
     }
@@ -374,9 +375,21 @@ class JMS1Test extends AgentTestRunner {
     } else {
       assertTraces(2) {
         producerTrace(it, jmsResourceName)
-        trace(1) {
+        trace(2) {
           span {
             parentId(0 as BigInteger)
+            operationName "jms.deliver"
+            resourceName "jms.deliver"
+            spanType DDSpanTypes.MESSAGE_CONSUMER
+            errored false
+            tags {
+              "$Tags.COMPONENT" "jms"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+              defaultTags()
+            }
+          }
+          span {
+            childOf(span(0))
             serviceName expectedServiceName()
             operationName "jms.consume"
             resourceName "Consumed from $jmsResourceName"
@@ -431,9 +444,21 @@ class JMS1Test extends AgentTestRunner {
       assertTraces(3) {
         producerTrace(it, jmsResourceName)
         producerTrace(it, jmsResourceName)
-        trace(1) {
+        trace(2) {
           span {
             parentId(0 as BigInteger)
+            operationName "jms.deliver"
+            resourceName "jms.deliver"
+            spanType DDSpanTypes.MESSAGE_CONSUMER
+            errored false
+            tags {
+              "$Tags.COMPONENT" "jms"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+              defaultTags()
+            }
+          }
+          span {
+            childOf(span(0))
             serviceName expectedServiceName()
             operationName "jms.consume"
             resourceName "Consumed from $jmsResourceName"
@@ -485,8 +510,10 @@ class JMS1Test extends AgentTestRunner {
   }
 
   static consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
-    writer.trace(1) {
-      consumerSpan(it, jmsResourceName, parentSpan, isTimestampDisabled)
+    writer.trace(2) {
+      sortSpansByStart()
+      timeInQueueSpan(it, parentSpan)
+      consumerSpan(it, jmsResourceName, span(0), isTimestampDisabled)
     }
   }
 
@@ -505,6 +532,22 @@ class JMS1Test extends AgentTestRunner {
         if (!isTimestampDisabled) {
           "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         }
+        defaultTags(false)
+      }
+    }
+  }
+
+  static timeInQueueSpan(TraceAssert traceAssert, DDSpan parentSpan) {
+    return traceAssert.span {
+      operationName "jms.deliver"
+      resourceName "jms.deliver"
+      spanType DDSpanTypes.MESSAGE_CONSUMER
+      errored false
+      childOf parentSpan
+
+      tags {
+        "$Tags.COMPONENT" "jms"
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
         defaultTags(true)
       }
     }
