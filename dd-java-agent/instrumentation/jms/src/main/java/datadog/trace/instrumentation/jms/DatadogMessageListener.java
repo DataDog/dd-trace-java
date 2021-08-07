@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
@@ -21,6 +22,7 @@ public class DatadogMessageListener implements MessageListener {
   private final ContextStore<Message, SessionState> messageAckStore;
   private final MessageConsumerState consumerState;
   private final MessageListener messageListener;
+
   private final boolean extractMessageContext;
 
   public DatadogMessageListener(
@@ -39,11 +41,29 @@ public class DatadogMessageListener implements MessageListener {
   @Override
   public void onMessage(Message message) {
     AgentSpan span;
+    AgentSpan.Context extractedContext = null;
+    AgentSpan timeInQueue = null;
     if (extractMessageContext) {
-      AgentSpan.Context extractedContext = propagate().extract(message, GETTER);
+      extractedContext = propagate().extract(message, GETTER);
+    }
+    if (Config.get().isJmsLegacyTracingEnabled()) {
       span = startSpan(JMS_CONSUME, extractedContext);
     } else {
-      span = startSpan(JMS_CONSUME, null);
+      long batchId = GETTER.extractMessageBatchId(message);
+      timeInQueue = consumerState.getTimeInQueueSpan(batchId);
+      if (null == timeInQueue) {
+        long startMillis = GETTER.extractTimeInQueueStart(message);
+        timeInQueue = startSpan(JMS_CONSUME, extractedContext, MILLISECONDS.toMicros(startMillis));
+        CONSUMER_DECORATE.afterStart(timeInQueue);
+        SessionState sessionState = consumerState.getSessionState();
+        if (sessionState.isClientAcknowledge()) {
+          sessionState.finishOnAcknowledge(timeInQueue);
+        } else if (sessionState.isTransactedSession()) {
+          sessionState.finishOnCommit(timeInQueue);
+        }
+        consumerState.setTimeInQueueSpan(batchId, timeInQueue);
+      }
+      span = startSpan(JMS_CONSUME, timeInQueue.context());
     }
     CONSUMER_DECORATE.afterStart(span);
     CONSUMER_DECORATE.onConsume(span, message, consumerState.getResourceName());
@@ -63,6 +83,9 @@ public class DatadogMessageListener implements MessageListener {
         sessionState.finishOnCommit(span);
       } else { // Session.AUTO_ACKNOWLEDGE
         span.finish();
+        if (null != timeInQueue) {
+          timeInQueue.finish(); // finish but leave in place so other messages can link to it
+        }
       }
     }
   }
