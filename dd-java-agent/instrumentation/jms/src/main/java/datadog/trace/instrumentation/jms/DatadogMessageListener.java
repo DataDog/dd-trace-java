@@ -42,7 +42,6 @@ public class DatadogMessageListener implements MessageListener {
   public void onMessage(Message message) {
     AgentSpan span;
     AgentSpan.Context extractedContext = null;
-    AgentSpan timeInQueue = null;
     if (extractMessageContext) {
       extractedContext = propagate().extract(message, GETTER);
     }
@@ -50,7 +49,7 @@ public class DatadogMessageListener implements MessageListener {
       span = startSpan(JMS_CONSUME, extractedContext);
     } else {
       long batchId = GETTER.extractMessageBatchId(message);
-      timeInQueue = consumerState.getTimeInQueueSpan(batchId);
+      AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
       if (null == timeInQueue) {
         long startMillis = GETTER.extractTimeInQueueStart(message);
         timeInQueue = startSpan(JMS_CONSUME, extractedContext, MILLISECONDS.toMicros(startMillis));
@@ -85,9 +84,7 @@ public class DatadogMessageListener implements MessageListener {
         sessionState.finishOnCommit(span);
       } else { // Session.AUTO_ACKNOWLEDGE
         span.finish();
-        if (null != timeInQueue) {
-          timeInQueue.finish(); // finish but leave in place so other messages can link to it
-        }
+        consumerState.finishCurrentTimeInQueueSpan(false);
       }
     }
   }
