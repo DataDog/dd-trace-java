@@ -55,6 +55,8 @@ public class DatadogMessageListener implements MessageListener {
         long startMillis = GETTER.extractTimeInQueueStart(message);
         timeInQueue = startSpan(JMS_CONSUME, extractedContext, MILLISECONDS.toMicros(startMillis));
         CONSUMER_DECORATE.afterStart(timeInQueue);
+        CONSUMER_DECORATE.onTimeInQueue(
+            timeInQueue, consumerState.getDestinationName(), consumerState.getResourceName());
         SessionState sessionState = consumerState.getSessionState();
         if (sessionState.isClientAcknowledge()) {
           sessionState.finishOnAcknowledge(timeInQueue);
