@@ -107,15 +107,16 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       if (Config.get().isJMSPropagationEnabled()
           && !Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
         propagate().inject(span, message, SETTER);
-
-        MessageProducerState producerState =
-            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-                .get(producer);
-
-        if (null != producerState) {
-          SETTER.injectTimeInQueue(message, producerState.getSessionState());
-        }
       }
+
+      MessageProducerState producerState =
+          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
+              .get(producer);
+
+      if (null != producerState) {
+        SETTER.injectTimeInQueue(message, producerState.getSessionState());
+      }
+
       return activateSpan(span);
     }
 
@@ -162,15 +163,16 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       if (Config.get().isJMSPropagationEnabled()
           && !Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
         propagate().inject(span, message, SETTER);
-
-        MessageProducerState producerState =
-            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-                .get(producer);
-
-        if (null != producerState) {
-          SETTER.injectTimeInQueue(message, producerState.getSessionState());
-        }
       }
+
+      MessageProducerState producerState =
+          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
+              .get(producer);
+
+      if (null != producerState) {
+        SETTER.injectTimeInQueue(message, producerState.getSessionState());
+      }
+
       return activateSpan(span);
     }
 

@@ -21,6 +21,7 @@ public final class JMSDecorator extends ClientDecorator {
   public static final CharSequence JMS = UTF8BytesString.create("jms");
   public static final CharSequence JMS_CONSUME = UTF8BytesString.create("jms.consume");
   public static final CharSequence JMS_PRODUCE = UTF8BytesString.create("jms.produce");
+  public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
 
   private final String spanKind;
   private final String spanType;
@@ -35,7 +36,7 @@ public final class JMSDecorator extends ClientDecorator {
   public JMSDecorator(String spanKind, String spanType) {
     this.spanKind = spanKind;
     this.spanType = spanType;
-    this.serviceName = Config.get().isJmsLegacyTracingEnabled() ? "jms" : null;
+    this.serviceName = Config.get().isJmsLegacyTracingEnabled() ? "jms" : Config.get().getServiceName();
   }
 
   @Override
@@ -81,16 +82,6 @@ public final class JMSDecorator extends ClientDecorator {
   public void onProduce(
       final AgentSpan span, final Message message, final Destination destination) {
     span.setResourceName("Produced for " + toResourceName(message, destination));
-  }
-
-  public void onTimeInQueue(
-      final AgentSpan span, final String destinationName, UTF8BytesString resourceName) {
-    if (null != destinationName) {
-      span.setServiceName(destinationName);
-    }
-    if (null != resourceName) {
-      span.setResourceName(resourceName);
-    }
   }
 
   private static final String TIBCO_TMP_PREFIX = "$TMP$";
