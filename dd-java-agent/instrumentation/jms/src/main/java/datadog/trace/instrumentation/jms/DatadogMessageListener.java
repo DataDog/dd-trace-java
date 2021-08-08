@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
@@ -48,8 +49,8 @@ public class DatadogMessageListener implements MessageListener {
       AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
       if (null == timeInQueue) {
         timeInQueue = startSpan(JMS_DELIVER, extractedContext, MILLISECONDS.toMicros(startMillis));
-        CONSUMER_DECORATE.afterStart(timeInQueue);
-        CONSUMER_DECORATE.onTimeInQueue(timeInQueue, consumerState.getDestinationName());
+        BROKER_DECORATE.afterStart(timeInQueue);
+        BROKER_DECORATE.onTimeInQueue(timeInQueue, consumerState.getDestinationName());
         consumerState.setTimeInQueueSpan(batchId, timeInQueue);
       }
       span = startSpan(JMS_CONSUME, timeInQueue.context());

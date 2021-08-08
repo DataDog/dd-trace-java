@@ -28,16 +28,24 @@ public final class JMSDecorator extends ClientDecorator {
   private final String serviceName;
 
   public static final JMSDecorator PRODUCER_DECORATE =
-      new JMSDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
+      new JMSDecorator(
+          Tags.SPAN_KIND_PRODUCER,
+          DDSpanTypes.MESSAGE_PRODUCER,
+          Config.get().isJmsLegacyTracingEnabled() ? "jms" : Config.get().getServiceName());
 
   public static final JMSDecorator CONSUMER_DECORATE =
-      new JMSDecorator(Tags.SPAN_KIND_CONSUMER, DDSpanTypes.MESSAGE_CONSUMER);
+      new JMSDecorator(
+          Tags.SPAN_KIND_CONSUMER,
+          DDSpanTypes.MESSAGE_CONSUMER,
+          Config.get().isJmsLegacyTracingEnabled() ? "jms" : Config.get().getServiceName());
 
-  public JMSDecorator(String spanKind, String spanType) {
+  public static final JMSDecorator BROKER_DECORATE =
+      new JMSDecorator(Tags.SPAN_KIND_BROKER, DDSpanTypes.MESSAGE_BROKER, "jms");
+
+  public JMSDecorator(String spanKind, String spanType, String serviceName) {
     this.spanKind = spanKind;
     this.spanType = spanType;
-    this.serviceName =
-        Config.get().isJmsLegacyTracingEnabled() ? "jms" : Config.get().getServiceName();
+    this.serviceName = serviceName;
   }
 
   @Override

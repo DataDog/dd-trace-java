@@ -22,6 +22,7 @@ public class DDSpanTypes {
   public static final String MESSAGE_CLIENT = "queue";
   public static final String MESSAGE_CONSUMER = "queue";
   public static final String MESSAGE_PRODUCER = "queue";
+  public static final String MESSAGE_BROKER = "queue";
 
   public static final String TEST = "test";
 }

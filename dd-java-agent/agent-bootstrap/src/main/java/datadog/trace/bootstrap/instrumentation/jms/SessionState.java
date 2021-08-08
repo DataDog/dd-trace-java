@@ -1,6 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_BROKER;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -117,20 +122,25 @@ public final class SessionState {
         // synchronized in case incoming requests
         // happen quicker than we can close the spans
         int taken = SPAN_COUNT.get(this);
-        AgentSpan timeInQueue = null;
+        List<AgentSpan> brokerSpans = null;
         for (int i = 0; i < taken; ++i) {
           AgentSpan span = q.poll();
           // it won't be null, but just in case...
           if (null != span) {
-            if (0 == i) {
-              timeInQueue = span;
+            if (SPAN_KIND_BROKER.equals(span.getTag(SPAN_KIND))) {
+              if (null == brokerSpans) {
+                brokerSpans = new ArrayList<>();
+              }
+              brokerSpans.add(span); // finish time-in-queue spans after consumer spans
             } else {
               span.finish();
             }
           }
         }
-        if (null != timeInQueue) {
-          timeInQueue.finish();
+        if (null != brokerSpans) {
+          for (AgentSpan span : brokerSpans) {
+            span.finish();
+          }
         }
         SPAN_COUNT.getAndAdd(this, -taken);
       }
