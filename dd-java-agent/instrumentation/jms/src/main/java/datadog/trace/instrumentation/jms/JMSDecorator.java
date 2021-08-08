@@ -85,6 +85,11 @@ public final class JMSDecorator extends ClientDecorator {
     span.setResourceName("Produced for " + toResourceName(message, destination));
   }
 
+  public void onTimeInQueue(final AgentSpan span, final String destinationName) {
+    span.setServiceName(destinationName);
+    span.setResourceName(destinationName);
+  }
+
   private static final String TIBCO_TMP_PREFIX = "$TMP$";
 
   public static String toResourceName(final Message message, final Destination destination) {
