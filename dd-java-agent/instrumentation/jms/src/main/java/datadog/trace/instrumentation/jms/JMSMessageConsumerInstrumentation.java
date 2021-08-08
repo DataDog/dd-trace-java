@@ -120,8 +120,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
       if (null != consumerState) {
         AgentSpan span;
         AgentSpan.Context extractedContext = null;
-        String destinationName = consumerState.getDestinationName();
-        if (!Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
+        if (!consumerState.isPropagationDisabled()) {
           extractedContext = propagate().extract(message, GETTER);
         }
         long startMillis = GETTER.extractTimeInQueueStart(message);
@@ -134,7 +133,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
             timeInQueue =
                 startSpan(JMS_DELIVER, extractedContext, MILLISECONDS.toMicros(startMillis));
             CONSUMER_DECORATE.afterStart(timeInQueue);
-            timeInQueue.setServiceName(destinationName);
+            timeInQueue.setServiceName(consumerState.getDestinationName());
             SessionState sessionState = consumerState.getSessionState();
             if (sessionState.isClientAcknowledge()) {
               sessionState.finishOnAcknowledge(timeInQueue);

@@ -129,7 +129,10 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
         consumerStateStore.put(
             consumer,
             new MessageConsumerState(
-                sessionState, UTF8BytesString.create(resourceName), destinationName));
+                sessionState,
+                UTF8BytesString.create(resourceName),
+                destinationName,
+                Config.get().isJMSPropagationDisabledForDestination(destinationName)));
       }
     }
   }
