@@ -134,7 +134,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
             timeInQueue =
                 startSpan(JMS_DELIVER, extractedContext, MILLISECONDS.toMicros(startMillis));
             BROKER_DECORATE.afterStart(timeInQueue);
-            BROKER_DECORATE.onTimeInQueue(timeInQueue, consumerState.getDestinationName());
+            BROKER_DECORATE.onTimeInQueue(timeInQueue, consumerState.getResourceName());
             consumerState.setTimeInQueueSpan(batchId, timeInQueue);
           }
           span = startSpan(JMS_CONSUME, timeInQueue.context());

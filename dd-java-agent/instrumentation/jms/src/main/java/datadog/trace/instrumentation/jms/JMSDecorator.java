@@ -93,9 +93,20 @@ public final class JMSDecorator extends ClientDecorator {
     span.setResourceName("Produced for " + toResourceName(message, destination));
   }
 
-  public void onTimeInQueue(final AgentSpan span, final String destinationName) {
+  public void onTimeInQueue(final AgentSpan span, final UTF8BytesString consumedFromName) {
+    if (null == consumedFromName) {
+      return;
+    }
+    String resourceName = consumedFromName.toString();
+    if (resourceName.startsWith("Consumed from ")) {
+      resourceName = resourceName.substring(14);
+    }
+    span.setResourceName(resourceName);
+    String destinationName = resourceName;
+    if (resourceName.startsWith("Queue ") || resourceName.startsWith("Topic ")) {
+      destinationName = resourceName.substring(6);
+    }
     span.setServiceName(destinationName);
-    span.setResourceName(destinationName);
   }
 
   private static final String TIBCO_TMP_PREFIX = "$TMP$";
