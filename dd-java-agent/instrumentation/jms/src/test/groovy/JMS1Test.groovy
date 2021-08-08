@@ -334,7 +334,7 @@ class JMS1Test extends AgentTestRunner {
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
       trace(3) {
-        timeInQueueSpan(it, trace(0)[0])
+        timeInQueueSpan(it, jmsResourceName, trace(0)[0])
         consumerSpan(it, jmsResourceName, trace(1)[0])
         span {
           operationName "do.stuff"
@@ -379,12 +379,12 @@ class JMS1Test extends AgentTestRunner {
           span {
             parentId(0 as BigInteger)
             operationName "jms.deliver"
-            resourceName "jms.deliver"
-            spanType DDSpanTypes.MESSAGE_CONSUMER
+            resourceName "$jmsResourceName"
+            spanType DDSpanTypes.MESSAGE_BROKER
             errored false
             tags {
               "$Tags.COMPONENT" "jms"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
               defaultTags()
             }
           }
@@ -448,12 +448,12 @@ class JMS1Test extends AgentTestRunner {
           span {
             parentId(0 as BigInteger)
             operationName "jms.deliver"
-            resourceName "jms.deliver"
-            spanType DDSpanTypes.MESSAGE_CONSUMER
+            resourceName "$jmsResourceName"
+            spanType DDSpanTypes.MESSAGE_BROKER
             errored false
             tags {
               "$Tags.COMPONENT" "jms"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
               defaultTags()
             }
           }
@@ -512,7 +512,7 @@ class JMS1Test extends AgentTestRunner {
   static consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
     writer.trace(2) {
       sortSpansByStart()
-      timeInQueueSpan(it, parentSpan)
+      timeInQueueSpan(it, jmsResourceName, parentSpan)
       consumerSpan(it, jmsResourceName, span(0), isTimestampDisabled)
     }
   }
@@ -537,17 +537,17 @@ class JMS1Test extends AgentTestRunner {
     }
   }
 
-  static timeInQueueSpan(TraceAssert traceAssert, DDSpan parentSpan) {
+  static timeInQueueSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan) {
     return traceAssert.span {
       operationName "jms.deliver"
-      resourceName "jms.deliver"
-      spanType DDSpanTypes.MESSAGE_CONSUMER
+      resourceName "$jmsResourceName"
+      spanType DDSpanTypes.MESSAGE_BROKER
       errored false
       childOf parentSpan
 
       tags {
         "$Tags.COMPONENT" "jms"
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
         defaultTags(true)
       }
     }
