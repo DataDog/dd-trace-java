@@ -58,6 +58,7 @@ public final class MessageConsumerState {
       if ((batchId > 0 && batchId == holder.batchId) || !sessionState.isAutoAcknowledge()) {
         return holder.span;
       }
+      // finish old time-in-queue span before we create the next one
       timeInQueue.remove();
       holder.span.finish();
     }

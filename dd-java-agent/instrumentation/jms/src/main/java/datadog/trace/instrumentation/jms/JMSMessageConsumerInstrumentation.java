@@ -100,6 +100,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
       if (null != consumerState) {
         // closes the scope, and finishes the span for AUTO_ACKNOWLEDGE
         consumerState.closePreviousMessageScope();
+        // likewise, finish any previous time-in-queue span for AUTO_ACKNOWLEDGE
         if (consumerState.getSessionState().isAutoAcknowledge()) {
           consumerState.finishCurrentTimeInQueueSpan(false);
         }
