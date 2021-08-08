@@ -75,6 +75,13 @@ public final class MessageConsumerState {
 
   public void setTimeInQueueSpan(long batchId, AgentSpan span) {
     timeInQueue.set(new TimeInQueue(batchId, span));
+
+    // finish new time-in-queue span on message-ack/commit
+    if (sessionState.isClientAcknowledge()) {
+      sessionState.finishOnAcknowledge(span);
+    } else if (sessionState.isTransactedSession()) {
+      sessionState.finishOnCommit(span);
+    }
   }
 
   public void finishCurrentTimeInQueueSpan(boolean closing) {

@@ -133,13 +133,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
             timeInQueue =
                 startSpan(JMS_DELIVER, extractedContext, MILLISECONDS.toMicros(startMillis));
             CONSUMER_DECORATE.afterStart(timeInQueue);
-            timeInQueue.setServiceName(consumerState.getDestinationName());
-            SessionState sessionState = consumerState.getSessionState();
-            if (sessionState.isClientAcknowledge()) {
-              sessionState.finishOnAcknowledge(timeInQueue);
-            } else if (sessionState.isTransactedSession()) {
-              sessionState.finishOnCommit(timeInQueue);
-            }
+            CONSUMER_DECORATE.onTimeInQueue(timeInQueue, consumerState.getDestinationName());
             consumerState.setTimeInQueueSpan(batchId, timeInQueue);
           }
           span = startSpan(JMS_CONSUME, timeInQueue.context());
