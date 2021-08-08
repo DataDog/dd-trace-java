@@ -94,7 +94,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
 
         // logic inlined from JMSDecorator to avoid
         // JMSException: A consumer is consuming from the temporary destination
-        String resourceName = "Consumed from Destination";
+        String resourceName = "Consumed from JMS";
         String destinationName = "";
         try {
           // put the common case first
@@ -126,13 +126,13 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
           sessionState = sessionStateStore.putIfAbsent(session, new SessionState(acknowledgeMode));
         }
 
+        boolean propagationDisabled =
+            Config.get().isJMSPropagationDisabledForDestination(destinationName);
+
         consumerStateStore.put(
             consumer,
             new MessageConsumerState(
-                sessionState,
-                UTF8BytesString.create(resourceName),
-                destinationName,
-                Config.get().isJMSPropagationDisabledForDestination(destinationName)));
+                sessionState, UTF8BytesString.create(resourceName), propagationDisabled));
       }
     }
   }

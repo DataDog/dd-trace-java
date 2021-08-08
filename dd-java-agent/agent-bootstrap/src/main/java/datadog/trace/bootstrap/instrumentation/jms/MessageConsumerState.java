@@ -11,18 +11,13 @@ public final class MessageConsumerState {
 
   private final SessionState sessionState;
   private final UTF8BytesString resourceName;
-  private final String destinationName;
   private final boolean propagationDisabled;
 
   public MessageConsumerState(
-      SessionState sessionState,
-      UTF8BytesString resourceName,
-      String destinationName,
-      boolean propagationDisabled) {
+      SessionState sessionState, UTF8BytesString resourceName, boolean propagationDisabled) {
 
     this.sessionState = sessionState;
     this.resourceName = resourceName;
-    this.destinationName = destinationName;
     this.propagationDisabled = propagationDisabled;
   }
 
@@ -32,10 +27,6 @@ public final class MessageConsumerState {
 
   public UTF8BytesString getResourceName() {
     return resourceName;
-  }
-
-  public String getDestinationName() {
-    return destinationName;
   }
 
   public boolean isPropagationDisabled() {
