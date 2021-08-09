@@ -45,6 +45,7 @@ dependencies {
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.+'
 
   // FIXME: 9.0.24 seems to have changed something...
-  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '9.+'
-  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '9.+'
+  // TODO: Tomcat 9.0.52 has a copy of the JSR166 ThreadPoolExecutor so it needs special instrumentation
+  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '9.0.50'
+  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '9.0.50'
 }
