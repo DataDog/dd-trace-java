@@ -19,5 +19,5 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
 
   testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '7.0.0'
-  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '+'
+  latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.0.+'
 }
