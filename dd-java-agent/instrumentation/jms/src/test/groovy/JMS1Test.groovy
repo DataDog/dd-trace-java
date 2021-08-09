@@ -1,12 +1,9 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
-import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
-import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -31,12 +28,6 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER
 
 class JMS1Test extends AgentTestRunner {
-
-  static String expectedServiceName() {
-    Config.get().isJmsLegacyTracingEnabled()
-      ? 'jms' : CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
-  }
-
   @Shared
   EmbeddedActiveMQBroker broker = new EmbeddedActiveMQBroker()
   @Shared
@@ -264,7 +255,7 @@ class JMS1Test extends AgentTestRunner {
         // Consumer trace
         span {
           parent()
-          serviceName expectedServiceName()
+          serviceName "jms"
           operationName "jms.consume"
           resourceName "Consumed from $jmsResourceName"
           spanType DDSpanTypes.MESSAGE_CONSUMER
@@ -317,7 +308,7 @@ class JMS1Test extends AgentTestRunner {
 
   }
 
-  def "traceable work between two receive calls has jms.deliver parent"() {
+  def "traceable work between two receive calls has jms.consume parent"() {
     setup:
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
@@ -333,12 +324,11 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage.text == messageText
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
-      trace(3) {
-        timeInQueueSpan(it, jmsResourceName, trace(0)[0])
-        consumerSpan(it, jmsResourceName, trace(1)[0])
+      trace(2) {
+        consumerSpan(it, jmsResourceName, trace(0)[0])
         span {
           operationName "do.stuff"
-          childOf(trace(1)[1])
+          childOf(trace(1)[0])
         }
       }
     }
@@ -375,22 +365,10 @@ class JMS1Test extends AgentTestRunner {
     } else {
       assertTraces(2) {
         producerTrace(it, jmsResourceName)
-        trace(2) {
+        trace(1) {
           span {
             parentId(0 as BigInteger)
-            operationName "jms.deliver"
-            resourceName "$jmsResourceName"
-            spanType DDSpanTypes.MESSAGE_BROKER
-            errored false
-            tags {
-              "$Tags.COMPONENT" "jms"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
-              defaultTags()
-            }
-          }
-          span {
-            childOf(span(0))
-            serviceName expectedServiceName()
+            serviceName "jms"
             operationName "jms.consume"
             resourceName "Consumed from $jmsResourceName"
             spanType DDSpanTypes.MESSAGE_CONSUMER
@@ -444,22 +422,10 @@ class JMS1Test extends AgentTestRunner {
       assertTraces(3) {
         producerTrace(it, jmsResourceName)
         producerTrace(it, jmsResourceName)
-        trace(2) {
+        trace(1) {
           span {
             parentId(0 as BigInteger)
-            operationName "jms.deliver"
-            resourceName "$jmsResourceName"
-            spanType DDSpanTypes.MESSAGE_BROKER
-            errored false
-            tags {
-              "$Tags.COMPONENT" "jms"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
-              defaultTags()
-            }
-          }
-          span {
-            childOf(span(0))
-            serviceName expectedServiceName()
+            serviceName "jms"
             operationName "jms.consume"
             resourceName "Consumed from $jmsResourceName"
             spanType DDSpanTypes.MESSAGE_CONSUMER
@@ -494,7 +460,7 @@ class JMS1Test extends AgentTestRunner {
 
   static producerSpan(TraceAssert traceAssert, String jmsResourceName) {
     return traceAssert.span {
-      serviceName expectedServiceName()
+      serviceName "jms"
       operationName "jms.produce"
       resourceName "Produced for $jmsResourceName"
       spanType DDSpanTypes.MESSAGE_PRODUCER
@@ -511,16 +477,14 @@ class JMS1Test extends AgentTestRunner {
   }
 
   static consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
-    writer.trace(2) {
-      sortSpansByStart()
-      timeInQueueSpan(it, jmsResourceName, parentSpan)
-      consumerSpan(it, jmsResourceName, span(0), isTimestampDisabled)
+    writer.trace(1) {
+      consumerSpan(it, jmsResourceName, parentSpan, isTimestampDisabled)
     }
   }
 
   static consumerSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
     return traceAssert.span {
-      serviceName expectedServiceName()
+      serviceName "jms"
       operationName "jms.consume"
       resourceName "Consumed from $jmsResourceName"
       spanType DDSpanTypes.MESSAGE_CONSUMER
@@ -534,22 +498,6 @@ class JMS1Test extends AgentTestRunner {
         if (!isTimestampDisabled) {
           "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         }
-        defaultTags(false)
-      }
-    }
-  }
-
-  static timeInQueueSpan(TraceAssert traceAssert, String jmsResourceName, DDSpan parentSpan) {
-    return traceAssert.span {
-      operationName "jms.deliver"
-      resourceName "$jmsResourceName"
-      spanType DDSpanTypes.MESSAGE_BROKER
-      errored false
-      childOf parentSpan
-
-      tags {
-        "$Tags.COMPONENT" "jms"
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
         defaultTags(true)
       }
     }

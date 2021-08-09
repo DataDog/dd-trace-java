@@ -19,8 +19,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -33,11 +31,6 @@ import salistener.Config
 import javax.jms.ConnectionFactory
 
 class SpringSAListenerTest extends AgentTestRunner {
-
-  static String expectedServiceName() {
-    datadog.trace.api.Config.get().isJmsLegacyTracingEnabled()
-      ? 'jms' : CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
-  }
 
   def "receiving message in spring session aware listener generates spans"() {
     setup:
@@ -61,7 +54,7 @@ class SpringSAListenerTest extends AgentTestRunner {
   static producerTrace(ListWriterAssert writer, String jmsResourceName) {
     writer.trace(1) {
       span {
-        serviceName expectedServiceName()
+        serviceName "jms"
         operationName "jms.produce"
         resourceName "Produced for $jmsResourceName"
         spanType DDSpanTypes.MESSAGE_PRODUCER
@@ -78,27 +71,14 @@ class SpringSAListenerTest extends AgentTestRunner {
   }
 
   static consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan) {
-    writer.trace(2) {
+    writer.trace(1) {
       span {
-        operationName "jms.deliver"
-        resourceName "$jmsResourceName"
-        spanType DDSpanTypes.MESSAGE_BROKER
-        errored false
-        childOf parentSpan
-
-        tags {
-          "$Tags.COMPONENT" "jms"
-          "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
-          defaultTags(true)
-        }
-      }
-      span {
-        serviceName expectedServiceName()
+        serviceName "jms"
         operationName "jms.consume"
         resourceName "Consumed from $jmsResourceName"
         spanType DDSpanTypes.MESSAGE_CONSUMER
         errored false
-        childOf span(0)
+        childOf parentSpan
 
         tags {
           "$Tags.COMPONENT" "jms"
@@ -106,7 +86,7 @@ class SpringSAListenerTest extends AgentTestRunner {
           if ("$InstrumentationTags.RECORD_QUEUE_TIME_MS") {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
           }
-          defaultTags(false)
+          defaultTags(true)
         }
       }
     }

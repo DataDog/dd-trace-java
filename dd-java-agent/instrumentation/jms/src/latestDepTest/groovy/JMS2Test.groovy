@@ -1,10 +1,7 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.config.GeneralConfig
-import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -31,12 +28,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 
 class JMS2Test extends AgentTestRunner {
-
-  static String expectedServiceName() {
-    Config.get().isJmsLegacyTracingEnabled()
-      ? 'jms' : CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
-  }
-
   @Shared
   HornetQServer server
   @Shared
@@ -228,7 +219,7 @@ class JMS2Test extends AgentTestRunner {
     writer.trace(1) {
       span {
         parent()
-        serviceName expectedServiceName()
+        serviceName "jms"
         operationName "jms.produce"
         resourceName "Produced for $jmsResourceName"
         spanType DDSpanTypes.MESSAGE_PRODUCER
@@ -244,23 +235,10 @@ class JMS2Test extends AgentTestRunner {
   }
 
   static consumerTrace(ListWriterAssert writer, String jmsResourceName, DDSpan parentSpan, boolean isTimestampDisabled = false) {
-    writer.trace(2) {
+    writer.trace(1) {
       span {
         childOf parentSpan
-        operationName "jms.deliver"
-        resourceName "$jmsResourceName"
-        spanType DDSpanTypes.MESSAGE_BROKER
-        errored false
-
-        tags {
-          "${Tags.COMPONENT}" "jms"
-          "${Tags.SPAN_KIND}" "broker"
-          defaultTags(true)
-        }
-      }
-      span {
-        childOf span(0)
-        serviceName expectedServiceName()
+        serviceName "jms"
         operationName "jms.consume"
         resourceName "Consumed from $jmsResourceName"
         spanType DDSpanTypes.MESSAGE_CONSUMER
@@ -272,7 +250,7 @@ class JMS2Test extends AgentTestRunner {
           if (!isTimestampDisabled) {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
           }
-          defaultTags(false)
+          defaultTags(true)
         }
       }
     }

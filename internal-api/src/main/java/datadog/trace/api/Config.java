@@ -812,7 +812,7 @@ public class Config {
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
 
-    jmsLegacyTracingEnabled = configProvider.getBoolean(JMS_LEGACY_TRACING_ENABLED, false);
+    jmsLegacyTracingEnabled = configProvider.getBoolean(JMS_LEGACY_TRACING_ENABLED, true);
 
     jmsPropagationEnabled =
         configProvider.getBoolean(JMS_PROPAGATION_ENABLED, DEFAULT_JMS_PROPAGATION_ENABLED);
