@@ -45,22 +45,21 @@ class TimelineCheckpointer implements Checkpointer {
     }
 
     // The set of included validations that failed
-    def failed = includedValidations.clone()
-    failed.retainAll(validatedEvents*.key.mode.toSet())
+    def includedAndFailedValidations = includedValidations.clone()
+    includedAndFailedValidations.retainAll(validatedEvents*.key.mode)
 
-    // The set of included validations that passed despite being exluded
-    def passed = includedValidations.clone()
-    passed.removeAll(excludedValidations)
-    passed.removeAll(failed)
+    // The set of excluded validations that passed
+    def excludedAndPassedValidations = excludedValidations.clone()
+    excludedAndPassedValidations.removeAll(validatedEvents*.key.mode)
 
     System.err.println(
       "Checkpoint validator is running with the following checks disabled: ${excludedValidations}\n" +
-      "\tFailed: ${failed}\n" +
-      "\tExcluded & Passed: ${passed}\n")
-    if (!failed.empty) {
+      "\tIncluded & Failed: ${includedAndFailedValidations}\n" +
+      "\tExcluded & Passed: ${excludedAndPassedValidations}\n")
+    if (!includedAndFailedValidations.empty) {
       throw new IllegalStateException(
       "Failed validations: [" +
-      failed.collect { it.toString() }.sort().join(", ") +
+      includedAndFailedValidations.collect { it.toString() }.sort().join(", ") +
       "]")
     }
   }
