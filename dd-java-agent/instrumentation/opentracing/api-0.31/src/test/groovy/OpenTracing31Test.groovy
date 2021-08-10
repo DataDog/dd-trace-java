@@ -50,7 +50,7 @@ class OpenTracing31Test extends AgentTestRunner {
 
     expect:
     result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
+    (result as MutableSpan).localRootSpan.delegate == result.delegate
     (result as MutableSpan).isError() == (exception != null)
     tracer.activeSpan() == null
     result.context().baggageItems().isEmpty()
@@ -329,7 +329,7 @@ class OpenTracing31Test extends AgentTestRunner {
 
     // make sure scope stack has been left in a valid state
     Span testSpan = tracer.buildSpan("someOperation").start()
-    Scope testScope =  tracer.scopeManager().activate(testSpan, false)
+    Scope testScope = tracer.scopeManager().activate(testSpan, false)
     testSpan.finish()
     testScope.close()
 

@@ -12,17 +12,11 @@ class CheckpointValidator {
    * By default all validation modes defined by {@linkplain CheckpointValidationMode} are enabled.
    * @param modes validation modes
    */
-  static void excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(Set<CheckpointValidationMode> modes) {
-    excludedValidations.addAll(modes)
-  }
-
-  /**
-   * This method should not be added to any new integrations as it would imply that a new
-   * integration is broken for Tracing Context (Code Hotspots). If you are unsure, reach out
-   * to the profiling team.
-   */
   static void excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode mode0, CheckpointValidationMode... modes) {
-    excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(EnumSet.of(mode0, modes))
+    if (Boolean.parseBoolean(System.getenv("FORCE_VALIDATE_CHECKPOINTS"))) {
+      return
+    }
+    excludedValidations.addAll(EnumSet.of(mode0, modes))
   }
 
   static Set<CheckpointValidationMode> getExcludedValidations() {
@@ -34,49 +28,39 @@ class CheckpointValidator {
     excludedValidations = EnumSet.noneOf(CheckpointValidationMode)
   }
 
-  static Set<Event> validate(def spanEvents, def threadEvents, def orderedEvents) {
-    def invalidEvents = new HashSet<>()
-    for (def events : spanEvents.values()) {
-      // validate global span sequence
-      def suspendResumeValidator = new SuspendResumeValidator()
-      def threadSequenceValidator = new ThreadSequenceValidator()
-      for (def event : events) {
-        if (!suspendResumeValidator.onEvent(event)) {
-          invalidEvents.add([event, CheckpointValidationMode.SEQUENCE])
-        }
-        if (!threadSequenceValidator.onEvent(event)) {
-          invalidEvents.add([event, CheckpointValidationMode.SEQUENCE])
-        }
-      }
-      // run end-sequence validations
-      if (!suspendResumeValidator.endSequence()) {
-        for (def event : events) {
-          if (event.name == "suspend" || event.name == "resume") {
-            invalidEvents.add([event, CheckpointValidationMode.SEQUENCE])
-          }
-        }
-      }
+  static validate(def spanEvents, def threadEvents, def orderedEvents) {
+    if (!excludedValidations.empty) {
+      System.err.println("Checkpoint validator is running with the following checks disabled: ${excludedValidations}\n")
     }
 
-    for (def events : threadEvents.values()) {
-      // first sanity check that each thread timeline starts with a 'startSpan' or 'resume'
-      // and ends with 'endSpan', 'endTask' or 'suspend'
-      def startEvent = events[0]
-      def endEvent = events[events.size() - 1]
-      if (startEvent.name != "startSpan" && startEvent.name != "resume") {
-        invalidEvents.add([startEvent, CheckpointValidationMode.SEQUENCE])
-      }
-      if (endEvent.name != "endSpan" && endEvent.name != "suspend" && endEvent.name != "endTask") {
-        invalidEvents.add([endEvent, CheckpointValidationMode.SEQUENCE])
-      }
-      // do more thorough checks eg. for overlapping spans
-      IntervalValidator checker = new IntervalValidator()
+    def invalidEvents = new HashSet()
+    // validate per-span sequence
+    for (def events : spanEvents.values()) {
+      def perSpanValidator = new CompositeValidator(new SuspendResumeValidator(), new ThreadSequenceValidator())
       for (def event : events) {
-        if (!checker.onEvent(event)) {
-          invalidEvents.add([event, CheckpointValidationMode.INTERVALS])
-        }
+        perSpanValidator.onEvent(event)
       }
+      perSpanValidator.onEnd()
+      invalidEvents.addAll(perSpanValidator.invalidEvents())
     }
-    return invalidEvents
+
+    // validate per-thread sequence
+    for (def events : threadEvents.values()) {
+      def perThreadValidator = new IntervalValidator()
+      for (def event : events) {
+        perThreadValidator.onEvent(event)
+      }
+      perThreadValidator.endSequence()
+      invalidEvents.addAll(perThreadValidator.invalidEvents)
+    }
+
+    if (!invalidEvents.empty) {
+      System.err.println("=== Invalid checkpoint events encountered")
+      invalidEvents.each { System.err.println(it) }
+    }
+
+    return invalidEvents.collectEntries {
+      [(it) : !excludedValidations.contains(it.mode)]
+    }
   }
 }

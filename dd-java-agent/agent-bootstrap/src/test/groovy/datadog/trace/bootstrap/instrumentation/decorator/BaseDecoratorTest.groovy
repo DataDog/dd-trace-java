@@ -71,6 +71,7 @@ class BaseDecoratorTest extends DDSpecification {
     decorator.beforeFinish(span)
 
     then:
+    (0..1) * span.localRootSpan
     0 * _
   }
 

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://appsec-schema.datadoghq.com/jsonschema/struct/events/struct_event.json",
+  "allOf": [
+    {
+      "$ref": "./_definitions/all_events.json"
+    },
+    {
+      "$ref": "../enrichments/reserved_attributes_mapper/reserved_attributes_mapper.json",
+      "title": "Reserved attributes"
+    },
+    {
+      "$ref": "../enrichments/standard_attributes_mapper/standard_attributes_mapper.json",
+      "title": "Standard attributes"
+    },
+    {
+      "$ref": "../enrichments/tags_mapper/tags_mapper.json",
+      "title": "Tags"
+    }
+  ]
+}

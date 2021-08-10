@@ -174,7 +174,8 @@ public final class AgentTaskScheduler implements Executor {
     }
   }
 
-  public int taskCount() {
+  // for testing
+  int taskCount() {
     return workQueue.size();
   }
 

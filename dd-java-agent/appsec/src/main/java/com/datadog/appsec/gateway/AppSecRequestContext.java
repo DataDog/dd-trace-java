@@ -5,9 +5,14 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.CaseInsensitiveMap;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
+import com.datadog.appsec.report.ReportService;
+import com.datadog.appsec.report.raw.events.attack.Attack010;
+import datadog.trace.api.gateway.RequestContext;
 import java.io.Closeable;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -17,17 +22,18 @@ import org.slf4j.LoggerFactory;
 
 // TODO: different methods to be called by different parts perhaps splitting it would make sense
 // or at least create separate interfaces
-public class AppSecRequestContext
-    implements DataBundle, datadog.trace.api.gateway.RequestContext, Closeable {
+public class AppSecRequestContext implements DataBundle, RequestContext, ReportService, Closeable {
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
+  private Collection<Attack010> collectedAttacks;
 
   // assume this will always be accessed by the same thread
   private String savedRawURI;
   private CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
-  private List<StringKVPair> collectedCookies = new ArrayList<StringKVPair>(4);
+  private List<StringKVPair> collectedCookies = new ArrayList<>(4);
   private boolean finishedHeaders;
+  private String ip;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -114,8 +120,46 @@ public class AppSecRequestContext
     return collectedCookies;
   }
 
+  public String getIp() {
+    return ip;
+  }
+
+  public void setIp(String ip) {
+    this.ip = ip;
+  }
+
   @Override
   public void close() {
     // currently no-op
+  }
+
+  @Override
+  public void reportAttack(Attack010 attack) {
+    if (attack.getDetectedAt() == null) {
+      attack.setDetectedAt(Instant.now());
+    }
+    synchronized (this) {
+      if (this.collectedAttacks == null) {
+        this.collectedAttacks = new ArrayList<>();
+      }
+      try {
+        this.collectedAttacks.add(attack);
+      } catch (UnsupportedOperationException e) {
+        throw new IllegalStateException("Attacks cannot be added anymore");
+      }
+    }
+  }
+
+  Collection<Attack010> transferCollectedAttacks() {
+    Collection<Attack010> collectedAttacks;
+    synchronized (this) {
+      collectedAttacks = this.collectedAttacks;
+      this.collectedAttacks = Collections.emptyList();
+    }
+    if (collectedAttacks != null) {
+      return collectedAttacks;
+    } else {
+      return Collections.emptyList();
+    }
   }
 }

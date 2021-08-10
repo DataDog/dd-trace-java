@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://appsec-schema.datadoghq.com/jsonschema/raw/contexts/span/span-0.1.0.json",
+  "type": "object",
+  "properties": {
+    "context_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "id": {
+      "description": "[INDEXED]",
+      "type": [
+        "string",
+        "number"
+      ]
+    }
+  },
+  "required": [
+    "context_version",
+    "id"
+  ],
+  "additionalProperties": false
+}

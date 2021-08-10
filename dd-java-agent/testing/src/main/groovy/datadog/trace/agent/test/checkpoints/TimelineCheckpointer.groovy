@@ -28,43 +28,15 @@ class TimelineCheckpointer implements Checkpointer {
   }
 
   void publish() {
-    def invalidEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents)
-    if (!invalidEvents.empty) {
-      System.err.println("=== Invalid checkpoint events encountered")
-      invalidEvents.each { System.err.println(it) }
-    }
-    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, invalidEvents.collect {it[0]})
+    def validatedEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents)
+
+    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, validatedEvents*.key.event)
     TimelineExporter.export(orderedEvents)
     System.err.println("")
 
-    // The set of excluded validations
-    def excludedValidations = CheckpointValidator.excludedValidations
-
-    // The set of included validations
-    def includedValidations = EnumSet.allOf(CheckpointValidationMode)
-    // if `FORCE_VALIDATE_CHECKPOINTS` is defined, make sure we do not exclude any validation
-    if (!Boolean.parseBoolean(System.getenv("FORCE_VALIDATE_CHECKPOINTS"))) {
-      includedValidations.removeAll(excludedValidations)
-    }
-
-    // The set of included validations that failed
-    def failed = includedValidations.clone()
-    failed.retainAll(invalidEvents.collect { it[1] }.toSet())
-
-    // The set of included validations that passed despite being exluded
-    def passed = includedValidations.clone()
-    passed.removeAll(excludedValidations)
-    passed.removeAll(failed)
-
-    System.err.println(
-      "Checkpoint validator is running with the following checks disabled: ${excludedValidations}, and enabled: ${includedValidations}\n" +
-      "\tFailed: ${failed}\n" +
-      "\tExcluded & Passed: ${passed}\n")
-    if (!failed.empty) {
-      throw new RuntimeException(
-      "Failed validations: [" +
-      failed.collect { it.toString() }.sort().join(", ") +
-      "]")
+    // apparently gradle can not pass system property to spock tests - therefore using env variable instead
+    if (validatedEvents.find {it.value} != null) {
+      throw new IllegalStateException("Checkpoint validation failed")
     }
   }
 

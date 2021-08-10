@@ -128,11 +128,6 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public OTSpan setOperationName(final String operationName) {
-    return setOperationName(UTF8BytesString.create(operationName));
-  }
-
-  @Override
   public long getStartTime() {
     return delegate.getStartTime();
   }
@@ -150,6 +145,12 @@ class OTSpan implements Span, MutableSpan {
   @Override
   public OTSpan setOperationName(final CharSequence operationName) {
     delegate.setOperationName(operationName);
+    return this;
+  }
+
+  @Override
+  public OTSpan setOperationName(final String operationName) {
+    delegate.setOperationName(UTF8BytesString.create(operationName));
     return this;
   }
 

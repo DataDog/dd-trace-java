@@ -1,14 +1,16 @@
 package datadog.trace.agent.test.checkpoints
 
-class IntervalValidator extends AbstractContextTracker {
+class IntervalValidator extends AbstractValidator {
   private static class SpanInterval {
     final long spanId
+    final Event startEvent
     final int startTick
     int endTick = Integer.MAX_VALUE
     boolean suspended = false
 
-    SpanInterval(long spanId, int startTick) {
+    SpanInterval(long spanId, Event startEvent, int startTick) {
       this.spanId = spanId
+      this.startEvent = startEvent
       this.startTick = startTick
     }
 
@@ -23,48 +25,48 @@ class IntervalValidator extends AbstractContextTracker {
   def closedIntervalsByTime = new ArrayList<>()
   def tick = 0
 
-  Boolean onEvent(Event event) {
-    return dispatchEvent(event)
+  IntervalValidator() {
+    super("intervals", CheckpointValidationMode.INTERVALS)
   }
 
   @Override
-  boolean startSpan() {
+  def startSpan() {
     return startSpan(event.spanId.toLong())
   }
 
-  boolean startSpan(def spanId) {
+  def startSpan(def spanId) {
     tick++
 
     def interval = openIntervalsBySpan.get(spanId)
     if (interval == null) {
-      openIntervalsBySpan.put(spanId, (interval = new SpanInterval(spanId,  tick)))
+      openIntervalsBySpan.put(spanId, (interval = new SpanInterval(spanId,  event, tick)))
       openIntervalsByTime.add(interval)
-      return true
+      return Result.OK
     }
-    return false
+    return Result.FAILED.withMessage("There is already an open interval for span ${spanId}")
   }
 
   @Override
-  boolean startTask() {
-    return true
+  def startTask() {
+    return Result.OK
   }
 
   @Override
-  boolean endTask() {
+  def endTask() {
     return endTask(event.spanId.toLong())
   }
 
-  boolean endTask(def spanId) {
+  def endTask(def spanId) {
     tick++
-    return true
+    return Result.OK
   }
 
   @Override
-  boolean suspendSpan() {
+  def suspendSpan() {
     return suspendSpan(event.spanId.toLong())
   }
 
-  boolean suspendSpan(def spanId) {
+  def suspendSpan(def spanId) {
     tick++
     def interval = openIntervalsBySpan.get(spanId)
     if (interval == null) {
@@ -72,76 +74,77 @@ class IntervalValidator extends AbstractContextTracker {
       // usually happens in async frameworks
       interval = closedIntervalsBySpan.get(spanId)
       if (interval == null) {
-        return false
+        return Result.FAILED.withMessage("Attempting to suspend a non-existing span ${spanId}")
       }
     }
     interval.suspended = true
-    return true
+    return Result.OK
   }
 
   @Override
-  boolean resumeSpan() {
+  def resumeSpan() {
     return resumeSpan(event.spanId.toLong())
   }
 
-  boolean resumeSpan(def spanId) {
+  def resumeSpan(def spanId) {
     tick++
     def interval = openIntervalsBySpan.get(spanId)
     if (interval == null) {
-      openIntervalsBySpan.put(spanId, interval = new SpanInterval(spanId, tick))
+      openIntervalsBySpan.put(spanId, interval = new SpanInterval(spanId, event, tick))
       openIntervalsByTime.add(interval)
     } else {
       interval.suspended = false
     }
-    return true
+    return Result.OK
   }
 
   @Override
-  boolean endSpan() {
+  def endSpan() {
     return endSpan(event.spanId.toLong())
   }
 
-  boolean endSpan(def spanId) {
+  def endSpan(def spanId) {
     def result = true
     tick++
     def interval = openIntervalsBySpan.remove(spanId)
     if (interval == null) {
-      result = false
-    } else {
-      def index = openIntervalsByTime.size() - 1
-      for (def open : openIntervalsByTime.reverse()) {
-        if (open.spanId == spanId) {
-          break
-        }
-        if (!open.suspended) {
-          result = false
-        }
-        index--
+      return Result.FAILED.withMessage("Attempting to end a non-existing span ${spanId}")
+    }
+    def index = openIntervalsByTime.size() - 1
+    for (def open : openIntervalsByTime.reverse()) {
+      if (open.spanId == spanId) {
+        break
       }
-      if (index >= 0) {
-        openIntervalsByTime.remove(index)
-      }
-      if (closedIntervalsBySpan.containsKey(interval.spanId)) {
+      if (!open.suspended) {
+        markInvalid(open.startEvent, "Overlapping non-suspended spans: (${open.spanId}, ${spanId})")
         result = false
-      } else {
-        for (def closed : closedIntervalsByTime.reverse()) {
-          if (closed.endTick < interval.startTick) {
-            break
-          }
-          if (closed.startTick < interval.startTick) {
-            result = false
-          }
-        }
-        interval.endTick = tick
-        closedIntervalsByTime.add(interval)
-        closedIntervalsBySpan.put(interval.spanId, interval)
+      }
+      index--
+    }
+    if (index >= 0) {
+      openIntervalsByTime.remove(index)
+    }
+    if (closedIntervalsBySpan.containsKey(spanId)) {
+      return Result.FAILED.withMessage("Interval for span ${spanId} has already been closed")
+    }
+    for (def closed : closedIntervalsByTime.reverse()) {
+      if (closed.endTick < interval.startTick) {
+        break
+      }
+      if (closed.startTick < interval.startTick) {
+        markInvalid(closed.startEvent, "Overlapping spans: (${closed.spanId}, ${spanId})")
+        result = false
       }
     }
-    return result
+    interval.endTick = tick
+    closedIntervalsByTime.add(interval)
+    closedIntervalsBySpan.put(interval.spanId, interval)
+
+    return result ? Result.OK : Result.FAILED
   }
 
   @Override
-  boolean endSequence() {
-    return openIntervalsByTime.findAll {!it.suspended}.empty
+  def endSequence() {
+    return openIntervalsByTime.findAll {!it.suspended}.empty ? Result.OK : Result.FAILED
   }
 }

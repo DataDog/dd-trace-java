@@ -1,6 +1,7 @@
 package datadog.smoketest.opentracing;
 
 import datadog.trace.api.DDTags;
+import datadog.trace.api.interceptor.MutableSpan;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
@@ -14,6 +15,8 @@ public class OTWithAgentApplication {
     final Span span = tracer.buildSpan("someOperation").start();
     try (final Scope scope = tracer.activateSpan(span)) {
       span.setTag(DDTags.SERVICE_NAME, "someService");
+      // Verify that the returned object is wrapped correctly.
+      Span root = (Span) ((MutableSpan) tracer.activeSpan()).getLocalRootSpan();
     }
 
     span.finish();

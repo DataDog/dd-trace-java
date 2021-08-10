@@ -1,41 +1,50 @@
 package com.datadog.appsec.powerwaf;
 
+import static java.util.Collections.singletonList;
+
 import com.datadog.appsec.AppSecModule;
-import com.datadog.appsec.AppSecSystem;
+import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.event.ChangeableFlow;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.gateway.AppSecRequestContext;
+import com.datadog.appsec.report.raw.events.attack.Attack010;
+import com.datadog.appsec.report.raw.events.attack._definitions.rule.Rule010;
+import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.Parameter;
+import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.RuleMatch010;
 import com.google.auto.service.AutoService;
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.trace.api.gateway.Flow;
 import io.sqreen.powerwaf.Powerwaf;
 import io.sqreen.powerwaf.PowerwafContext;
 import io.sqreen.powerwaf.exception.AbstractPowerwafException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
-import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(AppSecModule.class)
 public class PowerWAFModule implements AppSecModule {
-  private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
+  private static final Logger log = LoggerFactory.getLogger(PowerWAFModule.class);
 
   private static final int MAX_DEPTH = 10;
   private static final int MAX_ELEMENTS = 150;
@@ -55,6 +64,9 @@ public class PowerWAFModule implements AppSecModule {
   private static final Constructor<?> PROXY_CLASS_CONSTRUCTOR;
   private static final Set<Address<?>> ADDRESSES_OF_INTEREST;
 
+  private static final JsonAdapter<Map<String, Object>> CONFIG_ADAPTER;
+  private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
+
   static {
     try {
       PROXY_CLASS_CONSTRUCTOR = PROXY_CLASS.getConstructor(InvocationHandler.class);
@@ -69,32 +81,64 @@ public class PowerWAFModule implements AppSecModule {
     ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_COOKIES);
     ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_PATH_PARAMS);
     ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_BODY_RAW);
+
+    Moshi moshi = new Moshi.Builder().build();
+    CONFIG_ADAPTER =
+        moshi.adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+    RES_JSON_ADAPTER =
+        moshi.adapter(Types.newParameterizedType(List.class, PowerWAFResultData.class));
   }
 
-  private final PowerwafContext ctx;
+  private AtomicReference<PowerwafContext> ctx = new AtomicReference<>();
 
-  public PowerWAFModule() {
-    this("waf.json");
+  @Override
+  public void config(AppSecConfigService appSecConfigService) {
+    Optional<Object> initialConfig =
+        appSecConfigService.addSubConfigListener("waf", this::applyConfig);
+    if (!initialConfig.isPresent()) {
+      log.warn("No initial config for WAF");
+      return;
+    }
+
+    try {
+      applyConfig(initialConfig.get());
+    } catch (RuntimeException rte) {
+      log.warn("Unable to apply initial WAF configuration", rte);
+    }
   }
 
-  public PowerWAFModule(String resourceName) {
-    PowerwafContext ctx = null;
+  private void applyConfig(Object config) {
+    if (!(config instanceof Map)) {
+      throw new IllegalArgumentException("Expect config to be a map");
+    }
+    String configJson = CONFIG_ADAPTER.toJson((Map<String, Object>) config);
+    log.info("Configuring WAF");
+
+    PowerwafContext prevContext = this.ctx.get();
+    PowerwafContext newContext;
 
     if (!LibSqreenInitialization.ONLINE) {
       log.warn("In-app WAF initialization failed");
+      return;
     } else {
       try {
-        String wafDef = loadWAFJson(resourceName);
         String uniqueId = UUID.randomUUID().toString();
-        ctx = Powerwaf.createContext(uniqueId, Collections.singletonMap(RULE_NAME, wafDef));
-      } catch (IOException e) {
-        log.error("Error reading WAF atom", e);
+        newContext =
+            Powerwaf.createContext(uniqueId, Collections.singletonMap(RULE_NAME, configJson));
       } catch (AbstractPowerwafException e) {
         log.error("Error creating WAF atom", e);
+        return;
       }
     }
 
-    this.ctx = ctx;
+    if (!this.ctx.compareAndSet(prevContext, newContext)) {
+      log.error("Concurrent update of context");
+      return;
+    }
+
+    if (prevContext != null) {
+      prevContext.close();
+    }
   }
 
   @Override
@@ -109,11 +153,7 @@ public class PowerWAFModule implements AppSecModule {
 
   @Override
   public Collection<DataSubscription> getDataSubscriptions() {
-    if (ctx == null) {
-      return Collections.emptyList();
-    }
-
-    return Collections.singletonList(new PowerWAFDataCallback());
+    return singletonList(new PowerWAFDataCallback());
   }
 
   private class PowerWAFDataCallback extends DataSubscription {
@@ -125,8 +165,14 @@ public class PowerWAFModule implements AppSecModule {
     public void onDataAvailable(
         ChangeableFlow flow, AppSecRequestContext reqCtx, DataBundle newData) {
       Powerwaf.ActionWithData actionWithData;
+      PowerwafContext powerwafContext = ctx.get();
+      if (powerwafContext == null) {
+        log.debug("Skipped; the WAF is not configured");
+        return;
+      }
       try {
-        actionWithData = ctx.runRule(RULE_NAME, new DataBundleMapWrapper(newData), LIMITS);
+        actionWithData =
+            powerwafContext.runRule(RULE_NAME, new DataBundleMapWrapper(newData), LIMITS);
       } catch (AbstractPowerwafException e) {
         log.error("Error calling WAF", e);
         return;
@@ -135,8 +181,60 @@ public class PowerWAFModule implements AppSecModule {
       if (actionWithData.action != Powerwaf.Action.OK) {
         log.warn("WAF signalled action {}: {}", actionWithData.action, actionWithData.data);
         flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
+
+        buildAttack(actionWithData).ifPresent(attack -> reqCtx.reportAttack(attack));
       }
     }
+  }
+
+  private Optional<Attack010> buildAttack(Powerwaf.ActionWithData actionWithData) {
+    List<PowerWAFResultData> listResults;
+    try {
+      listResults = RES_JSON_ADAPTER.fromJson(actionWithData.data);
+    } catch (IOException e) {
+      throw new UndeclaredThrowableException(e);
+    }
+
+    if (listResults.size() == 0) {
+      return Optional.empty();
+    }
+
+    // we only take the first match
+    PowerWAFResultData powerWAFResultData = listResults.get(0);
+    if (powerWAFResultData.filter == null || powerWAFResultData.filter.size() == 0) {
+      return Optional.empty();
+    }
+    PowerWAFResultData.Filter filterData = powerWAFResultData.filter.get(0);
+
+    Attack010 attack =
+        new Attack010.Attack010Builder()
+            .withBlocked(actionWithData.action == Powerwaf.Action.BLOCK)
+            .withType("waf")
+            .withRule(
+                new Rule010.Rule010Builder()
+                    .withId(powerWAFResultData.rule) // XXX
+                    .withName(powerWAFResultData.flow) // XXX
+                    .withSet("waf") // XXX
+                    .build())
+            .withRuleMatch(
+                new RuleMatch010.RuleMatch010Builder()
+                    .withOperator(filterData.operator)
+                    .withOperatorValue(filterData.operator_value)
+                    .withHighlight(
+                        singletonList(
+                            filterData.match_status != null
+                                ? filterData.match_status
+                                : filterData.resolved_value))
+                    .withParameters(
+                        singletonList(
+                            new Parameter.ParameterBuilder()
+                                .withName(filterData.binding_accessor)
+                                .withValue(filterData.resolved_value)
+                                .build()))
+                    .build())
+            .build();
+
+    return Optional.of(attack);
   }
 
   private static final class DataBundleMapWrapper implements Map<String, Object> {
@@ -272,24 +370,6 @@ public class PowerWAFModule implements AppSecModule {
     @Override
     public Object setValue(Object value) {
       throw new UnsupportedOperationException();
-    }
-  }
-
-  private String loadWAFJson(String resourceName) throws IOException {
-    try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourceName)) {
-      if (is == null) {
-        throw new IOException("Resource " + resourceName + " not found");
-      }
-      try (InputStreamReader reader = new InputStreamReader(is, Charset.forName("UTF-8"))) {
-        StringBuilder sbuf = new StringBuilder();
-        char[] buf = new char[8192];
-        int read;
-        while ((read = reader.read(buf)) > 0) {
-          sbuf.append(buf, 0, read);
-        }
-        String str = sbuf.toString();
-        return str;
-      }
     }
   }
 }

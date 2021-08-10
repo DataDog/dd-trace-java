@@ -5,6 +5,9 @@ import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.MapDataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
+import com.datadog.appsec.report.EventEnrichment;
+import com.datadog.appsec.report.ReportService;
+import com.datadog.appsec.report.raw.events.attack.Attack010;
 import datadog.trace.api.Function;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.TriConsumer;
@@ -18,6 +21,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -36,14 +40,18 @@ public class GatewayBridge {
 
   private final SubscriptionService subscriptionService;
   private final EventProducerService producerService;
+  private final ReportService reportService;
 
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
 
   public GatewayBridge(
-      SubscriptionService subscriptionService, EventProducerService producerService) {
+      SubscriptionService subscriptionService,
+      EventProducerService producerService,
+      ReportService reportService) {
     this.subscriptionService = subscriptionService;
     this.producerService = producerService;
+    this.reportService = reportService;
   }
 
   public void init() {
@@ -64,6 +72,12 @@ public class GatewayBridge {
           AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
+          Collection<Attack010> collectedAttacks = ctx.transferCollectedAttacks();
+          for (Attack010 attack : collectedAttacks) {
+            EventEnrichment.enrich(attack, ctx);
+            reportService.reportAttack(attack);
+          }
+
           ctx.close();
           return NoopFlow.INSTANCE;
         });
@@ -72,6 +86,19 @@ public class GatewayBridge {
     subscriptionService.registerCallback(Events.REQUEST_HEADER_DONE, new HeadersDoneCallback());
 
     subscriptionService.registerCallback(Events.REQUEST_URI_RAW, new RawURICallback());
+
+    subscriptionService.registerCallback(
+        Events.REQUEST_CLIENT_IP,
+        (ctx_, ip) -> {
+          AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+          ctx.setIp(ip);
+
+          if (isInitialRequestDataPublished(ctx)) {
+            return publishInitialRequestData(ctx);
+          } else {
+            return NoopFlow.INSTANCE;
+          }
+        });
   }
 
   private static class RequestContextSupplier implements Flow<RequestContext> {
@@ -146,7 +173,7 @@ public class GatewayBridge {
   }
 
   private static boolean isInitialRequestDataPublished(AppSecRequestContext ctx) {
-    return ctx.getSavedRawURI() != null && ctx.isFinishedHeaders();
+    return ctx.getSavedRawURI() != null && ctx.isFinishedHeaders() && ctx.getIp() != null;
   }
 
   private Flow<Void> publishInitialRequestData(AppSecRequestContext ctx) {
@@ -168,19 +195,18 @@ public class GatewayBridge {
               KnownAddresses.HEADERS_NO_COOKIES,
               KnownAddresses.REQUEST_COOKIES,
               KnownAddresses.REQUEST_URI_RAW,
-              KnownAddresses.REQUEST_QUERY);
+              KnownAddresses.REQUEST_QUERY,
+              KnownAddresses.REQUEST_CLIENT_IP);
     }
 
     MapDataBundle bundle =
-        MapDataBundle.of(
-            KnownAddresses.HEADERS_NO_COOKIES,
-            ctx.getCollectedHeaders(),
-            KnownAddresses.REQUEST_COOKIES,
-            ctx.getCollectedCookies(),
-            KnownAddresses.REQUEST_URI_RAW,
-            savedRawURI,
-            KnownAddresses.REQUEST_QUERY,
-            queryParams);
+        new MapDataBundle.Builder()
+            .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getCollectedHeaders())
+            .add(KnownAddresses.REQUEST_COOKIES, ctx.getCollectedCookies())
+            .add(KnownAddresses.REQUEST_URI_RAW, savedRawURI)
+            .add(KnownAddresses.REQUEST_QUERY, queryParams)
+            .add(KnownAddresses.REQUEST_CLIENT_IP, ctx.getIp())
+            .build();
 
     return producerService.publishDataEvent(initialReqDataSubInfo, ctx, bundle, false);
   }
