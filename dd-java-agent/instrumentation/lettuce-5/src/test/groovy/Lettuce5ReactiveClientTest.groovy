@@ -83,7 +83,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def conds = new AsyncConditions()
     Consumer<String> consumer = new Consumer<String>() {
@@ -124,7 +125,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def conds = new AsyncConditions()
 
@@ -159,7 +161,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def conds = new AsyncConditions()
     final defaultVal = "NOT THIS VALUE"
@@ -198,7 +201,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def conds = new AsyncConditions()
 
@@ -235,7 +239,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     reactiveCommands.command().subscribe()
 
@@ -265,7 +270,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     reactiveCommands.command().take(2).subscribe()
 
@@ -296,7 +302,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     String res = null
 
@@ -312,7 +319,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     reactiveCommands.debugSegfault().subscribe()
 
@@ -341,7 +349,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     reactiveCommands.shutdown(false).subscribe()
 
@@ -370,7 +379,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace("test-parent") {
@@ -430,7 +440,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace("test-parent") {
@@ -492,7 +503,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     runUnderTrace("test-parent") {

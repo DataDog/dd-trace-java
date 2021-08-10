@@ -207,7 +207,7 @@ class ThreadSequenceValidator {
     }
 
     SingleThreadTracker() {
-      super("thread-sequence", CheckpointValidationMode.SEQUENCE)
+      super("thread-sequence", CheckpointValidationMode.THREAD_SEQUENCE)
     }
 
     @Override

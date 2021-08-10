@@ -323,7 +323,8 @@ class Aws2ClientTest extends AgentTestRunner {
   def "timeout and retry errors captured"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def server = httpServer {
       handlers {

@@ -15,7 +15,8 @@ enum CheckpointValidationMode {
    *   <li>All SUSPEND_SPAN/RESUME_SPAN events are properly paired</li>
    * </ul>
    */
-  SEQUENCE,
+  SUSPEND_RESUME,
+  THREAD_SEQUENCE,
   /**
    * Validates the intervals of activity for all spans on a single thread.
    * Makes sure that each time point can be assigned to a single active span.

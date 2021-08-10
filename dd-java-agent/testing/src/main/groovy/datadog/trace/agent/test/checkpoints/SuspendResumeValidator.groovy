@@ -12,7 +12,7 @@ class SuspendResumeValidator extends AbstractValidator {
   int suspendCount
 
   SuspendResumeValidator() {
-    super("suspend-resume", CheckpointValidationMode.SEQUENCE)
+    super("suspend-resume", CheckpointValidationMode.SUSPEND_RESUME)
   }
 
   @Override

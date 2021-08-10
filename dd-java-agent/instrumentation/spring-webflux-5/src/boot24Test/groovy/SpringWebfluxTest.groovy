@@ -42,7 +42,8 @@ class SpringWebfluxTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
@@ -120,7 +121,8 @@ class SpringWebfluxTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
@@ -229,7 +231,8 @@ class SpringWebfluxTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
@@ -277,7 +280,8 @@ class SpringWebfluxTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     String url = "http://localhost:$port/notfoundgreet"
     def request = new Request.Builder().url(url).get().build()
@@ -328,7 +332,8 @@ class SpringWebfluxTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     String echoString = "TEST"
     String url = "http://localhost:$port/echo"
@@ -393,7 +398,8 @@ class SpringWebfluxTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     String url = "http://localhost:$port$urlPath"
     def request = new Request.Builder().url(url).get().build()
@@ -470,7 +476,8 @@ class SpringWebfluxTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     String url = "http://localhost:$port/double-greet-redirect"
     String finalUrl = "http://localhost:$port/double-greet"
@@ -560,7 +567,8 @@ class SpringWebfluxTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def requestsCount = 50 // Should be more than 2x CPUs to fish out some bugs
     String url = "http://localhost:$port$urlPath"

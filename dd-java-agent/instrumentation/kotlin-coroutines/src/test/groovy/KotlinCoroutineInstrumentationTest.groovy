@@ -19,7 +19,8 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedAcrossChannels()
@@ -40,7 +41,8 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracePreventedByCancellation()
@@ -61,7 +63,8 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(dispatcher)
     int expectedNumberOfSpans = kotlinTest.tracedAcrossThreadsWithNested()
@@ -81,7 +84,8 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(Dispatchers.Default)
     int expectedNumberOfSpans = kotlinTest.traceWithDeferred()
@@ -104,7 +108,8 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     KotlinCoroutineTests kotlinTest = new KotlinCoroutineTests(Dispatchers.Default)
     int expectedNumberOfSpans = kotlinTest.tracedWithDeferredFirstCompletions()

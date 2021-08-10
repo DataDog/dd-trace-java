@@ -86,7 +86,8 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def url = HttpUrl.get(address.resolve("/client-request")).newBuilder().build()
     def request = new Request.Builder().url(url).method("GET", null).build()
@@ -138,7 +139,8 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def names = ["Alyssa", "Ben", "Cy", "Eva", "Lem", "Louis"]
     def jsonAdapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(List, String))

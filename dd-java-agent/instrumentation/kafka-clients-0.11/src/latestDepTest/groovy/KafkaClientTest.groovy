@@ -56,7 +56,8 @@ class KafkaClientTest extends AgentTestRunner {
   def "test kafka produce and consume"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     Producer<String, String> producer = new KafkaProducer<>(producerProps, new StringSerializer(), new StringSerializer())
@@ -167,7 +168,8 @@ class KafkaClientTest extends AgentTestRunner {
   def "test spring kafka template produce and consume"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(producerProps)
@@ -277,7 +279,8 @@ class KafkaClientTest extends AgentTestRunner {
   def "test pass through tombstone"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(producerProps)
@@ -374,7 +377,8 @@ class KafkaClientTest extends AgentTestRunner {
   def "test records(TopicPartition) kafka consume"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
 
     // set up the Kafka consumer properties
@@ -460,7 +464,8 @@ class KafkaClientTest extends AgentTestRunner {
   def "test iteration backwards over ConsumerRecords"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def kafkaPartition = 0
     def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
@@ -676,7 +681,8 @@ class KafkaClientTest extends AgentTestRunner {
   def "test spring kafka template produce and batch consume"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(producerProps)
@@ -841,7 +847,8 @@ class KafkaClientTest extends AgentTestRunner {
   def "test kafka client header propagation manual config"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(producerProps)

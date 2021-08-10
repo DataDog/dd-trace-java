@@ -81,7 +81,8 @@ class Elasticsearch5TransportClientTest extends AgentTestRunner {
   def "test elasticsearch status"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def result = client.admin().cluster().health(new ClusterHealthRequest())
 
@@ -116,7 +117,8 @@ class Elasticsearch5TransportClientTest extends AgentTestRunner {
   def "test elasticsearch error"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
     client.prepareGet(indexName, indexType, id).get()
@@ -156,7 +158,8 @@ class Elasticsearch5TransportClientTest extends AgentTestRunner {
   def "test elasticsearch get"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     assert TEST_WRITER == []
     def indexResult = client.admin().indices().prepareCreate(indexName).get()

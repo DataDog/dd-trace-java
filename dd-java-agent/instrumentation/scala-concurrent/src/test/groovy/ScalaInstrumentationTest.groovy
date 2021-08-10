@@ -14,7 +14,8 @@ class ScalaInstrumentationTest extends AgentTestRunner {
   def "scala futures and callbacks"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
     int expectedNumberOfSpans = scalaTest.traceWithFutureAndCallbacks()
@@ -33,7 +34,8 @@ class ScalaInstrumentationTest extends AgentTestRunner {
   def "scala propagates across futures with no traces"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
     int expectedNumberOfSpans = scalaTest.tracedAcrossThreadsWithNoTrace()
@@ -49,7 +51,8 @@ class ScalaInstrumentationTest extends AgentTestRunner {
   def "scala either promise completion"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
     int expectedNumberOfSpans = scalaTest.traceWithPromises()
@@ -68,7 +71,8 @@ class ScalaInstrumentationTest extends AgentTestRunner {
   def "scala first completed future"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
     int expectedNumberOfSpans = scalaTest.tracedWithFutureFirstCompletions()

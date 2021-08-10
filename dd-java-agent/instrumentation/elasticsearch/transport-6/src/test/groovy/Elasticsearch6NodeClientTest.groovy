@@ -128,7 +128,8 @@ class Elasticsearch6NodeClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     assert TEST_WRITER == []
     def indexResult = client.admin().indices().prepareCreate(indexName).get()

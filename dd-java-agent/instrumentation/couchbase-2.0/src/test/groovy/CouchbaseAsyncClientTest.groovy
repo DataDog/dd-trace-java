@@ -27,7 +27,8 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def hasBucket = new BlockingVariable<Boolean>(TIMEOUT)
 
@@ -67,7 +68,8 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     JsonObject content = JsonObject.create().put("hello", "world")
     def inserted = new BlockingVariable<JsonDocument>(TIMEOUT)
@@ -107,7 +109,8 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     JsonObject content = JsonObject.create().put("hello", "world")
     def inserted = new BlockingVariable<JsonDocument>(TIMEOUT)
@@ -158,7 +161,8 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SEQUENCE)
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     // Only couchbase buckets support queries.
     CouchbaseEnvironment environment = envBuilder(bucketCouchbase).build()

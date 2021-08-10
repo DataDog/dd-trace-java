@@ -19,10 +19,6 @@ class CheckpointValidator {
     excludedValidations.addAll(EnumSet.of(mode0, modes))
   }
 
-  static Set<CheckpointValidationMode> getExcludedValidations() {
-    return excludedValidations.clone()
-  }
-
   static void clear() {
     // reset the validation modes after each test case
     excludedValidations = EnumSet.noneOf(CheckpointValidationMode)
