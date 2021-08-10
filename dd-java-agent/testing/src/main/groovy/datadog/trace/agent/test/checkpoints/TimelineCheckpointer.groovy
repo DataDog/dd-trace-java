@@ -34,7 +34,7 @@ class TimelineCheckpointer implements Checkpointer {
     TimelineExporter.export(orderedEvents)
     System.err.println("")
 
-     // The set of excluded validations
+    // The set of excluded validations
     def excludedValidations = CheckpointValidator.excludedValidations
 
     // The set of included validations
