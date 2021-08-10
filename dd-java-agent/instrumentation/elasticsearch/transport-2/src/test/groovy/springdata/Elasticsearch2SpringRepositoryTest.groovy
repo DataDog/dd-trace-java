@@ -2,6 +2,8 @@ package springdata
 
 
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.springframework.context.ApplicationContext
@@ -34,6 +36,11 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
   }
 
   def "test empty repo"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     def result = repo.findAll()
 
@@ -68,6 +75,11 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
   }
 
   def "test CRUD"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     def doc = new Doc()
 
