@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import groovy.json.JsonSlurper
@@ -71,6 +73,10 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     Request request = new Request("GET", "_cluster/health")
     Response response = client.performRequest(request)
 
