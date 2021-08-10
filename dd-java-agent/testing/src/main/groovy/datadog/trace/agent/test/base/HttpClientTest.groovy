@@ -521,6 +521,7 @@ abstract class HttpClientTest extends AgentTestRunner {
       resourceName "$method $uri.path"
       spanType DDSpanTypes.HTTP_CLIENT
       errored exception != null
+      measured true
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

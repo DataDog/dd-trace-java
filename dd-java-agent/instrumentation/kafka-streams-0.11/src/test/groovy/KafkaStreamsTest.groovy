@@ -106,6 +106,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           resourceName "Produce Topic $STREAM_PENDING"
           spanType "queue"
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -122,6 +123,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           resourceName "Consume Topic $STREAM_PENDING"
           spanType "queue"
           errored false
+          measured true
           childOf trace(0)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -143,6 +145,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           resourceName "Consume Topic $STREAM_PENDING"
           spanType "queue"
           errored false
+          measured true
           childOf trace(0)[0]
 
           tags {
@@ -162,6 +165,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           resourceName "Produce Topic $STREAM_PROCESSED"
           spanType "queue"
           errored false
+          measured true
           childOf span(0)
 
           tags {
@@ -179,6 +183,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           resourceName "Consume Topic $STREAM_PROCESSED"
           spanType "queue"
           errored false
+          measured true
           childOf trace(2)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"

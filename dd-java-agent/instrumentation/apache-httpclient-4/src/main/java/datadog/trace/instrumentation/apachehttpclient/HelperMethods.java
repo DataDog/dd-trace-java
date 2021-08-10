@@ -17,7 +17,6 @@ import org.apache.http.client.methods.HttpUriRequest;
 public class HelperMethods {
   public static AgentScope doMethodEnter(final HttpUriRequest request) {
     final AgentSpan span = startSpan(HTTP_REQUEST);
-    span.setMeasured(true);
     final AgentScope scope = activateSpan(span);
 
     DECORATE.afterStart(span);

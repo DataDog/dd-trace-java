@@ -81,6 +81,7 @@ class GrpcTest extends AgentTestRunner {
           spanType DDSpanTypes.RPC
           childOf span(0)
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -96,6 +97,7 @@ class GrpcTest extends AgentTestRunner {
           spanType DDSpanTypes.RPC
           childOf span(1)
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -111,6 +113,7 @@ class GrpcTest extends AgentTestRunner {
           spanType DDSpanTypes.RPC
           childOf trace(0).get(1)
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -124,6 +127,7 @@ class GrpcTest extends AgentTestRunner {
           spanType DDSpanTypes.RPC
           childOf span(0)
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -195,6 +199,7 @@ class GrpcTest extends AgentTestRunner {
           spanType DDSpanTypes.RPC
           parent()
           errored true
+          measured true
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -213,6 +218,7 @@ class GrpcTest extends AgentTestRunner {
           spanType DDSpanTypes.RPC
           childOf trace(0).get(0)
           errored true
+          measured true
           tags {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -230,6 +236,7 @@ class GrpcTest extends AgentTestRunner {
           spanType DDSpanTypes.RPC
           childOf span(0)
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -290,6 +297,7 @@ class GrpcTest extends AgentTestRunner {
           spanType DDSpanTypes.RPC
           parent()
           errored true
+          measured true
           tags {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -307,6 +315,7 @@ class GrpcTest extends AgentTestRunner {
           spanType DDSpanTypes.RPC
           childOf trace(0).get(0)
           errored true
+          measured true
           tags {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -320,6 +329,7 @@ class GrpcTest extends AgentTestRunner {
           spanType DDSpanTypes.RPC
           childOf span(0)
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -407,6 +417,7 @@ class GrpcTest extends AgentTestRunner {
           spanType DDSpanTypes.RPC
           parentDDId DDId.ZERO
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -420,6 +431,7 @@ class GrpcTest extends AgentTestRunner {
           spanType DDSpanTypes.RPC
           childOf span(0)
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER

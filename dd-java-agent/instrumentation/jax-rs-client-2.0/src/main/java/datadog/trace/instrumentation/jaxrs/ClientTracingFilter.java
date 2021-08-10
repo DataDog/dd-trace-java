@@ -24,7 +24,6 @@ public class ClientTracingFilter implements ClientRequestFilter, ClientResponseF
   public void filter(final ClientRequestContext requestContext) {
     final AgentSpan span = startSpan(JAX_RS_CLIENT_CALL);
     try (final AgentScope scope = activateSpan(span)) {
-      span.setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, requestContext);
 
@@ -40,7 +39,6 @@ public class ClientTracingFilter implements ClientRequestFilter, ClientResponseF
     final Object spanObj = requestContext.getProperty(SPAN_PROPERTY_NAME);
     if (spanObj instanceof AgentSpan) {
       final AgentSpan span = (AgentSpan) spanObj;
-      span.setMeasured(true);
       DECORATE.onResponse(span, responseContext);
       DECORATE.beforeFinish(span);
       span.finish();

@@ -495,6 +495,7 @@ class RabbitMQTest extends AgentTestRunner {
       }
 
       errored exception != null
+      measured true
 
       tags {
         "$Tags.COMPONENT" "rabbitmq-amqp"

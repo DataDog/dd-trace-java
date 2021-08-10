@@ -73,7 +73,6 @@ public final class AkkaHttpSingleRequestInstrumentation extends Instrumenter.Tra
       }
 
       final AgentSpan span = startSpan(AKKA_CLIENT_REQUEST);
-      span.setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
 

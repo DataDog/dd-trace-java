@@ -53,7 +53,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setTag("aws.endpoint", request.getEndpoint().toString());
 
     span.setResourceName(cache.getQualifiedName(awsOperation, awsServiceName));
-    span.setMeasured(true);
 
     RequestAccess access = RequestAccess.of(originalRequest);
     String bucketName = access.getBucketName(originalRequest);
