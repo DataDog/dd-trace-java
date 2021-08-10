@@ -1,9 +1,15 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.core.DDSpan
 import scala.concurrent.forkjoin.ForkJoinPool
 
 class ForkJoinPoolPropagationTest extends AgentTestRunner {
   def "test imbalanced recursive task propagation #parallelism FJP threads" () {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS)
+
     when:
     ForkJoinPool fjp = new ForkJoinPool(parallelism)
 
