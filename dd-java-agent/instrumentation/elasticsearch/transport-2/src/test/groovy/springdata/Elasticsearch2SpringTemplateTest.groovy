@@ -277,6 +277,10 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
 
   def "test results extractor"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     template.createIndex(indexName)
     testNode.client().admin().cluster().prepareHealth().setWaitForYellowStatus().execute().actionGet(TIMEOUT)
     template.index(IndexQueryBuilder.newInstance()
