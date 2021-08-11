@@ -83,8 +83,8 @@ public class PendingTraceWrite {
       trace.registerSpan(span);
     }
     for (int i = 0; i < depthPerThread; ++i) {
-      trace.addFinishedSpan(span);
+      trace.onPublish(span);
     }
-    trace.addFinishedSpan(root);
+    trace.onPublish(root);
   }
 }

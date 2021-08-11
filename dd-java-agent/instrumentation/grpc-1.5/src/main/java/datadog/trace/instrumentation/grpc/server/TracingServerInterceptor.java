@@ -19,7 +19,6 @@ import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TracingServerInterceptor implements ServerInterceptor {
 
@@ -35,11 +34,6 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     final Context spanContext = propagate().extract(headers, GETTER);
     final AgentSpan span = startSpan(GRPC_SERVER, spanContext).setMeasured(true);
-    /**
-     * grpc has quite a few states that can finish the span. rather than track down the correct
-     * combination of them to exclusively finish the span, just guard against double finish.
-     */
-    final AtomicBoolean finishSpan = new AtomicBoolean(true);
     DECORATE.afterStart(span);
     DECORATE.onCall(span, call);
 
@@ -47,33 +41,29 @@ public class TracingServerInterceptor implements ServerInterceptor {
     try (AgentScope scope = activateSpan(span)) {
       // Wrap the server call so that we can decorate the span
       // with the resulting status
-      final TracingServerCall<ReqT, RespT> tracingServerCall =
-          new TracingServerCall<>(span, finishSpan, call);
+      final TracingServerCall<ReqT, RespT> tracingServerCall = new TracingServerCall<>(span, call);
       // call other interceptors
       result = next.startCall(tracingServerCall, headers);
     } catch (final Throwable e) {
-      if (finishSpan.getAndSet(false)) {
+      if (span.phasedFinish()) {
         DECORATE.onError(span, e);
         DECORATE.beforeFinish(span);
-        span.finish();
+        span.publish();
       }
       throw e;
     }
 
     // This ensures the server implementation can see the span in scope
-    return new TracingServerCallListener<>(span, finishSpan, result);
+    return new TracingServerCallListener<>(span, result);
   }
 
   static final class TracingServerCall<ReqT, RespT>
       extends ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT> {
     final AgentSpan span;
-    final AtomicBoolean finishSpan;
 
-    TracingServerCall(
-        final AgentSpan span, AtomicBoolean finishSpan, final ServerCall<ReqT, RespT> delegate) {
+    TracingServerCall(final AgentSpan span, final ServerCall<ReqT, RespT> delegate) {
       super(delegate);
       this.span = span;
-      this.finishSpan = finishSpan;
     }
 
     @Override
@@ -85,9 +75,9 @@ public class TracingServerInterceptor implements ServerInterceptor {
         DECORATE.onError(span, e);
         throw e;
       } finally {
-        if (finishSpan.getAndSet(false)) {
+        if (span.phasedFinish()) {
           DECORATE.beforeFinish(span);
-          span.finish();
+          span.publish();
         }
       }
     }
@@ -96,13 +86,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
   static final class TracingServerCallListener<ReqT>
       extends ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT> {
     private final AgentSpan span;
-    private final AtomicBoolean finishSpan;
 
-    TracingServerCallListener(
-        final AgentSpan span, AtomicBoolean finishSpan, final ServerCall.Listener<ReqT> delegate) {
+    TracingServerCallListener(final AgentSpan span, final ServerCall.Listener<ReqT> delegate) {
       super(delegate);
       this.span = span;
-      this.finishSpan = finishSpan;
     }
 
     @Override
@@ -115,10 +102,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
         delegate().onMessage(message);
       } catch (final Throwable e) {
         // I'm not convinced we should actually be finishing the span here...
-        if (finishSpan.getAndSet(false)) {
+        if (span.phasedFinish()) {
           DECORATE.onError(msgSpan, e);
-          DECORATE.beforeFinish(this.span);
-          this.span.finish();
+          DECORATE.beforeFinish(span);
+          span.publish();
         }
         throw e;
       } finally {
@@ -132,10 +119,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
       try (final AgentScope scope = activateSpan(span)) {
         delegate().onHalfClose();
       } catch (final Throwable e) {
-        if (finishSpan.getAndSet(false)) {
+        if (span.phasedFinish()) {
           DECORATE.onError(span, e);
           DECORATE.beforeFinish(span);
-          span.finish();
+          span.publish();
         }
         throw e;
       }
@@ -154,9 +141,9 @@ public class TracingServerInterceptor implements ServerInterceptor {
         DECORATE.onError(span, e);
         throw e;
       } finally {
-        if (finishSpan.getAndSet(false)) {
+        if (span.phasedFinish()) {
           DECORATE.beforeFinish(span);
-          span.finish();
+          span.publish();
         }
       }
     }
@@ -170,9 +157,13 @@ public class TracingServerInterceptor implements ServerInterceptor {
         DECORATE.onError(span, e);
         throw e;
       } finally {
-        if (finishSpan.getAndSet(false)) {
+        /**
+         * grpc has quite a few states that can finish the span. rather than track down the correct
+         * combination of them to exclusively finish the span, use phasedFinish.
+         */
+        if (span.phasedFinish()) {
           DECORATE.beforeFinish(span);
-          span.finish();
+          span.publish();
         }
       }
     }
@@ -182,10 +173,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
       try (final AgentScope scope = activateSpan(span)) {
         delegate().onReady();
       } catch (final Throwable e) {
-        if (finishSpan.getAndSet(false)) {
+        if (span.phasedFinish()) {
           DECORATE.onError(span, e);
           DECORATE.beforeFinish(span);
-          span.finish();
+          span.publish();
         }
         throw e;
       }
