@@ -4,6 +4,13 @@ enum CheckpointValidationMode {
   /**
    * Asserts that a sequence of events related to a thread is sane.
    * <ul>
+   *   <li>All SUSPEND_SPAN/RESUME_SPAN events are properly paired</li>
+   * </ul>
+   */
+  SUSPEND_RESUME,
+  /**
+   * Asserts that a sequence of events related to a thread is sane.
+   * <ul>
    *   <li>Sequence starts with either START_SPAN or RESUME_SPAN
    *   <li>Sequence ends with either SUSPEND_SPAN or END_SPAN
    *   <li>On each thread the sequence must start with START_SPAN or RESUME_SPAN</li>
@@ -12,10 +19,8 @@ enum CheckpointValidationMode {
    *   <li>Between two RESUME_SPAN event there must be a SUSPEND_SPAN event</li>
    *   <li>END_TASK may appear only after START_SPAN or RESUME_SPAN</li>
    *   <li>Between two END_TASK events there must be a RESUME_SPAN event</li>
-   *   <li>All SUSPEND_SPAN/RESUME_SPAN events are properly paired</li>
    * </ul>
    */
-  SUSPEND_RESUME,
   THREAD_SEQUENCE,
   /**
    * Validates the intervals of activity for all spans on a single thread.
