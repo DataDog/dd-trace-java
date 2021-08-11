@@ -34,9 +34,33 @@ class TimelineCheckpointer implements Checkpointer {
     TimelineExporter.export(orderedEvents)
     System.err.println("")
 
-    // apparently gradle can not pass system property to spock tests - therefore using env variable instead
-    if (Boolean.parseBoolean(System.getenv("VALIDATE_CHECKPOINTS")) && validatedEvents.find {it.value} != null) {
-      throw new IllegalStateException("Checkpoint validation failed")
+    // The set of excluded validations
+    def excludedValidations = CheckpointValidator.excludedValidations
+
+    // The set of included validations
+    def includedValidations = EnumSet.allOf(CheckpointValidationMode)
+    // if `FORCE_VALIDATE_CHECKPOINTS` is defined, make sure we do not exclude any validation
+    if (!Boolean.parseBoolean(System.getenv("FORCE_VALIDATE_CHECKPOINTS"))) {
+      includedValidations.removeAll(excludedValidations)
+    }
+
+    // The set of included validations that failed
+    def includedAndFailedValidations = includedValidations.clone()
+    includedAndFailedValidations.retainAll(validatedEvents*.key.mode)
+
+    // The set of excluded validations that passed
+    def excludedAndPassedValidations = excludedValidations.clone()
+    excludedAndPassedValidations.removeAll(validatedEvents*.key.mode)
+
+    System.err.println(
+      "Checkpoint validator is running with the following checks disabled: ${excludedValidations}\n" +
+      "\tIncluded & Failed: ${includedAndFailedValidations}\n" +
+      "\tExcluded & Passed: ${excludedAndPassedValidations}\n")
+    if (!includedAndFailedValidations.empty) {
+      throw new IllegalStateException("Included & Failed validations: ${includedAndFailedValidations}")
+    }
+    if (!excludedAndPassedValidations.empty && Boolean.parseBoolean(System.getenv("STRICT_VALIDATE_CHECKPOINTS"))) {
+      throw new IllegalStateException("Excluded & Passed validations: ${excludedAndPassedValidations}")
     }
   }
 

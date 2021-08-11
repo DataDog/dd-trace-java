@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -85,6 +87,10 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "connect"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     RedisClient testConnectionClient = RedisClient.create(embeddedDbUri)
     testConnectionClient.setOptions(CLIENT_OPTIONS)
 
@@ -120,6 +126,10 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "connect exception"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     RedisClient testConnectionClient = RedisClient.create(dbUriNonExistent)
     testConnectionClient.setOptions(CLIENT_OPTIONS)
 
@@ -154,6 +164,10 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "set command"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     String res = syncCommands.set("TESTSETKEY", "TESTSETVAL")
 
     expect:
@@ -180,6 +194,10 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "get command"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     String res = syncCommands.get("TESTKEY")
 
     expect:
@@ -206,6 +224,10 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "get non existent key command"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     String res = syncCommands.get("NON_EXISTENT_KEY")
 
     expect:
@@ -232,6 +254,10 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "command with no arguments"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def keyRetrieved = syncCommands.randomkey()
 
     expect:
@@ -258,6 +284,10 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "list command"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     long res = syncCommands.lpush("TESTLIST", "TESTLIST ELEMENT")
 
     expect:
@@ -284,6 +314,10 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "hash set command"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def res = syncCommands.hmset("user", testHashMap)
 
     expect:
@@ -310,6 +344,10 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "hash getall command"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     Map<String, String> res = syncCommands.hgetall("TESTHM")
 
     expect:
@@ -336,6 +374,10 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "debug segfault command (returns void) with no argument should produce span"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     syncCommands.debugSegfault()
 
     expect:
@@ -361,6 +403,10 @@ class Lettuce5SyncClientTest extends AgentTestRunner {
 
   def "shutdown command (returns void) should produce a span"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     syncCommands.shutdown(false)
 
     expect:

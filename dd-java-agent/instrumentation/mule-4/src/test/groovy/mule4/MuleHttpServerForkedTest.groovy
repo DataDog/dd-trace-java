@@ -1,6 +1,8 @@
 package mule4
 
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import spock.lang.Shared
 
 import static mule4.MuleTestApplicationConstants.*
@@ -72,5 +74,13 @@ class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
   void stopServer(MuleTestContainer container) {
     container.undeploy(String.valueOf(buildProperties.get(TEST_APPLICATION_NAME)))
     container.stop()
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

@@ -3,6 +3,8 @@ package test.hazelcast.v39
 import com.hazelcast.core.Message
 import com.hazelcast.core.MessageListener
 import com.hazelcast.query.Predicates
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.util.concurrent.BlockingVariable
@@ -15,6 +17,12 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 class HazelcastTest extends AbstractHazelcastTest {
 
   def "map"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     def serverMap = h1.getMap(randomName)
     serverMap.put("foo", "bar")
@@ -32,6 +40,12 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "map predicate"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     def serverMap = h1.getMap(randomName)
     serverMap.put("foo", "bar")
@@ -49,6 +63,12 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "map async"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     def serverMap = h1.getMap(randomName)
     serverMap.put("foo", "bar")
@@ -74,6 +94,12 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "multimap"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     def serverMultiMap = h1.getMultiMap(randomName)
     serverMultiMap.put("foo", "bar")
@@ -92,6 +118,12 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "queue"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     def serverQueue = h1.getQueue(randomName)
     serverQueue.offer("foo")
@@ -111,9 +143,13 @@ class HazelcastTest extends AbstractHazelcastTest {
     serverQueue?.destroy()
   }
 
-
   def "topic"() {
     given:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def serverTopic = h1.getTopic(randomName)
 
     and:
@@ -145,6 +181,11 @@ class HazelcastTest extends AbstractHazelcastTest {
 
   def "reliable topic"() {
     given:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def clientTopic = client.getReliableTopic(randomName)
     def receivedMessage = new BlockingVariable<Message>(5, TimeUnit.SECONDS)
     def listener = Stub(MessageListener)
@@ -171,6 +212,12 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "set"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     def serverSet = h1.getSet(randomName)
     serverSet.add("foo")
@@ -188,6 +235,12 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "set double value"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     def clientSet = client.getSet(randomName)
     clientSet.add("hello")
@@ -205,6 +258,12 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "list"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     def serverList = h1.getList(randomName)
     serverList.add("foo")
@@ -222,6 +281,12 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "list error"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     def serverList = h1.getList(randomName)
     serverList.add("foo")
@@ -257,6 +322,12 @@ class HazelcastTest extends AbstractHazelcastTest {
   }
 
   def "lock"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     def serverLock = h1.getLock(randomName)
     serverLock.lock()

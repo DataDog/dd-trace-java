@@ -4,6 +4,8 @@ package test.dynamic
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
@@ -20,6 +22,14 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import static java.util.Collections.singletonMap
 
 class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> {
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+  }
 
   @Override
   boolean useStrictTraceWrites() {

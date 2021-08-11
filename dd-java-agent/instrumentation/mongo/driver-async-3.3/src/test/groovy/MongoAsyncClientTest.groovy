@@ -9,6 +9,8 @@ import com.mongodb.client.result.DeleteResult
 import com.mongodb.client.result.UpdateResult
 import com.mongodb.connection.ClusterSettings
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -47,6 +49,11 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test create collection"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     MongoDatabase db = client.getDatabase(databaseName)
 
     when:
@@ -65,6 +72,11 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test create collection no description"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
 
     when:
@@ -83,6 +95,11 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test get collection"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     MongoDatabase db = client.getDatabase(databaseName)
 
     when:
@@ -103,6 +120,11 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test insert"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(databaseName)
       def latch1 = new CountDownLatch(1)
@@ -137,6 +159,11 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test update"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(databaseName)
       def latch1 = new CountDownLatch(1)
@@ -179,6 +206,11 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
   def "test delete"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(databaseName)
       def latch1 = new CountDownLatch(1)

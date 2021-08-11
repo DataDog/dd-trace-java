@@ -4,6 +4,8 @@ import akka.dispatch.forkjoin.ForkJoinPool
 import akka.dispatch.forkjoin.ForkJoinTask
 import com.typesafe.config.ConfigFactory
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
 import spock.lang.Shared
@@ -38,6 +40,9 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
 
   def "#poolImpl '#name' propagates"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
     def pool = poolImpl
     def m = method
 
@@ -92,6 +97,9 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
 
   def "dispatcher propagates context" () {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
     ActorSystem actorSystem = ActorSystem.create("test", ConfigFactory.defaultApplication())
     def dispatcher = actorSystem.dispatchers().defaultGlobalDispatcher()
 
@@ -121,6 +129,9 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
 
   def "#poolImpl '#name' reports after canceled jobs"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
     def pool = poolImpl
     def m = method
     List<AkkaAsyncChild> children = new ArrayList<>()

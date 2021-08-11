@@ -38,7 +38,8 @@ class SpringSAListenerTest extends AgentTestRunner {
     setup:
     // Instrumentation is producing interleaved spans
     // Instruct the checkpoint validator to ignore this minor glitch
-    CheckpointValidator.excludeValidations(EnumSet.of(CheckpointValidationMode.INTERVALS))
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS)
     def context = new AnnotationConfigApplicationContext(Config)
     def factory = context.getBean(ConnectionFactory)
     def container = context.getBean(MessageListenerContainer)

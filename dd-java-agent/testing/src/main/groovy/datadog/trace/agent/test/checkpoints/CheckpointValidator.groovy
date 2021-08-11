@@ -4,12 +4,20 @@ class CheckpointValidator {
   private static Set<CheckpointValidationMode> excludedValidations = EnumSet.noneOf(CheckpointValidationMode)
 
   /**
+   * This method should not be added to any new integrations as it would imply that a new
+   * integration is broken for Tracing Context (Code Hotspots). If you are unsure, reach out
+   * to the profiling team.
+   *
    * Exclude some validations modes from the checks for the current test case.
    * By default all validation modes defined by {@linkplain CheckpointValidationMode} are enabled.
    * @param modes validation modes
    */
-  static void excludeValidations(EnumSet<CheckpointValidationMode> modes) {
-    excludedValidations.addAll(modes)
+  static void excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode mode0, CheckpointValidationMode... modes) {
+    excludedValidations.addAll(EnumSet.of(mode0, modes))
+  }
+
+  static Set<CheckpointValidationMode> getExcludedValidations() {
+    return excludedValidations.clone()
   }
 
   static void clear() {

@@ -1,5 +1,7 @@
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
@@ -39,6 +41,11 @@ class GrpcTest extends AgentTestRunner {
 
   def "test request-response"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
         @Override
@@ -166,6 +173,11 @@ class GrpcTest extends AgentTestRunner {
 
   def "test error - #name"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def error = status.asException()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
         @Override
@@ -261,6 +273,11 @@ class GrpcTest extends AgentTestRunner {
 
   def "test error thrown - #name"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def error = status.asRuntimeException()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
         @Override
@@ -351,6 +368,11 @@ class GrpcTest extends AgentTestRunner {
 
   def "skip binary headers"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def meta = new Metadata()
     meta.put(Metadata.Key.<String> of("test", Metadata.ASCII_STRING_MARSHALLER), "val")
     meta.put(Metadata.Key.<byte[]> of("test-bin", Metadata.BINARY_BYTE_MARSHALLER), "bin-val".bytes)
@@ -372,6 +394,11 @@ class GrpcTest extends AgentTestRunner {
 
   def "test ignore ignored methods"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
         @Override

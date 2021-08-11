@@ -1,5 +1,7 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.agent.test.utils.ThreadUtils
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
 import okhttp3.Request
@@ -95,12 +97,28 @@ class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstrumentatio
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleSync())
   }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+  }
 }
 
 class AkkaHttpServerInstrumentationAsyncTest extends AkkaHttpServerInstrumentationTest {
   @Override
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleAsync())
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
 
@@ -114,6 +132,14 @@ class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstr
   boolean redirectHasBody() {
     return true
   }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+  }
 }
 
 class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest extends AkkaHttpServerInstrumentationTest {
@@ -126,11 +152,27 @@ class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest e
   boolean redirectHasBody() {
     return true
   }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+  }
 }
 
 class AkkaHttpServerInstrumentationAsyncHttp2Test extends AkkaHttpServerInstrumentationTest {
   @Override
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttpTestWebServer.BindAndHandleAsyncHttp2())
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
