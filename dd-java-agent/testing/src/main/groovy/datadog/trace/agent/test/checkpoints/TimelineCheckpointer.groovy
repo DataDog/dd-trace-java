@@ -57,10 +57,10 @@ class TimelineCheckpointer implements Checkpointer {
       "\tIncluded & Failed: ${includedAndFailedValidations}\n" +
       "\tExcluded & Passed: ${excludedAndPassedValidations}\n")
     if (!includedAndFailedValidations.empty) {
-      throw new IllegalStateException(
-      "Failed validations: [" +
-      includedAndFailedValidations.collect { it.toString() }.sort().join(", ") +
-      "]")
+      throw new IllegalStateException("Included & Failed validations: ${includedAndFailedValidations}")
+    }
+    if (!excludedAndPassedValidations.empty && Boolean.parseBoolean(System.getenv("STRICT_VALIDATE_CHECKPOINTS"))) {
+      throw new IllegalStateException("Excluded & Passed validations: ${excludedAndPassedValidations}")
     }
   }
 
