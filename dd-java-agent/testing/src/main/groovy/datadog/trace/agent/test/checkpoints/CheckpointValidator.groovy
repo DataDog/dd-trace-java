@@ -25,11 +25,7 @@ class CheckpointValidator {
     excludedValidations = EnumSet.noneOf(CheckpointValidationMode)
   }
 
-  static validate(def spanEvents, def threadEvents, def orderedEvents) {
-    if (!excludedValidations.empty) {
-      System.err.println("Checkpoint validator is running with the following checks disabled: ${excludedValidations}\n")
-    }
-
+  static validate(def spanEvents, def threadEvents, def orderedEvents, PrintStream out) {
     def invalidEvents = new HashSet()
     // validate per-span sequence
     for (def events : spanEvents.values()) {
@@ -52,8 +48,8 @@ class CheckpointValidator {
     }
 
     if (!invalidEvents.empty) {
-      System.err.println("=== Invalid checkpoint events encountered")
-      invalidEvents.each { System.err.println(it) }
+      out.println("Invalid checkpoint events encountered")
+      invalidEvents.each { out.println(it) }
     }
 
     return invalidEvents.collectEntries {

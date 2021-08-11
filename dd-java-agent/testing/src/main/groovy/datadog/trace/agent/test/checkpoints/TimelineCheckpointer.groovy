@@ -3,6 +3,7 @@ package datadog.trace.agent.test.checkpoints
 import datadog.trace.api.Checkpointer
 import datadog.trace.api.DDId
 
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -28,11 +29,13 @@ class TimelineCheckpointer implements Checkpointer {
   }
 
   void publish() {
-    def validatedEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents)
+    String charset = StandardCharsets.UTF_8.name()
+    ByteArrayOutputStream baostream = new ByteArrayOutputStream()
+    PrintStream out = new PrintStream(baostream, false, charset)
 
-    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, validatedEvents*.key.event)
-    TimelineExporter.export(orderedEvents)
-    System.err.println("")
+    def validatedEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents, out)
+
+    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, validatedEvents*.key.event, out)
 
     // The set of excluded validations
     def excludedValidations = CheckpointValidator.excludedValidations
@@ -52,15 +55,21 @@ class TimelineCheckpointer implements Checkpointer {
     def excludedAndPassedValidations = excludedValidations.clone()
     excludedAndPassedValidations.removeAll(validatedEvents*.key.mode)
 
-    System.err.println(
+    out.println(
       "Checkpoint validator is running with the following checks disabled: ${excludedValidations}\n" +
       "\tIncluded & Failed: ${includedAndFailedValidations}\n" +
       "\tExcluded & Passed: ${excludedAndPassedValidations}\n")
-    if (!includedAndFailedValidations.empty) {
-      throw new IllegalStateException("Included & Failed validations: ${includedAndFailedValidations}")
-    }
-    if (!excludedAndPassedValidations.empty && Boolean.parseBoolean(System.getenv("STRICT_VALIDATE_CHECKPOINTS"))) {
-      throw new IllegalStateException("Excluded & Passed validations: ${excludedAndPassedValidations}")
+
+    out.println()
+
+    out.flush()
+
+    // everything that was printed to `out`
+    String msg = baostream.toString(charset)
+
+    if (!includedAndFailedValidations.empty ||
+    (!excludedAndPassedValidations.empty && Boolean.parseBoolean(System.getenv("STRICT_VALIDATE_CHECKPOINTS")))) {
+      throw new IllegalStateException("Failed checkpoint validations\n\n${msg}")
     }
   }
 

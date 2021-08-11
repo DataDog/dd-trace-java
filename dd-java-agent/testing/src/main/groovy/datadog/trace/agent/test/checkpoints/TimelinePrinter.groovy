@@ -3,11 +3,11 @@ package datadog.trace.agent.test.checkpoints
 class TimelinePrinter {
   private static String[] emptySpaces = new String[128]
 
-  static void print(def spanEvents, def threadEvents, def orderedEvents, def invalidEvents = Collections.emptySet()) {
+  static void print(def spanEvents, def threadEvents, def orderedEvents, def invalidEvents, PrintStream out) {
     if (!orderedEvents.isEmpty()) {
-      System.err.println("=== Activity checkpoints by thread ordered by time")
+      out.println("=== Activity checkpoints by thread ordered by time")
       if (!invalidEvents.empty) {
-        System.err.println("===== Invalid event sequences were detected. " +
+        out.println("===== Invalid event sequences were detected. " +
           "Affected spans are highlited by '***'")
       }
       // allows rendering threads top to bottom by when they were first encountered
@@ -32,10 +32,10 @@ class TimelinePrinter {
       }
       for (Map.Entry<String, BitSet> timeline : timelines) {
         String threadName = timeline.key
-        System.err.print(threadName)
-        System.err.print(":")
-        System.err.print(repeat(" ", maxNameLength - threadName.length() + 1))
-        System.err.print("|")
+        out.print(threadName)
+        out.print(":")
+        out.print(repeat(" ", maxNameLength - threadName.length() + 1))
+        out.print("|")
         BitSet positions = timeline.value
         int next = positions.nextSetBit(0)
         for (int i = 0; i < renderings.length; ++i) {
@@ -43,17 +43,18 @@ class TimelinePrinter {
             break
           }
 
-          System.err.print("-")
+          out.print("-")
           if (i == next) {
-            System.err.print(renderings[i])
+            out.print(renderings[i])
             next = positions.nextSetBit(next + 1)
           } else {
-            System.err.print(getEmptySpace(renderings[i] != null ? renderings[i].length() : 0))
+            out.print(getEmptySpace(renderings[i] != null ? renderings[i].length() : 0))
           }
-          System.err.print("-|")
+          out.print("-|")
         }
-        System.err.println()
+        out.println()
       }
+      out.println("")
     }
   }
 
