@@ -76,11 +76,9 @@ class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
     container.stop()
   }
 
-  @Override
   def setup() {
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

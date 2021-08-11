@@ -12,10 +12,9 @@ class Scala210PromiseForkJoinPoolTest extends ScalaPromiseTestBase {
     return ExecutionContext$.MODULE$.fromExecutor(ForkJoinPool.commonPool())
   }
 
-  @Override
   def setup() {
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
@@ -26,10 +25,9 @@ class Scala210PromiseGlobalTest extends ScalaPromiseTestBase {
     return ExecutionContext$.MODULE$.global()
   }
 
-  @Override
   def setup() {
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
@@ -40,10 +38,9 @@ class Scala210PromiseScheduledThreadPoolTest extends ScalaPromiseTestBase {
     return ExecutionContext$.MODULE$.fromExecutor(Executors.newScheduledThreadPool(5))
   }
 
-  @Override
   def setup() {
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
@@ -54,10 +51,9 @@ class Scala210PromiseThreadPoolTest extends ScalaPromiseTestBase {
     return ExecutionContext$.MODULE$.fromExecutorService(Executors.newCachedThreadPool())
   }
 
-  @Override
   def setup() {
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.INTERVALS,
       CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

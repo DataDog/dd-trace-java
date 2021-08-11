@@ -86,7 +86,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     def url = HttpUrl.get(address.resolve("/client-request")).newBuilder().build()
@@ -139,7 +138,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     def names = ["Alyssa", "Ben", "Cy", "Eva", "Lem", "Louis"]

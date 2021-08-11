@@ -233,7 +233,6 @@ class JettyServlet3TestAsync extends JettyServlet3Test {
   def setup() {
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
@@ -370,7 +369,6 @@ class JettyServlet3TestDispatchAsync extends JettyServlet3Test {
   def setup() {
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
