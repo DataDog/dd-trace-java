@@ -50,7 +50,6 @@ public class KafkaStreamsDecorator extends ClientDecorator {
       span.setResourceName(RESOURCE_NAME_CACHE.computeIfAbsent(topic, PREFIX));
       span.setTag("partition", record.partition());
       span.setTag("offset", record.offset());
-      span.setMeasured(true);
     }
   }
 }

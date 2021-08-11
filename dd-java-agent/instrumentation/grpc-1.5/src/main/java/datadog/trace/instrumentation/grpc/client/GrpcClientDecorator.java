@@ -72,7 +72,6 @@ public class GrpcClientDecorator extends ClientDecorator {
     }
     AgentSpan span =
         startSpan(GRPC_CLIENT)
-            .setMeasured(true)
             .setTag("request.type", requestMessageType(method))
             .setTag("response.type", responseMessageType(method));
     span.setResourceName(method.getFullMethodName());

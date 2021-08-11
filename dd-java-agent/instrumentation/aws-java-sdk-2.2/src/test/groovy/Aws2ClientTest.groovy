@@ -102,6 +102,7 @@ class Aws2ClientTest extends AgentTestRunner {
           resourceName "$service.$operation"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
@@ -134,6 +135,7 @@ class Aws2ClientTest extends AgentTestRunner {
           resourceName "$method $path"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           childOf(span(0))
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
@@ -224,6 +226,7 @@ class Aws2ClientTest extends AgentTestRunner {
           resourceName "$service.$operation"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
@@ -259,6 +262,7 @@ class Aws2ClientTest extends AgentTestRunner {
           resourceName "$method $path"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "netty-client"

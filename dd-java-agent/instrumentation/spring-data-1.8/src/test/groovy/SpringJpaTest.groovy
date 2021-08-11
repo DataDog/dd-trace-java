@@ -63,6 +63,7 @@ class SpringJpaTest extends AgentTestRunner {
           operationName "repository.operation"
           resourceName "JpaRepository.findAll"
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "spring-data"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -73,6 +74,7 @@ class SpringJpaTest extends AgentTestRunner {
           // select
           serviceName "hsqldb"
           spanType "sql"
+          measured true
           childOf(span(0))
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
@@ -100,6 +102,7 @@ class SpringJpaTest extends AgentTestRunner {
           operationName "repository.operation"
           resourceName "CrudRepository.save"
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "spring-data"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -110,6 +113,7 @@ class SpringJpaTest extends AgentTestRunner {
           // insert
           serviceName "hsqldb"
           spanType "sql"
+          measured true
           childOf(span(0))
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
@@ -137,6 +141,7 @@ class SpringJpaTest extends AgentTestRunner {
           operationName "repository.operation"
           resourceName "CrudRepository.save"
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "spring-data"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -146,6 +151,7 @@ class SpringJpaTest extends AgentTestRunner {
         span {
           serviceName "hsqldb"
           spanType "sql"
+          measured true
           childOf(span(0))
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
@@ -161,6 +167,7 @@ class SpringJpaTest extends AgentTestRunner {
           //update
           serviceName "hsqldb"
           spanType "sql"
+          measured true
           childOf(span(0))
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
@@ -186,6 +193,7 @@ class SpringJpaTest extends AgentTestRunner {
           operationName "repository.operation"
           resourceName "JpaCustomerRepository.findByLastName"
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "spring-data"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -195,6 +203,7 @@ class SpringJpaTest extends AgentTestRunner {
         span {
           serviceName "hsqldb"
           spanType "sql"
+          measured true
           childOf(span(0))
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
@@ -220,6 +229,7 @@ class SpringJpaTest extends AgentTestRunner {
           operationName "repository.operation"
           resourceName "CrudRepository.delete"
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "spring-data"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -229,6 +239,7 @@ class SpringJpaTest extends AgentTestRunner {
         span {
           serviceName "hsqldb"
           spanType "sql"
+          measured true
           childOf(span(0))
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"
@@ -243,6 +254,7 @@ class SpringJpaTest extends AgentTestRunner {
         span {
           serviceName "hsqldb"
           spanType "sql"
+          measured true
           childOf(span(0))
           tags {
             "$Tags.COMPONENT" "java-jdbc-prepared_statement"

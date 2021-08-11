@@ -81,7 +81,6 @@ public class JettyClientInstrumentation extends Instrumenter.Tracing
         @Advice.Argument(0) Request request,
         @Advice.Argument(1) List<Response.ResponseListener> responseListeners) {
       AgentSpan span = startSpan(HTTP_REQUEST);
-      span.setMeasured(true);
       InstrumentationContext.get(Request.class, AgentSpan.class).put(request, span);
       // make sure the span is finished before onComplete callbacks execute
       responseListeners.add(0, new SpanFinishingCompleteListener(span));

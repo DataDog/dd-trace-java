@@ -86,7 +86,6 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Tracing {
 
       final TraceScope parentScope = activeScope();
       final AgentSpan clientSpan = startSpan(HTTP_REQUEST);
-      clientSpan.setMeasured(true);
       DECORATE.afterStart(clientSpan);
 
       requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);

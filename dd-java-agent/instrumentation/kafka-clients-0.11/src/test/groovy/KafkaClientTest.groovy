@@ -123,6 +123,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf span(0)
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -139,6 +140,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf trace(0)[2]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -233,6 +235,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf span(0)
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -249,6 +252,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf trace(0)[2]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -335,6 +339,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -352,6 +357,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf trace(0)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -421,6 +427,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -438,6 +445,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf trace(0)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -508,6 +516,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -525,6 +534,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf trace(0)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -596,6 +606,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -613,6 +624,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf trace(0)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -685,6 +697,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -701,6 +714,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -717,6 +731,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -735,6 +750,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf trace(0)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -754,6 +770,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf trace(1)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -773,6 +790,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf trace(2)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -794,6 +812,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf trace(2)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -813,6 +832,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf trace(1)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -832,6 +852,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf trace(0)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -917,6 +938,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf span(0)
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -931,6 +953,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf span(0)
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -945,6 +968,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           childOf span(0)
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -960,6 +984,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -979,6 +1004,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -998,6 +1024,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER

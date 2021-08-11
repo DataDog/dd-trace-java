@@ -21,6 +21,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     if (serviceName != null) {
       1 * span.setServiceName(serviceName)
     }
+    1 * span.setMeasured(true)
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, "client")
     1 * span.setSpanType("test-type")
@@ -43,7 +44,6 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     if (session) {
       1 * span.setTag(Tags.DB_USER, session.user)
       1 * span.setTag(Tags.DB_INSTANCE, session.instance)
-      1 * span.setMeasured(true)
       if (session.hostname != null) {
         1 * span.setTag(Tags.PEER_HOSTNAME, session.hostname)
       }

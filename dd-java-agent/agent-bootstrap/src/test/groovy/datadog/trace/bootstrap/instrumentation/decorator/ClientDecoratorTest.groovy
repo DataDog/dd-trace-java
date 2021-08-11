@@ -19,6 +19,7 @@ class ClientDecoratorTest extends BaseDecoratorTest {
     if (serviceName != null) {
       1 * span.setServiceName(serviceName)
     }
+    1 * span.setMeasured(true)
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, "client")
     1 * span.setSpanType(decorator.spanType())

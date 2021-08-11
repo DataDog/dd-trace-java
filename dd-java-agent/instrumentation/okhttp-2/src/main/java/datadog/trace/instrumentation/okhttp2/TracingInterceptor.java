@@ -18,7 +18,6 @@ public class TracingInterceptor implements Interceptor {
   @Override
   public Response intercept(final Chain chain) throws IOException {
     final AgentSpan span = startSpan(OKHTTP_REQUEST);
-    span.setMeasured(true);
 
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);

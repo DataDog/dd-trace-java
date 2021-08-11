@@ -53,7 +53,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     span.setTag("aws.agent", COMPONENT_NAME);
     span.setTag("aws.service", awsServiceName);
     span.setTag("aws.operation", awsOperation);
-    span.setMeasured(true);
 
     return span;
   }

@@ -34,7 +34,6 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
   }
 
   public AgentSpan prepareSpan(AgentSpan span, HttpRequest request) {
-    span.setMeasured(true);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
     propagate().inject(span, request, SETTER);

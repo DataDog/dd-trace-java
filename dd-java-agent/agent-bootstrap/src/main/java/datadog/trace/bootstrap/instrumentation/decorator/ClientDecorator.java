@@ -17,6 +17,9 @@ public abstract class ClientDecorator extends BaseDecorator {
       span.setServiceName(service());
     }
     span.setTag(Tags.SPAN_KIND, spanKind());
+
+    // Generate metrics for all client spans.
+    span.setMeasured(true);
     return super.afterStart(span);
   }
 }

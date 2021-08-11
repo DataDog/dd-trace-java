@@ -521,6 +521,7 @@ class JMS1Test extends AgentTestRunner {
       resourceName "Produced for $jmsResourceName"
       spanType DDSpanTypes.MESSAGE_PRODUCER
       errored false
+      measured true
       parent()
 
       tags {
@@ -544,6 +545,7 @@ class JMS1Test extends AgentTestRunner {
       resourceName "Consumed from $jmsResourceName"
       spanType DDSpanTypes.MESSAGE_CONSUMER
       errored false
+      measured true
       childOf parentSpan
 
       tags {

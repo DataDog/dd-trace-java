@@ -73,13 +73,11 @@ public final class JMSDecorator extends ClientDecorator {
       }
     } catch (final JMSException ignored) {
     }
-    span.setMeasured(true);
   }
 
   public void onProduce(
       final AgentSpan span, final Message message, final Destination destination) {
     span.setResourceName("Produced for " + toResourceName(message, destination));
-    span.setMeasured(true);
   }
 
   private static final String TIBCO_TMP_PREFIX = "$TMP$";

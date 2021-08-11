@@ -18,8 +18,10 @@ import spock.lang.Shared
 
 abstract class AbstractHazelcastTest extends AgentTestRunner {
 
-  @Shared String randomName
-  @Shared HazelcastInstance h1, client
+  @Shared
+  String randomName
+  @Shared
+  HazelcastInstance h1, client
 
   final resourceNamePattern = ~/^(?<operation>(?<service>[A-Z]\w+)\.[a-z]\w+)(?: (?<name>.+))?$/
 
@@ -88,6 +90,7 @@ abstract class AbstractHazelcastTest extends AgentTestRunner {
       operationName "hazelcast.invoke"
       spanType DDSpanTypes.HTTP_CLIENT
       errored false
+      measured true
       if (isParent) {
         parent()
       } else {

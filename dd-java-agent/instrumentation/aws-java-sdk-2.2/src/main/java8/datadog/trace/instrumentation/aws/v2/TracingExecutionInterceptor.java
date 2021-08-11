@@ -22,7 +22,6 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   public void beforeExecution(
       final Context.BeforeExecution context, final ExecutionAttributes executionAttributes) {
     final AgentSpan span = startSpan(AWS_HTTP);
-    span.setMeasured(true);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, span);

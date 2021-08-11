@@ -146,6 +146,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -197,6 +198,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "api.v2010.account.CallCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -270,6 +272,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -286,6 +289,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -374,6 +378,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -390,6 +395,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -406,6 +412,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -501,6 +508,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "api.v2010.account.MessageCreator.createAsync"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -517,6 +525,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -535,6 +544,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -551,6 +561,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "POST /?/Accounts/abc/Messages.json"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -608,6 +619,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
+          measured true
           tags {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -644,6 +656,7 @@ class TwilioClientTest extends AgentTestRunner {
           parent()
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -704,6 +717,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "api.v2010.account.MessageCreator.createAsync"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -720,6 +734,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           tags {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -788,6 +803,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "api.v2010.account.MessageCreator.createAsync"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
+          measured true
           tags {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -801,6 +817,7 @@ class TwilioClientTest extends AgentTestRunner {
           resourceName "api.v2010.account.MessageCreator.create"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
+          measured true
           tags {
             "$Tags.COMPONENT" "twilio-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

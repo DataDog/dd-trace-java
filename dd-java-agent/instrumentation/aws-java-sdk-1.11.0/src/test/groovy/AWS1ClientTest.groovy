@@ -134,6 +134,7 @@ class AWS1ClientTest extends AgentTestRunner {
           resourceName "$service.$operation"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
@@ -158,6 +159,7 @@ class AWS1ClientTest extends AgentTestRunner {
           resourceName "$method $path"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
+          measured true
           childOf(span(0))
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
@@ -231,6 +233,7 @@ class AWS1ClientTest extends AgentTestRunner {
           resourceName "$service.$operation"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
@@ -255,6 +258,7 @@ class AWS1ClientTest extends AgentTestRunner {
           resourceName "$method /$url"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
+          measured true
           childOf(span(0))
           tags {
             "$Tags.COMPONENT" "apache-httpclient"
@@ -299,6 +303,7 @@ class AWS1ClientTest extends AgentTestRunner {
           resourceName "S3.HeadBucket"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
@@ -347,6 +352,7 @@ class AWS1ClientTest extends AgentTestRunner {
           resourceName "S3.GetObject"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
@@ -374,6 +380,7 @@ class AWS1ClientTest extends AgentTestRunner {
             resourceName "GET /someBucket/someKey"
             spanType DDSpanTypes.HTTP_CLIENT
             errored true
+            measured true
             childOf(span(0))
             tags {
               "$Tags.COMPONENT" "apache-httpclient"
