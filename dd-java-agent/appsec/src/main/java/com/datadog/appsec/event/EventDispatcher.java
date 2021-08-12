@@ -201,8 +201,8 @@ public class EventDispatcher implements EventProducerService {
 
   @Override
   public Collection<EventType> allSubscribedEvents() {
-    List<EventType> res = new ArrayList<>();
     EventType[] values = EventType.values();
+    List<EventType> res = new ArrayList<>(values.length);
     for (int i = 0; i < values.length; i++) {
       if (!eventListeners.get(i).isEmpty()) {
         res.add(values[i]);
@@ -214,14 +214,6 @@ public class EventDispatcher implements EventProducerService {
   @Override
   public Collection<Address<?>> allSubscribedDataAddresses() {
     return allSubscribedAddresses;
-  }
-
-  private static <T> List<T> nullFilledList(int numElements) {
-    ArrayList<T> ts = new ArrayList<>(numElements);
-    for (int i = 0; i < numElements; i++) {
-      ts.add(null);
-    }
-    return ts;
   }
 
   private static class DataSubscriberInfoImpl implements DataSubscriberInfo {

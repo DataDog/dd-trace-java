@@ -35,7 +35,7 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
 
   // for tests
   void reset() {
-    for (int i = 0; i < MAX_EVENTS; i++) {
+    for (int i = 0; i < callbacks.length(); i++) {
       callbacks.set(i, null);
     }
   }

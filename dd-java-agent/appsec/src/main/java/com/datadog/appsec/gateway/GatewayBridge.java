@@ -326,10 +326,10 @@ public class GatewayBridge {
 
   private static class IGAppSecEventDependencies {
     private static final Map<EventType, Collection<datadog.trace.api.gateway.EventType<?>>>
-        EVENT_DEPENDENCIES = new HashMap<>();
+        EVENT_DEPENDENCIES = new HashMap<>(3); // ceil(2 / .75)
 
     private static final Map<Address<?>, Collection<datadog.trace.api.gateway.EventType<?>>>
-        DATA_DEPENDENCIES = new HashMap<>();
+        DATA_DEPENDENCIES = new HashMap<>(2);
 
     static {
       EVENT_DEPENDENCIES.put(EventType.REQUEST_BODY_START, l(Events.REQUEST_BODY_START));
