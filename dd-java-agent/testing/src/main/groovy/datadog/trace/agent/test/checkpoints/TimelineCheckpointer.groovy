@@ -33,7 +33,7 @@ class TimelineCheckpointer implements Checkpointer {
     ByteArrayOutputStream baostream = new ByteArrayOutputStream()
     PrintStream out = new PrintStream(baostream, false, charset)
 
-    out.println("Tracking spans ${trackedSpanIds*.toLong()}\n")
+    out.println("=== Tracking spans ${trackedSpanIds*.toLong()}\n")
 
     def validatedEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents, trackedSpanIds, out)
 
@@ -58,9 +58,9 @@ class TimelineCheckpointer implements Checkpointer {
     excludedAndPassedValidations.removeAll(validatedEvents*.key.mode)
 
     out.println(
-      "Checkpoint validator is running with the following checks disabled: ${excludedValidations}\n" +
-      "\tIncluded & Failed: ${includedAndFailedValidations}\n" +
-      "\tExcluded & Passed: ${excludedAndPassedValidations}\n")
+      "=== Checkpoint validator is running with the following checks disabled: ${excludedValidations.sort()}\n" +
+      "Included & Failed: ${includedAndFailedValidations.sort()}\n" +
+      "Excluded & Passed: ${excludedAndPassedValidations.sort()}\n")
 
     out.println()
 

@@ -52,7 +52,7 @@ class CheckpointValidator {
     }
 
     if (!invalidEvents.empty) {
-      out.println("Invalid checkpoint events encountered")
+      out.println("=== Invalid checkpoint events encountered: ${invalidEvents*.mode.toSet().sort()}")
       invalidEvents.each { out.println(it) }
     }
 
