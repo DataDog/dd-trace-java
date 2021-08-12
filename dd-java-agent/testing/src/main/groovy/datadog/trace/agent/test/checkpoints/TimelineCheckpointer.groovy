@@ -28,7 +28,7 @@ class TimelineCheckpointer implements Checkpointer {
   void onRootSpanPublished(String route, DDId traceId) {
   }
 
-  void publish() {
+  void throwOnInvalidSequence() {
     String charset = StandardCharsets.UTF_8.name()
     ByteArrayOutputStream baostream = new ByteArrayOutputStream()
     PrintStream out = new PrintStream(baostream, false, charset)

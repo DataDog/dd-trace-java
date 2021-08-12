@@ -186,6 +186,7 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
     TEST_TRACER.flush()
+    TEST_CHECKPOINTER.clear()
     TEST_WRITER.start()
 
     new MockUtil().attachMock(STATS_D_CLIENT, this)
@@ -194,10 +195,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   void cleanup() {
     TEST_TRACER.flush()
-    TEST_CHECKPOINTER.publish()
-    TEST_CHECKPOINTER.clear()
     new MockUtil().detachMock(STATS_D_CLIENT)
     new MockUtil().detachMock(TEST_CHECKPOINTER)
+
+    TEST_CHECKPOINTER.throwOnInvalidSequence()
   }
 
   /** Override to clean up things after the agent is removed */
