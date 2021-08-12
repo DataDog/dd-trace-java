@@ -4,6 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceSampler
@@ -373,6 +374,40 @@ class CoreTracerTest extends DDCoreSpecification {
     cleanup:
     child.finish()
     root.finish()
+    tracer.close()
+  }
+
+  def "suppress span by name"() {
+    given:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+
+    when:
+    def scope = tracer.suppress("suppressedSpan")
+
+    then: "valid scope"
+    !(scope instanceof AgentTracer.NoopSuppressScope)
+
+    when: "close and reopen"
+    scope.close()
+    scope = tracer.suppress("suppressedSpan")
+
+    then: "valid scope"
+    !(scope instanceof AgentTracer.NoopSuppressScope)
+
+    and: "duplicate calls are not no-ops"
+    tracer.suppress("suppressedSpan") instanceof AgentTracer.NoopSuppressScope
+
+    when:
+    def span = tracer.buildSpan("suppressedSpan").start()
+    span.finish()
+
+    then:
+    // TODO: fix test once actual suppression is implemented.
+    writer.size() == 1
+    writer == [[span]]
+
+    cleanup:
     tracer.close()
   }
 }

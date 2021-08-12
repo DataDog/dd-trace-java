@@ -62,6 +62,10 @@ public class AgentTracer {
     return get().propagate();
   }
 
+  public static SuppressScope suppress(CharSequence spanName) {
+    return get().suppress(spanName);
+  }
+
   public static AgentSpan noopSpan() {
     return get().noopSpan();
   }
@@ -111,6 +115,8 @@ public class AgentTracer {
     TraceScope activeScope();
 
     AgentPropagation propagate();
+
+    SuppressScope suppress(CharSequence spanName);
 
     AgentSpan noopSpan();
 
@@ -210,6 +216,11 @@ public class AgentTracer {
     @Override
     public AgentPropagation propagate() {
       return NoopAgentPropagation.INSTANCE;
+    }
+
+    @Override
+    public SuppressScope suppress(CharSequence spanName) {
+      return NoopSuppressScope.INSTANCE;
     }
 
     @Override
@@ -592,6 +603,13 @@ public class AgentTracer {
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return NoopContext.INSTANCE;
     }
+  }
+
+  public static class NoopSuppressScope implements SuppressScope {
+    public static final NoopSuppressScope INSTANCE = new NoopSuppressScope();
+
+    @Override
+    public void close() {}
   }
 
   static class NoopContinuation implements AgentScope.Continuation {

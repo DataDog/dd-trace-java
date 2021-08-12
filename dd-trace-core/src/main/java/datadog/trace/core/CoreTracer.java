@@ -28,6 +28,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.SuppressScope;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -49,12 +50,14 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
@@ -138,6 +141,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final HttpCodec.Extractor extractor;
 
   private final InstrumentationGateway instrumentationGateway;
+
+  private final ThreadLocal<Set<CharSequence>> spanSuppression =
+      new ThreadLocal<Set<CharSequence>>() {
+        @Override
+        protected Set<CharSequence> initialValue() {
+          return new HashSet<>();
+        }
+      };
 
   @Override
   public TraceScope.Continuation capture() {
@@ -586,6 +597,22 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public AgentPropagation propagate() {
     return this;
+  }
+
+  @Override
+  public SuppressScope suppress(final CharSequence spanName) {
+    boolean added = spanSuppression.get().add(spanName);
+    if (added) {
+      return new SuppressScope() {
+        @Override
+        public void close() {
+          spanSuppression.get().remove(spanName);
+        }
+      };
+    }
+    // this spanName is already being suppressed.
+    // rely on the previous invocation to close suppression.
+    return AgentTracer.NoopSuppressScope.INSTANCE;
   }
 
   @Override
