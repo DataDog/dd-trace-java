@@ -4,6 +4,7 @@ import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.gateway.Flow;
+import java.util.Collection;
 
 public interface EventProducerService {
   /**
@@ -22,16 +23,15 @@ public interface EventProducerService {
    * <p>The return value is to be passed to {@link #publishDataEvent(DataSubscriberInfo,
    * AppSecRequestContext, DataBundle, boolean)}.
    *
-   * @param ctx the request context
    * @param newAddresses the addresses contained in the {@link DataBundle} that is to be passed to
    *     <code>publishDataEvent()</code>.
    * @return an object describing the callbacks
    */
-  DataSubscriberInfo getDataSubscribers(AppSecRequestContext ctx, Address<?>... newAddresses);
+  DataSubscriberInfo getDataSubscribers(Address<?>... newAddresses);
 
   /**
    * Runs the data callbacks for the given data. The subscribers must have been previously obtained
-   * with {@link #getDataSubscribers(AppSecRequestContext, Address[])}.
+   * with {@link #getDataSubscribers(Address[])}.
    *
    * <p>This method does not throw. If one of the callbacks throws, the exception is caught and the
    * processing continues.
@@ -47,4 +47,8 @@ public interface EventProducerService {
   interface DataSubscriberInfo {
     boolean isEmpty();
   }
+
+  Collection<EventType> allSubscribedEvents();
+
+  Collection<Address<?>> allSubscribedDataAddresses();
 }

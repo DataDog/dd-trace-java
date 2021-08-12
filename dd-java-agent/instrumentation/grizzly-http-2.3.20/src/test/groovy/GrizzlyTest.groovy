@@ -7,6 +7,7 @@ import org.glassfish.jersey.server.ResourceConfig
 import javax.ws.rs.GET
 import javax.ws.rs.HeaderParam
 import javax.ws.rs.NotFoundException
+import javax.ws.rs.POST
 import javax.ws.rs.Path
 import javax.ws.rs.QueryParam
 import javax.ws.rs.core.Response
@@ -21,6 +22,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 
 class GrizzlyTest extends HttpServerTest<HttpServer> {
 
@@ -78,6 +80,11 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     return GrizzlyDecorator.GRIZZLY_REQUEST.toString()
   }
 
+  @Override
+  boolean testRequestBody() {
+    true
+  }
+
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {
 
     @Override
@@ -97,6 +104,15 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     Response success() {
       controller(SUCCESS) {
         Response.status(SUCCESS.status).entity(SUCCESS.body).build()
+      }
+    }
+
+    @POST
+    @Path('created')
+    Response created(String reqBody) {
+      controller(CREATED) {
+        String body = "${CREATED.body}: ${reqBody}"
+        Response.status(CREATED.status).entity(body).build()
       }
     }
 

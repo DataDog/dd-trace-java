@@ -12,8 +12,10 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +31,7 @@ public class EventDispatcher implements EventProducerService {
   private List<DataListener> dataListenersIdx;
   // index: address.serial; values: ordered array of listener idx
   private List<char[]> dataListenerSubs;
+  private Set<Address<?>> allSubscribedAddresses;
 
   public EventDispatcher() {
     KnownAddresses.HEADERS_NO_COOKIES.getKey(); // force class initialization
@@ -75,6 +78,7 @@ public class EventDispatcher implements EventProducerService {
     private final Map<DataListener, Integer> indexes = new HashMap<>();
     // index: addr.serial
     private final List<List<DataListener>> addrSubs;
+    private final Set<Address<?>> allAddresses = new HashSet<>();
 
     public DataSubscriptionSet() {
       final int addressCount = Address.instanceCount();
@@ -93,6 +97,8 @@ public class EventDispatcher implements EventProducerService {
         List<DataListener> dataListeners = addrSubs.get(serial);
         dataListeners.add(dataListener);
       }
+
+      allAddresses.addAll(anyOfTheseAddresses);
     }
   }
 
@@ -125,6 +131,7 @@ public class EventDispatcher implements EventProducerService {
 
     dataListenersIdx = newDataListenersIdx;
     dataListenerSubs = newDataListenerSubs;
+    allSubscribedAddresses = subSet.allAddresses;
   }
 
   @Override
@@ -140,8 +147,7 @@ public class EventDispatcher implements EventProducerService {
   }
 
   @Override
-  public DataSubscriberInfo getDataSubscribers(
-      AppSecRequestContext ctx, Address<?>... newAddresses) {
+  public DataSubscriberInfo getDataSubscribers(Address<?>... newAddresses) {
     if (newAddresses.length == 1) {
       // fast path
       Address<?> addr = newAddresses[0];
@@ -193,12 +199,21 @@ public class EventDispatcher implements EventProducerService {
     return flow;
   }
 
-  private static <T> List<T> nullFilledList(int numElements) {
-    ArrayList<T> ts = new ArrayList<>(numElements);
-    for (int i = 0; i < numElements; i++) {
-      ts.add(null);
+  @Override
+  public Collection<EventType> allSubscribedEvents() {
+    EventType[] values = EventType.values();
+    List<EventType> res = new ArrayList<>(values.length);
+    for (int i = 0; i < values.length; i++) {
+      if (!eventListeners.get(i).isEmpty()) {
+        res.add(values[i]);
+      }
     }
-    return ts;
+    return res;
+  }
+
+  @Override
+  public Collection<Address<?>> allSubscribedDataAddresses() {
+    return allSubscribedAddresses;
   }
 
   private static class DataSubscriberInfoImpl implements DataSubscriberInfo {

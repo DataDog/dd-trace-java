@@ -1,0 +1,203 @@
+package datadog.trace.instrumentation.grizzlyhttp232;
+
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.http.StoredBodyFactories;
+import datadog.trace.api.http.StoredByteBody;
+import datadog.trace.bootstrap.InstrumentationContext;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
+import java.util.Collections;
+import java.util.Map;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+import org.glassfish.grizzly.Buffer;
+import org.glassfish.grizzly.attributes.AttributeHolder;
+import org.glassfish.grizzly.http.HttpHeader;
+import org.glassfish.grizzly.http.io.InputBuffer;
+import org.glassfish.grizzly.http.io.NIOInputStream;
+import org.glassfish.grizzly.utils.Charsets;
+
+@AutoService(Instrumenter.class)
+public class GrizzlyByteBodyInstrumentation extends Instrumenter.AppSec {
+  public GrizzlyByteBodyInstrumentation() {
+    super("grizzly-byte-body");
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> typeMatcher() {
+    return named("org.glassfish.grizzly.http.server.NIOInputStreamImpl");
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "org.glassfish.grizzly.http.io.NIOInputStream", "datadog.trace.api.http.StoredByteBody");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {"datadog.trace.instrumentation.grizzlyhttp232.HttpHeaderFetchingHelper"};
+  }
+
+  @Override
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        named("setInputBuffer")
+            .and(takesArguments(1))
+            .and(takesArgument(0, named("org.glassfish.grizzly.http.io.InputBuffer"))),
+        getClass().getName() + "$NIOInputStreamSetInputBufferAdvice");
+    /* we're assuming here none of these methods call the other instrumented methods */
+    transformation.applyAdvice(
+        named("read").and(takesArguments(0)), getClass().getName() + "$NIOInputStreamReadAdvice");
+    transformation.applyAdvice(
+        named("read").and(takesArguments(1)).and(takesArgument(0, byte[].class)),
+        getClass().getName() + "$NIOInputStreamReadByteArrayAdvice");
+    transformation.applyAdvice(
+        named("read").and(takesArguments(byte[].class, int.class, int.class)),
+        getClass().getName() + "$NIOInputStreamReadByteArrayIntIntAdvice");
+    transformation.applyAdvice(
+        named("readBuffer").and(takesArguments(0).or(takesArguments(int.class))),
+        getClass().getName() + "$NIOInputStreamReadBufferAdvice");
+    transformation.applyAdvice(
+        named("isFinished").and(takesArguments(0)),
+        getClass().getName() + "$NIOInputStreamIsFinishedAdvice");
+    transformation.applyAdvice(
+        named("recycle").and(takesArguments(0)),
+        getClass().getName() + "$NIOInputStreamRecycleAdvice");
+    /* Possible alternative impl: call getBuffer() and register notifications.
+    It would work even if the application relies on getBuffer() */
+  }
+
+  @SuppressWarnings("Duplicates")
+  static class NIOInputStreamSetInputBufferAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(
+        @Advice.This final NIOInputStream thiz, @Advice.Argument(0) final InputBuffer inputBuffer) {
+      // this is what grizzly defaults to
+      Charset charset = StandardCharsets.ISO_8859_1;
+      HttpHeader header = HttpHeaderFetchingHelper.fetchHttpHeader(inputBuffer);
+      AttributeHolder attributes = header.getAttributes();
+      Object attribute = attributes.getAttribute("datadog.intercepted_request_body");
+      if (attribute != null) {
+        return;
+      }
+      attributes.setAttribute("datadog.intercepted_request_body", Boolean.TRUE);
+
+      String lengthHeader = header.getHeader("content-length");
+      String encodingString = header.getCharacterEncoding();
+      if (encodingString != null) {
+        try {
+          charset = Charsets.lookupCharset(encodingString);
+        } catch (UnsupportedCharsetException use) {
+          // purposefully left blank
+        }
+      }
+
+      StoredByteBody storedByteBody = StoredBodyFactories.maybeCreateForByte(charset, lengthHeader);
+
+      InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class)
+          .put(thiz, storedByteBody);
+    }
+  }
+
+  static class NIOInputStreamReadAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(@Advice.This final NIOInputStream thiz, @Advice.Return int ret) {
+      StoredByteBody storedByteBody =
+          InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class).get(thiz);
+      if (storedByteBody == null) {
+        return;
+      }
+      if (ret == -1) {
+        storedByteBody.maybeNotify();
+        return;
+      }
+      storedByteBody.appendData(ret);
+    }
+  }
+
+  static class NIOInputStreamReadByteArrayAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(
+        @Advice.This final NIOInputStream thiz,
+        @Advice.Argument(0) byte[] byteArray,
+        @Advice.Return int ret) {
+      StoredByteBody storedByteBody =
+          InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class).get(thiz);
+      if (storedByteBody == null) {
+        return;
+      }
+
+      if (ret == -1) {
+        storedByteBody.maybeNotify();
+        return;
+      }
+      storedByteBody.appendData(byteArray, 0, ret);
+    }
+  }
+
+  static class NIOInputStreamReadByteArrayIntIntAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(
+        @Advice.This final NIOInputStream thiz,
+        @Advice.Argument(0) byte[] byteArray,
+        @Advice.Argument(1) int off,
+        @Advice.Return int ret) {
+      StoredByteBody storedByteBody =
+          InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class).get(thiz);
+      if (storedByteBody == null) {
+        return;
+      }
+      if (ret == -1) {
+        storedByteBody.maybeNotify();
+        return;
+      }
+      storedByteBody.appendData(byteArray, off, off + ret);
+    }
+  }
+
+  static class NIOInputStreamReadBufferAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(@Advice.This final NIOInputStream thiz, @Advice.Return Buffer ret) {
+      StoredByteBody storedByteBody =
+          InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class).get(thiz);
+      if (storedByteBody == null) {
+        return;
+      }
+      int initPos = ret.position();
+      byte[] bytes = new byte[ret.remaining()];
+      ret.get(bytes);
+      ret.position(initPos);
+
+      storedByteBody.appendData(bytes, 0, bytes.length);
+    }
+  }
+
+  static class NIOInputStreamIsFinishedAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(@Advice.This final NIOInputStream thiz, @Advice.Return boolean ret) {
+      StoredByteBody storedByteBody =
+          InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class).get(thiz);
+      if (storedByteBody == null) {
+        return;
+      }
+      if (ret) {
+        storedByteBody.maybeNotify();
+      }
+    }
+  }
+
+  static class NIOInputStreamRecycleAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(@Advice.This final NIOInputStream thiz) {
+      InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class).put(thiz, null);
+    }
+  }
+}

@@ -24,7 +24,7 @@ public interface KnownAddresses {
       new Address<>("server.request.body.map");
 
   /** The first characters of the raw HTTP body */
-  Address<String> REQUEST_BODY_RAW = new Address<>("server.request.body.raw");
+  Address<CharSequence> REQUEST_BODY_RAW = new Address<>("server.request.body.raw");
 
   /** The unparsed request uri, incl. the query string. */
   Address<String> REQUEST_URI_RAW = new Address<>("server.request.uri.raw");

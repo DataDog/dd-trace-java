@@ -162,6 +162,7 @@ def xmlFactoriesJvmArgs = [
   '-Djavax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl'
 ]
 
+project.ext.mainClassName = 'io.sqreen.testapp.sampleapp.Application'
 bootRun {
   if (project.hasProperty('jvmArgs')) {
     jvmArgs = (project.jvmArgs.split(/\s+/) as List) //  + ["-Ddebug"]

@@ -4,6 +4,7 @@ import datadog.trace.agent.tooling.ClassLoaderMatcher
 import datadog.trace.agent.tooling.log.LogContextScopeListener
 import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.test.util.DDSpecification
+import groovy.transform.CompileStatic
 
 class ClassLoaderMatcherTest extends DDSpecification {
 
@@ -48,6 +49,9 @@ class ClassLoaderMatcherTest extends DDSpecification {
    * A URLClassloader which only delegates java.* classes
    */
 
+  // use compile static to avoid the constant pool
+  // having references to java.lang.Module
+  @CompileStatic
   private static class NonDelegatingClassLoader extends URLClassLoader {
     NonDelegatingClassLoader() {
       super(new URL[0], (ClassLoader) null)

@@ -16,6 +16,7 @@ import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.SubscriptionService
+import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import spock.lang.Specification
@@ -40,6 +41,8 @@ class GatewayBridgeSpecification extends Specification {
   Function<RequestContext, Flow<Void>> headersDoneCB
   BiFunction<RequestContext, URIDataAdapter, Flow<Void>> requestURICB
   BiFunction<RequestContext, String, Flow<Void>> requestIpCB
+  BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
+  BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -72,7 +75,6 @@ class GatewayBridgeSpecification extends Specification {
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
-
 
   void 'bridge can collect headers'() {
     when:
@@ -110,7 +112,7 @@ class GatewayBridgeSpecification extends Specification {
     when:
     ctx.rawURI = '/'
     ctx.ip = '0.0.0.0'
-    eventDispatcher.getDataSubscribers(_, _) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
@@ -128,7 +130,7 @@ class GatewayBridgeSpecification extends Specification {
 
     when:
     ctx.ip = '0.0.0.0'
-    eventDispatcher.getDataSubscribers(_, _) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
@@ -146,7 +148,7 @@ class GatewayBridgeSpecification extends Specification {
 
     when:
     ctx.ip = '0.0.0.0'
-    eventDispatcher.getDataSubscribers(_, _) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
@@ -165,7 +167,7 @@ class GatewayBridgeSpecification extends Specification {
 
     when:
     ctx.ip = '0.0.0.0'
-    eventDispatcher.getDataSubscribers(ctx, { KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
@@ -197,7 +199,7 @@ class GatewayBridgeSpecification extends Specification {
 
     when:
     ctx.ip = '0.0.0.0'
-    eventDispatcher.getDataSubscribers(ctx, { KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
+    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
@@ -224,12 +226,18 @@ class GatewayBridgeSpecification extends Specification {
   }
 
   void callInitAndCaptureCBs() {
+    // force all callbacks to be registered
+    1 * eventDispatcher.allSubscribedEvents() >> [EventType.REQUEST_BODY_START, EventType.REQUEST_BODY_END]
+    1 * eventDispatcher.allSubscribedDataAddresses() >> []
+
     1 * ig.registerCallback(Events.REQUEST_STARTED, _) >> { requestStartedCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_ENDED, _) >> { requestEndedCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_URI_RAW, _) >> { requestURICB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_HEADER, _) >> { headerCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_HEADER_DONE, _) >> { headersDoneCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_CLIENT_IP, _) >> { requestIpCB = it[1]; null }
+    1 * ig.registerCallback(Events.REQUEST_BODY_START, _) >> { requestBodyStartCB = it[1]; null }
+    1 * ig.registerCallback(Events.REQUEST_BODY_DONE, _) >> { requestBodyDoneCB = it[1]; null }
 
     bridge.init()
   }
@@ -328,5 +336,40 @@ class GatewayBridgeSpecification extends Specification {
         return false
       }
     }
+  }
+
+  void 'forwards request body start events and stores the supplier'() {
+    StoredBodySupplier supplier = Mock()
+
+    setup:
+    supplier.get() >> 'foobar'
+
+    expect:
+    ctx.storedRequestBody == null
+
+    when:
+    requestBodyStartCB.apply(ctx, supplier)
+
+    then:
+    1 * eventDispatcher.publishEvent(ctx, EventType.REQUEST_BODY_START)
+    ctx.storedRequestBody == 'foobar'
+  }
+
+  void 'forwards request body done events and distributes the body contents'() {
+    DataBundle bundle
+    StoredBodySupplier supplier = Mock()
+
+    setup:
+    supplier.get() >> 'foobar'
+    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_BODY_RAW in it }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    { bundle = it[2]; NoopFlow.INSTANCE }
+
+    when:
+    requestBodyDoneCB.apply(ctx, supplier)
+
+    then:
+    1 * eventDispatcher.publishEvent(ctx, EventType.REQUEST_BODY_END)
+    bundle.get(KnownAddresses.REQUEST_BODY_RAW) == 'foobar'
   }
 }
