@@ -142,7 +142,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final InstrumentationGateway instrumentationGateway;
 
-  private final ThreadLocal<Set<CharSequence>> spanSuppression =
+  private static final ThreadLocal<Set<CharSequence>> SPAN_SUPPRESSION =
       new ThreadLocal<Set<CharSequence>>() {
         @Override
         protected Set<CharSequence> initialValue() {
@@ -601,12 +601,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public SuppressScope suppress(final CharSequence spanName) {
-    boolean added = spanSuppression.get().add(spanName);
+    boolean added = SPAN_SUPPRESSION.get().add(spanName);
     if (added) {
       return new SuppressScope() {
         @Override
         public void close() {
-          spanSuppression.get().remove(spanName);
+          SPAN_SUPPRESSION.get().remove(spanName);
         }
       };
     }
