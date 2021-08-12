@@ -18,6 +18,7 @@ import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
+import java.util.concurrent.CancellationException;
 
 public class TracingServerInterceptor implements ServerInterceptor {
 
@@ -44,9 +45,11 @@ public class TracingServerInterceptor implements ServerInterceptor {
       // call other interceptors
       result = next.startCall(tracingServerCall, headers);
     } catch (final Throwable e) {
-      DECORATE.onError(span, e);
-      DECORATE.beforeFinish(span);
-      span.finish();
+      if (span.phasedFinish()) {
+        DECORATE.onError(span, e);
+        DECORATE.beforeFinish(span);
+        span.publish();
+      }
       throw e;
     }
 
@@ -72,8 +75,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
         DECORATE.onError(span, e);
         throw e;
       } finally {
-        DECORATE.beforeFinish(span);
-        span.finish();
+        if (span.phasedFinish()) {
+          DECORATE.beforeFinish(span);
+          span.publish();
+        }
       }
     }
   }
@@ -89,20 +94,23 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     @Override
     public void onMessage(final ReqT message) {
-      final AgentSpan span =
+      final AgentSpan msgSpan =
           startSpan(GRPC_MESSAGE, this.span.context())
               .setTag("message.type", message.getClass().getName());
-      DECORATE.afterStart(span);
-      try (AgentScope scope = activateSpan(span)) {
+      DECORATE.afterStart(msgSpan);
+      try (AgentScope scope = activateSpan(msgSpan)) {
         delegate().onMessage(message);
       } catch (final Throwable e) {
-        DECORATE.onError(span, e);
-        DECORATE.beforeFinish(this.span);
-        this.span.finish();
+        // I'm not convinced we should actually be finishing the span here...
+        if (span.phasedFinish()) {
+          DECORATE.onError(msgSpan, e);
+          DECORATE.beforeFinish(span);
+          span.publish();
+        }
         throw e;
       } finally {
-        DECORATE.beforeFinish(span);
-        span.finish();
+        DECORATE.beforeFinish(msgSpan);
+        msgSpan.finish();
       }
     }
 
@@ -111,9 +119,11 @@ public class TracingServerInterceptor implements ServerInterceptor {
       try (final AgentScope scope = activateSpan(span)) {
         delegate().onHalfClose();
       } catch (final Throwable e) {
-        DECORATE.onError(span, e);
-        DECORATE.beforeFinish(span);
-        span.finish();
+        if (span.phasedFinish()) {
+          DECORATE.onError(span, e);
+          DECORATE.beforeFinish(span);
+          span.publish();
+        }
         throw e;
       }
     }
@@ -124,12 +134,17 @@ public class TracingServerInterceptor implements ServerInterceptor {
       try (final AgentScope scope = activateSpan(span)) {
         delegate().onCancel();
         span.setTag("canceled", true);
+      } catch (CancellationException e) {
+        // No need to report an exception or mark as error that it was canceled.
+        throw e;
       } catch (final Throwable e) {
         DECORATE.onError(span, e);
         throw e;
       } finally {
-        DECORATE.beforeFinish(span);
-        span.finish();
+        if (span.phasedFinish()) {
+          DECORATE.beforeFinish(span);
+          span.publish();
+        }
       }
     }
 
@@ -142,8 +157,14 @@ public class TracingServerInterceptor implements ServerInterceptor {
         DECORATE.onError(span, e);
         throw e;
       } finally {
-        DECORATE.beforeFinish(span);
-        span.finish();
+        /**
+         * grpc has quite a few states that can finish the span. rather than track down the correct
+         * combination of them to exclusively finish the span, use phasedFinish.
+         */
+        if (span.phasedFinish()) {
+          DECORATE.beforeFinish(span);
+          span.publish();
+        }
       }
     }
 
@@ -152,9 +173,11 @@ public class TracingServerInterceptor implements ServerInterceptor {
       try (final AgentScope scope = activateSpan(span)) {
         delegate().onReady();
       } catch (final Throwable e) {
-        DECORATE.onError(span, e);
-        DECORATE.beforeFinish(span);
-        span.finish();
+        if (span.phasedFinish()) {
+          DECORATE.onError(span, e);
+          DECORATE.beforeFinish(span);
+          span.publish();
+        }
         throw e;
       }
     }

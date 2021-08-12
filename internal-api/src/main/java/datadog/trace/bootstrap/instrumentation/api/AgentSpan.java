@@ -72,6 +72,20 @@ public interface AgentSpan extends MutableSpan {
 
   void finish(long finishMicros);
 
+  /**
+   * Finishes the span but does not publish it. The {@link #publish()} method MUST be called once
+   * otherwise the trace will not be reported.
+   *
+   * @return true if the span was successfully finished, false if it was already finished.
+   */
+  boolean phasedFinish();
+
+  /**
+   * Publish a span that was previously finished by calling {@link #phasedFinish()}. Must be called
+   * once and only once per span.
+   */
+  void publish();
+
   CharSequence getSpanName();
 
   void setSpanName(CharSequence spanName);

@@ -526,6 +526,14 @@ public class AgentTracer {
     public void finish(final long finishMicros) {}
 
     @Override
+    public boolean phasedFinish() {
+      return false;
+    }
+
+    @Override
+    public void publish() {}
+
+    @Override
     public String getSpanName() {
       return "";
     }
