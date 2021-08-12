@@ -25,13 +25,15 @@ class CheckpointValidator {
     excludedValidations = EnumSet.noneOf(CheckpointValidationMode)
   }
 
-  static validate(def spanEvents, def threadEvents, def orderedEvents, PrintStream out) {
+  static validate(def spanEvents, def threadEvents, def orderedEvents, def trackedSpanIds, PrintStream out) {
     def invalidEvents = new HashSet()
     // validate per-span sequence
     for (def events : spanEvents.values()) {
       def perSpanValidator = new CompositeValidator(new SuspendResumeValidator(), new ThreadSequenceValidator())
       for (def event : events) {
-        perSpanValidator.onEvent(event)
+        if (trackedSpanIds.contains(event.spanId)) {
+          perSpanValidator.onEvent(event)
+        }
       }
       perSpanValidator.onEnd()
       invalidEvents.addAll(perSpanValidator.invalidEvents())
@@ -41,7 +43,9 @@ class CheckpointValidator {
     for (def events : threadEvents.values()) {
       def perThreadValidator = new IntervalValidator()
       for (def event : events) {
-        perThreadValidator.onEvent(event)
+        if (trackedSpanIds.contains(event.spanId)) {
+          perThreadValidator.onEvent(event)
+        }
       }
       perThreadValidator.endSequence()
       invalidEvents.addAll(perThreadValidator.invalidEvents)

@@ -28,12 +28,14 @@ class TimelineCheckpointer implements Checkpointer {
   void onRootSpanPublished(String route, DDId traceId) {
   }
 
-  void throwOnInvalidSequence() {
+  void throwOnInvalidSequence(Collection<DDId> trackedSpanIds) {
     String charset = StandardCharsets.UTF_8.name()
     ByteArrayOutputStream baostream = new ByteArrayOutputStream()
     PrintStream out = new PrintStream(baostream, false, charset)
 
-    def validatedEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents, out)
+    out.println("Tracking spans ${trackedSpanIds*.toLong()}\n")
+
+    def validatedEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents, trackedSpanIds, out)
 
     TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, validatedEvents*.key.event, out)
 
@@ -71,6 +73,8 @@ class TimelineCheckpointer implements Checkpointer {
     (!excludedAndPassedValidations.empty && Boolean.parseBoolean(System.getenv("STRICT_VALIDATE_CHECKPOINTS")))) {
       throw new IllegalStateException("Failed checkpoint validations\n\n${msg}")
     }
+
+    System.err.print(msg)
   }
 
   void clear() {
