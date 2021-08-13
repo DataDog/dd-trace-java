@@ -4,7 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceSampler
@@ -381,25 +381,26 @@ class CoreTracerTest extends DDCoreSpecification {
     given:
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
+    def spanName = UTF8BytesString.create("suppressedSpan")
 
     when:
-    def scope = tracer.suppress("suppressedSpan")
+    def suppressed = tracer.suppress(spanName)
 
-    then: "valid scope"
-    !(scope instanceof AgentTracer.NoopSuppressScope)
-
-    when: "close and reopen"
-    scope.close()
-    scope = tracer.suppress("suppressedSpan")
-
-    then: "valid scope"
-    !(scope instanceof AgentTracer.NoopSuppressScope)
-
-    and: "duplicate calls are not no-ops"
-    tracer.suppress("suppressedSpan") instanceof AgentTracer.NoopSuppressScope
+    then:
+    suppressed
 
     when:
-    def span = tracer.buildSpan("suppressedSpan").start()
+    tracer.unsuppress(spanName)
+    suppressed = tracer.suppress(spanName)
+
+    then:
+    suppressed
+
+    and: "duplicate calls return false"
+    !tracer.suppress(spanName)
+
+    when:
+    def span = tracer.buildSpan(spanName).start()
     span.finish()
 
     then:

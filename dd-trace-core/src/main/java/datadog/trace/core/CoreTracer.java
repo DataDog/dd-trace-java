@@ -28,7 +28,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-import datadog.trace.bootstrap.instrumentation.api.SuppressScope;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -142,11 +142,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final InstrumentationGateway instrumentationGateway;
 
-  private static final ThreadLocal<Set<CharSequence>> SPAN_SUPPRESSION =
-      new ThreadLocal<Set<CharSequence>>() {
+  private static final ThreadLocal<Set<UTF8BytesString>> SPAN_SUPPRESSION =
+      new ThreadLocal<Set<UTF8BytesString>>() {
         @Override
-        protected Set<CharSequence> initialValue() {
-          return new HashSet<>();
+        protected Set<UTF8BytesString> initialValue() {
+          return new HashSet<>(4); // Likely only ever 1-2 values in here.
         }
       };
 
@@ -600,19 +600,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public SuppressScope suppress(final CharSequence spanName) {
-    boolean added = SPAN_SUPPRESSION.get().add(spanName);
-    if (added) {
-      return new SuppressScope() {
-        @Override
-        public void close() {
-          SPAN_SUPPRESSION.get().remove(spanName);
-        }
-      };
-    }
-    // this spanName is already being suppressed.
-    // rely on the previous invocation to close suppression.
-    return AgentTracer.NoopSuppressScope.INSTANCE;
+  public boolean suppress(final UTF8BytesString spanName) {
+    return SPAN_SUPPRESSION.get().add(spanName);
+  }
+
+  @Override
+  public void unsuppress(final UTF8BytesString spanName) {
+    SPAN_SUPPRESSION.get().remove(spanName);
   }
 
   @Override

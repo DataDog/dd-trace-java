@@ -62,8 +62,12 @@ public class AgentTracer {
     return get().propagate();
   }
 
-  public static SuppressScope suppress(CharSequence spanName) {
+  public static boolean suppress(UTF8BytesString spanName) {
     return get().suppress(spanName);
+  }
+
+  public static void unsuppress(UTF8BytesString spanName) {
+    get().unsuppress(spanName);
   }
 
   public static AgentSpan noopSpan() {
@@ -116,7 +120,9 @@ public class AgentTracer {
 
     AgentPropagation propagate();
 
-    SuppressScope suppress(CharSequence spanName);
+    boolean suppress(UTF8BytesString spanName);
+
+    void unsuppress(UTF8BytesString spanName);
 
     AgentSpan noopSpan();
 
@@ -219,9 +225,12 @@ public class AgentTracer {
     }
 
     @Override
-    public SuppressScope suppress(CharSequence spanName) {
-      return NoopSuppressScope.INSTANCE;
+    public boolean suppress(UTF8BytesString spanName) {
+      return false;
     }
+
+    @Override
+    public void unsuppress(UTF8BytesString spanName) {}
 
     @Override
     public AgentSpan noopSpan() {
@@ -603,13 +612,6 @@ public class AgentTracer {
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return NoopContext.INSTANCE;
     }
-  }
-
-  public static class NoopSuppressScope implements SuppressScope {
-    public static final NoopSuppressScope INSTANCE = new NoopSuppressScope();
-
-    @Override
-    public void close() {}
   }
 
   static class NoopContinuation implements AgentScope.Continuation {
