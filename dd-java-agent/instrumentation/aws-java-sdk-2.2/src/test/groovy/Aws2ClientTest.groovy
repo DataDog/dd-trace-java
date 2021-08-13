@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
@@ -326,10 +324,6 @@ class Aws2ClientTest extends AgentTestRunner {
 
   def "timeout and retry errors captured"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def server = httpServer {
       handlers {
         all {

@@ -1,5 +1,3 @@
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import org.eclipse.jetty.continuation.Continuation
 import org.eclipse.jetty.continuation.ContinuationSupport
 import org.eclipse.jetty.server.Request
@@ -12,14 +10,6 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class JettyContinuationHandlerTest extends Jetty9Test {
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-  }
 
   @Override
   AbstractHandler handler() {

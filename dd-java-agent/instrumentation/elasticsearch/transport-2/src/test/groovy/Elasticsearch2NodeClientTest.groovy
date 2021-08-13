@@ -90,11 +90,6 @@ class Elasticsearch2NodeClientTest extends AgentTestRunner {
   }
 
   def "test elasticsearch error"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     client.prepareGet(indexName, indexType, id).get()
 

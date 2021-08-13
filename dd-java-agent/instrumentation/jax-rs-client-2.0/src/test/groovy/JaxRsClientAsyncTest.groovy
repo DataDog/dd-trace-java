@@ -75,13 +75,6 @@ class JerseyClientAsyncTest extends JaxRsClientAsyncTest {
   boolean testCircularRedirects() {
     false
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-  }
 }
 
 @Timeout(5)
@@ -124,7 +117,6 @@ class CxfClientAsyncTest extends JaxRsClientAsyncTest {
   def setup() {
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

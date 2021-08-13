@@ -67,11 +67,6 @@ class CassandraClientTest extends AgentTestRunner {
 
   def "test sync"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     Session session = sessionBuilder().withKeyspace((String) keyspace).build()
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
 
@@ -98,11 +93,6 @@ class CassandraClientTest extends AgentTestRunner {
 
   def "test sync with error"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def statement = "ILLEGAL STATEMENT"
     Session session = sessionBuilder().withKeyspace((String) keyspace).build()
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
@@ -133,7 +123,6 @@ class CassandraClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     CqlSession session = sessionBuilder().withKeyspace((String) keyspace).build()
@@ -179,7 +168,6 @@ class CassandraClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     def statement = "ILLEGAL STATEMENT"

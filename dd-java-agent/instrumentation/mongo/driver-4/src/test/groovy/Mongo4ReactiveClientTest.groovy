@@ -71,7 +71,6 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     MongoDatabase db = client.getDatabase(databaseName)
@@ -94,7 +93,6 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
@@ -117,7 +115,6 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     MongoDatabase db = client.getDatabase(databaseName)
@@ -142,7 +139,6 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     def collection = setupCollection(collectionName)
@@ -172,7 +168,6 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     MongoCollection<Document> collection = setupCollection(collectionName)
@@ -208,7 +203,6 @@ class Mongo4ReactiveClientTest extends MongoBaseTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     MongoCollection<Document> collection = setupCollection(collectionName)

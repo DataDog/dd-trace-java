@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.core.DDSpan
 import io.netty.channel.DefaultEventLoopGroup
 import io.netty.channel.ThreadPerChannelEventLoop
@@ -105,10 +103,6 @@ class CrossedContextTest extends AgentTestRunner {
 
   def "netty event loop internal executions in #executor are traced with correct lineage" () {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     ExecutorService pool = executor
     when:
 
