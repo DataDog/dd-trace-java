@@ -50,12 +50,16 @@ class TimelineCheckpointer implements Checkpointer {
     def includedAndFailedValidations = includedValidations.clone()
     includedAndFailedValidations.retainAll(validatedEvents*.key.mode)
 
+    // The set of excluded validations that failed
+    def excludedAndFailedValidations = excludedValidations.clone()
+    excludedAndFailedValidations.retainAll(validatedEvents*.key.mode)
+
     // The set of excluded validations that passed
     def excludedAndPassedValidations = excludedValidations.clone()
     excludedAndPassedValidations.removeAll(validatedEvents*.key.mode)
 
     out.println(
-      "=== Checkpoint validator is running with the following checks disabled: ${excludedValidations.sort()}\n" +
+      "=== Checkpoint validator is running with the following checks excluded: ${excludedValidations.sort()}\n" +
       "Included & Failed: ${includedAndFailedValidations.sort()}\n" +
       "Excluded & Passed: ${excludedAndPassedValidations.sort()}\n")
 
@@ -66,9 +70,18 @@ class TimelineCheckpointer implements Checkpointer {
     // everything that was printed to `out`
     String msg = baostream.toString(charset)
 
-    if (!includedAndFailedValidations.empty ||
-    (!excludedAndPassedValidations.empty && Boolean.parseBoolean(System.getenv("STRICT_VALIDATE_CHECKPOINTS")))) {
-      throw new IllegalStateException("Failed checkpoint validations\n\n${msg}")
+    if (!includedAndFailedValidations.empty) {
+      throw new IllegalStateException("Checkpoints validations: included and failed\n\n${msg}")
+    }
+    if (CheckpointValidator.validationMode("strict")) {
+      if (!excludedAndPassedValidations.empty) {
+        throw new IllegalStateException("Checkpoints validations: excluded and passed\n\n${msg}")
+      }
+    }
+    if (CheckpointValidator.validationMode("all-failed")) {
+      if (!excludedAndFailedValidations.empty) {
+        throw new IllegalStateException("Checkpoints validations: excluded and failed\n\n${msg}")
+      }
     }
 
     System.err.print(msg)
