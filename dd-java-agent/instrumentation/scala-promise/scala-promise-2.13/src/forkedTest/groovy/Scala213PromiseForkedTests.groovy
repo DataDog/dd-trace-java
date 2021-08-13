@@ -11,11 +11,9 @@ class Scala213PromiseCompletionPriorityForkJoinPoolForkedTest extends ScalaPromi
     return ExecutionContext.fromExecutor(ForkJoinPool.commonPool())
   }
 
-  @Override
   def setup() {
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
@@ -26,11 +24,9 @@ class Scala213PromiseCompletionPriorityGlobalForkedTest extends ScalaPromiseComp
     return ExecutionContext.global()
   }
 
-  @Override
   def setup() {
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
@@ -41,11 +37,9 @@ class Scala213PromiseCompletionPriorityScheduledThreadPoolForkedTest extends Sca
     return ExecutionContext.fromExecutor(Executors.newScheduledThreadPool(5))
   }
 
-  @Override
   def setup() {
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
@@ -54,5 +48,11 @@ class Scala213PromiseCompletionPriorityThreadPoolForkedTest extends ScalaPromise
   @Override
   protected ExecutionContext getExecutionContext() {
     return ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
+  }
+
+  def setup() {
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

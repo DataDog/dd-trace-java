@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import scala.concurrent.forkjoin.ForkJoinPool
 
 import java.util.concurrent.RejectedExecutionException
@@ -17,10 +15,6 @@ class RejectedExecutionTest extends AgentTestRunner {
     // provoked (most of the time) by submitting a lot of tasks very
     // quickly
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     ForkJoinPool fjp = new ForkJoinPool()
     fjp.shutdownNow()
     AtomicBoolean rejected = new AtomicBoolean(false)

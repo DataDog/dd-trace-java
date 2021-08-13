@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.core.DDSpan
 
 class ScalaInstrumentationTest extends AgentTestRunner {
@@ -13,10 +11,6 @@ class ScalaInstrumentationTest extends AgentTestRunner {
 
   def "scala futures and callbacks"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
     int expectedNumberOfSpans = scalaTest.traceWithFutureAndCallbacks()
     TEST_WRITER.waitForTraces(1)
@@ -33,10 +27,6 @@ class ScalaInstrumentationTest extends AgentTestRunner {
 
   def "scala propagates across futures with no traces"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
     int expectedNumberOfSpans = scalaTest.tracedAcrossThreadsWithNoTrace()
     TEST_WRITER.waitForTraces(1)
@@ -50,10 +40,6 @@ class ScalaInstrumentationTest extends AgentTestRunner {
 
   def "scala either promise completion"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
     int expectedNumberOfSpans = scalaTest.traceWithPromises()
     TEST_WRITER.waitForTraces(1)
@@ -70,10 +56,6 @@ class ScalaInstrumentationTest extends AgentTestRunner {
 
   def "scala first completed future"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
     int expectedNumberOfSpans = scalaTest.tracedWithFutureFirstCompletions()
     TEST_WRITER.waitForTraces(1)

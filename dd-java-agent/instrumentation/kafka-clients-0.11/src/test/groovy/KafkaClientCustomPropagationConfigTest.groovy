@@ -62,8 +62,7 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   def "test kafka client header propagation with topic filters"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME)
+      CheckpointValidationMode.INTERVALS)
 
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
 
@@ -172,8 +171,7 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   def "test consumer with topic filters"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME)
+      CheckpointValidationMode.INTERVALS)
 
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
     // Need to disable the producer side injection in all cases so it won't overwrite with another span's headers

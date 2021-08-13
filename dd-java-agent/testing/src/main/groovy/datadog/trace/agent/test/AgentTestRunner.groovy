@@ -9,7 +9,9 @@ import datadog.trace.agent.test.checkpoints.TimelineCheckpointer
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
+import datadog.trace.api.Checkpointer
 import datadog.trace.api.Config
+import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
@@ -104,6 +106,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   TimelineCheckpointer TEST_CHECKPOINTER = Spy(new TimelineCheckpointer())
 
+  @SuppressWarnings('PropertyName')
+  @Shared
+  Set<DDId> TEST_SPANS = Sets.newHashSet()
+
   @Shared
   ClassFileTransformer activeTransformer
 
@@ -131,16 +137,29 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     TEST_WRITER = new ListWriter()
     TEST_TRACER =
+      Spy(
       CoreTracer.builder()
       .writer(TEST_WRITER)
       .idGenerationStrategy(SEQUENTIAL)
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
-      .build()
+      .build())
     TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     enableAppSec()
+
+    TEST_TRACER.startSpan(*_) >> {
+      def agentSpan = callRealMethod()
+      TEST_SPANS.add(agentSpan.spanId)
+      agentSpan
+    }
+    TEST_CHECKPOINTER.checkpoint(_, _, _) >> { DDId traceId, DDId spanId, int flags ->
+      // We need to treat startSpan differently because of how we mock TEST_TRACER.startSpan
+      if (flags == Checkpointer.SPAN || TEST_SPANS.contains(spanId)) {
+        callRealMethod()
+      }
+    }
 
     assert ServiceLoader.load(Instrumenter, AgentTestRunner.getClassLoader())
     .iterator()
@@ -186,6 +205,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
     TEST_TRACER.flush()
+    TEST_SPANS.clear()
+    TEST_CHECKPOINTER.clear()
     TEST_WRITER.start()
 
     new MockUtil().attachMock(STATS_D_CLIENT, this)
@@ -194,10 +215,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   void cleanup() {
     TEST_TRACER.flush()
-    TEST_CHECKPOINTER.publish()
-    TEST_CHECKPOINTER.clear()
     new MockUtil().detachMock(STATS_D_CLIENT)
     new MockUtil().detachMock(TEST_CHECKPOINTER)
+
+    TEST_CHECKPOINTER.throwOnInvalidSequence(TEST_SPANS)
   }
 
   /** Override to clean up things after the agent is removed */

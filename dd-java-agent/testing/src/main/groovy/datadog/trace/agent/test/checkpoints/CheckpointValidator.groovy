@@ -13,6 +13,10 @@ class CheckpointValidator {
    * @param modes validation modes
    */
   static void excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode mode0, CheckpointValidationMode... modes) {
+    // if `FORCE_VALIDATE_CHECKPOINTS` is defined, make sure we do not exclude any validation
+    if (Boolean.parseBoolean(System.getenv("FORCE_VALIDATE_CHECKPOINTS"))) {
+      return
+    }
     excludedValidations.addAll(EnumSet.of(mode0, modes))
   }
 
@@ -25,17 +29,15 @@ class CheckpointValidator {
     excludedValidations = EnumSet.noneOf(CheckpointValidationMode)
   }
 
-  static validate(def spanEvents, def threadEvents, def orderedEvents) {
-    if (!excludedValidations.empty) {
-      System.err.println("Checkpoint validator is running with the following checks disabled: ${excludedValidations}\n")
-    }
-
+  static validate(def spanEvents, def threadEvents, def orderedEvents, def trackedSpanIds, PrintStream out) {
     def invalidEvents = new HashSet()
     // validate per-span sequence
     for (def events : spanEvents.values()) {
       def perSpanValidator = new CompositeValidator(new SuspendResumeValidator(), new ThreadSequenceValidator())
       for (def event : events) {
-        perSpanValidator.onEvent(event)
+        if (trackedSpanIds.contains(event.spanId)) {
+          perSpanValidator.onEvent(event)
+        }
       }
       perSpanValidator.onEnd()
       invalidEvents.addAll(perSpanValidator.invalidEvents())
@@ -45,15 +47,17 @@ class CheckpointValidator {
     for (def events : threadEvents.values()) {
       def perThreadValidator = new IntervalValidator()
       for (def event : events) {
-        perThreadValidator.onEvent(event)
+        if (trackedSpanIds.contains(event.spanId)) {
+          perThreadValidator.onEvent(event)
+        }
       }
       perThreadValidator.endSequence()
       invalidEvents.addAll(perThreadValidator.invalidEvents)
     }
 
     if (!invalidEvents.empty) {
-      System.err.println("=== Invalid checkpoint events encountered")
-      invalidEvents.each { System.err.println(it) }
+      out.println("=== Invalid checkpoint events encountered: ${invalidEvents*.mode.toSet().sort()}")
+      invalidEvents.each { out.println(it) }
     }
 
     return invalidEvents.collectEntries {
