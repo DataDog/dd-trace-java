@@ -105,11 +105,6 @@ class CompletableFutureTest extends AgentTestRunner {
   }
 
   def "test thenApply"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
       def supply = CompletableFuture.supplyAsync {
@@ -148,11 +143,6 @@ class CompletableFutureTest extends AgentTestRunner {
   }
 
   def "test thenApplyAsync"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
       CompletableFuture<String> supply = CompletableFuture.supplyAsync {
@@ -192,11 +182,6 @@ class CompletableFutureTest extends AgentTestRunner {
   }
 
   def "test thenCompose"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
       def supply = CompletableFuture.supplyAsync {
@@ -289,12 +274,6 @@ class CompletableFutureTest extends AgentTestRunner {
   }
 
   def "test compose and apply"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
       def supply = CompletableFuture.supplyAsync {

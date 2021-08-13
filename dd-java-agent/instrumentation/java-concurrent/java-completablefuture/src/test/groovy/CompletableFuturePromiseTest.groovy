@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.base.AbstractPromiseTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import spock.lang.Shared
 
 import java.util.concurrent.CompletableFuture
@@ -51,6 +53,11 @@ abstract class CompletableFuturePromiseTest extends AbstractPromiseTest<Completa
 
   def "test call with no parent"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def promise = newPromise()
 
     when:

@@ -1,8 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
 import datadog.trace.api.config.TraceInstrumentationConfig
@@ -57,10 +55,6 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a message to #jmsResourceName generates spans"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
 
@@ -91,11 +85,6 @@ class JMS1Test extends AgentTestRunner {
 
   def "receiving a message from #jmsResourceName in a transacted session"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def transactedSession = connection.createSession(true, Session.SESSION_TRANSACTED)
     def producer = session.createProducer(destination)
     def consumer = transactedSession.createConsumer(destination)
@@ -127,11 +116,6 @@ class JMS1Test extends AgentTestRunner {
 
   def "receiving a message from #jmsResourceName with manual acknowledgement"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def session = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
@@ -163,11 +147,6 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending to a MessageListener on #jmsResourceName generates a span"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def lock = new CountDownLatch(1)
     def messageRef = new AtomicReference<TextMessage>()
     def producer = session.createProducer(destination)
@@ -205,11 +184,6 @@ class JMS1Test extends AgentTestRunner {
 
   def "failing to receive message with receiveNoWait on #jmsResourceName works"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def consumer = session.createConsumer(destination)
 
     // Receive with timeout
@@ -232,11 +206,6 @@ class JMS1Test extends AgentTestRunner {
 
   def "failing to receive message with wait(timeout) on #jmsResourceName works"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def consumer = session.createConsumer(destination)
 
     // Receive with timeout
@@ -259,11 +228,6 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a read-only message to #jmsResourceName fails"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
 
@@ -321,11 +285,6 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a message with disabled timestamp generates spans without specific tag"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def producer = session.createProducer(session.createQueue("someQueue"))
     def consumer = session.createConsumer(session.createQueue("someQueue"))
 
@@ -351,11 +310,6 @@ class JMS1Test extends AgentTestRunner {
 
   def "traceable work between two receive calls has jms.consume parent"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
 
@@ -393,11 +347,6 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on producer side"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)
     def producer = session.createProducer(destination)
@@ -447,11 +396,6 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on consumer side"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_ENABLED, "false")

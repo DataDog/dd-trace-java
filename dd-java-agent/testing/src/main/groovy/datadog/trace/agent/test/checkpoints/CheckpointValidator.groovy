@@ -14,7 +14,7 @@ class CheckpointValidator {
    */
   static void excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode mode0, CheckpointValidationMode... modes) {
     // if `FORCE_VALIDATE_CHECKPOINTS` is defined, make sure we do not exclude any validation
-    if (Boolean.parseBoolean(System.getenv("FORCE_VALIDATE_CHECKPOINTS"))) {
+    if (validationMode("force")) {
       return
     }
     excludedValidations.addAll(EnumSet.of(mode0, modes))
@@ -63,5 +63,9 @@ class CheckpointValidator {
     return invalidEvents.collectEntries {
       [(it) : !excludedValidations.contains(it.mode)]
     }
+  }
+
+  static validationMode(String mode) {
+    return System.getenv("VALIDATE_CHECKPOINTS") != null && System.getenv("VALIDATE_CHECKPOINTS").contains(mode)
   }
 }

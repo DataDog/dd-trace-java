@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
@@ -75,11 +73,6 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
 
   def "test elasticsearch status"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def result = client.admin().cluster().health(new ClusterHealthRequest(new String[0]))
 
     def status = result.get().status
@@ -112,11 +105,6 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
 
   def "test elasticsearch stats"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def result = client.admin().cluster().clusterStats(new ClusterStatsRequest(new String[0]))
 
     def status = result.get().status
@@ -151,12 +139,6 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
   }
 
   def "test elasticsearch error"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     client.prepareGet(indexName, indexType, id).get()
 
@@ -194,11 +176,6 @@ class Elasticsearch2TransportClientTest extends AgentTestRunner {
 
   def "test elasticsearch get"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     assert TEST_WRITER == []
     def indexResult = client.admin().indices().prepareCreate(indexName).get()
     TEST_WRITER.waitForTraces(1)
