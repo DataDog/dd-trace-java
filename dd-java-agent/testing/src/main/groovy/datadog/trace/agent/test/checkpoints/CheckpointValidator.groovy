@@ -13,6 +13,10 @@ class CheckpointValidator {
    * @param modes validation modes
    */
   static void excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode mode0, CheckpointValidationMode... modes) {
+    // if `FORCE_VALIDATE_CHECKPOINTS` is defined, make sure we do not exclude any validation
+    if (Boolean.parseBoolean(System.getenv("FORCE_VALIDATE_CHECKPOINTS"))) {
+      return
+    }
     excludedValidations.addAll(EnumSet.of(mode0, modes))
   }
 

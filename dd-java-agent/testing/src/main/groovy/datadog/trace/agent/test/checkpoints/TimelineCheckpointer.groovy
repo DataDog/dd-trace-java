@@ -44,10 +44,7 @@ class TimelineCheckpointer implements Checkpointer {
 
     // The set of included validations
     def includedValidations = EnumSet.allOf(CheckpointValidationMode)
-    // if `FORCE_VALIDATE_CHECKPOINTS` is defined, make sure we do not exclude any validation
-    if (!Boolean.parseBoolean(System.getenv("FORCE_VALIDATE_CHECKPOINTS"))) {
-      includedValidations.removeAll(excludedValidations)
-    }
+    includedValidations.removeAll(excludedValidations)
 
     // The set of included validations that failed
     def includedAndFailedValidations = includedValidations.clone()
