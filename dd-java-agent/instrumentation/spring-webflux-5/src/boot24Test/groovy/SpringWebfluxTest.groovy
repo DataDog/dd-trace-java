@@ -552,7 +552,8 @@ class SpringWebfluxTest extends AgentTestRunner {
   def "Multiple GETs to delaying route #testName"() {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def requestsCount = 50 // Should be more than 2x CPUs to fish out some bugs
     String url = "http://localhost:$port$urlPath"

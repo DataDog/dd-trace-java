@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
@@ -198,10 +196,6 @@ class OpenTelemetryTest extends AgentTestRunner {
   }
 
   def "test closing scope when not on top"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
-
     when:
     Span firstSpan = tracer.spanBuilder("someOperation").startSpan()
     Scope firstScope = tracer.withSpan(firstSpan)
@@ -231,9 +225,6 @@ class OpenTelemetryTest extends AgentTestRunner {
 
   def "test continuation"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
-
     def span = tracer.spanBuilder("some name").startSpan()
     TraceScope scope = tracer.withSpan(span)
     scope.setAsyncPropagation(true)
@@ -266,11 +257,6 @@ class OpenTelemetryTest extends AgentTestRunner {
 
   def "test inject extract"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def span = tracer.spanBuilder("some name").startSpan()
     def context = TracingContextUtils.withSpan(span, Context.current())
     def textMap = [:]
@@ -308,10 +294,6 @@ class OpenTelemetryTest extends AgentTestRunner {
   }
 
   def "tolerate null span activation"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
-
     when:
     try {
       tracer.withSpan(null)?.close()

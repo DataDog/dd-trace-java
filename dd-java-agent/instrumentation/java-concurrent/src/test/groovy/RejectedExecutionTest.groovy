@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
 import io.netty.util.concurrent.DefaultEventExecutor
@@ -30,10 +28,6 @@ class RejectedExecutionTest extends AgentTestRunner {
     // provoked (most of the time) by submitting a lot of tasks very
     // quickly
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     ForkJoinPool fjp = new ForkJoinPool()
     fjp.shutdownNow()
 
@@ -52,10 +46,6 @@ class RejectedExecutionTest extends AgentTestRunner {
 
   def "trace reported when thread pool shut down"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def testClosure = setupShutdownExecutor(new ThreadPoolExecutor.AbortPolicy())
 
     when:
@@ -71,10 +61,6 @@ class RejectedExecutionTest extends AgentTestRunner {
 
   def "trace reported when thread pool shut down with #rejectedExecutionHandler"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def testClosure = setupShutdownExecutor(rejectedExecutionHandler)
 
     when:
@@ -98,10 +84,6 @@ class RejectedExecutionTest extends AgentTestRunner {
 
   def "trace reported when live thread pool rejects work and throws with #rejectedExecutionHandler"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def testClosure = setupBackloggedExecutor(rejectedExecutionHandler)
 
     when:
@@ -123,10 +105,6 @@ class RejectedExecutionTest extends AgentTestRunner {
 
   def "trace reported when live thread pool rejects and discards work with #rejectedExecutionHandler"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def testClosure = setupBackloggedExecutor(rejectedExecutionHandler)
 
     when:
@@ -147,10 +125,6 @@ class RejectedExecutionTest extends AgentTestRunner {
 
   def "trace reported when live thread pool rejects and runs work with #rejectedExecutionHandler"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def testClosure = setupBackloggedExecutor(rejectedExecutionHandler)
 
     when:
@@ -176,10 +150,6 @@ class RejectedExecutionTest extends AgentTestRunner {
 
   def "trace reported with swallowing netty rejected execution handler" () {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     DefaultEventExecutor executor = new DefaultEventExecutor(null, new DefaultThreadFactory(DefaultEventExecutor),
       1, handler)
     CountDownLatch latch = new CountDownLatch(1)

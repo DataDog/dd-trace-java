@@ -38,12 +38,6 @@ class AkkaHttp102ServerInstrumentationBindSyncTest extends AkkaHttpServerInstrum
   HttpServer server() {
     return new AkkaHttpTestWebServer(AkkaHttp102TestWebServer.ServerBuilderBindSync())
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
-  }
 }
 
 class AkkaHttp102ServerInstrumentationBindAsyncHttp2Test extends AkkaHttpServerInstrumentationTest {

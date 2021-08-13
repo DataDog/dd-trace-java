@@ -104,7 +104,6 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     RedisClient testConnectionClient = RedisClient.create(embeddedDbUri)
@@ -146,7 +145,6 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     RedisClient testConnectionClient = RedisClient.create(dbUriNonExistent)
@@ -187,7 +185,6 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     RedisFuture<String> redisFuture = asyncCommands.set("TESTSETKEY", "TESTSETVAL")
@@ -219,7 +216,6 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     def conds = new AsyncConditions()
@@ -264,7 +260,6 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     def conds = new AsyncConditions()
@@ -319,7 +314,6 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     def conds = new AsyncConditions()
@@ -362,7 +356,6 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     def conds = new AsyncConditions()
@@ -440,7 +433,6 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     // turn off auto flush to complete the command exceptionally manually
@@ -491,7 +483,6 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     asyncCommands.setAutoFlushCommands(false)
@@ -536,7 +527,6 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     asyncCommands.debugSegfault()
@@ -567,7 +557,6 @@ class Lettuce4AsyncClientTest extends AgentTestRunner {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     asyncCommands.shutdown(false)
