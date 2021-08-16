@@ -7,6 +7,7 @@ import java.util.ListIterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 public class TracingList implements List<ConsumerRecord<?, ?>> {
+
   private final List<ConsumerRecord<?, ?>> delegate;
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
@@ -135,5 +136,10 @@ public class TracingList implements List<ConsumerRecord<?, ?>> {
   @Override
   public List<ConsumerRecord<?, ?>> subList(final int fromIndex, final int toIndex) {
     return new TracingList(delegate.subList(fromIndex, toIndex), operationName, decorator);
+  }
+
+  // Used by the streams instrumentation to unwrap (disable) the iteration advice.
+  public List<ConsumerRecord<?, ?>> getDelegate() {
+    return delegate;
   }
 }
