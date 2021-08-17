@@ -41,7 +41,7 @@ public class TracedDelegatingConsumer implements Consumer {
   public TracedDelegatingConsumer(
       final String queue, final Consumer delegate, boolean traceStartTimeEnabled) {
     this.queue = queue;
-    this.propagate = !Config.get().getRabbitPropagationDisabledQueues().contains(queue);
+    this.propagate = Config.get().isRabbitPropagationEnabledForDestination(queue);
     this.delegate = delegate;
     this.traceStartTimeEnabled = traceStartTimeEnabled;
   }

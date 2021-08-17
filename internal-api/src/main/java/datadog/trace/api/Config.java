@@ -391,9 +391,9 @@ public class Config {
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
 
-  private final boolean RabbitPropagationEnabled;
-  private final Set<String> RabbitPropagationDisabledQueues;
-  private final Set<String> RabbitPropagationDisabledExchanges;
+  private final boolean rabbitPropagationEnabled;
+  private final Set<String> rabbitPropagationDisabledQueues;
+  private final Set<String> rabbitPropagationDisabledExchanges;
 
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
@@ -819,13 +819,13 @@ public class Config {
     jmsPropagationDisabledQueues =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_QUEUES));
 
-    RabbitPropagationEnabled =
+    rabbitPropagationEnabled =
         configProvider.getBoolean(RABBIT_PROPAGATION_ENABLED, DEFAULT_RABBIT_PROPAGATION_ENABLED);
 
-    RabbitPropagationDisabledQueues =
+    rabbitPropagationDisabledQueues =
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_QUEUES));
 
-    RabbitPropagationDisabledExchanges =
+    rabbitPropagationDisabledExchanges =
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_EXCHANGES));
 
     grpcIgnoredOutboundMethods =
@@ -1262,16 +1262,11 @@ public class Config {
     return kafkaClientBase64DecodingEnabled;
   }
 
-  public boolean isRabbitPropagationEnabled() {
-    return RabbitPropagationEnabled;
-  }
-
-  public Set<String> getRabbitPropagationDisabledQueues() {
-    return RabbitPropagationDisabledQueues;
-  }
-
-  public Set<String> getRabbitPropagationDisabledExchanges() {
-    return RabbitPropagationDisabledExchanges;
+  public boolean isRabbitPropagationEnabledForDestination(final String queueOrExchange) {
+    return rabbitPropagationEnabled
+        && (null == queueOrExchange
+            || (!rabbitPropagationDisabledQueues.contains(queueOrExchange)
+                && !rabbitPropagationDisabledExchanges.contains(queueOrExchange)));
   }
 
   public boolean isHystrixTagsEnabled() {
@@ -2014,11 +2009,11 @@ public class Config {
         + ", jmsPropagationDisabledQueues="
         + jmsPropagationDisabledQueues
         + ", RabbitPropagationEnabled="
-        + RabbitPropagationEnabled
+        + rabbitPropagationEnabled
         + ", RabbitPropagationDisabledQueues="
-        + RabbitPropagationDisabledQueues
+        + rabbitPropagationDisabledQueues
         + ", RabbitPropagationDisabledExchanges="
-        + RabbitPropagationDisabledExchanges
+        + rabbitPropagationDisabledExchanges
         + ", hystrixTagsEnabled="
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="
