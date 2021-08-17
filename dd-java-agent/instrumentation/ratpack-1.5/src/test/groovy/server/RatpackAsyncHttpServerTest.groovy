@@ -2,9 +2,15 @@ package server
 
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import io.netty.buffer.ByteBuf
+import org.reactivestreams.Subscriber
+import org.reactivestreams.Subscription
 import ratpack.exec.Promise
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 
+import java.nio.charset.StandardCharsets
+
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -34,6 +40,51 @@ class RatpackAsyncHttpServerTest extends RatpackHttpServerTest {
             } then { HttpServerTest.ServerEndpoint endpoint ->
               controller(endpoint) {
                 context.response.status(endpoint.status).send(endpoint.body)
+              }
+            }
+          }
+        }
+        prefix(CREATED.relativeRawPath()) {
+          all {
+            Promise.sync {
+              CREATED
+            } then {endpoint ->
+              controller(endpoint) {
+                def outerDelegate = delegate
+                request.bodyStream.subscribe(new Subscriber<ByteBuf>() {
+                    Subscription sub
+                    String res = ''
+
+                    @Override
+                    void onSubscribe(Subscription s) {
+                      sub = s
+                      s.request(1)
+                    }
+
+                    @Override
+                    void onNext(ByteBuf byteBuf) {
+                      Promise.async {downstream ->
+                        CharSequence sequence =
+                          byteBuf.readCharSequence(byteBuf.readableBytes(), StandardCharsets.UTF_8)
+                        res += sequence
+                        downstream.success(sequence)
+                      } then {
+                        byteBuf.release()
+                        sub.request(1)
+                      }
+                    }
+
+                    @Override
+                    void onError(Throwable t) {
+                      outerDelegate.ctx.error(t)
+                    }
+
+                    @Override
+                    void onComplete() {
+                      outerDelegate.response.status(endpoint.status)
+                        .send('text/plain', "${endpoint.body}: $res")
+                    }
+                  })
               }
             }
           }

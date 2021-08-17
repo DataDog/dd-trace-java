@@ -5,6 +5,9 @@ import datadog.trace.agent.test.base.HttpServerTest
 import ratpack.exec.Promise
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 
+import java.nio.charset.StandardCharsets
+
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -34,6 +37,20 @@ class RatpackForkedHttpServerTest extends RatpackHttpServerTest {
             }.fork().then { HttpServerTest.ServerEndpoint endpoint ->
               controller(endpoint) {
                 context.response.status(endpoint.status).send(endpoint.body)
+              }
+            }
+          }
+        }
+        prefix(CREATED.relativeRawPath()) {
+          all {
+            Promise.sync {
+              CREATED
+            }.fork().then { endpoint ->
+              request.body.then { typedData ->
+                response.status(endpoint.status)
+                  .send(
+                  'text/plain',
+                  "${endpoint.body}: ${new String(typedData.bytes, StandardCharsets.UTF_8)}")
               }
             }
           }
