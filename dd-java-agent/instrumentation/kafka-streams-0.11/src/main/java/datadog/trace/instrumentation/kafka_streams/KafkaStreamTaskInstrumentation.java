@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.instrumentation.kafka_clients.TracingList;
+import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -27,13 +27,7 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.kafka_clients.KafkaDecorator",
-      "datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter",
-      "datadog.trace.instrumentation.kafka_clients.TracingIterable",
-      "datadog.trace.instrumentation.kafka_clients.TracingIterator",
-      "datadog.trace.instrumentation.kafka_clients.TracingList",
-      "datadog.trace.instrumentation.kafka_clients.TracingListIterator",
-      "datadog.trace.instrumentation.kafka_clients.Base64Decoder",
+      "datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator",
     };
   }
 
@@ -53,8 +47,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing {
       // KafkaStreamsProcessorInstrumentation will create a new span instead.
 
       // Expecting a TracingList because TaskManager.addRecordsToTasks calls records(partition).
-      if (records instanceof TracingList) {
-        records = ((TracingList) records).getDelegate();
+      if (records instanceof TracingIterableDelegator) {
+        records = ((TracingIterableDelegator) records).getDelegate();
       }
     }
   }
