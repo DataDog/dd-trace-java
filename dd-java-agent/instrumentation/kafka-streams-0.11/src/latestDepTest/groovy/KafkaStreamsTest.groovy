@@ -134,10 +134,11 @@ class KafkaStreamsTest extends AgentTestRunner {
           childOf trace(0)[0]
 
           tags {
-            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.COMPONENT" "java-kafka-streams"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.PROCESSOR_NAME" "KSTREAM-SOURCE-0000000000"
             "asdf" "testing"
             defaultTags(true)
           }
