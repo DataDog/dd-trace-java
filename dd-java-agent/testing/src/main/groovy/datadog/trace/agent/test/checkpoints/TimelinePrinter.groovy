@@ -11,11 +11,11 @@ class TimelinePrinter {
           "Affected spans are highlited by '***'")
       }
       // allows rendering threads top to bottom by when they were first encountered
-      Map<String, BitSet> timelines = new LinkedHashMap<>()
+      Map<Thread, BitSet> timelines = new LinkedHashMap<>()
       int maxNameLength = 0
       String[] renderings = new String[orderedEvents.size()]
-      for (String threadName : threadEvents.keySet()) {
-        maxNameLength = Math.max(maxNameLength, threadName.length())
+      for (Thread thread : threadEvents.keySet()) {
+        maxNameLength = Math.max(maxNameLength, thread.name.length())
       }
       int position = 0
       for (Event event : orderedEvents) {
@@ -24,17 +24,17 @@ class TimelinePrinter {
         } else {
           renderings[position] = event.name + "/" +event.spanId
         }
-        BitSet timeline = timelines[event.threadName]
+        BitSet timeline = timelines[event.thread]
         if (null == timeline) {
-          timelines[event.threadName] = timeline = new BitSet()
+          timelines[event.thread] = timeline = new BitSet()
         }
         timeline.set(position++)
       }
-      for (Map.Entry<String, BitSet> timeline : timelines) {
-        String threadName = timeline.key
-        out.print(threadName)
+      for (Map.Entry<Thread, BitSet> timeline : timelines) {
+        Thread thread = timeline.key
+        out.print(thread.name)
         out.print(":")
-        out.print(repeat(" ", maxNameLength - threadName.length() + 1))
+        out.print(repeat(" ", maxNameLength - thread.name.length() + 1))
         out.print("|")
         BitSet positions = timeline.value
         int next = positions.nextSetBit(0)

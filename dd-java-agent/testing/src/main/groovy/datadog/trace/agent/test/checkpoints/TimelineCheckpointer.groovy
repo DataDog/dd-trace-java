@@ -10,7 +10,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 class TimelineCheckpointer implements Checkpointer {
 
   private final ConcurrentHashMap<DDId, List<Event>> spanEvents = new ConcurrentHashMap<>()
-  private final ConcurrentHashMap<String, List<Event>> threadEvents = new ConcurrentHashMap<>()
+  private final ConcurrentHashMap<Thread, List<Event>> threadEvents = new ConcurrentHashMap<>()
   private final List<Event> orderedEvents = new CopyOnWriteArrayList<>()
 
   @Override
@@ -19,9 +19,9 @@ class TimelineCheckpointer implements Checkpointer {
     Event event = new Event(flags, traceId, spanId, currentThread)
     orderedEvents.add(event)
     spanEvents.putIfAbsent(spanId, new CopyOnWriteArrayList<Event>())
-    threadEvents.putIfAbsent(currentThread.name, new CopyOnWriteArrayList<Event>())
+    threadEvents.putIfAbsent(currentThread, new CopyOnWriteArrayList<Event>())
     spanEvents.get(spanId).add(event)
-    threadEvents.get(currentThread.name).add(event)
+    threadEvents.get(currentThread).add(event)
   }
 
   @Override
