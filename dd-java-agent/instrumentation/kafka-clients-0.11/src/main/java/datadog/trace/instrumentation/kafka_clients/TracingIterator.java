@@ -61,7 +61,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
     try {
       final AgentSpan span;
       if (val != null) {
-        if (!Config.get().getKafkaClientPropagationDisabledTopics().contains(val.topic())) {
+        if (Config.get().isKafkaClientPropagationEnabledForTopic(val.topic())) {
           final Context spanContext = propagate().extract(val.headers(), GETTER);
           span = startSpan(operationName, spanContext);
         } else {

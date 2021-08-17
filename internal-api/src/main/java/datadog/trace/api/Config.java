@@ -1246,12 +1246,9 @@ public class Config {
     return appSecEnabled;
   }
 
-  public boolean isKafkaClientPropagationEnabled() {
-    return kafkaClientPropagationEnabled;
-  }
-
-  public Set<String> getKafkaClientPropagationDisabledTopics() {
-    return kafkaClientPropagationDisabledTopics;
+  public boolean isKafkaClientPropagationEnabledForTopic(String topic) {
+    return kafkaClientPropagationEnabled
+        && (null == topic || !kafkaClientPropagationDisabledTopics.contains(topic));
   }
 
   public boolean isJMSPropagationEnabledForDestination(final String queueOrTopic) {
