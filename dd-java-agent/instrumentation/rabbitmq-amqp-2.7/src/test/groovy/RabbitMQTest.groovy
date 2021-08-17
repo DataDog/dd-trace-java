@@ -459,7 +459,7 @@ class RabbitMQTest extends AgentTestRunner {
     where:
     exchangeName    | routingKey         | queueName       | config          | nullParent
     "some-exchange" | "some-routing-key" | "queueNameTest" | "queueNameTest" | true
-    "some-exchange" | "some-routing-key" | "queueNameTest" | "some-exchange" | false
+    "some-exchange" | "some-routing-key" | "queueNameTest" | "some-exchange" | true  // we merge disabled queue/exchange names
     "some-exchange" | "some-routing-key" | "queueNameTest" | ""              | false
   }
 

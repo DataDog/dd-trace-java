@@ -398,14 +398,8 @@ class JMS1Test extends AgentTestRunner {
     setup:
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)
-    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_ENABLED, "false")
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
-    AgentSpan span1 = startSpan(JMS_PRODUCE)
-    PRODUCER_DECORATE.afterStart(span1)
-    PRODUCER_DECORATE.onProduce(span1, message, destination)
-    propagate().inject(span1, message, SETTER)
-    span1.finish()
     producer.send(message)
     TextMessage receivedMessage = consumer.receive()
     // required to finish auto-acknowledged spans
@@ -413,14 +407,12 @@ class JMS1Test extends AgentTestRunner {
     expect:
     receivedMessage.text == messageText
     if (expected) {
-      assertTraces(3) {
-        producerTrace(it, jmsResourceName)
+      assertTraces(2) {
         producerTrace(it, jmsResourceName)
         consumerTrace(it, jmsResourceName, trace(0)[0])
       }
     } else {
-      assertTraces(3) {
-        producerTrace(it, jmsResourceName)
+      assertTraces(2) {
         producerTrace(it, jmsResourceName)
         trace(1) {
           span {
