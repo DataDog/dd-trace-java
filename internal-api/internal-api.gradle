@@ -14,7 +14,7 @@ excludedClassesCoverage += [
   "datadog.trace.api.gateway.Events.ET",
   "datadog.trace.api.sampling.AdaptiveSampler",
   // this one is covered by tests in internal-api-8 together with AdaptiveSampler8
-  "datadog.trace.api.sampling.AdaptiveSampler7",
+  "datadog.trace.api.sampling.AdaptiveSampler7*",
   "datadog.trace.bootstrap.config.provider.ConfigProvider.Singleton",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
   "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
