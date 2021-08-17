@@ -35,6 +35,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Tracing {
     return new String[] {
       packageName + ".KafkaDecorator",
       packageName + ".TextMapExtractAdapter",
+      packageName + ".TracingIterableDelegator",
       packageName + ".TracingIterable",
       packageName + ".TracingIterator",
       packageName + ".TracingList",
