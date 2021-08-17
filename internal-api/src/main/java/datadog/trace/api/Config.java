@@ -1254,16 +1254,11 @@ public class Config {
     return kafkaClientPropagationDisabledTopics;
   }
 
-  public boolean isJMSPropagationEnabled() {
-    return jmsPropagationEnabled;
-  }
-
-  public Set<String> getJMSPropagationDisabledTopics() {
-    return jmsPropagationDisabledTopics;
-  }
-
-  public Set<String> getJMSPropagationDisabledQueues() {
-    return jmsPropagationDisabledQueues;
+  public boolean isJMSPropagationEnabledForDestination(final String queueOrTopic) {
+    return jmsPropagationEnabled
+        && (null == queueOrTopic
+            || (!jmsPropagationDisabledQueues.contains(queueOrTopic)
+                && !jmsPropagationDisabledTopics.contains(queueOrTopic)));
   }
 
   public boolean isKafkaClientBase64DecodingEnabled() {

@@ -21,7 +21,6 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import java.util.HashMap;
@@ -120,10 +119,8 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
 
         String destinationName = messageConsumerState.getDestinationName();
 
-        if (destinationName == null
-            || (!Config.get().getJMSPropagationDisabledTopics().contains(destinationName)
-                && !Config.get().getJMSPropagationDisabledQueues().contains(destinationName))) {
-          final Context extractedContext = propagate().extract(message, GETTER);
+        if (Config.get().isJMSPropagationEnabledForDestination(destinationName)) {
+          AgentSpan.Context extractedContext = propagate().extract(message, GETTER);
           span = startSpan(JMS_CONSUME, extractedContext);
         } else {
           span = startSpan(JMS_CONSUME, null);
