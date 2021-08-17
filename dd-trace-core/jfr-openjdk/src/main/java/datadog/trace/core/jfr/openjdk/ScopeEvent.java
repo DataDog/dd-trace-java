@@ -7,8 +7,6 @@ import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.StackTrace;
 import jdk.jfr.Timespan;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Name("datadog.Scope")
 @Label("Scope")
@@ -16,7 +14,6 @@ import org.slf4j.LoggerFactory;
 @Category("Datadog")
 @StackTrace(false)
 public final class ScopeEvent extends Event {
-  private static final Logger log = LoggerFactory.getLogger(ScopeEvent.class);
 
   @Label("Trace Id")
   private final long traceId;
@@ -68,8 +65,6 @@ public final class ScopeEvent extends Event {
 
     end();
     if (shouldCommit()) {
-      // TODO: remove
-      log.debug("Committing scope event for: s_id={}, t_id={}", spanId, traceId);
       commit();
     }
   }

@@ -126,7 +126,6 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     return this;
   }
 
-  @Override
   public DDSpan forceKeep(boolean forceKeep) {
     this.forceKeep = forceKeep;
     return this;
@@ -139,6 +138,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public void setEmittingCheckpoints(boolean value) {
+    /*
+    The decision to emit checkpoints is made at the local root span level.
+    This is to ensure consistency in the emitted checkpoints where the whole
+    local root span subtree must either be fully covered or no checkpoints should
+    be emitted at all.
+     */
     AgentSpan rootSpan = getLocalRootSpan();
     if (rootSpan == null) {
       rootSpan = this;
@@ -155,6 +160,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public Boolean isEmittingCheckpoints() {
+    /*
+    The decision to emit checkpoints is made at the local root span level.
+    This is to ensure consistency in the emitted checkpoints where the whole
+    local root span subtree must either be fully covered or no checkpoints should
+    be emitted at all.
+     */
     AgentSpan rootSpan = getLocalRootSpan();
     return (rootSpan != null && this != rootSpan)
         ? rootSpan.isEmittingCheckpoints()

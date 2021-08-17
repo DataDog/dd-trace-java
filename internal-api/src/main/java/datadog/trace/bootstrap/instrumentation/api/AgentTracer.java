@@ -539,16 +539,6 @@ public class AgentTracer {
     }
 
     @Override
-    public NoopAgentSpan forceKeep(boolean forceKeep) {
-      return this;
-    }
-
-    @Override
-    public boolean isForceKeep() {
-      return false;
-    }
-
-    @Override
     public void setEmittingCheckpoints(boolean value) {}
 
     @Override

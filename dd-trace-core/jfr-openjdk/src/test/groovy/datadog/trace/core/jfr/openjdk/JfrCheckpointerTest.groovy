@@ -14,6 +14,7 @@ class JfrCheckpointerTest extends DDSpecification {
 
     JFRCheckpointer checkpointer = Spy(new JFRCheckpointer(sampler, ConfigProvider.getInstance()))
     checkpointer.emitCheckpoint(_, _)  >> {}
+    checkpointer.dropCheckpoint() >> {}
 
     AgentSpan span = mockSpan(checkpointed)
 
@@ -23,6 +24,7 @@ class JfrCheckpointerTest extends DDSpecification {
     setEmitting * span.setEmittingCheckpoints(true)
     setDropping * span.setEmittingCheckpoints(false)
     checkpoints * checkpointer.emitCheckpoint(span.traceId, span.spanId, 0)
+    (1 - checkpoints) * checkpointer.dropCheckpoint()
 
     where:
     checkpointed  | sampled   | checkpoints   | setEmitting | setDropping

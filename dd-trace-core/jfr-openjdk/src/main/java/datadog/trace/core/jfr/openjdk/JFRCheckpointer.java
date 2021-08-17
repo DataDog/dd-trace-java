@@ -17,6 +17,8 @@ public class JFRCheckpointer implements Checkpointer {
   private static final Logger log = LoggerFactory.getLogger(JFRCheckpointer.class);
 
   private static final int MASK = ~CPU;
+  private static final int SAMPLER_LOOKBACK = 11;
+  private static final int SAMPLER_WINDOW_SIZE_MS = 800;
 
   private final AdaptiveSampler sampler;
 
@@ -58,33 +60,41 @@ public class JFRCheckpointer implements Checkpointer {
   }
 
   private void tryEmitCheckpoint(AgentSpan span, int flags) {
-    boolean checkpointed = false;
+    boolean checkpointed;
     Boolean isEmitting = span.isEmittingCheckpoints();
     if (isEmitting == null) {
+      // if the flag hasn't been set yet consult the sampler
       checkpointed = sampler.sample();
+      // store the decision in the span
       span.setEmittingCheckpoints(checkpointed);
       if (log.isDebugEnabled()) {
         log.debug(
-            "{} checkpoints for root span(s_id={}, t_id={})",
+            "{} checkpoints for span(s_id={}, t_id={}) subtree",
             checkpointed ? "Generating" : "Dropping",
             span.getSpanId(),
             span.getTraceId());
       }
     } else if (isEmitting) {
+      // reuse the sampler decision and force the sample
       checkpointed = sampler.keep();
     } else {
+      // reuse the sampler decision and force the drop
       checkpointed = sampler.drop();
     }
     if (checkpointed) {
       emitCheckpoint(span.getTraceId(), span.getSpanId(), flags);
     } else {
-      dropped.increment();
+      dropCheckpoint();
     }
   }
 
   void emitCheckpoint(DDId traceId, DDId spanId, int flags) {
     new CheckpointEvent(traceId.toLong(), spanId.toLong(), flags & MASK).commit();
     emitted.increment();
+  }
+
+  void dropCheckpoint() {
+    dropped.increment();
   }
 
   @Override
@@ -103,8 +113,8 @@ public class JFRCheckpointer implements Checkpointer {
       log.debug("Checkpoint adaptive sampling is disabled");
       return null;
     }
+    int windowSize = SAMPLER_WINDOW_SIZE_MS;
     TimeUnit windowTimeUnit = TimeUnit.MILLISECONDS;
-    int windowSize = 800;
     /*
     Due to coarse grained sampling (at the level of a local root span) and extremely high variability of
     the number of checkpoints generated from such a root span, anywhere between 1 and 100000 seems to be
@@ -120,26 +130,13 @@ public class JFRCheckpointer implements Checkpointer {
       samplesPerWindow = 1;
       windowSize = 1;
     }
-    int lookback = 11;
     log.debug(
         "Using checkpoint adaptive sampling with parameters: windowSize(ms)={}, windowSamples={}, lookback={}",
         windowSize,
         samplesPerWindow,
-        lookback);
-    return AdaptiveSampler.instance(windowSize, windowTimeUnit, (int) samplesPerWindow, lookback);
-  }
-
-  private static String decodeCheckpointFlags(int flags) {
-    if ((flags & SPAN) == SPAN) {
-      return ((flags & END) == END) ? "END_SPAN" : "START_SPAN";
-    }
-    if ((flags & CPU) == CPU) {
-      return ((flags & END) == END) ? "END_TASK" : "START_TASK";
-    }
-    if ((flags & THREAD_MIGRATION) == THREAD_MIGRATION) {
-      return ((flags & END) == END) ? "RESUME_SPAN" : "SUSPEND_SPAN";
-    }
-    return "UNKNOWN(" + flags + ")";
+        SAMPLER_LOOKBACK);
+    return AdaptiveSampler.instance(
+        windowSize, windowTimeUnit, (int) samplesPerWindow, SAMPLER_LOOKBACK);
   }
 
   private static int getRateLimit(ConfigProvider configProvider) {
