@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
 import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -24,10 +24,8 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE
-import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER
 
 class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   static final SHARED_TOPIC = ["topic1", "topic2", "topic3", "topic4"]

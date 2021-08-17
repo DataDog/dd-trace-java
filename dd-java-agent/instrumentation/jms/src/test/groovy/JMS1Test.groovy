@@ -4,7 +4,6 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
 import datadog.trace.api.config.TraceInstrumentationConfig
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -20,12 +19,6 @@ import javax.jms.Session
 import javax.jms.TextMessage
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
-import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE
-import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE
-import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER
 
 class JMS1Test extends AgentTestRunner {
   @Shared
