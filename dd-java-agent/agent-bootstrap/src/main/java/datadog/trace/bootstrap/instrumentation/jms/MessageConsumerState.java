@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.jms;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
+/** Tracks message scopes and spans when consuming messages with {@code receive}. */
 public final class MessageConsumerState {
   private final ThreadLocal<AgentScope> currentScope = new ThreadLocal<>();
 
@@ -29,8 +30,9 @@ public final class MessageConsumerState {
     return destinationName;
   }
 
-  public void capture(AgentScope scope) {
-    this.currentScope.set(scope);
+  /** Closes the given message scope when the next message is consumed or the consumer is closed. */
+  public void closeOnIteration(AgentScope scope) {
+    currentScope.set(scope);
   }
 
   public void closePreviousMessageScope() {

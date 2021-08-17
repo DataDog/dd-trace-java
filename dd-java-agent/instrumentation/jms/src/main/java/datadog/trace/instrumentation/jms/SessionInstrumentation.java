@@ -18,7 +18,6 @@ import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import java.util.HashMap;
 import java.util.Map;
 import javax.jms.Destination;
-import javax.jms.JMSException;
 import javax.jms.MessageConsumer;
 import javax.jms.Queue;
 import javax.jms.Session;
@@ -63,20 +62,24 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
 
   public static final class CreateConsumer {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void bindDestinationName(
+    public static void bindConsumerState(
         @Advice.This Session session,
         @Advice.Argument(0) Destination destination,
         @Advice.Return MessageConsumer consumer) {
+
       ContextStore<MessageConsumer, MessageConsumerState> consumerStateStore =
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class);
+
       // avoid doing the same thing more than once when there is delegation to overloads
       if (consumerStateStore.get(consumer) == null) {
+
         int ackMode;
         try {
           ackMode = session.getAcknowledgeMode();
-        } catch (JMSException e) {
+        } catch (Exception ignored) {
           ackMode = Session.AUTO_ACKNOWLEDGE;
         }
+
         // logic inlined from JMSDecorator to avoid
         // JMSException: A consumer is consuming from the temporary destination
         String resourceName = "Consumed from Destination";
@@ -99,19 +102,18 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
               resourceName = "Consumed from Topic " + destinationName;
             }
           }
-        } catch (JMSException ignore) {
+        } catch (Exception ignored) {
+          // fall back to default
         }
+
         ContextStore<Session, SessionState> sessionStateStore =
             InstrumentationContext.get(Session.class, SessionState.class);
+
         SessionState sessionState = sessionStateStore.get(session);
         if (null == sessionState) {
           sessionState = sessionStateStore.putIfAbsent(session, new SessionState(ackMode));
         }
-        // all known MessageConsumer implementations reference
-        // the Session so there is no risk of creating a memory
-        // leak here. MessageConsumerState could drop the reference
-        // to the session to save a bit of space if the implementations
-        // were instrumented instead of the interfaces.
+
         consumerStateStore.put(
             consumer,
             new MessageConsumerState(
@@ -125,7 +127,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
     public static void commit(@Advice.This Session session) {
       SessionState sessionState =
           InstrumentationContext.get(Session.class, SessionState.class).get(session);
-      if (null != sessionState) {
+      if (null != sessionState && sessionState.isTransactedSession()) {
         sessionState.onCommit();
       }
     }

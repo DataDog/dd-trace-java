@@ -4,6 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
  * This is a holder for spans created in a transacted session. It needs to be thread-safe since some
@@ -11,16 +12,20 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  */
 public final class SessionState {
 
-  public static final int CAPACITY = 8192;
+  private static final AtomicReferenceFieldUpdater<SessionState, Queue> CAPTURED_SPANS =
+      AtomicReferenceFieldUpdater.newUpdater(SessionState.class, Queue.class, "capturedSpans");
+  private static final AtomicIntegerFieldUpdater<SessionState> SPAN_COUNT =
+      AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "spanCount");
+
+  // hard bound at 8192 captured spans, degrade to finishing spans early
+  // if transactions are very large, rather than use lots of space
+  static final int MAX_CAPTURED_SPANS = 8192;
 
   private final int ackMode;
 
-  // hard bound at 8192 pending spans, degrade to finishing spans early
-  // if transactions are very large, rather than use lots of space
-  private volatile Queue<AgentSpan> queue;
-  private static final AtomicIntegerFieldUpdater<SessionState> SEQUENCE =
-      AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "sequence");
-  private volatile int sequence;
+  // consumer-related session state
+  private volatile Queue<AgentSpan> capturedSpans;
+  private volatile int spanCount;
 
   public SessionState(int ackMode) {
     this.ackMode = ackMode;
@@ -40,36 +45,36 @@ public final class SessionState {
   }
 
   // only used for testing
-  boolean isEmpty() {
-    Queue<AgentSpan> q = queue;
-    return null == q || q.isEmpty();
+  int getCapturedSpanCount() {
+    Queue<AgentSpan> q = capturedSpans;
+    assert spanCount == (null != q ? q.size() : 0);
+    return spanCount;
   }
 
-  public void add(AgentSpan span) {
-    Queue<AgentSpan> q = queue;
+  /** Finishes the given message span when the session is committed, rolled back, or closed. */
+  public void finishOnCommit(AgentSpan span) {
+    Queue<AgentSpan> q = capturedSpans;
     if (null == q) {
-      synchronized (this) {
-        if (null == queue) {
-          queue = new ArrayBlockingQueue<AgentSpan>(CAPACITY);
-        }
-        q = queue;
+      q = new ArrayBlockingQueue<AgentSpan>(MAX_CAPTURED_SPANS);
+      if (!CAPTURED_SPANS.compareAndSet(this, null, q)) {
+        q = capturedSpans; // another thread won, use their value
       }
     }
     if (q.offer(span)) {
-      SEQUENCE.incrementAndGet(this);
+      SPAN_COUNT.incrementAndGet(this);
     } else {
       // just finish the span to avoid an unbounded queue
       span.finish();
     }
   }
 
-  public void onCommit() {
-    Queue<AgentSpan> q = queue;
+  public void onCommit() { // also called on rollback or close
+    Queue<AgentSpan> q = capturedSpans;
     if (null != q) {
       synchronized (this) {
         // synchronized in case the second commit
         // happens quicker than we can close the spans
-        int taken = SEQUENCE.get(this);
+        int taken = SPAN_COUNT.get(this);
         for (int i = 0; i < taken; ++i) {
           AgentSpan span = q.poll();
           // it won't be null, but just in case...
@@ -77,7 +82,7 @@ public final class SessionState {
             span.finish();
           }
         }
-        SEQUENCE.getAndAdd(this, -taken);
+        SPAN_COUNT.getAndAdd(this, -taken);
       }
     }
   }

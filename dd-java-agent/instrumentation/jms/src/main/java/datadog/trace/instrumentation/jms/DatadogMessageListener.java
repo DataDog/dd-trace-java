@@ -17,16 +17,16 @@ import javax.jms.MessageListener;
 
 public class DatadogMessageListener implements MessageListener {
 
-  private final ContextStore<Message, AgentSpan> contextStore;
-  private final MessageConsumerState messageConsumerState;
+  private final ContextStore<Message, AgentSpan> messageAckStore;
+  private final MessageConsumerState consumerState;
   private final MessageListener messageListener;
 
   public DatadogMessageListener(
-      ContextStore<Message, AgentSpan> contextStore,
-      MessageListener messageListener,
-      MessageConsumerState messageConsumerState) {
-    this.contextStore = contextStore;
-    this.messageConsumerState = messageConsumerState;
+      ContextStore<Message, AgentSpan> messageAckStore,
+      MessageConsumerState consumerState,
+      MessageListener messageListener) {
+    this.messageAckStore = messageAckStore;
+    this.consumerState = consumerState;
     this.messageListener = messageListener;
   }
 
@@ -35,20 +35,21 @@ public class DatadogMessageListener implements MessageListener {
     AgentSpan.Context extractedContext = propagate().extract(message, GETTER);
     AgentSpan span = startSpan(JMS_CONSUME, extractedContext);
     CONSUMER_DECORATE.afterStart(span);
-    CONSUMER_DECORATE.onConsume(span, message, messageConsumerState.getResourceName());
+    CONSUMER_DECORATE.onConsume(span, message, consumerState.getResourceName());
     try (AgentScope scope = activateSpan(span)) {
       messageListener.onMessage(message);
     } catch (RuntimeException | Error thrown) {
       CONSUMER_DECORATE.onError(span, thrown);
       throw thrown;
     } finally {
-      SessionState sessionState = messageConsumerState.getSessionState();
+      SessionState sessionState = consumerState.getSessionState();
       if (sessionState.isClientAcknowledge()) {
-        contextStore.put(message, span);
-      } else if (sessionState.isAutoAcknowledge()) {
-        span.finish();
+        messageAckStore.put(message, span);
       } else if (sessionState.isTransactedSession()) {
-        sessionState.add(span);
+        // span will be finished by Session.commit/rollback/close
+        sessionState.finishOnCommit(span);
+      } else { // Session.AUTO_ACKNOWLEDGE
+        span.finish();
       }
     }
   }
