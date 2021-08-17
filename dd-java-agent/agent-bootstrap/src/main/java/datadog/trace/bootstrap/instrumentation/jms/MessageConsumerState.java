@@ -4,37 +4,21 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public final class MessageConsumerState {
-
-  private final Object session;
-  private final int ackMode;
-  private final UTF8BytesString resourceName;
   private final ThreadLocal<AgentScope> currentScope = new ThreadLocal<>();
+
+  private final SessionState sessionState;
+  private final UTF8BytesString resourceName;
   private final String destinationName;
 
   public MessageConsumerState(
-      Object session, int ackMode, UTF8BytesString resourceName, String destinationName) {
-    this.session = session;
-    this.ackMode = ackMode;
+      SessionState sessionState, UTF8BytesString resourceName, String destinationName) {
+    this.sessionState = sessionState;
     this.resourceName = resourceName;
     this.destinationName = destinationName;
   }
 
-  @SuppressWarnings("unchecked")
-  public <T> T getSession() {
-    return (T) session;
-  }
-
-  public boolean isTransactedSession() {
-    return ackMode == 0; /* Session.SESSION_TRANSACTED */
-  }
-
-  public boolean isAutoAcknowledge() {
-    return ackMode == 1 || ackMode == 3; /*Session.AUTO_ACKNOWLEDGE Session.DUPS_OK_ACKNOWLEDGE */
-  }
-
-  public boolean isClientAcknowledge() {
-    /* Session.CLIENT_ACKNOWLEDGE */
-    return ackMode == 2;
+  public SessionState getSessionState() {
+    return sessionState;
   }
 
   public UTF8BytesString getResourceName() {
@@ -56,7 +40,7 @@ public final class MessageConsumerState {
       // be quite a long time before another message arrives
       currentScope.remove();
       scope.close();
-      if (isAutoAcknowledge()) {
+      if (sessionState.isAutoAcknowledge()) {
         scope.span().finish();
       }
     }

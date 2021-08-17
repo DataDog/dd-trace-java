@@ -13,12 +13,31 @@ public final class SessionState {
 
   public static final int CAPACITY = 8192;
 
+  private final int ackMode;
+
   // hard bound at 8192 pending spans, degrade to finishing spans early
   // if transactions are very large, rather than use lots of space
   private volatile Queue<AgentSpan> queue;
   private static final AtomicIntegerFieldUpdater<SessionState> SEQUENCE =
       AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "sequence");
   private volatile int sequence;
+
+  public SessionState(int ackMode) {
+    this.ackMode = ackMode;
+    // defer creating queue as we only need it for transacted sessions
+  }
+
+  public boolean isTransactedSession() {
+    return ackMode == 0; /* Session.SESSION_TRANSACTED */
+  }
+
+  public boolean isAutoAcknowledge() {
+    return ackMode == 1 || ackMode == 3; /* Session.AUTO_ACKNOWLEDGE, Session.DUPS_OK_ACKNOWLEDGE */
+  }
+
+  public boolean isClientAcknowledge() {
+    return ackMode == 2; /* Session.CLIENT_ACKNOWLEDGE */
+  }
 
   // only used for testing
   boolean isEmpty() {

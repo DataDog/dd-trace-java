@@ -18,18 +18,15 @@ import javax.jms.MessageListener;
 public class DatadogMessageListener implements MessageListener {
 
   private final ContextStore<Message, AgentSpan> contextStore;
-  private final SessionState sessionState;
   private final MessageConsumerState messageConsumerState;
   private final MessageListener messageListener;
 
   public DatadogMessageListener(
       ContextStore<Message, AgentSpan> contextStore,
       MessageListener messageListener,
-      MessageConsumerState messageConsumerState,
-      SessionState sessionState) {
+      MessageConsumerState messageConsumerState) {
     this.contextStore = contextStore;
     this.messageConsumerState = messageConsumerState;
-    this.sessionState = sessionState;
     this.messageListener = messageListener;
   }
 
@@ -45,11 +42,12 @@ public class DatadogMessageListener implements MessageListener {
       CONSUMER_DECORATE.onError(span, thrown);
       throw thrown;
     } finally {
-      if (messageConsumerState.isClientAcknowledge()) {
+      SessionState sessionState = messageConsumerState.getSessionState();
+      if (sessionState.isClientAcknowledge()) {
         contextStore.put(message, span);
-      } else if (messageConsumerState.isAutoAcknowledge()) {
+      } else if (sessionState.isAutoAcknowledge()) {
         span.finish();
-      } else if (messageConsumerState.isTransactedSession()) {
+      } else if (sessionState.isTransactedSession()) {
         sessionState.add(span);
       }
     }
