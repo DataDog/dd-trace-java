@@ -119,7 +119,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
 
         String destinationName = messageConsumerState.getDestinationName();
 
-        if (Config.get().isJMSPropagationEnabledForDestination(destinationName)) {
+        if (!Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
           AgentSpan.Context extractedContext = propagate().extract(message, GETTER);
           span = startSpan(JMS_CONSUME, extractedContext);
         } else {

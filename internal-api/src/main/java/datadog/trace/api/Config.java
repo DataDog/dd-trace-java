@@ -1246,27 +1246,36 @@ public class Config {
     return appSecEnabled;
   }
 
-  public boolean isKafkaClientPropagationEnabledForTopic(String topic) {
-    return kafkaClientPropagationEnabled
-        && (null == topic || !kafkaClientPropagationDisabledTopics.contains(topic));
+  public boolean isKafkaClientPropagationEnabled() {
+    return kafkaClientPropagationEnabled;
   }
 
-  public boolean isJMSPropagationEnabledForDestination(final String queueOrTopic) {
-    return jmsPropagationEnabled
-        && (null == queueOrTopic
-            || (!jmsPropagationDisabledQueues.contains(queueOrTopic)
-                && !jmsPropagationDisabledTopics.contains(queueOrTopic)));
+  public boolean isKafkaClientPropagationDisabledForTopic(String topic) {
+    return null != topic && kafkaClientPropagationDisabledTopics.contains(topic);
+  }
+
+  public boolean isJMSPropagationEnabled() {
+    return jmsPropagationEnabled;
+  }
+
+  public boolean isJMSPropagationDisabledForDestination(final String queueOrTopic) {
+    return null != queueOrTopic
+        && (jmsPropagationDisabledQueues.contains(queueOrTopic)
+            || jmsPropagationDisabledTopics.contains(queueOrTopic));
   }
 
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
   }
 
-  public boolean isRabbitPropagationEnabledForDestination(final String queueOrExchange) {
-    return rabbitPropagationEnabled
-        && (null == queueOrExchange
-            || (!rabbitPropagationDisabledQueues.contains(queueOrExchange)
-                && !rabbitPropagationDisabledExchanges.contains(queueOrExchange)));
+  public boolean isRabbitPropagationEnabled() {
+    return rabbitPropagationEnabled;
+  }
+
+  public boolean isRabbitPropagationDisabledForDestination(final String queueOrExchange) {
+    return null != queueOrExchange
+        && (rabbitPropagationDisabledQueues.contains(queueOrExchange)
+            || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
   }
 
   public boolean isHystrixTagsEnabled() {

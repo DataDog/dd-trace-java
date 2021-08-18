@@ -96,7 +96,8 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, message, defaultDestination);
 
-      if (Config.get().isJMSPropagationEnabledForDestination(destinationName)) {
+      if (Config.get().isJMSPropagationEnabled()
+          && !Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
         propagate().inject(span, message, SETTER);
       }
       return activateSpan(span);
@@ -143,7 +144,8 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       } catch (final JMSException e) {
       }
 
-      if (Config.get().isJMSPropagationEnabledForDestination(destinationName)) {
+      if (Config.get().isJMSPropagationEnabled()
+          && !Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
         propagate().inject(span, message, SETTER);
       }
       return activateSpan(span);
