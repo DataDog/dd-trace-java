@@ -32,7 +32,7 @@ public class RatpackTypedDataInstrumentation extends Instrumenter.AppSec {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.ratpack.RatpackRequestBodyCallGetTextAdvice"
+      packageName + ".GetTextCharSequenceSupplier",
     };
   }
 

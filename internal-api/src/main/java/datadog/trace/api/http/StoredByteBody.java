@@ -171,6 +171,16 @@ public class StoredByteBody implements StoredBodySupplier {
   }
 
   public interface ByteBufferWriteCallback {
+    /**
+     * Asks the callback of {@link StoredByteBody#appendData(ByteBufferWriteCallback, int)} to write
+     * exactly <code>undecodedData.remaining()</code> bytes into the passed <code>ByteBuffer</code>.
+     * This amount of bytes will never be larger that the amount of data yet to be written; put
+     * another way, for one invocation of <code>appendData(cb, n)</code>, the sum of the values of
+     * <code>undecodedData.remaining()</code> for the several <code>cb</code> calls will be <code>n
+     * </code> (or zero, if alternatively, cb is never invoked by <code>appendData</code>).
+     *
+     * @param undecodedData the buffer to write into
+     */
     void put(ByteBuffer undecodedData);
   }
 }

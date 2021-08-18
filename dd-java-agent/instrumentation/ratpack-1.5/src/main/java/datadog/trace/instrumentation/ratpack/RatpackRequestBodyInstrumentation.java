@@ -22,9 +22,9 @@ public class RatpackRequestBodyInstrumentation extends Instrumenter.AppSec {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RatpackBodyReadStreamAdvice$ByteBufIntoByteBufferCallback",
-      packageName + ".RatpackBodyReadStreamAdvice$RequestBodyCollectionPublisher",
-      packageName + ".RatpackBodyReadStreamAdvice$RequestBodyCollectionPublisher$1",
+      packageName + ".RequestBodyCollectionPublisher$ByteBufIntoByteBufferCallback",
+      packageName + ".RequestBodyCollectionPublisher",
+      packageName + ".RequestBodyCollectionPublisher$1",
     };
   }
 
