@@ -18,8 +18,12 @@ public class EndpointEvent extends Event {
   @Label("Trace Id")
   private final long traceId;
 
-  public EndpointEvent(final String endpoint, final long traceId) {
+  @Label("Kept")
+  private final boolean kept;
+
+  public EndpointEvent(final String endpoint, final long traceId, final boolean kept) {
     this.endpoint = endpoint;
     this.traceId = traceId;
+    this.kept = kept;
   }
 }

@@ -138,7 +138,7 @@ class GrpcTest extends AgentTestRunner {
     _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
     _ * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
-    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
     cleanup:
@@ -242,7 +242,7 @@ class GrpcTest extends AgentTestRunner {
 
     3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
     cleanup:
@@ -332,7 +332,7 @@ class GrpcTest extends AgentTestRunner {
 
     3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
     cleanup:

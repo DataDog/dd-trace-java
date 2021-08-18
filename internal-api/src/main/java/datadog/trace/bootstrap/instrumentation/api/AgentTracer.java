@@ -287,7 +287,7 @@ public class AgentTracer {
     public void onFinish(AgentSpan span) {}
 
     @Override
-    public void onRootSpanPublished(AgentSpan root) {}
+    public void onRootSpan(AgentSpan root, boolean published) {}
 
     @Override
     public InstrumentationGateway instrumentationGateway() {

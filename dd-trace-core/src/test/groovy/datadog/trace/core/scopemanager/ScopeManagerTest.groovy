@@ -472,7 +472,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
-    1 * checkpointer.onRootSpanPublished("foo", _)
+    1 * checkpointer.onRootSpan("foo", _)
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
 

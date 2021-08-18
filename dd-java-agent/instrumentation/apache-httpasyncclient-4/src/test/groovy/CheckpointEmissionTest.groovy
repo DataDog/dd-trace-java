@@ -56,7 +56,7 @@ class CheckpointEmissionTest extends AgentTestRunner {
     2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
     3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * _
   }
 
@@ -74,7 +74,7 @@ class CheckpointEmissionTest extends AgentTestRunner {
     2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
     4 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * _
   }
 

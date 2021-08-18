@@ -152,7 +152,7 @@ class Aws2ClientTest extends AgentTestRunner {
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
     where:
@@ -278,7 +278,7 @@ class Aws2ClientTest extends AgentTestRunner {
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
     1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
     where:

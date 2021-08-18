@@ -27,7 +27,7 @@ class TimelineCheckpointer implements Checkpointer {
   }
 
   @Override
-  void onRootSpanPublished(String route, DDId traceId) {
+  void onRootSpan(String route, DDId traceId, boolean published) {
   }
 
   void publish() {

@@ -32,5 +32,5 @@ public interface Checkpointer {
    */
   void checkpoint(AgentSpan span, int flags);
 
-  void onRootSpanPublished(String route, DDId traceId);
+  void onRootSpan(String route, DDId traceId, boolean published);
 }

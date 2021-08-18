@@ -182,8 +182,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public void onRootSpanPublished(AgentSpan root) {
-    checkpointer.onRootSpanPublished(root);
+  public void onRootSpan(AgentSpan root, boolean published) {
+    checkpointer.onRootSpan(root, published);
   }
 
   public static class CoreTracerBuilder {
@@ -657,17 +657,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
       spanToSample.forceKeep(forceKeep);
-      if (forceKeep || sampler.sample(spanToSample)) {
+      boolean published = forceKeep || sampler.sample(spanToSample);
+      if (published) {
         writer.write(writtenTrace);
-        if (null != rootSpan) {
-          onRootSpanPublished(rootSpan);
-        }
       } else {
         // with span streaming this won't work - it needs to be changed
         // to track an effective sampling rate instead, however, tests
         // checking that a hard reference on a continuation prevents
         // reporting fail without this, so will need to be fixed first.
         writer.incrementDropCounts(writtenTrace.size());
+      }
+      if (null != rootSpan) {
+        onRootSpan(rootSpan, published);
       }
     }
   }

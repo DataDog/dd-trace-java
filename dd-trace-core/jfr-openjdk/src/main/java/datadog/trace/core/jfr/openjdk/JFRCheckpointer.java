@@ -98,8 +98,8 @@ public class JFRCheckpointer implements Checkpointer {
   }
 
   @Override
-  public final void onRootSpanPublished(final String endpoint, final DDId traceId) {
-    new EndpointEvent(endpoint, traceId.toLong()).commit();
+  public final void onRootSpan(final String endpoint, final DDId traceId, boolean published) {
+    new EndpointEvent(endpoint, traceId.toLong(), published).commit();
   }
 
   private void emitSummary() {

@@ -17,5 +17,5 @@ public interface SpanCheckpointer {
 
   void onFinish(AgentSpan span);
 
-  void onRootSpanPublished(AgentSpan root);
+  void onRootSpan(AgentSpan root, boolean published);
 }
