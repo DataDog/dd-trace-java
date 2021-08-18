@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
 import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -22,11 +22,10 @@ import spock.lang.Unroll
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE
-import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER
 
 class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
   static final SHARED_TOPIC = ["topic1", "topic2", "topic3", "topic4"]
@@ -174,8 +173,6 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
       CheckpointValidationMode.INTERVALS)
 
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS, value as String)
-    // Need to disable the producer side injection in all cases so it won't overwrite with another span's headers
-    injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED, "false")
 
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
@@ -254,19 +251,19 @@ class KafkaClientCustomPropagationConfigTest extends AgentTestRunner {
     Headers header = new RecordHeaders()
 
     AgentSpan span = startSpan(KAFKA_PRODUCE)
-    propagate().inject(span, header, SETTER)
-    span.finish()
-
-    for (String topic : SHARED_TOPIC) {
-      ProducerRecord record = new ProducerRecord<>(
-        topic,
-        0,
-        null,
-        MESSAGE,
-        header
-        )
-      kafkaTemplate.send(record as ProducerRecord<String, String>)
+    activateSpan(span).withCloseable {
+      for (String topic : SHARED_TOPIC) {
+        ProducerRecord record = new ProducerRecord<>(
+          topic,
+          0,
+          null,
+          MESSAGE,
+          header
+          )
+        kafkaTemplate.send(record as ProducerRecord<String, String>)
+      }
     }
+    span.finish()
 
     then:
     // check that the message was received

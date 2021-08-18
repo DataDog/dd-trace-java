@@ -4,7 +4,6 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
 import datadog.trace.api.config.TraceInstrumentationConfig
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -20,12 +19,6 @@ import javax.jms.Session
 import javax.jms.TextMessage
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
-import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE
-import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE
-import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER
 
 class JMS1Test extends AgentTestRunner {
   @Shared
@@ -398,14 +391,8 @@ class JMS1Test extends AgentTestRunner {
     setup:
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)
-    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_ENABLED, "false")
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
-    AgentSpan span1 = startSpan(JMS_PRODUCE)
-    PRODUCER_DECORATE.afterStart(span1)
-    PRODUCER_DECORATE.onProduce(span1, message, destination)
-    propagate().inject(span1, message, SETTER)
-    span1.finish()
     producer.send(message)
     TextMessage receivedMessage = consumer.receive()
     // required to finish auto-acknowledged spans
@@ -413,14 +400,12 @@ class JMS1Test extends AgentTestRunner {
     expect:
     receivedMessage.text == messageText
     if (expected) {
-      assertTraces(3) {
-        producerTrace(it, jmsResourceName)
+      assertTraces(2) {
         producerTrace(it, jmsResourceName)
         consumerTrace(it, jmsResourceName, trace(0)[0])
       }
     } else {
-      assertTraces(3) {
-        producerTrace(it, jmsResourceName)
+      assertTraces(2) {
         producerTrace(it, jmsResourceName)
         trace(1) {
           span {
