@@ -507,7 +507,7 @@ abstract class HttpClientTest extends AgentTestRunner {
   }
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void clientSpan(TraceAssert trace, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, Throwable exception = null) {
+  void clientSpan(TraceAssert trace, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, Throwable exception = null, boolean ignorePeer = false) {
     trace.span {
       if (parentSpan == null) {
         parent()
@@ -525,9 +525,9 @@ abstract class HttpClientTest extends AgentTestRunner {
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" uri.host
-        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
-        "$Tags.PEER_PORT" { it == uri.port || it == proxy.port || it == 443 || it == null }
+        "$Tags.PEER_HOSTNAME" { it == uri.host || ignorePeer }
+        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" || ignorePeer } // Optional
+        "$Tags.PEER_PORT" { it == null || it == uri.port || it == proxy.port || it == 443 || ignorePeer }
         "$Tags.HTTP_URL" "${uri.resolve(uri.path)}" // remove fragment
         "$Tags.HTTP_METHOD" method
         if (status) {
