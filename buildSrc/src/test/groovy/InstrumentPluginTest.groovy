@@ -20,7 +20,7 @@ class InstrumentPluginTest extends Specification {
     }
 
     dependencies {
-      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.11.5' // just to build TestPlugin
+      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.11.13' // just to build TestPlugin
     }
 
     apply plugin: 'instrument'
