@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AWS_SQS_AS_SEPARATE_SERVICE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -127,6 +128,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESS
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AWS_SQS_AS_SEPARATE_SERVICE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
@@ -390,6 +392,8 @@ public class Config {
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
+
+  private final boolean awsSqsAsSeparateService;
 
   private final boolean rabbitPropagationEnabled;
   private final Set<String> rabbitPropagationDisabledQueues;
@@ -818,6 +822,9 @@ public class Config {
 
     jmsPropagationDisabledQueues =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_QUEUES));
+
+    awsSqsAsSeparateService =
+        configProvider.getBoolean(AWS_SQS_AS_SEPARATE_SERVICE, DEFAULT_AWS_SQS_AS_SEPARATE_SERVICE);
 
     rabbitPropagationEnabled =
         configProvider.getBoolean(RABBIT_PROPAGATION_ENABLED, DEFAULT_RABBIT_PROPAGATION_ENABLED);
@@ -1266,6 +1273,10 @@ public class Config {
 
   public boolean isKafkaClientBase64DecodingEnabled() {
     return kafkaClientBase64DecodingEnabled;
+  }
+
+  public boolean isAwsSqsAsSeparateService() {
+    return awsSqsAsSeparateService;
   }
 
   public boolean isRabbitPropagationEnabled() {

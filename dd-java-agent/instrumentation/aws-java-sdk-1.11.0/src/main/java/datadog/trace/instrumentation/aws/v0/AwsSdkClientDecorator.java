@@ -4,6 +4,7 @@ import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
+import datadog.trace.api.Config;
 import datadog.trace.api.Function;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
@@ -20,6 +21,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   private static final Pattern AMAZON_PATTERN = Pattern.compile("Amazon", Pattern.LITERAL);
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
+  static final String SQS_SERVICE_NAME = "java-aws-sqs";
 
   private final QualifiedClassNameCache cache =
       new QualifiedClassNameCache(
@@ -59,14 +61,21 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     if (null != bucketName) {
       span.setTag("aws.bucket.name", bucketName);
     }
-    String queueUrl = access.getQueueUrl(originalRequest);
-    if (null != queueUrl) {
-      span.setTag("aws.queue.url", queueUrl);
+
+    { // SQS
+      final String queueUrl = access.getQueueUrl(originalRequest);
+      if (null != queueUrl) {
+        span.setTag("aws.queue.url", queueUrl);
+      }
+      final String queueName = access.getQueueName(originalRequest);
+      if (null != queueName) {
+        span.setTag("aws.queue.name", queueName);
+      }
+      if ((null != queueUrl || null != queueName) && Config.get().isAwsSqsAsSeparateService()) {
+        span.setServiceName(SQS_SERVICE_NAME);
+      }
     }
-    String queueName = access.getQueueName(originalRequest);
-    if (null != queueName) {
-      span.setTag("aws.queue.name", queueName);
-    }
+
     String streamName = access.getStreamName(originalRequest);
     if (null != streamName) {
       span.setTag("aws.stream.name", streamName);

@@ -30,6 +30,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
   static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";
 
+  static final boolean DEFAULT_AWS_SQS_AS_SEPARATE_SERVICE = true;
+
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
   static final boolean DEFAULT_SERIALVERSIONUID_FIELD_INJECTION = true;
 

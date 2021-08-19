@@ -19,6 +19,8 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
   public static final String TRACE_TESTS_ENABLED = "trace.tests.enabled";
 
+  public static final String AWS_SQS_AS_SEPARATE_SERVICE = "aws.sqs.as.separate.service";
+
   public static final String HTTP_SERVER_TAG_QUERY_STRING = "http.server.tag.query-string";
   public static final String HTTP_SERVER_RAW_QUERY_STRING = "http.server.raw.query-string";
   public static final String HTTP_SERVER_RAW_RESOURCE = "http.server.raw.resource";

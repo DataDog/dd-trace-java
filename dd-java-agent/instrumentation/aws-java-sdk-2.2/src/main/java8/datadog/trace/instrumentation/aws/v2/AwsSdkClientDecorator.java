@@ -18,6 +18,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   public static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
+  static final String SQS_SERVICE_NAME = "java-aws-sqs";
 
   public AgentSpan onSdkRequest(final AgentSpan span, final SdkRequest request) {
     // S3
@@ -27,10 +28,18 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // SQS
     request
         .getValueForField("QueueUrl", String.class)
-        .ifPresent(name -> span.setTag("aws.queue.url", name));
+        .ifPresent(
+            name -> {
+              span.setTag("aws.queue.url", name);
+              span.setServiceName(SQS_SERVICE_NAME);
+            });
     request
         .getValueForField("QueueName", String.class)
-        .ifPresent(name -> span.setTag("aws.queue.name", name));
+        .ifPresent(
+            name -> {
+              span.setTag("aws.queue.name", name);
+              span.setServiceName(SQS_SERVICE_NAME);
+            });
     // Kinesis
     request
         .getValueForField("StreamName", String.class)
