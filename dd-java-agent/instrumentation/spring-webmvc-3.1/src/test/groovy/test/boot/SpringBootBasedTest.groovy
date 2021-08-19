@@ -22,7 +22,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_HE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static java.util.Collections.singletonMap
 
 class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext> {
 
@@ -45,7 +44,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     @Override
     void start() {
-      app.setDefaultProperties(singletonMap("server.port", 0))
+      app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext"])
       context = app.run() as EmbeddedWebApplicationContext
       port = context.embeddedServletContainer.port
       assert port > 0
@@ -58,7 +57,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     @Override
     URI address() {
-      return new URI("http://localhost:$port/")
+      return new URI("http://localhost:$port/$servletContext/")
     }
 
     @Override
@@ -75,6 +74,15 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   @Override
   String component() {
     return Servlet3Decorator.DECORATE.component()
+  }
+
+  String getServletContext() {
+    return "boot-context"
+  }
+
+  @Override
+  String expectedServiceName() {
+    servletContext
   }
 
   @Override
@@ -107,7 +115,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    ["servlet.path": endpoint.path]
+    ["servlet.path": endpoint.path, "servlet.context": "/$servletContext"]
   }
 
   @Override
@@ -117,7 +125,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     } else if (endpoint.hasPathParam) {
       return "$method ${testPathParam()}"
     }
-    return "$method ${endpoint.resolve(address).path}"
+    def base = endpoint == LOGIN ? address : address.resolve("/")
+    return "$method ${endpoint.resolve(base).path}"
   }
 
   int spanCount(ServerEndpoint endpoint) {
