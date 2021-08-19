@@ -42,6 +42,7 @@ testSets {
 
 dependencies {
   compileOnly group: 'io.netty', name: 'netty-codec-http', version: '4.1.0.Final'
+  api project(':dd-java-agent:instrumentation:netty-4.1-shared')
 
   testImplementation project(':dd-java-agent:instrumentation:netty-promise-4')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
