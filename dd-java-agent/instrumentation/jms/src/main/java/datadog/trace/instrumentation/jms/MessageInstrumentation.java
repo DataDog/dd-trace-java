@@ -10,7 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import java.util.Map;
 import javax.jms.Message;
 import net.bytebuddy.asm.Advice;
@@ -36,7 +36,7 @@ public class MessageInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("javax.jms.Message", AgentSpan.class.getName());
+    return singletonMap("javax.jms.Message", SessionState.class.getName());
   }
 
   @Override
@@ -49,10 +49,10 @@ public class MessageInstrumentation extends Instrumenter.Tracing {
   public static final class Acknowledge {
     @Advice.OnMethodExit
     public static void acknowledge(@Advice.This Message message) {
-      AgentSpan span = InstrumentationContext.get(Message.class, AgentSpan.class).get(message);
-      // must only inject if span is client acknowledge
-      if (null != span) {
-        span.finish();
+      SessionState sessionState =
+          InstrumentationContext.get(Message.class, SessionState.class).get(message);
+      if (null != sessionState && sessionState.isClientAcknowledge()) {
+        sessionState.onAcknowledge();
       }
     }
   }

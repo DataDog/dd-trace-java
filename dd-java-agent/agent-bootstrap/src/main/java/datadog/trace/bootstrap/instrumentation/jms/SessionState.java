@@ -11,8 +11,8 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
- * This is a holder for spans created in a transacted session. It needs to be thread-safe since some
- * JMS providers allow concurrent transactions.
+ * Holds message spans consumed in client-acknowledged or transacted sessions. This class needs to
+ * be thread-safe as some JMS providers allow concurrent transactions.
  */
 public final class SessionState {
 
@@ -38,7 +38,7 @@ public final class SessionState {
 
   public SessionState(int ackMode) {
     this.ackMode = ackMode;
-    // defer creating queue as we only need it for transacted sessions
+    // defer creating queue as we only need it for consumer client-ack/transacted sessions
   }
 
   public boolean isTransactedSession() {
@@ -60,8 +60,17 @@ public final class SessionState {
     return spanCount;
   }
 
+  /** Finishes the given message span when a message from the same session is acknowledged. */
+  public void finishOnAcknowledge(AgentSpan span) {
+    captureMessageSpan(span);
+  }
+
   /** Finishes the given message span when the session is committed, rolled back, or closed. */
   public void finishOnCommit(AgentSpan span) {
+    captureMessageSpan(span);
+  }
+
+  private void captureMessageSpan(AgentSpan span) {
     Queue<AgentSpan> q = capturedSpans;
     if (null == q) {
       q = new ArrayBlockingQueue<AgentSpan>(MAX_CAPTURED_SPANS);
@@ -77,12 +86,20 @@ public final class SessionState {
     }
   }
 
+  public void onAcknowledge() {
+    finishCapturedSpans();
+  }
+
   public void onCommitOrRollback() {
+    finishCapturedSpans();
+  }
+
+  private void finishCapturedSpans() {
     Queue<AgentSpan> q = capturedSpans;
     if (null != q) {
       synchronized (this) {
-        // synchronized in case the second commit
-        // happens quicker than we can close the spans
+        // synchronized in case incoming requests
+        // happen quicker than we can close the spans
         int taken = SPAN_COUNT.get(this);
         for (int i = 0; i < taken; ++i) {
           AgentSpan span = q.poll();

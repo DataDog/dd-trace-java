@@ -17,12 +17,12 @@ import javax.jms.MessageListener;
 
 public class DatadogMessageListener implements MessageListener {
 
-  private final ContextStore<Message, AgentSpan> messageAckStore;
+  private final ContextStore<Message, SessionState> messageAckStore;
   private final MessageConsumerState consumerState;
   private final MessageListener messageListener;
 
   public DatadogMessageListener(
-      ContextStore<Message, AgentSpan> messageAckStore,
+      ContextStore<Message, SessionState> messageAckStore,
       MessageConsumerState consumerState,
       MessageListener messageListener) {
     this.messageAckStore = messageAckStore;
@@ -47,7 +47,9 @@ public class DatadogMessageListener implements MessageListener {
     } finally {
       SessionState sessionState = consumerState.getSessionState();
       if (sessionState.isClientAcknowledge()) {
-        messageAckStore.put(message, span);
+        // consumed spans will be finished by a call to Message.acknowledge
+        sessionState.finishOnAcknowledge(span);
+        messageAckStore.put(message, sessionState);
       } else if (sessionState.isTransactedSession()) {
         // span will be finished by Session.commit/rollback/close
         sessionState.finishOnCommit(span);
