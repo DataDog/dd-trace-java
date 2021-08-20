@@ -4,6 +4,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.http.StoredBodyFactories;
 import datadog.trace.bootstrap.InstrumentationContext;
 import net.bytebuddy.asm.Advice;
+import ratpack.file.FileIo;
 import ratpack.http.internal.ByteBufBackedTypedData;
 
 // Calling getText doesn't modify the underlying buffer (doesn't move read index)
@@ -22,5 +23,9 @@ public class RatpackRequestBodyCallGetTextAdvice {
     if (flow.getAction().isBlocking()) {
       // TODO: implement blocking
     }
+  }
+
+  public void muzzleCheck() {
+    FileIo.open(null); // added in 1.5
   }
 }

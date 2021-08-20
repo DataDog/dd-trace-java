@@ -4,6 +4,7 @@ import datadog.trace.api.http.StoredBodyFactories;
 import datadog.trace.api.http.StoredByteBody;
 import io.netty.buffer.ByteBuf;
 import net.bytebuddy.asm.Advice;
+import ratpack.file.FileIo;
 import ratpack.server.internal.RequestBody;
 import ratpack.stream.TransformablePublisher;
 
@@ -19,5 +20,9 @@ public class RatpackBodyReadStreamAdvice {
     }
 
     publisher = new RequestBodyCollectionPublisher(byteBody, publisher);
+  }
+
+  public void muzzleCheck() {
+    FileIo.open(null); // added in 1.5
   }
 }

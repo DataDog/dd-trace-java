@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.ratpack;
 import datadog.trace.api.http.StoredBodyFactories;
 import datadog.trace.bootstrap.InstrumentationContext;
 import net.bytebuddy.asm.Advice;
+import ratpack.file.FileIo;
 import ratpack.http.internal.ByteBufBackedTypedData;
 
 public class RatpackRequestBodyGetTextCalledAdvice {
@@ -16,5 +17,9 @@ public class RatpackRequestBodyGetTextCalledAdvice {
     InstrumentationContext.get(ByteBufBackedTypedData.class, Boolean.class).put(thiz, Boolean.TRUE);
 
     StoredBodyFactories.maybeDeliverBodyInOneGo(str); // TODO: blocking
+  }
+
+  public void muzzleCheck() {
+    FileIo.open(null); // added in 1.5
   }
 }
