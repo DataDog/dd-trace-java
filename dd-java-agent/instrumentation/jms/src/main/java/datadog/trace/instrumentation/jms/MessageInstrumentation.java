@@ -2,9 +2,11 @@ package datadog.trace.instrumentation.jms;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
@@ -42,7 +44,7 @@ public class MessageInstrumentation extends Instrumenter.Tracing {
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
-        named("acknowledge").and(isMethod()).and(takesNoArguments()),
+        nameStartsWith("acknowledge").and(isMethod()).and(isPublic()).and(takesNoArguments()),
         getClass().getName() + "$Acknowledge");
   }
 
