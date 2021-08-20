@@ -57,19 +57,19 @@ public class StoredByteBody implements StoredBodySupplier {
   }
 
   /**
-   * Writes either nothing or exactly <code>len</code> bytes directly in <code>undecodedData</code>,
-   * in general through several invocations of the callback <code>cb</code>. The callback must write
-   * exactly <code>undecodedData.remaining()</code> bytes on each invocation. The limit of <code>
-   * undecodedData</code> will be adjusted in the last iteration, if necessary.
+   * Writes up to <code>len</code> bytes, in general through several invocations of the callback
+   * <code>cb</code>. The callback must write exactly <code>undecodedData.remaining()</code> bytes
+   * on each invocation. The limit of <code>undecodedData</code> passed to the callback will be
+   * adjusted in the last iteration, if necessary.
    *
    * @param cb the callback used to write directly into undecodedData
    * @param len the amount of data available to write
    */
   public synchronized void appendData(ByteBufferWriteCallback cb, int len) {
-    if (storedCharBody.isLimitReached()) {
-      return;
-    }
     for (int i = 0; i < len; ) {
+      if (storedCharBody.isLimitReached()) {
+        return;
+      }
       if (!undecodedData.hasRemaining()) {
         commit(false);
       }
