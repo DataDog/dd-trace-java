@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -114,10 +115,13 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
           sessionState = sessionStateStore.putIfAbsent(session, new SessionState(ackMode));
         }
 
+        boolean propagationDisabled =
+            Config.get().isJMSPropagationDisabledForDestination(destinationName);
+
         consumerStateStore.put(
             consumer,
             new MessageConsumerState(
-                sessionState, UTF8BytesString.create(resourceName), destinationName));
+                sessionState, UTF8BytesString.create(resourceName), propagationDisabled));
       }
     }
   }

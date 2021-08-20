@@ -17,7 +17,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -113,16 +112,11 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
       if (null != consumerState) {
-        final AgentSpan span;
-
-        String destinationName = consumerState.getDestinationName();
-
-        if (!Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
-          AgentSpan.Context extractedContext = propagate().extract(message, GETTER);
-          span = startSpan(JMS_CONSUME, extractedContext);
-        } else {
-          span = startSpan(JMS_CONSUME, null);
+        AgentSpan.Context propagatedContext = null;
+        if (!consumerState.isPropagationDisabled()) {
+          propagatedContext = propagate().extract(message, GETTER);
         }
+        AgentSpan span = startSpan(JMS_CONSUME, propagatedContext);
         // this scope is intentionally not closed here
         // it stays open until the next call to get a
         // message, or the consumer is closed

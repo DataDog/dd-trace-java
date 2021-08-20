@@ -9,13 +9,13 @@ public final class MessageConsumerState {
 
   private final SessionState sessionState;
   private final UTF8BytesString resourceName;
-  private final String destinationName;
+  private final boolean propagationDisabled;
 
   public MessageConsumerState(
-      SessionState sessionState, UTF8BytesString resourceName, String destinationName) {
+      SessionState sessionState, UTF8BytesString resourceName, boolean propagationDisabled) {
     this.sessionState = sessionState;
     this.resourceName = resourceName;
-    this.destinationName = destinationName;
+    this.propagationDisabled = propagationDisabled;
   }
 
   public SessionState getSessionState() {
@@ -26,8 +26,8 @@ public final class MessageConsumerState {
     return resourceName;
   }
 
-  public String getDestinationName() {
-    return destinationName;
+  public boolean isPropagationDisabled() {
+    return propagationDisabled;
   }
 
   /** Closes the given message scope when the next message is consumed or the consumer is closed. */
