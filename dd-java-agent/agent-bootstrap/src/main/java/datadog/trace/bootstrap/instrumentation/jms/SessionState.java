@@ -45,12 +45,15 @@ public final class SessionState {
     return ackMode == 0; /* Session.SESSION_TRANSACTED */
   }
 
-  public boolean isAutoAcknowledge() {
-    return ackMode == 1 || ackMode == 3; /* Session.AUTO_ACKNOWLEDGE, Session.DUPS_OK_ACKNOWLEDGE */
-  }
-
   public boolean isClientAcknowledge() {
     return ackMode == 2; /* Session.CLIENT_ACKNOWLEDGE */
+  }
+
+  public boolean isAutoAcknowledge() {
+    return ackMode != 0 && ackMode != 2; /* treat all other modes as Session.AUTO_ACKNOWLEDGE */
+
+    // We can't be sure of the ack-pattern for non-standard vendor modes, so the safest thing
+    // to do is close+finish message spans on the next receive like we do for AUTO_ACKNOWLEDGE
   }
 
   // only used for testing
