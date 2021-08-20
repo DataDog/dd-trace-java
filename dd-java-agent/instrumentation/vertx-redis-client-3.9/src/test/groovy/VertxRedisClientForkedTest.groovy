@@ -1,5 +1,3 @@
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import io.vertx.redis.RedisClient
@@ -20,11 +18,6 @@ class VertxRedisClientForkedTest extends VertxRedisTestBase {
   }
 
   def "set and get command"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     runWithParentAndHandler({ Handler<AsyncResult<Void>> h ->
       redisClient.set("foo", "baz", h)
@@ -42,11 +35,6 @@ class VertxRedisClientForkedTest extends VertxRedisTestBase {
   }
 
   def "set and get command without parent"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     runWithHandler({ Handler<AsyncResult<Void>> h ->
       redisClient.set("foo", "baz", h)

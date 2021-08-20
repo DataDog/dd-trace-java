@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
@@ -112,9 +110,6 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test ignoreParent"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
-
     def otherSpan = runUnderTrace("parent") {
       tracer.buildSpan("other").ignoreActiveSpan().start()
     }
@@ -126,11 +121,6 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test startActive"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def scope = tracer.buildSpan("some name").startActive(finishSpan)
 
     expect:
@@ -149,11 +139,6 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test scopemanager"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def span = tracer.buildSpan("some name").start()
     def scope = tracer.scopeManager().activate(span, finishSpan)
     (scope as TraceScope).setAsyncPropagation(false)
@@ -194,11 +179,6 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test scopemanager with non OTSpan"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def span = NoopSpan.INSTANCE
     def scope = tracer.scopeManager().activate(span, true)
 
@@ -219,11 +199,6 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test continuation"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def span = tracer.buildSpan("some name").start()
     TraceScope scope = tracer.scopeManager().activate(span, false)
     scope.setAsyncPropagation(true)
@@ -254,10 +229,6 @@ class OpenTracing31Test extends AgentTestRunner {
   }
 
   def "closing scope when not on top"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
-
     when:
     Span firstSpan = tracer.buildSpan("someOperation").start()
     Scope firstScope = tracer.scopeManager().activate(firstSpan, false)
@@ -285,11 +256,6 @@ class OpenTracing31Test extends AgentTestRunner {
 
   def "test inject extract"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def context = tracer.buildSpan("some name").start().context()
     def textMap = [:]
     def adapter = new TextMapAdapter(textMap)
@@ -323,10 +289,6 @@ class OpenTracing31Test extends AgentTestRunner {
   }
 
   def "tolerate null span activation"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS)
-
     when:
     try {
       tracer.scopeManager().activate(null, false)?.close()

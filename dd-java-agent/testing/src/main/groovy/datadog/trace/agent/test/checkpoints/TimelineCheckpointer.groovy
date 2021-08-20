@@ -37,10 +37,8 @@ class TimelineCheckpointer implements Checkpointer {
 
     def validatedEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents, trackedSpanIds, out)
 
-    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, validatedEvents*.key.event, out)
-
     // The set of excluded validations
-    def excludedValidations = CheckpointValidator.excludedValidations
+    def excludedValidations = CheckpointValidator.excludedValidations.clone()
 
     // The set of included validations
     def includedValidations = EnumSet.allOf(CheckpointValidationMode)
@@ -63,7 +61,7 @@ class TimelineCheckpointer implements Checkpointer {
       "Included & Failed: ${includedAndFailedValidations.sort()}\n" +
       "Excluded & Passed: ${excludedAndPassedValidations.sort()}\n")
 
-    out.println()
+    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, validatedEvents*.key.event, out)
 
     out.flush()
 

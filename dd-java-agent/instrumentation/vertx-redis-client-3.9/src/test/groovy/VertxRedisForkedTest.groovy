@@ -1,5 +1,3 @@
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import io.vertx.core.AsyncResult
 import io.vertx.core.Handler
 import io.vertx.redis.client.Command
@@ -11,11 +9,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 class VertxRedisForkedTest extends VertxRedisTestBase {
 
   def "set and get command"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     def set = runWithParentAndHandler({ Handler<AsyncResult<Response>> h ->
       redis.send(Request.cmd(Command.SET).arg("foo").arg("bar"), h)
@@ -34,11 +27,6 @@ class VertxRedisForkedTest extends VertxRedisTestBase {
   }
 
   def "set and get command without parent"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     def set = runWithHandler({ Handler<AsyncResult<Response>> h ->
       redis.send(Request.cmd(Command.SET).arg("foo").arg("bar"), h)
@@ -68,10 +56,6 @@ class VertxRedisForkedTest extends VertxRedisTestBase {
 
   def "work with reused request"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def request = Request.cmd(Command.SET).arg("foo").arg("bar")
 
     when:

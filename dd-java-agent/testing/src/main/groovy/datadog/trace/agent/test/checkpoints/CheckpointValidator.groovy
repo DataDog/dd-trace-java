@@ -21,7 +21,7 @@ class CheckpointValidator {
   }
 
   static Set<CheckpointValidationMode> getExcludedValidations() {
-    return excludedValidations.clone()
+    return excludedValidations
   }
 
   static void clear() {
@@ -57,7 +57,16 @@ class CheckpointValidator {
 
     if (!invalidEvents.empty) {
       out.println("=== Invalid checkpoint events encountered: ${invalidEvents*.mode.toSet().sort()}")
-      invalidEvents.each { out.println(it) }
+      invalidEvents*.event.spanId.toSet().sort().each { spanId ->
+        orderedEvents.findAll { event -> event.spanId == spanId }.each { event ->
+          def invalidEvent = invalidEvents.find { it.event == event }
+          if (invalidEvent != null) {
+            out.println(invalidEvent)
+          } else {
+            out.println(event)
+          }
+        }
+      }
     }
 
     return invalidEvents.collectEntries {
