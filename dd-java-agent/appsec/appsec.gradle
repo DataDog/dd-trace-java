@@ -30,6 +30,7 @@ dependencies {
   compileOnly deps.autoserviceAnnotation
 
   testImplementation deps.bytebuddy
+  testImplementation project(':utils:test-utils')
   testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
 }

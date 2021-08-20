@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import datadog.trace.api.Function;
+import datadog.trace.api.function.BiConsumer;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.Supplier;
 import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import org.assertj.core.api.ThrowableAssert;
 import org.junit.Before;
@@ -108,15 +110,19 @@ public class InstrumentationGatewayTest {
     gateway.registerCallback(Events.REQUEST_STARTED, callback);
     assertThat(gateway.getCallback(Events.REQUEST_STARTED).get().getResult()).isEqualTo(context);
     gateway.registerCallback(Events.REQUEST_ENDED, callback);
-    assertThat(gateway.getCallback(Events.REQUEST_ENDED).apply(null)).isEqualTo(flow);
+    assertThat(gateway.getCallback(Events.REQUEST_ENDED).apply(null, null)).isEqualTo(flow);
+    gateway.registerCallback(Events.REQUEST_METHOD, callback);
+    gateway.getCallback(Events.REQUEST_METHOD).accept(null, null);
     gateway.registerCallback(Events.REQUEST_HEADER, callback);
     gateway.getCallback(Events.REQUEST_HEADER).accept(null, null, null);
     gateway.registerCallback(Events.REQUEST_HEADER_DONE, callback);
     assertThat(gateway.getCallback(Events.REQUEST_HEADER_DONE).apply(null)).isEqualTo(flow);
     gateway.registerCallback(Events.REQUEST_URI_RAW, callback);
     assertThat(gateway.getCallback(Events.REQUEST_URI_RAW).apply(null, null)).isEqualTo(flow);
-    gateway.registerCallback(Events.REQUEST_CLIENT_IP, callback);
-    assertThat(gateway.getCallback(Events.REQUEST_CLIENT_IP).apply(null, null)).isEqualTo(flow);
+    gateway.registerCallback(
+        Events.REQUEST_CLIENT_SOCKET_ADDRESS, callback.asClientSocketAddress());
+    assertThat(gateway.getCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS).apply(null, null, null))
+        .isEqualTo(flow);
     gateway.registerCallback(Events.REQUEST_BODY_START, callback.asRequestBodyStart());
     assertThat(gateway.getCallback(Events.REQUEST_BODY_START).apply(null, null)).isNull();
     gateway.registerCallback(Events.REQUEST_BODY_DONE, callback.asRequestBodyDone());
@@ -133,18 +139,21 @@ public class InstrumentationGatewayTest {
     assertThat(gateway.getCallback(Events.REQUEST_STARTED).get())
         .isEqualTo(Flow.ResultFlow.empty());
     gateway.registerCallback(Events.REQUEST_ENDED, throwback);
-    assertThat(gateway.getCallback(Events.REQUEST_ENDED).apply(null))
+    assertThat(gateway.getCallback(Events.REQUEST_ENDED).apply(null, null))
         .isEqualTo(Flow.ResultFlow.empty());
     gateway.registerCallback(Events.REQUEST_HEADER, throwback);
     gateway.getCallback(Events.REQUEST_HEADER).accept(null, null, null);
     gateway.registerCallback(Events.REQUEST_HEADER_DONE, throwback);
     assertThat(gateway.getCallback(Events.REQUEST_HEADER_DONE).apply(null))
         .isEqualTo(Flow.ResultFlow.empty());
+    gateway.registerCallback(Events.REQUEST_METHOD, throwback);
+    gateway.getCallback(Events.REQUEST_METHOD).accept(null, null);
     gateway.registerCallback(Events.REQUEST_URI_RAW, throwback);
     assertThat(gateway.getCallback(Events.REQUEST_URI_RAW).apply(null, null))
         .isEqualTo(Flow.ResultFlow.empty());
-    gateway.registerCallback(Events.REQUEST_CLIENT_IP, throwback);
-    assertThat(gateway.getCallback(Events.REQUEST_CLIENT_IP).apply(null, null))
+    gateway.registerCallback(
+        Events.REQUEST_CLIENT_SOCKET_ADDRESS, throwback.asClientSocketAddress());
+    assertThat(gateway.getCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS).apply(null, null, null))
         .isEqualTo(Flow.ResultFlow.empty());
     gateway.registerCallback(Events.REQUEST_BODY_START, throwback.asRequestBodyStart());
     assertThat(gateway.getCallback(Events.REQUEST_BODY_START).apply(null, null)).isNull();
@@ -157,6 +166,7 @@ public class InstrumentationGatewayTest {
   private static class Callback<T>
       implements Supplier<Flow<RequestContext>>,
           Function<RequestContext, Flow<Void>>,
+          BiConsumer<RequestContext, T>,
           TriConsumer<RequestContext, T, T>,
           BiFunction<RequestContext, T, Flow<Void>> {
 
@@ -192,6 +202,16 @@ public class InstrumentationGatewayTest {
       count++;
     }
 
+    public TriFunction<RequestContext, String, Short, Flow<Void>> asClientSocketAddress() {
+      return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
+        @Override
+        public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
+          count++;
+          return flow;
+        }
+      };
+    }
+
     public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
       return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
         @Override
@@ -212,11 +232,17 @@ public class InstrumentationGatewayTest {
         }
       };
     }
+
+    @Override
+    public void accept(RequestContext requestContext, T t) {
+      count++;
+    }
   }
 
   private static class Throwback<T>
       implements Supplier<Flow<RequestContext>>,
           Function<RequestContext, Flow<Void>>,
+          BiConsumer<RequestContext, T>,
           TriConsumer<RequestContext, T, T>,
           BiFunction<RequestContext, T, Flow<Void>> {
 
@@ -244,6 +270,22 @@ public class InstrumentationGatewayTest {
     public void accept(RequestContext requestContext, T s, T s2) {
       count++;
       throw new IllegalArgumentException();
+    }
+
+    @Override
+    public void accept(RequestContext requestContext, T t) {
+      count++;
+      throw new IllegalArgumentException();
+    }
+
+    public TriFunction<RequestContext, String, Short, Flow<Void>> asClientSocketAddress() {
+      return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
+        @Override
+        public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
+          count++;
+          throw new IllegalArgumentException();
+        }
+      };
     }
 
     public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {

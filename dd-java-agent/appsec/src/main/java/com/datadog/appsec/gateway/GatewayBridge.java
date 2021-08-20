@@ -1,5 +1,7 @@
 package com.datadog.appsec.gateway;
 
+import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
+
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.Address;
@@ -18,6 +20,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -78,13 +81,13 @@ public class GatewayBridge {
 
     subscriptionService.registerCallback(
         Events.REQUEST_ENDED,
-        (RequestContext ctx_) -> {
+        (RequestContext ctx_, AgentSpan span) -> {
           AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
           Collection<Attack010> collectedAttacks = ctx.transferCollectedAttacks();
           for (Attack010 attack : collectedAttacks) {
-            EventEnrichment.enrich(attack, ctx);
+            EventEnrichment.enrich(attack, span, ctx);
             reportService.reportAttack(attack);
           }
 
@@ -133,11 +136,19 @@ public class GatewayBridge {
     }
 
     subscriptionService.registerCallback(
-        Events.REQUEST_CLIENT_IP,
-        (ctx_, ip) -> {
+        Events.REQUEST_METHOD,
+        (ctx_, method) -> {
           AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
-          ctx.setIp(ip);
+          ctx.setMethod(method);
+        });
 
+    // guaranteed to be called after REQUEST_METHOD cb
+    subscriptionService.registerCallback(
+        Events.REQUEST_CLIENT_SOCKET_ADDRESS,
+        (ctx_, ip, port) -> {
+          AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+          ctx.setPeerAddress(ip);
+          ctx.setPeerPort(port);
           if (isInitialRequestDataPublished(ctx)) {
             return publishInitialRequestData(ctx);
           } else {
@@ -179,6 +190,7 @@ public class GatewayBridge {
     @Override
     public Flow<Void> apply(RequestContext ctx_, URIDataAdapter uri) {
       AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+      ctx.setScheme(uri.scheme());
       if (uri.supportsRaw()) {
         ctx.setRawURI(uri.raw());
       } else {
@@ -218,7 +230,7 @@ public class GatewayBridge {
   }
 
   private static boolean isInitialRequestDataPublished(AppSecRequestContext ctx) {
-    return ctx.getSavedRawURI() != null && ctx.isFinishedHeaders() && ctx.getIp() != null;
+    return ctx.getSavedRawURI() != null && ctx.isFinishedHeaders() && ctx.getPeerAddress() != null;
   }
 
   private Flow<Void> publishInitialRequestData(AppSecRequestContext ctx) {
@@ -233,23 +245,33 @@ public class GatewayBridge {
       queryParams = parseQueryStringParams(qs, StandardCharsets.UTF_8);
     }
 
+    String scheme = ctx.getScheme();
+    if (scheme == null) {
+      scheme = "http";
+    }
+
     if (initialReqDataSubInfo == null) {
       initialReqDataSubInfo =
           producerService.getDataSubscribers(
               KnownAddresses.HEADERS_NO_COOKIES,
               KnownAddresses.REQUEST_COOKIES,
+              KnownAddresses.REQUEST_SCHEME,
+              KnownAddresses.REQUEST_METHOD,
               KnownAddresses.REQUEST_URI_RAW,
               KnownAddresses.REQUEST_QUERY,
-              KnownAddresses.REQUEST_CLIENT_IP);
+              KnownAddresses.REQUEST_CLIENT_IP,
+              KnownAddresses.REQUEST_CLIENT_PORT);
     }
-
     MapDataBundle bundle =
-        new MapDataBundle.Builder()
+        new MapDataBundle.Builder(CAPACITY_6_10)
             .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getCollectedHeaders())
             .add(KnownAddresses.REQUEST_COOKIES, ctx.getCollectedCookies())
+            .add(KnownAddresses.REQUEST_SCHEME, scheme)
+            .add(KnownAddresses.REQUEST_METHOD, ctx.getMethod())
             .add(KnownAddresses.REQUEST_URI_RAW, savedRawURI)
             .add(KnownAddresses.REQUEST_QUERY, queryParams)
-            .add(KnownAddresses.REQUEST_CLIENT_IP, ctx.getIp())
+            .add(KnownAddresses.REQUEST_CLIENT_IP, ctx.getPeerAddress())
+            .add(KnownAddresses.REQUEST_CLIENT_PORT, ctx.getPeerPort())
             .build();
 
     return producerService.publishDataEvent(initialReqDataSubInfo, ctx, bundle, false);

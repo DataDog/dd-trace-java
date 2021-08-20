@@ -30,11 +30,14 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
   private Collection<Attack010> collectedAttacks; // guarded by this
 
   // assume these will always be written and read by the same thread
+  private String scheme;
+  private String method;
   private String savedRawURI;
   private final CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
   private List<StringKVPair> collectedCookies = new ArrayList<>(4);
   private boolean finishedHeaders;
-  private String ip;
+  private String peerAddress;
+  private int peerPort;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
 
@@ -76,6 +79,22 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
   }
 
   /* Interface for use of GatewayBridge */
+
+  String getScheme() {
+    return scheme;
+  }
+
+  void setScheme(String scheme) {
+    this.scheme = scheme;
+  }
+
+  String getMethod() {
+    return method;
+  }
+
+  void setMethod(String method) {
+    this.method = method;
+  }
 
   String getSavedRawURI() {
     return savedRawURI;
@@ -123,12 +142,20 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
     return collectedCookies;
   }
 
-  String getIp() {
-    return ip;
+  String getPeerAddress() {
+    return peerAddress;
   }
 
-  void setIp(String ip) {
-    this.ip = ip;
+  void setPeerAddress(String peerAddress) {
+    this.peerAddress = peerAddress;
+  }
+
+  public int getPeerPort() {
+    return peerPort;
+  }
+
+  public void setPeerPort(int peerPort) {
+    this.peerPort = peerPort;
   }
 
   void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {

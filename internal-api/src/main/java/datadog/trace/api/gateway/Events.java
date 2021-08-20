@@ -3,6 +3,7 @@ package datadog.trace.api.gateway;
 import datadog.trace.api.Function;
 import datadog.trace.api.function.*;
 import datadog.trace.api.http.StoredBodySupplier;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -23,34 +24,39 @@ public final class Events {
 
   public static final int REQUEST_ENDED_ID = 1;
   /** A request ended * */
-  public static final EventType<Function<RequestContext, Flow<Void>>> REQUEST_ENDED =
+  public static final EventType<BiFunction<RequestContext, AgentSpan, Flow<Void>>> REQUEST_ENDED =
       new ET<>("request.ended", REQUEST_ENDED_ID);
 
-  public static final int REQUEST_HEADER_ID = 2;
+  public static final int REQUEST_METHOD_ID = 2;
+  public static final EventType<BiConsumer<RequestContext, String>> REQUEST_METHOD =
+      new ET<>("server.request.method", REQUEST_METHOD_ID);
+
+  public static final int REQUEST_HEADER_ID = 3;
   /** A request header as a key and values separated by , */
   public static final EventType<TriConsumer<RequestContext, String, String>> REQUEST_HEADER =
       new ET<>("server.request.header", REQUEST_HEADER_ID);
 
-  public static final int REQUEST_HEADER_DONE_ID = 3;
+  public static final int REQUEST_HEADER_DONE_ID = 4;
   /** All request headers have been provided */
   public static final EventType<Function<RequestContext, Flow<Void>>> REQUEST_HEADER_DONE =
       new ET<>("server.request.header.done", REQUEST_HEADER_DONE_ID);
 
-  public static final int REQUEST_URI_RAW_ID = 4;
+  public static final int REQUEST_URI_RAW_ID = 5;
   /** The URIDataAdapter for the request. */
   public static final EventType<BiFunction<RequestContext, URIDataAdapter, Flow<Void>>>
       REQUEST_URI_RAW = new ET<>("server.request.uri.raw", REQUEST_URI_RAW_ID);
 
-  public static final int REQUEST_CLIENT_IP_ID = 5;
-  public static final EventType<BiFunction<RequestContext, String, Flow<Void>>> REQUEST_CLIENT_IP =
-      new ET<>("http.server.client_ip", REQUEST_CLIENT_IP_ID);
+  public static final int REQUEST_CLIENT_SOCKET_ADDRESS_ID = 6;
+  public static final EventType<TriFunction<RequestContext, String, Integer, Flow<Void>>>
+      REQUEST_CLIENT_SOCKET_ADDRESS =
+          new ET<>("http.server.client_socket_address", REQUEST_CLIENT_SOCKET_ADDRESS_ID);
 
-  public static final int REQUEST_BODY_START_ID = 6;
+  public static final int REQUEST_BODY_START_ID = 7;
   /** The request body has started being read */
   public static final EventType<BiFunction<RequestContext, StoredBodySupplier, Void>>
       REQUEST_BODY_START = new ET<>("request.body.started", REQUEST_BODY_START_ID);
 
-  public static final int REQUEST_BODY_DONE_ID = 7;
+  public static final int REQUEST_BODY_DONE_ID = 8;
   public static final EventType<BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>>
       REQUEST_BODY_DONE = new ET<>("request.body.done", REQUEST_BODY_DONE_ID);
 

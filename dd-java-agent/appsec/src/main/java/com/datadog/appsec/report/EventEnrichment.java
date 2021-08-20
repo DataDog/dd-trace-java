@@ -12,12 +12,23 @@ import com.datadog.appsec.report.raw.contexts.host.Host010;
 import com.datadog.appsec.report.raw.contexts.http.Http010;
 import com.datadog.appsec.report.raw.contexts.http.HttpHeaders;
 import com.datadog.appsec.report.raw.contexts.http.HttpRequest;
+import com.datadog.appsec.report.raw.contexts.service_stack.Service;
+import com.datadog.appsec.report.raw.contexts.service_stack.ServiceStack010;
+import com.datadog.appsec.report.raw.contexts.span.Span010;
+import com.datadog.appsec.report.raw.contexts.tags.Tags010;
+import com.datadog.appsec.report.raw.contexts.trace.Trace010;
 import com.datadog.appsec.report.raw.contexts.tracer.Tracer010;
 import com.datadog.appsec.report.raw.events.attack.Attack010;
 import com.datadog.appsec.util.AppSecVersion;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDId;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +40,7 @@ public class EventEnrichment {
   private static String HOSTNAME;
   private static final Logger log = LoggerFactory.getLogger(EventEnrichment.class);
 
-  public static void enrich(Attack010 attack, DataBundle appSecCtx) {
+  public static void enrich(Attack010 attack, AgentSpan agentSpan, DataBundle appSecCtx) {
     if (attack.getEventId() == null) {
       attack.setEventId(UUID.randomUUID().toString());
     }
@@ -75,26 +86,50 @@ public class EventEnrichment {
       request = new HttpRequest();
       http.setRequest(request);
     }
+    final String scheme = appSecCtx.get(KnownAddresses.REQUEST_SCHEME);
     if (request.getScheme() == null) {
-      request.setScheme("http"); // XXX: hardcoded now
+      request.setScheme(scheme);
     }
     if (request.getMethod() == null) {
-      request.setMethod("GET"); // XXX: hardcoded now
+      request.setMethod(appSecCtx.get(KnownAddresses.REQUEST_METHOD));
     }
-    if (request.getUrl() == null) {
-      request.setUrl("http://example.com/"); // XXX: hardcoded now
-    }
+    final CaseInsensitiveMap<List<String>> headersNoCookies =
+        appSecCtx.get(KnownAddresses.HEADERS_NO_COOKIES);
+    final String hostAndPort = extractHostAndPort(headersNoCookies);
+    final int hostPosOfColon = hostAndPort.indexOf(":");
     if (request.getHost() == null) {
-      request.setHost("example.com"); // XXX: hardcoded now
+      if (hostPosOfColon == -1) {
+        request.setHost(hostAndPort);
+      } else {
+        request.setHost(hostAndPort.substring(0, hostPosOfColon));
+      }
+    }
+    final String uriRaw = appSecCtx.get(KnownAddresses.REQUEST_URI_RAW);
+    if (request.getUrl() == null) {
+      request.setUrl(buildFullURIExclQueryString(scheme, hostAndPort, uriRaw));
     }
     if (request.getPort() == null) {
-      request.setPort(80); // XXX: hardcoded now
+      int port = -1;
+      if (hostPosOfColon != -1) {
+        try {
+          port = Integer.parseInt(hostAndPort.substring(hostPosOfColon + 1));
+        } catch (RuntimeException e) {
+          log.info("Could not parse port");
+          if (port <= 0 || port > 65535) {
+            log.info("Invalid port: {}", port);
+          }
+        }
+      }
+      if (port == -1) {
+        port = "http".equalsIgnoreCase(scheme) ? 80 : 443;
+      }
+      request.setPort(port);
     }
     if (request.getPath() == null) {
-      String s = appSecCtx.get(KnownAddresses.REQUEST_URI_RAW);
+      String s = uriRaw;
       if (s == null) {
-        log.warn("Request path not available");
-        s = "/UNKNOWN"; // XXX
+        log.info("Request path not available");
+        s = "/UNKNOWN";
       }
       if (s.contains("?")) {
         s = s.substring(0, s.indexOf("?"));
@@ -102,15 +137,22 @@ public class EventEnrichment {
       request.setPath(s);
     }
     if (request.getRemoteIp() == null) {
-      request.setRemoteIp("255.255.255.255"); // XXX: hardcoded now
+      String remoteIp = appSecCtx.get(KnownAddresses.REQUEST_CLIENT_IP);
+      if (remoteIp == null) {
+        remoteIp = "0.0.0.0"; // remote IP is mandatory
+      }
+      request.setRemoteIp(remoteIp);
     }
     if (request.getRemotePort() == null) {
-      request.setRemotePort(65535); // XXX: hardcoded now
+      Integer remotePort = appSecCtx.get(KnownAddresses.REQUEST_CLIENT_PORT);
+      if (remotePort == null) {
+        remotePort = 0; // remote port is mandatory
+      }
+      request.setRemotePort(remotePort);
     }
     if (request.getHeaders() == null) {
-      CaseInsensitiveMap<List<String>> headers = appSecCtx.get(KnownAddresses.HEADERS_NO_COOKIES);
-      if (headers != null) {
-        request.setHeaders(new HttpHeaders(headers));
+      if (headersNoCookies != null) {
+        request.setHeaders(new HttpHeaders(headersNoCookies));
       }
     }
 
@@ -130,6 +172,76 @@ public class EventEnrichment {
     }
     if (tracer.getLibVersion() == null) {
       tracer.setLibVersion(AppSecVersion.VERSION);
+    }
+
+    Service service = (Service) eventCtx.getService();
+    if (service == null) {
+      service =
+          new Service.ServiceBuilder()
+              .withProperty("context_version", "0.1.0")
+              .withProperty("name", Config.get().getServiceName())
+              .withProperty("environment", Config.get().getEnv())
+              .withProperty("version", Config.get().getVersion())
+              .build();
+      eventCtx.setService(service);
+    }
+
+    ServiceStack010 serviceStack = (ServiceStack010) eventCtx.getServiceStack();
+    if (serviceStack == null) {
+      serviceStack = new ServiceStack010();
+      eventCtx.setServiceStack(serviceStack);
+    }
+    if (serviceStack.getContextVersion() == null) {
+      serviceStack.setContextVersion("0.1.0");
+    }
+    List<Service> services = serviceStack.getServices();
+    if (services == null || services.isEmpty()) {
+      serviceStack.setServices(Collections.singletonList(service));
+    }
+
+    Span010 span = (Span010) eventCtx.getSpan();
+    if (span == null && agentSpan != null) {
+      span = new Span010();
+      eventCtx.setSpan(span);
+      span.setContextVersion("0.1.0");
+      DDId spanId = agentSpan.getSpanId();
+      if (spanId == null) {
+        spanId = DDId.ZERO;
+      }
+      span.setId(spanId.toHexStringOrOriginal());
+    }
+
+    Tags010 tags = (Tags010) eventCtx.getTags();
+    if (tags == null && agentSpan != null) {
+      tags = new Tags010();
+      eventCtx.setTags(tags);
+      tags.setContextVersion("0.1.0");
+      Map<String, Object> tagsMap = agentSpan.getTags();
+      if (tagsMap != null) {
+        Set<String> values = new LinkedHashSet<>(tagsMap.size() * 2);
+        for (Map.Entry<String, Object> e : tagsMap.entrySet()) {
+          if (e.getValue() != null) {
+            values.add(e.getKey() + ":" + e.getValue());
+          } else {
+            values.add(e.getKey());
+          }
+        }
+        tags.setValues(values);
+      } else {
+        tags.setValues(Collections.emptySet());
+      }
+    }
+
+    Trace010 trace = (Trace010) eventCtx.getTrace();
+    if (trace == null && agentSpan != null) {
+      trace = new Trace010();
+      eventCtx.setTrace(trace);
+      trace.setContextVersion("0.1.0");
+      DDId traceId = agentSpan.getTraceId();
+      if (traceId == null) {
+        traceId = DDId.ZERO;
+      }
+      trace.setId(traceId.toHexStringOrOriginal());
     }
 
     Host010 host = (Host010) eventCtx.getHost();
@@ -152,5 +264,29 @@ public class EventEnrichment {
       }
       host.setHostname(HOSTNAME);
     }
+  }
+
+  private static String extractHostAndPort(CaseInsensitiveMap<List<String>> headers) {
+    if (headers == null) {
+      return "localhost";
+    }
+    List<String> hostHeaders = headers.get("host");
+    return hostHeaders != null && hostHeaders.get(0) != null ? hostHeaders.get(0) : "localhost";
+  }
+
+  private static String buildFullURIExclQueryString(
+      String scheme, String hostAndPort, String uriRaw) {
+    if (scheme == null) {
+      scheme = "http";
+    }
+    if (uriRaw == null) {
+      uriRaw = "/UNKNOWN";
+    }
+    int posOfQuery = uriRaw.indexOf('?');
+    if (posOfQuery != -1) {
+      uriRaw = uriRaw.substring(0, posOfQuery);
+    }
+
+    return scheme + "://" + hostAndPort + uriRaw;
   }
 }
