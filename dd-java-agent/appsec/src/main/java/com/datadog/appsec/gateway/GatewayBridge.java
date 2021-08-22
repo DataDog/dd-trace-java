@@ -335,7 +335,8 @@ public class GatewayBridge {
       EVENT_DEPENDENCIES.put(EventType.REQUEST_BODY_START, l(Events.REQUEST_BODY_START));
       EVENT_DEPENDENCIES.put(EventType.REQUEST_BODY_END, l(Events.REQUEST_BODY_DONE));
 
-      DATA_DEPENDENCIES.put(KnownAddresses.REQUEST_BODY_RAW, l(Events.REQUEST_BODY_DONE));
+      DATA_DEPENDENCIES.put(
+          KnownAddresses.REQUEST_BODY_RAW, l(Events.REQUEST_BODY_START, Events.REQUEST_BODY_DONE));
     }
 
     private static Collection<datadog.trace.api.gateway.EventType<?>> l(
