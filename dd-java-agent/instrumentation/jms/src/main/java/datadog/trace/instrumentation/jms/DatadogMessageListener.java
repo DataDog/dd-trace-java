@@ -32,8 +32,11 @@ public class DatadogMessageListener implements MessageListener {
 
   @Override
   public void onMessage(Message message) {
-    AgentSpan.Context extractedContext = propagate().extract(message, GETTER);
-    AgentSpan span = startSpan(JMS_CONSUME, extractedContext);
+    AgentSpan.Context propagatedContext = null;
+    if (!consumerState.isPropagationDisabled()) {
+      propagatedContext = propagate().extract(message, GETTER);
+    }
+    AgentSpan span = startSpan(JMS_CONSUME, propagatedContext);
     CONSUMER_DECORATE.afterStart(span);
     CONSUMER_DECORATE.onConsume(span, message, consumerState.getResourceName());
     try (AgentScope scope = activateSpan(span)) {
