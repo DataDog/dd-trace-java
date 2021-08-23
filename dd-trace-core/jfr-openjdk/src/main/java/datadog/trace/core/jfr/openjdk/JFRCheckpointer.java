@@ -17,6 +17,7 @@ public class JFRCheckpointer implements Checkpointer {
   private static final Logger log = LoggerFactory.getLogger(JFRCheckpointer.class);
 
   private static final int MASK = ~CPU;
+  // these sampler parameters were chosen experimentally to prevent large 'overshoot'
   private static final int SAMPLER_LOOKBACK = 11;
   private static final int SAMPLER_WINDOW_SIZE_MS = 800;
 
