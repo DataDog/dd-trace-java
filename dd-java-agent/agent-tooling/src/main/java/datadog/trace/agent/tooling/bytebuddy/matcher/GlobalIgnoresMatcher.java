@@ -69,7 +69,8 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
               || name.startsWith("com.appdynamics.")
               || name.startsWith("com.singularity.")
               || name.startsWith("com.jinspired.")
-              || name.startsWith("com.intellij.rt.debugger.")) {
+              || name.startsWith("com.intellij.rt.debugger.")
+              || name.startsWith("com.contrastsecurity.")) {
             return true;
           }
           if (name.startsWith("com.sun.")) {

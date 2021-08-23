@@ -9,7 +9,9 @@ import datadog.trace.agent.test.checkpoints.TimelineCheckpointer
 import datadog.trace.agent.tooling.AgentInstaller
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.TracerInstaller
+import datadog.trace.api.Checkpointer
 import datadog.trace.api.Config
+import datadog.trace.api.DDId
 import datadog.trace.api.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
@@ -25,6 +27,7 @@ import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
+import net.bytebuddy.implementation.FixedValue
 import net.bytebuddy.utility.JavaModule
 import org.junit.runner.RunWith
 import org.slf4j.LoggerFactory
@@ -33,12 +36,15 @@ import spock.lang.Shared
 
 import java.lang.instrument.ClassFileTransformer
 import java.lang.instrument.Instrumentation
+import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.AdditionalLibraryIgnoresMatcher.additionalLibraryIgnoresMatcher
 import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
+import static net.bytebuddy.matcher.ElementMatchers.named
+import static net.bytebuddy.matcher.ElementMatchers.none
 
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
@@ -100,6 +106,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
   @Shared
   TimelineCheckpointer TEST_CHECKPOINTER = Spy(new TimelineCheckpointer())
 
+  @SuppressWarnings('PropertyName')
+  @Shared
+  Set<DDId> TEST_SPANS = Sets.newHashSet()
+
   @Shared
   ClassFileTransformer activeTransformer
 
@@ -127,19 +137,56 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     TEST_WRITER = new ListWriter()
     TEST_TRACER =
+      Spy(
       CoreTracer.builder()
       .writer(TEST_WRITER)
       .idGenerationStrategy(SEQUENTIAL)
       .statsDClient(STATS_D_CLIENT)
       .strictTraceWrites(useStrictTraceWrites())
-      .build()
+      .build())
     TEST_TRACER.registerCheckpointer(TEST_CHECKPOINTER)
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
+
+    enableAppSec()
+
+    TEST_TRACER.startSpan(*_) >> {
+      def agentSpan = callRealMethod()
+      TEST_SPANS.add(agentSpan.spanId)
+      agentSpan
+    }
+    TEST_CHECKPOINTER.checkpoint(_, _, _) >> { DDId traceId, DDId spanId, int flags ->
+      // We need to treat startSpan differently because of how we mock TEST_TRACER.startSpan
+      if (flags == Checkpointer.SPAN || TEST_SPANS.contains(spanId)) {
+        callRealMethod()
+      }
+    }
 
     assert ServiceLoader.load(Instrumenter, AgentTestRunner.getClassLoader())
     .iterator()
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(INSTRUMENTATION, true, this)
+  }
+
+  private void enableAppSec() {
+    if (Config.get().isAppSecEnabled()) {
+      return
+    }
+
+    File temp = Files.createTempDirectory('tmp').toFile()
+    new AgentBuilder.Default()
+      .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
+      .with(AgentBuilder.InitializationStrategy.NoOp.INSTANCE)
+      .with(AgentBuilder.TypeStrategy.Default.REDEFINE)
+      .with(new AgentBuilder.InjectionStrategy.UsingInstrumentation(INSTRUMENTATION, temp))
+      .disableClassFormatChanges()
+      .ignore(none())
+      .type(named("datadog.trace.api.Config"))
+      .transform(new AgentBuilder.Transformer() {
+        @Override
+        DynamicType.Builder<?> transform(DynamicType.Builder<?> builder, TypeDescription typeDescription, ClassLoader classLoader, JavaModule module) {
+          builder.method(named("isAppSecEnabled")).intercept(FixedValue.value(true))
+        }
+      }).installOn(INSTRUMENTATION)
   }
 
   /** Override to set config before the agent is installed */
@@ -158,6 +205,8 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
     println "Starting test: ${getSpecificationContext().getCurrentIteration().getName()}"
     TEST_TRACER.flush()
+    TEST_SPANS.clear()
+    TEST_CHECKPOINTER.clear()
     TEST_WRITER.start()
 
     new MockUtil().attachMock(STATS_D_CLIENT, this)
@@ -166,10 +215,10 @@ abstract class AgentTestRunner extends DDSpecification implements AgentBuilder.L
 
   void cleanup() {
     TEST_TRACER.flush()
-    TEST_CHECKPOINTER.publish()
-    TEST_CHECKPOINTER.clear()
     new MockUtil().detachMock(STATS_D_CLIENT)
     new MockUtil().detachMock(TEST_CHECKPOINTER)
+
+    TEST_CHECKPOINTER.throwOnInvalidSequence(TEST_SPANS)
   }
 
   /** Override to clean up things after the agent is removed */

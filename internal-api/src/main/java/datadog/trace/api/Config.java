@@ -391,9 +391,9 @@ public class Config {
   private final Set<String> jmsPropagationDisabledTopics;
   private final Set<String> jmsPropagationDisabledQueues;
 
-  private final boolean RabbitPropagationEnabled;
-  private final Set<String> RabbitPropagationDisabledQueues;
-  private final Set<String> RabbitPropagationDisabledExchanges;
+  private final boolean rabbitPropagationEnabled;
+  private final Set<String> rabbitPropagationDisabledQueues;
+  private final Set<String> rabbitPropagationDisabledExchanges;
 
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
@@ -819,13 +819,13 @@ public class Config {
     jmsPropagationDisabledQueues =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_QUEUES));
 
-    RabbitPropagationEnabled =
+    rabbitPropagationEnabled =
         configProvider.getBoolean(RABBIT_PROPAGATION_ENABLED, DEFAULT_RABBIT_PROPAGATION_ENABLED);
 
-    RabbitPropagationDisabledQueues =
+    rabbitPropagationDisabledQueues =
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_QUEUES));
 
-    RabbitPropagationDisabledExchanges =
+    rabbitPropagationDisabledExchanges =
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_EXCHANGES));
 
     grpcIgnoredOutboundMethods =
@@ -1250,20 +1250,18 @@ public class Config {
     return kafkaClientPropagationEnabled;
   }
 
-  public Set<String> getKafkaClientPropagationDisabledTopics() {
-    return kafkaClientPropagationDisabledTopics;
+  public boolean isKafkaClientPropagationDisabledForTopic(String topic) {
+    return null != topic && kafkaClientPropagationDisabledTopics.contains(topic);
   }
 
   public boolean isJMSPropagationEnabled() {
     return jmsPropagationEnabled;
   }
 
-  public Set<String> getJMSPropagationDisabledTopics() {
-    return jmsPropagationDisabledTopics;
-  }
-
-  public Set<String> getJMSPropagationDisabledQueues() {
-    return jmsPropagationDisabledQueues;
+  public boolean isJMSPropagationDisabledForDestination(final String queueOrTopic) {
+    return null != queueOrTopic
+        && (jmsPropagationDisabledQueues.contains(queueOrTopic)
+            || jmsPropagationDisabledTopics.contains(queueOrTopic));
   }
 
   public boolean isKafkaClientBase64DecodingEnabled() {
@@ -1271,15 +1269,13 @@ public class Config {
   }
 
   public boolean isRabbitPropagationEnabled() {
-    return RabbitPropagationEnabled;
+    return rabbitPropagationEnabled;
   }
 
-  public Set<String> getRabbitPropagationDisabledQueues() {
-    return RabbitPropagationDisabledQueues;
-  }
-
-  public Set<String> getRabbitPropagationDisabledExchanges() {
-    return RabbitPropagationDisabledExchanges;
+  public boolean isRabbitPropagationDisabledForDestination(final String queueOrExchange) {
+    return null != queueOrExchange
+        && (rabbitPropagationDisabledQueues.contains(queueOrExchange)
+            || rabbitPropagationDisabledExchanges.contains(queueOrExchange));
   }
 
   public boolean isHystrixTagsEnabled() {
@@ -2022,11 +2018,11 @@ public class Config {
         + ", jmsPropagationDisabledQueues="
         + jmsPropagationDisabledQueues
         + ", RabbitPropagationEnabled="
-        + RabbitPropagationEnabled
+        + rabbitPropagationEnabled
         + ", RabbitPropagationDisabledQueues="
-        + RabbitPropagationDisabledQueues
+        + rabbitPropagationDisabledQueues
         + ", RabbitPropagationDisabledExchanges="
-        + RabbitPropagationDisabledExchanges
+        + rabbitPropagationDisabledExchanges
         + ", hystrixTagsEnabled="
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="

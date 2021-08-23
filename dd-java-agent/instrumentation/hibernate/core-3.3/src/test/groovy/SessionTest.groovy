@@ -1,3 +1,5 @@
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -544,6 +546,8 @@ class SessionTest extends AbstractHibernateTest {
 
   def "test hibernate overlapping Sessions"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS)
 
     AgentScope scope = activateSpan(startSpan("overlapping Sessions"))
 

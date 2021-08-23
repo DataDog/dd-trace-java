@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -19,7 +18,6 @@ import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import java.util.HashMap;
 import java.util.Map;
 import javax.jms.Destination;
-import javax.jms.JMSException;
 import javax.jms.MessageConsumer;
 import javax.jms.Queue;
 import javax.jms.Session;
@@ -60,25 +58,28 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
     transformation.applyAdvice(
         namedOneOf("commit", "close", "rollback").and(takesNoArguments()),
         getClass().getName() + "$Commit");
-    transformation.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
   }
 
   public static final class CreateConsumer {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void bindDestinationName(
+    public static void bindConsumerState(
         @Advice.This Session session,
         @Advice.Argument(0) Destination destination,
         @Advice.Return MessageConsumer consumer) {
-      int acknowledgeMode;
-      try {
-        acknowledgeMode = session.getAcknowledgeMode();
-      } catch (JMSException e) {
-        acknowledgeMode = Session.AUTO_ACKNOWLEDGE;
-      }
-      ContextStore<MessageConsumer, MessageConsumerState> contextStore =
+
+      ContextStore<MessageConsumer, MessageConsumerState> consumerStateStore =
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class);
+
       // avoid doing the same thing more than once when there is delegation to overloads
-      if (contextStore.get(consumer) == null) {
+      if (consumerStateStore.get(consumer) == null) {
+
+        int ackMode;
+        try {
+          ackMode = session.getAcknowledgeMode();
+        } catch (Exception ignored) {
+          ackMode = Session.AUTO_ACKNOWLEDGE;
+        }
+
         // logic inlined from JMSDecorator to avoid
         // JMSException: A consumer is consuming from the temporary destination
         String resourceName = "Consumed from Destination";
@@ -101,17 +102,22 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
               resourceName = "Consumed from Topic " + destinationName;
             }
           }
-        } catch (JMSException ignore) {
+        } catch (Exception ignored) {
+          // fall back to default
         }
-        // all known MessageConsumer implementations reference
-        // the Session so there is no risk of creating a memory
-        // leak here. MessageConsumerState could drop the reference
-        // to the session to save a bit of space if the implementations
-        // were instrumented instead of the interfaces.
-        contextStore.put(
+
+        ContextStore<Session, SessionState> sessionStateStore =
+            InstrumentationContext.get(Session.class, SessionState.class);
+
+        SessionState sessionState = sessionStateStore.get(session);
+        if (null == sessionState) {
+          sessionState = sessionStateStore.putIfAbsent(session, new SessionState(ackMode));
+        }
+
+        consumerStateStore.put(
             consumer,
             new MessageConsumerState(
-                session, acknowledgeMode, UTF8BytesString.create(resourceName), destinationName));
+                sessionState, UTF8BytesString.create(resourceName), destinationName));
       }
     }
   }
@@ -119,19 +125,11 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
   public static final class Commit {
     @Advice.OnMethodEnter
     public static void commit(@Advice.This Session session) {
-      SessionState state =
+      SessionState sessionState =
           InstrumentationContext.get(Session.class, SessionState.class).get(session);
-      if (null != state) {
-        state.onCommit();
+      if (null != sessionState && sessionState.isTransactedSession()) {
+        sessionState.onCommit();
       }
-    }
-  }
-
-  public static final class Construct {
-    @Advice.OnMethodExit
-    public static void createSessionState(@Advice.This Session session) {
-      InstrumentationContext.get(Session.class, SessionState.class)
-          .put(session, new SessionState());
     }
   }
 }

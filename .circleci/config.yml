@@ -190,6 +190,7 @@ jobs:
             ./gradlew <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >> -PskipInstTests -PskipSmokeTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
+            --continue
 
       - run:
           name: Collect reports
@@ -265,6 +266,7 @@ jobs:
             ./gradlew :dd-java-agent:instrumentation:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=6
+            --continue
 
       - run:
           name: Collect reports
@@ -321,6 +323,7 @@ jobs:
             ./gradlew stagePlayBinaryDist :dd-smoke-test:<<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=2
+            --continue
 
       - run:
           name: Collect Reports

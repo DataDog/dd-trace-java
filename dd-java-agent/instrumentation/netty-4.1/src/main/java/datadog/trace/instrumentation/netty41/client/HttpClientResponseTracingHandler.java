@@ -42,4 +42,26 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
       ctx.fireChannelRead(msg);
     }
   }
+
+  @Override
+  public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    final Attribute<AgentSpan> parentAttr = ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY);
+    parentAttr.setIfAbsent(noopSpan());
+    final AgentSpan parent = parentAttr.get();
+    final AgentSpan span = ctx.channel().attr(SPAN_ATTRIBUTE_KEY).getAndSet(parent);
+    if (span != null) {
+      // If an exception is passed to this point, it likely means it was unhandled and the
+      // client span won't be finished with a proper response, so we should finish the span here.
+      try (final AgentScope scope = activateSpan(span)) {
+        DECORATE.onError(span, cause);
+        DECORATE.beforeFinish(span);
+        span.finish();
+      }
+    }
+    // We want the callback in the scope of the parent, not the client span
+    try (final AgentScope scope = activateSpan(parent)) {
+      scope.setAsyncPropagation(true);
+      super.exceptionCaught(ctx, cause);
+    }
+  }
 }

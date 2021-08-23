@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -79,6 +81,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "set command with subscribe on a defined consumer"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def conds = new AsyncConditions()
     Consumer<String> consumer = new Consumer<String>() {
         @Override
@@ -116,6 +122,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "get command with lambda function"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def conds = new AsyncConditions()
 
     when:
@@ -147,6 +157,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
   // recording metrics
   def "get non existent key command"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def conds = new AsyncConditions()
     final defaultVal = "NOT THIS VALUE"
 
@@ -182,6 +196,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "command with no arguments"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def conds = new AsyncConditions()
 
     when:
@@ -215,6 +233,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "command flux publisher "() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     reactiveCommands.command().subscribe()
 
     expect:
@@ -241,6 +263,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "command cancel after 2 on flux publisher "() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     reactiveCommands.command().take(2).subscribe()
 
     expect:
@@ -268,6 +294,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "non reactive command should not produce span"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     String res = null
 
     when:
@@ -280,6 +310,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "debug segfault command (returns mono void) with no argument should produce span"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     reactiveCommands.debugSegfault().subscribe()
 
     expect:
@@ -305,6 +339,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
   def "shutdown command (returns void) with argument should produce span"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     reactiveCommands.shutdown(false).subscribe()
 
     expect:
@@ -329,6 +367,11 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
   }
 
   def "blocking subscriber"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     runUnderTrace("test-parent") {
       reactiveCommands.set("a", "1")
@@ -384,6 +427,11 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
   }
 
   def "async subscriber"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     runUnderTrace("test-parent") {
       reactiveCommands.set("a", "1")
@@ -441,6 +489,11 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
   }
 
   def "async subscriber with specific thread pool"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     runUnderTrace("test-parent") {
       reactiveCommands.set("a", "1")

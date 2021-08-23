@@ -145,8 +145,11 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
   }
 
-  FinishState addFinishedSpan(final DDSpan span) {
+  void onFinish(final DDSpan span) {
     tracer.onFinish(span);
+  }
+
+  PublishState onPublish(final DDSpan span) {
     finishedSpans.addFirst(span);
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal
@@ -184,7 +187,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     decrementRefAndMaybeWrite(false);
   }
 
-  enum FinishState {
+  enum PublishState {
     WRITTEN,
     PARTIAL_FLUSH,
     ROOT_BUFFERED,
@@ -192,7 +195,7 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     PENDING
   }
 
-  private FinishState decrementRefAndMaybeWrite(boolean isRootSpan) {
+  private PublishState decrementRefAndMaybeWrite(boolean isRootSpan) {
     final int count = PENDING_REFERENCE_COUNT.decrementAndGet(this);
     if (strictTraceWrites && count < 0) {
       throw new IllegalStateException("Pending reference count " + count + " is negative");
@@ -202,21 +205,21 @@ public class PendingTrace implements AgentTrace, PendingTraceBuffer.Element {
     if (count == 0 && (strictTraceWrites || !rootSpanWritten)) {
       // Finished with no pending work ... write immediately
       write();
-      return FinishState.WRITTEN;
+      return PublishState.WRITTEN;
     } else if (isRootSpan) {
       // Finished root with pending work ... delay write
       pendingTraceBuffer.enqueue(this);
-      return FinishState.ROOT_BUFFERED;
+      return PublishState.ROOT_BUFFERED;
     } else if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
       // Trace is getting too big, write anything completed.
       partialFlush();
-      return FinishState.PARTIAL_FLUSH;
+      return PublishState.PARTIAL_FLUSH;
     } else if (rootSpanWritten) {
       // Late arrival span ... delay write
       pendingTraceBuffer.enqueue(this);
-      return FinishState.BUFFERED;
+      return PublishState.BUFFERED;
     }
-    return FinishState.PENDING;
+    return PublishState.PENDING;
   }
 
   /** Important to note: may be called multiple times. */

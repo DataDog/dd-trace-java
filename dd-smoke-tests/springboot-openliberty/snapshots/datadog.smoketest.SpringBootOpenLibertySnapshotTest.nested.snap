@@ -64,7 +64,8 @@
                    "span.kind" "client"
                    "http.method" "GET"
                    "peer.hostname" "localhost"}
-           "metrics" {"peer.port" 57690
+            "metrics" {"_dd.measured" 1
+                      "peer.port" 57690
                       "thread.id" 58}}
               {"name" "servlet.request"
                "service" "smoke-test-java-app"

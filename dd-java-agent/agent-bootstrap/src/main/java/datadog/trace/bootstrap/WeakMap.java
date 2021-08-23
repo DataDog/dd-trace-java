@@ -17,6 +17,8 @@ public interface WeakMap<K, V> {
 
   V computeIfAbsent(K key, Function<? super K, ? extends V> supplier);
 
+  V remove(K key);
+
   class Provider {
     private static final AtomicReferenceFieldUpdater<Provider, Implementation> UPDATER =
         AtomicReferenceFieldUpdater.newUpdater(Provider.class, Implementation.class, "provider");

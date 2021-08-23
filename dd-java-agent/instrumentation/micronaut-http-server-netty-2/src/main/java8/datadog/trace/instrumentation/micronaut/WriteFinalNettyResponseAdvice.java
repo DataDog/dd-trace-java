@@ -7,6 +7,8 @@ import static datadog.trace.instrumentation.micronaut.MicronautDecorator.SPAN_AT
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpVersion;
+import io.micronaut.http.MediaTypeConverter;
 import io.micronaut.http.MutableHttpResponse;
 import net.bytebuddy.asm.Advice;
 
@@ -25,5 +27,12 @@ public class WriteFinalNettyResponseAdvice {
       DECORATE.beforeFinish(span);
       span.finish();
     }
+  }
+
+  private static void muzzleCheck(MediaTypeConverter mediaTypeConverter) {
+    // Removed in 3.0.0
+    mediaTypeConverter.convert(null, null);
+    // Added in 2.0.0
+    HttpVersion version = HttpVersion.HTTP_2_0;
   }
 }

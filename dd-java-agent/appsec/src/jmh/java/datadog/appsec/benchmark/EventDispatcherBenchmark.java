@@ -94,7 +94,7 @@ public class EventDispatcherBenchmark {
     }
 
     void run() {
-      dispatcher.getDataSubscribers(new AppSecRequestContext(), usedAddresses);
+      dispatcher.getDataSubscribers();
     }
   }
 

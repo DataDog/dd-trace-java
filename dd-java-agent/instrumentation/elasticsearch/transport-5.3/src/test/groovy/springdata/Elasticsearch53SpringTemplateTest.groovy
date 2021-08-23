@@ -2,6 +2,8 @@ package springdata
 
 import com.google.common.collect.ImmutableSet
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.elasticsearch.action.search.SearchResponse
@@ -81,6 +83,12 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
   }
 
   def "test elasticsearch error"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     when:
     template.refresh(indexName)
 
@@ -115,6 +123,12 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
   }
 
   def "test elasticsearch get"() {
+    setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     expect:
     template.createIndex(indexName)
     TEST_WRITER.waitForTraces(1)
@@ -291,6 +305,11 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
 
   def "test results extractor"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     template.createIndex(indexName)
     TEST_WRITER.waitForTraces(1)
     testNode.client().admin().cluster().prepareHealth().setWaitForYellowStatus().execute().actionGet(TIMEOUT)

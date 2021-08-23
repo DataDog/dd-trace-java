@@ -1,6 +1,8 @@
 package client
 
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator
 import play.GlobalSettings
 import play.libs.ws.WS
@@ -25,6 +27,14 @@ class PlayWSClientTest extends HttpClientTest {
 
   @Shared
   def client
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+  }
 
   def setupSpec() {
     Helpers.start(application)

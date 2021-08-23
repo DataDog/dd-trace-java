@@ -1,5 +1,8 @@
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import javax.ws.rs.GET
 import javax.ws.rs.HeaderParam
+import javax.ws.rs.POST
 import javax.ws.rs.Path
 import javax.ws.rs.QueryParam
 import javax.ws.rs.container.AsyncResponse
@@ -8,6 +11,7 @@ import javax.ws.rs.core.Response
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -34,6 +38,17 @@ class GrizzlyAsyncTest extends GrizzlyTest {
       executor.execute {
         controller(SUCCESS) {
           ar.resume(Response.status(SUCCESS.status).entity(SUCCESS.body).build())
+        }
+      }
+    }
+
+    @POST
+    @Path('created')
+    Response created(@Suspended AsyncResponse ar, String reqBody) {
+      executor.execute {
+        controller(CREATED) {
+          String body = "${CREATED.body}: ${reqBody}"
+          ar.resume(Response.status(CREATED.status).entity(body).build())
         }
       }
     }
@@ -105,5 +120,11 @@ class GrizzlyAsyncTest extends GrizzlyTest {
         }
       }
     }
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS)
   }
 }

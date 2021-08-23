@@ -76,12 +76,14 @@ public class Agent {
 
   private static boolean jmxFetchEnabled = true;
   private static boolean profilingEnabled = false;
+  private static boolean appSecEnabled = false;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createSharedClassloader(bootstrapURL);
 
     jmxFetchEnabled = isJmxFetchEnabled();
     profilingEnabled = isProfilingEnabled();
+    appSecEnabled = isAppSecEnabled();
 
     if (profilingEnabled) {
       if (!isOracleJDK8()) {
@@ -112,7 +114,7 @@ public class Agent {
     AgentTaskScheduler.initialize();
     startDatadogAgent(inst, bootstrapURL);
 
-    if (isAppSecEnabled()) {
+    if (appSecEnabled) {
       if (isJavaVersionAtLeast(8)) {
         try {
           APPSEC_CLASSLOADER =

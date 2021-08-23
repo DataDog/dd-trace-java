@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
 import org.glassfish.jersey.client.ClientConfig
@@ -109,5 +111,12 @@ class CxfClientAsyncTest extends JaxRsClientAsyncTest {
   boolean testRemoteConnection() {
     // FIXME: span not reported correctly.
     false
+  }
+
+  @Override
+  def setup() {
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

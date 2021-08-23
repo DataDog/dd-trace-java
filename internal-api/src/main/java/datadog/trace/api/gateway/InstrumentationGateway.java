@@ -1,6 +1,8 @@
 package datadog.trace.api.gateway;
 
 import static datadog.trace.api.gateway.Events.MAX_EVENTS;
+import static datadog.trace.api.gateway.Events.REQUEST_BODY_DONE_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_BODY_START_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_CLIENT_IP_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_ENDED_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_HEADER_DONE_ID;
@@ -12,6 +14,7 @@ import datadog.trace.api.Function;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.Supplier;
 import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.slf4j.Logger;
@@ -28,6 +31,13 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
 
   public InstrumentationGateway() {
     callbacks = new AtomicReferenceArray<>(MAX_EVENTS);
+  }
+
+  // for tests
+  void reset() {
+    for (int i = 0; i < callbacks.length(); i++) {
+      callbacks.set(i, null);
+    }
   }
 
   @Override
@@ -154,6 +164,34 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
               @Override
               public boolean equals(Object obj) {
                 return callback.equals(obj);
+              }
+            };
+      case REQUEST_BODY_START_ID:
+        return (C)
+            new BiFunction<RequestContext, StoredBodySupplier, Void>() {
+              @Override
+              public Void apply(RequestContext ctx, StoredBodySupplier storedBodySupplier) {
+                try {
+                  return ((BiFunction<RequestContext, StoredBodySupplier, Void>) callback)
+                      .apply(ctx, storedBodySupplier);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return null;
+                }
+              }
+            };
+      case REQUEST_BODY_DONE_ID:
+        return (C)
+            new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
+              @Override
+              public Flow<Void> apply(RequestContext ctx, StoredBodySupplier storedBodySupplier) {
+                try {
+                  return ((BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>) callback)
+                      .apply(ctx, storedBodySupplier);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
+                  return Flow.ResultFlow.empty();
+                }
               }
             };
       default:

@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpVersion;
+import io.micronaut.http.MediaTypeConverter;
 import net.bytebuddy.asm.Advice;
 
 public class ChannelRead0Advice {
@@ -40,7 +41,10 @@ public class ChannelRead0Advice {
     }
   }
 
-  private static void muzzleCheck() {
+  private static void muzzleCheck(MediaTypeConverter mediaTypeConverter) {
+    // Removed in 3.0.0
+    mediaTypeConverter.convert(null, null);
+    // Added in 2.0.0
     HttpVersion version = HttpVersion.HTTP_2_0;
   }
 }

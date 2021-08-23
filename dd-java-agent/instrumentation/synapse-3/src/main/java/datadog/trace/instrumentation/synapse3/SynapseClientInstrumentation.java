@@ -83,7 +83,6 @@ public final class SynapseClientInstrumentation extends Instrumenter.Tracing {
         span = startSpan(SYNAPSE_REQUEST);
       }
 
-      span.setMeasured(true);
       DECORATE.afterStart(span);
 
       // add trace id to client-side request before it gets submitted as an HttpRequest

@@ -5,6 +5,8 @@ import com.datastax.oss.driver.api.core.servererrors.SyntaxError
 import com.datastax.oss.driver.api.core.session.Session
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -119,6 +121,10 @@ class CassandraClientTest extends AgentTestRunner {
 
   def "test async"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     CqlSession session = sessionBuilder().withKeyspace((String) keyspace).build()
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
     def callbackExecuted = new CountDownLatch(1)
@@ -160,6 +166,10 @@ class CassandraClientTest extends AgentTestRunner {
 
   def "test async with error"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     def statement = "ILLEGAL STATEMENT"
     CqlSession session = sessionBuilder().withKeyspace((String) keyspace).build()
     injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")

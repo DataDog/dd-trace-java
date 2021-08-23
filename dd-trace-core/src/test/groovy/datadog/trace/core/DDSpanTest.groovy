@@ -117,6 +117,69 @@ class DDSpanTest extends DDCoreSpecification {
     span.durationNano % mod > 0 // Very slim chance of a false negative.
   }
 
+  def "phasedFinish captures duration but doesn't publish immediately"() {
+    setup:
+    def mod = TimeUnit.MILLISECONDS.toNanos(1)
+    def builder = tracer.buildSpan("test")
+    def start = System.nanoTime()
+    def span = builder.start()
+    def between = System.nanoTime()
+    def betweenDur = System.nanoTime() - between
+
+    when: "calling publish before phasedFinish"
+    span.publish()
+
+    then: "has no effect"
+    span.durationNano == 0
+    span.context().trace.pendingReferenceCount == 1
+    writer.size() == 0
+
+    when:
+    def finish = span.phasedFinish()
+    def total = System.nanoTime() - start
+
+    then:
+    finish
+    span.context().trace.pendingReferenceCount == 1
+    span.context().trace.finishedSpans.isEmpty()
+    writer.isEmpty()
+
+    and: "duration is recorded as negative to allow publishing"
+    span.durationNano < 0
+    def actualDurationNano = span.durationNano & Long.MAX_VALUE
+    // Generous 5 seconds to execute this test
+    Math.abs(TimeUnit.NANOSECONDS.toSeconds(span.startTime) - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())) < 5
+    actualDurationNano > betweenDur
+    actualDurationNano < total
+    actualDurationNano % mod > 0 // Very slim chance of a false negative.
+
+    when: "extra finishes"
+    finish = span.phasedFinish()
+    span.finish() // verify conflicting finishes are ignored
+
+    then: "have no effect"
+    !finish
+    span.context().trace.pendingReferenceCount == 1
+    span.context().trace.finishedSpans.isEmpty()
+    writer.isEmpty()
+
+    when:
+    span.publish()
+
+    then: "duration is flipped to positive"
+    span.durationNano > 0
+    span.durationNano == actualDurationNano
+    span.context().trace.pendingReferenceCount == 0
+    writer.size() == 1
+
+    when: "duplicate call to publish"
+    span.publish()
+
+    then: "has no effect"
+    span.context().trace.pendingReferenceCount == 0
+    writer.size() == 1
+  }
+
   def "starting with a timestamp disables nanotime"() {
     setup:
     def mod = TimeUnit.MILLISECONDS.toNanos(1)

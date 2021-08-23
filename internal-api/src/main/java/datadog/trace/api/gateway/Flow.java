@@ -57,7 +57,7 @@ public interface Flow<T> {
 
     @Override
     public Action getAction() {
-      return null;
+      return Action.Noop.INSTANCE;
     }
 
     @Override

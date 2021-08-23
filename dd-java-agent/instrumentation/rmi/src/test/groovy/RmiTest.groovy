@@ -43,6 +43,7 @@ class RmiTest extends AgentTestRunner {
           operationName "rmi.invoke"
           childOf span(0)
           spanType DDSpanTypes.RPC
+          measured true
 
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -56,6 +57,7 @@ class RmiTest extends AgentTestRunner {
           resourceName "Server.hello"
           operationName "rmi.request"
           spanType DDSpanTypes.RPC
+          measured true
 
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -67,6 +69,7 @@ class RmiTest extends AgentTestRunner {
           resourceName "Server.someMethod"
           operationName "rmi.request"
           spanType DDSpanTypes.RPC
+          measured true
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.COMPONENT" "rmi-server"
@@ -121,6 +124,7 @@ class RmiTest extends AgentTestRunner {
           childOf span(0)
           errored true
           spanType DDSpanTypes.RPC
+          measured true
 
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
@@ -136,6 +140,7 @@ class RmiTest extends AgentTestRunner {
           operationName "rmi.request"
           errored true
           spanType DDSpanTypes.RPC
+          measured true
 
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -172,6 +177,7 @@ class RmiTest extends AgentTestRunner {
           operationName "rmi.invoke"
           spanType DDSpanTypes.RPC
           childOf span(0)
+          measured true
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.COMPONENT" "rmi-client"
@@ -185,6 +191,7 @@ class RmiTest extends AgentTestRunner {
           resourceName "ServerLegacy.hello"
           operationName "rmi.request"
           spanType DDSpanTypes.RPC
+          measured true
           tags {
             "$Tags.COMPONENT" "rmi-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER

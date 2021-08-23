@@ -72,6 +72,7 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
         resourceName "$method $uri.path"
         spanType DDSpanTypes.HTTP_CLIENT
         errored exception != null
+        measured true
         tags {
           "$Tags.COMPONENT" NettyHttpClientDecorator.DECORATE.component()
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT

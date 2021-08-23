@@ -78,7 +78,6 @@ public class KafkaDecorator extends ClientDecorator {
       span.setResourceName(CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, CONSUMER_PREFIX));
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
-      span.setMeasured(true);
       // TODO - do we really need both? This mechanism already adds a lot of... baggage.
       // check to not record a duration if the message was sent from an old Kafka client
       if (record.timestampType() != TimestampType.NO_TIMESTAMP_TYPE) {
@@ -116,7 +115,6 @@ public class KafkaDecorator extends ClientDecorator {
       }
       final String topic = record.topic() == null ? "kafka" : record.topic();
       span.setResourceName(PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));
-      span.setMeasured(true);
     }
   }
 }

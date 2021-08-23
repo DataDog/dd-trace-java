@@ -495,6 +495,9 @@ public class DDSpanContext implements AgentSpan.Context {
     if (errorFlag) {
       s.append(" *errored*");
     }
+    if (measured) {
+      s.append(" *measured*");
+    }
 
     synchronized (unsafeTags) {
       s.append(" tags=").append(new TreeMap<>(getTags()));

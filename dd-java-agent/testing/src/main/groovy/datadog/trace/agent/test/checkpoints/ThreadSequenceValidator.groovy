@@ -177,6 +177,14 @@ class ThreadSequenceValidator {
               newSpanState = toInvalid(spanState)
             }
             break
+            case SpanState.ENDED:
+            if (taskState == TaskState.INACTIVE) {
+              newSpanState = SpanState.RESUMED
+              newTaskState = TaskState.ACTIVE
+            } else {
+              newSpanState = toInvalid(spanState)
+            }
+            break
             default:
             newSpanState = toInvalid(spanState)
           }
@@ -199,7 +207,7 @@ class ThreadSequenceValidator {
     }
 
     SingleThreadTracker() {
-      super("thread-sequence", CheckpointValidationMode.SEQUENCE)
+      super("thread-sequence", CheckpointValidationMode.THREAD_SEQUENCE)
     }
 
     @Override

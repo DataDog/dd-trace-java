@@ -2,6 +2,8 @@ package com.datadog.appsec.gateway;
 
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventType;
+import com.datadog.appsec.event.data.Address;
+import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.event.data.MapDataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
@@ -15,17 +17,21 @@ import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +50,7 @@ public class GatewayBridge {
 
   // subscriber cache
   private volatile EventProducerService.DataSubscriberInfo initialReqDataSubInfo;
+  private volatile EventProducerService.DataSubscriberInfo rawRequestBodySubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -55,7 +62,10 @@ public class GatewayBridge {
   }
 
   public void init() {
-    // TODO: awkward use of flow and double callback
+    Collection<datadog.trace.api.gateway.EventType<?>> additionalIGEvents =
+        IGAppSecEventDependencies.additionalIGEventTypes(
+            producerService.allSubscribedEvents(), producerService.allSubscribedDataAddresses());
+
     subscriptionService.registerCallback(
         Events.REQUEST_STARTED,
         () -> {
@@ -86,6 +96,41 @@ public class GatewayBridge {
     subscriptionService.registerCallback(Events.REQUEST_HEADER_DONE, new HeadersDoneCallback());
 
     subscriptionService.registerCallback(Events.REQUEST_URI_RAW, new RawURICallback());
+
+    if (additionalIGEvents.contains(Events.REQUEST_BODY_START)) {
+      subscriptionService.registerCallback(
+          Events.REQUEST_BODY_START,
+          (RequestContext ctx_, StoredBodySupplier supplier) -> {
+            AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+            ctx.setStoredRequestBodySupplier(supplier);
+            producerService.publishEvent(ctx, EventType.REQUEST_BODY_START);
+            return null;
+          });
+    }
+
+    if (additionalIGEvents.contains(Events.REQUEST_BODY_DONE)) {
+      subscriptionService.registerCallback(
+          Events.REQUEST_BODY_DONE,
+          (RequestContext ctx_, StoredBodySupplier supplier) -> {
+            AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+            producerService.publishEvent(ctx, EventType.REQUEST_BODY_END);
+
+            if (rawRequestBodySubInfo == null) {
+              rawRequestBodySubInfo =
+                  producerService.getDataSubscribers(KnownAddresses.REQUEST_BODY_RAW);
+            }
+            if (rawRequestBodySubInfo.isEmpty()) {
+              return NoopFlow.INSTANCE;
+            }
+
+            CharSequence bodyContent = supplier.get();
+            if (bodyContent == null || bodyContent.length() == 0) {
+              return NoopFlow.INSTANCE;
+            }
+            DataBundle bundle = MapDataBundle.of(KnownAddresses.REQUEST_BODY_RAW, bodyContent);
+            return producerService.publishDataEvent(rawRequestBodySubInfo, ctx, bundle, false);
+          });
+    }
 
     subscriptionService.registerCallback(
         Events.REQUEST_CLIENT_IP,
@@ -191,7 +236,6 @@ public class GatewayBridge {
     if (initialReqDataSubInfo == null) {
       initialReqDataSubInfo =
           producerService.getDataSubscribers(
-              ctx,
               KnownAddresses.HEADERS_NO_COOKIES,
               KnownAddresses.REQUEST_COOKIES,
               KnownAddresses.REQUEST_URI_RAW,
@@ -278,5 +322,44 @@ public class GatewayBridge {
       return 10 + (b - 0x61);
     }
     return -1;
+  }
+
+  private static class IGAppSecEventDependencies {
+    private static final Map<EventType, Collection<datadog.trace.api.gateway.EventType<?>>>
+        EVENT_DEPENDENCIES = new HashMap<>(3); // ceil(2 / .75)
+
+    private static final Map<Address<?>, Collection<datadog.trace.api.gateway.EventType<?>>>
+        DATA_DEPENDENCIES = new HashMap<>(2);
+
+    static {
+      EVENT_DEPENDENCIES.put(EventType.REQUEST_BODY_START, l(Events.REQUEST_BODY_START));
+      EVENT_DEPENDENCIES.put(EventType.REQUEST_BODY_END, l(Events.REQUEST_BODY_DONE));
+
+      DATA_DEPENDENCIES.put(
+          KnownAddresses.REQUEST_BODY_RAW, l(Events.REQUEST_BODY_START, Events.REQUEST_BODY_DONE));
+    }
+
+    private static Collection<datadog.trace.api.gateway.EventType<?>> l(
+        datadog.trace.api.gateway.EventType<?>... events) {
+      return Arrays.asList(events);
+    }
+
+    static Collection<datadog.trace.api.gateway.EventType<?>> additionalIGEventTypes(
+        Collection<EventType> eventTypes, Collection<Address<?>> addresses) {
+      Set<datadog.trace.api.gateway.EventType<?>> res = new HashSet<>();
+      for (EventType eventType : eventTypes) {
+        Collection<datadog.trace.api.gateway.EventType<?>> c = EVENT_DEPENDENCIES.get(eventType);
+        if (c != null) {
+          res.addAll(c);
+        }
+      }
+      for (Address<?> address : addresses) {
+        Collection<datadog.trace.api.gateway.EventType<?>> c = DATA_DEPENDENCIES.get(address);
+        if (c != null) {
+          res.addAll(c);
+        }
+      }
+      return res;
+    }
   }
 }

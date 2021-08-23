@@ -69,6 +69,25 @@ public final class FieldBackedContextStore implements ContextStore<Object, Objec
     }
   }
 
+  @Override
+  public Object remove(Object key) {
+    if (key instanceof FieldBackedContextAccessor) {
+      final FieldBackedContextAccessor accessor = (FieldBackedContextAccessor) key;
+      Object existingContext = accessor.$get$__datadogContext$(storeId);
+      if (null != existingContext) {
+        synchronized (accessor) {
+          existingContext = accessor.$get$__datadogContext$(storeId);
+          if (null != existingContext) {
+            accessor.$put$__datadogContext$(storeId, null);
+          }
+        }
+      }
+      return existingContext;
+    } else {
+      return weakStore().remove(key);
+    }
+  }
+
   // only create WeakMap-based fall-back when we need it
   private volatile WeakMapContextStore weakStore;
   private final Object synchronizationInstance = new Object();

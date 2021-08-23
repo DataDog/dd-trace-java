@@ -63,7 +63,6 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
         if (scope != null) {
           request.addHandlerContext(SCOPE_CONTEXT_KEY, null);
           final AgentSpan span = scope.span();
-          span.setMeasured(true);
           DECORATE.onError(span, throwable);
           DECORATE.beforeFinish(span);
           scope.close();
@@ -112,7 +111,6 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Tracing {
           if (scope != null) {
             request.addHandlerContext(SCOPE_CONTEXT_KEY, null);
             final AgentSpan span = scope.span();
-            span.setMeasured(true);
             DECORATE.onError(span, throwable);
             DECORATE.beforeFinish(span);
             scope.close();

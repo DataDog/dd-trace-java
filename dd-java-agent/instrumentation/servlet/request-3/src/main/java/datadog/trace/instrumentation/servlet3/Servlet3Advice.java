@@ -27,7 +27,7 @@ public class Servlet3Advice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
-      @Advice.Argument(0) final ServletRequest request,
+      @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
       @Advice.Local("isDispatch") boolean isDispatch) {
     final boolean invalidRequest = !(request instanceof HttpServletRequest);
     if (invalidRequest) {
@@ -42,10 +42,12 @@ public class Servlet3Advice {
       isDispatch = true; // local default is false;
       // Activate the dispatch span as the request span so it can be finished with the request.
       // We don't want to create a new servlet.request span since this is internal processing.
-      return activateSpan(((AgentSpan) dispatchSpan));
+      AgentSpan castDispatchSpan = (AgentSpan) dispatchSpan;
+      return activateSpan(castDispatchSpan);
     }
 
-    final boolean hasServletTrace = request.getAttribute(DD_SPAN_ATTRIBUTE) instanceof AgentSpan;
+    Object spanAttrValue = request.getAttribute(DD_SPAN_ATTRIBUTE);
+    final boolean hasServletTrace = spanAttrValue instanceof AgentSpan;
     if (hasServletTrace) {
       // Tracing might already be applied by other instrumentation,
       // the FilterChain or a parent request (forward/include).

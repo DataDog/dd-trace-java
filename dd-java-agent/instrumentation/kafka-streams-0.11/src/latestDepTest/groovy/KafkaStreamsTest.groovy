@@ -58,7 +58,7 @@ class KafkaStreamsTest extends AgentTestRunner {
         void onMessage(ConsumerRecord<String, String> record) {
           // ensure consistent ordering of traces
           // this is the last processing step so we should see 2 traces here
-          TEST_WRITER.waitForTraces(3)
+          TEST_WRITER.waitForTraces(2)
           TEST_TRACER.activeSpan().setTag("testing", 123)
           records.add(record)
         }
@@ -77,7 +77,7 @@ class KafkaStreamsTest extends AgentTestRunner {
       .mapValues(new ValueMapper<String, String>() {
         @Override
         String apply(String textLine) {
-          TEST_WRITER.waitForTraces(2) // ensure consistent ordering of traces
+          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           TEST_TRACER.activeSpan().setTag("asdf", "testing")
           return textLine.toLowerCase()
         }
@@ -102,7 +102,7 @@ class KafkaStreamsTest extends AgentTestRunner {
     received.value() == greeting.toLowerCase()
     received.key() == null
 
-    assertTraces(4) {
+    assertTraces(3) {
       trace(1) {
         // PRODUCER span 0
         span {
@@ -111,30 +111,12 @@ class KafkaStreamsTest extends AgentTestRunner {
           resourceName "Produce Topic $STREAM_PENDING"
           spanType "queue"
           errored false
+          measured true
           parent()
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             defaultTags()
-          }
-        }
-      }
-      trace(1) {
-        // CONSUMER span 0
-        span {
-          serviceName "kafka"
-          operationName "kafka.consume"
-          resourceName "Consume Topic $STREAM_PENDING"
-          spanType "queue"
-          errored false
-          childOf trace(0)[0]
-          tags {
-            "$Tags.COMPONENT" "java-kafka"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "$InstrumentationTags.PARTITION" { it >= 0 }
-            "$InstrumentationTags.OFFSET" 0
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
-            defaultTags(true)
           }
         }
       }
@@ -148,13 +130,15 @@ class KafkaStreamsTest extends AgentTestRunner {
           resourceName "Consume Topic $STREAM_PENDING"
           spanType "queue"
           errored false
+          measured true
           childOf trace(0)[0]
 
           tags {
-            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.COMPONENT" "java-kafka-streams"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.PROCESSOR_NAME" "KSTREAM-SOURCE-0000000000"
             "asdf" "testing"
             defaultTags(true)
           }
@@ -167,6 +151,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           resourceName "Produce Topic $STREAM_PROCESSED"
           spanType "queue"
           errored false
+          measured true
           childOf span(0)
 
           tags {
@@ -184,7 +169,8 @@ class KafkaStreamsTest extends AgentTestRunner {
           resourceName "Consume Topic $STREAM_PROCESSED"
           spanType "queue"
           errored false
-          childOf trace(2)[0]
+          measured true
+          childOf trace(1)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -200,8 +186,8 @@ class KafkaStreamsTest extends AgentTestRunner {
 
     def headers = received.headers()
     headers.iterator().hasNext()
-    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[2][0].traceId}"
-    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[2][0].spanId}"
+    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[1][0].traceId}"
+    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[1][0].spanId}"
 
 
     cleanup:

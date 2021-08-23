@@ -51,4 +51,9 @@ final class WeakMapContextStore implements ContextStore<Object, Object> {
     }
     return existingContext;
   }
+
+  @Override
+  public Object remove(final Object key) {
+    return map.remove(key);
+  }
 }

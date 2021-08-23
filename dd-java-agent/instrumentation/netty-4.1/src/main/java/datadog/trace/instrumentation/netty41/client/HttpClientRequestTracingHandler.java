@@ -61,7 +61,6 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 
     final AgentSpan span = startSpan(NETTY_CLIENT_REQUEST);
-    span.setMeasured(true);
     try (final AgentScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);

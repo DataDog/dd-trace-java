@@ -5,18 +5,16 @@ import datadog.trace.api.DDId
 
 class Event {
   private final int flags
-  private final long threadId
-  private final String threadName
   private final DDId traceId
   private final DDId spanId
+  private final Thread thread
   private final StackTraceElement[] stackTrace
 
   Event(int flags, DDId traceId, DDId spanId, Thread thread) {
     this.flags = flags
     this.traceId = traceId
     this.spanId = spanId
-    this.threadId = thread.id
-    this.threadName = thread.name
+    this.thread = thread
 
     def idx = -1
     def strace = Thread.currentThread().stackTrace
@@ -67,12 +65,16 @@ class Event {
     return spanId
   }
 
+  Thread getThread() {
+    return thread
+  }
+
   long getThreadId() {
-    return threadId
+    return thread.id
   }
 
   String getThreadName() {
-    return threadName
+    return thread.name
   }
 
   StackTraceElement[] getStackTrace() {

@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.rmi;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
@@ -22,5 +23,11 @@ public class RmiServerDecorator extends ServerDecorator {
   @Override
   protected CharSequence component() {
     return RMI_SERVER;
+  }
+
+  @Override
+  public AgentSpan afterStart(final AgentSpan span) {
+    span.setMeasured(true);
+    return super.afterStart(span);
   }
 }

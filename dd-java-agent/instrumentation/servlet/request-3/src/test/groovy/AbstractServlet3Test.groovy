@@ -19,6 +19,11 @@ import static org.junit.Assume.assumeTrue
 
 abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERVER> {
   @Override
+  boolean testRequestBody() {
+    true
+  }
+
+  @Override
   URI buildAddress(int port) {
     if (dispatch) {
       return new URI("http://localhost:$port/$context/dispatch/")

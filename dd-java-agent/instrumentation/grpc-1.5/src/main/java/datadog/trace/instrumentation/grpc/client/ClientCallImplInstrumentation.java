@@ -109,7 +109,7 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing {
   public static final class Cancel {
     @Advice.OnMethodEnter
     public static void before(@Advice.This ClientCall<?, ?> call) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
         span.finish();
       }
@@ -139,7 +139,7 @@ public final class ClientCallImplInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void closeObserver(
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Status status) {
-      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
         DECORATE.onClose(span, status);
         span.finish();

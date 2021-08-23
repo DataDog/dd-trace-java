@@ -70,7 +70,6 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Tracing {
       final boolean isRootClientHandler = null == request.getProperties().get(DD_SPAN_ATTRIBUTE);
       if (isRootClientHandler) {
         final AgentSpan span = startSpan(JAX_RS_CLIENT_CALL);
-        span.setMeasured(true);
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, request);
         request.getProperties().put(DD_SPAN_ATTRIBUTE, span);

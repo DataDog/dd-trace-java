@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
@@ -10,7 +11,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Collections;
 import java.util.Map;
 import javax.jms.Message;
 import net.bytebuddy.asm.Advice;
@@ -36,7 +36,7 @@ public class MessageInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap("javax.jms.Message", AgentSpan.class.getName());
+    return singletonMap("javax.jms.Message", AgentSpan.class.getName());
   }
 
   @Override

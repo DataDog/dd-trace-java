@@ -8,6 +8,7 @@ import com.datadog.appsec.event.data.StringKVPair;
 import com.datadog.appsec.report.ReportService;
 import com.datadog.appsec.report.raw.events.attack.Attack010;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.http.StoredBodySupplier;
 import java.io.Closeable;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -26,14 +27,16 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
-  private Collection<Attack010> collectedAttacks;
+  private Collection<Attack010> collectedAttacks; // guarded by this
 
-  // assume this will always be accessed by the same thread
+  // assume these will always be written and read by the same thread
   private String savedRawURI;
-  private CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
+  private final CaseInsensitiveMap<List<String>> collectedHeaders = new CaseInsensitiveMap<>();
   private List<StringKVPair> collectedCookies = new ArrayList<>(4);
   private boolean finishedHeaders;
   private String ip;
+
+  private volatile StoredBodySupplier storedRequestBodySupplier;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -120,17 +123,34 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
     return collectedCookies;
   }
 
-  public String getIp() {
+  String getIp() {
     return ip;
   }
 
-  public void setIp(String ip) {
+  void setIp(String ip) {
     this.ip = ip;
+  }
+
+  void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
+    this.storedRequestBodySupplier = storedRequestBodySupplier;
   }
 
   @Override
   public void close() {
     // currently no-op
+  }
+
+  /* end interface for GatewayBridge */
+
+  /* Should be accessible from the modules */
+
+  /** @return the portion of the body read so far, if any */
+  public CharSequence getStoredRequestBody() {
+    StoredBodySupplier storedRequestBodySupplier = this.storedRequestBodySupplier;
+    if (storedRequestBodySupplier == null) {
+      return null;
+    }
+    return storedRequestBodySupplier.get();
   }
 
   @Override

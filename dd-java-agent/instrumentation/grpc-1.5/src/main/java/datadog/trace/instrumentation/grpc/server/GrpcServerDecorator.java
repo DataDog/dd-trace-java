@@ -59,6 +59,12 @@ public class GrpcServerDecorator extends ServerDecorator {
     return COMPONENT_NAME;
   }
 
+  @Override
+  public AgentSpan afterStart(final AgentSpan span) {
+    span.setMeasured(true);
+    return super.afterStart(span);
+  }
+
   public <RespT, ReqT> AgentSpan onCall(final AgentSpan span, ServerCall<ReqT, RespT> call) {
     if (TRIM_RESOURCE_PACKAGE_NAME) {
       span.setResourceName(
@@ -75,8 +81,8 @@ public class GrpcServerDecorator extends ServerDecorator {
     span.setTag("status.code", status.getCode().name());
     span.setTag("status.description", status.getDescription());
 
-    onError(span, status.getCause());
-    if (!status.isOk()) {
+    if (!status.isOk() && status != Status.CANCELLED) {
+      onError(span, status.getCause());
       span.setError(true);
     }
 

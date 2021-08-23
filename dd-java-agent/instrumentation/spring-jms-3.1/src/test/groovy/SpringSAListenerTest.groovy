@@ -18,8 +18,6 @@
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -36,9 +34,6 @@ class SpringSAListenerTest extends AgentTestRunner {
 
   def "receiving message in spring session aware listener generates spans"() {
     setup:
-    // Instrumentation is producing interleaved spans
-    // Instruct the checkpoint validator to ignore this minor glitch
-    CheckpointValidator.excludeValidations(EnumSet.of(CheckpointValidationMode.INTERVALS))
     def context = new AnnotationConfigApplicationContext(Config)
     def factory = context.getBean(ConnectionFactory)
     def container = context.getBean(MessageListenerContainer)

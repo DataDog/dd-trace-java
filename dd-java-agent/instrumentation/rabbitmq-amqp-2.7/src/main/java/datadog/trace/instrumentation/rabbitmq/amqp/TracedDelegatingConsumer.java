@@ -41,7 +41,7 @@ public class TracedDelegatingConsumer implements Consumer {
   public TracedDelegatingConsumer(
       final String queue, final Consumer delegate, boolean traceStartTimeEnabled) {
     this.queue = queue;
-    this.propagate = !Config.get().getRabbitPropagationDisabledQueues().contains(queue);
+    this.propagate = !Config.get().isRabbitPropagationDisabledForDestination(queue);
     this.delegate = delegate;
     this.traceStartTimeEnabled = traceStartTimeEnabled;
   }
@@ -89,9 +89,7 @@ public class TracedDelegatingConsumer implements Consumer {
       // TODO: check dynamically bound queues -
       // https://github.com/DataDog/dd-trace-java/pull/2955#discussion_r677787875
       final AgentSpan span =
-          startSpan(AMQP_COMMAND, context)
-              .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
-              .setMeasured(true);
+          startSpan(AMQP_COMMAND, context).setTag(MESSAGE_SIZE, body == null ? 0 : body.length);
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);

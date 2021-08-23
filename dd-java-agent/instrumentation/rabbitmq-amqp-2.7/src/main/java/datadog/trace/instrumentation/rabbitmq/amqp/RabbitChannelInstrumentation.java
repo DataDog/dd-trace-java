@@ -114,7 +114,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
 
       final Connection connection = channel.getConnection();
 
-      final AgentSpan span = startSpan(AMQP_COMMAND).setMeasured(true);
+      final AgentSpan span = startSpan(AMQP_COMMAND);
       span.setResourceName(method);
       DECORATE.setPeerPort(span, connection.getPort());
       DECORATE.afterStart(span);
@@ -164,7 +164,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
         headers = (headers == null) ? new HashMap<String, Object>() : new HashMap<>(headers);
 
         if (Config.get().isRabbitPropagationEnabled()
-            && !Config.get().getRabbitPropagationDisabledExchanges().contains(exchange)) {
+            && !Config.get().isRabbitPropagationDisabledForDestination(exchange)) {
           propagate().inject(span, headers, SETTER);
         }
 
@@ -243,7 +243,6 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
       } else {
         span = startSpan(AMQP_COMMAND, TimeUnit.MILLISECONDS.toMicros(startTime));
       }
-      span.setMeasured(true);
       if (response != null) {
         span.setTag("message.size", response.getBody().length);
       }

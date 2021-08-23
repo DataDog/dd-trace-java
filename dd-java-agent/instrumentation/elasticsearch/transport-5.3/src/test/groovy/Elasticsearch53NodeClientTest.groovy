@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
+import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
@@ -90,6 +92,7 @@ class Elasticsearch53NodeClientTest extends AgentTestRunner {
   }
 
   def "test elasticsearch error"() {
+    setup:
     when:
     client.prepareGet(indexName, indexType, id).get()
 
@@ -127,6 +130,10 @@ class Elasticsearch53NodeClientTest extends AgentTestRunner {
 
   def "test elasticsearch get"() {
     setup:
+    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+      CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.THREAD_SEQUENCE)
+
     assert TEST_WRITER == []
     def indexResult = client.admin().indices().prepareCreate(indexName).get()
     TEST_WRITER.waitForTraces(1)

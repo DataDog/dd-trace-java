@@ -55,8 +55,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private final long startTimeNano;
 
   /**
-   * The duration in nanoseconds computed using the startTimeMicro or startTimeNano. Span is
-   * considered finished when this is set.
+   * The duration in nanoseconds computed using the startTimeMicro or startTimeNano.<hr> The span's
+   * states are defined as follows:
+   * <li>eq 0 -> unfinished.
+   * <li>lt 0 -> finished but unpublished.
+   * <li>gt 0 -> finished and published.
    */
   private final AtomicLong durationNano = new AtomicLong();
 
@@ -91,8 +94,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (this.durationNano.compareAndSet(0, Math.max(1, durationNano))) {
-      PendingTrace.FinishState finishState = context.getTrace().addFinishedSpan(this);
-      log.debug("Finished span ({}): {}", finishState, this);
+      context.getTrace().onFinish(this);
+      PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
+      log.debug("Finished span ({}): {}", publishState, this);
     } else {
       log.debug("Already finished: {}", this);
     }
@@ -112,6 +116,38 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   public final void finish(final long stoptimeMicros) {
     context.getTrace().touch(); // Update timestamp
     finishAndAddToTrace(TimeUnit.MICROSECONDS.toNanos(stoptimeMicros - startTimeMicro));
+  }
+
+  @Override
+  public final boolean phasedFinish() {
+    long durationNano;
+    if (startTimeNano > 0) {
+      durationNano = context.getTrace().getCurrentTimeNano() - startTimeNano;
+    } else {
+      durationNano = TimeUnit.MICROSECONDS.toNanos(Clock.currentMicroTime() - startTimeMicro);
+    }
+    // Flip the negative bit of the result to allow verifying that publish() is only called once.
+    if (this.durationNano.compareAndSet(0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
+      context.getTrace().onFinish(this);
+      log.debug("Finished span (PHASED): {}", this);
+      return true;
+    } else {
+      log.debug("Already finished: {}", this);
+      return false;
+    }
+  }
+
+  @Override
+  public final void publish() {
+    long durationNano = this.durationNano.get();
+    if (durationNano == 0) {
+      log.debug("Can't publish unfinished span: {}", this);
+    } else if (durationNano > 0) {
+      log.debug("Already published: {}", this);
+    } else if (this.durationNano.compareAndSet(durationNano, durationNano & Long.MAX_VALUE)) {
+      PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
+      log.debug("Published span ({}): {}", publishState, this);
+    }
   }
 
   @Override
