@@ -71,7 +71,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
   public static class ProducerAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static AgentScope beforeSend(
         @Advice.Argument(0) final Message message, @Advice.This final MessageProducer producer) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
       if (callDepth > 0) {
@@ -103,7 +103,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
+    public static void afterSend(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
@@ -119,7 +119,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
   public static class ProducerWithDestinationAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static AgentScope beforeSend(
         @Advice.Argument(0) final Destination destination,
         @Advice.Argument(1) final Message message,
         @Advice.This final MessageProducer producer) {
@@ -150,7 +150,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
+    public static void afterSend(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
