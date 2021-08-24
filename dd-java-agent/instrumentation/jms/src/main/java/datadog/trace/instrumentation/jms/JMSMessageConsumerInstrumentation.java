@@ -88,7 +88,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
 
   public static class ConsumerAdvice {
 
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beforeReceive(@Advice.This final MessageConsumer consumer) {
       MessageConsumerState consumerState =
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
@@ -100,7 +100,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onMessageProduced(
+    public static void afterReceive(
         @Advice.This final MessageConsumer consumer,
         @Advice.Return final Message message,
         @Advice.Thrown final Throwable throwable) {
@@ -139,13 +139,13 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
   }
 
   public static class Close {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beforeClose(@Advice.This final MessageConsumer consumer) {
       MessageConsumerState consumerState =
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
       if (null != consumerState) {
-        consumerState.closePreviousMessageScope();
+        consumerState.onClose();
       }
     }
   }

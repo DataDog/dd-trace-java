@@ -1,8 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
+import static java.util.Collections.newSetFromMap;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -24,6 +28,8 @@ public final class SessionState {
   private final int ackMode;
 
   // consumer-related session state
+  private final Set<MessageConsumerState> consumerStates =
+      newSetFromMap(new ConcurrentHashMap<MessageConsumerState, Boolean>());
   private volatile Queue<AgentSpan> capturedSpans;
   private volatile int spanCount;
 
@@ -68,7 +74,7 @@ public final class SessionState {
     }
   }
 
-  public void onCommit() { // also called on rollback or close
+  public void onCommitOrRollback() {
     Queue<AgentSpan> q = capturedSpans;
     if (null != q) {
       synchronized (this) {
@@ -84,6 +90,23 @@ public final class SessionState {
         }
         SPAN_COUNT.getAndAdd(this, -taken);
       }
+    }
+  }
+
+  void registerConsumerState(MessageConsumerState consumerState) {
+    consumerStates.add(consumerState);
+  }
+
+  void unregisterConsumerState(MessageConsumerState consumerState) {
+    consumerStates.remove(consumerState);
+  }
+
+  public void onClose() {
+    for (MessageConsumerState consumerState : consumerStates) {
+      consumerState.onClose(); // eventually calls unregisterConsumerState
+    }
+    if (isTransactedSession()) {
+      onCommitOrRollback(); // implicit rollback of any active transaction
     }
   }
 }

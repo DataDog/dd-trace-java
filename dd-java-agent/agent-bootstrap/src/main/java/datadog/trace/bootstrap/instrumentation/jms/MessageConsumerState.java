@@ -2,10 +2,12 @@ package datadog.trace.bootstrap.instrumentation.jms;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** Tracks message scopes and spans when consuming messages with {@code receive}. */
 public final class MessageConsumerState {
-  private final ThreadLocal<AgentScope> currentScope = new ThreadLocal<>();
+  private final Map<Thread, AgentScope> currentScopes = new ConcurrentHashMap<>();
 
   private final SessionState sessionState;
   private final UTF8BytesString resourceName;
@@ -16,6 +18,8 @@ public final class MessageConsumerState {
     this.sessionState = sessionState;
     this.resourceName = resourceName;
     this.propagationDisabled = propagationDisabled;
+
+    sessionState.registerConsumerState(this);
   }
 
   public SessionState getSessionState() {
@@ -31,16 +35,24 @@ public final class MessageConsumerState {
   }
 
   /** Closes the given message scope when the next message is consumed or the consumer is closed. */
-  public void closeOnIteration(AgentScope scope) {
-    currentScope.set(scope);
+  public void closeOnIteration(AgentScope newScope) {
+    maybeCloseScope(currentScopes.put(Thread.currentThread(), newScope));
   }
 
   public void closePreviousMessageScope() {
-    AgentScope scope = currentScope.get();
+    maybeCloseScope(currentScopes.remove(Thread.currentThread()));
+  }
+
+  public void onClose() {
+    for (AgentScope scope : currentScopes.values()) {
+      maybeCloseScope(scope);
+    }
+    currentScopes.clear();
+    sessionState.unregisterConsumerState(this);
+  }
+
+  private void maybeCloseScope(AgentScope scope) {
     if (null != scope) {
-      // remove rather than wait for overwrite because it might
-      // be quite a long time before another message arrives
-      currentScope.remove();
       scope.close();
       if (sessionState.isAutoAcknowledge()) {
         scope.span().finish();

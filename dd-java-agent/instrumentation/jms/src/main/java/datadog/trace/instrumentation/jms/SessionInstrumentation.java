@@ -57,8 +57,9 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
             .and(takesArgument(0, named("javax.jms.Destination"))),
         getClass().getName() + "$CreateConsumer");
     transformation.applyAdvice(
-        namedOneOf("commit", "close", "rollback").and(takesNoArguments()),
-        getClass().getName() + "$Commit");
+        namedOneOf("commit", "rollback").and(takesNoArguments()), getClass().getName() + "$Commit");
+    transformation.applyAdvice(
+        named("close").and(takesNoArguments()), getClass().getName() + "$Close");
   }
 
   public static final class CreateConsumer {
@@ -127,12 +128,23 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
   }
 
   public static final class Commit {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void commit(@Advice.This Session session) {
       SessionState sessionState =
           InstrumentationContext.get(Session.class, SessionState.class).get(session);
       if (null != sessionState && sessionState.isTransactedSession()) {
-        sessionState.onCommit();
+        sessionState.onCommitOrRollback();
+      }
+    }
+  }
+
+  public static final class Close {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void close(@Advice.This Session session) {
+      SessionState sessionState =
+          InstrumentationContext.get(Session.class, SessionState.class).get(session);
+      if (null != sessionState) {
+        sessionState.onClose();
       }
     }
   }
