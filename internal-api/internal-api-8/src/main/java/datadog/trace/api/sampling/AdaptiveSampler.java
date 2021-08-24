@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.LongAdder;
  * to compensate for too rapid changes in the incoming events rate and maintain the target average
  * number of samples per window.
  */
-public final class AdaptiveSampler {
+public class AdaptiveSampler {
 
   /*
    * Number of windows to look back when computing carried over budget.
@@ -147,7 +147,7 @@ public final class AdaptiveSampler {
    *
    * @return {@literal true} if the event should be sampled
    */
-  public final boolean sample() {
+  public boolean sample() {
     final Counts counts = countsRef.get();
     counts.addTest();
     if (ThreadLocalRandom.current().nextDouble() < probability) {
