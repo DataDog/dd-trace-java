@@ -166,7 +166,8 @@ public class KafkaStreamTaskInstrumentation extends Instrumenter.Tracing {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stop(
         @Advice.Thrown final Throwable throwable, @Advice.This StreamTask task) {
-      AgentScope scope = InstrumentationContext.get(StreamTask.class, AgentScope.class).get(task);
+      AgentScope scope =
+          InstrumentationContext.get(StreamTask.class, AgentScope.class).remove(task);
       if (scope != null) {
         AgentSpan span = scope.span();
         CONSUMER_DECORATE.onError(span, throwable);

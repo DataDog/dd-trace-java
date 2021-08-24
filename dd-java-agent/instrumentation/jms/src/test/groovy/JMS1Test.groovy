@@ -340,10 +340,12 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on producer side"() {
     setup:
+    // create consumer while propagation is enabled (state will be cached)
+    def consumer = session.createConsumer(destination)
+    // now disable propagation for any messages produced in the given topic/queue
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)
     def producer = session.createProducer(destination)
-    def consumer = session.createConsumer(destination)
     producer.send(message)
     TextMessage receivedMessage = consumer.receive()
     // required to finish auto-acknowledged spans
@@ -389,10 +391,14 @@ class JMS1Test extends AgentTestRunner {
 
   def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation on consumer side"() {
     setup:
+    // create consumer while propagation is disabled for given topic/queue (state will be cached)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)
-    def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
+    // now enable propagation for the producer and any messages produced
+    removeSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS)
+    removeSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES)
+    def producer = session.createProducer(destination)
     producer.send(message)
     TextMessage receivedMessage = consumer.receive()
     // required to finish auto-acknowledged spans
@@ -436,6 +442,69 @@ class JMS1Test extends AgentTestRunner {
     session.createTemporaryTopic()   | "Temporary Topic" | "random"    | ""          | true
   }
 
+  def "sending a message to #jmsResourceName with given disabled topic or queue disables propagation in listener"() {
+    setup:
+    // create consumer while propagation is disabled for given topic/queue (state will be cached)
+    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
+    injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)
+    def consumer = session.createConsumer(destination)
+    // now enable propagation for the producer and any messages produced
+    removeSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS)
+    removeSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES)
+    def producer = session.createProducer(destination)
+    def lock = new CountDownLatch(1)
+    def messageRef = new AtomicReference<TextMessage>()
+    consumer.setMessageListener new MessageListener() {
+        @Override
+        void onMessage(Message message) {
+          lock.await() // ensure the producer trace is reported first.
+          messageRef.set(message)
+        }
+      }
+    producer.send(message)
+    lock.countDown()
+
+    expect:
+    if (expected) {
+      assertTraces(2) {
+        producerTrace(it, jmsResourceName)
+        consumerTrace(it, jmsResourceName, trace(0)[0])
+      }
+    } else {
+      assertTraces(2) {
+        producerTrace(it, jmsResourceName)
+        trace(1) {
+          span {
+            parentId(0 as BigInteger)
+            serviceName "jms"
+            operationName "jms.consume"
+            resourceName "Consumed from $jmsResourceName"
+            spanType DDSpanTypes.MESSAGE_CONSUMER
+            errored false
+            tags {
+              "$Tags.COMPONENT" "jms"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+              "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+              defaultTags()
+            }
+          }
+        }
+      }
+    }
+    // This check needs to go after all traces have been accounted for
+    messageRef.get().text == messageText
+
+    cleanup:
+    producer.close()
+    consumer.close()
+
+    where:
+    destination                      | jmsResourceName   | queue       | topic       | expected
+    session.createQueue("someQueue") | "Queue someQueue" | "someQueue" | "someTopic" | false
+    session.createTopic("someTopic") | "Topic someTopic" | ""          | "someTopic" | false
+    session.createTemporaryQueue()   | "Temporary Queue" | ""          | ""          | true
+    session.createTemporaryTopic()   | "Temporary Topic" | "random"    | ""          | true
+  }
 
   static producerTrace(ListWriterAssert writer, String jmsResourceName) {
     writer.trace(1) {

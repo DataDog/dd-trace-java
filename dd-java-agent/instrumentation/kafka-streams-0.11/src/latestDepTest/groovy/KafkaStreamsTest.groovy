@@ -120,6 +120,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           }
         }
       }
+      def producerSpan = null
       trace(2) {
         sortSpansByStart()
 
@@ -146,6 +147,7 @@ class KafkaStreamsTest extends AgentTestRunner {
 
         // STREAMING span 1
         span {
+          producerSpan = it.span
           serviceName "kafka"
           operationName "kafka.produce"
           resourceName "Produce Topic $STREAM_PROCESSED"
@@ -170,7 +172,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           spanType "queue"
           errored false
           measured true
-          childOf trace(1)[0]
+          childOf producerSpan
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
