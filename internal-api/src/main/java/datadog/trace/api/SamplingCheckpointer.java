@@ -100,6 +100,6 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
     public void checkpoint(AgentSpan span, int flags) {}
 
     @Override
-    public void onRootSpan(String route, DDId traceId, boolean published) {}
+    public void onRootSpan(String endpoint, DDId traceId, boolean published) {}
   }
 }

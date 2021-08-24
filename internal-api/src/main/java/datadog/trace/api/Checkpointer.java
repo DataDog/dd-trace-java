@@ -32,5 +32,12 @@ public interface Checkpointer {
    */
   void checkpoint(AgentSpan span, int flags);
 
-  void onRootSpan(String route, DDId traceId, boolean published);
+  /**
+   * Callback to be called when a root span is written (together with the trace)
+   *
+   * @param endpoint the endpoint name
+   * @param traceId the trace id
+   * @param published {@literal true} the trace and root span sampled and published
+   */
+  void onRootSpan(String endpoint, DDId traceId, boolean published);
 }

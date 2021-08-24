@@ -19,8 +19,8 @@ public class EndpointEvent extends Event {
   private final long traceId;
 
   /**
-   * Set to {@literal true} if the corresponding trace was decided to be kept by
-   * agent side sampler(s)
+   * Set to {@literal true} if the corresponding trace was decided to be kept by agent side
+   * sampler(s)
    */
   @Label("Kept")
   private final boolean kept;
