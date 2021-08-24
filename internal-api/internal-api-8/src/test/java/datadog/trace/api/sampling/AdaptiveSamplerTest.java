@@ -41,9 +41,8 @@ import org.slf4j.LoggerFactory;
  * com.datadog.profiling.exceptions.test-iterations} system property.
  */
 @ExtendWith(MockitoExtension.class)
-class AdaptiveSampler7Test {
-  // delete me
-  private static final Logger log = LoggerFactory.getLogger(AdaptiveSampler7Test.class);
+class AdaptiveSamplerTest {
+  private static final Logger log = LoggerFactory.getLogger(AdaptiveSamplerTest.class);
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
 
   /** Generates windows with numbers of events according to Poisson distribution */
@@ -180,8 +179,8 @@ class AdaptiveSampler7Test {
   private static final int LOOKBACK = 30;
 
   @Mock AgentTaskScheduler taskScheduler;
-  @Captor ArgumentCaptor<Task<AdaptiveSampler7>> rollWindowTaskCaptor;
-  @Captor ArgumentCaptor<AdaptiveSampler7> rollWindowTargetCaptor;
+  @Captor ArgumentCaptor<Task<AdaptiveSampler>> rollWindowTaskCaptor;
+  @Captor ArgumentCaptor<AdaptiveSampler> rollWindowTargetCaptor;
 
   @BeforeEach
   public void setup() {
@@ -259,8 +258,7 @@ class AdaptiveSampler7Test {
 
   @Test
   public void testKeep() {
-    final AdaptiveSampler7 sampler =
-        new AdaptiveSampler7(WINDOW_DURATION.toNanos(), TimeUnit.NANOSECONDS, 1, 0, taskScheduler);
+    final AdaptiveSampler sampler = new AdaptiveSampler(WINDOW_DURATION, 1, 0, taskScheduler);
     long tests = sampler.testCount();
     long samples = sampler.sampleCount();
     assertTrue(sampler.keep());
@@ -270,8 +268,7 @@ class AdaptiveSampler7Test {
 
   @Test
   public void testDrop() {
-    final AdaptiveSampler7 sampler =
-        new AdaptiveSampler7(WINDOW_DURATION.toNanos(), TimeUnit.NANOSECONDS, 1, 0, taskScheduler);
+    final AdaptiveSampler sampler = new AdaptiveSampler(WINDOW_DURATION, 1, 0, taskScheduler);
     long tests = sampler.testCount();
     long samples = sampler.sampleCount();
     assertFalse(sampler.drop());
@@ -297,13 +294,8 @@ class AdaptiveSampler7Test {
     log.info(
         "> mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}%",
         windowEventsSupplier, WINDOWS, SAMPLES_PER_WINDOW, LOOKBACK, maxErrorPercent);
-    final AdaptiveSampler7 sampler =
-        new AdaptiveSampler7(
-            WINDOW_DURATION.toNanos(),
-            TimeUnit.NANOSECONDS,
-            SAMPLES_PER_WINDOW,
-            LOOKBACK,
-            taskScheduler);
+    final AdaptiveSampler sampler =
+        new AdaptiveSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
 
     // simulate event generation and sampling for the given number of sampling windows
     final long expectedSamples = WINDOWS * SAMPLES_PER_WINDOW;
@@ -386,7 +378,7 @@ class AdaptiveSampler7Test {
    *     samples and the sample index skew
    */
   private WindowSamplingResult generateWindowEventsAndSample(
-      IntSupplier windowEventsSupplier, AdaptiveSampler7 sampler, Mean mean) {
+      IntSupplier windowEventsSupplier, AdaptiveSampler sampler, Mean mean) {
     int samples = 0;
     int events = windowEventsSupplier.getAsInt();
     mean.clear();
@@ -457,13 +449,8 @@ class AdaptiveSampler7Test {
     final AtomicLong allSamples = new AtomicLong(0);
     final AtomicLong receivedEvents = new AtomicLong(0);
 
-    final AdaptiveSampler7 sampler =
-        new AdaptiveSampler7(
-            WINDOW_DURATION.toNanos(),
-            TimeUnit.NANOSECONDS,
-            SAMPLES_PER_WINDOW,
-            LOOKBACK,
-            taskScheduler);
+    final AdaptiveSampler sampler =
+        new AdaptiveSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
     final CyclicBarrier startBarrier = new CyclicBarrier(threadCount);
     final CyclicBarrier endBarrier = new CyclicBarrier(threadCount, this::rollWindow);
     final Mean[] means = new Mean[threadCount];

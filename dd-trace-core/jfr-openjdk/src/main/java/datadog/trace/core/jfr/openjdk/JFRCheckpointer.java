@@ -6,7 +6,8 @@ import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.sampling.AdaptiveSampler;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.atomic.LongAdder;
 import jdk.jfr.EventType;
 import jdk.jfr.FlightRecorder;
@@ -114,8 +115,8 @@ public class JFRCheckpointer implements Checkpointer {
       log.debug("Checkpoint adaptive sampling is disabled");
       return null;
     }
-    int windowSize = SAMPLER_WINDOW_SIZE_MS;
-    TimeUnit windowTimeUnit = TimeUnit.MILLISECONDS;
+    Duration windowSize = Duration.of(SAMPLER_WINDOW_SIZE_MS, ChronoUnit.MILLIS);
+
     /*
     Due to coarse grained sampling (at the level of a local root span) and extremely high variability of
     the number of checkpoints generated from such a root span, anywhere between 1 and 100000 seems to be
@@ -123,21 +124,19 @@ public class JFRCheckpointer implements Checkpointer {
     almost always 'overshot' by a large margin.
     '0.6' seems to be the magic number to do the trick ...
     */
-    float limitPerMs = (limit * 0.6f) / windowTimeUnit.convert(1, TimeUnit.MINUTES);
-    float samplesPerWindow = limitPerMs * windowSize;
+    float limitPerMs = limit / 100000f; // (limit * 0.6f) / (60 * 1000)
+    float samplesPerWindow = limitPerMs * windowSize.toMillis();
 
     if (samplesPerWindow < 1) {
-      windowTimeUnit = TimeUnit.MINUTES;
       samplesPerWindow = 1;
-      windowSize = 1;
+      windowSize = Duration.of(1, ChronoUnit.MINUTES);
     }
     log.debug(
         "Using checkpoint adaptive sampling with parameters: windowSize(ms)={}, windowSamples={}, lookback={}",
         windowSize,
         samplesPerWindow,
         SAMPLER_LOOKBACK);
-    return AdaptiveSampler.instance(
-        windowSize, windowTimeUnit, (int) samplesPerWindow, SAMPLER_LOOKBACK);
+    return new AdaptiveSampler(windowSize, (int) samplesPerWindow, SAMPLER_LOOKBACK);
   }
 
   private static int getRateLimit(ConfigProvider configProvider) {
