@@ -18,7 +18,7 @@ public class PromiseHelper {
   public static final boolean completionPriority =
       Config.get()
           .isIntegrationEnabled(
-              Collections.singletonList("scala_promise_completion_priority"), false);
+              Collections.singletonList("scala_promise_completion_priority"), true);
 
   /**
    * Get the {@code Span} that should be associated with the {@code Try} completing this {@code

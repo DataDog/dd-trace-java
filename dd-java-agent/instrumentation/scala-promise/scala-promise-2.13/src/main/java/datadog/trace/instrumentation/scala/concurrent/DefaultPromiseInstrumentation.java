@@ -60,7 +60,7 @@ public class DefaultPromiseInstrumentation extends Instrumenter.Tracing {
     return super.isEnabled()
         && Config.get()
             .isIntegrationEnabled(
-                Collections.singletonList("scala_promise_completion_priority"), false);
+                Collections.singletonList("scala_promise_completion_priority"), true);
   }
 
   public static final class TryComplete {
