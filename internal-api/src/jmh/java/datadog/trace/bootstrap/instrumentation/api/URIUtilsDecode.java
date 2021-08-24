@@ -14,7 +14,6 @@ public class URIUtilsDecode {
 
   @Benchmark
   public void decode(Blackhole blackhole) {
-    // remove me
     blackhole.consume(URIUtils.decode(encoded));
   }
 }

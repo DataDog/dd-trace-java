@@ -12,12 +12,16 @@ import jdk.jfr.Name;
 @Category("Datadog")
 public class EndpointEvent extends Event {
 
-  @Label("Route")
+  @Label("endpoint")
   private final String endpoint;
 
   @Label("Trace Id")
   private final long traceId;
 
+  /**
+   * Set to {@literal true} if the corresponding trace was decided to be kept by
+   * agent side sampler(s)
+   */
   @Label("Kept")
   private final boolean kept;
 
