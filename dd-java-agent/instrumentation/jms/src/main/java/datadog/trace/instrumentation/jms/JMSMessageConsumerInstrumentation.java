@@ -145,7 +145,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
       if (null != consumerState) {
-        consumerState.onClose();
+        consumerState.closePreviousMessageScope();
       }
     }
   }

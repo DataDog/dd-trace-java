@@ -1,10 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
-import static java.util.Collections.newSetFromMap;
-
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -15,6 +15,9 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * JMS providers allow concurrent transactions.
  */
 public final class SessionState {
+
+  private static final AtomicIntegerFieldUpdater<SessionState> SCOPE_COUNT =
+      AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "scopeCount");
 
   private static final AtomicReferenceFieldUpdater<SessionState, Queue> CAPTURED_SPANS =
       AtomicReferenceFieldUpdater.newUpdater(SessionState.class, Queue.class, "capturedSpans");
@@ -28,8 +31,8 @@ public final class SessionState {
   private final int ackMode;
 
   // consumer-related session state
-  private final Set<MessageConsumerState> consumerStates =
-      newSetFromMap(new ConcurrentHashMap<MessageConsumerState, Boolean>());
+  private final Map<Thread, AgentScope> activeScopes = new ConcurrentHashMap<>();
+  private volatile int scopeCount;
   private volatile Queue<AgentSpan> capturedSpans;
   private volatile int spanCount;
 
@@ -93,20 +96,48 @@ public final class SessionState {
     }
   }
 
-  void registerConsumerState(MessageConsumerState consumerState) {
-    consumerStates.add(consumerState);
-  }
-
-  void unregisterConsumerState(MessageConsumerState consumerState) {
-    consumerStates.remove(consumerState);
-  }
-
-  public void onClose() {
-    for (MessageConsumerState consumerState : consumerStates) {
-      consumerState.onClose(); // eventually calls unregisterConsumerState
+  /** Closes the given message scope when the next message is consumed or the session is closed. */
+  void closeOnIteration(AgentScope newScope) {
+    if (SCOPE_COUNT.incrementAndGet(this) > 100) {
+      closeStaleScopes();
     }
+    maybeCloseScope(activeScopes.put(Thread.currentThread(), newScope));
+  }
+
+  /** Closes the scope previously registered by closeOnIteration, assumes same calling thread. */
+  void closePreviousMessageScope() {
+    maybeCloseScope(activeScopes.remove(Thread.currentThread()));
+  }
+
+  /** Closes any active message scopes and finishes any pending transacted spans. */
+  public void onClose() {
+    for (AgentScope scope : activeScopes.values()) {
+      maybeCloseScope(scope);
+    }
+    activeScopes.clear();
     if (isTransactedSession()) {
       onCommitOrRollback(); // implicit rollback of any active transaction
+    }
+  }
+
+  private void maybeCloseScope(AgentScope scope) {
+    if (null != scope) {
+      SCOPE_COUNT.decrementAndGet(this);
+      scope.close();
+      if (isAutoAcknowledge()) {
+        scope.span().finish();
+      }
+    }
+  }
+
+  private void closeStaleScopes() {
+    Iterator<Map.Entry<Thread, AgentScope>> itr = activeScopes.entrySet().iterator();
+    while (itr.hasNext()) {
+      Map.Entry<Thread, AgentScope> entry = itr.next();
+      if (!entry.getKey().isAlive()) {
+        maybeCloseScope(entry.getValue());
+        itr.remove();
+      }
     }
   }
 }
