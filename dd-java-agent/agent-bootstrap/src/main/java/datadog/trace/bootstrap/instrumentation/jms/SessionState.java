@@ -28,7 +28,7 @@ public final class SessionState {
   private final Map<Thread, AgentScope> activeScopes = new ConcurrentHashMap<>();
   private final Deque<AgentSpan> capturedSpans = new ArrayDeque<>();
   private volatile int scopeCount = 0;
-  private boolean capturingFlipped = false;
+  private volatile boolean capturingFlipped = false;
 
   public SessionState(int ackMode) {
     this.ackMode = ackMode;
