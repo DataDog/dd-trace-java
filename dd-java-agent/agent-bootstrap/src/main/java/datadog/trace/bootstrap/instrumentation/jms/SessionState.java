@@ -2,27 +2,21 @@ package datadog.trace.bootstrap.instrumentation.jms;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
- * This is a holder for spans created in a transacted session. It needs to be thread-safe since some
- * JMS providers allow concurrent transactions.
+ * Holds message spans consumed in client-acknowledged or transacted sessions. This class needs to
+ * be thread-safe as some JMS providers allow concurrent transactions.
  */
 public final class SessionState {
 
   private static final AtomicIntegerFieldUpdater<SessionState> SCOPE_COUNT =
       AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "scopeCount");
-
-  private static final AtomicReferenceFieldUpdater<SessionState, Queue> CAPTURED_SPANS =
-      AtomicReferenceFieldUpdater.newUpdater(SessionState.class, Queue.class, "capturedSpans");
-  private static final AtomicIntegerFieldUpdater<SessionState> SPAN_COUNT =
-      AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "spanCount");
 
   // hard bound at 8192 captured spans, degrade to finishing spans early
   // if transactions are very large, rather than use lots of space
@@ -32,66 +26,98 @@ public final class SessionState {
 
   // consumer-related session state
   private final Map<Thread, AgentScope> activeScopes = new ConcurrentHashMap<>();
-  private volatile int scopeCount;
-  private volatile Queue<AgentSpan> capturedSpans;
-  private volatile int spanCount;
+  private final Deque<AgentSpan> capturedSpans = new ArrayDeque<>();
+  private volatile int scopeCount = 0;
+  private volatile boolean capturingFlipped = false;
 
   public SessionState(int ackMode) {
     this.ackMode = ackMode;
-    // defer creating queue as we only need it for transacted sessions
   }
 
   public boolean isTransactedSession() {
     return ackMode == 0; /* Session.SESSION_TRANSACTED */
   }
 
-  public boolean isAutoAcknowledge() {
-    return ackMode == 1 || ackMode == 3; /* Session.AUTO_ACKNOWLEDGE, Session.DUPS_OK_ACKNOWLEDGE */
-  }
-
   public boolean isClientAcknowledge() {
     return ackMode == 2; /* Session.CLIENT_ACKNOWLEDGE */
   }
 
+  public boolean isAutoAcknowledge() {
+    return ackMode != 0 && ackMode != 2; /* treat all other modes as Session.AUTO_ACKNOWLEDGE */
+
+    // We can't be sure of the ack-pattern for non-standard vendor modes, so the safest thing
+    // to do is close+finish message spans on the next receive like we do for AUTO_ACKNOWLEDGE
+  }
+
   // only used for testing
   int getCapturedSpanCount() {
-    Queue<AgentSpan> q = capturedSpans;
-    assert spanCount == (null != q ? q.size() : 0);
-    return spanCount;
+    synchronized (capturedSpans) {
+      return capturedSpans.size();
+    }
+  }
+
+  /** Finishes the given message span when a message from the same session is acknowledged. */
+  public void finishOnAcknowledge(AgentSpan span) {
+    captureMessageSpan(span);
   }
 
   /** Finishes the given message span when the session is committed, rolled back, or closed. */
   public void finishOnCommit(AgentSpan span) {
-    Queue<AgentSpan> q = capturedSpans;
-    if (null == q) {
-      q = new ArrayBlockingQueue<AgentSpan>(MAX_CAPTURED_SPANS);
-      if (!CAPTURED_SPANS.compareAndSet(this, null, q)) {
-        q = capturedSpans; // another thread won, use their value
+    captureMessageSpan(span);
+  }
+
+  private void captureMessageSpan(AgentSpan span) {
+    synchronized (capturedSpans) {
+      if (capturedSpans.size() < MAX_CAPTURED_SPANS) {
+        // change capture direction of the deque on each commit/ack
+        // avoids mixing new spans with the old group while still supporting LIFO
+        if (capturingFlipped) {
+          capturedSpans.addFirst(span);
+        } else {
+          capturedSpans.addLast(span);
+        }
+        return;
       }
     }
-    if (q.offer(span)) {
-      SPAN_COUNT.incrementAndGet(this);
-    } else {
-      // just finish the span to avoid an unbounded queue
-      span.finish();
-    }
+    // just finish the span to avoid an unbounded queue
+    span.finish();
+  }
+
+  public void onAcknowledge() {
+    finishCapturedSpans();
   }
 
   public void onCommitOrRollback() {
-    Queue<AgentSpan> q = capturedSpans;
-    if (null != q) {
-      synchronized (this) {
-        // synchronized in case the second commit
-        // happens quicker than we can close the spans
-        int taken = SPAN_COUNT.get(this);
-        for (int i = 0; i < taken; ++i) {
-          AgentSpan span = q.poll();
-          // it won't be null, but just in case...
-          if (null != span) {
-            span.finish();
+    finishCapturedSpans();
+  }
+
+  private void finishCapturedSpans() {
+    // make sure we finish spans in this commit/ack before any subsequent commit/ack
+    synchronized (this) {
+      int spansToFinish;
+      boolean finishingFlipped;
+      synchronized (capturedSpans) {
+        spansToFinish = capturedSpans.size();
+        // if capturing was flipped for this group then we need to flip finishing to match
+        finishingFlipped = capturingFlipped;
+        // update capturing to use the other end of the deque for the next group of spans
+        capturingFlipped = !finishingFlipped;
+      }
+      for (int i = 0; i < spansToFinish; ++i) {
+        AgentSpan span;
+        synchronized (capturedSpans) {
+          // finish spans in LIFO order according to how they were captured
+          // for example addFirst --> pollFirst vs. addLast --> pollLast
+          if (finishingFlipped) {
+            span = capturedSpans.pollFirst();
+          } else {
+            span = capturedSpans.pollLast();
           }
         }
-        SPAN_COUNT.getAndAdd(this, -taken);
+        // it won't be null, but just in case...
+        if (null != span) {
+          span.finish();
+        }
       }
     }
   }

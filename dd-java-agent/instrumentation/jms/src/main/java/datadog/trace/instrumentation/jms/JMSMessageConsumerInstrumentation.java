@@ -63,8 +63,8 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>(4);
-    contextStore.put("javax.jms.Message", AgentSpan.class.getName());
     contextStore.put("javax.jms.MessageConsumer", MessageConsumerState.class.getName());
+    contextStore.put("javax.jms.Message", SessionState.class.getName());
     return contextStore;
   }
 
@@ -127,8 +127,9 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         CONSUMER_DECORATE.onError(span, throwable);
         SessionState sessionState = consumerState.getSessionState();
         if (sessionState.isClientAcknowledge()) {
-          // span will be finished by a call to Message.acknowledge
-          InstrumentationContext.get(Message.class, AgentSpan.class).put(message, span);
+          // consumed spans will be finished by a call to Message.acknowledge
+          sessionState.finishOnAcknowledge(span);
+          InstrumentationContext.get(Message.class, SessionState.class).put(message, sessionState);
         } else if (sessionState.isTransactedSession()) {
           // span will be finished by Session.commit/rollback/close
           sessionState.finishOnCommit(span);
@@ -162,7 +163,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         if (null != consumerState) {
           listener =
               new DatadogMessageListener(
-                  InstrumentationContext.get(Message.class, AgentSpan.class),
+                  InstrumentationContext.get(Message.class, SessionState.class),
                   consumerState,
                   listener);
         }
