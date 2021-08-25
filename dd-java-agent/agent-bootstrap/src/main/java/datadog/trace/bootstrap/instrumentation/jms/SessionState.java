@@ -26,9 +26,9 @@ public final class SessionState {
 
   // consumer-related session state
   private final Map<Thread, AgentScope> activeScopes = new ConcurrentHashMap<>();
-  private volatile int scopeCount;
   private final Deque<AgentSpan> capturedSpans = new ArrayDeque<>();
-  private volatile boolean finishingLastToFirst = false;
+  private volatile int scopeCount = 0;
+  private boolean capturingFlipped = false;
 
   public SessionState(int ackMode) {
     this.ackMode = ackMode;
@@ -69,7 +69,9 @@ public final class SessionState {
   private void captureMessageSpan(AgentSpan span) {
     synchronized (capturedSpans) {
       if (capturedSpans.size() < MAX_CAPTURED_SPANS) {
-        if (finishingLastToFirst) {
+        // change capture direction of the deque on each commit/ack
+        // avoids mixing new spans with the old group while still supporting LIFO
+        if (capturingFlipped) {
           capturedSpans.addFirst(span);
         } else {
           capturedSpans.addLast(span);
@@ -90,22 +92,26 @@ public final class SessionState {
   }
 
   private void finishCapturedSpans() {
-    // synchronized in case incoming requests happen quicker than we can close the spans
+    // make sure we finish spans in this commit/ack before any subsequent commit/ack
     synchronized (this) {
-      // finish in opposite direction to capture, changing direction on each commit/ack
-      // ie. if we were capturing with 'addLast' then we'll be finishing with 'pollLast'
-      finishingLastToFirst = !finishingLastToFirst;
-      int taken;
+      int spansToFinish;
+      boolean finishingFlipped;
       synchronized (capturedSpans) {
-        taken = capturedSpans.size();
+        spansToFinish = capturedSpans.size();
+        // if capturing was flipped for this group then we need to flip finishing to match
+        finishingFlipped = capturingFlipped;
+        // update capturing to use the other end of the deque for the next group of spans
+        capturingFlipped = !finishingFlipped;
       }
-      for (int i = 0; i < taken; ++i) {
+      for (int i = 0; i < spansToFinish; ++i) {
         AgentSpan span;
         synchronized (capturedSpans) {
-          if (finishingLastToFirst) {
-            span = capturedSpans.pollLast();
-          } else {
+          // finish spans in LIFO order according to how they were captured
+          // for example addFirst --> pollFirst vs. addLast --> pollLast
+          if (finishingFlipped) {
             span = capturedSpans.pollFirst();
+          } else {
+            span = capturedSpans.pollLast();
           }
         }
         // it won't be null, but just in case...
