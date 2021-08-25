@@ -11,18 +11,14 @@ import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorat
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.List;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.springframework.context.ApplicationContext;
-import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.ModelAndView;
 
 @AutoService(Instrumenter.class)
@@ -48,13 +44,13 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Tracing
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
-        isMethod()
-            .and(isProtected())
-            .and(named("onRefresh"))
-            .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
-            .and(takesArguments(1)),
-        DispatcherServletInstrumentation.class.getName() + "$HandlerMappingAdvice");
+    //    transformation.applyAdvice(
+    //        isMethod()
+    //            .and(isProtected())
+    //            .and(named("onRefresh"))
+    //            .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
+    //            .and(takesArguments(1)),
+    //        DispatcherServletInstrumentation.class.getName() + "$HandlerMappingAdvice");
     transformation.applyAdvice(
         isMethod()
             .and(isProtected())
@@ -74,21 +70,21 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Tracing
    * which allows the mappings to be evaluated at the beginning of the filter chain. This evaluation
    * is done inside the Servlet3Decorator.onContext method.
    */
-  public static class HandlerMappingAdvice {
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void afterRefresh(
-        @Advice.Argument(0) final ApplicationContext springCtx,
-        @Advice.FieldValue("handlerMappings") final List<HandlerMapping> handlerMappings) {
-      if (springCtx.containsBean("ddDispatcherFilter")) {
-        final HandlerMappingResourceNameFilter filter =
-            (HandlerMappingResourceNameFilter) springCtx.getBean("ddDispatcherFilter");
-        if (handlerMappings != null && filter != null) {
-          filter.setHandlerMappings(handlerMappings);
-        }
-      }
-    }
-  }
+  //  public static class HandlerMappingAdvice {
+  //
+  //    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+  //    public static void afterRefresh(
+  //        @Advice.Argument(0) final ApplicationContext springCtx,
+  //        @Advice.FieldValue("handlerMappings") final List<HandlerMapping> handlerMappings) {
+  //      if (springCtx.containsBean("ddDispatcherFilter")) {
+  //        final HandlerMappingResourceNameFilter filter =
+  //            (HandlerMappingResourceNameFilter) springCtx.getBean("ddDispatcherFilter");
+  //        if (handlerMappings != null && filter != null) {
+  //          filter.setHandlerMappings(handlerMappings);
+  //        }
+  //      }
+  //    }
+  //  }
 
   public static class RenderAdvice {
 
