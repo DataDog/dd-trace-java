@@ -15,17 +15,17 @@ import jdk.jfr.StackTrace;
 public class CheckpointEvent extends Event {
 
   @Label("Trace Id")
-  private final long traceId;
+  private final String traceId1;
 
   @Label("Span Id")
-  private final long spanId;
+  private final String spanId1;
 
   @Label("Flags")
   private final int flags;
 
   public CheckpointEvent(long traceId, long spanId, int flags) {
-    this.traceId = traceId;
-    this.spanId = spanId;
+    this.traceId1 = String.format("%1$32s", Long.toHexString(traceId)).replace(' ', '0');
+    this.spanId1 = String.format("%1$32s", Long.toHexString(spanId)).replace(' ', '0');
     this.flags = flags;
   }
 }

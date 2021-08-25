@@ -16,7 +16,7 @@ public class EndpointEvent extends Event {
   private final String endpoint;
 
   @Label("Trace Id")
-  private final long traceId;
+  private final String traceId1;
 
   /**
    * Set to {@literal true} if the corresponding trace was decided to be kept by agent side
@@ -27,7 +27,7 @@ public class EndpointEvent extends Event {
 
   public EndpointEvent(final String endpoint, final long traceId, final boolean kept) {
     this.endpoint = endpoint;
-    this.traceId = traceId;
+    this.traceId1 = String.format("%1$32s", Long.toHexString(traceId)).replace(' ', '0');
     this.kept = kept;
   }
 }
