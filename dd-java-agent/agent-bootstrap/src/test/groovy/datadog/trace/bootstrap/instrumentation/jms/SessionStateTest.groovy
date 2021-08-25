@@ -18,7 +18,7 @@ class SessionStateTest extends DDSpecification {
     0 * span2.finish()
     sessionState.capturedSpanCount == 2
     when: "transaction committed"
-    sessionState.onCommit()
+    sessionState.onCommitOrRollback()
     then: "spans finished and queues empty"
     1 * span1.finish()
     1 * span2.finish()
@@ -43,7 +43,7 @@ class SessionStateTest extends DDSpecification {
     1 * span2.finish()
     sessionState.capturedSpanCount == SessionState.MAX_CAPTURED_SPANS
     when: "commit and add span"
-    sessionState.onCommit()
+    sessionState.onCommitOrRollback()
     sessionState.finishOnCommit(span2)
     then: "span is enqueued and not finished"
     0 * span2.finish()

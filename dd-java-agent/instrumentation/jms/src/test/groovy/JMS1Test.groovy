@@ -76,6 +76,32 @@ class JMS1Test extends AgentTestRunner {
     session.createTemporaryTopic()   | "Temporary Topic"
   }
 
+  def "closing #jmsResourceName session should close and finish any pending scopes"() {
+    setup:
+    def localSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
+    def producer = localSession.createProducer(destination)
+    def consumer = localSession.createConsumer(destination)
+
+    producer.send(message)
+
+    TextMessage receivedMessage = consumer.receive()
+    localSession.close()
+
+    expect:
+    receivedMessage.text == messageText
+    assertTraces(2) {
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+    }
+
+    where:
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
   def "receiving a message from #jmsResourceName in a transacted session"() {
     setup:
     def transactedSession = connection.createSession(true, Session.SESSION_TRANSACTED)
@@ -109,9 +135,9 @@ class JMS1Test extends AgentTestRunner {
 
   def "receiving a message from #jmsResourceName with manual acknowledgement"() {
     setup:
-    def session = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
+    def clientSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
     def producer = session.createProducer(destination)
-    def consumer = session.createConsumer(destination)
+    def consumer = clientSession.createConsumer(destination)
 
     producer.send(message)
 
@@ -128,7 +154,7 @@ class JMS1Test extends AgentTestRunner {
     cleanup:
     producer.close()
     consumer.close()
-    session.close()
+    clientSession.close()
 
     where:
     destination                      | jmsResourceName
