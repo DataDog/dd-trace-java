@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jms
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 
@@ -48,5 +49,20 @@ class SessionStateTest extends DDSpecification {
     then: "span is enqueued and not finished"
     0 * span2.finish()
     sessionState.capturedSpanCount == 1
+  }
+
+  def "stale scopes are cleaned up from session"() {
+    setup:
+    SessionState sessionState = new SessionState(0)
+    when: "add thread scopes without triggering cleanup"
+    for (int i = 0; i < 100; ++i) {
+      Thread.start { sessionState.closeOnIteration(Mock(AgentScope)) }.join()
+    }
+    then:
+    sessionState.scopeCount == 100
+    when: "trigger cleanup"
+    sessionState.closeOnIteration(Mock(AgentScope))
+    then:
+    sessionState.scopeCount == 1
   }
 }

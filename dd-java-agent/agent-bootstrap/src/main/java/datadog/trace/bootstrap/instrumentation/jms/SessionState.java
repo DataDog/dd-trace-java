@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.jms;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -14,6 +15,9 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * JMS providers allow concurrent transactions.
  */
 public final class SessionState {
+
+  private static final AtomicIntegerFieldUpdater<SessionState> SCOPE_COUNT =
+      AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "scopeCount");
 
   private static final AtomicReferenceFieldUpdater<SessionState, Queue> CAPTURED_SPANS =
       AtomicReferenceFieldUpdater.newUpdater(SessionState.class, Queue.class, "capturedSpans");
@@ -28,6 +32,7 @@ public final class SessionState {
 
   // consumer-related session state
   private final Map<Thread, AgentScope> activeScopes = new ConcurrentHashMap<>();
+  private volatile int scopeCount;
   private volatile Queue<AgentSpan> capturedSpans;
   private volatile int spanCount;
 
@@ -93,6 +98,9 @@ public final class SessionState {
 
   /** Closes the given message scope when the next message is consumed or the session is closed. */
   void closeOnIteration(AgentScope newScope) {
+    if (SCOPE_COUNT.incrementAndGet(this) > 100) {
+      closeStaleScopes();
+    }
     maybeCloseScope(activeScopes.put(Thread.currentThread(), newScope));
   }
 
@@ -114,9 +122,21 @@ public final class SessionState {
 
   private void maybeCloseScope(AgentScope scope) {
     if (null != scope) {
+      SCOPE_COUNT.decrementAndGet(this);
       scope.close();
       if (isAutoAcknowledge()) {
         scope.span().finish();
+      }
+    }
+  }
+
+  private void closeStaleScopes() {
+    Iterator<Map.Entry<Thread, AgentScope>> itr = activeScopes.entrySet().iterator();
+    while (itr.hasNext()) {
+      Map.Entry<Thread, AgentScope> entry = itr.next();
+      if (!entry.getKey().isAlive()) {
+        maybeCloseScope(entry.getValue());
+        itr.remove();
       }
     }
   }
