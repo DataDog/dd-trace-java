@@ -141,8 +141,8 @@ public final class SessionState {
       maybeCloseScope(scope);
     }
     activeScopes.clear();
-    if (isTransactedSession()) {
-      onCommitOrRollback(); // implicit rollback of any active transaction
+    if (!isAutoAcknowledge()) {
+      finishCapturedSpans();
     }
   }
 
