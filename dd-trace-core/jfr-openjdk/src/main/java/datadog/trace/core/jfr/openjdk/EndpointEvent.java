@@ -22,12 +22,12 @@ public class EndpointEvent extends Event {
    * Set to {@literal true} if the corresponding trace was decided to be kept by agent side
    * sampler(s)
    */
-  @Label("Kept")
-  private final boolean kept;
+  @Label("Sampled")
+  private final boolean sampled;
 
-  public EndpointEvent(final String endpoint, final long traceId, final boolean kept) {
+  public EndpointEvent(final String endpoint, final long traceId, final boolean sampled) {
     this.endpoint = endpoint;
     this.traceId = traceId;
-    this.kept = kept;
+    this.sampled = sampled;
   }
 }
