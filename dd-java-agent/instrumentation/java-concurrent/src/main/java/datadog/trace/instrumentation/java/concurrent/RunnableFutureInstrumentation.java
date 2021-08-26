@@ -19,6 +19,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
+import datadog.trace.api.Checkpointer;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -127,26 +128,50 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodExit
     public static <T> void captureScope(@Advice.This RunnableFuture<T> task) {
-      capture(InstrumentationContext.get(RunnableFuture.class, State.class), task, true);
+      String oldTag = Checkpointer.tag.get();
+      try {
+        Checkpointer.tag.set("RunnableFuture::construct");
+        capture(InstrumentationContext.get(RunnableFuture.class, State.class), task, true);
+      } finally {
+        Checkpointer.tag.set(oldTag);
+      }
     }
   }
 
   public static final class Run {
     @Advice.OnMethodEnter
     public static <T> TraceScope activate(@Advice.This RunnableFuture<T> task) {
-      return startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task);
+      String oldTag = Checkpointer.tag.get();
+      try {
+        Checkpointer.tag.set("RunnableFuture::run");
+        return startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task);
+      } finally {
+        Checkpointer.tag.set(oldTag);
+      }
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void close(@Advice.Enter TraceScope scope) {
-      endTaskScope(scope);
+      String oldTag = Checkpointer.tag.get();
+      try {
+        Checkpointer.tag.set("RunnableFuture::run");
+        endTaskScope(scope);
+      } finally {
+        Checkpointer.tag.set(oldTag);
+      }
     }
   }
 
   public static final class Cancel {
     @Advice.OnMethodEnter
     public static <T> void cancel(@Advice.This RunnableFuture<T> task) {
-      cancelTask(InstrumentationContext.get(RunnableFuture.class, State.class), task);
+      String oldTag = Checkpointer.tag.get();
+      try {
+        Checkpointer.tag.set("RunnableFuture::cancel");
+        cancelTask(InstrumentationContext.get(RunnableFuture.class, State.class), task);
+      } finally {
+        Checkpointer.tag.set(oldTag);
+      }
     }
   }
 }

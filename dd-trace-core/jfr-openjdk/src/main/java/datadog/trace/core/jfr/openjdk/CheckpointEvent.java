@@ -3,6 +3,7 @@ package datadog.trace.core.jfr.openjdk;
 import static datadog.trace.api.Checkpointer.CPU;
 
 import datadog.trace.core.util.SystemAccess;
+import datadog.trace.api.Checkpointer;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Event;
@@ -29,10 +30,14 @@ public class CheckpointEvent extends Event {
   @Label("Thread CPU Time")
   private final long cpuTime;
 
+  @Label("Tags")
+  private final String tags;
+
   public CheckpointEvent(long traceId, long spanId, int flags) {
     this.traceId = traceId;
     this.spanId = spanId;
     this.flags = flags;
+    this.tags = Checkpointer.tag.get();
     if ((flags & CPU) != 0 && isEnabled()) {
       this.cpuTime = SystemAccess.getCurrentThreadCpuTime();
     } else {

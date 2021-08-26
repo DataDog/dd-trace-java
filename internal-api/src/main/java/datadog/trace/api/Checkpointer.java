@@ -1,6 +1,13 @@
 package datadog.trace.api;
 
 public interface Checkpointer {
+  ThreadLocal<String> tag =
+      new ThreadLocal<String>() {
+        @Override
+        protected String initialValue() {
+          return null;
+        }
+      };
 
   /**
    * Modifier tag to make an event an end event. The LSB is chosen to allow for good varint

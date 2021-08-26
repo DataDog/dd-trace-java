@@ -12,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Checkpointer;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -74,28 +75,52 @@ public final class AsyncTaskInstrumentation extends Instrumenter.Tracing
   public static class Construct {
     @Advice.OnMethodExit
     public static void construct(@Advice.This ForkJoinTask<?> task) {
-      capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
+      String oldTag = Checkpointer.tag.get();
+      try {
+        Checkpointer.tag.set("AsyncTaskInstrumentation::construct");
+        capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
+      } finally {
+        Checkpointer.tag.set(oldTag);
+      }
     }
   }
 
   public static class Run {
     @Advice.OnMethodEnter
     public static TraceScope before(@Advice.This ForkJoinTask<?> zis) {
-      return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), zis);
+      String oldTag = Checkpointer.tag.get();
+      try {
+        Checkpointer.tag.set("AsyncTaskInstrumentation::run");
+        return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), zis);
+      } finally {
+        Checkpointer.tag.set(oldTag);
+      }
     }
 
     @Advice.OnMethodExit
     public static void after(@Advice.Enter TraceScope scope) {
-      endTaskScope(scope);
+      String oldTag = Checkpointer.tag.get();
+      try {
+        Checkpointer.tag.set("AsyncTaskInstrumentation::run");
+        endTaskScope(scope);
+      } finally {
+        Checkpointer.tag.set(oldTag);
+      }
     }
   }
 
   public static class Cancel {
     @Advice.OnMethodExit
     public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
-      State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
-      if (null != state) {
-        state.closeContinuation();
+      String oldTag = Checkpointer.tag.get();
+      try {
+        Checkpointer.tag.set("AsyncTaskInstrumentation::cancel");
+        State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
+        if (null != state) {
+          state.closeContinuation();
+        }
+      } finally {
+        Checkpointer.tag.set(oldTag);
       }
     }
   }

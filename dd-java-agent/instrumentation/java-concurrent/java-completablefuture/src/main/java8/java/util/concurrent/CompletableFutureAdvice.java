@@ -3,6 +3,7 @@ package java.util.concurrent;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.concurrent.CompletableFuture.ASYNC;
 
+import datadog.trace.api.Checkpointer;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -17,14 +18,20 @@ public final class CompletableFutureAdvice {
   public static final class UniConstructor {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterInit(@Advice.This UniCompletion zis) {
-      TraceScope scope = activeScope();
-      if (zis.isLive() && scope != null) {
-        ContextStore<UniCompletion, ConcurrentState> contextStore =
-            InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
-        ConcurrentState state = ConcurrentState.captureScope(contextStore, zis, scope);
-        if (state != null) {
-          state.startThreadMigration();
+      String oldTag = Checkpointer.tag.get();
+      try {
+        Checkpointer.tag.set("UniConstructor::afterInit");
+        TraceScope scope = activeScope();
+        if (zis.isLive() && scope != null) {
+          ContextStore<UniCompletion, ConcurrentState> contextStore =
+              InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
+          ConcurrentState state = ConcurrentState.captureScope(contextStore, zis, scope);
+          if (state != null) {
+            state.startThreadMigration();
+          }
         }
+      } finally {
+        Checkpointer.tag.set(oldTag);
       }
     }
 
@@ -40,16 +47,22 @@ public final class CompletableFutureAdvice {
         @Advice.Local("hadExecutor") boolean hadExecutor,
         @Advice.Local("wasClaimed") boolean wasClaimed,
         @Advice.Local("wasLive") boolean wasLive) {
-      hadExecutor = zis.executor != null;
-      wasClaimed = zis.getForkJoinTaskTag() == 1;
-      wasLive = zis.isLive();
-      // If this UniCompletion is not live, then we don't need to activate a span
-      if (!wasLive) {
-        return null;
+      String oldTag = Checkpointer.tag.get();
+      try {
+        Checkpointer.tag.set("UniSubTryFire::enter");
+        hadExecutor = zis.executor != null;
+        wasClaimed = zis.getForkJoinTaskTag() == 1;
+        wasLive = zis.isLive();
+        // If this UniCompletion is not live, then we don't need to activate a span
+        if (!wasLive) {
+          return null;
+        }
+        ContextStore<UniCompletion, ConcurrentState> contextStore =
+            InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
+        return ConcurrentState.activateAndContinueContinuation(contextStore, zis);
+      } finally {
+        Checkpointer.tag.set(oldTag);
       }
-      ContextStore<UniCompletion, ConcurrentState> contextStore =
-          InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
-      return ConcurrentState.activateAndContinueContinuation(contextStore, zis);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -61,31 +74,37 @@ public final class CompletableFutureAdvice {
         @Advice.Local("hadExecutor") boolean hadExecutor,
         @Advice.Local("wasClaimed") boolean wasClaimed,
         @Advice.Local("wasLive") boolean wasLive) {
-      // If it wasn't live when we entered, then do nothing
-      if (!wasLive) {
-        return;
-      }
-      // Try to clean up if the CompletableFuture has been completed.
-      //
-      // 1) If the mode is ASYNC, it means that someone else has claimed the
-      // task for us, and we have run it to completion.
-      // 2) We have claimed the task and we will not mark it as finished since we will
-      // hand off to a `UniRelay` which can happen in `uniCompose`.
-      // 3) If `isLive` is false, then either we or someone else just completed the task.
-      ContextStore<UniCompletion, ConcurrentState> contextStore = null;
-      boolean claimed = !wasClaimed && !hadExecutor && zis.getForkJoinTaskTag() == 1;
-      if (mode == ASYNC || (mode < ASYNC && claimed) || !zis.isLive()) {
-        contextStore = InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
-        ConcurrentState.closeAndClearContinuation(contextStore, zis);
-      } else if (scope instanceof AgentScope) {
-        // then there was some actual work done under a scope here
-        ((AgentScope) scope).span().finishWork();
-      }
-      if (scope != null || throwable != null) {
-        if (contextStore == null) {
-          contextStore = InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
+      String oldTag = Checkpointer.tag.get();
+      try {
+        Checkpointer.tag.set("UniSubTryFire::exit");
+        // If it wasn't live when we entered, then do nothing
+        if (!wasLive) {
+          return;
         }
-        ConcurrentState.closeScope(contextStore, zis, scope, throwable);
+        // Try to clean up if the CompletableFuture has been completed.
+        //
+        // 1) If the mode is ASYNC, it means that someone else has claimed the
+        // task for us, and we have run it to completion.
+        // 2) We have claimed the task and we will not mark it as finished since we will
+        // hand off to a `UniRelay` which can happen in `uniCompose`.
+        // 3) If `isLive` is false, then either we or someone else just completed the task.
+        ContextStore<UniCompletion, ConcurrentState> contextStore = null;
+        boolean claimed = !wasClaimed && !hadExecutor && zis.getForkJoinTaskTag() == 1;
+        if (mode == ASYNC || (mode < ASYNC && claimed) || !zis.isLive()) {
+          contextStore = InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
+          ConcurrentState.closeAndClearContinuation(contextStore, zis);
+        } else if (scope instanceof AgentScope) {
+          // then there was some actual work done under a scope here
+          ((AgentScope) scope).span().finishWork();
+        }
+        if (scope != null || throwable != null) {
+          if (contextStore == null) {
+            contextStore = InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
+          }
+          ConcurrentState.closeScope(contextStore, zis, scope, throwable);
+        }
+      } finally {
+        Checkpointer.tag.set(oldTag);
       }
     }
 
