@@ -211,11 +211,11 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
     client.newCall(request).execute()
     TEST_WRITER.waitForTraces(1)
     then: "2 synchronous spans"
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    0 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    0 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    0 * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    0 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    0 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    0 * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
 
     where:
     method = "GET"

@@ -20,11 +20,11 @@ class CheckpointThreadMigrationTest extends AgentTestRunner {
     }
     TEST_WRITER.waitForTraces(1)
     then:
-    (traceChildTasks ? 2 : 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
-    (traceChildTasks ? 2 : 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    (traceChildTasks ? 2 : 1) * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    1 * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
+    (traceChildTasks ? 2 : 1) * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
 
     cleanup:
     executor.shutdownNow()
@@ -50,11 +50,11 @@ class CheckpointThreadMigrationTest extends AgentTestRunner {
     }
     TEST_WRITER.waitForTraces(1)
     then:
-    (traceChildTasks ? 2 : 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, CPU | END)
-    (traceChildTasks ? 2 : 1) * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
+    (traceChildTasks ? 2 : 1) * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    1 * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
+    (traceChildTasks ? 2 : 1) * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
 
     cleanup:
     executor.shutdownNow()

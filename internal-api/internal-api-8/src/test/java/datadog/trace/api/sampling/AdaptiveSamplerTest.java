@@ -2,6 +2,8 @@ package datadog.trace.api.sampling;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.round;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
@@ -252,6 +254,26 @@ class AdaptiveSamplerTest {
   @Test
   public void testRepeatingRegularStartWithLow() throws Exception {
     testSampler(new RepeatingWindowsEventsSupplier(0, 1000, 0, 1000, 0, 1000), 15);
+  }
+
+  @Test
+  public void testKeep() {
+    final AdaptiveSampler sampler = new AdaptiveSampler(WINDOW_DURATION, 1, 0, taskScheduler);
+    long tests = sampler.testCount();
+    long samples = sampler.sampleCount();
+    assertTrue(sampler.keep());
+    assertEquals(tests + 1, sampler.testCount());
+    assertEquals(samples + 1, sampler.sampleCount());
+  }
+
+  @Test
+  public void testDrop() {
+    final AdaptiveSampler sampler = new AdaptiveSampler(WINDOW_DURATION, 1, 0, taskScheduler);
+    long tests = sampler.testCount();
+    long samples = sampler.sampleCount();
+    assertFalse(sampler.drop());
+    assertEquals(tests + 1, sampler.testCount());
+    assertEquals(samples, sampler.sampleCount());
   }
 
   private void testSampler(final IntSupplier windowEventsSupplier, final int maxErrorPercent)

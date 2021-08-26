@@ -287,7 +287,7 @@ public class AgentTracer {
     public void onFinish(AgentSpan span) {}
 
     @Override
-    public void onRootSpanPublished(AgentSpan root) {}
+    public void onRootSpan(AgentSpan root, boolean published) {}
 
     @Override
     public InstrumentationGateway instrumentationGateway() {
@@ -544,6 +544,14 @@ public class AgentTracer {
     @Override
     public boolean hasResourceName() {
       return false;
+    }
+
+    @Override
+    public void setEmittingCheckpoints(boolean value) {}
+
+    @Override
+    public Boolean isEmittingCheckpoints() {
+      return Boolean.FALSE;
     }
   }
 

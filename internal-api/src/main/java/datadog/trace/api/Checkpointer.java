@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+
 public interface Checkpointer {
 
   /**
@@ -25,11 +27,17 @@ public interface Checkpointer {
   /**
    * Notifies the profiler that the span has reached a certain state
    *
-   * @param traceId the traceId of the trace the span belongs to.
-   * @param spanId the span's identifier
+   * @param span the span
    * @param flags a description of the event
    */
-  void checkpoint(DDId traceId, DDId spanId, int flags);
+  void checkpoint(AgentSpan span, int flags);
 
-  void onRootSpanPublished(String route, DDId traceId);
+  /**
+   * Callback to be called when a root span is written (together with the trace)
+   *
+   * @param endpoint the endpoint name
+   * @param traceId the trace id
+   * @param published {@literal true} the trace and root span sampled and published
+   */
+  void onRootSpan(String endpoint, DDId traceId, boolean published);
 }

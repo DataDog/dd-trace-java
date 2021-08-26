@@ -29,6 +29,8 @@ import org.slf4j.LoggerFactory;
 public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
+  public static final String CHECKPOINTED_TAG = "checkpointed";
+
   static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
     final DDSpan span = new DDSpan(timestampMicro, context);
     log.debug("Started span: {}", span);
@@ -62,6 +64,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private final AtomicLong durationNano = new AtomicLong();
 
   private boolean forceKeep;
+
+  // Marked as volatile to assure proper publication to child spans executed on different threads
+  volatile Boolean emittingCheckpoints = null;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -167,6 +172,42 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public boolean isForceKeep() {
     return forceKeep;
+  }
+
+  @Override
+  public void setEmittingCheckpoints(boolean value) {
+    /*
+    The decision to emit checkpoints is made at the local root span level.
+    This is to ensure consistency in the emitted checkpoints where the whole
+    local root span subtree must either be fully covered or no checkpoints should
+    be emitted at all.
+     */
+    AgentSpan rootSpan = getLocalRootSpan();
+    if (rootSpan == null) {
+      rootSpan = this;
+    }
+    // rootSpan will always be an instance of DDSpan
+    DDSpan span = (DDSpan) rootSpan;
+    if (span.emittingCheckpoints == null) {
+      span.emittingCheckpoints = value;
+      if (value) {
+        span.setTag(CHECKPOINTED_TAG, value);
+      }
+    }
+  }
+
+  @Override
+  public Boolean isEmittingCheckpoints() {
+    /*
+    The decision to emit checkpoints is made at the local root span level.
+    This is to ensure consistency in the emitted checkpoints where the whole
+    local root span subtree must either be fully covered or no checkpoints should
+    be emitted at all.
+     */
+    DDSpan rootSpan = getLocalRootSpan();
+    return (rootSpan != null && this != rootSpan)
+        ? rootSpan.emittingCheckpoints
+        : emittingCheckpoints;
   }
 
   /**
