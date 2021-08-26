@@ -12,7 +12,7 @@ import jdk.jfr.Name;
 @Category("Datadog")
 public class EndpointEvent extends Event {
 
-  @Label("endpoint")
+  @Label("Endpoint")
   private final String endpoint;
 
   @Label("Trace Id")
