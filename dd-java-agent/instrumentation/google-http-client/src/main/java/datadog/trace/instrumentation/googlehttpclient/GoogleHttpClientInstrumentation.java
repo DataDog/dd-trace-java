@@ -86,15 +86,8 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Tracing {
         @Advice.Thrown final Throwable throwable) {
       try {
         AgentSpan span = scope.span();
-        DECORATE.onResponse(span, response);
         DECORATE.onError(span, throwable);
-
-        // If HttpRequest.setThrowExceptionOnExecuteError is set to false, there are no exceptions
-        // for a failed request.  Thus, check the response code
-        if (response != null && !response.isSuccessStatusCode()) {
-          span.setError(true);
-          span.setErrorMessage(response.getStatusMessage());
-        }
+        DECORATE.onResponse(span, response);
 
         DECORATE.beforeFinish(span);
         span.finish();
