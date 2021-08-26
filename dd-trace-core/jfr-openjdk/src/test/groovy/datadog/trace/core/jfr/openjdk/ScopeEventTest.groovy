@@ -15,8 +15,6 @@ import spock.lang.Requires
 import java.time.Duration
 import java.util.stream.Collectors
 
-import static datadog.trace.api.Checkpointer.CPU
-
 @Requires({
   jvm.java11Compatible
 })
@@ -334,7 +332,7 @@ class ScopeEventTest extends DDSpecification {
     def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Checkpoint", "datadog.Endpoint"])
     events.size() == 5
     events.each {
-      assert it.getLong("traceId") == span.getTraceId().toLong()
+      assert it.getLong("localRootSpanId") == span.getLocalRootSpan().getSpanId().toLong()
       if (it.eventType.name == "datadog.Checkpoint") {
         assert it.getLong("spanId") == span.getSpanId().toLong()
       } else {

@@ -472,7 +472,7 @@ class ScopeManagerTest extends DDCoreSpecification {
 
     then:
     1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
-    1 * checkpointer.onRootSpan("foo", _, _)
+    1 * checkpointer.onRootSpan(_, _)
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
 
@@ -954,7 +954,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     return ((DDSpan) span)?.isFinished()
   }
 
-  def assertEvents( List<EVENT> events ) {
+  def assertEvents(List<EVENT> events) {
     assert eventCountingListener.events == events
     assert eventCountingExtendedListener.events == events
     return true

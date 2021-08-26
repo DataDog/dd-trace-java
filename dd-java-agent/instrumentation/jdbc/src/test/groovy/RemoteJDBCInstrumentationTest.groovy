@@ -20,7 +20,8 @@ import java.sql.Statement
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.Checkpointer.*
+import static datadog.trace.api.Checkpointer.END
+import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 // workaround for SSLHandShakeException on J9 only with Hikari/MySQL
@@ -217,7 +218,7 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     }
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _)
     0 * _
 
     cleanup:
@@ -281,7 +282,7 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     }
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _)
     0 * _
 
     cleanup:
@@ -343,7 +344,7 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     }
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _)
     0 * _
 
     cleanup:
@@ -405,7 +406,7 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     }
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _)
     0 * _
 
     cleanup:
@@ -467,7 +468,7 @@ class RemoteJDBCInstrumentationTest extends AgentTestRunner {
     }
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _)
     0 * _
 
     cleanup:

@@ -18,15 +18,18 @@ class SamplingCheckpointerTest extends DDSpecification {
     if (register) {
       sut.register(checkpointer)
     }
-    DDId traceId = DDId.from(1)
+    DDId localRootSpanId = DDId.from(1)
     DDId spanId = DDId.from(2)
     String resource = "foo"
+    AgentSpan rootSpan = Stub(AgentSpan)
+    rootSpan.getSpanId() >> localRootSpanId
+    rootSpan.getResourceName() >> UTF8BytesString.create(resource)
+    rootSpan.isEmittingCheckpoints() >> true
+
     AgentSpan span = Stub(AgentSpan)
-    span.eligibleForDropping() >> drop
-    span.getTraceId() >> traceId
     span.getSpanId() >> spanId
-    span.getResourceName() >> UTF8BytesString.create(resource)
-    span.isEmittingCheckpoints() >> true
+    span.getLocalRootSpan() >> rootSpan
+    span.eligibleForDropping() >> drop
     int checkpointCount = register ? drop ? 0 : 1 : 0
     int rootSpanCount = register ? 1 : 0
 
@@ -73,19 +76,19 @@ class SamplingCheckpointerTest extends DDSpecification {
     0 * _
 
     when:
-    sut.onRootSpan(span, true)
+    sut.onRootSpan(rootSpan, true)
     then:
-    rootSpanCount * checkpointer.onRootSpan(resource, traceId, true)
+    rootSpanCount * checkpointer.onRootSpan(rootSpan, true)
 
     when:
-    sut.onRootSpan(span, false)
+    sut.onRootSpan(rootSpan, false)
     then:
-    rootSpanCount * checkpointer.onRootSpan(resource, traceId, false)
+    rootSpanCount * checkpointer.onRootSpan(rootSpan, false)
 
     where:
-    drop | register
-    true | true
-    true | false
+    drop  | register
+    true  | true
+    true  | false
     false | true
     false | false
   }

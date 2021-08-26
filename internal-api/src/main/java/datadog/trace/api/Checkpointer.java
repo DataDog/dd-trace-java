@@ -35,9 +35,8 @@ public interface Checkpointer {
   /**
    * Callback to be called when a root span is written (together with the trace)
    *
-   * @param endpoint the endpoint name
-   * @param traceId the trace id
+   * @param rootSpan the local root span of the trace
    * @param published {@literal true} the trace and root span sampled and published
    */
-  void onRootSpan(String endpoint, DDId traceId, boolean published);
+  void onRootSpan(AgentSpan rootSpan, boolean published);
 }

@@ -14,8 +14,8 @@ import jdk.jfr.StackTrace;
 @StackTrace(false)
 public class CheckpointEvent extends Event {
 
-  @Label("Trace Id")
-  private final long traceId;
+  @Label("Local Root Span Id Id")
+  private final long localRootSpanId;
 
   @Label("Span Id")
   private final long spanId;
@@ -23,8 +23,8 @@ public class CheckpointEvent extends Event {
   @Label("Flags")
   private final int flags;
 
-  public CheckpointEvent(long traceId, long spanId, int flags) {
-    this.traceId = traceId;
+  public CheckpointEvent(final long localRootSpanId, final long spanId, final int flags) {
+    this.localRootSpanId = localRootSpanId;
     this.spanId = spanId;
     this.flags = flags;
   }

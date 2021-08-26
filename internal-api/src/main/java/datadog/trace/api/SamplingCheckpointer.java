@@ -31,11 +31,11 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
 
   private volatile Checkpointer checkpointer;
 
-  public SamplingCheckpointer(Checkpointer checkpointer) {
+  public SamplingCheckpointer(final Checkpointer checkpointer) {
     this.checkpointer = checkpointer;
   }
 
-  public void register(Checkpointer checkpointer) {
+  public void register(final Checkpointer checkpointer) {
     if (!CAS.compareAndSet(this, NoOpCheckpointer.NO_OP, checkpointer)) {
       log.debug(
           "failed to register checkpointer {} - {} already registered",
@@ -47,49 +47,47 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
   }
 
   @Override
-  public void checkpoint(AgentSpan span, int flags) {
+  public void checkpoint(final AgentSpan span, final int flags) {
     if (!span.eligibleForDropping()) {
       checkpointer.checkpoint(span, flags);
     }
   }
 
   @Override
-  public void onStart(AgentSpan span) {
+  public void onStart(final AgentSpan span) {
     checkpoint(span, SPAN);
   }
 
   @Override
-  public void onStartWork(AgentSpan span) {
+  public void onStartWork(final AgentSpan span) {
     checkpoint(span, CPU);
   }
 
   @Override
-  public void onFinishWork(AgentSpan span) {
+  public void onFinishWork(final AgentSpan span) {
     checkpoint(span, CPU | END);
   }
 
   @Override
-  public void onStartThreadMigration(AgentSpan span) {
+  public void onStartThreadMigration(final AgentSpan span) {
     checkpoint(span, THREAD_MIGRATION);
   }
 
   @Override
-  public void onFinishThreadMigration(AgentSpan span) {
+  public void onFinishThreadMigration(final AgentSpan span) {
     checkpoint(span, THREAD_MIGRATION | END);
   }
 
   @Override
-  public void onFinish(AgentSpan span) {
+  public void onFinish(final AgentSpan span) {
     checkpoint(span, SPAN | END);
   }
 
   @Override
-  public void onRootSpan(AgentSpan root, boolean published) {
-    Boolean emittingCheckpoints = root.isEmittingCheckpoints();
+  public void onRootSpan(final AgentSpan rootSpan, final boolean published) {
+    final Boolean emittingCheckpoints = rootSpan.isEmittingCheckpoints();
     checkpointer.onRootSpan(
-        root.getResourceName().toString(),
-        root.getTraceId(),
-        published && emittingCheckpoints != null && emittingCheckpoints);
+        rootSpan, published && emittingCheckpoints != null && emittingCheckpoints);
   }
 
   private static final class NoOpCheckpointer implements Checkpointer {
@@ -97,9 +95,9 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
     static final NoOpCheckpointer NO_OP = new NoOpCheckpointer();
 
     @Override
-    public void checkpoint(AgentSpan span, int flags) {}
+    public void checkpoint(final AgentSpan span, final int flags) {}
 
     @Override
-    public void onRootSpan(String endpoint, DDId traceId, boolean published) {}
+    public void onRootSpan(final AgentSpan rootSpan, final boolean published) {}
   }
 }

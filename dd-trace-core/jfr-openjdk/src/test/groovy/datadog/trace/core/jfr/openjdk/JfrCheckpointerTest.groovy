@@ -13,7 +13,7 @@ class JfrCheckpointerTest extends DDSpecification {
     AdaptiveSampler sampler = stubbedSampler(sampled)
 
     JFRCheckpointer checkpointer = Spy(new JFRCheckpointer(sampler, ConfigProvider.getInstance()))
-    checkpointer.emitCheckpoint(_, _)  >> {}
+    checkpointer.emitCheckpoint(_, _) >> {}
     checkpointer.dropCheckpoint() >> {}
 
     AgentSpan span = mockSpan(checkpointed)
@@ -23,17 +23,17 @@ class JfrCheckpointerTest extends DDSpecification {
     then:
     setEmitting * span.setEmittingCheckpoints(true)
     setDropping * span.setEmittingCheckpoints(false)
-    checkpoints * checkpointer.emitCheckpoint(span.traceId, span.spanId, 0)
+    checkpoints * checkpointer.emitCheckpoint(span, 0)
     (1 - checkpoints) * checkpointer.dropCheckpoint()
 
     where:
-    checkpointed  | sampled   | checkpoints   | setEmitting | setDropping
-    null          | true      | 1             | 1           | 0
-    null          | false     | 0             | 0           | 1
-    true          | true      | 1             | 0           | 0
-    true          | false     | 1             | 0           | 0
-    false         | true      | 0             | 0           | 0
-    false         | false     | 0             | 0           | 0
+    checkpointed | sampled | checkpoints | setEmitting | setDropping
+    null         | true    | 1           | 1           | 0
+    null         | false   | 0           | 0           | 1
+    true         | true    | 1           | 0           | 0
+    true         | false   | 1           | 0           | 0
+    false        | true    | 0           | 0           | 0
+    false        | false   | 0           | 0           | 0
   }
 
   def stubbedSampler(def sampled) {
@@ -44,17 +44,22 @@ class JfrCheckpointerTest extends DDSpecification {
     return sampler
   }
 
+  private static localRootSpanId = 1L
   private static spanId = 1L
-  private static traceId = 1L
+
   def mockSpan(def checkpointed, def dropping = false, def resource = "foo") {
-    DDId traceId = DDId.from(traceId++)
+    DDId localRootSpanId = DDId.from(localRootSpanId++)
     DDId spanId = DDId.from(spanId++)
+
+    def localRootSpan = Mock(AgentSpan)
+    localRootSpan.getSpanId() >> localRootSpanId
+    localRootSpan.getResourceName() >> UTF8BytesString.create(resource)
 
     def span = Mock(AgentSpan)
     span.eligibleForDropping() >> dropping
-    span.getTraceId() >> traceId
     span.getSpanId() >> spanId
     span.getResourceName() >> UTF8BytesString.create(resource)
+    span.getLocalRootSpan() >> localRootSpan
     span.isEmittingCheckpoints() >> checkpointed
 
     return span
