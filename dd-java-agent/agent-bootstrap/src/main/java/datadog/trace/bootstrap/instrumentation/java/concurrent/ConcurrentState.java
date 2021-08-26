@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
 
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
@@ -115,13 +114,6 @@ public final class ConcurrentState {
       // We should never be able to reuse this state
       CONTINUATION.compareAndSet(this, continuation, CLAIMED);
       continuation.cancel();
-    }
-  }
-
-  public void startThreadMigration() {
-    TraceScope.Continuation continuation = CONTINUATION.get(this);
-    if (continuation instanceof AgentScope.Continuation) {
-      ((AgentScope.Continuation) continuation).migrate();
     }
   }
 }
