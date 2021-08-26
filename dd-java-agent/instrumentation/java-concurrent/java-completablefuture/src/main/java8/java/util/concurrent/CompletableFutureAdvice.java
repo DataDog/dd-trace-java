@@ -5,7 +5,6 @@ import static java.util.concurrent.CompletableFuture.ASYNC;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
 import datadog.trace.context.TraceScope;
 import java.util.concurrent.CompletableFuture.UniCompletion;
@@ -21,10 +20,7 @@ public final class CompletableFutureAdvice {
       if (zis.isLive() && scope != null) {
         ContextStore<UniCompletion, ConcurrentState> contextStore =
             InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
-        ConcurrentState state = ConcurrentState.captureScope(contextStore, zis, scope);
-        if (state != null) {
-          state.startThreadMigration();
-        }
+        ConcurrentState.captureScope(contextStore, zis, scope);
       }
     }
 
@@ -47,15 +43,9 @@ public final class CompletableFutureAdvice {
       if (!wasLive) {
         return null;
       }
-
       ContextStore<UniCompletion, ConcurrentState> contextStore =
           InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
-      final TraceScope scope = ConcurrentState.activateAndContinueContinuation(contextStore, zis);
-      if (scope != null && scope instanceof AgentScope) {
-        ((AgentScope)scope).span().finishThreadMigration();
-      }
-
-      return scope;
+      return ConcurrentState.activateAndContinueContinuation(contextStore, zis);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -67,17 +57,10 @@ public final class CompletableFutureAdvice {
         @Advice.Local("hadExecutor") boolean hadExecutor,
         @Advice.Local("wasClaimed") boolean wasClaimed,
         @Advice.Local("wasLive") boolean wasLive) {
-
       // If it wasn't live when we entered, then do nothing
       if (!wasLive) {
         return;
       }
-
-      if (scope != null && scope instanceof AgentScope) {
-        // then there was some actual work done under a scope here
-        ((AgentScope) scope).span().startThreadMigration();
-      }
-
       // Try to clean up if the CompletableFuture has been completed.
       //
       // 1) If the mode is ASYNC, it means that someone else has claimed the
@@ -85,13 +68,16 @@ public final class CompletableFutureAdvice {
       // 2) We have claimed the task and we will not mark it as finished since we will
       // hand off to a `UniRelay` which can happen in `uniCompose`.
       // 3) If `isLive` is false, then either we or someone else just completed the task.
-      ContextStore<UniCompletion, ConcurrentState> contextStore =
-          InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
+      ContextStore<UniCompletion, ConcurrentState> contextStore = null;
       boolean claimed = !wasClaimed && !hadExecutor && zis.getForkJoinTaskTag() == 1;
       if (mode == ASYNC || (mode < ASYNC && claimed) || !zis.isLive()) {
+        contextStore = InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
         ConcurrentState.closeAndClearContinuation(contextStore, zis);
       }
       if (scope != null || throwable != null) {
+        if (contextStore == null) {
+          contextStore = InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
+        }
         ConcurrentState.closeScope(contextStore, zis, scope, throwable);
       }
     }
