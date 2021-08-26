@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.jms;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
@@ -28,7 +29,10 @@ public final class SessionState {
   private final Map<Thread, AgentScope> activeScopes = new ConcurrentHashMap<>();
   private final Deque<AgentSpan> capturedSpans = new ArrayDeque<>();
   private volatile int scopeCount = 0;
-  private volatile boolean capturingFlipped = false;
+
+  // this field is protected by synchronization of capturedSpans, but SpotBugs miss that
+  @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
+  private boolean capturingFlipped = false;
 
   public SessionState(int ackMode) {
     this.ackMode = ackMode;
