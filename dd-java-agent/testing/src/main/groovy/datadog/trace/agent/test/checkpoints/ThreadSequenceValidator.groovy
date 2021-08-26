@@ -112,6 +112,7 @@ class ThreadSequenceValidator {
         case Signal.END_SPAN:
           if (spanState == SpanState.STARTED || spanState == SpanState.RESUMED || spanState == SpanState.SUSPENDED) {
             newSpanState = SpanState.ENDED
+            newTaskState = TaskState.INACTIVE
           } else {
             newSpanState = toInvalid(spanState)
           }
