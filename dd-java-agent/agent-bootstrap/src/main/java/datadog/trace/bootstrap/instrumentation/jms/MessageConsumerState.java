@@ -2,12 +2,9 @@ package datadog.trace.bootstrap.instrumentation.jms;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /** Tracks message scopes and spans when consuming messages with {@code receive}. */
 public final class MessageConsumerState {
-  private final Map<Thread, AgentScope> currentScopes = new ConcurrentHashMap<>();
 
   private final SessionState sessionState;
   private final UTF8BytesString resourceName;
@@ -18,8 +15,6 @@ public final class MessageConsumerState {
     this.sessionState = sessionState;
     this.resourceName = resourceName;
     this.propagationDisabled = propagationDisabled;
-
-    sessionState.registerConsumerState(this);
   }
 
   public SessionState getSessionState() {
@@ -36,27 +31,11 @@ public final class MessageConsumerState {
 
   /** Closes the given message scope when the next message is consumed or the consumer is closed. */
   public void closeOnIteration(AgentScope newScope) {
-    maybeCloseScope(currentScopes.put(Thread.currentThread(), newScope));
+    sessionState.closeOnIteration(newScope); // tracked per-session-thread
   }
 
+  /** Closes the scope previously registered by closeOnIteration, assumes same calling thread. */
   public void closePreviousMessageScope() {
-    maybeCloseScope(currentScopes.remove(Thread.currentThread()));
-  }
-
-  public void onClose() {
-    for (AgentScope scope : currentScopes.values()) {
-      maybeCloseScope(scope);
-    }
-    currentScopes.clear();
-    sessionState.unregisterConsumerState(this);
-  }
-
-  private void maybeCloseScope(AgentScope scope) {
-    if (null != scope) {
-      scope.close();
-      if (sessionState.isAutoAcknowledge()) {
-        scope.span().finish();
-      }
-    }
+    sessionState.closePreviousMessageScope(); // tracked per-session-thread
   }
 }

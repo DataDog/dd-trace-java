@@ -24,14 +24,20 @@ class JMS1Test extends AgentTestRunner {
   @Shared
   EmbeddedActiveMQBroker broker = new EmbeddedActiveMQBroker()
   @Shared
-  String messageText = "a message"
+  String messageText1 = "a message"
+  @Shared
+  String messageText2 = "another message"
+  @Shared
+  String messageText3 = "yet another message"
   @Shared
   Session session
 
   @Shared
   Connection connection
 
-  ActiveMQTextMessage message = session.createTextMessage(messageText)
+  ActiveMQTextMessage message1 = session.createTextMessage(messageText1)
+  ActiveMQTextMessage message2 = session.createTextMessage(messageText2)
+  ActiveMQTextMessage message3 = session.createTextMessage(messageText3)
 
   def setupSpec() {
     broker.start()
@@ -46,22 +52,45 @@ class JMS1Test extends AgentTestRunner {
     broker.stop()
   }
 
-  def "sending a message to #jmsResourceName generates spans"() {
+  def "sending messages to #jmsResourceName generates spans"() {
     setup:
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
 
-    producer.send(message)
+    when:
+    producer.send(message1)
+    producer.send(message2)
+    producer.send(message3)
 
-    TextMessage receivedMessage = consumer.receive()
-    // required to finish auto-acknowledged spans
-    consumer.receiveNoWait()
+    TextMessage receivedMessage1 = consumer.receive()
+    TextMessage receivedMessage2 = consumer.receive()
+    TextMessage receivedMessage3 = consumer.receive()
 
-    expect:
-    receivedMessage.text == messageText
-    assertTraces(2) {
+    then:
+    receivedMessage1.text == messageText1
+    receivedMessage2.text == messageText2
+    receivedMessage3.text == messageText3
+    // only two consume traces will be finished at this point
+    assertTraces(5) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
       producerTrace(it, jmsResourceName)
       consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+    }
+
+    when:
+    consumer.receiveNoWait()
+
+    then:
+    // now the last consume trace will also be finished
+    assertTraces(6) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+      consumerTrace(it, jmsResourceName, trace(2)[0])
     }
 
     cleanup:
@@ -82,13 +111,13 @@ class JMS1Test extends AgentTestRunner {
     def producer = localSession.createProducer(destination)
     def consumer = localSession.createConsumer(destination)
 
-    producer.send(message)
+    producer.send(message1)
 
     TextMessage receivedMessage = consumer.receive()
     localSession.close()
 
     expect:
-    receivedMessage.text == messageText
+    receivedMessage.text == messageText1
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
       consumerTrace(it, jmsResourceName, trace(0)[0])
@@ -102,25 +131,51 @@ class JMS1Test extends AgentTestRunner {
     session.createTemporaryTopic()   | "Temporary Topic"
   }
 
-  def "receiving a message from #jmsResourceName in a transacted session"() {
+  def "receiving messages from #jmsResourceName in a transacted session"() {
     setup:
     def transactedSession = connection.createSession(true, Session.SESSION_TRANSACTED)
     def producer = session.createProducer(destination)
     def consumer = transactedSession.createConsumer(destination)
 
-    producer.send(message)
+    when:
+    producer.send(message1)
+    producer.send(message2)
+    producer.send(message3)
 
-    TextMessage receivedMessage = consumer.receive()
+    TextMessage receivedMessage1 = consumer.receive()
+    TextMessage receivedMessage2 = consumer.receive()
     transactedSession.commit()
+    TextMessage receivedMessage3 = consumer.receive()
 
-    expect:
-    receivedMessage.text == messageText
-    assertTraces(2) {
+    then:
+    receivedMessage1.text == messageText1
+    receivedMessage2.text == messageText2
+    receivedMessage3.text == messageText3
+    // only two consume traces will be finished at this point
+    assertTraces(5) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
       producerTrace(it, jmsResourceName)
       consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+    }
+
+    when:
+    transactedSession.commit()
+
+    then:
+    // now the last consume trace will also be finished
+    assertTraces(6) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+      consumerTrace(it, jmsResourceName, trace(2)[0])
     }
 
     cleanup:
+    transactedSession.commit()
     producer.close()
     consumer.close()
     transactedSession.close()
@@ -133,25 +188,51 @@ class JMS1Test extends AgentTestRunner {
     session.createTemporaryTopic()   | "Temporary Topic"
   }
 
-  def "receiving a message from #jmsResourceName with manual acknowledgement"() {
+  def "receiving messages from #jmsResourceName with manual acknowledgement"() {
     setup:
     def clientSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
     def producer = session.createProducer(destination)
     def consumer = clientSession.createConsumer(destination)
 
-    producer.send(message)
+    when:
+    producer.send(message1)
+    producer.send(message2)
+    producer.send(message3)
 
-    TextMessage receivedMessage = consumer.receive()
-    receivedMessage.acknowledge()
+    TextMessage receivedMessage1 = consumer.receive()
+    TextMessage receivedMessage2 = consumer.receive()
+    receivedMessage2.acknowledge()
+    TextMessage receivedMessage3 = consumer.receive()
 
-    expect:
-    receivedMessage.text == messageText
-    assertTraces(2) {
+    then:
+    receivedMessage1.text == messageText1
+    receivedMessage2.text == messageText2
+    receivedMessage3.text == messageText3
+    // only two consume traces will be finished at this point
+    assertTraces(5) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
       producerTrace(it, jmsResourceName)
       consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+    }
+
+    when:
+    receivedMessage3.acknowledge()
+
+    then:
+    // now the last consume trace will also be finished
+    assertTraces(6) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, trace(0)[0])
+      consumerTrace(it, jmsResourceName, trace(1)[0])
+      consumerTrace(it, jmsResourceName, trace(2)[0])
     }
 
     cleanup:
+    receivedMessage3.acknowledge()
     producer.close()
     consumer.close()
     clientSession.close()
@@ -178,7 +259,7 @@ class JMS1Test extends AgentTestRunner {
         }
       }
 
-    producer.send(message)
+    producer.send(message1)
     lock.countDown()
 
     expect:
@@ -187,7 +268,7 @@ class JMS1Test extends AgentTestRunner {
       consumerTrace(it, jmsResourceName, trace(0)[0])
     }
     // This check needs to go after all traces have been accounted for
-    messageRef.get().text == messageText
+    messageRef.get().text == messageText1
 
     cleanup:
     producer.close()
@@ -251,19 +332,19 @@ class JMS1Test extends AgentTestRunner {
     def consumer = session.createConsumer(destination)
 
     expect:
-    !message.isReadOnlyProperties()
+    !message1.isReadOnlyProperties()
 
     when:
-    message.setReadOnlyProperties(true)
+    message1.setReadOnlyProperties(true)
     and:
-    producer.send(message)
+    producer.send(message1)
 
     TextMessage receivedMessage = consumer.receive()
     // required to finish auto-acknowledged spans
     consumer.receiveNoWait()
 
     then:
-    receivedMessage.text == messageText
+    receivedMessage.text == messageText1
 
     // This will result in a logged failure because we tried to
     // write properties in MessagePropertyTextMap when readOnlyProperties = true.
@@ -308,7 +389,7 @@ class JMS1Test extends AgentTestRunner {
     def consumer = session.createConsumer(session.createQueue("someQueue"))
 
     producer.setDisableMessageTimestamp(true)
-    producer.send(message)
+    producer.send(message1)
 
     boolean isTimeStampDisabled = producer.getDisableMessageTimestamp()
     consumer.receive()
@@ -332,7 +413,7 @@ class JMS1Test extends AgentTestRunner {
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
 
-    producer.send(message)
+    producer.send(message1)
 
     TextMessage receivedMessage = consumer.receive()
     doStuff()
@@ -340,7 +421,7 @@ class JMS1Test extends AgentTestRunner {
     consumer.receiveNoWait()
 
     expect:
-    receivedMessage.text == messageText
+    receivedMessage.text == messageText1
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
       trace(2) {
@@ -372,12 +453,12 @@ class JMS1Test extends AgentTestRunner {
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS, topic)
     injectSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES, queue)
     def producer = session.createProducer(destination)
-    producer.send(message)
+    producer.send(message1)
     TextMessage receivedMessage = consumer.receive()
     // required to finish auto-acknowledged spans
     consumer.receiveNoWait()
     expect:
-    receivedMessage.text == messageText
+    receivedMessage.text == messageText1
     if (expected) {
       assertTraces(2) {
         producerTrace(it, jmsResourceName)
@@ -425,12 +506,12 @@ class JMS1Test extends AgentTestRunner {
     removeSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS)
     removeSysConfig(TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_QUEUES)
     def producer = session.createProducer(destination)
-    producer.send(message)
+    producer.send(message1)
     TextMessage receivedMessage = consumer.receive()
     // required to finish auto-acknowledged spans
     consumer.receiveNoWait()
     expect:
-    receivedMessage.text == messageText
+    receivedMessage.text == messageText1
     if (expected) {
       assertTraces(2) {
         producerTrace(it, jmsResourceName)
@@ -487,7 +568,7 @@ class JMS1Test extends AgentTestRunner {
           messageRef.set(message)
         }
       }
-    producer.send(message)
+    producer.send(message1)
     lock.countDown()
 
     expect:
@@ -518,7 +599,7 @@ class JMS1Test extends AgentTestRunner {
       }
     }
     // This check needs to go after all traces have been accounted for
-    messageRef.get().text == messageText
+    messageRef.get().text == messageText1
 
     cleanup:
     producer.close()

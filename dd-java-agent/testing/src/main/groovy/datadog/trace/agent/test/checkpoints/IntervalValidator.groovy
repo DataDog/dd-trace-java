@@ -6,7 +6,7 @@ class IntervalValidator extends AbstractValidator {
     final Event startEvent
     final int startTick
     int endTick = Integer.MAX_VALUE
-    boolean suspended = false
+    boolean inactive = false
 
     SpanInterval(long spanId, Event startEvent, int startTick) {
       this.spanId = spanId
@@ -15,7 +15,7 @@ class IntervalValidator extends AbstractValidator {
     }
 
     String toString() {
-      return "[span/${spanId}|${suspended}](${startTick}, ${endTick})"
+      return "[span/${spanId}|${inactive}](${startTick}, ${endTick})"
     }
   }
 
@@ -57,8 +57,7 @@ class IntervalValidator extends AbstractValidator {
   }
 
   def endTask(def spanId) {
-    tick++
-    return Result.OK
+    return deactivateSpan(spanId)
   }
 
   @Override
@@ -67,6 +66,10 @@ class IntervalValidator extends AbstractValidator {
   }
 
   def suspendSpan(def spanId) {
+    return deactivateSpan(spanId)
+  }
+
+  def deactivateSpan(def spanId) {
     tick++
     def interval = openIntervalsBySpan.get(spanId)
     if (interval == null) {
@@ -74,10 +77,10 @@ class IntervalValidator extends AbstractValidator {
       // usually happens in async frameworks
       interval = closedIntervalsBySpan.get(spanId)
       if (interval == null) {
-        return Result.FAILED.withMessage("Attempting to suspend a non-existing span ${spanId}")
+        return Result.FAILED.withMessage("Attempting to deactivate a non-existing span ${spanId}")
       }
     }
-    interval.suspended = true
+    interval.inactive = true
     return Result.OK
   }
 
@@ -93,7 +96,7 @@ class IntervalValidator extends AbstractValidator {
       openIntervalsBySpan.put(spanId, interval = new SpanInterval(spanId, event, tick))
       openIntervalsByTime.add(interval)
     } else {
-      interval.suspended = false
+      interval.inactive = false
     }
     return Result.OK
   }
@@ -115,8 +118,8 @@ class IntervalValidator extends AbstractValidator {
       if (open.spanId == spanId) {
         break
       }
-      if (!open.suspended) {
-        markInvalid(open.startEvent, "Overlapping non-suspended spans: (${open.spanId}, ${spanId})")
+      if (!open.inactive) {
+        markInvalid(open.startEvent, "Overlapping active spans: (${open.spanId}, ${spanId})")
         result = false
       }
       index--
@@ -145,6 +148,6 @@ class IntervalValidator extends AbstractValidator {
 
   @Override
   def endSequence() {
-    return openIntervalsByTime.findAll {!it.suspended}.empty ? Result.OK : Result.FAILED
+    return openIntervalsByTime.findAll {!it.inactive}.empty ? Result.OK : Result.FAILED
   }
 }

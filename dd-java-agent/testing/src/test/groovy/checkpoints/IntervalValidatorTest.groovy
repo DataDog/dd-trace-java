@@ -110,4 +110,32 @@ class IntervalValidatorTest extends Specification {
     tracker.suspendSpan(1L)
     tracker.endSequence()
   }
+
+  def "interleaving with suspend-resume (T1)"() {
+    // this sequence involves two threads T1 and T2
+    expect:
+    tracker.startSpan(1L)          // T1
+    tracker.suspendSpan(1L)        // T1
+    // tracker.resumeSpan(1L)      // T2
+    // tracker.startSpan(2L)       // T2
+    // tracker.suspendSpan(2L)     // T2
+    tracker.resumeSpan(2L)         // T1
+    tracker.endTask(2L)            // T1
+    // tracker.endSpan(2L)         // T2
+    tracker.endSpan(1L)            // T1
+  }
+
+  def "interleaving with suspend-resume (T2)"() {
+    // this sequence involves two threads T1 and T2
+    expect:
+    // tracker.startSpan(1L)       // T1
+    // tracker.suspendSpan(1L)     // T1
+    tracker.resumeSpan(1L)         // T2
+    tracker.startSpan(2L)          // T2
+    tracker.suspendSpan(2L)        // T2
+    // tracker.resumeSpan(2L)      // T1
+    // tracker.endTask(2L)         // T1
+    tracker.endSpan(2L)            // T2
+    // tracker.endSpan(1L)         // T1
+  }
 }
