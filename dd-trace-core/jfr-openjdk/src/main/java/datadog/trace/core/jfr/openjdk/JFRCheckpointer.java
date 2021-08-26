@@ -65,6 +65,16 @@ public class JFRCheckpointer implements Checkpointer {
     boolean checkpointed;
     Boolean isEmitting = span.isEmittingCheckpoints();
     if (isEmitting == null) {
+      /*
+      While this branch is race-prone under general circumstances here we can safely ignore it.
+      The local root span will be created just once from exactly one thread and this branch
+      will effectively be taken only when 'span' is the local root span and the first checkpoint
+      (usually 'start span') is emitted.
+      Things might become problematic when child spans start emitting checkpoints before the
+      local root span has been created but that is obvously invalid behaviour, breaking the whole tracer.
+      Therefore, we can afford to omit proper synchronization here and rely only on the span internal
+      checkpoint emission flag being properly published (eg. via 'volatile').
+       */
       // if the flag hasn't been set yet consult the sampler
       checkpointed = sampler.sample();
       // store the decision in the span

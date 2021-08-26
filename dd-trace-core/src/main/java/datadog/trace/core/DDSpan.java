@@ -64,7 +64,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private final AtomicLong durationNano = new AtomicLong();
 
   private boolean forceKeep;
-  private Boolean emittingCheckpoints = null;
+
+  // Marked as volatile to assure proper publication to child spans executed on different threads
+  volatile Boolean emittingCheckpoints = null;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -202,9 +204,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     local root span subtree must either be fully covered or no checkpoints should
     be emitted at all.
      */
-    AgentSpan rootSpan = getLocalRootSpan();
+    DDSpan rootSpan = getLocalRootSpan();
     return (rootSpan != null && this != rootSpan)
-        ? rootSpan.isEmittingCheckpoints()
+        ? rootSpan.emittingCheckpoints
         : emittingCheckpoints;
   }
 
