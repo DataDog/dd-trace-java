@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.base.AbstractPromiseTest
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 
 import java.util.concurrent.CompletableFuture
 import java.util.function.Function
@@ -76,13 +74,5 @@ class CompletableFuturePromiseNoAsyncTest extends AbstractPromiseTest<Completabl
 
     where:
     value << [true, false]
-  }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

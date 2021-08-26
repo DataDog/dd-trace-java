@@ -7,7 +7,6 @@ class SuspendResumeValidator extends AbstractValidator {
   boolean spanStarted = false
   boolean spanFinished = false
   int activeCount
-  int suspendedCount
   int resumeCount
   int suspendCount
 
@@ -48,7 +47,6 @@ class SuspendResumeValidator extends AbstractValidator {
   def suspendSpan() {
     suspendCount++
     if (spanStarted && activeCount > 0) {
-      suspendedCount++
       return Result.OK
     }
     if (activeCount <= 0) {
@@ -62,8 +60,7 @@ class SuspendResumeValidator extends AbstractValidator {
 
   def resumeSpan() {
     resumeCount++
-    if (spanStarted && suspendedCount > 0) {
-      suspendedCount--
+    if (spanStarted) {
       activeCount++
       return Result.OK
     }
@@ -83,6 +80,6 @@ class SuspendResumeValidator extends AbstractValidator {
 
   @Override
   def endSequence() {
-    return spanFinished && resumeCount == suspendCount ? Result.OK : Result.FAILED
+    return spanFinished && resumeCount == suspendCount ? Result.OK : Result.FAILED.withMessage("Unbalanced resume and suspend")
   }
 }

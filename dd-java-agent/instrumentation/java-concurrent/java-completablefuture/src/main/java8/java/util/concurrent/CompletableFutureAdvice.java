@@ -47,9 +47,15 @@ public final class CompletableFutureAdvice {
       if (!wasLive) {
         return null;
       }
+
       ContextStore<UniCompletion, ConcurrentState> contextStore =
           InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
-      return ConcurrentState.activateAndContinueContinuation(contextStore, zis);
+      final TraceScope scope = ConcurrentState.activateAndContinueContinuation(contextStore, zis);
+      if (scope != null && scope instanceof AgentScope) {
+        ((AgentScope)scope).span().finishThreadMigration();
+      }
+
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -61,10 +67,17 @@ public final class CompletableFutureAdvice {
         @Advice.Local("hadExecutor") boolean hadExecutor,
         @Advice.Local("wasClaimed") boolean wasClaimed,
         @Advice.Local("wasLive") boolean wasLive) {
+
       // If it wasn't live when we entered, then do nothing
       if (!wasLive) {
         return;
       }
+
+      if (scope != null && scope instanceof AgentScope) {
+        // then there was some actual work done under a scope here
+        ((AgentScope) scope).span().startThreadMigration();
+      }
+
       // Try to clean up if the CompletableFuture has been completed.
       //
       // 1) If the mode is ASYNC, it means that someone else has claimed the
@@ -72,19 +85,13 @@ public final class CompletableFutureAdvice {
       // 2) We have claimed the task and we will not mark it as finished since we will
       // hand off to a `UniRelay` which can happen in `uniCompose`.
       // 3) If `isLive` is false, then either we or someone else just completed the task.
-      ContextStore<UniCompletion, ConcurrentState> contextStore = null;
+      ContextStore<UniCompletion, ConcurrentState> contextStore =
+          InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
       boolean claimed = !wasClaimed && !hadExecutor && zis.getForkJoinTaskTag() == 1;
       if (mode == ASYNC || (mode < ASYNC && claimed) || !zis.isLive()) {
-        contextStore = InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
         ConcurrentState.closeAndClearContinuation(contextStore, zis);
-      } else if (scope instanceof AgentScope) {
-        // then there was some actual work done under a scope here
-        ((AgentScope) scope).span().finishWork();
       }
       if (scope != null || throwable != null) {
-        if (contextStore == null) {
-          contextStore = InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
-        }
         ConcurrentState.closeScope(contextStore, zis, scope, throwable);
       }
     }

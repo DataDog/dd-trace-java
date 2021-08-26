@@ -553,25 +553,9 @@ public class ContinuableScopeManager implements AgentScopeManager {
       return false;
     }
 
-    private void tryFinishThreadMigration() {
-      // loop until the MIGRATED bit is unset on the count
-      int current;
-      do {
-        current = COUNT.get(this);
-      } while ((current & MIGRATED) == MIGRATED
-          && !COUNT.compareAndSet(this, current, current ^ MIGRATED));
-      if ((current & MIGRATED) == MIGRATED) {
-        // if the MIGRATED bit is set on the last snapshot, we
-        // must have been the one to switch it off, so can finish
-        // the thread migration here
-        spanUnderScope.finishThreadMigration();
-      }
-    }
-
     @Override
     public AgentScope activate() {
       if (tryActivate()) {
-        tryFinishThreadMigration();
         return scopeManager.handleSpan(this, spanUnderScope, source);
       } else {
         return null;
