@@ -1,8 +1,9 @@
 import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
 import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
+import datadog.trace.agent.test.checkpoints.CheckpointValidator
 import org.eclipse.jetty.client.HttpClient
 import org.eclipse.jetty.client.HttpProxy
+import org.eclipse.jetty.client.HttpResponseException
 import org.eclipse.jetty.client.api.Request
 import org.eclipse.jetty.client.api.Response
 import org.eclipse.jetty.client.api.Result
@@ -10,6 +11,8 @@ import org.eclipse.jetty.client.util.StringContentProvider
 import org.eclipse.jetty.util.ssl.SslContextFactory
 import spock.lang.Shared
 import spock.lang.Subject
+
+import java.util.concurrent.ExecutionException
 
 class JettyClientTest extends HttpClientTest {
 
@@ -53,9 +56,16 @@ class JettyClientTest extends HttpClientTest {
           }
         })
     }
-    def resp = req.send()
-    blockUntilChildSpansFinished(1)
-    return resp.status
+    try {
+      def resp = req.send()
+      blockUntilChildSpansFinished(1)
+      return resp.status
+    } catch (ExecutionException ex) {
+      if (ex.cause instanceof HttpResponseException) {
+        return (ex.cause as HttpResponseException).response.status
+      }
+      throw ex
+    }
   }
 
   @Override
@@ -87,6 +97,7 @@ class JettyClientTest extends HttpClientTest {
   def setup() {
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
+      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

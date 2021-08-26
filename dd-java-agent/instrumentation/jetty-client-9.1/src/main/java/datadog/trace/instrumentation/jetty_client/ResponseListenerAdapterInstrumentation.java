@@ -52,6 +52,9 @@ public final class ResponseListenerAdapterInstrumentation extends Instrumenter.T
       if (null != request) {
         AgentSpan span = InstrumentationContext.get(Request.class, AgentSpan.class).get(request);
         if (null != span) {
+          // This might get called twice on a thread for both onBegin and onFailure,
+          // but there are other cases where only one or the other is called,
+          // so we err on the side of extra invocations.
           span.finishThreadMigration();
         }
       }
