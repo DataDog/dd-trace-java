@@ -56,6 +56,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
 
   public static final String PROFILING_UPLOAD_SUMMARY_ON_413 = "profiling.upload.summary-on-413";
+  public static final String PROFILING_UPLOAD_RETRY_ON_5XX = "profiling.upload.retry-on-5xx";
 
   private ProfilingConfig() {}
 }

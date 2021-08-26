@@ -143,6 +143,7 @@ public class ProfileUploaderTest {
     when(config.getApiKey()).thenReturn(null);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
+    when(config.getProfilingUploadPeriod()).thenReturn(1);
 
     uploader =
         new ProfileUploader(
@@ -418,16 +419,58 @@ public class ProfileUploaderTest {
     verify(recording).release();
   }
 
-  @Test
-  public void test500Response() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"on", "lz4", "gzip", "off", "invalid"})
+  public void testRetryOn5xxResponse(final String compression) throws Exception {
+    when(config.getProfilingUploadCompression()).thenReturn(compression);
+    when(config.getProfilingUploadTimeout()).thenReturn(500000);
+    uploader = new ProfileUploader(config);
+
+    // return error 500 for retries
     server.enqueue(new MockResponse().setResponseCode(500));
+    server.enqueue(new MockResponse().setResponseCode(200));
 
-    final RecordingData recording = mockRecordingData();
-    uploadAndWait(RECORDING_TYPE, recording);
+    uploadAndWait(RECORDING_TYPE, mockRecordingData());
 
-    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertEquals(url, recordedRequest.getRequestUrl());
 
-    verify(recording).release();
+    assertNull(recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+
+    final Multimap<String, Object> parameters =
+        ProfilingTestUtils.parseProfilingRequestParameters(recordedRequest);
+    assertEquals(
+        ImmutableList.of(ProfileUploader.PROFILE_FORMAT),
+        parameters.get(ProfileUploader.FORMAT_PARAM));
+    assertEquals(
+        ImmutableList.of(ProfileUploader.PROFILE_TYPE_PREFIX + RECORDING_TYPE.getName()),
+        parameters.get(ProfileUploader.TYPE_PARAM));
+    assertEquals(
+        ImmutableList.of(ProfileUploader.PROFILE_RUNTIME),
+        parameters.get(ProfileUploader.RUNTIME_PARAM));
+
+    assertEquals(
+        ImmutableList.of(Instant.ofEpochSecond(PROFILE_START).toString()),
+        parameters.get(ProfileUploader.PROFILE_START_PARAM));
+    assertEquals(
+        ImmutableList.of(Instant.ofEpochSecond(PROFILE_END).toString()),
+        parameters.get(ProfileUploader.PROFILE_END_PARAM));
+
+    assertEquals(
+        EXPECTED_TAGS, ProfilingTestUtils.parseTags(parameters.get(ProfileUploader.TAGS_PARAM)));
+
+    final byte[] expectedBytes = ByteStreams.toByteArray(recordingStream(false));
+
+    byte[] uploadedBytes =
+        (byte[]) Iterables.getFirst(parameters.get(ProfileUploader.DATA_PARAM), new byte[] {});
+    if (compression.equals("gzip")) {
+      uploadedBytes = unGzip(uploadedBytes);
+    } else if (compression.equals("on")
+        || compression.equals("lz4")
+        || compression.equals("invalid")) {
+      uploadedBytes = unLz4(uploadedBytes);
+    }
+    assertArrayEquals(expectedBytes, uploadedBytes);
   }
 
   @Test

@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -82,8 +83,10 @@ public final class ProfileUploader {
   static final String JAVA_LANG = "java";
   static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
 
-  static final int MAX_RUNNING_REQUESTS = 10;
+  static final int MAX_RUNNING_REQUESTS = 1;
   static final int MAX_ENQUEUED_REQUESTS = 20;
+
+  static final int MAX_RETRIES = 1;
 
   static final String PROFILE_FORMAT = "jfr";
   static final String PROFILE_TYPE_PREFIX = "jfr-";
@@ -100,12 +103,14 @@ public final class ProfileUploader {
   private final IOLogger ioLogger;
   private final boolean agentless;
   private final boolean summaryOn413;
+  private final boolean retryOn5xx;
   private final String apiKey;
   private final String url;
   private final String containerId;
   private final int terminationTimeout;
   private final List<String> tags;
   private final CompressionType compressionType;
+  private final int uploadPeriod;
 
   public ProfileUploader(final Config config) throws IOException {
     this(config, new IOLogger(log), ContainerInfo.get().getContainerId(), TERMINATION_TIMEOUT);
@@ -125,9 +130,12 @@ public final class ProfileUploader {
     apiKey = config.getApiKey();
     agentless = config.isProfilingAgentless();
     summaryOn413 = config.isProfilingUploadSummaryOn413Enabled();
+    retryOn5xx = config.isProfilingUploadRetryOn5xxEnabled();
     this.ioLogger = ioLogger;
     this.containerId = containerId;
     this.terminationTimeout = terminationTimeout;
+
+    uploadPeriod = config.getProfilingUploadPeriod() > 0 ? config.getProfilingUploadPeriod() : 60;
 
     log.debug("Started ProfileUploader with target url {}", url);
     /*
@@ -158,7 +166,7 @@ public final class ProfileUploader {
     // Reusing connections causes non daemon threads to be created which causes agent to prevent app
     // from exiting. See https://github.com/square/okhttp/issues/4029 for some details.
     final ConnectionPool connectionPool =
-        new ConnectionPool(MAX_RUNNING_REQUESTS, 1, TimeUnit.SECONDS);
+        new ConnectionPool(MAX_RUNNING_REQUESTS, uploadPeriod * 2, TimeUnit.SECONDS);
 
     // Use same timeout everywhere for simplicity
     final Duration requestTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
@@ -317,6 +325,9 @@ public final class ProfileUploader {
         .newCall(requestBuilder.build())
         .enqueue(
             new Callback() {
+
+              private int retries = 0;
+
               @Override
               public void onFailure(Call call, IOException e) {
                 if (isEmptyReplyFromServer(e)) {
@@ -336,8 +347,7 @@ public final class ProfileUploader {
                 if (response.isSuccessful()) {
                   ioLogger.success("Upload done");
                 } else {
-                  final String apiKey = call.request().header(HEADER_DD_API_KEY);
-                  if (response.code() == 404 && apiKey == null) {
+                  if (response.code() == 404 && call.request().header(HEADER_DD_API_KEY) == null) {
                     // if no API key and not found error we assume we're sending to the agent
                     ioLogger.error(
                         "Failed to upload profile. Datadog Agent is not accepting profiles. Agent-based profiling deployments require Datadog Agent >= 7.20");
@@ -345,6 +355,25 @@ public final class ProfileUploader {
                     ioLogger.error(
                         "Failed to upload profile, it's too big. Dumping information about the profile");
                     JfrCliHelper.invokeOn(data, ioLogger);
+                  } else if (response.code() / 100 * 100 == 500 && retryOn5xx) {
+                    if (retries++ < MAX_RETRIES) {
+                      try {
+                        int backoff = ThreadLocalRandom.current().nextInt(
+                            uploadPeriod * 1000 / MAX_RETRIES /* seconds to milliseconds */);
+                        ioLogger.error(String.format(
+                            "Failed to upload profile, received error %d, trying again in %d seconds, retry %d of %d",
+                            response.code(), backoff / 1000, retries, MAX_RETRIES));
+
+                        Thread.sleep(backoff);
+
+                        client
+                          .newCall(requestBuilder.build())
+                          .enqueue(this);
+                        return;
+                      } catch (InterruptedException e) {
+                        // fall-through to no-retries path
+                      }
+                    }
                   } else {
                     ioLogger.error("Failed to upload profile", getLoggerResponse(response));
                   }
@@ -356,18 +385,6 @@ public final class ProfileUploader {
                 response.close();
 
                 onCompletion.run();
-              }
-
-              private void logDebug(String msg) {
-                if (log.isDebugEnabled()) {
-                  log.debug(
-                      "{} {} [{}] (Size={}/{} bytes)",
-                      msg,
-                      data.getName(),
-                      type,
-                      body.getReadBytes(),
-                      body.getWrittenBytes());
-                }
               }
 
               private IOLogger.Response getLoggerResponse(final okhttp3.Response response) {

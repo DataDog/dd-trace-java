@@ -37,6 +37,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_FORCE_FIR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_COMPRESSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_RETRY_ON_5XX;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
@@ -128,6 +129,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRI
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_ON_413;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_RETRY_ON_5XX;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
@@ -384,6 +386,7 @@ public class Config {
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingHotspotsEnabled;
   private final boolean profilingUploadSummaryOn413Enabled;
+  private final boolean profilingUploadRetryOn5xxEnabled;
 
   private final boolean appSecEnabled;
   private final String appSecRulesFile;
@@ -801,6 +804,10 @@ public class Config {
     profilingUploadSummaryOn413Enabled =
         configProvider.getBoolean(
             PROFILING_UPLOAD_SUMMARY_ON_413, DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413);
+
+    profilingUploadRetryOn5xxEnabled =
+        configProvider.getBoolean(
+            PROFILING_UPLOAD_RETRY_ON_5XX, DEFAULT_PROFILING_UPLOAD_RETRY_ON_5XX);
 
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
@@ -1250,6 +1257,10 @@ public class Config {
 
   public boolean isProfilingUploadSummaryOn413Enabled() {
     return profilingUploadSummaryOn413Enabled;
+  }
+
+  public boolean isProfilingUploadRetryOn5xxEnabled() {
+    return profilingUploadRetryOn5xxEnabled;
   }
 
   public boolean isProfilingLegacyTracingIntegrationEnabled() {

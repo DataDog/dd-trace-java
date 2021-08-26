@@ -72,6 +72,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_PROFILING_AGENTLESS = false;
   static final boolean DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION = true;
   static final boolean DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413 = false;
+  static final boolean DEFAULT_PROFILING_UPLOAD_RETRY_ON_5XX = true;
 
   static final boolean DEFAULT_APPSEC_ENABLED = false;
 
