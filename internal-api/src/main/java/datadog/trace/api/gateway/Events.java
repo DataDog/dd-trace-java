@@ -3,7 +3,6 @@ package datadog.trace.api.gateway;
 import datadog.trace.api.Function;
 import datadog.trace.api.function.*;
 import datadog.trace.api.http.StoredBodySupplier;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -24,7 +23,7 @@ public final class Events {
 
   public static final int REQUEST_ENDED_ID = 1;
   /** A request ended * */
-  public static final EventType<BiFunction<RequestContext, AgentSpan, Flow<Void>>> REQUEST_ENDED =
+  public static final EventType<BiFunction<RequestContext, IGSpanInfo, Flow<Void>>> REQUEST_ENDED =
       new ET<>("request.ended", REQUEST_ENDED_ID);
 
   public static final int REQUEST_METHOD_ID = 2;

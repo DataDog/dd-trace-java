@@ -18,7 +18,6 @@ import datadog.trace.api.function.Supplier;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.slf4j.Logger;
@@ -99,11 +98,11 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
             };
       case REQUEST_ENDED_ID:
         return (C)
-            new BiFunction<RequestContext, AgentSpan, Flow<Void>>() {
+            new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
               @Override
-              public Flow<Void> apply(RequestContext ctx, AgentSpan agentSpan) {
+              public Flow<Void> apply(RequestContext ctx, IGSpanInfo agentSpan) {
                 try {
-                  return ((BiFunction<RequestContext, AgentSpan, Flow<Void>>) callback)
+                  return ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callback)
                       .apply(ctx, agentSpan);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);

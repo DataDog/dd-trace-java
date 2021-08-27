@@ -22,7 +22,7 @@ import com.datadog.appsec.report.raw.events.attack.Attack010;
 import com.datadog.appsec.util.AppSecVersion;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.api.gateway.IGSpanInfo;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -40,7 +40,7 @@ public class EventEnrichment {
   private static String HOSTNAME;
   private static final Logger log = LoggerFactory.getLogger(EventEnrichment.class);
 
-  public static void enrich(Attack010 attack, AgentSpan agentSpan, DataBundle appSecCtx) {
+  public static void enrich(Attack010 attack, IGSpanInfo spanInfo, DataBundle appSecCtx) {
     if (attack.getEventId() == null) {
       attack.setEventId(UUID.randomUUID().toString());
     }
@@ -200,11 +200,11 @@ public class EventEnrichment {
     }
 
     Span010 span = (Span010) eventCtx.getSpan();
-    if (span == null && agentSpan != null) {
+    if (span == null && spanInfo != null) {
       span = new Span010();
       eventCtx.setSpan(span);
       span.setContextVersion("0.1.0");
-      DDId spanId = agentSpan.getSpanId();
+      DDId spanId = spanInfo.getSpanId();
       if (spanId == null) {
         spanId = DDId.ZERO;
       }
@@ -212,11 +212,11 @@ public class EventEnrichment {
     }
 
     Tags010 tags = (Tags010) eventCtx.getTags();
-    if (tags == null && agentSpan != null) {
+    if (tags == null && spanInfo != null) {
       tags = new Tags010();
       eventCtx.setTags(tags);
       tags.setContextVersion("0.1.0");
-      Map<String, Object> tagsMap = agentSpan.getTags();
+      Map<String, Object> tagsMap = spanInfo.getTags();
       if (tagsMap != null) {
         Set<String> values = new LinkedHashSet<>(tagsMap.size() * 2);
         for (Map.Entry<String, Object> e : tagsMap.entrySet()) {
@@ -233,11 +233,11 @@ public class EventEnrichment {
     }
 
     Trace010 trace = (Trace010) eventCtx.getTrace();
-    if (trace == null && agentSpan != null) {
+    if (trace == null && spanInfo != null) {
       trace = new Trace010();
       eventCtx.setTrace(trace);
       trace.setContextVersion("0.1.0");
-      DDId traceId = agentSpan.getTraceId();
+      DDId traceId = spanInfo.getTraceId();
       if (traceId == null) {
         traceId = DDId.ZERO;
       }

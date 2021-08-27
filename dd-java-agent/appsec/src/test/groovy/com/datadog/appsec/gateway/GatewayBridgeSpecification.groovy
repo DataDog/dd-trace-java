@@ -17,6 +17,7 @@ import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -67,10 +68,10 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'request_end closes context reports attacks and publishes event'() {
     Attack010 attack = Mock()
     AppSecRequestContext mockCtx = Mock()
-    AgentSpan mockAgentSpan = Mock()
+    IGSpanInfo spanInfo = Mock()
 
     when:
-    def flow = requestEndedCB.apply(mockCtx, mockAgentSpan)
+    def flow = requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
     1 * mockCtx.transferCollectedAttacks() >> [attack]

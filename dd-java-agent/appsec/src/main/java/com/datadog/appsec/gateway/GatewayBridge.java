@@ -17,10 +17,10 @@ import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -81,13 +81,13 @@ public class GatewayBridge {
 
     subscriptionService.registerCallback(
         Events.REQUEST_ENDED,
-        (RequestContext ctx_, AgentSpan span) -> {
+        (RequestContext ctx_, IGSpanInfo spanInfo) -> {
           AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
           Collection<Attack010> collectedAttacks = ctx.transferCollectedAttacks();
           for (Attack010 attack : collectedAttacks) {
-            EventEnrichment.enrich(attack, span, ctx);
+            EventEnrichment.enrich(attack, spanInfo, ctx);
             reportService.reportAttack(attack);
           }
 

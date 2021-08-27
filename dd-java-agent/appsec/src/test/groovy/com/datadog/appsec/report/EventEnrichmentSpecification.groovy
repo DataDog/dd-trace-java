@@ -8,7 +8,7 @@ import com.datadog.appsec.report.raw.events.attack._definitions.rule.Rule010
 import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.RuleMatch010
 import datadog.trace.api.DDId
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.test.util.DDSpecification
 
 import java.time.Instant
@@ -26,12 +26,12 @@ class EventEnrichmentSpecification extends DDSpecification {
       ruleMatch: new RuleMatch010(),
       )
     DataBundle dataBundle = Mock()
-    AgentSpan agentSpan = Mock()
+    IGSpanInfo spanInfo = Mock()
     DDId spanId = DDId.from(6666L)
     DDId traceId = DDId.from(7777L)
 
     when:
-    EventEnrichment.enrich attack, agentSpan, dataBundle
+    EventEnrichment.enrich attack, spanInfo, dataBundle
 
     then:
     1 * dataBundle.get(KnownAddresses.REQUEST_SCHEME) >> 'https'
@@ -44,9 +44,9 @@ class EventEnrichmentSpecification extends DDSpecification {
     1 * dataBundle.get(KnownAddresses.REQUEST_CLIENT_IP) >> '1.2.3.4'
     1 * dataBundle.get(KnownAddresses.REQUEST_CLIENT_PORT) >> 1234
 
-    1 * agentSpan.spanId >> spanId
-    1 * agentSpan.tags >> [foo: 'bar']
-    1 * agentSpan.traceId >> traceId
+    1 * spanInfo.spanId >> spanId
+    1 * spanInfo.tags >> [foo: 'bar']
+    1 * spanInfo.traceId >> traceId
 
     0 * _
 

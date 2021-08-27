@@ -12,6 +12,7 @@ import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -209,7 +210,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
     RequestContext requestContext = span.getRequestContext();
     if (cbp != null && requestContext != null) {
-      BiFunction<RequestContext, AgentSpan, Flow<Void>> callback =
+      BiFunction<RequestContext, IGSpanInfo, Flow<Void>> callback =
           cbp.getCallback(Events.REQUEST_ENDED);
       if (callback != null) {
         callback.apply(requestContext, span);
