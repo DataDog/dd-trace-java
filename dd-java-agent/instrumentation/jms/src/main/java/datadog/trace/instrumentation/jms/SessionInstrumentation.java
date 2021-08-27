@@ -93,25 +93,23 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
 
       // avoid doing the same thing more than once when there is delegation to overloads
       if (producerStateStore.get(producer) == null) {
-
-        int ackMode;
-        try {
-          ackMode = session.getAcknowledgeMode();
-        } catch (Exception ignored) {
-          ackMode = Session.AUTO_ACKNOWLEDGE;
-        }
-
-        boolean isQueue = null == destination || destination instanceof Queue;
-        String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
-        CharSequence resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
-
         ContextStore<Session, SessionState> sessionStateStore =
             InstrumentationContext.get(Session.class, SessionState.class);
 
         SessionState sessionState = sessionStateStore.get(session);
         if (null == sessionState) {
+          int ackMode;
+          try {
+            ackMode = session.getAcknowledgeMode();
+          } catch (Exception ignored) {
+            ackMode = Session.AUTO_ACKNOWLEDGE;
+          }
           sessionState = sessionStateStore.putIfAbsent(session, new SessionState(ackMode));
         }
+
+        boolean isQueue = null == destination || destination instanceof Queue;
+        String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
+        CharSequence resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
 
         boolean propagationDisabled =
             Config.get().isJMSPropagationDisabledForDestination(destinationName);
@@ -134,25 +132,23 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
 
       // avoid doing the same thing more than once when there is delegation to overloads
       if (consumerStateStore.get(consumer) == null) {
-
-        int ackMode;
-        try {
-          ackMode = session.getAcknowledgeMode();
-        } catch (Exception ignored) {
-          ackMode = Session.AUTO_ACKNOWLEDGE;
-        }
-
-        boolean isQueue = null == destination || destination instanceof Queue;
-        String destinationName = CONSUMER_DECORATE.getDestinationName(destination);
-        CharSequence resourceName = CONSUMER_DECORATE.toResourceName(destinationName, isQueue);
-
         ContextStore<Session, SessionState> sessionStateStore =
             InstrumentationContext.get(Session.class, SessionState.class);
 
         SessionState sessionState = sessionStateStore.get(session);
         if (null == sessionState) {
+          int ackMode;
+          try {
+            ackMode = session.getAcknowledgeMode();
+          } catch (Exception ignored) {
+            ackMode = Session.AUTO_ACKNOWLEDGE;
+          }
           sessionState = sessionStateStore.putIfAbsent(session, new SessionState(ackMode));
         }
+
+        boolean isQueue = null == destination || destination instanceof Queue;
+        String destinationName = CONSUMER_DECORATE.getDestinationName(destination);
+        CharSequence resourceName = CONSUMER_DECORATE.toResourceName(destinationName, isQueue);
 
         boolean propagationDisabled =
             Config.get().isJMSPropagationDisabledForDestination(destinationName);
