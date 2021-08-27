@@ -2,13 +2,13 @@ package datadog.trace.instrumentation.jms;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.Function;
 import datadog.trace.api.Functions.Join;
 import datadog.trace.api.Functions.PrefixJoin;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -41,15 +41,17 @@ public final class JMSDecorator extends ClientDecorator {
   private final Function<CharSequence, CharSequence> topicResourceJoiner;
 
   private final String spanKind;
-  private final String spanType;
+  private final CharSequence spanType;
 
   public static final JMSDecorator PRODUCER_DECORATE =
-      new JMSDecorator("Produced for ", Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
+      new JMSDecorator(
+          "Produced for ", Tags.SPAN_KIND_PRODUCER, InternalSpanTypes.MESSAGE_PRODUCER);
 
   public static final JMSDecorator CONSUMER_DECORATE =
-      new JMSDecorator("Consumed from ", Tags.SPAN_KIND_CONSUMER, DDSpanTypes.MESSAGE_CONSUMER);
+      new JMSDecorator(
+          "Consumed from ", Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER);
 
-  public JMSDecorator(String resourcePrefix, String spanKind, String spanType) {
+  public JMSDecorator(String resourcePrefix, String spanKind, CharSequence spanType) {
     this.resourcePrefix = resourcePrefix;
 
     this.queueTempResourceName = UTF8BytesString.create(resourcePrefix + "Temporary Queue");
