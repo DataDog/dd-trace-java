@@ -29,10 +29,16 @@ class HttpUrlConnectionTest extends HttpClientTest {
       connection.connectTimeout = CONNECT_TIMEOUT_MS
       connection.readTimeout = READ_TIMEOUT_MS
       def parentSpan = activeScope()
-      def stream = connection.inputStream
+      def stream
+      try {
+        stream = connection.inputStream
+      } catch (Exception ex) {
+        stream = connection.errorStream
+        ex.printStackTrace()
+      }
       assert activeScope() == parentSpan
-      stream.readLines()
-      stream.close()
+      stream?.readLines()
+      stream?.close()
       callback?.call()
       return connection.getResponseCode()
     } finally {

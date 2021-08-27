@@ -1,9 +1,7 @@
-import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator
 import spock.lang.Timeout
 
 @Timeout(5)
-class HttpUrlConnectionResponseCodeOnlyTest extends HttpClientTest {
+class HttpUrlConnectionResponseCodeOnlyTest extends HttpUrlConnectionTest {
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
@@ -19,15 +17,5 @@ class HttpUrlConnectionResponseCodeOnlyTest extends HttpClientTest {
       callback?.call()
       connection.disconnect()
     }
-  }
-
-  @Override
-  CharSequence component() {
-    return HttpUrlConnectionDecorator.DECORATE.component()
-  }
-
-  @Override
-  boolean testCircularRedirects() {
-    false
   }
 }

@@ -229,6 +229,56 @@ abstract class HttpClientTest extends AgentTestRunner {
     body = (1..10000).join(" ")
   }
 
+  def "server error request with parent"() {
+    setup:
+    def uri = server.address.resolve("/error")
+
+    when:
+    def status = runUnderTrace("parent") {
+      doRequest(method, uri)
+    }
+
+    then:
+    status == 500
+    assertTraces(2) {
+      trace(size(2)) {
+        basicSpan(it, "parent")
+        clientSpan(it, span(0), method, false, false, uri, 500, false) // not an error.
+      }
+      server.distributedRequestTrace(it, trace(0).last())
+    }
+
+    where:
+    method | _
+    "GET"  | _
+    "POST" | _
+  }
+
+  def "client error request with parent"() {
+    setup:
+    def uri = server.address.resolve("/secured")
+
+    when:
+    def status = runUnderTrace("parent") {
+      doRequest(method, uri)
+    }
+
+    then:
+    status == 401
+    assertTraces(2) {
+      trace(size(2)) {
+        basicSpan(it, "parent")
+        clientSpan(it, span(0), method, false, false, uri, 401, true)
+      }
+      server.distributedRequestTrace(it, trace(0).last())
+    }
+
+    where:
+    method | _
+    "GET"  | _
+    "POST" | _
+  }
+
   //FIXME: add tests for POST with large/chunked data
 
   def "basic #method request with split-by-domain"() {
@@ -402,7 +452,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     and:
     assertTraces(3) {
       trace(size(1)) {
-        clientSpan(it, null, method, false, false, uri, statusOnRedirectError(), thrownException)
+        clientSpan(it, null, method, false, false, uri, statusOnRedirectError(), true, thrownException)
       }
       server.distributedRequestTrace(it, trace(0).last())
       server.distributedRequestTrace(it, trace(0).last())
@@ -452,7 +502,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(2) {
         basicSpan(it, "parent", null, thrownException)
-        clientSpan(it, span(0), method, false, false, uri, null, thrownException)
+        clientSpan(it, span(0), method, false, false, uri, null, true, thrownException)
       }
     }
 
@@ -476,7 +526,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(size(2)) {
         basicSpan(it, "parent", null, thrownException)
-        clientSpan(it, span(0), method, false, false, uri, null, thrownException)
+        clientSpan(it, span(0), method, false, false, uri, null, true, thrownException)
       }
     }
 
@@ -507,7 +557,7 @@ abstract class HttpClientTest extends AgentTestRunner {
   }
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void clientSpan(TraceAssert trace, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, Throwable exception = null, boolean ignorePeer = false) {
+  void clientSpan(TraceAssert trace, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, boolean error = false, Throwable exception = null, boolean ignorePeer = false) {
     trace.span {
       if (parentSpan == null) {
         parent()
@@ -520,7 +570,7 @@ abstract class HttpClientTest extends AgentTestRunner {
       operationName expectedOperationName()
       resourceName "$method $uri.path"
       spanType DDSpanTypes.HTTP_CLIENT
-      errored exception != null
+      errored error
       measured true
       tags {
         "$Tags.COMPONENT" component
