@@ -101,9 +101,6 @@ public class JFRCheckpointer implements Checkpointer {
 
   void emitCheckpoint(final AgentSpan span, final int flags) {
     AgentSpan rootSpan = span.getLocalRootSpan();
-    if (rootSpan == null) {
-      rootSpan = span;
-    }
     new CheckpointEvent(rootSpan.getSpanId().toLong(), span.getSpanId().toLong(), flags & MASK)
         .commit();
     emitted.increment();
