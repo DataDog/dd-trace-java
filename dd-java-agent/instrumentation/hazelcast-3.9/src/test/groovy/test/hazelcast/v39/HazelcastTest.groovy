@@ -20,7 +20,6 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
@@ -43,7 +42,6 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
@@ -66,7 +64,6 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
@@ -97,7 +94,6 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
@@ -121,7 +117,6 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
@@ -147,7 +142,6 @@ class HazelcastTest extends AbstractHazelcastTest {
     given:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     def serverTopic = h1.getTopic(randomName)
@@ -183,7 +177,6 @@ class HazelcastTest extends AbstractHazelcastTest {
     given:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     def clientTopic = client.getReliableTopic(randomName)
@@ -215,7 +208,6 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
@@ -238,7 +230,6 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
@@ -261,7 +252,6 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
@@ -284,7 +274,6 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:
@@ -325,7 +314,6 @@ class HazelcastTest extends AbstractHazelcastTest {
     setup:
     CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
       CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.SUSPEND_RESUME,
       CheckpointValidationMode.THREAD_SEQUENCE)
 
     when:

@@ -1,6 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
@@ -14,11 +12,6 @@ import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 class TestFanout extends AgentTestRunner {
 
   def "test propagate with fanout"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     runUnderTrace("parent") {
       new Fanout(executor, 3, true).execute()
@@ -56,11 +49,6 @@ class TestFanout extends AgentTestRunner {
   }
 
   def "test completablefuture fanout checkpoints"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     runUnderTrace("parent") {
       new Fanout(executor, 3, traceChildTasks).execute()
@@ -89,11 +77,6 @@ class TestFanout extends AgentTestRunner {
   }
 
   def "test completablefuture two level fanout checkpoints"() {
-    setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.SUSPEND_RESUME,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     when:
     runUnderTrace("parent") {
       new Fanout(executor, 3, traceChildTasks).executeTwoLevels()

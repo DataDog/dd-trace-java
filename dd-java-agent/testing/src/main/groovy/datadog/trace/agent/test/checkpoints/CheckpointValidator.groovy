@@ -33,14 +33,14 @@ class CheckpointValidator {
     def invalidEvents = new HashSet()
     // validate per-span sequence
     for (def events : spanEvents.values()) {
-      def perSpanValidator = new CompositeValidator(new SuspendResumeValidator(), new ThreadSequenceValidator())
+      def perSpanValidator = new ThreadSequenceValidator()
       for (def event : events) {
         if (trackedSpanIds.contains(event.spanId)) {
           perSpanValidator.onEvent(event)
         }
       }
-      perSpanValidator.onEnd()
-      invalidEvents.addAll(perSpanValidator.invalidEvents())
+      perSpanValidator.endSequence()
+      invalidEvents.addAll(perSpanValidator.invalidEvents)
     }
 
     // validate per-thread sequence

@@ -85,10 +85,10 @@ class ThreadSequenceValidatorTest extends Specification {
     Signal.START_SPAN   | SpanState.RESUMED     | _                     || SpanState.INVALID    | _
     Signal.START_SPAN   | SpanState.ENDED       | _                     || SpanState.INVALID    | _
     Signal.END_SPAN     | SpanState.INIT        | _                     || SpanState.INVALID    | _
-    Signal.END_SPAN     | SpanState.STARTED     | _                     || SpanState.ENDED      | _
-    Signal.END_SPAN     | SpanState.SUSPENDED   | _                     || SpanState.ENDED      | _
-    Signal.END_SPAN     | SpanState.RESUMED     | _                     || SpanState.ENDED      | _
-    Signal.END_SPAN     | SpanState.ENDED       | _                     || SpanState.INVALID    | _
+    Signal.END_SPAN     | SpanState.STARTED     | _                     || SpanState.ENDED      | TaskState.INACTIVE
+    Signal.END_SPAN     | SpanState.SUSPENDED   | _                     || SpanState.ENDED      | TaskState.INACTIVE
+    Signal.END_SPAN     | SpanState.RESUMED     | _                     || SpanState.ENDED      | TaskState.INACTIVE
+    Signal.END_SPAN     | SpanState.ENDED       | _                     || SpanState.INVALID    | TaskState.INACTIVE
     Signal.SUSPEND_SPAN | SpanState.STARTED     | TaskState.INIT        || SpanState.INVALID    | TaskState.INIT
     Signal.SUSPEND_SPAN | SpanState.STARTED     | TaskState.ACTIVE      || SpanState.SUSPENDED  | TaskState.INACTIVE
     Signal.SUSPEND_SPAN | SpanState.STARTED     | TaskState.INACTIVE    || SpanState.SUSPENDED  | TaskState.INACTIVE
