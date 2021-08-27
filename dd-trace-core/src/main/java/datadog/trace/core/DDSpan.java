@@ -181,17 +181,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     This is to ensure consistency in the emitted checkpoints where the whole
     local root span subtree must either be fully covered or no checkpoints should
     be emitted at all.
-     */
-    AgentSpan rootSpan = getLocalRootSpan();
-    if (rootSpan == null) {
-      rootSpan = this;
-    }
-    // rootSpan will always be an instance of DDSpan
-    DDSpan span = (DDSpan) rootSpan;
-    if (span.emittingCheckpoints == null) {
-      span.emittingCheckpoints = value;
+    */
+    DDSpan rootSpan = getLocalRootSpan();
+    if (rootSpan.emittingCheckpoints == null) {
+      rootSpan.emittingCheckpoints = value;
       if (value) {
-        span.setTag(CHECKPOINTED_TAG, value);
+        rootSpan.setTag(CHECKPOINTED_TAG, value);
       }
     }
   }
@@ -203,11 +198,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     This is to ensure consistency in the emitted checkpoints where the whole
     local root span subtree must either be fully covered or no checkpoints should
     be emitted at all.
-     */
-    DDSpan rootSpan = getLocalRootSpan();
-    return (rootSpan != null && this != rootSpan)
-        ? rootSpan.emittingCheckpoints
-        : emittingCheckpoints;
+    */
+    return getLocalRootSpan().emittingCheckpoints;
   }
 
   /**
