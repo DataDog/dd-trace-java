@@ -111,31 +111,33 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
       MessageConsumerState consumerState =
           InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
               .get(consumer);
-      if (null != consumerState) {
-        AgentSpan.Context propagatedContext = null;
-        if (!consumerState.isPropagationDisabled()) {
-          propagatedContext = propagate().extract(message, GETTER);
-        }
-        AgentSpan span = startSpan(JMS_CONSUME, propagatedContext);
-        // this scope is intentionally not closed here
-        // it stays open until the next call to get a
-        // message, or the consumer is closed
-        AgentScope scope = activateSpan(span);
-        consumerState.closeOnIteration(scope);
-        CONSUMER_DECORATE.afterStart(span);
-        CONSUMER_DECORATE.onConsume(span, message, consumerState.getResourceName());
-        CONSUMER_DECORATE.onError(span, throwable);
-        SessionState sessionState = consumerState.getSessionState();
-        if (sessionState.isClientAcknowledge()) {
-          // consumed spans will be finished by a call to Message.acknowledge
-          sessionState.finishOnAcknowledge(span);
-          InstrumentationContext.get(Message.class, SessionState.class).put(message, sessionState);
-        } else if (sessionState.isTransactedSession()) {
-          // span will be finished by Session.commit/rollback/close
-          sessionState.finishOnCommit(span);
-        }
-        // for AUTO_ACKNOWLEDGE, span is not finished until next call to receive, or close
+      if (null == consumerState) {
+        return;
       }
+
+      AgentSpan.Context propagatedContext = null;
+      if (!consumerState.isPropagationDisabled()) {
+        propagatedContext = propagate().extract(message, GETTER);
+      }
+      AgentSpan span = startSpan(JMS_CONSUME, propagatedContext);
+      // this scope is intentionally not closed here
+      // it stays open until the next call to get a
+      // message, or the consumer is closed
+      AgentScope scope = activateSpan(span);
+      consumerState.closeOnIteration(scope);
+      CONSUMER_DECORATE.afterStart(span);
+      CONSUMER_DECORATE.onConsume(span, message, consumerState.getResourceName());
+      CONSUMER_DECORATE.onError(span, throwable);
+      SessionState sessionState = consumerState.getSessionState();
+      if (sessionState.isClientAcknowledge()) {
+        // consumed spans will be finished by a call to Message.acknowledge
+        sessionState.finishOnAcknowledge(span);
+        InstrumentationContext.get(Message.class, SessionState.class).put(message, sessionState);
+      } else if (sessionState.isTransactedSession()) {
+        // span will be finished by Session.commit/rollback/close
+        sessionState.finishOnCommit(span);
+      }
+      // for AUTO_ACKNOWLEDGE, span is not finished until next call to receive, or close
     }
   }
 

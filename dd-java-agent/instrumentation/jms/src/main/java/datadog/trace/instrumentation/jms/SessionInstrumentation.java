@@ -1,8 +1,11 @@
 package datadog.trace.instrumentation.jms;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
+import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -13,18 +16,16 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
+import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
 import datadog.trace.bootstrap.instrumentation.jms.SessionState;
 import java.util.HashMap;
 import java.util.Map;
 import javax.jms.Destination;
 import javax.jms.MessageConsumer;
+import javax.jms.MessageProducer;
 import javax.jms.Queue;
 import javax.jms.Session;
-import javax.jms.TemporaryQueue;
-import javax.jms.TemporaryTopic;
-import javax.jms.Topic;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -36,20 +37,38 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return hasInterface(named("javax.jms.Session"));
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed("javax.jms.Session");
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> typeMatcher() {
+    return implementsInterface(named("javax.jms.Session"));
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".JMSDecorator"};
   }
 
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>(4);
     contextStore.put("javax.jms.MessageConsumer", MessageConsumerState.class.getName());
+    contextStore.put("javax.jms.MessageProducer", MessageProducerState.class.getName());
     contextStore.put("javax.jms.Session", SessionState.class.getName());
     return contextStore;
   }
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
+        isMethod()
+            .and(named("createProducer"))
+            .and(isPublic())
+            .and(takesArgument(0, named("javax.jms.Destination"))),
+        getClass().getName() + "$CreateProducer");
     transformation.applyAdvice(
         isMethod()
             .and(named("createConsumer"))
@@ -60,6 +79,47 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
         namedOneOf("commit", "rollback").and(takesNoArguments()), getClass().getName() + "$Commit");
     transformation.applyAdvice(
         named("close").and(takesNoArguments()), getClass().getName() + "$Close");
+  }
+
+  public static final class CreateProducer {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void bindProducerState(
+        @Advice.This Session session,
+        @Advice.Argument(0) Destination destination,
+        @Advice.Return MessageProducer producer) {
+
+      ContextStore<MessageProducer, MessageProducerState> producerStateStore =
+          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class);
+
+      // avoid doing the same thing more than once when there is delegation to overloads
+      if (producerStateStore.get(producer) == null) {
+
+        int ackMode;
+        try {
+          ackMode = session.getAcknowledgeMode();
+        } catch (Exception ignored) {
+          ackMode = Session.AUTO_ACKNOWLEDGE;
+        }
+
+        boolean isQueue = null == destination || destination instanceof Queue;
+        String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
+        CharSequence resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
+
+        ContextStore<Session, SessionState> sessionStateStore =
+            InstrumentationContext.get(Session.class, SessionState.class);
+
+        SessionState sessionState = sessionStateStore.get(session);
+        if (null == sessionState) {
+          sessionState = sessionStateStore.putIfAbsent(session, new SessionState(ackMode));
+        }
+
+        boolean propagationDisabled =
+            Config.get().isJMSPropagationDisabledForDestination(destinationName);
+
+        producerStateStore.put(
+            producer, new MessageProducerState(sessionState, resourceName, propagationDisabled));
+      }
+    }
   }
 
   public static final class CreateConsumer {
@@ -82,31 +142,9 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
           ackMode = Session.AUTO_ACKNOWLEDGE;
         }
 
-        // logic inlined from JMSDecorator to avoid
-        // JMSException: A consumer is consuming from the temporary destination
-        String resourceName = "Consumed from Destination";
-        String destinationName = "";
-        try {
-          // put the common case first
-          if (destination instanceof Queue) {
-            destinationName = ((Queue) destination).getQueueName();
-            if ((destination instanceof TemporaryQueue || destinationName.startsWith("$TMP$"))) {
-              resourceName = "Consumed from Temporary Queue";
-            } else {
-              resourceName = "Consumed from Queue " + destinationName;
-            }
-          } else if (destination instanceof Topic) {
-            destinationName = ((Topic) destination).getTopicName();
-            // this is an odd thing to do so put it second
-            if (destination instanceof TemporaryTopic || destinationName.startsWith("$TMP$")) {
-              resourceName = "Consumed from Temporary Topic";
-            } else {
-              resourceName = "Consumed from Topic " + destinationName;
-            }
-          }
-        } catch (Exception ignored) {
-          // fall back to default
-        }
+        boolean isQueue = null == destination || destination instanceof Queue;
+        String destinationName = CONSUMER_DECORATE.getDestinationName(destination);
+        CharSequence resourceName = CONSUMER_DECORATE.toResourceName(destinationName, isQueue);
 
         ContextStore<Session, SessionState> sessionStateStore =
             InstrumentationContext.get(Session.class, SessionState.class);
@@ -120,9 +158,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
             Config.get().isJMSPropagationDisabledForDestination(destinationName);
 
         consumerStateStore.put(
-            consumer,
-            new MessageConsumerState(
-                sessionState, UTF8BytesString.create(resourceName), propagationDisabled));
+            consumer, new MessageConsumerState(sessionState, resourceName, propagationDisabled));
       }
     }
   }

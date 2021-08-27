@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -16,13 +17,15 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
+import java.util.Map;
 import javax.jms.Destination;
 import javax.jms.Message;
 import javax.jms.MessageProducer;
 import javax.jms.Queue;
-import javax.jms.Topic;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -56,6 +59,11 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("javax.jms.MessageProducer", MessageProducerState.class.getName());
+  }
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("send").and(takesArgument(0, named("javax.jms.Message"))).and(isPublic()),
@@ -78,25 +86,17 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         return null;
       }
 
-      Destination defaultDestination;
-      String destinationName = null;
-      try {
-        defaultDestination = producer.getDestination();
-        if (defaultDestination instanceof Queue) {
-          destinationName = ((Queue) defaultDestination).getQueueName();
-        } else if (defaultDestination instanceof Topic) {
-          destinationName = ((Topic) defaultDestination).getTopicName();
-        }
-      } catch (Exception ignored) {
-        defaultDestination = null;
+      MessageProducerState producerState =
+          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
+              .get(producer);
+      if (null == producerState) {
+        return null;
       }
 
       final AgentSpan span = startSpan(JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, message, defaultDestination);
-
-      if (Config.get().isJMSPropagationEnabled()
-          && !Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
+      PRODUCER_DECORATE.onProduce(span, producerState.getResourceName());
+      if (Config.get().isJMSPropagationEnabled() && !producerState.isPropagationDisabled()) {
         propagate().inject(span, message, SETTER);
       }
       return activateSpan(span);
@@ -121,27 +121,19 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beforeSend(
         @Advice.Argument(0) final Destination destination,
-        @Advice.Argument(1) final Message message,
-        @Advice.This final MessageProducer producer) {
+        @Advice.Argument(1) final Message message) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
       if (callDepth > 0) {
         return null;
       }
 
-      String destinationName = null;
-      try {
-        if (destination instanceof Queue) {
-          destinationName = ((Queue) destination).getQueueName();
-        } else if (destination instanceof Topic) {
-          destinationName = ((Topic) destination).getTopicName();
-        }
-      } catch (Exception ignored) {
-      }
+      String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
+      CharSequence resourceName =
+          PRODUCER_DECORATE.toResourceName(destinationName, destination instanceof Queue);
 
       final AgentSpan span = startSpan(JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, message, destination);
-
+      PRODUCER_DECORATE.onProduce(span, resourceName);
       if (Config.get().isJMSPropagationEnabled()
           && !Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
         propagate().inject(span, message, SETTER);
