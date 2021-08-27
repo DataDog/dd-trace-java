@@ -26,54 +26,61 @@ class SamplingCheckpointerTest extends DDSpecification {
     span.getTraceId() >> traceId
     span.getSpanId() >> spanId
     span.getResourceName() >> UTF8BytesString.create(resource)
-    int count = register ? drop ? 0 : 1 : 0
+    span.isEmittingCheckpoints() >> true
+    int checkpointCount = register ? drop ? 0 : 1 : 0
+    int rootSpanCount = register ? 1 : 0
 
     when:
     sut.onStart(span)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, SPAN)
+    checkpointCount * checkpointer.checkpoint(span, SPAN)
     0 * _
 
     when:
     sut.onStartWork(span)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, CPU)
+    checkpointCount * checkpointer.checkpoint(span, CPU)
     0 * _
 
     when:
     sut.onFinishWork(span)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, CPU | END)
+    checkpointCount * checkpointer.checkpoint(span, CPU | END)
     0 * _
 
     when:
     sut.onStartThreadMigration(span)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, THREAD_MIGRATION)
+    checkpointCount * checkpointer.checkpoint(span, THREAD_MIGRATION)
     0 * _
 
     when:
     sut.onFinishThreadMigration(span)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, THREAD_MIGRATION | END)
+    checkpointCount * checkpointer.checkpoint(span, THREAD_MIGRATION | END)
     0 * _
 
     when:
     sut.checkpoint(span, CPU | SPAN)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, CPU | SPAN)
+    checkpointCount * checkpointer.checkpoint(span, CPU | SPAN)
     0 * _
 
     when:
     sut.onFinish(span)
     then:
-    count * checkpointer.checkpoint(traceId, spanId, SPAN | END)
+    checkpointCount * checkpointer.checkpoint(span, SPAN | END)
     0 * _
 
     when:
-    sut.onRootSpanPublished(span)
+    sut.onRootSpan(span, true)
     then:
-    count * checkpointer.onRootSpanPublished(resource, traceId)
+    rootSpanCount * checkpointer.onRootSpan(resource, traceId, true)
+
+    when:
+    sut.onRootSpan(span, false)
+    then:
+    rootSpanCount * checkpointer.onRootSpan(resource, traceId, false)
 
     where:
     drop | register

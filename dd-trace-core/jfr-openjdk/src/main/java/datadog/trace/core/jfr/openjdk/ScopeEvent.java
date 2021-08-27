@@ -14,6 +14,7 @@ import jdk.jfr.Timespan;
 @Category("Datadog")
 @StackTrace(false)
 public final class ScopeEvent extends Event {
+
   @Label("Trace Id")
   private final long traceId;
 

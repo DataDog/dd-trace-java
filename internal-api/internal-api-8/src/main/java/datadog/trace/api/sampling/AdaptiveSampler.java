@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.LongAdder;
  * to compensate for too rapid changes in the incoming events rate and maintain the target average
  * number of samples per window.
  */
-public final class AdaptiveSampler {
+public class AdaptiveSampler {
 
   /*
    * Number of windows to look back when computing carried over budget.
@@ -52,6 +52,10 @@ public final class AdaptiveSampler {
     boolean addSample(final long limit) {
       return SAMPLE_COUNT.getAndAccumulate(this, limit, (prev, lim) -> Math.min(prev + 1, lim))
           < limit;
+    }
+
+    void addSample() {
+      SAMPLE_COUNT.incrementAndGet(this);
     }
 
     void reset() {
@@ -143,13 +147,36 @@ public final class AdaptiveSampler {
    *
    * @return {@literal true} if the event should be sampled
    */
-  public final boolean sample() {
+  public boolean sample() {
     final Counts counts = countsRef.get();
     counts.addTest();
     if (ThreadLocalRandom.current().nextDouble() < probability) {
       return counts.addSample(samplesBudget);
     }
 
+    return false;
+  }
+
+  /**
+   * Force the sampling decision to keep this item
+   *
+   * @return always {@literal true}
+   */
+  public boolean keep() {
+    final AdaptiveSampler.Counts counts = countsRef.get();
+    counts.addTest();
+    counts.addSample();
+    return true;
+  }
+
+  /**
+   * Force the sampling decision to drop this item
+   *
+   * @return always {@literal false}
+   */
+  public boolean drop() {
+    final AdaptiveSampler.Counts counts = countsRef.get();
+    counts.addTest();
     return false;
   }
 
@@ -213,5 +240,14 @@ public final class AdaptiveSampler {
     public void run(final AdaptiveSampler target) {
       target.rollWindow();
     }
+  }
+
+  // access for tests
+  long testCount() {
+    return countsRef.get().testCount();
+  }
+
+  long sampleCount() {
+    return countsRef.get().sampleCount();
   }
 }

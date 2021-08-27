@@ -52,11 +52,11 @@ class CheckpointEmissionTest extends AgentTestRunner {
     // note that the test http server is also traced and needs to be accounted for below
     TEST_WRITER.waitForTraces(2)
     then:
-    3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    3 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * _
   }
 
@@ -70,11 +70,11 @@ class CheckpointEmissionTest extends AgentTestRunner {
     // note that the test http server is also traced and needs to be accounted for below
     TEST_WRITER.waitForTraces(2)
     then:
-    4 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    4 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    4 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    2 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    4 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * _
   }
 

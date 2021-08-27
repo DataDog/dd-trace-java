@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
+import datadog.trace.api.config.ProfilingConfig
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -43,6 +44,7 @@ abstract class AbstractTestAgentSmokeTest extends ProcessManager {
     "-Ddd.env=${ENV}",
     "-Ddd.version=${VERSION}",
     "-Ddd.profiling.enabled=false",
+    "-Ddd.${ProfilingConfig.PROFILING_CHECKPOINTS_RATE_LIMIT}=0",
     "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
     "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
   ]

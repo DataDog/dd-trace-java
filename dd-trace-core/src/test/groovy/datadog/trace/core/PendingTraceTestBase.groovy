@@ -281,11 +281,11 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     when:
     def span = tracer.buildSpan("test").start()
     then:
-    1 * checkpointer.checkpoint(_, _, SPAN)
+    1 * checkpointer.checkpoint(_, SPAN)
 
     when:
     span.finish()
     then:
-    1 * checkpointer.checkpoint(_, _, SPAN | END)
+    1 * checkpointer.checkpoint(_, SPAN | END)
   }
 }

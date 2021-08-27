@@ -53,6 +53,20 @@ public interface AgentSpan extends MutableSpan {
 
   AgentSpan addThrowable(Throwable throwable);
 
+  /**
+   * Sets the span checkpoint emission state
+   *
+   * @param value {@literal true} to enable checkpoint emission, {@literal false} otherwise
+   */
+  void setEmittingCheckpoints(boolean value);
+
+  /**
+   * Checks the span checkpoint emission state
+   *
+   * @return a {@literal true/false} value or {@literal null} if the state needs to be set yet
+   */
+  Boolean isEmittingCheckpoints();
+
   @Override
   AgentSpan getLocalRootSpan();
 

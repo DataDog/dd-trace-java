@@ -363,29 +363,32 @@ class DDSpanTest extends DDCoreSpecification {
       tracer.pendingTraceFactory.create(DDId.ONE),
       null)
 
+    def span = null
+
     when:
-    DDSpan span = DDSpan.create(1, context)
+    span = DDSpan.create(1, context)
     then:
-    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), SPAN)
+    // can not assert against 'span' as this check seems to operate on 'span' value before it has been created
+    1 * checkpointer.checkpoint(_, SPAN)
 
     when:
     span.startThreadMigration()
     then:
-    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), THREAD_MIGRATION)
+    1 * checkpointer.checkpoint(span, THREAD_MIGRATION)
     when:
     span.finishThreadMigration()
     then:
-    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), THREAD_MIGRATION | END)
+    1 * checkpointer.checkpoint(span, THREAD_MIGRATION | END)
 
     when:
     span.finishWork()
     then:
-    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), CPU | END)
+    1 * checkpointer.checkpoint(span, CPU | END)
 
     when:
     span.finish()
     then:
-    1 * checkpointer.checkpoint(context.getTraceId(), context.getSpanId(), SPAN | END)
+    1 * checkpointer.checkpoint(span, SPAN | END)
   }
 
   def "broken pipe exception does not create error span"() {
@@ -405,5 +408,22 @@ class DDSpanTest extends DDCoreSpecification {
     then:
     !span.isError()
     span.getTag(DDTags.ERROR_STACK) == null
+  }
+
+  def "checkpointing set only on root span"() {
+    setup:
+    def parent = tracer.buildSpan("testRoot").start()
+    def child = tracer.buildSpan("testSpan").asChildOf(parent).start()
+
+    when:
+    child.setEmittingCheckpoints(true)
+
+    then:
+    parent.isEmittingCheckpoints() == true
+    parent.@emittingCheckpoints == true // Access field directly instead of getter.
+    parent.getTag(DDSpan.CHECKPOINTED_TAG) == true
+    child.isEmittingCheckpoints() == true // flag is reflected in children
+    child.@emittingCheckpoints == null // but no value is stored in the field
+    child.getTag(DDSpan.CHECKPOINTED_TAG) == null // child span does not get the tag set
   }
 }

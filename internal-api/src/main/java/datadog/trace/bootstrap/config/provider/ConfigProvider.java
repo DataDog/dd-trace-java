@@ -17,6 +17,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class ConfigProvider {
+  private static final class Singleton {
+    private static final ConfigProvider INSTANCE = ConfigProvider.createDefault();
+  }
 
   private static final Logger log = LoggerFactory.getLogger(ConfigProvider.class);
   protected final ConfigProvider.Source[] sources;
@@ -162,6 +165,10 @@ public final class ConfigProvider {
       log.warn("Invalid configuration for " + key, e);
       return defaultValue;
     }
+  }
+
+  public static ConfigProvider getInstance() {
+    return Singleton.INSTANCE;
   }
 
   public static ConfigProvider createDefault() {

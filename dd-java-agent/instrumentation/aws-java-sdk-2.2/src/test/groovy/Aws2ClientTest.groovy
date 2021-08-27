@@ -150,11 +150,11 @@ class Aws2ClientTest extends AgentTestRunner {
     }
     server.lastRequest.headers.get("x-datadog-trace-id") == null
     server.lastRequest.headers.get("x-datadog-parent-id") == null
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
     where:
@@ -278,11 +278,11 @@ class Aws2ClientTest extends AgentTestRunner {
     }
     server.lastRequest.headers.get("x-datadog-trace-id") == null
     server.lastRequest.headers.get("x-datadog-parent-id") == null
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN)
-    2 * TEST_CHECKPOINTER.checkpoint(_, _, SPAN | END)
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION)
-    1 * TEST_CHECKPOINTER.checkpoint(_, _, THREAD_MIGRATION | END)
-    _ * TEST_CHECKPOINTER.onRootSpanPublished(_, _)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    1 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
     where:
