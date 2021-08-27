@@ -1,6 +1,6 @@
+import com.mongodb.MongoTimeoutException
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
-import com.mongodb.MongoTimeoutException
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -44,13 +44,13 @@ class Mongo4ClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "create","{\"create\":\"$collectionName\",\"capped\":\"?\"}", renameService)
+        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", renameService)
       }
     }
     and: "synchronous checkpoints span the driver activity"
     1 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     1 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _)
     0 * TEST_CHECKPOINTER._
 
     where:
@@ -68,7 +68,7 @@ class Mongo4ClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "create","{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, databaseName)
+        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, databaseName)
       }
     }
 
@@ -93,7 +93,7 @@ class Mongo4ClientTest extends MongoBaseTest {
     and: "synchronous checkpoints span the driver activity"
     1 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     1 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _)
     0 * TEST_CHECKPOINTER._
 
     where:
@@ -128,7 +128,7 @@ class Mongo4ClientTest extends MongoBaseTest {
     and: "syncronous checkpoints span the driver activity"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _)
     0 * TEST_CHECKPOINTER._
 
     where:
@@ -168,7 +168,7 @@ class Mongo4ClientTest extends MongoBaseTest {
     and: "syncronous checkpoints span the driver activity"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _)
     0 * TEST_CHECKPOINTER._
 
     where:
@@ -206,7 +206,7 @@ class Mongo4ClientTest extends MongoBaseTest {
     and: "syncronous checkpoints span the driver activity"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _)
     0 * TEST_CHECKPOINTER._
 
     where:
