@@ -12,12 +12,13 @@ import static org.mockito.Mockito.withSettings;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingInputStream;
 import datadog.trace.api.IOLogger;
-import datadog.trace.api.Platform;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
@@ -25,7 +26,6 @@ import java.util.zip.GZIPOutputStream;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
@@ -48,7 +48,7 @@ public class JfrCliHelperTest {
 
     JfrCliHelper.invokeOn(recording, ioLogger);
 
-    if (Platform.isJavaVersion(8)) {
+    if (!hasJfr()) {
       verify(ioLogger).error(eq("Failed to gather information on recording, can't find `jfr`"));
     } else {
       Set<String> messages = new HashSet<String>();
@@ -68,6 +68,10 @@ public class JfrCliHelperTest {
       verify(ioLogger, times(messages.size()))
           .error(argThat(message -> messages.contains(message)));
     }
+  }
+
+  private boolean hasJfr() {
+    return Files.exists(Paths.get(System.getProperty("java.home"), "bin", "jfr"));
   }
 
   private RecordingData mockRecordingData() throws IOException {

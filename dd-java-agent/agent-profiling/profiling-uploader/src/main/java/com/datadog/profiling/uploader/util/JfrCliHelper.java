@@ -1,7 +1,10 @@
 package com.datadog.profiling.uploader.util;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
+
 import com.datadog.profiling.controller.RecordingData;
 import datadog.trace.api.IOLogger;
+import datadog.trace.util.AgentThreadFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -14,19 +17,30 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /** Call the `jfr` cli on the given recording */
 public class JfrCliHelper {
-  public static void invokeOn(final RecordingData data, final IOLogger ioLogger) {
-    System.err.println("Hello World (1)");
-    try {
-      String javaHome = System.getProperty("java.home");
-      if (javaHome == null || javaHome.isEmpty()) {
-        ioLogger.error("Failed to gather information on recording, can't find JAVA_HOME");
-        return;
-      }
 
-      Path jfr = Paths.get(javaHome, "bin", "jfr");
+  private static ExecutorService executorService = new ThreadPoolExecutor(
+    0,
+    Integer.MAX_VALUE,
+    60,
+    TimeUnit.SECONDS,
+    new SynchronousQueue<>(),
+    new AgentThreadFactory(PROFILER_HTTP_DISPATCHER));
+
+  private static Pattern metadataSeparatorRegex = Pattern.compile("^=+$");
+  private static Pattern columnSeparatorRegex = Pattern.compile("\\s+");
+
+  public static void invokeOn(final RecordingData data, final IOLogger ioLogger) {
+    try {
+      Path jfr = Paths.get(System.getProperty("java.home"), "bin", "jfr");
       if (!Files.exists(jfr)) {
         ioLogger.error("Failed to gather information on recording, can't find `jfr`");
         return;
@@ -54,8 +68,18 @@ public class JfrCliHelper {
       Process process = builder.start();
 
       try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-        redirect(process.getInputStream(), out);
-        process.waitFor();
+        Future<?> asyncRedirect = executorService.submit(() -> {
+          redirect(process.getInputStream(), out);
+          return true;
+        });
+
+        if (!process.waitFor(30, TimeUnit.SECONDS)) {
+          ioLogger.error("Failed to gather information on recording, `jfr` never finished");
+          asyncRedirect.cancel(true);
+          return;
+        }
+
+        asyncRedirect.get();
 
         stdout = out.toString().split(System.lineSeparator());
       }
@@ -64,7 +88,7 @@ public class JfrCliHelper {
       int i = 0;
       for (; i < stdout.length; i++) {
         String line = stdout[i];
-        if (line.matches("^=+$")) {
+        if (metadataSeparatorRegex.matcher(line).matches()) {
           // we reached the separation line between the metadata and the data
           i += 1;
           break;
@@ -79,7 +103,7 @@ public class JfrCliHelper {
           break;
         }
 
-        String[] columns = line.trim().split("\\s+", 3);
+        String[] columns = columnSeparatorRegex.split(line.trim(), 3);
         if (columns.length < 3) {
           ioLogger.error("Failed to gather information on recording, line format is unexpected");
           return;
@@ -92,15 +116,12 @@ public class JfrCliHelper {
         events.add(new Event(type, count, size));
       }
 
-      System.err.println("Hello World (2)");
-
       // Log top 10 biggest events by size
       events.stream()
           .sorted(Comparator.comparing(Event::getSize).reversed())
           .limit(10)
           .forEach(
               event -> {
-                  System.err.println("Hello World (3)");
                   ioLogger.error(
                       String.format(
                           "Event: %s, size = %d, count = %d",
