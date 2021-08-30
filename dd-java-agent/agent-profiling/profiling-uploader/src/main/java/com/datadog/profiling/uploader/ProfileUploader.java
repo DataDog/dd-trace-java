@@ -319,7 +319,9 @@ public final class ProfileUploader {
               public void onFailure(Call call, IOException e) {
                 if (isEmptyReplyFromServer(e)) {
                   ioLogger.error(
-                      "Failed to upload profile, received empty reply from " + call.request().url() + " after uploading profile");
+                      "Failed to upload profile, received empty reply from "
+                          + call.request().url()
+                          + " after uploading profile");
                 } else {
                   ioLogger.error("Failed to upload profile to " + call.request().url(), e);
                 }
@@ -346,7 +348,8 @@ public final class ProfileUploader {
                   }
                 }
 
-                // Note: this whole callback never touches body and would be perfectly happy even if server
+                // Note: this whole callback never touches body and would be perfectly happy even if
+                // server
                 // never sends it.
                 response.close();
 
@@ -377,9 +380,11 @@ public final class ProfileUploader {
               }
 
               private boolean isEmptyReplyFromServer(final IOException e) {
-                // The server in datadog-agent triggers 'unexpected end of stream' caused by EOFException.
+                // The server in datadog-agent triggers 'unexpected end of stream' caused by
+                // EOFException.
                 // The MockWebServer in tests triggers an InterruptedIOException with SocketPolicy
-                // NO_RESPONSE. This is because in tests we can't cleanly terminate the connection on the
+                // NO_RESPONSE. This is because in tests we can't cleanly terminate the connection
+                // on the
                 // server side without resetting.
                 return (e instanceof InterruptedIOException)
                     || (e.getCause() != null && e.getCause() instanceof java.io.EOFException);

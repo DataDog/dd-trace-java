@@ -35,6 +35,7 @@ public class JfrCliHelper {
     new SynchronousQueue<>(),
     new AgentThreadFactory(PROFILER_HTTP_DISPATCHER));
 
+  private static Pattern lineSeparatorRegex = Pattern.compile(System.lineSeparator());
   private static Pattern metadataSeparatorRegex = Pattern.compile("^=+$");
   private static Pattern columnSeparatorRegex = Pattern.compile("\\s+");
 
@@ -81,7 +82,7 @@ public class JfrCliHelper {
 
         asyncRedirect.get();
 
-        stdout = out.toString().split(System.lineSeparator());
+        stdout = lineSeparatorRegex.split(out.toString());
       }
 
       // Skip metadata from stdout

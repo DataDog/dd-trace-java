@@ -456,7 +456,12 @@ public class ProfileUploaderTest {
     // Shutting down uploader ensures all callbacks are called on http client
     uploader.shutdown();
     verify(recording).release();
-    verify(ioLogger).error(eq("Failed to upload profile, received empty reply from " + url + " after uploading profile"));
+    verify(ioLogger)
+        .error(
+            eq(
+                "Failed to upload profile, received empty reply from "
+                    + url
+                    + " after uploading profile"));
   }
 
   @Test
