@@ -20,6 +20,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DI
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
+import com.datadog.profiling.uploader.util.JfrCliHelper;
 import com.datadog.profiling.uploader.util.PidHelper;
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.UnixDomainSocketFactory;
@@ -336,6 +337,10 @@ public final class ProfileUploader {
                     // if no API key and not found error we assume we're sending to the agent
                     ioLogger.error(
                         "Failed to upload profile. Datadog Agent is not accepting profiles. Agent-based profiling deployments require Datadog Agent >= 7.20");
+                  } else if (response.code() == 413) {
+                    ioLogger.error(
+                        "Failed to upload profile, it's too big. Dumping information about the profile");
+                    JfrCliHelper.invokeOn(data, ioLogger);
                   } else {
                     ioLogger.error("Failed to upload profile", getLoggerResponse(response));
                   }
