@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jetty_client;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 
 import com.google.auto.service.AutoService;
@@ -23,7 +22,9 @@ public final class ResponseListenerAdapterInstrumentation extends Instrumenter.T
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.eclipse.jetty.client.api.Response$Listener$Adapter");
+    return namedOneOf(
+        "org.eclipse.jetty.client.api.Response$Listener$Adapter",
+        "org.eclipse.jetty.client.api.Response$Listener");
   }
 
   @Override
