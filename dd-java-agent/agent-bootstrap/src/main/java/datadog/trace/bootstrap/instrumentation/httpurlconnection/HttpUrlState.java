@@ -45,9 +45,15 @@ public class HttpUrlState {
     finished = true;
   }
 
-  public void finishSpan(final Throwable throwable) {
+  public void finishSpan(final int responseCode, final Throwable throwable) {
     try (final AgentScope scope = activateSpan(span)) {
-      DECORATE.onError(span, throwable);
+      if (responseCode > 0) {
+        DECORATE.onResponse(span, responseCode);
+      } else {
+        // Ignoring the throwable if we have response code
+        // to have consistent behavior with other http clients.
+        DECORATE.onError(span, throwable);
+      }
       DECORATE.beforeFinish(span);
       span.finish();
       span = null;

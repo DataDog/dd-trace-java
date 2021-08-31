@@ -6,6 +6,7 @@ import org.springframework.http.HttpMethod
 import org.springframework.http.ResponseEntity
 import org.springframework.http.client.ClientHttpRequestFactory
 import org.springframework.http.client.SimpleClientHttpRequestFactory
+import org.springframework.web.client.HttpStatusCodeException
 import org.springframework.web.client.RestTemplate
 import spock.lang.Shared
 import spock.lang.Timeout
@@ -21,6 +22,7 @@ class SpringRestTemplateTest extends HttpClientTest {
   def setupSpec() {
     factory.connectTimeout = CONNECT_TIMEOUT_MS
     factory.readTimeout = READ_TIMEOUT_MS
+    factory.outputStreaming = false // https://stackoverflow.com/a/31649238
   }
 
   @Override
@@ -28,9 +30,14 @@ class SpringRestTemplateTest extends HttpClientTest {
     def httpHeaders = new HttpHeaders()
     headers.each { httpHeaders.put(it.key, [it.value]) }
     def request = new HttpEntity<String>(httpHeaders)
-    ResponseEntity<String> response = restTemplate.exchange(uri, HttpMethod.resolve(method), request, String)
-    callback?.call()
-    return response.statusCode.value()
+    try {
+      ResponseEntity<String> response = restTemplate.exchange(uri, HttpMethod.resolve(method), request, String)
+      callback?.call()
+      return response.statusCode.value()
+    } catch (HttpStatusCodeException ex) {
+      ex.printStackTrace()
+      return ex.statusCode.value()
+    }
   }
 
   @Override

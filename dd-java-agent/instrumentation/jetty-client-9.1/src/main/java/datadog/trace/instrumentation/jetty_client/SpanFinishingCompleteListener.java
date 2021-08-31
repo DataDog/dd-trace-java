@@ -15,7 +15,9 @@ public class SpanFinishingCompleteListener implements Response.CompleteListener 
 
   @Override
   public void onComplete(Result result) {
-    DECORATE.onError(span, result.getFailure());
+    if (result.getResponse().getStatus() <= 0) {
+      DECORATE.onError(span, result.getFailure());
+    }
     DECORATE.onResponse(span, result.getResponse());
     DECORATE.beforeFinish(span);
     span.finish();

@@ -1,14 +1,15 @@
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.netty.handler.codec.http.HttpMethod
-import java.time.Duration
-import java.util.function.BiFunction
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.netty.ByteBufFlux
 import reactor.netty.ByteBufMono
 import reactor.netty.http.client.HttpClient
 import reactor.netty.http.client.HttpClientResponse
+
+import java.time.Duration
+import java.util.function.BiFunction
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -75,7 +76,7 @@ class ReactorNettyHttpClientTest extends HttpClientTest {
     assertTraces(1) {
       trace(size(2)) {
         basicSpan(it, "parent")
-        clientSpan(it, span(0), "GET", false, false, uri, 200, null, true)
+        clientSpan(it, span(0), "GET", false, false, uri, 200, false, null, true)
       }
     }
   }

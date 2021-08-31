@@ -92,7 +92,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Tracing {
       synchronized (state) {
         if (state.hasSpan() && !state.isFinished()) {
           if (throwable != null) {
-            state.finishSpan(throwable);
+            state.finishSpan(responseCode, throwable);
           } else if ("getInputStream".equals(methodName)) {
             state.finishSpan(responseCode);
           }

@@ -464,94 +464,109 @@ jobs:
 
       - display_memory_usage
 
+build_test_jobs: &build_test_jobs
+  - build
+
+  - base_tests:
+      requires:
+        - build
+      prefixTestTask: true
+      name: z_test_<< matrix.testTask >>_base
+      matrix:
+        <<: *test_matrix
+
+  - base_tests:
+      requires:
+        - build
+      name: z_test_8_base
+      testTask: test jacocoTestReport jacocoTestCoverageVerification
+
+  - instrumentation_tests:
+      requires:
+        - build
+      prefixTestTask: true
+      name: z_test_<< matrix.testTask >>_inst
+      matrix:
+        <<: *test_matrix
+
+  - instrumentation_tests:
+      requires:
+        - build
+      name: z_test_8_inst
+      testTask: test
+
+  - instrumentation_tests:
+      requires:
+        - build
+      name: test_8_inst_latest
+      testTask: latestDepTest
+
+  - smoke_tests:
+      requires:
+        - build
+      prefixTestTask: true
+      name: z_test_<< matrix.testTask >>_smoke
+      matrix:
+        <<: *test_matrix
+
+  - smoke_tests:
+      requires:
+        - build
+      name: z_test_8_smoke
+      testTask: test
+
+  - fan_in:
+      requires:
+        - z_test_<< matrix.testTask >>_base
+        - z_test_<< matrix.testTask >>_inst
+        - z_test_<< matrix.testTask >>_smoke
+      name: test_<< matrix.testTask >>
+      matrix:
+        <<: *test_matrix
+
+  - fan_in:
+      requires:
+        - z_test_8_base
+        - z_test_8_inst
+        - z_test_8_smoke
+      name: test_8
+      testTask: "8"
+
+  - agent_integration_tests:
+      requires:
+        - build
+      testTask: traceAgentTest
+
+  - check:
+      requires:
+        - build
+
+  - muzzle:
+      requires:
+        - build
+      filters:
+        branches:
+          ignore:
+            - master
+            - project/*
+            - release/*
+
 workflows:
-  build_test_deploy:
+  build_test:
     jobs:
-      - build
+      *build_test_jobs
 
-      - base_tests:
-          requires:
-            - build
-          prefixTestTask: true
-          name: z_test_<< matrix.testTask >>_base
-          matrix:
-            <<: *test_matrix
-
-      - base_tests:
-          requires:
-            - build
-          name: z_test_8_base
-          testTask: test jacocoTestReport jacocoTestCoverageVerification
-
-      - instrumentation_tests:
-          requires:
-            - build
-          prefixTestTask: true
-          name: z_test_<< matrix.testTask >>_inst
-          matrix:
-            <<: *test_matrix
-
-      - instrumentation_tests:
-          requires:
-            - build
-          name: z_test_8_inst
-          testTask: test
-
-      - instrumentation_tests:
-          requires:
-            - build
-          name: test_8_inst_latest
-          testTask: latestDepTest
-
-      - smoke_tests:
-          requires:
-            - build
-          prefixTestTask: true
-          name: z_test_<< matrix.testTask >>_smoke
-          matrix:
-            <<: *test_matrix
-
-      - smoke_tests:
-          requires:
-            - build
-          name: z_test_8_smoke
-          testTask: test
-
-      - fan_in:
-          requires:
-            - z_test_<< matrix.testTask >>_base
-            - z_test_<< matrix.testTask >>_inst
-            - z_test_<< matrix.testTask >>_smoke
-          name: test_<< matrix.testTask >>
-          matrix:
-            <<: *test_matrix
-
-      - fan_in:
-          requires:
-            - z_test_8_base
-            - z_test_8_inst
-            - z_test_8_smoke
-          name: test_8
-          testTask: "8"
-
-      - agent_integration_tests:
-          requires:
-            - build
-          testTask: traceAgentTest
-
-      - check:
-          requires:
-            - build
-
-      - muzzle:
-          requires:
-            - build
+  nightly:
+    triggers:
+      - schedule:
+          # Run this job at 00:05 UTC every day
+          cron: "5 0 * * *"
           filters:
             branches:
-              ignore:
+              only:
                 - master
-                - project/*
-                - release/*
+    jobs:
+      *build_test_jobs
 
   weekly:
     triggers:
