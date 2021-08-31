@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
+
 import org.eclipse.jetty.client.HttpClient
 import org.eclipse.jetty.client.HttpProxy
 import org.eclipse.jetty.client.HttpResponseException
@@ -91,12 +90,5 @@ class JettyClientTest extends HttpClientTest {
   @Override
   boolean testProxy() {
     false // doesn't produce CONNECT span.
-  }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
