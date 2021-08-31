@@ -10,6 +10,7 @@ import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
+import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
@@ -18,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
+import groovy.transform.CompileStatic
 import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.Request
@@ -63,13 +65,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ((ch.qos.logback.classic.Logger) SERVER_LOGGER).setLevel(Level.DEBUG)
   }
 
+  @CompileStatic
   def setupSpec() {
     // Register the Instrumentation Gateway callbacks
     def ig = get().instrumentationGateway()
     def callbacks = new IGCallbacks()
     ig.registerCallback(Events.REQUEST_STARTED, callbacks.requestStartedCb)
     ig.registerCallback(Events.REQUEST_HEADER, callbacks.requestHeaderCb)
-    ig.registerCallback(Events.REQUEST_URI_RAW, callbacks.requestUriRawCb)
+    ig.registerCallback(Events.REQUEST_METHOD_URI_RAW, callbacks.requestUriRawCb)
     ig.registerCallback(Events.REQUEST_BODY_START, callbacks.requestBodyStartCb)
     ig.registerCallback(Events.REQUEST_BODY_DONE, callbacks.requestBodyEndCb)
   }
@@ -947,22 +950,22 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     final Supplier<Flow<RequestContext>> requestStartedCb =
-    {
+    ({
       ->
       new Flow.ResultFlow<RequestContext>(new Context())
-    }
+    } as Supplier<Flow<RequestContext>>)
 
     final TriConsumer<RequestContext, String, String> requestHeaderCb =
     { Context context, String key, String value ->
       if (HttpServerTest.IG_TEST_HEADER.equalsIgnoreCase(key)) {
         context.extraSpan = value
       }
-    }
+    } as TriConsumer<RequestContext, String, String>
 
     private static final String EXPECTED = "${QUERY_ENCODED_BOTH.rawPath}?${QUERY_ENCODED_BOTH.rawQuery}"
 
-    final BiFunction<RequestContext, URIDataAdapter, Flow<Void>> requestUriRawCb =
-    { Context context, URIDataAdapter uri ->
+    final TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> requestUriRawCb =
+    ({ Context context, String method, URIDataAdapter uri ->
       String raw = uri.supportsRaw() ? uri.raw() : ''
       raw = uri.hasPlusEncodedSpaces() ? raw.replace('+', '%20') : raw
       // Only trigger for query path without query parameters and with special header
@@ -973,13 +976,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         context.extraSpan = null
       }
       Flow.ResultFlow.empty()
-    }
+    } as TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>)
 
     final BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCb =
     { Context context, StoredBodySupplier supplier ->
       context.requestBodySupplier = supplier
       null
-    }
+    } as BiFunction<RequestContext, StoredBodySupplier, Void>
 
     final BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyEndCb =
     { Context context, StoredBodySupplier supplier ->
@@ -988,6 +991,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       AgentTracer.activeSpan().localRootSpan.setTag('request.body', supplier.get() as String)
       Flow.ResultFlow.empty()
-    }
+    } as BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>
   }
 }

@@ -7,12 +7,10 @@ import static datadog.trace.api.gateway.Events.REQUEST_CLIENT_SOCKET_ADDRESS_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_ENDED_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_HEADER_DONE_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_HEADER_ID;
-import static datadog.trace.api.gateway.Events.REQUEST_METHOD_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_METHOD_URI_RAW_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_STARTED_ID;
-import static datadog.trace.api.gateway.Events.REQUEST_URI_RAW_ID;
 
 import datadog.trace.api.Function;
-import datadog.trace.api.function.BiConsumer;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.Supplier;
 import datadog.trace.api.function.TriConsumer;
@@ -150,31 +148,15 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
                 return callback.equals(obj);
               }
             };
-      case REQUEST_METHOD_ID:
+      case REQUEST_METHOD_URI_RAW_ID:
         return (C)
-            new BiConsumer<RequestContext, String>() {
+            new TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>() {
               @Override
-              public void accept(RequestContext ctx, String method) {
+              public Flow<Void> apply(RequestContext ctx, String method, URIDataAdapter adapter) {
                 try {
-                  ((BiConsumer<RequestContext, String>) callback).accept(ctx, method);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                }
-              }
-
-              @Override
-              public boolean equals(Object obj) {
-                return callback.equals(obj);
-              }
-            };
-      case REQUEST_URI_RAW_ID:
-        return (C)
-            new BiFunction<RequestContext, URIDataAdapter, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, URIDataAdapter adapter) {
-                try {
-                  return ((BiFunction<RequestContext, URIDataAdapter, Flow<Void>>) callback)
-                      .apply(ctx, adapter);
+                  return ((TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>)
+                          callback)
+                      .apply(ctx, method, adapter);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();
@@ -188,11 +170,11 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
             };
       case REQUEST_CLIENT_SOCKET_ADDRESS_ID:
         return (C)
-            new TriFunction<RequestContext, String, Short, Flow<Void>>() {
+            new TriFunction<RequestContext, String, Integer, Flow<Void>>() {
               @Override
-              public Flow<Void> apply(RequestContext ctx, String ip, Short port) {
+              public Flow<Void> apply(RequestContext ctx, String ip, Integer port) {
                 try {
-                  return ((TriFunction<RequestContext, String, Short, Flow<Void>>) callback)
+                  return ((TriFunction<RequestContext, String, Integer, Flow<Void>>) callback)
                       .apply(ctx, ip, port);
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);

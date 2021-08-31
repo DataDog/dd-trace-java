@@ -9,15 +9,14 @@ import com.datadog.appsec.event.data.StringKVPair
 import com.datadog.appsec.report.ReportService
 import com.datadog.appsec.report.raw.events.attack.Attack010
 import datadog.trace.api.Function
-import datadog.trace.api.function.BiConsumer
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
-import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.IGSpanInfo
+import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -41,10 +40,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   Supplier<Flow<RequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
-  BiConsumer<RequestContext, String> requestMethodCB
   TriConsumer<RequestContext, String, String> headerCB
   Function<RequestContext, Flow<Void>> headersDoneCB
-  BiFunction<RequestContext, URIDataAdapter, Flow<Void>> requestURICB
+  TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> requestMethodURICB
   TriFunction<RequestContext, String, Integer, Flow<Void>> requestSocketAddressCB
   BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
@@ -141,7 +139,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     and:
     headersDoneCB.apply(ctx)
-    requestURICB.apply(ctx, TestURIDataAdapter.create('/a'))
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/a'))
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
     then:
@@ -159,7 +157,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     and:
     headersDoneCB.apply(ctx)
-    requestURICB.apply(ctx, TestURIDataAdapter.create('/a'))
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/a'))
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
     then:
@@ -176,7 +174,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
-    requestURICB.apply(ctx, adapter)
+    requestMethodURICB.apply(ctx, 'GET', adapter)
     headersDoneCB.apply(ctx)
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
@@ -207,7 +205,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
-    requestURICB.apply(ctx, adapter)
+    requestMethodURICB.apply(ctx, 'GET', adapter)
     headersDoneCB.apply(ctx)
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 80)
 
@@ -235,8 +233,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     1 * ig.registerCallback(Events.REQUEST_STARTED, _) >> { requestStartedCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_ENDED, _) >> { requestEndedCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_METHOD, _) >> { requestMethodCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_URI_RAW, _) >> { requestURICB = it[1]; null }
+    1 * ig.registerCallback(Events.REQUEST_METHOD_URI_RAW, _) >> { requestMethodURICB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_HEADER, _) >> { headerCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_HEADER_DONE, _) >> { headersDoneCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS, _) >> { requestSocketAddressCB = it[1]; null }
@@ -394,8 +391,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     when:
-    requestMethodCB.accept(ctx, 'POST')
-    requestURICB.apply(ctx, adapter)
+    requestMethodURICB.apply(ctx, 'POST', adapter)
     headersDoneCB.apply(ctx)
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
@@ -413,7 +409,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
-    requestURICB.apply(ctx, adapter)
+    requestMethodURICB.apply(ctx, 'GET', adapter)
     headersDoneCB.apply(ctx)
     requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 

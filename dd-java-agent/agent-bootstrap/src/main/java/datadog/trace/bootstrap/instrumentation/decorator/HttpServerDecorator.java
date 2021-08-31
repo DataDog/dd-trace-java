@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDeco
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.function.BiConsumer;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -94,9 +93,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       }
     }
 
-    String method = null;
     if (request != null) {
-      method = method(request);
+      String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);
 
       // Copy of HttpClientDecorator url handling
@@ -185,15 +183,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       return;
     }
 
-    BiFunction<RequestContext, URIDataAdapter, Flow<Void>> callback =
-        cbp.getCallback(Events.REQUEST_URI_RAW);
+    TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> callback =
+        cbp.getCallback(Events.REQUEST_METHOD_URI_RAW);
     if (callback != null) {
-      callback.apply(requestContext, url);
-    }
-
-    BiConsumer<RequestContext, String> methodCallback = cbp.getCallback(Events.REQUEST_METHOD);
-    if (methodCallback != null) {
-      methodCallback.accept(requestContext, method != null ? method : "");
+      callback.apply(requestContext, method, url);
     }
   }
 

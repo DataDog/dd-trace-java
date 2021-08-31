@@ -61,8 +61,7 @@ public class AppSecBenchmark {
 
   private void maliciousRequest() throws Exception {
     RequestContext context = gw.getCallback(Events.REQUEST_STARTED).get().getResult();
-    gw.getCallback(Events.REQUEST_URI_RAW).apply(context, uri);
-    gw.getCallback(Events.REQUEST_METHOD).accept(context, method);
+    gw.getCallback(Events.REQUEST_METHOD_URI_RAW).apply(context, method, uri);
     gw.getCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS).apply(context, ip, port);
     gw.getCallback(Events.REQUEST_HEADER).accept(context, "User-Agent", "Arachni/v1");
     Flow<?> flow = gw.getCallback(Events.REQUEST_HEADER_DONE).apply(context);
@@ -85,8 +84,7 @@ public class AppSecBenchmark {
 
   private void normalRequest() {
     RequestContext context = gw.getCallback(Events.REQUEST_STARTED).get().getResult();
-    gw.getCallback(Events.REQUEST_URI_RAW).apply(context, uri);
-    gw.getCallback(Events.REQUEST_METHOD).accept(context, method);
+    gw.getCallback(Events.REQUEST_METHOD_URI_RAW).apply(context, method, uri);
     gw.getCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS).apply(context, ip, port);
     gw.getCallback(Events.REQUEST_HEADER).accept(context, "User-Agent", "Mozilla/5.0");
     gw.getCallback(Events.REQUEST_HEADER_DONE).apply(context);

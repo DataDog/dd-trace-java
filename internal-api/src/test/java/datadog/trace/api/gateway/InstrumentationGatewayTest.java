@@ -111,14 +111,13 @@ public class InstrumentationGatewayTest {
     assertThat(gateway.getCallback(Events.REQUEST_STARTED).get().getResult()).isEqualTo(context);
     gateway.registerCallback(Events.REQUEST_ENDED, callback);
     assertThat(gateway.getCallback(Events.REQUEST_ENDED).apply(null, null)).isEqualTo(flow);
-    gateway.registerCallback(Events.REQUEST_METHOD, callback);
-    gateway.getCallback(Events.REQUEST_METHOD).accept(null, null);
     gateway.registerCallback(Events.REQUEST_HEADER, callback);
     gateway.getCallback(Events.REQUEST_HEADER).accept(null, null, null);
     gateway.registerCallback(Events.REQUEST_HEADER_DONE, callback);
     assertThat(gateway.getCallback(Events.REQUEST_HEADER_DONE).apply(null)).isEqualTo(flow);
-    gateway.registerCallback(Events.REQUEST_URI_RAW, callback);
-    assertThat(gateway.getCallback(Events.REQUEST_URI_RAW).apply(null, null)).isEqualTo(flow);
+    gateway.registerCallback(Events.REQUEST_METHOD_URI_RAW, callback);
+    assertThat(gateway.getCallback(Events.REQUEST_METHOD_URI_RAW).apply(null, null, null))
+        .isEqualTo(flow);
     gateway.registerCallback(
         Events.REQUEST_CLIENT_SOCKET_ADDRESS, callback.asClientSocketAddress());
     assertThat(gateway.getCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS).apply(null, null, null))
@@ -146,10 +145,8 @@ public class InstrumentationGatewayTest {
     gateway.registerCallback(Events.REQUEST_HEADER_DONE, throwback);
     assertThat(gateway.getCallback(Events.REQUEST_HEADER_DONE).apply(null))
         .isEqualTo(Flow.ResultFlow.empty());
-    gateway.registerCallback(Events.REQUEST_METHOD, throwback);
-    gateway.getCallback(Events.REQUEST_METHOD).accept(null, null);
-    gateway.registerCallback(Events.REQUEST_URI_RAW, throwback);
-    assertThat(gateway.getCallback(Events.REQUEST_URI_RAW).apply(null, null))
+    gateway.registerCallback(Events.REQUEST_METHOD_URI_RAW, throwback);
+    assertThat(gateway.getCallback(Events.REQUEST_METHOD_URI_RAW).apply(null, null, null))
         .isEqualTo(Flow.ResultFlow.empty());
     gateway.registerCallback(
         Events.REQUEST_CLIENT_SOCKET_ADDRESS, throwback.asClientSocketAddress());
@@ -168,7 +165,8 @@ public class InstrumentationGatewayTest {
           Function<RequestContext, Flow<Void>>,
           BiConsumer<RequestContext, T>,
           TriConsumer<RequestContext, T, T>,
-          BiFunction<RequestContext, T, Flow<Void>> {
+          BiFunction<RequestContext, T, Flow<Void>>,
+          TriFunction<RequestContext, T, T, Flow<Void>> {
 
     private final RequestContext ctxt;
     private final Flow<Void> flow;
@@ -237,6 +235,12 @@ public class InstrumentationGatewayTest {
     public void accept(RequestContext requestContext, T t) {
       count++;
     }
+
+    @Override
+    public Flow<Void> apply(RequestContext requestContext, T t, T t2) {
+      count++;
+      return flow;
+    }
   }
 
   private static class Throwback<T>
@@ -244,7 +248,8 @@ public class InstrumentationGatewayTest {
           Function<RequestContext, Flow<Void>>,
           BiConsumer<RequestContext, T>,
           TriConsumer<RequestContext, T, T>,
-          BiFunction<RequestContext, T, Flow<Void>> {
+          BiFunction<RequestContext, T, Flow<Void>>,
+          TriFunction<RequestContext, T, T, Flow<Void>> {
 
     private int count = 0;
 
@@ -311,6 +316,12 @@ public class InstrumentationGatewayTest {
 
     public int getCount() {
       return count;
+    }
+
+    @Override
+    public Flow<Void> apply(RequestContext requestContext, T t, T t2) {
+      count++;
+      throw new IllegalArgumentException();
     }
   }
 }

@@ -13,8 +13,8 @@ import com.datadog.appsec.report.EventEnrichment;
 import com.datadog.appsec.report.ReportService;
 import com.datadog.appsec.report.raw.events.attack.Attack010;
 import datadog.trace.api.Function;
-import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -98,7 +98,8 @@ public class GatewayBridge {
     subscriptionService.registerCallback(Events.REQUEST_HEADER, new NewHeaderCallback());
     subscriptionService.registerCallback(Events.REQUEST_HEADER_DONE, new HeadersDoneCallback());
 
-    subscriptionService.registerCallback(Events.REQUEST_URI_RAW, new RawURICallback());
+    subscriptionService.registerCallback(
+        Events.REQUEST_METHOD_URI_RAW, new MethodAndRawURICallback());
 
     if (additionalIGEvents.contains(Events.REQUEST_BODY_START)) {
       subscriptionService.registerCallback(
@@ -135,14 +136,6 @@ public class GatewayBridge {
           });
     }
 
-    subscriptionService.registerCallback(
-        Events.REQUEST_METHOD,
-        (ctx_, method) -> {
-          AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
-          ctx.setMethod(method);
-        });
-
-    // guaranteed to be called after REQUEST_METHOD cb
     subscriptionService.registerCallback(
         Events.REQUEST_CLIENT_SOCKET_ADDRESS,
         (ctx_, ip, port) -> {
@@ -186,10 +179,12 @@ public class GatewayBridge {
     }
   }
 
-  private class RawURICallback implements BiFunction<RequestContext, URIDataAdapter, Flow<Void>> {
+  private class MethodAndRawURICallback
+      implements TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> {
     @Override
-    public Flow<Void> apply(RequestContext ctx_, URIDataAdapter uri) {
+    public Flow<Void> apply(RequestContext ctx_, String method, URIDataAdapter uri) {
       AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+      ctx.setMethod(method);
       ctx.setScheme(uri.scheme());
       if (uri.supportsRaw()) {
         ctx.setRawURI(uri.raw());
