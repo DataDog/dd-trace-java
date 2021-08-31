@@ -13,6 +13,7 @@ import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.handling.Context
 import ratpack.test.embed.EmbeddedApp
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
@@ -39,6 +40,16 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
           all {
             controller(SUCCESS) {
               context.response.status(SUCCESS.status).send(SUCCESS.body)
+            }
+          }
+        }
+        prefix(CREATED.relativeRawPath()) {
+          all {
+            controller(CREATED) {
+              request.body.then { typedData ->
+                response.status(CREATED.status)
+                  .send('text/plain', "${CREATED.body}: ${typedData.text}")
+              }
             }
           }
         }
@@ -114,6 +125,11 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
 
   @Override
   boolean hasHandlerSpan() {
+    true
+  }
+
+  @Override
+  boolean testRequestBody() {
     true
   }
 

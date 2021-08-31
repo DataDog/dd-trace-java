@@ -13,6 +13,8 @@ class StoredCharBodyTest extends Specification {
   StoredCharBody storedCharBody = new StoredCharBody(requestContext, startCb, endCb, 1)
 
   void 'basic test with no buffer extension'() {
+    Flow flow = Mock()
+
     when:
     storedCharBody.appendData('a')
 
@@ -22,11 +24,12 @@ class StoredCharBodyTest extends Specification {
     when:
     storedCharBody.appendData((int) 'a')
     storedCharBody.appendData(['a' as char]* 126 as char[], 0, 126)
-    storedCharBody.maybeNotify()
+    def resFlow = storedCharBody.maybeNotify()
 
     then:
-    1 * endCb.apply(requestContext, storedCharBody)
+    1 * endCb.apply(requestContext, storedCharBody) >> flow
     storedCharBody.get().toString() == 'a' * 128
+    resFlow.is(flow)
   }
 
   void 'has a cutoff at 128k chars'() {

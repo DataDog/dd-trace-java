@@ -136,14 +136,15 @@ public class StoredCharBody implements StoredBodySupplier {
     }
   }
 
-  public synchronized void maybeNotify() {
+  public synchronized Flow<Void> maybeNotify() {
     if (!listenerNotified) {
       listenerNotified = true;
       if (!bodyReadStarted) {
         this.startCb.apply(httpContext, supplierInNotifications);
       }
-      this.endCb.apply(httpContext, supplierInNotifications);
+      return this.endCb.apply(httpContext, supplierInNotifications);
     }
+    return Flow.ResultFlow.empty();
   }
 
   @Override
