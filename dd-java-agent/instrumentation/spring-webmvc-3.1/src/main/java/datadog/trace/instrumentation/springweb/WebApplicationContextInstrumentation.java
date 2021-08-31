@@ -46,6 +46,7 @@ public class WebApplicationContextInstrumentation extends Instrumenter.Tracing {
       packageName + ".ServletRequestURIAdapter",
       packageName + ".HandlerMappingResourceNameFilter",
       packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
+      packageName + ".PathMatchingHttpServletRequestWrapper",
     };
   }
 
