@@ -26,11 +26,17 @@ public interface KnownAddresses {
   /** The first characters of the raw HTTP body */
   Address<CharSequence> REQUEST_BODY_RAW = new Address<>("server.request.body.raw");
 
+  /** The scheme used (e.g. http/https) */
+  Address<String> REQUEST_SCHEME = new Address<>("_server.request.scheme");
+
   /** The unparsed request uri, incl. the query string. */
   Address<String> REQUEST_URI_RAW = new Address<>("server.request.uri.raw");
 
   /** The deduced IP address of the client. */
   Address<String> REQUEST_CLIENT_IP = new Address<>("server.request.client_ip");
+
+  /** The peer port */
+  Address<Integer> REQUEST_CLIENT_PORT = new Address<>("_server.request.client_port");
 
   /** The verb of the HTTP request. */
   Address<String> REQUEST_METHOD = new Address<>("server.request.method");

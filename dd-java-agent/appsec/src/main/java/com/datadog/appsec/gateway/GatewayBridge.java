@@ -1,5 +1,7 @@
 package com.datadog.appsec.gateway;
 
+import static com.datadog.appsec.event.data.MapDataBundle.Builder.CAPACITY_6_10;
+
 import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.EventType;
 import com.datadog.appsec.event.data.Address;
@@ -11,10 +13,11 @@ import com.datadog.appsec.report.EventEnrichment;
 import com.datadog.appsec.report.ReportService;
 import com.datadog.appsec.report.raw.events.attack.Attack010;
 import datadog.trace.api.Function;
-import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -78,13 +81,13 @@ public class GatewayBridge {
 
     subscriptionService.registerCallback(
         Events.REQUEST_ENDED,
-        (RequestContext ctx_) -> {
+        (RequestContext ctx_, IGSpanInfo spanInfo) -> {
           AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
           Collection<Attack010> collectedAttacks = ctx.transferCollectedAttacks();
           for (Attack010 attack : collectedAttacks) {
-            EventEnrichment.enrich(attack, ctx);
+            EventEnrichment.enrich(attack, spanInfo, ctx);
             reportService.reportAttack(attack);
           }
 
@@ -95,7 +98,8 @@ public class GatewayBridge {
     subscriptionService.registerCallback(Events.REQUEST_HEADER, new NewHeaderCallback());
     subscriptionService.registerCallback(Events.REQUEST_HEADER_DONE, new HeadersDoneCallback());
 
-    subscriptionService.registerCallback(Events.REQUEST_URI_RAW, new RawURICallback());
+    subscriptionService.registerCallback(
+        Events.REQUEST_METHOD_URI_RAW, new MethodAndRawURICallback());
 
     if (additionalIGEvents.contains(Events.REQUEST_BODY_START)) {
       subscriptionService.registerCallback(
@@ -133,11 +137,11 @@ public class GatewayBridge {
     }
 
     subscriptionService.registerCallback(
-        Events.REQUEST_CLIENT_IP,
-        (ctx_, ip) -> {
+        Events.REQUEST_CLIENT_SOCKET_ADDRESS,
+        (ctx_, ip, port) -> {
           AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
-          ctx.setIp(ip);
-
+          ctx.setPeerAddress(ip);
+          ctx.setPeerPort(port);
           if (isInitialRequestDataPublished(ctx)) {
             return publishInitialRequestData(ctx);
           } else {
@@ -175,10 +179,13 @@ public class GatewayBridge {
     }
   }
 
-  private class RawURICallback implements BiFunction<RequestContext, URIDataAdapter, Flow<Void>> {
+  private class MethodAndRawURICallback
+      implements TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> {
     @Override
-    public Flow<Void> apply(RequestContext ctx_, URIDataAdapter uri) {
+    public Flow<Void> apply(RequestContext ctx_, String method, URIDataAdapter uri) {
       AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+      ctx.setMethod(method);
+      ctx.setScheme(uri.scheme());
       if (uri.supportsRaw()) {
         ctx.setRawURI(uri.raw());
       } else {
@@ -218,7 +225,7 @@ public class GatewayBridge {
   }
 
   private static boolean isInitialRequestDataPublished(AppSecRequestContext ctx) {
-    return ctx.getSavedRawURI() != null && ctx.isFinishedHeaders() && ctx.getIp() != null;
+    return ctx.getSavedRawURI() != null && ctx.isFinishedHeaders() && ctx.getPeerAddress() != null;
   }
 
   private Flow<Void> publishInitialRequestData(AppSecRequestContext ctx) {
@@ -233,23 +240,33 @@ public class GatewayBridge {
       queryParams = parseQueryStringParams(qs, StandardCharsets.UTF_8);
     }
 
+    String scheme = ctx.getScheme();
+    if (scheme == null) {
+      scheme = "http";
+    }
+
     if (initialReqDataSubInfo == null) {
       initialReqDataSubInfo =
           producerService.getDataSubscribers(
               KnownAddresses.HEADERS_NO_COOKIES,
               KnownAddresses.REQUEST_COOKIES,
+              KnownAddresses.REQUEST_SCHEME,
+              KnownAddresses.REQUEST_METHOD,
               KnownAddresses.REQUEST_URI_RAW,
               KnownAddresses.REQUEST_QUERY,
-              KnownAddresses.REQUEST_CLIENT_IP);
+              KnownAddresses.REQUEST_CLIENT_IP,
+              KnownAddresses.REQUEST_CLIENT_PORT);
     }
-
     MapDataBundle bundle =
-        new MapDataBundle.Builder()
+        new MapDataBundle.Builder(CAPACITY_6_10)
             .add(KnownAddresses.HEADERS_NO_COOKIES, ctx.getCollectedHeaders())
             .add(KnownAddresses.REQUEST_COOKIES, ctx.getCollectedCookies())
+            .add(KnownAddresses.REQUEST_SCHEME, scheme)
+            .add(KnownAddresses.REQUEST_METHOD, ctx.getMethod())
             .add(KnownAddresses.REQUEST_URI_RAW, savedRawURI)
             .add(KnownAddresses.REQUEST_QUERY, queryParams)
-            .add(KnownAddresses.REQUEST_CLIENT_IP, ctx.getIp())
+            .add(KnownAddresses.REQUEST_CLIENT_IP, ctx.getPeerAddress())
+            .add(KnownAddresses.REQUEST_CLIENT_PORT, ctx.getPeerPort())
             .build();
 
     return producerService.publishDataEvent(initialReqDataSubInfo, ctx, bundle, false);

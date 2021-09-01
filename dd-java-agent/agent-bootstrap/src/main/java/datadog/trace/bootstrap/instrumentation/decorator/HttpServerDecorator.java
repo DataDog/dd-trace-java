@@ -6,11 +6,12 @@ import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDeco
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.Function;
 import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -113,7 +114,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
             span.setTag(DDTags.HTTP_QUERY, query);
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
-          onRequestForInstrumentationGateway(span, url);
+          callIGCallbackURI(span, url, method);
           // TODO is this ever false?
           if (SHOULD_SET_URL_RESOURCE_NAME && !span.hasResourceName()) {
             span.setResourceName(RESOURCE_NAME_CALCULATOR.calculate(method, path, encoded));
@@ -128,15 +129,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
 
     if (connection != null) {
       final String ip = peerHostIP(connection);
+      final int port = peerPort(connection);
       if (ip != null) {
         if (ip.indexOf(':') > 0) {
           span.setTag(Tags.PEER_HOST_IPV6, ip);
         } else {
           span.setTag(Tags.PEER_HOST_IPV4, ip);
         }
-        onRequestIpForInstrumentationGateway(span, ip);
       }
-      setPeerPort(span, peerPort(connection));
+      setPeerPort(span, port);
+      // TODO: blocking
+      callIGCallbackSocketAddress(span, ip, port);
     }
     return span;
   }
@@ -171,17 +174,19 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   //    return super.onError(span, throwable);
   //  }
 
-  private static void onRequestForInstrumentationGateway(
-      @Nonnull final AgentSpan span, @Nonnull final URIDataAdapter url) {
+  private static void callIGCallbackURI(
+      @Nonnull final AgentSpan span, @Nonnull final URIDataAdapter url, final String method) {
     // TODO:appsec there must be some better way to do this?
     CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
     RequestContext requestContext = span.getRequestContext();
-    if (null != cbp && null != requestContext) {
-      BiFunction<RequestContext, URIDataAdapter, Flow<Void>> callback =
-          cbp.getCallback(Events.REQUEST_URI_RAW);
-      if (null != callback) {
-        callback.apply(requestContext, url);
-      }
+    if (requestContext == null || cbp == null) {
+      return;
+    }
+
+    TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> callback =
+        cbp.getCallback(Events.REQUEST_METHOD_URI_RAW);
+    if (callback != null) {
+      callback.apply(requestContext, method, url);
     }
   }
 
@@ -198,23 +203,28 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
     RequestContext requestContext = span.getRequestContext();
     if (cbp != null && requestContext != null) {
-      Function<RequestContext, Flow<Void>> callback = cbp.getCallback(Events.REQUEST_ENDED);
+      BiFunction<RequestContext, IGSpanInfo, Flow<Void>> callback =
+          cbp.getCallback(Events.REQUEST_ENDED);
       if (callback != null) {
-        callback.apply(requestContext);
+        callback.apply(requestContext, span);
       }
     }
   }
 
-  private static void onRequestIpForInstrumentationGateway(
-      @Nonnull final AgentSpan span, @Nonnull final String ip) {
+  private static Flow<Void> callIGCallbackSocketAddress(
+      @Nonnull final AgentSpan span, @Nonnull final String ip, final int port) {
     CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+    if (cbp == null) {
+      return Flow.ResultFlow.empty();
+    }
     RequestContext ctx = span.getRequestContext();
-    if (null != cbp && null != ctx) {
-      BiFunction<RequestContext, String, Flow<Void>> callback =
-          cbp.getCallback(Events.REQUEST_CLIENT_IP);
-      if (null != callback) {
-        callback.apply(ctx, ip);
+    if (ctx != null) {
+      TriFunction<RequestContext, String, Integer, Flow<Void>> addrCallback =
+          cbp.getCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS);
+      if (null != addrCallback) {
+        return addrCallback.apply(ctx, ip != null ? ip : "0.0.0.0", port);
       }
     }
+    return Flow.ResultFlow.empty();
   }
 }

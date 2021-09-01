@@ -12,16 +12,19 @@ import datadog.trace.api.Function
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
+import datadog.trace.api.function.TriFunction
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class GatewayBridgeSpecification extends Specification {
+class GatewayBridgeSpecification extends DDSpecification {
   SubscriptionService ig = Mock()
   EventDispatcher eventDispatcher = Mock()
   ReportService reportService = Mock()
@@ -36,11 +39,11 @@ class GatewayBridgeSpecification extends Specification {
   GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, reportService)
 
   Supplier<Flow<RequestContext>> requestStartedCB
-  Function<RequestContext, Flow<Void>> requestEndedCB
+  BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
   TriConsumer<RequestContext, String, String> headerCB
   Function<RequestContext, Flow<Void>> headersDoneCB
-  BiFunction<RequestContext, URIDataAdapter, Flow<Void>> requestURICB
-  BiFunction<RequestContext, String, Flow<Void>> requestIpCB
+  TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> requestMethodURICB
+  TriFunction<RequestContext, String, Integer, Flow<Void>> requestSocketAddressCB
   BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
 
@@ -63,9 +66,10 @@ class GatewayBridgeSpecification extends Specification {
   void 'request_end closes context reports attacks and publishes event'() {
     Attack010 attack = Mock()
     AppSecRequestContext mockCtx = Mock()
+    IGSpanInfo spanInfo = Mock()
 
     when:
-    def flow = requestEndedCB.apply(mockCtx)
+    def flow = requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
     1 * mockCtx.transferCollectedAttacks() >> [attack]
@@ -111,7 +115,7 @@ class GatewayBridgeSpecification extends Specification {
 
     when:
     ctx.rawURI = '/'
-    ctx.ip = '0.0.0.0'
+    ctx.peerAddress = '0.0.0.0'
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
@@ -125,37 +129,36 @@ class GatewayBridgeSpecification extends Specification {
     assert bundle.get(KnownAddresses.HEADERS_NO_COOKIES).isEmpty()
   }
 
-  void 'the ip provided and distributed'() {
+  void 'the socket address is distributed'() {
     DataBundle bundle
 
     when:
-    ctx.ip = '0.0.0.0'
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
     headersDoneCB.apply(ctx)
-    requestURICB.apply(ctx, TestURIDataAdapter.create('/a'))
-    requestIpCB.apply(ctx, '0.0.0.0')
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/a'))
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
     then:
     bundle.get(KnownAddresses.REQUEST_CLIENT_IP) == '0.0.0.0'
+    bundle.get(KnownAddresses.REQUEST_CLIENT_PORT) == 5555
   }
 
   void 'setting headers then request uri triggers initial data event'() {
     DataBundle bundle
 
     when:
-    ctx.ip = '0.0.0.0'
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
     headersDoneCB.apply(ctx)
-    requestURICB.apply(ctx, TestURIDataAdapter.create('/a'))
-    requestIpCB.apply(ctx, '0.0.0.0')
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/a'))
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
     then:
     bundle.get(KnownAddresses.REQUEST_URI_RAW) == '/a'
@@ -166,15 +169,14 @@ class GatewayBridgeSpecification extends Specification {
     def adapter = TestURIDataAdapter.create(uri, supportsRaw)
 
     when:
-    ctx.ip = '0.0.0.0'
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
-    requestURICB.apply(ctx, adapter)
+    requestMethodURICB.apply(ctx, 'GET', adapter)
     headersDoneCB.apply(ctx)
-    requestIpCB.apply(ctx, '0.0.0.0')
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
 
     then:
     assert bundle.get(KnownAddresses.REQUEST_URI_RAW) == expected
@@ -198,15 +200,14 @@ class GatewayBridgeSpecification extends Specification {
     def adapter = TestURIDataAdapter.create(uri)
 
     when:
-    ctx.ip = '0.0.0.0'
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
     eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
-    requestURICB.apply(ctx, adapter)
+    requestMethodURICB.apply(ctx, 'GET', adapter)
     headersDoneCB.apply(ctx)
-    requestIpCB.apply(ctx, '0.0.0.0')
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 80)
 
     then:
     def query = bundle.get(KnownAddresses.REQUEST_QUERY)
@@ -232,23 +233,20 @@ class GatewayBridgeSpecification extends Specification {
 
     1 * ig.registerCallback(Events.REQUEST_STARTED, _) >> { requestStartedCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_ENDED, _) >> { requestEndedCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_URI_RAW, _) >> { requestURICB = it[1]; null }
+    1 * ig.registerCallback(Events.REQUEST_METHOD_URI_RAW, _) >> { requestMethodURICB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_HEADER, _) >> { headerCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_HEADER_DONE, _) >> { headersDoneCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_CLIENT_IP, _) >> { requestIpCB = it[1]; null }
+    1 * ig.registerCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS, _) >> { requestSocketAddressCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_BODY_START, _) >> { requestBodyStartCB = it[1]; null }
     1 * ig.registerCallback(Events.REQUEST_BODY_DONE, _) >> { requestBodyDoneCB = it[1]; null }
+    0 * ig.registerCallback(_, _)
 
     bridge.init()
   }
 
   private static abstract class TestURIDataAdapter extends URIDataAdapterBase {
 
-    static URIDataAdapter create(String uri) {
-      create(uri, true)
-    }
-
-    static URIDataAdapter create(String uri, boolean supportsRaw) {
+    static URIDataAdapter create(String uri, boolean supportsRaw = true) {
       if (supportsRaw) {
         new TestRawAdapter(uri)
       } else {
@@ -258,61 +256,71 @@ class GatewayBridgeSpecification extends Specification {
 
     private final String p
     private final String q
+    private final String scheme
+    private final String host
+    private final int port
 
     protected TestURIDataAdapter(String uri) {
       if (null == uri) {
         p = null
         q = null
+        scheme = null
+        host = null
+        port = 0
       } else {
         def parts = uri.split("\\?")
         p = parts[0]
         q = parts.length == 2 ? parts[1] : null
+        scheme = ((uri =~ /\A.+(?=:\/\/)/) ?: [null])[0]
+        host = ((uri =~ /(?<=:\/\/).+(?=:|\/)/) ?: [null])[0]
+        def m = uri =~ /(?<=:)\d+(?=\/|\z)/
+        port = m ? m[0] as int : (scheme == 'http' ? 80 : 443)
       }
     }
 
     @Override
     String scheme() {
-      return null
+      scheme
     }
 
     @Override
     String host() {
-      return null
+      host
     }
 
     @Override
     int port() {
-      return 0
+      port
     }
 
     @Override
     String path() {
-      return supportsRaw() ? null : p
+      supportsRaw() ? null : p
     }
 
     @Override
     String fragment() {
-      return null
+      null
     }
 
     @Override
     String query() {
-      return supportsRaw() ? null : q
+      supportsRaw() ? null : q
     }
 
     @Override
     String rawPath() {
-      return supportsRaw() ? p : null
+      supportsRaw() ? p : null
     }
 
     @Override
     boolean hasPlusEncodedSpaces() {
-      return false
+      false
     }
 
     @Override
     String rawQuery() {
-      return supportsRaw() ? q : null
+      supportsRaw() ? q : null
     }
 
     private static class TestRawAdapter extends TestURIDataAdapter {
@@ -322,7 +330,7 @@ class GatewayBridgeSpecification extends Specification {
 
       @Override
       boolean supportsRaw() {
-        return true
+        true
       }
     }
 
@@ -333,7 +341,7 @@ class GatewayBridgeSpecification extends Specification {
 
       @Override
       boolean supportsRaw() {
-        return false
+        false
       }
     }
   }
@@ -371,5 +379,41 @@ class GatewayBridgeSpecification extends Specification {
     then:
     1 * eventDispatcher.publishEvent(ctx, EventType.REQUEST_BODY_END)
     bundle.get(KnownAddresses.REQUEST_BODY_RAW) == 'foobar'
+  }
+
+  void 'forwards request method'() {
+    DataBundle bundle
+    def adapter = TestURIDataAdapter.create('http://example.com/')
+
+    setup:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_METHOD in it }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    { bundle = it[2]; NoopFlow.INSTANCE }
+
+    when:
+    requestMethodURICB.apply(ctx, 'POST', adapter)
+    headersDoneCB.apply(ctx)
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
+
+    then:
+    bundle.get(KnownAddresses.REQUEST_METHOD) == 'POST'
+  }
+
+  void 'scheme is extracted from the uri adapter'() {
+    DataBundle bundle
+    def adapter = TestURIDataAdapter.create('https://example.com/')
+
+    when:
+    eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_SCHEME in it }) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    { bundle = it[2]; NoopFlow.INSTANCE }
+
+    and:
+    requestMethodURICB.apply(ctx, 'GET', adapter)
+    headersDoneCB.apply(ctx)
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
+
+    then:
+    bundle.get(KnownAddresses.REQUEST_SCHEME) == 'https'
   }
 }
