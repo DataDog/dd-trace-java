@@ -68,6 +68,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
    */
   Boolean isEmittingCheckpoints();
 
+  boolean hasCheckpoints();
+
   @Override
   AgentSpan getLocalRootSpan();
 

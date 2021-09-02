@@ -1,12 +1,15 @@
 package datadog.trace.agent.test.checkpoints
 
 class IntervalValidator extends AbstractValidator {
+  private static enum IntervalState {
+    ACTIVE, INACTIVE, CLOSED
+  }
   private static class SpanInterval {
     final long spanId
     final Event startEvent
     final int startTick
     int endTick = Integer.MAX_VALUE
-    boolean inactive = false
+    IntervalState state = IntervalState.ACTIVE
 
     SpanInterval(long spanId, Event startEvent, int startTick) {
       this.spanId = spanId
@@ -14,15 +17,18 @@ class IntervalValidator extends AbstractValidator {
       this.startTick = startTick
     }
 
+    def close(int tick) {
+      endTick = tick
+      state = IntervalState.CLOSED
+    }
+
     String toString() {
-      return "[span/${spanId}|${inactive}](${startTick}, ${endTick})"
+      return "[span/${spanId}|${state}](${startTick}, ${endTick})"
     }
   }
 
   def openIntervalsBySpan = new HashMap<Long, SpanInterval>()
-  def openIntervalsByTime = new ArrayList<>()
-  def closedIntervalsBySpan = new HashMap<Long, SpanInterval>()
-  def closedIntervalsByTime = new ArrayList<>()
+  def intervalsByTime = new ArrayList<>()
   def tick = 0
 
   IntervalValidator() {
@@ -40,7 +46,7 @@ class IntervalValidator extends AbstractValidator {
     def interval = openIntervalsBySpan.get(spanId)
     if (interval == null) {
       openIntervalsBySpan.put(spanId, (interval = new SpanInterval(spanId,  event, tick)))
-      openIntervalsByTime.add(interval)
+      intervalsByTime.add(interval)
       return Result.OK
     }
     return Result.FAILED.withMessage("There is already an open interval for span ${spanId}")
@@ -57,7 +63,8 @@ class IntervalValidator extends AbstractValidator {
   }
 
   def endTask(def spanId) {
-    return deactivateSpan(spanId)
+    tick++
+    return closeInterval(spanId)
   }
 
   @Override
@@ -66,21 +73,40 @@ class IntervalValidator extends AbstractValidator {
   }
 
   def suspendSpan(def spanId) {
-    return deactivateSpan(spanId)
+    tick++
+    def ret = closeInterval(spanId)
+    if (ret != Result.OK) {
+      return ret
+    }
+    def interval = new SpanInterval(spanId, event, tick)
+    interval.state = IntervalState.INACTIVE
+    openIntervalsBySpan.put(spanId, interval)
+    intervalsByTime.add(interval)
+    return Result.OK
   }
 
-  def deactivateSpan(def spanId) {
-    tick++
-    def interval = openIntervalsBySpan.get(spanId)
+  def closeInterval(def spanId, def requireExisting = false) {
+    def interval = openIntervalsBySpan.remove(spanId)
     if (interval == null) {
-      // allow out-of-order suspension
-      // usually happens in async frameworks
-      interval = closedIntervalsBySpan.get(spanId)
-      if (interval == null) {
-        return Result.FAILED.withMessage("Attempting to deactivate a non-existing span ${spanId}")
+      if (requireExisting) {
+        return Result.FAILED.withMessage("Attempting to close an interval for a non-existing span ${spanId}")
+      }
+      return Result.OK
+    }
+
+    interval.close(tick)
+
+    for (def it : intervalsByTime) {
+      if (it.spanId == spanId) {
+        continue
+      }
+      if (it.state != IntervalState.INACTIVE) {
+        if ((it.startTick <= interval.startTick && it.endTick >= interval.startTick && it.endTick <= tick) ||
+        (it.endTick >= tick && it.startTick >= interval.startTick && it.startTick <= tick)) {
+          return Result.FAILED.withMessage("Overlapping spans: ${spanId}, ${it.spanId}")
+        }
       }
     }
-    interval.inactive = true
     return Result.OK
   }
 
@@ -92,12 +118,20 @@ class IntervalValidator extends AbstractValidator {
   def resumeSpan(def spanId) {
     tick++
     def interval = openIntervalsBySpan.get(spanId)
-    if (interval == null) {
-      openIntervalsBySpan.put(spanId, interval = new SpanInterval(spanId, event, tick))
-      openIntervalsByTime.add(interval)
-    } else {
-      interval.inactive = false
+    if (interval != null) {
+      switch (interval.state) {
+        case IntervalState.INACTIVE:
+          interval = openIntervalsBySpan.remove(spanId)
+          intervalsByTime.remove(interval)
+          break
+        case IntervalState.ACTIVE:
+          return Result.OK
+        case IntervalState.CLOSED:
+          reutrn Result.FAILED.withMessage("Trying to resume an already closed interval for span ${spanId}")
+      }
     }
+    openIntervalsBySpan.put(spanId, interval = new SpanInterval(spanId, event, tick))
+    intervalsByTime.add(interval)
     return Result.OK
   }
 
@@ -107,47 +141,12 @@ class IntervalValidator extends AbstractValidator {
   }
 
   def endSpan(def spanId) {
-    def result = true
     tick++
-    def interval = openIntervalsBySpan.remove(spanId)
-    if (interval == null) {
-      return Result.FAILED.withMessage("Attempting to end a non-existing span ${spanId}")
-    }
-    def index = openIntervalsByTime.size() - 1
-    for (def open : openIntervalsByTime.reverse()) {
-      if (open.spanId == spanId) {
-        break
-      }
-      if (!open.inactive) {
-        markInvalid(open.startEvent, "Overlapping active spans: (${open.spanId}, ${spanId})")
-        result = false
-      }
-      index--
-    }
-    if (index >= 0) {
-      openIntervalsByTime.remove(index)
-    }
-    if (closedIntervalsBySpan.containsKey(spanId)) {
-      return Result.FAILED.withMessage("Interval for span ${spanId} has already been closed")
-    }
-    for (def closed : closedIntervalsByTime.reverse()) {
-      if (closed.endTick < interval.startTick) {
-        break
-      }
-      if (closed.startTick < interval.startTick) {
-        markInvalid(closed.startEvent, "Overlapping spans: (${closed.spanId}, ${spanId})")
-        result = false
-      }
-    }
-    interval.endTick = tick
-    closedIntervalsByTime.add(interval)
-    closedIntervalsBySpan.put(interval.spanId, interval)
-
-    return result ? Result.OK : Result.FAILED
+    closeInterval(spanId)
   }
 
   @Override
   def endSequence() {
-    return openIntervalsByTime.findAll {!it.inactive}.empty ? Result.OK : Result.FAILED
+    return intervalsByTime.findAll {it.state == IntervalState.ACTIVE}.empty ? Result.OK : Result.FAILED
   }
 }
