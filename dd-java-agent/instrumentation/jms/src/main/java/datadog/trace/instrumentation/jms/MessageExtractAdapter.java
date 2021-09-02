@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.jms;
 
+import static datadog.trace.instrumentation.jms.MessageInjectAdapter.JMS_BATCH_ID_KEY;
+import static datadog.trace.instrumentation.jms.MessageInjectAdapter.JMS_PRODUCED_KEY;
+
 import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -41,5 +44,25 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
     } catch (JMSException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public long extractTimeInQueueStart(final Message carrier) {
+    try {
+      if (carrier.propertyExists(JMS_PRODUCED_KEY)) {
+        return carrier.getLongProperty(JMS_PRODUCED_KEY);
+      }
+    } catch (Exception ignored) {
+    }
+    return 0;
+  }
+
+  public long extractMessageBatchId(final Message carrier) {
+    try {
+      if (carrier.propertyExists(JMS_BATCH_ID_KEY)) {
+        return carrier.getLongProperty(JMS_BATCH_ID_KEY);
+      }
+    } catch (Exception ignored) {
+    }
+    return 0;
   }
 }
