@@ -96,6 +96,10 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
       if (null != consumerState) {
         // closes the scope, and finishes the span for AUTO_ACKNOWLEDGE
         consumerState.closePreviousMessageScope();
+        if (consumerState.getSessionState().isAutoAcknowledge()) {
+          // likewise, finish any AUTO_ACKNOWLEDGE'd time-in-queue span
+          consumerState.finishTimeInQueueSpan(false);
+        }
       }
     }
 
@@ -149,6 +153,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
               .get(consumer);
       if (null != consumerState) {
         consumerState.closePreviousMessageScope();
+        consumerState.finishTimeInQueueSpan(true);
       }
     }
   }

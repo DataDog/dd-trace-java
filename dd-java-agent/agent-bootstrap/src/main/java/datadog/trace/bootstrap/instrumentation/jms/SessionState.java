@@ -112,11 +112,13 @@ public final class SessionState {
       Iterator<AgentScope> activeScopeIterator = activeScopes.values().iterator();
       Iterator<TimeInQueue> timeInQueueIterator = timeInQueueSpans.values().iterator();
 
+      // first close any session-related scopes that are still open
       while (activeScopeIterator.hasNext()) {
         maybeCloseScope(activeScopeIterator.next());
         activeScopeIterator.remove();
       }
 
+      // next finish any message spans captured during this session
       int spansToFinish;
       boolean finishingFlipped;
       synchronized (capturedSpans) {
@@ -143,6 +145,7 @@ public final class SessionState {
         }
       }
 
+      // lastly finish any time-in-queue parent spans for this session
       while (timeInQueueIterator.hasNext()) {
         maybeFinishTimeInQueueSpan(timeInQueueIterator.next());
         timeInQueueIterator.remove();

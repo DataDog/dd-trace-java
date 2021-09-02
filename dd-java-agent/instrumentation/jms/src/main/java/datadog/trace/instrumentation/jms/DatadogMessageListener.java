@@ -55,6 +55,7 @@ public class DatadogMessageListener implements MessageListener {
         sessionState.finishOnCommit(span);
       } else { // Session.AUTO_ACKNOWLEDGE
         span.finish();
+        consumerState.finishTimeInQueueSpan(false);
       }
     }
   }
