@@ -107,8 +107,16 @@ public final class SessionState {
   }
 
   private void finishCapturedSpans() {
-    // make sure we finish spans in this commit/ack before any subsequent commit/ack
+    // make sure we complete this before any subsequent commit/rollback/ack/close
     synchronized (this) {
+      Iterator<AgentScope> activeScopeIterator = activeScopes.values().iterator();
+      Iterator<TimeInQueue> timeInQueueIterator = timeInQueueSpans.values().iterator();
+
+      while (activeScopeIterator.hasNext()) {
+        maybeCloseScope(activeScopeIterator.next());
+        activeScopeIterator.remove();
+      }
+
       int spansToFinish;
       boolean finishingFlipped;
       synchronized (capturedSpans) {
@@ -134,26 +142,17 @@ public final class SessionState {
           span.finish();
         }
       }
+
+      while (timeInQueueIterator.hasNext()) {
+        maybeFinishTimeInQueueSpan(timeInQueueIterator.next());
+        timeInQueueIterator.remove();
+      }
     }
   }
 
   /** Closes any active message scopes and finishes any pending client-ack/transacted spans. */
   public void onClose() {
-    if (activeScopeCount > 0) {
-      for (AgentScope scope : activeScopes.values()) {
-        maybeCloseScope(scope);
-      }
-      activeScopes.clear();
-    }
-    if (!isAutoAcknowledge()) {
-      finishCapturedSpans();
-    }
-    if (timeInQueueSpanCount > 0) {
-      for (TimeInQueue holder : timeInQueueSpans.values()) {
-        maybeFinishTimeInQueueSpan(holder);
-      }
-      timeInQueueSpans.clear();
-    }
+    finishCapturedSpans();
   }
 
   /** Closes the given message scope when the next message is consumed or the session is closed. */
