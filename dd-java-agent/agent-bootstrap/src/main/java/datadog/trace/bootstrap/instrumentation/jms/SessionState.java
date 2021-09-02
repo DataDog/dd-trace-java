@@ -1,9 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.Map;
@@ -16,8 +18,10 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  */
 public final class SessionState {
 
-  private static final AtomicIntegerFieldUpdater<SessionState> SCOPE_COUNT =
-      AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "scopeCount");
+  private static final AtomicIntegerFieldUpdater<SessionState> ACTIVE_SCOPE_COUNT =
+      AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "activeScopeCount");
+  private static final AtomicIntegerFieldUpdater<SessionState> TIME_IN_QUEUE_SPAN_COUNT =
+      AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "timeInQueueSpanCount");
 
   // hard bound at 8192 captured spans, degrade to finishing spans early
   // if transactions are very large, rather than use lots of space
@@ -26,9 +30,11 @@ public final class SessionState {
   private final int ackMode;
 
   // consumer-related session state
-  private final Map<Thread, AgentScope> activeScopes = new ConcurrentHashMap<>();
   private final Deque<AgentSpan> capturedSpans = new ArrayDeque<>();
-  private volatile int scopeCount = 0;
+  private final Map<Thread, AgentScope> activeScopes = new ConcurrentHashMap<>();
+  private final Map<Thread, TimeInQueue> timeInQueueSpans;
+  private volatile int activeScopeCount = 0;
+  private volatile int timeInQueueSpanCount = 0;
 
   // this field is protected by synchronization of capturedSpans, but SpotBugs miss that
   @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
@@ -36,6 +42,11 @@ public final class SessionState {
 
   public SessionState(int ackMode) {
     this.ackMode = ackMode;
+    if (Config.get().isJmsLegacyTracingEnabled()) {
+      this.timeInQueueSpans = Collections.emptyMap();
+    } else {
+      this.timeInQueueSpans = new ConcurrentHashMap<>();
+    }
   }
 
   public boolean isTransactedSession() {
@@ -126,9 +137,28 @@ public final class SessionState {
     }
   }
 
+  /** Closes any active message scopes and finishes any pending client-ack/transacted spans. */
+  public void onClose() {
+    if (activeScopeCount > 0) {
+      for (AgentScope scope : activeScopes.values()) {
+        maybeCloseScope(scope);
+      }
+      activeScopes.clear();
+    }
+    if (!isAutoAcknowledge()) {
+      finishCapturedSpans();
+    }
+    if (timeInQueueSpanCount > 0) {
+      for (TimeInQueue holder : timeInQueueSpans.values()) {
+        maybeFinishTimeInQueueSpan(holder);
+      }
+      timeInQueueSpans.clear();
+    }
+  }
+
   /** Closes the given message scope when the next message is consumed or the session is closed. */
   void closeOnIteration(AgentScope newScope) {
-    if (SCOPE_COUNT.incrementAndGet(this) > 100) {
+    if (ACTIVE_SCOPE_COUNT.incrementAndGet(this) > 100) {
       closeStaleScopes();
     }
     maybeCloseScope(activeScopes.put(Thread.currentThread(), newScope));
@@ -139,20 +169,9 @@ public final class SessionState {
     maybeCloseScope(activeScopes.remove(Thread.currentThread()));
   }
 
-  /** Closes any active message scopes and finishes any pending transacted spans. */
-  public void onClose() {
-    for (AgentScope scope : activeScopes.values()) {
-      maybeCloseScope(scope);
-    }
-    activeScopes.clear();
-    if (!isAutoAcknowledge()) {
-      finishCapturedSpans();
-    }
-  }
-
   private void maybeCloseScope(AgentScope scope) {
     if (null != scope) {
-      SCOPE_COUNT.decrementAndGet(this);
+      ACTIVE_SCOPE_COUNT.decrementAndGet(this);
       scope.close();
       if (isAutoAcknowledge()) {
         scope.span().finish();
@@ -166,6 +185,61 @@ public final class SessionState {
       Map.Entry<Thread, AgentScope> entry = itr.next();
       if (!entry.getKey().isAlive()) {
         maybeCloseScope(entry.getValue());
+        itr.remove();
+      }
+    }
+  }
+
+  /** Gets the current time-in-queue span; returns {@code null} if this is a new batch. */
+  AgentSpan getTimeInQueueSpan(long batchId) {
+    TimeInQueue holder = timeInQueueSpans.get(Thread.currentThread());
+    if (null != holder) {
+      // maintain time-in-queue for messages in same batch or same client-ack/transacted session
+      if ((batchId > 0 && batchId == holder.batchId) || !isAutoAcknowledge()) {
+        return holder.span;
+      }
+      // finish the old time-in-queue span and remove it before we create the next one
+      finishTimeInQueueSpan(true);
+    }
+    return null;
+  }
+
+  /** Starts tracking a new time-in-queue span. */
+  void setTimeInQueueSpan(long batchId, AgentSpan span) {
+    if (TIME_IN_QUEUE_SPAN_COUNT.incrementAndGet(this) > 100) {
+      finishStaleTimeInQueueSpans();
+    }
+    // getTimeInQueueSpan will have already removed the time-in-queue span for the previous batch
+    timeInQueueSpans.put(Thread.currentThread(), new TimeInQueue(batchId, span));
+  }
+
+  /** Finishes the current time-in-queue span and optionally stops tracking it. */
+  void finishTimeInQueueSpan(boolean clear) {
+    if (clear) {
+      maybeFinishTimeInQueueSpan(timeInQueueSpans.remove(Thread.currentThread()));
+    } else {
+      // finish time-in-queue span, but keep tracking it so messages in same batch can link to it
+      // (called in AUTO_ACKNOWLEDGE mode to avoid leaving time-in-queue spans open indefinitely)
+      TimeInQueue holder = timeInQueueSpans.get(Thread.currentThread());
+      if (null != holder) {
+        holder.span.finish();
+      }
+    }
+  }
+
+  private void maybeFinishTimeInQueueSpan(TimeInQueue holder) {
+    if (null != holder) {
+      TIME_IN_QUEUE_SPAN_COUNT.decrementAndGet(this);
+      holder.span.finish();
+    }
+  }
+
+  private void finishStaleTimeInQueueSpans() {
+    Iterator<Map.Entry<Thread, TimeInQueue>> itr = timeInQueueSpans.entrySet().iterator();
+    while (itr.hasNext()) {
+      Map.Entry<Thread, TimeInQueue> entry = itr.next();
+      if (!entry.getKey().isAlive()) {
+        maybeFinishTimeInQueueSpan(entry.getValue());
         itr.remove();
       }
     }

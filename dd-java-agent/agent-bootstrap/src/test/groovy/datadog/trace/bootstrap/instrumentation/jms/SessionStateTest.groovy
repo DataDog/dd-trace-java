@@ -59,10 +59,10 @@ class SessionStateTest extends DDSpecification {
       Thread.start { sessionState.closeOnIteration(Mock(AgentScope)) }.join()
     }
     then:
-    sessionState.scopeCount == 100
+    sessionState.activeScopeCount == 100
     when: "trigger cleanup"
     sessionState.closeOnIteration(Mock(AgentScope))
     then:
-    sessionState.scopeCount == 1
+    sessionState.activeScopeCount == 1
   }
 }
