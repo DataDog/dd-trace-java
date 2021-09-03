@@ -9,7 +9,7 @@ import com.datadog.appsec.event.data.Address;
 import java.util.Collection;
 
 public interface AppSecModule {
-  void config(AppSecConfigService appSecConfigService);
+  void config(AppSecConfigService appSecConfigService) throws AppSecModuleActivationException;
 
   String getName();
 
@@ -48,6 +48,16 @@ public interface AppSecModule {
 
     public Collection<Address<?>> getSubscribedAddresses() {
       return subscribedAddresses;
+    }
+  }
+
+  class AppSecModuleActivationException extends Exception {
+    public AppSecModuleActivationException(String message) {
+      super(message);
+    }
+
+    public AppSecModuleActivationException(String message, Throwable cause) {
+      super(message, cause);
     }
   }
 }

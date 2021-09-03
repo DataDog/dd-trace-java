@@ -13,6 +13,7 @@ import com.datadog.appsec.report.raw.events.attack.Attack010;
 import com.datadog.appsec.report.raw.events.attack._definitions.rule.Rule010;
 import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.Parameter;
 import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.RuleMatch010;
+import com.datadog.appsec.util.StandardizedLogging;
 import com.google.auto.service.AutoService;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -49,7 +50,6 @@ public class PowerWAFModule implements AppSecModule {
   private static final int MAX_DEPTH = 10;
   private static final int MAX_ELEMENTS = 150;
   private static final int MAX_STRING_SIZE = 4096;
-  private static final String RULE_NAME = "waf";
   private static final Powerwaf.Limits LIMITS =
       new Powerwaf.Limits(
           MAX_DEPTH,
@@ -92,52 +92,44 @@ public class PowerWAFModule implements AppSecModule {
   private AtomicReference<PowerwafContext> ctx = new AtomicReference<>();
 
   @Override
-  public void config(AppSecConfigService appSecConfigService) {
+  public void config(AppSecConfigService appSecConfigService)
+      throws AppSecModuleActivationException {
     Optional<Object> initialConfig =
         appSecConfigService.addSubConfigListener("waf", this::applyConfig);
     if (!initialConfig.isPresent()) {
-      log.warn("No initial config for WAF");
-      return;
+      throw new AppSecModuleActivationException("No initial config for WAF");
     }
 
-    try {
-      applyConfig(initialConfig.get());
-    } catch (RuntimeException rte) {
-      log.warn("Unable to apply initial WAF configuration", rte);
-    }
+    applyConfig(initialConfig.get());
   }
 
-  private void applyConfig(Object config) {
+  private void applyConfig(Object config) throws AppSecModuleActivationException {
     if (!(config instanceof Map)) {
-      throw new IllegalArgumentException("Expect config to be a map");
+      throw new AppSecModuleActivationException("Expect config to be a map");
     }
-    String configJson = CONFIG_ADAPTER.toJson((Map<String, Object>) config);
     log.info("Configuring WAF");
 
     PowerwafContext prevContext = this.ctx.get();
     PowerwafContext newContext;
 
     if (!LibSqreenInitialization.ONLINE) {
-      log.warn("In-app WAF initialization failed");
-      return;
+      throw new AppSecModuleActivationException(
+          "In-app WAF initialization failed. See previous log entries");
     } else {
       try {
         String uniqueId = UUID.randomUUID().toString();
-        newContext =
-            Powerwaf.createContext(uniqueId, Collections.singletonMap(RULE_NAME, configJson));
-      } catch (AbstractPowerwafException e) {
-        log.error("Error creating WAF atom", e);
-        return;
+        newContext = Powerwaf.createContext(uniqueId, (Map<String, Object>) config);
+      } catch (RuntimeException | AbstractPowerwafException e) {
+        throw new AppSecModuleActivationException("Error creating WAF rules", e);
       }
     }
 
     if (!this.ctx.compareAndSet(prevContext, newContext)) {
-      log.error("Concurrent update of context");
-      return;
+      throw new AppSecModuleActivationException("Concurrent update of WAF configuration");
     }
 
     if (prevContext != null) {
-      prevContext.close();
+      prevContext.delReference();
     }
   }
 
@@ -171,12 +163,25 @@ public class PowerWAFModule implements AppSecModule {
         return;
       }
       try {
-        actionWithData =
-            powerwafContext.runRule(RULE_NAME, new DataBundleMapWrapper(newData), LIMITS);
+        StandardizedLogging.executingWAF(log);
+        long start = 0L;
+        if (log.isDebugEnabled()) {
+          start = System.currentTimeMillis();
+        }
+
+        actionWithData = powerwafContext.runRules(new DataBundleMapWrapper(newData), LIMITS);
+
+        if (log.isDebugEnabled()) {
+          long elapsed = System.currentTimeMillis() - start;
+          StandardizedLogging.finishedExecutionWAF(log, elapsed);
+        }
+
       } catch (AbstractPowerwafException e) {
         log.error("Error calling WAF", e);
         return;
       }
+
+      StandardizedLogging.inAppWafReturn(log, actionWithData);
 
       if (actionWithData.action != Powerwaf.Action.OK) {
         log.warn("WAF signalled action {}: {}", actionWithData.action, actionWithData.data);

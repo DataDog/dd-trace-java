@@ -23,7 +23,7 @@ dependencies {
   api deps.slf4j
   implementation project(':internal-api')
   implementation project(':communication')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '2.0.1'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '3.0.0'
   implementation group: 'com.squareup.moshi', name: 'moshi', version: versions.moshi
 
   annotationProcessor deps.autoserviceProcessor
@@ -136,10 +136,15 @@ ext {
     'com.datadog.appsec.report.ReportSerializer.MoshiAdapter',
     'com.datadog.appsec.report.AppSecApi.1',
     'com.datadog.appsec.config.AppSecConfigServiceImpl.SubscribeFleetServiceRunnable.1',
+    'com.datadog.appsec.util.StandardizedLogging',
+    'com.datadog.appsec.util.AbortStartupException',
   ]
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',
-    'com.datadog.appsec.event.data.Address', // assert never fails
+    'com.datadog.appsec.event.data.Address',
+    // assert never fails
+    'com.datadog.appsec.util.StandardizedLogging',
+    'com.datadog.appsec.util.AbortStartupException',
   ]
   excludedClassesInstructionCoverage = ['com.datadog.appsec.report.ReportServiceImpl.TaskSchedulerImpl',]
   minJavaVersionForTests = JavaVersion.VERSION_1_8

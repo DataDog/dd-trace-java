@@ -2,6 +2,7 @@ package com.datadog.appsec.report;
 
 import com.datadog.appsec.report.raw.dtos.intake.IntakeBatch;
 import com.datadog.appsec.report.raw.events.attack.Attack010;
+import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +56,7 @@ public class ReportServiceImpl implements ReportService {
 
   @Override
   public void reportAttack(Attack010 attack) {
+    StandardizedLogging.attackQueued(log);
     synchronized (this) {
       lazyStartTask();
       events.add(attack);
@@ -73,7 +75,7 @@ public class ReportServiceImpl implements ReportService {
       }
       events = new ArrayList<>();
     }
-    log.debug("About to flush {} events", oldEvents.size());
+    StandardizedLogging.sendingAttackBatch(log, oldEvents.size());
 
     IntakeBatch batch =
         new IntakeBatch.IntakeBatchBuilder().withProtocolVersion(1).withEvents(oldEvents).build();

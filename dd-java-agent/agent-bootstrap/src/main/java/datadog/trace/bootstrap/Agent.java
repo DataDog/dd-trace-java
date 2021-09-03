@@ -517,7 +517,7 @@ public class Agent {
           appSecSysClass.getMethod("start", SubscriptionService.class, scoClass);
       appSecInstallerMethod.invoke(null, gw, sco);
     } catch (final Throwable ex) {
-      log.error("Throwable thrown while starting the AppSec Agent", ex);
+      log.warn("Not starting AppSec subsystem: {}", ex.getMessage());
     }
   }
 
