@@ -11,12 +11,20 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
- * Holds message spans consumed in client-acknowledged or transacted sessions. This class needs to
- * be thread-safe as some JMS providers allow concurrent transactions.
+ * Holds message spans consumed in client-acknowledged or transacted sessions. It also assigns ids
+ * to batches of messages produced from transacted sessions. This class needs to be thread-safe as
+ * some JMS providers allow concurrent transactions.
  */
 public final class SessionState {
+
+  private static final AtomicReferenceFieldUpdater<SessionState, MessageBatchState> BATCH_STATE =
+      AtomicReferenceFieldUpdater.newUpdater(
+          SessionState.class, MessageBatchState.class, "batchState");
+  private static final AtomicIntegerFieldUpdater<SessionState> COMMIT_SEQUENCE =
+      AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "commitSequence");
 
   private static final AtomicIntegerFieldUpdater<SessionState> ACTIVE_SCOPE_COUNT =
       AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "activeScopeCount");
@@ -28,6 +36,10 @@ public final class SessionState {
   static final int MAX_CAPTURED_SPANS = 8192;
 
   private final int ackMode;
+
+  // producer-related session state
+  private volatile MessageBatchState batchState;
+  private volatile int commitSequence;
 
   // consumer-related session state
   private final Deque<AgentSpan> capturedSpans = new ArrayDeque<>();
@@ -62,6 +74,19 @@ public final class SessionState {
 
     // We can't be sure of the ack-pattern for non-standard vendor modes, so the safest thing
     // to do is close+finish message spans on the next receive like we do for AUTO_ACKNOWLEDGE
+  }
+
+  /** Retrieves details about the current message batch being produced in this session. */
+  public MessageBatchState currentBatchState() {
+    MessageBatchState oldBatch = batchState;
+    if (null != oldBatch && oldBatch.commitSequence == commitSequence) {
+      return oldBatch;
+    }
+    MessageBatchState newBatch = new MessageBatchState(commitSequence);
+    if (!BATCH_STATE.compareAndSet(this, oldBatch, newBatch)) {
+      newBatch = batchState;
+    }
+    return newBatch;
   }
 
   // only used for testing
@@ -103,6 +128,7 @@ public final class SessionState {
   }
 
   public void onCommitOrRollback() {
+    COMMIT_SEQUENCE.incrementAndGet(this);
     finishCapturedSpans();
   }
 
