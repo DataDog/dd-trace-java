@@ -99,6 +99,9 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       if (Config.get().isJMSPropagationEnabled() && !producerState.isPropagationDisabled()) {
         propagate().inject(span, message, SETTER);
       }
+      if (!Config.get().isJmsLegacyTracingEnabled()) {
+        SETTER.injectTimeInQueue(message, producerState.getSessionState());
+      }
       return activateSpan(span);
     }
 
@@ -121,9 +124,17 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beforeSend(
         @Advice.Argument(0) final Destination destination,
-        @Advice.Argument(1) final Message message) {
+        @Advice.Argument(1) final Message message,
+        @Advice.This final MessageProducer producer) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
       if (callDepth > 0) {
+        return null;
+      }
+
+      MessageProducerState producerState =
+          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
+              .get(producer);
+      if (null == producerState) {
         return null;
       }
 
@@ -137,6 +148,9 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
       if (Config.get().isJMSPropagationEnabled()
           && !Config.get().isJMSPropagationDisabledForDestination(destinationName)) {
         propagate().inject(span, message, SETTER);
+      }
+      if (!Config.get().isJmsLegacyTracingEnabled()) {
+        SETTER.injectTimeInQueue(message, producerState.getSessionState());
       }
       return activateSpan(span);
     }

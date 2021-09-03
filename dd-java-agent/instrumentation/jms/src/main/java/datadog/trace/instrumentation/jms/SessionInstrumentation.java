@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -148,13 +149,20 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
 
         boolean isQueue = null == destination || destination instanceof Queue;
         String destinationName = CONSUMER_DECORATE.getDestinationName(destination);
-        CharSequence resourceName = CONSUMER_DECORATE.toResourceName(destinationName, isQueue);
+        CharSequence brokerResourceName =
+            Config.get().isJmsLegacyTracingEnabled()
+                ? "jms"
+                : BROKER_DECORATE.toResourceName(destinationName, isQueue);
+        CharSequence consumerResourceName =
+            CONSUMER_DECORATE.toResourceName(destinationName, isQueue);
 
         boolean propagationDisabled =
             Config.get().isJMSPropagationDisabledForDestination(destinationName);
 
         consumerStateStore.put(
-            consumer, new MessageConsumerState(sessionState, resourceName, propagationDisabled));
+            consumer,
+            new MessageConsumerState(
+                sessionState, brokerResourceName, consumerResourceName, propagationDisabled));
       }
     }
   }

@@ -7,9 +7,12 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -17,6 +20,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -119,18 +123,36 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Tracin
         return;
       }
 
+      AgentSpan span;
       AgentSpan.Context propagatedContext = null;
       if (!consumerState.isPropagationDisabled()) {
         propagatedContext = propagate().extract(message, GETTER);
       }
-      AgentSpan span = startSpan(JMS_CONSUME, propagatedContext);
+      long startMillis = GETTER.extractTimeInQueueStart(message);
+      if (startMillis == 0 || Config.get().isJmsLegacyTracingEnabled()) {
+        span = startSpan(JMS_CONSUME, propagatedContext);
+      } else {
+        long batchId = GETTER.extractMessageBatchId(message);
+        AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
+        if (null == timeInQueue) {
+          timeInQueue =
+              startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
+          BROKER_DECORATE.afterStart(timeInQueue);
+          BROKER_DECORATE.onTimeInQueue(
+              timeInQueue,
+              consumerState.getBrokerResourceName(),
+              consumerState.getBrokerServiceName());
+          consumerState.setTimeInQueueSpan(batchId, timeInQueue);
+        }
+        span = startSpan(JMS_CONSUME, timeInQueue.context());
+      }
       // this scope is intentionally not closed here
       // it stays open until the next call to get a
       // message, or the consumer is closed
       AgentScope scope = activateSpan(span);
       consumerState.closeOnIteration(scope);
       CONSUMER_DECORATE.afterStart(span);
-      CONSUMER_DECORATE.onConsume(span, message, consumerState.getResourceName());
+      CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
       CONSUMER_DECORATE.onError(span, throwable);
       SessionState sessionState = consumerState.getSessionState();
       if (sessionState.isClientAcknowledge()) {

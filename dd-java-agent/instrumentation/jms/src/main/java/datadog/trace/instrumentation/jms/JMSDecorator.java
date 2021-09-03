@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.jms;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.Function;
 import datadog.trace.api.Functions.Join;
 import datadog.trace.api.Functions.PrefixJoin;
@@ -25,6 +27,7 @@ public final class JMSDecorator extends ClientDecorator {
   public static final CharSequence JMS = UTF8BytesString.create("jms");
   public static final CharSequence JMS_CONSUME = UTF8BytesString.create("jms.consume");
   public static final CharSequence JMS_PRODUCE = UTF8BytesString.create("jms.produce");
+  public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
 
   private static final Join QUEUE_JOINER = PrefixJoin.of("Queue ");
   private static final Join TOPIC_JOINER = PrefixJoin.of("Topic ");
@@ -42,16 +45,27 @@ public final class JMSDecorator extends ClientDecorator {
 
   private final String spanKind;
   private final CharSequence spanType;
+  private final String serviceName;
 
   public static final JMSDecorator PRODUCER_DECORATE =
       new JMSDecorator(
-          "Produced for ", Tags.SPAN_KIND_PRODUCER, InternalSpanTypes.MESSAGE_PRODUCER);
+          "Produced for ",
+          Tags.SPAN_KIND_PRODUCER,
+          InternalSpanTypes.MESSAGE_PRODUCER,
+          Config.get().isJmsLegacyTracingEnabled() ? "jms" : Config.get().getServiceName());
 
   public static final JMSDecorator CONSUMER_DECORATE =
       new JMSDecorator(
-          "Consumed from ", Tags.SPAN_KIND_CONSUMER, InternalSpanTypes.MESSAGE_CONSUMER);
+          "Consumed from ",
+          Tags.SPAN_KIND_CONSUMER,
+          InternalSpanTypes.MESSAGE_CONSUMER,
+          Config.get().isJmsLegacyTracingEnabled() ? "jms" : Config.get().getServiceName());
 
-  public JMSDecorator(String resourcePrefix, String spanKind, CharSequence spanType) {
+  public static final JMSDecorator BROKER_DECORATE =
+      new JMSDecorator("", Tags.SPAN_KIND_BROKER, DDSpanTypes.MESSAGE_BROKER, "jms");
+
+  public JMSDecorator(
+      String resourcePrefix, String spanKind, CharSequence spanType, String serviceName) {
     this.resourcePrefix = resourcePrefix;
 
     this.queueTempResourceName = UTF8BytesString.create(resourcePrefix + "Temporary Queue");
@@ -62,6 +76,7 @@ public final class JMSDecorator extends ClientDecorator {
 
     this.spanKind = spanKind;
     this.spanType = spanType;
+    this.serviceName = serviceName;
   }
 
   @Override
@@ -107,6 +122,16 @@ public final class JMSDecorator extends ClientDecorator {
   public void onProduce(AgentSpan span, CharSequence resourceName) {
     if (null != resourceName) {
       span.setResourceName(resourceName);
+    }
+  }
+
+  public void onTimeInQueue(
+      final AgentSpan span, final CharSequence resourceName, final String serviceName) {
+    if (null != resourceName) {
+      span.setResourceName(resourceName);
+    }
+    if (null != serviceName) {
+      span.setServiceName(serviceName);
     }
   }
 

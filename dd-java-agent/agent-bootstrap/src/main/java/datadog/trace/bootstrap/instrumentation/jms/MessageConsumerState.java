@@ -7,22 +7,43 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 public final class MessageConsumerState {
 
   private final SessionState sessionState;
-  private final CharSequence resourceName;
+  private final CharSequence brokerResourceName;
+  private final String brokerServiceName;
+  private final CharSequence consumerResourceName;
   private final boolean propagationDisabled;
 
   public MessageConsumerState(
-      SessionState sessionState, CharSequence resourceName, boolean propagationDisabled) {
+      SessionState sessionState,
+      CharSequence brokerResourceName,
+      CharSequence consumerResourceName,
+      boolean propagationDisabled) {
     this.sessionState = sessionState;
-    this.resourceName = resourceName;
+    this.brokerResourceName = brokerResourceName;
+    this.consumerResourceName = consumerResourceName;
     this.propagationDisabled = propagationDisabled;
+
+    String brokerServiceName = brokerResourceName.toString();
+    if (brokerServiceName.startsWith("Queue ") || brokerServiceName.startsWith("Topic ")) {
+      this.brokerServiceName = brokerServiceName.substring(6);
+    } else {
+      this.brokerServiceName = brokerServiceName;
+    }
   }
 
   public SessionState getSessionState() {
     return sessionState;
   }
 
-  public CharSequence getResourceName() {
-    return resourceName;
+  public CharSequence getBrokerResourceName() {
+    return brokerResourceName;
+  }
+
+  public String getBrokerServiceName() {
+    return brokerServiceName;
+  }
+
+  public CharSequence getConsumerResourceName() {
+    return consumerResourceName;
   }
 
   public boolean isPropagationDisabled() {

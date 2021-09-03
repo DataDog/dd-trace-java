@@ -3,10 +3,14 @@ package datadog.trace.instrumentation.jms;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -32,13 +36,30 @@ public class DatadogMessageListener implements MessageListener {
 
   @Override
   public void onMessage(Message message) {
+    AgentSpan span;
     AgentSpan.Context propagatedContext = null;
     if (!consumerState.isPropagationDisabled()) {
       propagatedContext = propagate().extract(message, GETTER);
     }
-    AgentSpan span = startSpan(JMS_CONSUME, propagatedContext);
+    long startMillis = GETTER.extractTimeInQueueStart(message);
+    if (startMillis == 0 || Config.get().isJmsLegacyTracingEnabled()) {
+      span = startSpan(JMS_CONSUME, propagatedContext);
+    } else {
+      long batchId = GETTER.extractMessageBatchId(message);
+      AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
+      if (null == timeInQueue) {
+        timeInQueue = startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
+        BROKER_DECORATE.afterStart(timeInQueue);
+        BROKER_DECORATE.onTimeInQueue(
+            timeInQueue,
+            consumerState.getBrokerResourceName(),
+            consumerState.getBrokerServiceName());
+        consumerState.setTimeInQueueSpan(batchId, timeInQueue);
+      }
+      span = startSpan(JMS_CONSUME, timeInQueue.context());
+    }
     CONSUMER_DECORATE.afterStart(span);
-    CONSUMER_DECORATE.onConsume(span, message, consumerState.getResourceName());
+    CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
     try (AgentScope scope = activateSpan(span)) {
       messageListener.onMessage(message);
     } catch (RuntimeException | Error thrown) {
