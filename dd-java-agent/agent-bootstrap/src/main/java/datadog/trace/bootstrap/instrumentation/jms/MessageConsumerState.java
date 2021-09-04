@@ -22,6 +22,7 @@ public final class MessageConsumerState {
     this.consumerResourceName = consumerResourceName;
     this.propagationDisabled = propagationDisabled;
 
+    // use the destination as the service name, with no prefix
     String brokerServiceName = brokerResourceName.toString();
     if (brokerServiceName.startsWith("Queue ") || brokerServiceName.startsWith("Topic ")) {
       this.brokerServiceName = brokerServiceName.substring(6);

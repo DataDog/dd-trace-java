@@ -91,7 +91,7 @@ public final class JMSDecorator extends ClientDecorator {
 
   @Override
   protected String service() {
-    return "jms";
+    return serviceName;
   }
 
   @Override
