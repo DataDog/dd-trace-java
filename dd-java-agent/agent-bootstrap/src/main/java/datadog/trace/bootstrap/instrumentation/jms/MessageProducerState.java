@@ -24,4 +24,9 @@ public final class MessageProducerState {
   public boolean isPropagationDisabled() {
     return propagationDisabled;
   }
+
+  /** Retrieves details about the current message batch being produced in this session. */
+  public MessageBatchState currentBatchState() {
+    return sessionState.currentBatchState(); // tracked per-session
+  }
 }

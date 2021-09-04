@@ -100,7 +100,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         propagate().inject(span, message, SETTER);
       }
       if (!Config.get().isJmsLegacyTracingEnabled()) {
-        SETTER.injectTimeInQueue(message, producerState.getSessionState());
+        SETTER.injectTimeInQueue(message, producerState);
       }
       return activateSpan(span);
     }
@@ -150,7 +150,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         propagate().inject(span, message, SETTER);
       }
       if (!Config.get().isJmsLegacyTracingEnabled()) {
-        SETTER.injectTimeInQueue(message, producerState.getSessionState());
+        SETTER.injectTimeInQueue(message, producerState);
       }
       return activateSpan(span);
     }

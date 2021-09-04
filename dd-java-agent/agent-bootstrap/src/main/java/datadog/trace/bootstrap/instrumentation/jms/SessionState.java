@@ -77,7 +77,7 @@ public final class SessionState {
   }
 
   /** Retrieves details about the current message batch being produced in this session. */
-  public MessageBatchState currentBatchState() {
+  MessageBatchState currentBatchState() {
     MessageBatchState oldBatch = batchState;
     if (null != oldBatch && oldBatch.commitSequence == commitSequence) {
       return oldBatch;

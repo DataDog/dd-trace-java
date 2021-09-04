@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.jms;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.jms.MessageBatchState;
-import datadog.trace.bootstrap.instrumentation.jms.SessionState;
+import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import javax.jms.Message;
 import org.slf4j.Logger;
@@ -29,10 +29,10 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
     }
   }
 
-  public void injectTimeInQueue(final Message carrier, final SessionState sessionState) {
+  public void injectTimeInQueue(final Message carrier, final MessageProducerState producerState) {
     try {
-      if (sessionState.isTransactedSession()) {
-        MessageBatchState batchState = sessionState.currentBatchState();
+      if (producerState.getSessionState().isTransactedSession()) {
+        MessageBatchState batchState = producerState.currentBatchState();
         carrier.setLongProperty(JMS_BATCH_ID_KEY, batchState.getBatchId());
         carrier.setLongProperty(JMS_PRODUCED_KEY, batchState.getStartMillis());
       } else {
