@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.ci
 
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.test.util.DDSpecification
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
