@@ -5,6 +5,7 @@ import datadog.trace.test.util.DDSpecification
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
+import spock.lang.Specification
 
 import java.nio.file.Paths
 
@@ -20,7 +21,7 @@ import static GithubActionsInfo.GHACTIONS
 import static JenkinsInfo.JENKINS
 import static TravisInfo.TRAVIS
 
-abstract class CIProviderInfoTest extends DDSpecification {
+abstract class CIProviderInfoTest extends Specification {
 
   private static final CI_WORKSPACE_PATH_FOR_TESTS = "ci/ci_workspace_for_tests"
   public static final GIT_FOLDER_FOR_TESTS = "git_folder_for_tests"
