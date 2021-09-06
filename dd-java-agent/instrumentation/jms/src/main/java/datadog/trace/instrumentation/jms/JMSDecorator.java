@@ -55,7 +55,7 @@ public final class JMSDecorator extends ClientDecorator {
           "Produced for ",
           Tags.SPAN_KIND_PRODUCER,
           InternalSpanTypes.MESSAGE_PRODUCER,
-          Config.get().isJmsLegacyTracingEnabled() ? "jms" : Config.get().getServiceName());
+          Config.get().isJmsLegacyTracingEnabled() ? "jms" : null /* inherit service name */);
 
   public static final JMSDecorator CONSUMER_DECORATE =
       new JMSDecorator(
@@ -65,7 +65,11 @@ public final class JMSDecorator extends ClientDecorator {
           Config.get().isJmsLegacyTracingEnabled() ? "jms" : Config.get().getServiceName());
 
   public static final JMSDecorator BROKER_DECORATE =
-      new JMSDecorator("", Tags.SPAN_KIND_BROKER, DDSpanTypes.MESSAGE_BROKER, "jms");
+      new JMSDecorator(
+          "",
+          Tags.SPAN_KIND_BROKER,
+          DDSpanTypes.MESSAGE_BROKER,
+          null /* will be set per-queue or topic */);
 
   public JMSDecorator(
       String resourcePrefix, String spanKind, CharSequence spanType, String serviceName) {
@@ -129,8 +133,7 @@ public final class JMSDecorator extends ClientDecorator {
     }
   }
 
-  public void onTimeInQueue(
-      final AgentSpan span, final CharSequence resourceName, final String serviceName) {
+  public void onTimeInQueue(AgentSpan span, CharSequence resourceName, String serviceName) {
     if (null != resourceName) {
       span.setResourceName(resourceName);
     }
