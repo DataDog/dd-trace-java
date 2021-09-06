@@ -21,8 +21,11 @@ import javax.jms.Queue;
 import javax.jms.TemporaryQueue;
 import javax.jms.TemporaryTopic;
 import javax.jms.Topic;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class JMSDecorator extends ClientDecorator {
+  private static final Logger log = LoggerFactory.getLogger(JMSDecorator.class);
 
   public static final CharSequence JMS = UTF8BytesString.create("jms");
   public static final CharSequence JMS_CONSUME = UTF8BytesString.create("jms.consume");
@@ -115,7 +118,8 @@ public final class JMSDecorator extends ClientDecorator {
         final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
         span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
       }
-    } catch (Exception ignored) {
+    } catch (Exception e) {
+      log.debug("Unable to get jms timestamp", e);
     }
   }
 
@@ -166,7 +170,8 @@ public final class JMSDecorator extends ClientDecorator {
           name = ((Topic) destination).getTopicName();
         }
       }
-    } catch (Exception ignored) {
+    } catch (Exception e) {
+      log.debug("Unable to get jms destination name", e);
     }
     return null != name && !name.startsWith(TIBCO_TMP_PREFIX) ? name : null;
   }

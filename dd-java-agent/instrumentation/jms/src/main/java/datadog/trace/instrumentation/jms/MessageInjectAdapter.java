@@ -23,9 +23,7 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
     try {
       carrier.setStringProperty(propName, value);
     } catch (Exception e) {
-      if (log.isDebugEnabled()) {
-        log.debug("Failure setting jms property: " + propName, e);
-      }
+      log.debug("Failure setting jms property: {}", propName, e);
     }
   }
 
@@ -38,7 +36,8 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
       } else {
         carrier.setLongProperty(JMS_PRODUCED_KEY, System.currentTimeMillis());
       }
-    } catch (Exception ignored) {
+    } catch (Exception e) {
+      log.debug("Failure setting jms batch details", e);
     }
   }
 }

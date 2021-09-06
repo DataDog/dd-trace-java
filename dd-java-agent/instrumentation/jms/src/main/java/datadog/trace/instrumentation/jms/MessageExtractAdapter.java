@@ -11,8 +11,11 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Enumeration;
 import javax.jms.JMSException;
 import javax.jms.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
+  private static final Logger log = LoggerFactory.getLogger(MessageExtractAdapter.class);
 
   private static final Function<String, String> KEY_MAPPER =
       new Function<String, String>() {
@@ -51,7 +54,8 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
       if (carrier.propertyExists(JMS_PRODUCED_KEY)) {
         return carrier.getLongProperty(JMS_PRODUCED_KEY);
       }
-    } catch (Exception ignored) {
+    } catch (Exception e) {
+      log.debug("Unable to get jms produced time", e);
     }
     return 0;
   }
@@ -61,7 +65,8 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
       if (carrier.propertyExists(JMS_BATCH_ID_KEY)) {
         return carrier.getLongProperty(JMS_BATCH_ID_KEY);
       }
-    } catch (Exception ignored) {
+    } catch (Exception e) {
+      log.debug("Unable to get jms batch id", e);
     }
     return 0;
   }
