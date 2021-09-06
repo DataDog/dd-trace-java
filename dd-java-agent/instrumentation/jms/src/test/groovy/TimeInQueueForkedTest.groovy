@@ -279,6 +279,261 @@ class TimeInQueueForkedTest extends AgentTestRunner {
     session.createTemporaryTopic()   | "Temporary Topic"
   }
 
+  def "sending batch messages to #jmsResourceName generates time-in-queue spans"() {
+    setup:
+    def producerSession = connection.createSession(true, Session.SESSION_TRANSACTED)
+    def producer = producerSession.createProducer(destination)
+    def consumerSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
+    def consumer = consumerSession.createConsumer(destination)
+
+    when:
+    producer.send(message1)
+    producer.send(message2)
+    producerSession.commit()
+    producer.send(message3)
+    producerSession.commit()
+    producer.send(message4)
+    producer.send(message5)
+    producerSession.commit()
+
+    def receivedMessage1 = consumer.receive()
+    def receivedMessage2 = consumer.receive()
+    def receivedMessage3 = consumer.receive()
+    def receivedMessage4 = consumer.receive()
+    def receivedMessage5 = consumer.receive()
+
+    then:
+    receivedMessage1.text == messageText1
+    receivedMessage2.text == messageText2
+    receivedMessage3.text == messageText3
+    receivedMessage4.text == messageText4
+    receivedMessage5.text == messageText5
+    // only four consume traces will be finished at this point
+    assertTraces(9) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      trace(2) {
+        timeInQueueSpan(it, jmsResourceName, trace(0)[0])
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+      }
+      trace(1) {
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+      }
+      trace(2) {
+        timeInQueueSpan(it, jmsResourceName, trace(2)[0])
+        consumerSpan(it, jmsResourceName, trace(7)[0], false)
+      }
+      trace(2) {
+        timeInQueueSpan(it, jmsResourceName, trace(3)[0])
+        consumerSpan(it, jmsResourceName, trace(8)[0], false)
+      }
+    }
+
+    when:
+    consumer.receiveNoWait()
+
+    then:
+    // now the last consume trace will also be finished
+    assertTraces(10) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      trace(2) {
+        timeInQueueSpan(it, jmsResourceName, trace(0)[0])
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+      }
+      trace(1) {
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+      }
+      trace(2) {
+        timeInQueueSpan(it, jmsResourceName, trace(2)[0])
+        consumerSpan(it, jmsResourceName, trace(7)[0], false)
+      }
+      trace(2) {
+        timeInQueueSpan(it, jmsResourceName, trace(3)[0])
+        consumerSpan(it, jmsResourceName, trace(8)[0], false)
+      }
+      trace(1) {
+        consumerSpan(it, jmsResourceName, trace(8)[0], false)
+      }
+    }
+
+    cleanup:
+    producerSession.close()
+    consumerSession.close()
+
+    where:
+    destination                              | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
+  def "sending batch messages to #jmsResourceName with manual acknowledgement generates time-in-queue spans"() {
+    setup:
+    def producerSession = connection.createSession(true, Session.SESSION_TRANSACTED)
+    def producer = producerSession.createProducer(destination)
+    def consumerSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
+    def consumer = consumerSession.createConsumer(destination)
+
+    when:
+    producer.send(message1)
+    producer.send(message2)
+    producerSession.commit()
+    producer.send(message3)
+    producer.send(message4)
+    producer.send(message5)
+    producerSession.commit()
+
+    def receivedMessage1 = consumer.receive()
+    def receivedMessage2 = consumer.receive()
+    def receivedMessage3 = consumer.receive()
+    receivedMessage2.acknowledge()
+    def receivedMessage4 = consumer.receive()
+    def receivedMessage5 = consumer.receive()
+
+    then:
+    receivedMessage1.text == messageText1
+    receivedMessage2.text == messageText2
+    receivedMessage3.text == messageText3
+    receivedMessage4.text == messageText4
+    receivedMessage5.text == messageText5
+    // only three consume traces will be finished at this point
+    assertTraces(6) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      trace(4) {
+        timeInQueueSpan(it, jmsResourceName, trace(0)[0])
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+      }
+    }
+
+    when:
+    receivedMessage5.acknowledge()
+
+    then:
+    // now the other consume traces will be finished
+    assertTraces(7) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      trace(4) {
+        timeInQueueSpan(it, jmsResourceName, trace(0)[0])
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+      }
+      trace(3) {
+        timeInQueueSpan(it, jmsResourceName, trace(3)[0])
+        consumerSpan(it, jmsResourceName, trace(6)[0], false)
+        consumerSpan(it, jmsResourceName, trace(6)[0], false)
+      }
+    }
+
+    cleanup:
+    producerSession.close()
+    consumerSession.close()
+
+    where:
+    destination                              | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
+  def "sending batch messages to #jmsResourceName with transacted acknowledgement generates time-in-queue spans"() {
+    setup:
+    def producerSession = connection.createSession(true, Session.SESSION_TRANSACTED)
+    def producer = producerSession.createProducer(destination)
+    def consumerSession = connection.createSession(true, Session.SESSION_TRANSACTED)
+    def consumer = consumerSession.createConsumer(destination)
+
+    when:
+    producer.send(message1)
+    producer.send(message2)
+    producer.send(message3)
+    producerSession.commit()
+    producer.send(message4)
+    producer.send(message5)
+    producerSession.commit()
+
+    def receivedMessage1 = consumer.receive()
+    def receivedMessage2 = consumer.receive()
+    consumerSession.commit()
+    def receivedMessage3 = consumer.receive()
+    def receivedMessage4 = consumer.receive()
+    def receivedMessage5 = consumer.receive()
+
+    then:
+    receivedMessage1.text == messageText1
+    receivedMessage2.text == messageText2
+    receivedMessage3.text == messageText3
+    receivedMessage4.text == messageText4
+    receivedMessage5.text == messageText5
+    // only two consume traces will be finished at this point
+    assertTraces(6) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      trace(3) {
+        timeInQueueSpan(it, jmsResourceName, trace(0)[0])
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+      }
+    }
+
+    when:
+    consumerSession.commit()
+
+    then:
+    // now the other consume traces will be finished
+    assertTraces(7) {
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      producerTrace(it, jmsResourceName)
+      trace(3) {
+        timeInQueueSpan(it, jmsResourceName, trace(0)[0])
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+        consumerSpan(it, jmsResourceName, trace(5)[0], false)
+      }
+      trace(4) {
+        timeInQueueSpan(it, jmsResourceName, trace(2)[0])
+        consumerSpan(it, jmsResourceName, trace(6)[0], false)
+        consumerSpan(it, jmsResourceName, trace(6)[0], false)
+        consumerSpan(it, jmsResourceName, trace(6)[0], false)
+      }
+    }
+
+    cleanup:
+    producerSession.close()
+    consumerSession.close()
+
+    where:
+    destination                              | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+    session.createTemporaryQueue()   | "Temporary Queue"
+    session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
   static producerTrace(ListWriterAssert writer, String jmsResourceName) {
     writer.trace(1) {
       producerSpan(it, jmsResourceName)
