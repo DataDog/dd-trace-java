@@ -25,7 +25,6 @@ import java.util.Map;
 import javax.jms.Destination;
 import javax.jms.Message;
 import javax.jms.MessageProducer;
-import javax.jms.Queue;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -138,9 +137,9 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         return null;
       }
 
+      boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
       String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
-      CharSequence resourceName =
-          PRODUCER_DECORATE.toResourceName(destinationName, destination instanceof Queue);
+      CharSequence resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
 
       final AgentSpan span = startSpan(JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);

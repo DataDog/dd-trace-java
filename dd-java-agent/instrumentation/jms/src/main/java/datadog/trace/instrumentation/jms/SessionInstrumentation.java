@@ -25,7 +25,6 @@ import java.util.Map;
 import javax.jms.Destination;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
-import javax.jms.Queue;
 import javax.jms.Session;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -108,7 +107,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
           sessionState = sessionStateStore.putIfAbsent(session, new SessionState(ackMode));
         }
 
-        boolean isQueue = null == destination || destination instanceof Queue;
+        boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
         String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
         CharSequence resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
 
@@ -147,7 +146,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
           sessionState = sessionStateStore.putIfAbsent(session, new SessionState(ackMode));
         }
 
-        boolean isQueue = null == destination || destination instanceof Queue;
+        boolean isQueue = CONSUMER_DECORATE.isQueue(destination);
         String destinationName = CONSUMER_DECORATE.getDestinationName(destination);
         CharSequence brokerResourceName =
             Config.get().isJmsLegacyTracingEnabled()

@@ -161,12 +161,14 @@ public final class JMSDecorator extends ClientDecorator {
     String name = null;
     try {
       if (destination instanceof Queue) {
-        if (!(destination instanceof TemporaryQueue)) {
+        // WebLogic mixes all destination APIs in its JMS extension, so always use the name
+        if (!(destination instanceof TemporaryQueue) || isWebLogicDestination(destination)) {
           name = ((Queue) destination).getQueueName();
         }
       }
-      if (destination instanceof Topic) {
-        if (!(destination instanceof TemporaryTopic)) {
+      // handle WebLogic by falling back to the Topic name when the Queue name is missing
+      if (null == name && destination instanceof Topic) {
+        if (!(destination instanceof TemporaryTopic) || isWebLogicDestination(destination)) {
           name = ((Topic) destination).getTopicName();
         }
       }
@@ -174,5 +176,18 @@ public final class JMSDecorator extends ClientDecorator {
       log.debug("Unable to get jms destination name", e);
     }
     return null != name && !name.startsWith(TIBCO_TMP_PREFIX) ? name : null;
+  }
+
+  public boolean isQueue(Destination destination) {
+    try {
+      // handle WebLogic by treating everything as a Queue unless it's a Topic with a name
+      return !(destination instanceof Topic) || null == ((Topic) destination).getTopicName();
+    } catch (Exception e) {
+      return true; // assume it's a Queue if we can't check the details
+    }
+  }
+
+  private static boolean isWebLogicDestination(Destination destination) {
+    return "weblogic.jms.common.DestinationImpl".equals(destination.getClass().getName());
   }
 }
