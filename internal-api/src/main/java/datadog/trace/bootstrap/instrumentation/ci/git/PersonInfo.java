@@ -13,8 +13,7 @@ public class PersonInfo {
 
   private final String name;
   private final String email;
-  private final long when;
-  private final int tzOffset;
+  private final String ISO8601Date;
 
   public PersonInfo() {
     this(null, null, 0, 0);
@@ -24,21 +23,16 @@ public class PersonInfo {
     this(name, email, 0, 0);
   }
 
+  public PersonInfo(final String name, final String email, final String iso8601date) {
+    this.name = name;
+    this.email = email;
+    this.ISO8601Date = iso8601date;
+  }
+
   public PersonInfo(String name, String email, long when, int tzOffset) {
     this.name = name;
     this.email = email;
-    this.when = when;
-    this.tzOffset = tzOffset;
-  }
-
-  public String getISO8601Date() {
-    if (when <= 0) {
-      return null;
-    }
-
-    final SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT_ISO8601);
-    sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-    return sdf.format(new Date(when));
+    this.ISO8601Date = buildISO8601Date(when);
   }
 
   public String getName() {
@@ -49,12 +43,8 @@ public class PersonInfo {
     return email;
   }
 
-  public long getWhen() {
-    return when;
-  }
-
-  public int getTzOffset() {
-    return tzOffset;
+  public String getISO8601Date() {
+    return this.ISO8601Date;
   }
 
   @Override
@@ -62,15 +52,14 @@ public class PersonInfo {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     PersonInfo that = (PersonInfo) o;
-    return when == that.when
-        && tzOffset == that.tzOffset
-        && Objects.equals(name, that.name)
-        && Objects.equals(email, that.email);
+    return Objects.equals(name, that.name)
+        && Objects.equals(email, that.email)
+        && Objects.equals(ISO8601Date, that.ISO8601Date);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, email, when, tzOffset);
+    return Objects.hash(name, email, ISO8601Date);
   }
 
   @Override
@@ -82,10 +71,19 @@ public class PersonInfo {
         + ", email='"
         + email
         + '\''
-        + ", when="
-        + when
-        + ", tzOffset="
-        + tzOffset
+        + ", ISO8601Date='"
+        + ISO8601Date
+        + '\''
         + '}';
+  }
+
+  private static String buildISO8601Date(final long when) {
+    if (when <= 0) {
+      return null;
+    }
+
+    final SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT_ISO8601);
+    sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+    return sdf.format(new Date(when));
   }
 }
