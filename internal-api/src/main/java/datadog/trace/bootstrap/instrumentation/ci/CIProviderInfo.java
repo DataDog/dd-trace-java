@@ -212,212 +212,171 @@ public abstract class CIProviderInfo {
 
     public CITagsBuilder withGitRepositoryUrl(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      if (userSuppliedGitInfo.getRepositoryURL() != null) {
-        return this.putTagValue(Tags.GIT_REPOSITORY_URL, userSuppliedGitInfo.getRepositoryURL());
-      } else {
-        return this.putTagValue(
-            Tags.GIT_REPOSITORY_URL, ciGitInfo.getRepositoryURL(), localGitInfo.getRepositoryURL());
-      }
+      return this.putTagValue(
+          Tags.GIT_REPOSITORY_URL,
+          userSuppliedGitInfo.getRepositoryURL(),
+          ciGitInfo.getRepositoryURL(),
+          localGitInfo.getRepositoryURL());
     }
 
     public CITagsBuilder withGitCommit(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      if (userSuppliedGitInfo.getCommit().getSha() != null) {
-        return this.putTagValue(Tags.GIT_COMMIT_SHA, userSuppliedGitInfo.getCommit().getSha());
-      } else {
-        return this.putTagValue(
-            Tags.GIT_COMMIT_SHA, ciGitInfo.getCommit().getSha(), localGitInfo.getCommit().getSha());
-      }
+      return this.putTagValue(
+          Tags.GIT_COMMIT_SHA,
+          userSuppliedGitInfo.getCommit().getSha(),
+          ciGitInfo.getCommit().getSha(),
+          localGitInfo.getCommit().getSha());
     }
 
     public CITagsBuilder withGitBranch(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      if (userSuppliedGitInfo.getBranch() != null) {
-        return this.putTagValue(Tags.GIT_BRANCH, userSuppliedGitInfo.getBranch());
-      } else {
-        return this.putTagValue(Tags.GIT_BRANCH, ciGitInfo.getBranch(), localGitInfo.getBranch());
-      }
+      return this.putTagValue(
+          Tags.GIT_BRANCH,
+          userSuppliedGitInfo.getBranch(),
+          ciGitInfo.getBranch(),
+          localGitInfo.getBranch());
     }
 
     public CITagsBuilder withGitTag(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-      if (userSuppliedGitInfo.getTag() != null) {
-        return this.putTagValue(Tags.GIT_TAG, userSuppliedGitInfo.getTag());
-      } else {
-        return this.putTagValue(Tags.GIT_TAG, ciGitInfo.getTag(), localGitInfo.getTag());
-      }
+      return this.putTagValue(
+          Tags.GIT_TAG, userSuppliedGitInfo.getTag(), ciGitInfo.getTag(), localGitInfo.getTag());
     }
 
     public CITagsBuilder withGitCommitAuthorName(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-
-      if (userSuppliedGitInfo.getCommit().getAuthor().getName() != null) {
-        this.putTagValue(
-            Tags.GIT_COMMIT_AUTHOR_NAME, userSuppliedGitInfo.getCommit().getAuthor().getName());
-        return this;
-      } else if (ciGitInfo.getCommit().getAuthor().getName() != null) {
-        this.putTagValue(Tags.GIT_COMMIT_AUTHOR_NAME, ciGitInfo.getCommit().getAuthor().getName());
-        return this;
-      }
-
-      return this.putTagValueIfCommitEquals(
+      final String userSuppliedGitAuthorName =
+          userSuppliedGitInfo.getCommit().getAuthor().getName();
+      final String ciGitAuthorName = ciGitInfo.getCommit().getAuthor().getName();
+      final String localGitAuthorName =
+          isCommitShaEquals(ciGitInfo, localGitInfo)
+              ? localGitInfo.getCommit().getAuthor().getName()
+              : null;
+      return this.putTagValue(
           Tags.GIT_COMMIT_AUTHOR_NAME,
-          ciGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getAuthor().getName());
+          userSuppliedGitAuthorName,
+          ciGitAuthorName,
+          localGitAuthorName);
     }
 
     public CITagsBuilder withGitCommitAuthorEmail(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-
-      if (userSuppliedGitInfo.getCommit().getAuthor().getEmail() != null) {
-        this.putTagValue(
-            Tags.GIT_COMMIT_AUTHOR_EMAIL, userSuppliedGitInfo.getCommit().getAuthor().getEmail());
-        return this;
-      } else if (ciGitInfo.getCommit().getAuthor().getEmail() != null) {
-        this.putTagValue(
-            Tags.GIT_COMMIT_AUTHOR_EMAIL, ciGitInfo.getCommit().getAuthor().getEmail());
-        return this;
-      }
-
-      return this.putTagValueIfCommitEquals(
+      final String userSuppliedGitAuthorEmail =
+          userSuppliedGitInfo.getCommit().getAuthor().getEmail();
+      final String ciGitAuthorEmail = ciGitInfo.getCommit().getAuthor().getEmail();
+      final String localGitAuthorEmail =
+          isCommitShaEquals(ciGitInfo, localGitInfo)
+              ? localGitInfo.getCommit().getAuthor().getName()
+              : null;
+      return this.putTagValue(
           Tags.GIT_COMMIT_AUTHOR_EMAIL,
-          ciGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getAuthor().getEmail());
+          userSuppliedGitAuthorEmail,
+          ciGitAuthorEmail,
+          localGitAuthorEmail);
     }
 
     public CITagsBuilder withGitCommitAuthorDate(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-
-      if (userSuppliedGitInfo.getCommit().getAuthor().getISO8601Date() != null) {
-        this.putTagValue(
-            Tags.GIT_COMMIT_AUTHOR_DATE,
-            userSuppliedGitInfo.getCommit().getAuthor().getISO8601Date());
-        return this;
-      } else if (ciGitInfo.getCommit().getAuthor().getISO8601Date() != null) {
-        this.putTagValue(
-            Tags.GIT_COMMIT_AUTHOR_DATE, ciGitInfo.getCommit().getAuthor().getISO8601Date());
-        return this;
-      }
-
-      return this.putTagValueIfCommitEquals(
+      final String userSuppliedGitAuthorDate =
+          userSuppliedGitInfo.getCommit().getAuthor().getISO8601Date();
+      final String ciGitAuthorDate = ciGitInfo.getCommit().getAuthor().getISO8601Date();
+      final String localGitAuthorDate =
+          isCommitShaEquals(ciGitInfo, localGitInfo)
+              ? localGitInfo.getCommit().getAuthor().getISO8601Date()
+              : null;
+      return this.putTagValue(
           Tags.GIT_COMMIT_AUTHOR_DATE,
-          ciGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getAuthor().getISO8601Date());
+          userSuppliedGitAuthorDate,
+          ciGitAuthorDate,
+          localGitAuthorDate);
     }
 
     public CITagsBuilder withGitCommitCommitterName(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-
-      if (userSuppliedGitInfo.getCommit().getCommitter().getName() != null) {
-        this.putTagValue(
-            Tags.GIT_COMMIT_COMMITTER_NAME,
-            userSuppliedGitInfo.getCommit().getCommitter().getName());
-        return this;
-      } else if (ciGitInfo.getCommit().getCommitter().getName() != null) {
-        this.putTagValue(
-            Tags.GIT_COMMIT_COMMITTER_NAME, ciGitInfo.getCommit().getCommitter().getName());
-        return this;
-      }
-
-      return this.putTagValueIfCommitEquals(
+      final String userSuppliedGitCommitterName =
+          userSuppliedGitInfo.getCommit().getCommitter().getName();
+      final String ciGitCommitterName = ciGitInfo.getCommit().getCommitter().getName();
+      final String localGitCommitterName =
+          isCommitShaEquals(ciGitInfo, localGitInfo)
+              ? localGitInfo.getCommit().getCommitter().getName()
+              : null;
+      return this.putTagValue(
           Tags.GIT_COMMIT_COMMITTER_NAME,
-          ciGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getCommitter().getName());
+          userSuppliedGitCommitterName,
+          ciGitCommitterName,
+          localGitCommitterName);
     }
 
     public CITagsBuilder withGitCommitCommitterEmail(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-
-      if (userSuppliedGitInfo.getCommit().getCommitter().getEmail() != null) {
-        this.putTagValue(
-            Tags.GIT_COMMIT_COMMITTER_EMAIL,
-            userSuppliedGitInfo.getCommit().getCommitter().getEmail());
-        return this;
-      } else if (ciGitInfo.getCommit().getCommitter().getEmail() != null) {
-        this.putTagValue(
-            Tags.GIT_COMMIT_COMMITTER_EMAIL, ciGitInfo.getCommit().getCommitter().getEmail());
-        return this;
-      }
-
-      return this.putTagValueIfCommitEquals(
+      final String userSuppliedGitCommitterEmail =
+          userSuppliedGitInfo.getCommit().getCommitter().getEmail();
+      final String ciGitCommitterEmail = ciGitInfo.getCommit().getCommitter().getEmail();
+      final String localCommitterEmail =
+          isCommitShaEquals(ciGitInfo, localGitInfo)
+              ? localGitInfo.getCommit().getCommitter().getEmail()
+              : null;
+      return this.putTagValue(
           Tags.GIT_COMMIT_COMMITTER_EMAIL,
-          ciGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getCommitter().getEmail());
+          userSuppliedGitCommitterEmail,
+          ciGitCommitterEmail,
+          localCommitterEmail);
     }
 
     public CITagsBuilder withGitCommitCommitterDate(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-
-      if (userSuppliedGitInfo.getCommit().getCommitter().getISO8601Date() != null) {
-        this.putTagValue(
-            Tags.GIT_COMMIT_COMMITTER_DATE,
-            userSuppliedGitInfo.getCommit().getCommitter().getISO8601Date());
-        return this;
-      } else if (ciGitInfo.getCommit().getCommitter().getISO8601Date() != null) {
-        this.putTagValue(
-            Tags.GIT_COMMIT_COMMITTER_DATE, ciGitInfo.getCommit().getCommitter().getISO8601Date());
-        return this;
-      }
-
-      return this.putTagValueIfCommitEquals(
+      final String userSuppliedGitCommitterDate =
+          userSuppliedGitInfo.getCommit().getCommitter().getISO8601Date();
+      final String ciGitCommitterDate = ciGitInfo.getCommit().getCommitter().getISO8601Date();
+      final String localGitCommitterDate =
+          isCommitShaEquals(ciGitInfo, localGitInfo)
+              ? localGitInfo.getCommit().getCommitter().getISO8601Date()
+              : null;
+      return this.putTagValue(
           Tags.GIT_COMMIT_COMMITTER_DATE,
-          ciGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getCommitter().getISO8601Date());
+          userSuppliedGitCommitterDate,
+          ciGitCommitterDate,
+          localGitCommitterDate);
     }
 
     public CITagsBuilder withGitCommitMessage(
         final GitInfo userSuppliedGitInfo, final GitInfo ciGitInfo, final GitInfo localGitInfo) {
-
-      if (userSuppliedGitInfo.getCommit().getFullMessage() != null) {
-        this.putTagValue(Tags.GIT_COMMIT_MESSAGE, userSuppliedGitInfo.getCommit().getFullMessage());
-        return this;
-      } else if (ciGitInfo.getCommit().getFullMessage() != null) {
-        this.putTagValue(Tags.GIT_COMMIT_MESSAGE, ciGitInfo.getCommit().getFullMessage());
-        return this;
-      }
-
-      return this.putTagValueIfCommitEquals(
+      final String userSuppliedGitCommitMessage = userSuppliedGitInfo.getCommit().getFullMessage();
+      final String ciGitCommitMessage = ciGitInfo.getCommit().getFullMessage();
+      final String localGitCommitMessage =
+          isCommitShaEquals(ciGitInfo, localGitInfo)
+              ? localGitInfo.getCommit().getFullMessage()
+              : null;
+      return this.putTagValue(
           Tags.GIT_COMMIT_MESSAGE,
-          ciGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getSha(),
-          localGitInfo.getCommit().getFullMessage());
+          userSuppliedGitCommitMessage,
+          ciGitCommitMessage,
+          localGitCommitMessage);
     }
 
     public Map<String, String> build() {
       return ciTags;
     }
 
-    private CITagsBuilder putTagValue(final String tagKey, final String tagValue) {
-      return this.putTagValue(tagKey, tagValue, null);
-    }
-
     private CITagsBuilder putTagValue(
-        final String tagKey, final String tagValue, final String fallbackValue) {
+        final String tagKey, final String tagValue, final String... fallbackValues) {
       if (tagValue != null) {
         ciTags.put(tagKey, tagValue);
-      } else if (fallbackValue != null) {
-        ciTags.put(tagKey, fallbackValue);
+      } else {
+        for (final String fallbackValue : fallbackValues) {
+          if (fallbackValue != null) {
+            ciTags.put(tagKey, fallbackValue);
+            break;
+          }
+        }
       }
       return this;
     }
 
-    private CITagsBuilder putTagValueIfCommitEquals(
-        final String tagKey,
-        final String ciGitCommit,
-        final String localFSGitCommit,
-        final String tagValue) {
-      // As we're calculating the commit from localFS, we want to ensure that
-      // ciGitCommit is equals to localFSGitCommit before we put the information in the tag map.
-      if (ciGitCommit == null || ciGitCommit.equalsIgnoreCase(localFSGitCommit)) {
-        this.putTagValue(tagKey, tagValue);
-      }
-      return this;
+    private boolean isCommitShaEquals(GitInfo ciGitInfo, GitInfo localGitInfo) {
+      final String ciGitCommit = ciGitInfo.getCommit().getSha();
+      final String localFSGitCommit = localGitInfo.getCommit().getSha();
+      return ciGitCommit == null || ciGitCommit.equalsIgnoreCase(localFSGitCommit);
     }
   }
 
