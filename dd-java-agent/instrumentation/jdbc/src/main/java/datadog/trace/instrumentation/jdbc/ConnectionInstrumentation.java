@@ -51,6 +51,8 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     "org.postgresql.jdbc3g.Jdbc3gConnection",
     "org.postgresql.jdbc4.Jdbc4Connection",
     "postgresql.Connection",
+    // EDB version of postgresql
+    "com.edb.jdbc.PgConnection",
     // sqlite seems to be complete
     "org.sqlite.Conn",
     "org.sqlite.jdbc3.JDBC3Connection",
