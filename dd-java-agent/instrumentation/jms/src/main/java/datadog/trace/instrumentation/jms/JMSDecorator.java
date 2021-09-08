@@ -191,6 +191,6 @@ public final class JMSDecorator extends ClientDecorator {
   }
 
   private static boolean isWebLogicDestination(Destination destination) {
-    return "weblogic.jms.common.DestinationImpl".equals(destination.getClass().getName());
+    return destination.getClass().getName().startsWith("weblogic.jms.common.");
   }
 }
