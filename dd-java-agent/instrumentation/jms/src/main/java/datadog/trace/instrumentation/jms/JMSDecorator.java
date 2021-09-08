@@ -164,12 +164,13 @@ public final class JMSDecorator extends ClientDecorator {
     String name = null;
     try {
       if (destination instanceof Queue) {
-        // WebLogic mixes all destination APIs in its JMS extension, so always use the name
+        // WebLogic mixes all JMS Destination interfaces in a single base type which means we can't
+        // rely on instanceof and have to instead check the result of getQueueName vs getTopicName
         if (!(destination instanceof TemporaryQueue) || isWebLogicDestination(destination)) {
           name = ((Queue) destination).getQueueName();
         }
       }
-      // handle WebLogic by falling back to the Topic name when the Queue name is missing
+      // check Topic name if Queue name is null because this might be a WebLogic destination
       if (null == name && destination instanceof Topic) {
         if (!(destination instanceof TemporaryTopic) || isWebLogicDestination(destination)) {
           name = ((Topic) destination).getTopicName();
