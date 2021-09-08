@@ -1,203 +1,123 @@
 package datadog.trace.agent.tooling.log;
 
-/*
- * Copyright The OpenTelemetry Authors
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import java.util.AbstractMap;
 import java.util.AbstractSet;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * An immutable view over two maps, with keys resolving from the first map first, or otherwise the
- * second if not present in the first.
+ * Mutable view over two maps with entries in the primary taking precedence over the secondary;
+ * additions are put in the primary map.
  */
 public final class UnionMap<K, V> extends AbstractMap<K, V> {
+  private final Map<K, V> primaryMap;
+  private final Map<K, V> secondaryMap;
+  private transient Set<Map.Entry<K, V>> entrySet;
 
-  private final Map<K, V> first;
-  private final Map<K, V> second;
-  private int size = -1;
-  private Set<Entry<K, V>> entrySet;
-
-  public UnionMap(Map<K, V> first, Map<K, V> second) {
-    this.first = first;
-    this.second = second;
+  public UnionMap(Map<K, V> primaryMap, Map<K, V> secondaryMap) {
+    this.primaryMap = primaryMap;
+    this.secondaryMap = secondaryMap;
   }
 
   @Override
   public int size() {
-    if (size >= 0) {
-      return size;
-    }
-
-    final Map<K, V> a;
-    final Map<K, V> b;
-    if (first.size() >= second.size()) {
-      a = first;
-      b = second;
+    int primarySize = primaryMap.size();
+    int secondarySize = secondaryMap.size();
+    if (primarySize > secondarySize) {
+      for (K key : secondaryMap.keySet()) {
+        if (primaryMap.containsKey(key)) {
+          secondarySize--; // account for duplicate key
+        }
+      }
     } else {
-      a = second;
-      b = first;
-    }
-
-    int size = a.size();
-    if (!b.isEmpty()) {
-      for (K k : b.keySet()) {
-        if (!a.containsKey(k)) {
-          size++;
+      for (K key : primaryMap.keySet()) {
+        if (secondaryMap.containsKey(key)) {
+          primarySize--; // account for duplicate key
         }
       }
     }
-
-    return this.size = size;
+    return primarySize + secondarySize;
   }
 
   @Override
   public boolean isEmpty() {
-    return first.isEmpty() && second.isEmpty();
+    return primaryMap.isEmpty() && secondaryMap.isEmpty();
   }
 
   @Override
   public boolean containsKey(Object key) {
-    return first.containsKey(key) || second.containsKey(key);
+    return primaryMap.containsKey(key) || secondaryMap.containsKey(key);
   }
 
   @Override
   public boolean containsValue(Object value) {
-    return first.containsValue(value) || second.containsValue(value);
+    return primaryMap.containsValue(value) || secondaryMap.containsValue(value);
   }
 
   @Override
   public V get(Object key) {
-    final V value = first.get(key);
-    return value != null ? value : second.get(key);
+    V result = primaryMap.get(key);
+    return null != result || primaryMap.containsKey(key) ? result : secondaryMap.get(key);
   }
 
   @Override
   public V put(K key, V value) {
-    throw new UnsupportedOperationException();
+    V result = primaryMap.put(key, value);
+    return null != result || !secondaryMap.containsKey(key) ? result : secondaryMap.remove(key);
   }
 
   @Override
   public V remove(Object key) {
-    throw new UnsupportedOperationException();
+    V result = primaryMap.remove(key);
+    return null != result || !secondaryMap.containsKey(key) ? result : secondaryMap.remove(key);
   }
 
   @Override
   public void clear() {
-    throw new UnsupportedOperationException();
+    primaryMap.clear();
+    secondaryMap.clear();
+    entrySet = primaryMap.entrySet(); // optimization: secondary will now always be empty
   }
 
   @Override
   public Set<Entry<K, V>> entrySet() {
-    if (entrySet != null) {
-      return entrySet;
+    if (null == entrySet) {
+      entrySet =
+          new AbstractSet<Map.Entry<K, V>>() {
+            @Override
+            public int size() {
+              return UnionMap.this.size();
+            }
+
+            @Override
+            public Iterator<Map.Entry<K, V>> iterator() {
+              return new Iterator<Map.Entry<K, V>>() {
+                private Iterator<Map.Entry<K, V>> itr = primaryMap.entrySet().iterator();
+                private volatile boolean trySecondaryNext = !secondaryMap.isEmpty();
+
+                @Override
+                public boolean hasNext() {
+                  return itr.hasNext() || trySecondaryNext;
+                }
+
+                @Override
+                public Map.Entry<K, V> next() {
+                  if (!itr.hasNext() && trySecondaryNext) {
+                    trySecondaryNext = false;
+                    itr = secondaryMap.entrySet().iterator();
+                  }
+                  return itr.next();
+                }
+
+                @Override
+                public void remove() {
+                  itr.remove();
+                }
+              };
+            }
+          };
     }
-
-    // Check for dupes first to reduce allocations on the vastly more common case where there aren't
-    // any.
-    boolean secondHasDupes = false;
-    for (Entry<K, V> entry : second.entrySet()) {
-      if (first.containsKey(entry.getKey())) {
-        secondHasDupes = true;
-        break;
-      }
-    }
-
-    final Set<Entry<K, V>> filteredSecond;
-    if (!secondHasDupes) {
-      filteredSecond = second.entrySet();
-    } else {
-      filteredSecond = new LinkedHashSet<>();
-      for (Entry<K, V> entry : second.entrySet()) {
-        if (!first.containsKey(entry.getKey())) {
-          filteredSecond.add(entry);
-        }
-      }
-    }
-    return entrySet =
-        Collections.unmodifiableSet(new ConcatenatedSet<>(first.entrySet(), filteredSecond));
-  }
-
-  // Member sets must be deduped by caller.
-  static final class ConcatenatedSet<T> extends AbstractSet<T> {
-
-    private final Set<T> first;
-    private final Set<T> second;
-
-    private final int size;
-
-    ConcatenatedSet(Set<T> first, Set<T> second) {
-      this.first = first;
-      this.second = second;
-
-      size = first.size() + second.size();
-    }
-
-    @Override
-    public int size() {
-      return size;
-    }
-
-    @Override
-    public boolean add(T t) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean remove(Object o) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean addAll(Collection<? extends T> c) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean retainAll(Collection<?> c) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void clear() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Iterator<T> iterator() {
-      return new ConcatenatedSetIterator();
-    }
-
-    class ConcatenatedSetIterator implements Iterator<T> {
-      final Iterator<T> firstItr = first.iterator();
-      final Iterator<T> secondItr = second.iterator();
-
-      ConcatenatedSetIterator() {}
-
-      @Override
-      public boolean hasNext() {
-        return firstItr.hasNext() || secondItr.hasNext();
-      }
-
-      @Override
-      public T next() {
-        if (firstItr.hasNext()) {
-          return firstItr.next();
-        }
-        return secondItr.next();
-      }
-
-      @Override
-      public void remove() {
-        throw new UnsupportedOperationException();
-      }
-    }
+    return entrySet;
   }
 }

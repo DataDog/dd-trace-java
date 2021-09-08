@@ -22,6 +22,7 @@ dependencies {
   api project(':dd-trace-core:jfr-openjdk')
 
   testImplementation project(':dd-java-agent:testing')
+  testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
 }
 
 // Use Java 11 to build a delegating ClassFileTransformer that understands Java modules

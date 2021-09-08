@@ -62,8 +62,8 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.agent.tooling.log.UnionMap",
-      "datadog.trace.agent.tooling.log.UnionMap$ConcatenatedSet",
-      "datadog.trace.agent.tooling.log.UnionMap$ConcatenatedSet$ConcatenatedSetIterator",
+      "datadog.trace.agent.tooling.log.UnionMap$1",
+      "datadog.trace.agent.tooling.log.UnionMap$1$1",
     };
   }
 
@@ -87,7 +87,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
         return;
       }
 
-      Map<String, String> correlationValues = new HashMap<>();
+      Map<String, String> correlationValues = new HashMap<>(8);
 
       if (context != null) {
         correlationValues.put(
@@ -110,11 +110,7 @@ public class LoggingEventInstrumentation extends Instrumenter.Tracing {
         }
       }
 
-      if (mdc == null) {
-        mdc = correlationValues;
-      } else {
-        mdc = new UnionMap<>(mdc, correlationValues);
-      }
+      mdc = null != mdc ? new UnionMap<>(mdc, correlationValues) : correlationValues;
     }
   }
 }
