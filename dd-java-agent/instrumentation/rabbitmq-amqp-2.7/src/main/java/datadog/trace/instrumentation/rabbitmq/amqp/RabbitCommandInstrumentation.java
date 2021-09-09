@@ -5,12 +5,13 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.AMQP_COMMAND;
-import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.DECORATE;
+import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CLIENT_DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import com.rabbitmq.client.Command;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -51,15 +52,25 @@ public class RabbitCommandInstrumentation extends Instrumenter.Tracing {
   }
 
   public static class CommandConstructorAdvice {
+    @Advice.OnMethodEnter
+    public static int getCallDepth() {
+      return CallDepthThreadLocalMap.incrementCallDepth(Command.class);
+    }
+
     @Advice.OnMethodExit
-    public static void setResourceNameAddHeaders(@Advice.This final Command command) {
+    public static void setResourceNameAddHeaders(
+        @Advice.This final Command command, @Advice.Enter final int callDepth) {
+      if (callDepth > 0) {
+        return;
+      }
       final AgentSpan span = activeSpan();
 
       if (span != null && command.getMethod() != null) {
         if (span.getSpanName().equals(AMQP_COMMAND)) {
-          DECORATE.onCommand(span, command);
+          CLIENT_DECORATE.onCommand(span, command);
         }
       }
+      CallDepthThreadLocalMap.reset(Command.class);
     }
 
     /**

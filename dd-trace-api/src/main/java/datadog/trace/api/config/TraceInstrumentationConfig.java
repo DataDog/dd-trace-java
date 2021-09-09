@@ -50,6 +50,7 @@ public final class TraceInstrumentationConfig {
   public static final String JMS_PROPAGATION_DISABLED_TOPICS = "jms.propagation.disabled.topics";
   public static final String JMS_PROPAGATION_DISABLED_QUEUES = "jms.propagation.disabled.queues";
 
+  public static final String RABBIT_LEGACY_TRACING_ENABLED = "rabbit.legacy.tracing.enabled";
   public static final String RABBIT_PROPAGATION_ENABLED = "rabbit.propagation.enabled";
   public static final String RABBIT_PROPAGATION_DISABLED_QUEUES =
       "rabbit.propagation.disabled.queues";
