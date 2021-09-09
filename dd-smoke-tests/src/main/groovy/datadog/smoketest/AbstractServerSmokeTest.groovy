@@ -12,11 +12,17 @@ import java.util.concurrent.atomic.AtomicInteger
 abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
 
   @Shared
-  int httpPort = PortUtils.randomOpenPort()
+  protected int[] httpPorts = (0..<numberOfProcesses).collect {
+    PortUtils.randomOpenPort()
+  }
+
+  // Here for backwards compatibility with single process case
+  @Shared
+  int httpPort = httpPorts[0]
 
   @Shared
-  File output = {
-    def file = createTemporaryFile()
+  protected File[] outputs = (0..<numberOfProcesses).collect { idx ->
+    def file = createTemporaryFile(idx)
     if (file != null) {
       if (file.exists()) {
         file.delete()
@@ -25,32 +31,58 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
       }
     }
     return file
-  }.call()
+  }
+
+  // Here for backwards compatibility with single process case
+  @Shared
+  protected File output = outputs[0]
 
   protected OkHttpClient client = OkHttpUtils.client()
 
-  File createTemporaryFile() {
+  protected File createTemporaryFile() {
     return null
   }
 
+  protected File createTemporaryFile(int processIndex) {
+    if (processIndex > 0) {
+      throw new IllegalArgumentException("Override createTemporaryFile(int processIndex) for multi process tests")
+    }
+    return createTemporaryFile()
+  }
+
+  // Here for backwards compatibility with single process case
   protected Set<String> expectedTraces() {
     return Collections.emptySet()
   }
 
-  def setupSpec() {
-    PortUtils.waitForPortToOpen(httpPort, 240, TimeUnit.SECONDS, testedProcess)
+  protected Set<String> expectedTraces(int processIndex) {
+    if (processIndex > 0) {
+      throw new IllegalArgumentException("Override expectedTraces(int processIndex) for multi process tests")
+    }
+    return expectedTraces()
   }
 
-  def cleanupSpec() {
-    if (null != output) {
-      // check the structures written out to the log,
-      // and fail the run if anything unexpected was recorded
-      verifyLog()
+  def setupSpec() {
+    (0..<numberOfProcesses).each { idx ->
+      def port = httpPorts[idx]
+      def process = testedProcesses[idx]
+      PortUtils.waitForPortToOpen(port, 240, TimeUnit.SECONDS, process)
     }
   }
 
-  def verifyLog() {
-    BufferedReader reader = new BufferedReader(new FileReader(output))
+  def cleanupSpec() {
+    (0..<numberOfProcesses).each { idx ->
+      File outputFile
+      if (null != (outputFile = outputs[idx])) {
+        // check the structures written out to the log,
+        // and fail the run if anything unexpected was recorded
+        verifyLog(idx, outputFile)
+      }
+    }
+  }
+
+  def verifyLog(int processIndex, File logOutput) {
+    BufferedReader reader = new BufferedReader(new FileReader(logOutput))
     Map<String, AtomicInteger> traceCounts = new HashMap<>()
     try {
       String line = reader.readLine()
@@ -63,11 +95,14 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     } finally {
       reader.close()
     }
-    assert isAcceptable(traceCounts)
+    assert isAcceptable(processIndex, traceCounts)
   }
 
-  protected boolean isAcceptable(Map<String, AtomicInteger> traceCounts) {
-    return assertTraceCounts(expectedTraces(), traceCounts)
+  protected boolean isAcceptable(int processIndex, Map<String, AtomicInteger> traceCounts) {
+    // If expectedTraces returns an interpolated GString, then the map lookup will fail,
+    // so coerce them to proper String instances
+    def expected = expectedTraces(processIndex).collect { String.valueOf(it) }.toSet()
+    return assertTraceCounts(expected, traceCounts)
   }
 
   private boolean assertTraceCounts(Set<String> expected, Map<String, AtomicInteger> traceCounts) {

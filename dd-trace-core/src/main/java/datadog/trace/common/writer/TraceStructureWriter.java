@@ -2,7 +2,6 @@ package datadog.trace.common.writer;
 
 import datadog.trace.api.DDId;
 import datadog.trace.core.DDSpan;
-import datadog.trace.util.Strings;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -11,15 +10,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TraceStructureWriter implements Writer {
 
   private static final Logger log = LoggerFactory.getLogger(TraceStructureWriter.class);
+  private static final Pattern ARGS_DELIMITER = Pattern.compile(":", Pattern.LITERAL);
 
   private final PrintStream out;
   private final boolean debugLog;
+  private final boolean includeService;
 
   public TraceStructureWriter() {
     this("", false);
@@ -34,16 +36,39 @@ public class TraceStructureWriter implements Writer {
   }
 
   public TraceStructureWriter(String outputFile, boolean debugLog) {
-    this.debugLog = debugLog;
+    boolean argsDebugLog = debugLog;
+    boolean argsIncludeService = false;
+    if (null == outputFile) {
+      outputFile = "";
+    }
+    if (!outputFile.isEmpty() && outputFile.charAt(0) == ':') {
+      outputFile = outputFile.substring(1);
+    }
     try {
+      String[] args = ARGS_DELIMITER.split(outputFile);
+      String fileName = args[0];
       this.out =
-          outputFile.isEmpty() || outputFile.equals(":")
+          fileName.isEmpty()
               ? System.err
-              : new PrintStream(
-                  new FileOutputStream(new File(Strings.replace(outputFile, ":", ""))));
+              : new PrintStream(new FileOutputStream(new File(fileName)));
+      for (int i = 1; i < args.length; i++) {
+        switch (args[i].toLowerCase()) {
+          case "includeservice":
+            argsIncludeService = true;
+            break;
+          case "debuglog":
+            argsDebugLog = true;
+            break;
+          default:
+            log.warn("Illegal TraceStructureWriter argument '" + args[i] + "'");
+            break;
+        }
+      }
     } catch (IOException e) {
       throw new RuntimeException("Failed to create trace structure writer from " + outputFile, e);
     }
+    this.debugLog = argsDebugLog;
+    this.includeService = argsIncludeService;
   }
 
   @Override
@@ -56,10 +81,10 @@ public class TraceStructureWriter implements Writer {
       Map<DDId, Node> nodesById = new HashMap<>();
       // index the tree
       for (DDSpan span : trace) {
-        if (DDId.ZERO.equals(span.getParentId())) {
+        if (span.getLocalRootSpan() == span) {
           rootSpanId = span.getSpanId();
         }
-        nodesById.put(span.getSpanId(), new Node(span));
+        nodesById.put(span.getSpanId(), new Node(span, includeService));
       }
       // build the tree
       for (DDSpan span : trace) {
@@ -86,7 +111,7 @@ public class TraceStructureWriter implements Writer {
             String message =
                 "Trace "
                     + traceId
-                    + " has broken link at "
+                    + " has broken parent link at "
                     + span.getSpanId()
                     + "("
                     + span.getOperationName()
@@ -97,7 +122,8 @@ public class TraceStructureWriter implements Writer {
             if (debugLog) {
               log.error(message);
             }
-            return;
+            // Add this to the rootSpanId and continue so we can see the broken trace
+            parent = nodesById.get(rootSpanId);
           }
           parent.addChild(nodesById.get(span.getSpanId()));
         }
@@ -147,10 +173,12 @@ public class TraceStructureWriter implements Writer {
 
   private static final class Node {
     private final CharSequence operationName;
+    private final CharSequence serviceName;
     private final List<Node> children = new ArrayList<>();
 
-    private Node(DDSpan span) {
+    private Node(DDSpan span, boolean includeService) {
       this.operationName = span.getOperationName();
+      this.serviceName = includeService ? span.getServiceName() : null;
     }
 
     public void addChild(Node child) {
@@ -160,7 +188,11 @@ public class TraceStructureWriter implements Writer {
     @Override
     public String toString() {
       StringBuilder sb = new StringBuilder();
-      sb.append("[").append(operationName);
+      sb.append("[");
+      if (null != serviceName) {
+        sb.append(serviceName).append(":");
+      }
+      sb.append(operationName);
       for (Node node : children) {
         sb.append(node);
       }

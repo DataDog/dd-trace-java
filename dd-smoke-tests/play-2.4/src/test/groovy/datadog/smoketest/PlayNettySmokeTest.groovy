@@ -63,7 +63,7 @@ class PlayNettySmokeTest extends AbstractServerSmokeTest {
   int totalInvocations = 100
 
   @Override
-  protected boolean isAcceptable(Map<String, AtomicInteger> traceCounts) {
+  protected boolean isAcceptable(int processIndex, Map<String, AtomicInteger> traceCounts) {
     int totalTraces = 0
     // Since the filters ([filter2-4]) are executed after each other but potentially on different threads, and the future
     // that is completed is completed before the span is finished, the order of those filters and the request processing
