@@ -67,7 +67,8 @@ public class TracedDelegatingConsumer implements Consumer {
       throws IOException {
     AgentScope scope = null;
     try {
-      AgentSpan span = RabbitDecorator.startReceivingSpan(propagate, 0, properties, body);
+      scope = RabbitDecorator.startReceivingSpan(propagate, 0, properties, body, queue);
+      AgentSpan span = scope.span();
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
       scope = activateSpan(span);
     } catch (final Exception e) {
@@ -85,7 +86,7 @@ public class TracedDelegatingConsumer implements Consumer {
         if (scope != null) {
           CONSUMER_DECORATE.beforeFinish(scope);
           scope.close();
-          RabbitDecorator.finishReceivingSpan(scope.span());
+          RabbitDecorator.finishReceivingSpan(scope);
         }
       }
     }

@@ -170,13 +170,16 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
         span.setTag("amqp.delivery_mode", deliveryMode);
       }
 
-      if (Config.get().isRabbitPropagationEnabled()
-          && !Config.get().isRabbitPropagationDisabledForDestination(exchange)) {
+      Config config = Config.get();
+      if (config.isRabbitPropagationEnabled()
+          && !config.isRabbitPropagationDisabledForDestination(exchange)) {
         // We need to copy the BasicProperties and provide a header map we can modify
         Map<String, Object> headers = props.getHeaders();
         headers = (headers == null) ? new HashMap<String, Object>() : new HashMap<>(headers);
+        if (!config.isRabbitLegacyTracingEnabled()) {
+          RabbitDecorator.injectTimeInQueueStart(headers);
+        }
         propagate().inject(span, headers, SETTER);
-
         props =
             new AMQP.BasicProperties(
                 props.getContentType(),
@@ -236,28 +239,26 @@ public class RabbitChannelInstrumentation extends Instrumenter.Tracing {
       if (callDepth > 0) {
         return;
       }
-
       final Connection connection = channel.getConnection();
       final Config config = Config.get();
       final boolean propagate =
           config.isRabbitPropagationEnabled()
               && !config.isRabbitPropagationDisabledForDestination(queue);
-      final AgentSpan span =
+      final AgentScope scope =
           RabbitDecorator.startReceivingSpan(
               propagate,
               spanStartMillis,
               null != response ? response.getProps() : null,
-              null != response ? response.getBody() : null);
+              null != response ? response.getBody() : null,
+              queue);
+      final AgentSpan span = scope.span();
       CONSUMER_DECORATE.setPeerPort(span, connection.getPort());
-      try (final AgentScope scope = activateSpan(span)) {
-        CONSUMER_DECORATE.onGet(span, queue);
-        CONSUMER_DECORATE.onPeerConnection(span, connection.getAddress());
-        CONSUMER_DECORATE.onError(span, throwable);
-        CONSUMER_DECORATE.beforeFinish(span);
-      } finally {
-        RabbitDecorator.finishReceivingSpan(span);
-        CallDepthThreadLocalMap.reset(Channel.class);
-      }
+      CONSUMER_DECORATE.onGet(span, queue);
+      CONSUMER_DECORATE.onPeerConnection(span, connection.getAddress());
+      CONSUMER_DECORATE.onError(span, throwable);
+      CONSUMER_DECORATE.beforeFinish(span);
+      RabbitDecorator.finishReceivingSpan(scope);
+      CallDepthThreadLocalMap.reset(Channel.class);
     }
   }
 
