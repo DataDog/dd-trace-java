@@ -49,7 +49,7 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
   @Override
   @Nonnull
   public OracleJdkRecordingData snapshot(@Nonnull final Instant start) {
-    log.warn("Taking recording snapshot for time range {} - {}", start, Instant.now());
+    log.debug("Taking recording snapshot for time range {} - {}", start, Instant.now());
     ObjectName targetName = recordingId;
     try {
       if (!(boolean) helper.getRecordingAttribute(targetName, "Running")) {
