@@ -22,7 +22,8 @@ class TraceAssert {
   private static final NAME_COMPARATOR = new Comparator<DDSpan>() {
     @Override
     int compare(DDSpan o1, DDSpan o2) {
-      return o1.spanName.toString() <=> o2.spanName.toString()
+      int compare = o1.spanName.toString() <=> o2.spanName.toString()
+      return compare != 0 ? compare : String.valueOf(o1.resourceName) <=> String.valueOf(o2.resourceName)
     }
   }
 
