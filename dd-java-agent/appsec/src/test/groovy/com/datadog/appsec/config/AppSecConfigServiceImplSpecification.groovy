@@ -1,28 +1,73 @@
 package com.datadog.appsec.config
 
+import com.datadog.appsec.util.AbortStartupException
 import datadog.communication.fleet.FleetService
 import datadog.communication.fleet.FleetServiceImpl
+import datadog.trace.api.Config
 import spock.lang.Specification
+
+import java.nio.file.Files
+import java.nio.file.Path
 
 class AppSecConfigServiceImplSpecification extends Specification {
 
   FleetServiceImpl fleetService = Mock()
-  AppSecConfigServiceImpl appSecConfigService = new AppSecConfigServiceImpl(fleetService)
+  Config config = Mock()
+  AppSecConfigServiceImpl appSecConfigService = new AppSecConfigServiceImpl(config, fleetService)
 
   void cleanup() {
     appSecConfigService.close()
   }
 
-  void 'init subscribes to the fleet service'() {
+  void 'init subscribes to the fleet service if given true as 2nd argument'() {
     when:
-    appSecConfigService.init()
+    appSecConfigService.init(true)
 
     then:
     1 * fleetService.subscribe(FleetService.Product.APPSEC, _)
   }
 
+  void 'can load from a different location'() {
+    setup:
+    Path p = Files.createTempFile('appsec', '.json')
+    p.toFile() << '{"waf": {"foo":"bar"}}'
+    AppSecConfigService.SubconfigListener listener = Mock()
+
+    when:
+    appSecConfigService.init(false)
+
+    then:
+    1 * config.getAppSecRulesFile() >> (p as String)
+    appSecConfigService.addSubConfigListener('waf', listener).get() == [foo: 'bar']
+  }
+
+  void 'aborts if alt config location does not exist'() {
+    when:
+    appSecConfigService.init(false)
+
+    then:
+    1 * config.getAppSecRulesFile() >> '/file/that/does/not/exist'
+    thrown AbortStartupException
+  }
+
+  void 'aborts if alt config file is not valid json'() {
+    setup:
+    Path p = Files.createTempFile('appsec', '.json')
+    p.toFile() << 'THIS IS NOT JSON'
+
+    when:
+    appSecConfigService.init(false)
+
+    then:
+    1 * config.getAppSecRulesFile() >> (p as String)
+    thrown AbortStartupException
+  }
+
   void 'provides initial subconfiguration upon subscription'() {
     AppSecConfigService.SubconfigListener listener = Mock()
+
+    setup:
+    appSecConfigService.init(false)
 
     expect:
     appSecConfigService.addSubConfigListener("waf", listener).get() instanceof Map
@@ -35,8 +80,8 @@ class AppSecConfigServiceImplSpecification extends Specification {
     def initialWafConfig
 
     when:
+    appSecConfigService.init(true)
     initialWafConfig = appSecConfigService.addSubConfigListener("waf", subconfigListener)
-    appSecConfigService.init()
 
     then:
     1 * fleetService.subscribe(FleetService.Product.APPSEC, _) >> {
@@ -69,7 +114,7 @@ class AppSecConfigServiceImplSpecification extends Specification {
       throw new RuntimeException('bar')
     } as AppSecConfigService.SubconfigListener)
     appSecConfigService.addSubConfigListener("foo", fooListener)
-    appSecConfigService.init()
+    appSecConfigService.init(true)
 
     then:
     1 * fleetService.subscribe(FleetService.Product.APPSEC, _) >> {

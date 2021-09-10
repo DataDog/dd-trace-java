@@ -5,4 +5,6 @@ import java.io.Closeable;
 
 public interface ReportService extends Closeable {
   void reportAttack(Attack010 attack);
+
+  void close();
 }

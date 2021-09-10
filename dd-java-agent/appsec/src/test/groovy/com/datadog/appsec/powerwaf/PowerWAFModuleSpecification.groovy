@@ -1,5 +1,6 @@
 package com.datadog.appsec.powerwaf
 
+import com.datadog.appsec.AppSecModule
 import com.datadog.appsec.event.ChangeableFlow
 import com.datadog.appsec.event.DataListener
 import com.datadog.appsec.event.data.CaseInsensitiveMap
@@ -22,7 +23,9 @@ class PowerWAFModuleSpecification extends Specification {
   DataListener listener
 
   private void setupWithStubConfigService() {
-    pwafModule.config(new StubAppSecConfigService())
+    def service = new StubAppSecConfigService()
+    service.init(false)
+    pwafModule.config(service)
     listener = pwafModule.dataSubscriptions.first()
   }
 
@@ -51,15 +54,15 @@ class PowerWAFModuleSpecification extends Specification {
 
     then:
     ctx.reportAttack(_ as Attack010) >> { attack = it[0] }
-    attack.blocked == Boolean.TRUE
+    attack.blocked == Boolean.FALSE
     attack.type == 'waf'
 
-    attack.rule.id == 'rule_ua_60012'
-    attack.rule.name == 'security_scanner-blocking'
+    attack.rule.id == 'ua0-600-12x'
+    attack.rule.name == 'security_scanner'
     attack.rule.set == 'waf'
 
     attack.ruleMatch.highlight == ['Arachni/v']
-    attack.ruleMatch.operator == '@rx'
+    attack.ruleMatch.operator == 'match_regex'
     attack.ruleMatch.operatorValue == '^Arachni\\/v'
     attack.ruleMatch.parameters == [
       new Parameter.ParameterBuilder()
@@ -103,9 +106,15 @@ class PowerWAFModuleSpecification extends Specification {
     def cfgService = new StubAppSecConfigService([waf: null])
 
     when:
+    cfgService.init(false)
     pwafModule.config(cfgService)
+
+    then:
+    thrown AppSecModule.AppSecModuleActivationException
+
+    when:
     listener = pwafModule.dataSubscriptions.first()
-    cfgService.listeners['waf'].onNewSubconfig(new StubAppSecConfigService().lastConfig['waf'])
+    cfgService.listeners['waf'].onNewSubconfig(defaultConfig['waf'])
     listener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
 
     then:
@@ -116,7 +125,13 @@ class PowerWAFModuleSpecification extends Specification {
     def cfgService = new StubAppSecConfigService([waf: [:]])
 
     when:
+    cfgService.init(false)
     pwafModule.config(cfgService)
+
+    then:
+    thrown AppSecModule.AppSecModuleActivationException
+
+    when:
     listener = pwafModule.dataSubscriptions.first()
     listener.onDataAvailable(Mock(ChangeableFlow), ctx, ATTACK_BUNDLE)
 
@@ -128,9 +143,19 @@ class PowerWAFModuleSpecification extends Specification {
     def confService = new StubAppSecConfigService(waf: [])
 
     when:
+    confService.init(false)
     pwafModule.config(confService)
 
     then:
+    thrown AppSecModule.AppSecModuleActivationException
+
+    then:
     pwafModule.ctx.get() == null
+  }
+
+  private Map<String, Object> getDefaultConfig() {
+    def service = new StubAppSecConfigService()
+    service.init(false)
+    service.lastConfig
   }
 }

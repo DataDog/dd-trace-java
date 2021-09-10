@@ -7,6 +7,7 @@ import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.StringKVPair;
 import com.datadog.appsec.report.ReportService;
 import com.datadog.appsec.report.raw.events.attack.Attack010;
+import com.datadog.appsec.util.StandardizedLogging;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.http.StoredBodySupplier;
 import java.io.Closeable;
@@ -47,6 +48,9 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
       Object prev = persistentData.putIfAbsent(entry.getKey(), entry.getValue());
       if (prev != null) {
         log.warn("Illegal attempt to replace context value for {}", entry.getKey());
+      }
+      if (log.isDebugEnabled()) {
+        StandardizedLogging.addressPushed(log, entry.getKey());
       }
     }
   }
@@ -182,6 +186,8 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
 
   @Override
   public void reportAttack(Attack010 attack) {
+    StandardizedLogging.attackDetected(log, attack);
+
     if (attack.getDetectedAt() == null) {
       attack.setDetectedAt(Instant.now());
     }

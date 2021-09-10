@@ -1,6 +1,7 @@
 package com.datadog.appsec.report;
 
 import com.datadog.appsec.util.AppSecVersion;
+import com.datadog.appsec.util.StandardizedLogging;
 import com.squareup.moshi.JsonAdapter;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.monitor.Counter;
@@ -108,7 +109,7 @@ public class AppSecApi {
         response = okHttpClient.newCall(request).execute();
       } catch (IOException e) {
         counter.incrementErrorCount(e.getMessage(), 1);
-        log.warn("Request to AppSec API failed with exception", e);
+        StandardizedLogging.attackReportingFailed(log, e);
         return;
       }
 
