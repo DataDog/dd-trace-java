@@ -71,6 +71,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE = 10000;
   static final boolean DEFAULT_PROFILING_AGENTLESS = false;
   static final boolean DEFAULT_PROFILING_LEGACY_TRACING_INTEGRATION = true;
+  static final boolean DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413 = false;
 
   static final boolean DEFAULT_APPSEC_ENABLED = false;
 

@@ -36,6 +36,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_FORCE_FIRST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_COMPRESSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_PERIOD;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
@@ -125,6 +126,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_TAGS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_COMPRESSION;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_ON_413;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
@@ -380,6 +382,7 @@ public class Config {
   private final int profilingExceptionHistogramMaxCollectionSize;
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingHotspotsEnabled;
+  private final boolean profilingUploadSummaryOn413Enabled;
 
   private final boolean appSecEnabled;
 
@@ -792,6 +795,10 @@ public class Config {
 
     // code hotspots are disabled by default because of potential perf overhead they can incur
     profilingHotspotsEnabled = configProvider.getBoolean(PROFILING_HOTSPOTS_ENABLED, false);
+
+    profilingUploadSummaryOn413Enabled =
+        configProvider.getBoolean(
+            PROFILING_UPLOAD_SUMMARY_ON_413, DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413);
 
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
 
@@ -1236,6 +1243,10 @@ public class Config {
 
   public boolean isProfilingHotspotsEnabled() {
     return profilingHotspotsEnabled;
+  }
+
+  public boolean isProfilingUploadSummaryOn413Enabled() {
+    return profilingUploadSummaryOn413Enabled;
   }
 
   public boolean isProfilingLegacyTracingIntegrationEnabled() {

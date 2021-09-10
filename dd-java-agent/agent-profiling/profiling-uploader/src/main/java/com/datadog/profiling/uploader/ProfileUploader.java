@@ -99,6 +99,7 @@ public final class ProfileUploader {
   private final OkHttpClient client;
   private final IOLogger ioLogger;
   private final boolean agentless;
+  private final boolean summaryOn413;
   private final String apiKey;
   private final String url;
   private final String containerId;
@@ -123,6 +124,7 @@ public final class ProfileUploader {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
     agentless = config.isProfilingAgentless();
+    summaryOn413 = config.isProfilingUploadSummaryOn413Enabled();
     this.ioLogger = ioLogger;
     this.containerId = containerId;
     this.terminationTimeout = terminationTimeout;
@@ -339,7 +341,7 @@ public final class ProfileUploader {
                     // if no API key and not found error we assume we're sending to the agent
                     ioLogger.error(
                         "Failed to upload profile. Datadog Agent is not accepting profiles. Agent-based profiling deployments require Datadog Agent >= 7.20");
-                  } else if (response.code() == 413) {
+                  } else if (response.code() == 413 && summaryOn413) {
                     ioLogger.error(
                         "Failed to upload profile, it's too big. Dumping information about the profile");
                     JfrCliHelper.invokeOn(data, ioLogger);
