@@ -20,6 +20,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DI
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
+import com.datadog.profiling.uploader.util.JfrCliHelper;
 import com.datadog.profiling.uploader.util.PidHelper;
 import datadog.common.container.ContainerInfo;
 import datadog.common.socket.UnixDomainSocketFactory;
@@ -94,68 +95,11 @@ public final class ProfileUploader {
       Headers.of(
           "Content-Disposition", "form-data; name=\"" + DATA_PARAM + "\"; filename=\"profile\"");
 
-  private static final class ResponseCallback implements Callback {
-
-    private final IOLogger ioLogger;
-
-    public ResponseCallback(final IOLogger ioLogger) {
-      this.ioLogger = ioLogger;
-    }
-
-    @Override
-    public void onFailure(final Call call, final IOException e) {
-      if (isEmptyReplyFromServer(e)) {
-        ioLogger.error(
-            "Received empty reply from " + call.request().url() + " after uploading profile");
-      } else {
-        ioLogger.error("Failed to upload profile to " + call.request().url(), e);
-      }
-    }
-
-    @Override
-    public void onResponse(final Call call, final Response response) {
-      if (response.isSuccessful()) {
-        ioLogger.success("Upload done");
-      } else {
-        final String apiKey = call.request().header(HEADER_DD_API_KEY);
-        if (response.code() == 404 && apiKey == null) {
-          // if no API key and not found error we assume we're sending to the agent
-          ioLogger.error(
-              "Datadog Agent is not accepting profiles. Agent-based profiling deployments require Datadog Agent >= 7.20");
-        }
-
-        ioLogger.error("Failed to upload profile", getLoggerResponse(response));
-      }
-      // Note: this whole callback never touches body and would be perfectly happy even if server
-      // never sends it.
-      response.close();
-    }
-
-    private static IOLogger.Response getLoggerResponse(final okhttp3.Response response) {
-      if (response != null) {
-        try {
-          return new IOLogger.Response(
-              response.code(), response.message(), response.body().string().trim());
-        } catch (final NullPointerException | IOException ignored) {
-        }
-      }
-      return null;
-    }
-
-    private static boolean isEmptyReplyFromServer(final IOException e) {
-      // The server in datadog-agent triggers 'unexpected end of stream' caused by EOFException.
-      // The MockWebServer in tests triggers an InterruptedIOException with SocketPolicy
-      // NO_RESPONSE. This is because in tests we can't cleanly terminate the connection on the
-      // server side without resetting.
-      return (e instanceof InterruptedIOException)
-          || (e.getCause() != null && e.getCause() instanceof java.io.EOFException);
-    }
-  }
-
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
-  private final Callback responseCallback;
+  private final IOLogger ioLogger;
   private final boolean agentless;
+  private final boolean summaryOn413;
   private final String apiKey;
   private final String url;
   private final String containerId;
@@ -180,7 +124,8 @@ public final class ProfileUploader {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
     agentless = config.isProfilingAgentless();
-    responseCallback = new ResponseCallback(ioLogger);
+    summaryOn413 = config.isProfilingUploadSummaryOn413Enabled();
+    this.ioLogger = ioLogger;
     this.containerId = containerId;
     this.terminationTimeout = terminationTimeout;
 
@@ -374,15 +319,42 @@ public final class ProfileUploader {
             new Callback() {
               @Override
               public void onFailure(Call call, IOException e) {
-                logDebug("Failed to upload profile");
-                responseCallback.onFailure(call, e);
+                if (isEmptyReplyFromServer(e)) {
+                  ioLogger.error(
+                      "Failed to upload profile, received empty reply from "
+                          + call.request().url()
+                          + " after uploading profile");
+                } else {
+                  ioLogger.error("Failed to upload profile to " + call.request().url(), e);
+                }
+
                 onCompletion.run();
               }
 
               @Override
               public void onResponse(Call call, Response response) throws IOException {
-                logDebug("Uploaded profile");
-                responseCallback.onResponse(call, response);
+                if (response.isSuccessful()) {
+                  ioLogger.success("Upload done");
+                } else {
+                  final String apiKey = call.request().header(HEADER_DD_API_KEY);
+                  if (response.code() == 404 && apiKey == null) {
+                    // if no API key and not found error we assume we're sending to the agent
+                    ioLogger.error(
+                        "Failed to upload profile. Datadog Agent is not accepting profiles. Agent-based profiling deployments require Datadog Agent >= 7.20");
+                  } else if (response.code() == 413 && summaryOn413) {
+                    ioLogger.error(
+                        "Failed to upload profile, it's too big. Dumping information about the profile");
+                    JfrCliHelper.invokeOn(data, ioLogger);
+                  } else {
+                    ioLogger.error("Failed to upload profile", getLoggerResponse(response));
+                  }
+                }
+
+                // Note: this whole callback never touches body and would be perfectly happy even if
+                // server
+                // never sends it.
+                response.close();
+
                 onCompletion.run();
               }
 
@@ -396,6 +368,28 @@ public final class ProfileUploader {
                       body.getReadBytes(),
                       body.getWrittenBytes());
                 }
+              }
+
+              private IOLogger.Response getLoggerResponse(final okhttp3.Response response) {
+                if (response != null) {
+                  try {
+                    return new IOLogger.Response(
+                        response.code(), response.message(), response.body().string().trim());
+                  } catch (final NullPointerException | IOException ignored) {
+                  }
+                }
+                return null;
+              }
+
+              private boolean isEmptyReplyFromServer(final IOException e) {
+                // The server in datadog-agent triggers 'unexpected end of stream' caused by
+                // EOFException.
+                // The MockWebServer in tests triggers an InterruptedIOException with SocketPolicy
+                // NO_RESPONSE. This is because in tests we can't cleanly terminate the connection
+                // on the
+                // server side without resetting.
+                return (e instanceof InterruptedIOException)
+                    || (e.getCause() != null && e.getCause() instanceof java.io.EOFException);
               }
             });
   }

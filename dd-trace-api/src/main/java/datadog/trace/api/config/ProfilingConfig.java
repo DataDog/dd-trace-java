@@ -55,5 +55,7 @@ public final class ProfilingConfig {
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
 
+  public static final String PROFILING_UPLOAD_SUMMARY_ON_413 = "profiling.upload.summary-on-413";
+
   private ProfilingConfig() {}
 }

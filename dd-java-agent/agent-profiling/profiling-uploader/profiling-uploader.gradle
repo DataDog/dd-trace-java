@@ -15,7 +15,10 @@ excludedClassesCoverage += [
   'com.datadog.profiling.uploader.ByteCountingInputStream',
   'com.datadog.profiling.uploader.ByteCountingOutputStream',
   // A call-back inner class holds few enough instructions to make not testing with different log levels to breach the jacoco limits
-  'com.datadog.profiling.uploader.ProfileUploader.1'
+  'com.datadog.profiling.uploader.ProfileUploader.1',
+  // When running on Java 8 without `jfr`, no code is executed
+  'com.datadog.profiling.uploader.util.JfrCliHelper',
+  'com.datadog.profiling.uploader.util.JfrCliHelper.Event'
 ]
 
 dependencies {
