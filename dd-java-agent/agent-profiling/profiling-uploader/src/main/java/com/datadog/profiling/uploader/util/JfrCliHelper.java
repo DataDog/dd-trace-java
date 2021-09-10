@@ -41,6 +41,7 @@ public class JfrCliHelper {
   private static Pattern columnSeparatorRegex = Pattern.compile("\\s+");
 
   public static void invokeOn(final RecordingData data, final IOLogger ioLogger) {
+    File tmp = null;
     try {
       Path jfr = Paths.get(System.getProperty("java.home"), "bin", "jfr");
       if (!Files.exists(jfr)) {
@@ -49,9 +50,7 @@ public class JfrCliHelper {
       }
 
       // Create temporary file to save recording to
-      File tmp = File.createTempFile("recording-", ".jfr");
-      // Make sure files don't accumulate on the host
-      tmp.deleteOnExit();
+      tmp = File.createTempFile("recording-", ".jfr");
 
       // Save recording to temporary file
       InputStream in = data.getStream();
@@ -86,6 +85,8 @@ public class JfrCliHelper {
         asyncRedirect.get();
 
         stdout = lineSeparatorRegex.split(out.toString());
+      } finally {
+        process.destroy();
       }
 
       // Skip metadata from stdout
@@ -134,6 +135,10 @@ public class JfrCliHelper {
     } catch (Exception e) {
       ioLogger.error("Failed to gather information on recording", e);
       return;
+    } finally {
+      if (tmp != null) {
+        tmp.delete();
+      }
     }
   }
 
