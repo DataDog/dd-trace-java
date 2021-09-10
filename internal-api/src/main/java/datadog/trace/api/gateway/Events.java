@@ -23,7 +23,7 @@ public final class Events {
 
   public static final int REQUEST_ENDED_ID = 1;
   /** A request ended * */
-  public static final EventType<Function<RequestContext, Flow<Void>>> REQUEST_ENDED =
+  public static final EventType<BiFunction<RequestContext, IGSpanInfo, Flow<Void>>> REQUEST_ENDED =
       new ET<>("request.ended", REQUEST_ENDED_ID);
 
   public static final int REQUEST_HEADER_ID = 2;
@@ -36,14 +36,16 @@ public final class Events {
   public static final EventType<Function<RequestContext, Flow<Void>>> REQUEST_HEADER_DONE =
       new ET<>("server.request.header.done", REQUEST_HEADER_DONE_ID);
 
-  public static final int REQUEST_URI_RAW_ID = 4;
-  /** The URIDataAdapter for the request. */
-  public static final EventType<BiFunction<RequestContext, URIDataAdapter, Flow<Void>>>
-      REQUEST_URI_RAW = new ET<>("server.request.uri.raw", REQUEST_URI_RAW_ID);
+  public static final int REQUEST_METHOD_URI_RAW_ID = 4;
+  /** The method (uppercase) and URIDataAdapter for the request. */
+  public static final EventType<
+          TriFunction<RequestContext, String /* method */, URIDataAdapter, Flow<Void>>>
+      REQUEST_METHOD_URI_RAW = new ET<>("server.request.method.uri.raw", REQUEST_METHOD_URI_RAW_ID);
 
-  public static final int REQUEST_CLIENT_IP_ID = 5;
-  public static final EventType<BiFunction<RequestContext, String, Flow<Void>>> REQUEST_CLIENT_IP =
-      new ET<>("http.server.client_ip", REQUEST_CLIENT_IP_ID);
+  public static final int REQUEST_CLIENT_SOCKET_ADDRESS_ID = 5;
+  public static final EventType<TriFunction<RequestContext, String, Integer, Flow<Void>>>
+      REQUEST_CLIENT_SOCKET_ADDRESS =
+          new ET<>("http.server.client_socket_address", REQUEST_CLIENT_SOCKET_ADDRESS_ID);
 
   public static final int REQUEST_BODY_START_ID = 6;
   /** The request body has started being read */

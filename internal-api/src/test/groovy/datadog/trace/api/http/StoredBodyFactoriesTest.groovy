@@ -1,7 +1,9 @@
 package datadog.trace.api.http
 
 import datadog.trace.api.function.BiFunction
+import datadog.trace.api.function.Supplier
 import datadog.trace.api.gateway.Events
+import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.InstrumentationGateway
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -32,6 +34,7 @@ class StoredBodyFactoriesTest extends DDSpecification {
     expect:
     StoredBodyFactories.maybeCreateForByte(null, null) == null
     StoredBodyFactories.maybeCreateForChar(null) == null
+    StoredBodyFactories.maybeDeliverBodyInOneGo('').is(Flow.ResultFlow.empty())
   }
 
   void 'no active context'() {
@@ -40,9 +43,10 @@ class StoredBodyFactoriesTest extends DDSpecification {
     when:
     StoredBodyFactories.maybeCreateForByte(null, null) == null
     StoredBodyFactories.maybeCreateForChar(null) == null
+    StoredBodyFactories.maybeDeliverBodyInOneGo('').is(Flow.ResultFlow.empty())
 
     then:
-    2 * agentSpan.requestContext >> null
+    3 * agentSpan.requestContext >> null
   }
 
   void 'no IG callbacks'() {
@@ -51,13 +55,18 @@ class StoredBodyFactoriesTest extends DDSpecification {
     when:
     StoredBodyFactories.maybeCreateForByte(null, null) == null
     StoredBodyFactories.maybeCreateForChar(null) == null
+    StoredBodyFactories.maybeDeliverBodyInOneGo('').is(Flow.ResultFlow.empty())
 
     then:
-    2 * agentSpan.requestContext >> requestContext
+    3 * agentSpan.requestContext >> requestContext
   }
 
   void 'everything needed provided'() {
     agentSpan = Mock()
+    def mockRequestBodyStart = Mock(BiFunction)
+    def mockRequestBodyDone = Mock(BiFunction)
+    StoredBodySupplier bodySupplier1, bodySupplier2
+    Flow mockFlow = Mock()
 
     when:
     StoredBodyFactories.maybeCreateForByte(null, null) != null
@@ -67,6 +76,47 @@ class StoredBodyFactoriesTest extends DDSpecification {
     2 * agentSpan.requestContext >> requestContext
     2 * ig.getCallback(Events.REQUEST_BODY_START) >> Mock(BiFunction)
     2 * ig.getCallback(Events.REQUEST_BODY_DONE) >> Mock(BiFunction)
+
+    when:
+    Flow f = StoredBodyFactories.maybeDeliverBodyInOneGo({ 'body' } as Supplier<CharSequence>)
+
+    then:
+    1 * agentSpan.requestContext >> requestContext
+    1 * ig.getCallback(Events.REQUEST_BODY_START) >> mockRequestBodyStart
+    1 * ig.getCallback(Events.REQUEST_BODY_DONE) >> mockRequestBodyDone
+    1 * mockRequestBodyStart.apply(requestContext, _ as StoredBodySupplier) >> {
+      bodySupplier1 = it[1]
+      null
+    }
+    1 * mockRequestBodyDone.apply(requestContext, _ as StoredBodySupplier) >> {
+      bodySupplier2 = it[1]
+      mockFlow
+    }
+    bodySupplier1.is(bodySupplier2)
+    bodySupplier2.get() == 'body'
+    f.is(mockFlow)
+  }
+
+  void 'everything needed provided delivery in one go string variant'() {
+    agentSpan = Mock()
+    def mockRequestBodyStart = Mock(BiFunction)
+    def mockRequestBodyDone = Mock(BiFunction)
+    StoredBodySupplier bodySupplier
+    Flow mockFlow = Mock()
+
+    when:
+    Flow f = StoredBodyFactories.maybeDeliverBodyInOneGo('body')
+
+    then:
+    1 * agentSpan.requestContext >> requestContext
+    1 * ig.getCallback(Events.REQUEST_BODY_START) >> mockRequestBodyStart
+    1 * ig.getCallback(Events.REQUEST_BODY_DONE) >> mockRequestBodyDone
+    1 * mockRequestBodyDone.apply(requestContext, _ as StoredBodySupplier) >> {
+      bodySupplier = it[1]
+      mockFlow
+    }
+    bodySupplier.get() == 'body'
+    f.is(mockFlow)
   }
 
   void 'with correct content length'() {
@@ -75,6 +125,19 @@ class StoredBodyFactoriesTest extends DDSpecification {
     when:
     StoredBodyFactories.maybeCreateForByte(null, '1') != null
     StoredBodyFactories.maybeCreateForChar('1') != null
+
+    then:
+    2 * agentSpan.requestContext >> requestContext
+    2 * ig.getCallback(Events.REQUEST_BODY_START) >> Mock(BiFunction)
+    2 * ig.getCallback(Events.REQUEST_BODY_DONE) >> Mock(BiFunction)
+  }
+
+  void 'with correct content length int version'() {
+    agentSpan = Mock()
+
+    when:
+    StoredBodyFactories.maybeCreateForByte(null, 1) != null
+    StoredBodyFactories.maybeCreateForChar(1) != null
 
     then:
     2 * agentSpan.requestContext >> requestContext

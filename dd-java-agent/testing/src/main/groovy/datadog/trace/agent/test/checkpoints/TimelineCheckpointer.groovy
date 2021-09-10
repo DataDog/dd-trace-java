@@ -28,7 +28,7 @@ class TimelineCheckpointer implements Checkpointer {
   }
 
   @Override
-  void onRootSpan(String endpoint, DDId traceId, boolean published) {
+  void onRootSpan(AgentSpan rootSpan, boolean published) {
   }
 
   void throwOnInvalidSequence(Collection<DDId> trackedSpanIds) {

@@ -1,17 +1,16 @@
 package datadog.trace.bootstrap.instrumentation.jms;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 /** Tracks message scopes and spans when consuming messages with {@code receive}. */
 public final class MessageConsumerState {
 
   private final SessionState sessionState;
-  private final UTF8BytesString resourceName;
+  private final CharSequence resourceName;
   private final boolean propagationDisabled;
 
   public MessageConsumerState(
-      SessionState sessionState, UTF8BytesString resourceName, boolean propagationDisabled) {
+      SessionState sessionState, CharSequence resourceName, boolean propagationDisabled) {
     this.sessionState = sessionState;
     this.resourceName = resourceName;
     this.propagationDisabled = propagationDisabled;
@@ -21,7 +20,7 @@ public final class MessageConsumerState {
     return sessionState;
   }
 
-  public UTF8BytesString getResourceName() {
+  public CharSequence getResourceName() {
     return resourceName;
   }
 

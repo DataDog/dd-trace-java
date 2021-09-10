@@ -22,7 +22,7 @@ public class MapDataBundle implements DataBundle {
   }
 
   public static <T, U> MapDataBundle of(Address<T> addr1, T value1, Address<U> addr2, U value2) {
-    Map<Address<?>, Object> map = new IdentityHashMap<>();
+    Map<Address<?>, Object> map = new IdentityHashMap<>(4);
     map.put(addr1, value1);
     map.put(addr2, value2);
     return new MapDataBundle(map);
@@ -30,7 +30,7 @@ public class MapDataBundle implements DataBundle {
 
   public static <T, U, V> MapDataBundle of(
       Address<T> addr1, T value1, Address<U> addr2, U value2, Address<V> addr3, V value3) {
-    Map<Address<?>, Object> map = new IdentityHashMap<>();
+    Map<Address<?>, Object> map = new IdentityHashMap<>(8);
     map.put(addr1, value1);
     map.put(addr2, value2);
     map.put(addr3, value3);
@@ -64,7 +64,18 @@ public class MapDataBundle implements DataBundle {
 
   public static class Builder {
 
-    private final Map<Address<?>, Object> map = new IdentityHashMap<>();
+    private final Map<Address<?>, Object> map;
+
+    public static final int CAPACITY_0_2 = 4;
+    public static final int CAPACITY_3_4 = 8;
+    public static final int CAPACITY_6_10 = 16;
+    public static final int CAPACITY_11_21 = 32;
+    public static final int CAPACITY_22_42 = 64;
+
+    /** @param capacity 2^ceil(log2(ceil(expected_elements 3/2))) */
+    public Builder(int capacity) {
+      map = new IdentityHashMap<>(capacity);
+    }
 
     public <A extends Address<?>, V> Builder add(A address, V value) {
       map.put(address, value);

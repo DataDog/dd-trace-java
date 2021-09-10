@@ -5,6 +5,7 @@ import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import spock.lang.Specification
 
+import java.nio.ByteBuffer
 import java.nio.charset.Charset
 
 class StoredByteBodyTest extends Specification {
@@ -16,6 +17,7 @@ class StoredByteBodyTest extends Specification {
 
   void 'basic test with no buffer extension'() {
     storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
+    Flow mockFlow = Mock()
 
     when:
     storedByteBody.appendData((int) 'a') // not "as int"
@@ -25,11 +27,12 @@ class StoredByteBodyTest extends Specification {
 
     when:
     storedByteBody.appendData([(int)'a']* 127 as byte[], 0, 127)
-    storedByteBody.maybeNotify()
+    def flow = storedByteBody.maybeNotify()
 
     then:
-    1 * endCb.apply(requestContext, storedByteBody)
+    1 * endCb.apply(requestContext, storedByteBody) >> mockFlow
     storedByteBody.get() as String == 'a' * 128
+    flow.is(mockFlow)
   }
 
   void 'test store limit'() {
@@ -171,5 +174,40 @@ class StoredByteBodyTest extends Specification {
 
     then:
     storedByteBody.get() as String == '\u00C3\u00A1' * 16 + "\u0080\u0080"
+  }
+
+  void 'bytebuffer append variant'() {
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
+    StoredByteBody.ByteBufferWriteCallback mockCb = Mock()
+    def iteration = 1
+
+    when:
+    storedByteBody.appendData(mockCb, 68)
+
+    then:
+    mockCb.put(_) >> {
+      ByteBuffer bb = it[0]
+      if (iteration++ == 1) {
+        assert bb.remaining() == 64
+        bb.put(('a' * 64).getBytes('ISO-8859-1'))
+      } else {
+        assert bb.remaining() == 4
+        bb.put('0123'.getBytes('ISO-8859-1'))
+      }
+    }
+    storedByteBody.get() as String == ('a' * 64) + '0123'
+  }
+
+  void 'byte append variant is skipped after store limit'() {
+    storedByteBody = new StoredByteBody(requestContext, startCb, endCb, null, 0)
+    StoredByteBody.ByteBufferWriteCallback mockCb = Mock()
+
+    when:
+    storedByteBody.appendData([(int)'a']* 128 * 1024 as byte[], 0, 128 * 1024)
+    storedByteBody.get() // force commit
+    storedByteBody.appendData(mockCb, 1)
+
+    then:
+    0 * mockCb._(*_)
   }
 }

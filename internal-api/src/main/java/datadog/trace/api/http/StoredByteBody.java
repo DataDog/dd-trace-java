@@ -56,6 +56,38 @@ public class StoredByteBody implements StoredBodySupplier {
     storedCharBody.maybeNotifyStart();
   }
 
+  /**
+   * Writes up to <code>len</code> bytes, in general through several invocations of the callback
+   * <code>cb</code>. The callback must write exactly <code>undecodedData.remaining()</code> bytes
+   * on each invocation. The limit of <code>undecodedData</code> passed to the callback will be
+   * adjusted in the last iteration, if necessary.
+   *
+   * @param cb the callback used to write directly into undecodedData
+   * @param len the amount of data available to write
+   */
+  public synchronized void appendData(ByteBufferWriteCallback cb, int len) {
+    for (int i = 0; i < len; ) {
+      if (storedCharBody.isLimitReached()) {
+        return;
+      }
+      if (!undecodedData.hasRemaining()) {
+        commit(false);
+      }
+      int left = len - i;
+      int remainingInUndecoded = undecodedData.remaining();
+      if (remainingInUndecoded > left) {
+        undecodedData.limit(left);
+        i += left;
+      } else {
+        i += remainingInUndecoded;
+      }
+      cb.put(undecodedData);
+    }
+    undecodedData.limit(undecodedData.capacity());
+
+    storedCharBody.maybeNotifyStart();
+  }
+
   public synchronized void appendData(int byteValue) {
     if (storedCharBody.isLimitReached()) {
       return;
@@ -76,9 +108,9 @@ public class StoredByteBody implements StoredBodySupplier {
     this.charsetDecoder = ThreadLocalCoders.decoderFor(charset);
   }
 
-  public void maybeNotify() {
+  public Flow<Void> maybeNotify() {
     commit(true);
-    storedCharBody.maybeNotify();
+    return storedCharBody.maybeNotify();
   }
 
   @Override
@@ -136,6 +168,20 @@ public class StoredByteBody implements StoredBodySupplier {
       // & to reverse the sign extension on the int promotion
       this.storedCharBody.appendData(utf8Encoded.get(i) & 0xFF);
     }
+  }
+
+  public interface ByteBufferWriteCallback {
+    /**
+     * Asks the callback of {@link StoredByteBody#appendData(ByteBufferWriteCallback, int)} to write
+     * exactly <code>undecodedData.remaining()</code> bytes into the passed <code>ByteBuffer</code>.
+     * This amount of bytes will never be larger that the amount of data yet to be written; put
+     * another way, for one invocation of <code>appendData(cb, n)</code>, the sum of the values of
+     * <code>undecodedData.remaining()</code> for the several <code>cb</code> calls will be <code>n
+     * </code> (or zero, if alternatively, cb is never invoked by <code>appendData</code>).
+     *
+     * @param undecodedData the buffer to write into
+     */
+    void put(ByteBuffer undecodedData);
   }
 }
 

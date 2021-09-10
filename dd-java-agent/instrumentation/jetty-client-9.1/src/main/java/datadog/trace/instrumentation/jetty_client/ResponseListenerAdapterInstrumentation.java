@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jetty_client;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 
 import com.google.auto.service.AutoService;
@@ -23,7 +22,9 @@ public final class ResponseListenerAdapterInstrumentation extends Instrumenter.T
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.eclipse.jetty.client.api.Response$Listener$Adapter");
+    return namedOneOf(
+        "org.eclipse.jetty.client.api.Response$Listener$Adapter",
+        "org.eclipse.jetty.client.api.Response$Listener");
   }
 
   @Override
@@ -52,6 +53,9 @@ public final class ResponseListenerAdapterInstrumentation extends Instrumenter.T
       if (null != request) {
         AgentSpan span = InstrumentationContext.get(Request.class, AgentSpan.class).get(request);
         if (null != span) {
+          // This might get called twice on a thread for both onBegin and onFailure,
+          // but there are other cases where only one or the other is called,
+          // so we err on the side of extra invocations.
           span.finishThreadMigration();
         }
       }

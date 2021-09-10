@@ -85,6 +85,9 @@ public final class PreparedStatementInstrumentation
     "org.postgresql.jdbc.PgCallableStatement",
     "postgresql.PreparedStatement",
     "postgresql.CallableStatement",
+    // EDB version of postgresql
+    "com.edb.jdbc.PgPreparedStatement",
+    "com.edb.jdbc.PgCallableStatement",
     // should completely cover sqlite
     "org.sqlite.jdbc3.JDBC3PreparedStatement",
     "org.sqlite.jdbc4.JDBC4PreparedStatement",

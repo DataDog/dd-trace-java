@@ -1,7 +1,6 @@
 package datadog.trace.core.jfr.openjdk;
 
 import datadog.trace.api.Checkpointer;
-import datadog.trace.api.DDId;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.sampling.AdaptiveSampler;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -32,11 +31,11 @@ public class JFRCheckpointer implements Checkpointer {
     this(ConfigProvider.getInstance());
   }
 
-  JFRCheckpointer(ConfigProvider configProvider) {
+  JFRCheckpointer(final ConfigProvider configProvider) {
     this(prepareSampler(configProvider), configProvider);
   }
 
-  JFRCheckpointer(AdaptiveSampler sampler, ConfigProvider configProvider) {
+  JFRCheckpointer(final AdaptiveSampler sampler, final ConfigProvider configProvider) {
     ExcludedVersions.checkVersionExclusion();
     // Note: Loading CheckpointEvent when JFRCheckpointer is loaded is important because it also
     // loads JFR classes - which may not be present on some JVMs
@@ -44,7 +43,7 @@ public class JFRCheckpointer implements Checkpointer {
     EventType.getEventType(EndpointEvent.class);
     EventType.getEventType(CheckpointSummaryEvent.class);
 
-    this.rateLimit = getRateLimit(configProvider);
+    rateLimit = getRateLimit(configProvider);
     this.sampler = sampler;
 
     if (sampler != null) {
@@ -57,13 +56,13 @@ public class JFRCheckpointer implements Checkpointer {
     if (sampler != null) {
       tryEmitCheckpoint(span, flags);
     } else {
-      emitCheckpoint(span.getTraceId(), span.getSpanId(), flags);
+      emitCheckpoint(span, flags);
     }
   }
 
-  private void tryEmitCheckpoint(AgentSpan span, int flags) {
-    boolean checkpointed;
-    Boolean isEmitting = span.isEmittingCheckpoints();
+  private void tryEmitCheckpoint(final AgentSpan span, final int flags) {
+    final boolean checkpointed;
+    final Boolean isEmitting = span.isEmittingCheckpoints();
     if (isEmitting == null) {
       /*
       While this branch is race-prone under general circumstances here we can safely ignore it.
@@ -94,14 +93,16 @@ public class JFRCheckpointer implements Checkpointer {
       checkpointed = sampler.drop();
     }
     if (checkpointed) {
-      emitCheckpoint(span.getTraceId(), span.getSpanId(), flags);
+      emitCheckpoint(span, flags);
     } else {
       dropCheckpoint();
     }
   }
 
-  void emitCheckpoint(DDId traceId, DDId spanId, int flags) {
-    new CheckpointEvent(traceId.toLong(), spanId.toLong(), flags & MASK).commit();
+  void emitCheckpoint(final AgentSpan span, final int flags) {
+    AgentSpan rootSpan = span.getLocalRootSpan();
+    new CheckpointEvent(rootSpan.getSpanId().toLong(), span.getSpanId().toLong(), flags & MASK)
+        .commit();
     emitted.increment();
   }
 
@@ -110,16 +111,18 @@ public class JFRCheckpointer implements Checkpointer {
   }
 
   @Override
-  public final void onRootSpan(final String endpoint, final DDId traceId, boolean published) {
-    new EndpointEvent(endpoint, traceId.toLong(), published).commit();
+  public final void onRootSpan(final AgentSpan rootSpan, final boolean published) {
+    new EndpointEvent(
+            rootSpan.getResourceName().toString(), rootSpan.getSpanId().toLong(), published)
+        .commit();
   }
 
   private void emitSummary() {
     new CheckpointSummaryEvent(rateLimit, emitted.sumThenReset(), dropped.sumThenReset()).commit();
   }
 
-  private static AdaptiveSampler prepareSampler(ConfigProvider configProvider) {
-    int limit = getRateLimit(configProvider);
+  private static AdaptiveSampler prepareSampler(final ConfigProvider configProvider) {
+    final int limit = getRateLimit(configProvider);
     if (limit <= 0) {
       // adaptive sampling disabled
       log.debug("Checkpoint adaptive sampling is disabled");
@@ -134,7 +137,7 @@ public class JFRCheckpointer implements Checkpointer {
     almost always 'overshot' by a large margin.
     '0.6' seems to be the magic number to do the trick ...
     */
-    float limitPerMs = limit / 100000f; // (limit * 0.6f) / (60 * 1000)
+    final float limitPerMs = limit / 100000f; // (limit * 0.6f) / (60 * 1000)
     float samplesPerWindow = limitPerMs * windowSize.toMillis();
 
     if (samplesPerWindow < 1) {
@@ -149,7 +152,7 @@ public class JFRCheckpointer implements Checkpointer {
     return new AdaptiveSampler(windowSize, (int) samplesPerWindow, SAMPLER_LOOKBACK);
   }
 
-  private static int getRateLimit(ConfigProvider configProvider) {
+  private static int getRateLimit(final ConfigProvider configProvider) {
     return configProvider.getInteger(
         ProfilingConfig.PROFILING_CHECKPOINTS_RATE_LIMIT,
         ProfilingConfig.PROFILING_CHECKPOINTS_RATE_LIMIT_DEFAULT);

@@ -112,7 +112,7 @@ abstract class DDSpecification extends Specification {
   void setupSpec() {
     assert !configModificationFailed: "Config class modification failed.  Ensure all test classes extend DDSpecification"
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
-    assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+    assert nonAppSecSystemProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (getDDThreads().isEmpty()) {
       ignoreThreadCleanup = false
@@ -128,7 +128,7 @@ abstract class DDSpecification extends Specification {
     restoreProperties()
 
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
-    assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+    assert nonAppSecSystemProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
       rebuildConfig()
@@ -137,11 +137,16 @@ abstract class DDSpecification extends Specification {
     checkThreads()
   }
 
+  private Map<Object, Object> nonAppSecSystemProperties() {
+    System.getProperties()
+      .findAll { key, value -> key as String != 'dd.appsec.enabled' }
+  }
+
   void setup() {
     restoreProperties()
 
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
-    assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+    assert nonAppSecSystemProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
       rebuildConfig()
@@ -152,7 +157,7 @@ abstract class DDSpecification extends Specification {
     restoreProperties()
 
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
-    assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+    assert nonAppSecSystemProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
     if (isConfigInstanceModifiable) {
       rebuildConfig()

@@ -1,11 +1,9 @@
-import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator
 import spock.lang.Timeout
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 
 @Timeout(5)
-class HttpUrlConnectionConnectFirstTest extends HttpClientTest {
+class HttpUrlConnectionConnectFirstTest extends HttpUrlConnectionTest {
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
@@ -18,24 +16,20 @@ class HttpUrlConnectionConnectFirstTest extends HttpClientTest {
       connection.readTimeout = READ_TIMEOUT_MS
       def parentSpan = activeScope()
       connection.connect() // test connect before getting stream
-      def stream = connection.inputStream
+      def stream
+      try {
+        stream = connection.inputStream
+      } catch (Exception ex) {
+        stream = connection.errorStream
+        ex.printStackTrace()
+      }
       assert activeScope() == parentSpan
-      stream.readLines()
-      stream.close()
+      stream?.readLines()
+      stream?.close()
       callback?.call()
       return connection.getResponseCode()
     } finally {
       connection.disconnect()
     }
-  }
-
-  @Override
-  CharSequence component() {
-    return HttpUrlConnectionDecorator.DECORATE.component()
-  }
-
-  @Override
-  boolean testCircularRedirects() {
-    false
   }
 }

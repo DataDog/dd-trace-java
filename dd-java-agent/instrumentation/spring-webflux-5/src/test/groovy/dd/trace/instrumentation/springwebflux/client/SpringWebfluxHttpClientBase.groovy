@@ -59,9 +59,9 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
 
   @Override
   // parent spanRef must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void clientSpan(TraceAssert trace, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, Throwable exception = null) {
+  void clientSpan(TraceAssert trace, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, boolean error = false, Throwable exception = null) {
     def leafParentId = trace.spanAssertCount.get()
-    super.clientSpan(trace, parentSpan, method, renameService, tagQueryString, uri, status, exception)
+    super.clientSpan(trace, parentSpan, method, renameService, tagQueryString, uri, status, error, exception)
     if (!exception) {
       trace.span {
         childOf(trace.span(leafParentId))
@@ -71,7 +71,7 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
         operationName "netty.client.request"
         resourceName "$method $uri.path"
         spanType DDSpanTypes.HTTP_CLIENT
-        errored exception != null
+        errored error
         measured true
         tags {
           "$Tags.COMPONENT" NettyHttpClientDecorator.DECORATE.component()
