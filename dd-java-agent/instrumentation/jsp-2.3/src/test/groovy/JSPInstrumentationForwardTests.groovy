@@ -32,6 +32,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$forwardFromFileName"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
@@ -131,6 +132,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToHtml.jsp"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
@@ -197,6 +199,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToIncludeMulti.jsp"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
@@ -347,6 +350,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToJspForward.jsp"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
@@ -469,6 +473,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToCompileError.jsp"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
             "servlet.context" "/$jspWebappContext"
@@ -552,6 +557,7 @@ class JSPInstrumentationForwardTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToNonExistent.jsp"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 404
             "servlet.context" "/$jspWebappContext"

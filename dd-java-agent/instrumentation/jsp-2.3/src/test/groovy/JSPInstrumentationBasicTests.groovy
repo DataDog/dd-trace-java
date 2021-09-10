@@ -34,6 +34,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$jspFileName"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
@@ -107,6 +108,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/getQuery.jsp"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
@@ -177,6 +179,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/post.jsp"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
@@ -244,6 +247,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$jspFileName"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
             "servlet.context" "/$jspWebappContext"
@@ -330,6 +334,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/includes/includeHtml.jsp"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
@@ -396,6 +401,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/includes/includeMulti.jsp"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"
@@ -516,6 +522,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$jspFileName"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
             "servlet.context" "/$jspWebappContext"
@@ -578,6 +585,7 @@ class JSPInstrumentationBasicTests extends JSPTestBase {
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$staticFile"
+            "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "servlet.context" "/$jspWebappContext"

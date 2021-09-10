@@ -295,7 +295,7 @@ jobs:
 
   smoke_tests:
     <<: *base_tests
-    resource_class: medium
+    resource_class: medium+
 
     docker:
       - image: *default_container

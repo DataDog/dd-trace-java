@@ -13,6 +13,7 @@
            "runtime-id" "fc5c927a-eb1a-4498-af46-731a5f2b0ce1"
            "version" "99"
            "http.url" "http://localhost:57690/connect/0"
+           "http.hostname" "localhost"
            "component" "liberty-server"
            "thread.name" "Default Executor-thread-2"
            "peer.ipv4" "127.0.0.1"

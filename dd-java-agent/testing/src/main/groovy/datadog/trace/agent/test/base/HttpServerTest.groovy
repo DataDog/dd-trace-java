@@ -916,6 +916,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           }
           "$Tags.PEER_HOST_IPV4" { it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body) }
         }
+        "$Tags.HTTP_HOSTNAME" address.host
         "$Tags.HTTP_URL" "$expectedUrl"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" expectedStatus
