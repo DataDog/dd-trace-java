@@ -85,7 +85,7 @@ class EventEnrichmentSpecification extends DDSpecification {
       }
       with(span) {
         contextVersion == '0.1.0'
-        id == spanId.toHexStringOrOriginal()
+        id == spanId.toString()
       }
       with(tags) {
         contextVersion == '0.1.0'
@@ -93,7 +93,7 @@ class EventEnrichmentSpecification extends DDSpecification {
       }
       with(trace) {
         contextVersion == '0.1.0'
-        id == traceId.toHexStringOrOriginal()
+        id == traceId.toString()
       }
       with(tracer) {
         contextVersion == '0.1.0'
