@@ -208,7 +208,7 @@ public class EventEnrichment {
       if (spanId == null) {
         spanId = DDId.ZERO;
       }
-      span.setId(spanId.toHexStringOrOriginal());
+      span.setId(spanId.toString());
     }
 
     Tags010 tags = (Tags010) eventCtx.getTags();
@@ -241,7 +241,7 @@ public class EventEnrichment {
       if (traceId == null) {
         traceId = DDId.ZERO;
       }
-      trace.setId(traceId.toHexStringOrOriginal());
+      trace.setId(traceId.toString());
     }
 
     Host010 host = (Host010) eventCtx.getHost();
