@@ -32,7 +32,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   public static final String CHECKPOINTED_TAG = "checkpointed";
 
   static DDSpan create(final long timestampMicro, @Nonnull DDSpanContext context) {
-    final DDSpan span = new DDSpan(timestampMicro, context);
+    return create(timestampMicro, context, true);
+  }
+
+  static DDSpan create(
+      final long timestampMicro, @Nonnull DDSpanContext context, boolean emitCheckpoints) {
+    final DDSpan span = new DDSpan(timestampMicro, context, emitCheckpoints);
     log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
     return span;
@@ -68,6 +73,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   // Marked as volatile to assure proper publication to child spans executed on different threads
   volatile Boolean emittingCheckpoints = null;
 
+  private final boolean withCheckpoints;
+
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
@@ -75,7 +82,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
    * @param context the context used for the span
    */
   private DDSpan(final long timestampMicro, @Nonnull DDSpanContext context) {
+    this(timestampMicro, context, true);
+  }
+
+  private DDSpan(
+      final long timestampMicro, @Nonnull DDSpanContext context, boolean emitLocalCheckpoints) {
     this.context = context;
+    this.withCheckpoints = emitLocalCheckpoints;
 
     if (timestampMicro <= 0L) {
       // record the start time
@@ -200,6 +213,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     be emitted at all.
     */
     return getLocalRootSpan().emittingCheckpoints;
+  }
+
+  @Override
+  public boolean hasCheckpoints() {
+    return withCheckpoints;
   }
 
   /**
@@ -416,17 +434,23 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public void startThreadMigration() {
-    context.getTracer().onStartThreadMigration(this);
+    if (hasCheckpoints()) {
+      context.getTracer().onStartThreadMigration(this);
+    }
   }
 
   @Override
   public void finishThreadMigration() {
-    context.getTracer().onFinishThreadMigration(this);
+    if (hasCheckpoints()) {
+      context.getTracer().onFinishThreadMigration(this);
+    }
   }
 
   @Override
   public void finishWork() {
-    context.getTracer().onFinishWork(this);
+    if (hasCheckpoints()) {
+      context.getTracer().onFinishWork(this);
+    }
   }
 
   @Override

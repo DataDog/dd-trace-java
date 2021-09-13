@@ -323,7 +323,7 @@ class ScopeEventTest extends DDSpecification {
     tracer.registerCheckpointer(new JFRCheckpointer(null, ConfigProvider.getInstance()))
 
     when: "span goes through lifecycle without activation"
-    AgentSpan span = tracer.startSpan("test")
+    AgentSpan span = tracer.startSpan("test", true)
     span.startThreadMigration()
     span.finishThreadMigration()
     span.setResourceName("foo")

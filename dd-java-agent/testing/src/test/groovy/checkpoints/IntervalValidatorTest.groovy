@@ -20,6 +20,17 @@ class IntervalValidatorTest extends Specification {
     tracker.endSequence()
   }
 
+  def "start endtask endspan"() {
+    expect:
+    tracker.startSpan(1L)
+    tracker.suspendSpan(1L)
+    tracker.resumeSpan(1L)
+    tracker.endTask(1L)
+    tracker.resumeSpan(1L)
+    tracker.endSpan(1L)
+    tracker.endSequence()
+  }
+
   def "end span on other thread"() {
     expect:
     tracker.startSpan(1L)
@@ -137,5 +148,19 @@ class IntervalValidatorTest extends Specification {
     // tracker.endTask(2L)         // T1
     tracker.endSpan(2L)            // T2
     // tracker.endSpan(1L)         // T1
+  }
+
+  def "interleaving intervals with suspend on the same thread"() {
+    expect:
+    tracker.startSpan(1L)
+    tracker.suspendSpan(1L)
+    tracker.startSpan(2L)
+    tracker.suspendSpan(2L)
+    tracker.resumeSpan(1L)
+    tracker.endTask(1L)
+    tracker.resumeSpan(1L)
+    tracker.endSpan(1L)
+    tracker.resumeSpan(2L)
+    tracker.endSpan(2L)
   }
 }

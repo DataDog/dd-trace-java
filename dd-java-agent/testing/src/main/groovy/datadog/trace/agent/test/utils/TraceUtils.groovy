@@ -32,7 +32,7 @@ class TraceUtils {
   }
 
   static <T> T runUnderTrace(final String rootOperationName, final boolean inheritCurrent, final Callable<T> r) {
-    final AgentSpan span = inheritCurrent ? startSpan(rootOperationName) : startSpan(rootOperationName, null)
+    final AgentSpan span = inheritCurrent ? startSpan(rootOperationName, true) : startSpan(rootOperationName, null, true)
     DECORATOR.afterStart(span)
 
     AgentScope scope = activateSpan(span)

@@ -39,7 +39,7 @@ class GrizzlyByteBodyInstrumentationTest extends AgentTestRunner {
     RequestContext requestContext = Mock()
     TagContext ctx = Mock(TagContext)
     _ * ctx.requestContext >> requestContext
-    def agentSpan = AgentTracer.startSpan('test-span', ctx)
+    def agentSpan = AgentTracer.startSpan('test-span', ctx, true)
     this.scope = AgentTracer.activateSpan(agentSpan)
 
     ig.registerCallback(Events.REQUEST_BODY_START, { RequestContext reqContext, StoredBodySupplier sup ->

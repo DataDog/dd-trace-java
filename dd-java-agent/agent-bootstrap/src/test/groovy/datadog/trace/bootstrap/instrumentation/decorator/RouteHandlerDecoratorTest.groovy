@@ -25,7 +25,7 @@ class RouteHandlerDecoratorTest extends DDSpecification {
 
   def "test that resource name is not changed"() {
     given:
-    AgentSpan span = tracer.startSpan("test")
+    AgentSpan span = tracer.startSpan("test", true)
 
     when:
     def scope = AgentTracer.activateSpan(span)
