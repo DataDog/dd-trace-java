@@ -8,6 +8,8 @@ import com.datadog.appsec.event.data.CaseInsensitiveMap;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.report.raw.contexts._definitions.AllContext;
+import com.datadog.appsec.report.raw.contexts.actor.Actor010;
+import com.datadog.appsec.report.raw.contexts.actor.Ip;
 import com.datadog.appsec.report.raw.contexts.host.Host010;
 import com.datadog.appsec.report.raw.contexts.http.Http010;
 import com.datadog.appsec.report.raw.contexts.http.HttpHeaders;
@@ -71,6 +73,13 @@ public class EventEnrichment {
       eventCtx = new AllContext();
       attack.setContext(eventCtx);
     }
+
+    Actor010 actor = (Actor010) eventCtx.getActor();
+    if (actor == null) {
+      actor = new Actor010();
+      eventCtx.setActor(actor);
+    }
+    actor.setContextVersion("0.1.0");
 
     Http010 http = (Http010) eventCtx.getHttp();
     if (http == null) {
@@ -142,6 +151,13 @@ public class EventEnrichment {
         remoteIp = "0.0.0.0"; // remote IP is mandatory
       }
       request.setRemoteIp(remoteIp);
+
+      Ip ip = actor.getIp();
+      if (ip == null) {
+        ip = new Ip();
+        actor.setIp(ip);
+      }
+      ip.setAddress(remoteIp);
     }
     if (request.getRemotePort() == null) {
       Integer remotePort = appSecCtx.get(KnownAddresses.REQUEST_CLIENT_PORT);
