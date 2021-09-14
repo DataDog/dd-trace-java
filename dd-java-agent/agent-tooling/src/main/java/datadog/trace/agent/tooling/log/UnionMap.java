@@ -7,8 +7,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Mutable view over two maps with entries in the primary taking precedence over the secondary;
- * additions are put in the primary map.
+ * Mutable view over two maps with entries in the primary map taking precedence over the secondary.
+ * New entries are put in the primary map while old entries are deleted from both, as appropriate.
  */
 public final class UnionMap<K, V> extends AbstractMap<K, V> {
   private final Map<K, V> primaryMap;
@@ -18,26 +18,19 @@ public final class UnionMap<K, V> extends AbstractMap<K, V> {
   public UnionMap(Map<K, V> primaryMap, Map<K, V> secondaryMap) {
     this.primaryMap = primaryMap;
     this.secondaryMap = secondaryMap;
+
+    // drop keys from secondary that already exist in primary
+    Iterator<K> itr = secondaryMap.keySet().iterator();
+    while (itr.hasNext()) {
+      if (primaryMap.containsKey(itr.next())) {
+        itr.remove();
+      }
+    }
   }
 
   @Override
   public int size() {
-    int primarySize = primaryMap.size();
-    int secondarySize = secondaryMap.size();
-    if (primarySize > secondarySize) {
-      for (K key : secondaryMap.keySet()) {
-        if (primaryMap.containsKey(key)) {
-          secondarySize--; // account for duplicate key
-        }
-      }
-    } else {
-      for (K key : primaryMap.keySet()) {
-        if (secondaryMap.containsKey(key)) {
-          primarySize--; // account for duplicate key
-        }
-      }
-    }
-    return primarySize + secondarySize;
+    return primaryMap.size() + secondaryMap.size();
   }
 
   @Override
@@ -58,19 +51,19 @@ public final class UnionMap<K, V> extends AbstractMap<K, V> {
   @Override
   public V get(Object key) {
     V result = primaryMap.get(key);
-    return null != result || primaryMap.containsKey(key) ? result : secondaryMap.get(key);
+    return null != result ? result : secondaryMap.get(key);
   }
 
   @Override
   public V put(K key, V value) {
     V result = primaryMap.put(key, value);
-    return null != result || !secondaryMap.containsKey(key) ? result : secondaryMap.remove(key);
+    return null != result ? result : secondaryMap.remove(key);
   }
 
   @Override
   public V remove(Object key) {
     V result = primaryMap.remove(key);
-    return null != result || !secondaryMap.containsKey(key) ? result : secondaryMap.remove(key);
+    return null != result ? result : secondaryMap.remove(key);
   }
 
   @Override
