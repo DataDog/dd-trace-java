@@ -76,7 +76,10 @@ public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing {
       packageName + ".rx.RedisSubscriptionDispatchCommandAdvice",
       packageName + ".rx.RedisSubscriptionCommandCompleteAdvice",
       packageName + ".rx.LettuceMonoCreationAdvice",
-      packageName + ".rx.LettuceFluxCreationAdvice"
+      packageName + ".rx.LettuceFluxCreationAdvice",
+      packageName + ".rx.LettuceFlowTracker",
+      packageName + ".LettuceInstrumentationUtil",
+      packageName + ".LettuceClientDecorator"
     };
   }
 
