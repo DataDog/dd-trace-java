@@ -18,12 +18,6 @@ public class KafkaProducerCallback implements Callback {
     this.callback = callback;
     this.parent = parent;
     this.span = span;
-    if (null != parent) {
-      // we will activate it on the network thread on completion
-      // span is not migrated here so that serialization on the
-      // current thread is captured
-      parent.startThreadMigration();
-    }
   }
 
   @Override
