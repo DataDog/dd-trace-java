@@ -52,6 +52,9 @@ public final class PreparedStatementInstrumentation
     // covers h2
     "org.h2.jdbc.JdbcPreparedStatement",
     "org.h2.jdbc.JdbcCallableStatement",
+    // GridGain's fork of H2
+    "org.gridgain.internal.h2.jdbc.JdbcPreparedStatement",
+    "org.gridgain.internal.h2.jdbc.JdbcCallableStatement",
     // covers mariadb
     "org.mariadb.jdbc.JdbcPreparedStatement",
     "org.mariadb.jdbc.JdbcCallableStatement",
