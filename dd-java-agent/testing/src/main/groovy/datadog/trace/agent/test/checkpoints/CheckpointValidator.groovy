@@ -57,14 +57,13 @@ class CheckpointValidator {
 
     if (!invalidEvents.empty) {
       out.println("=== Invalid checkpoint events encountered: ${invalidEvents*.mode.toSet().sort()}")
-      invalidEvents*.event.spanId.toSet().sort().each { spanId ->
-        orderedEvents.findAll { event -> event.spanId == spanId }.each { event ->
-          def invalidEvent = invalidEvents.find { it.event == event }
-          if (invalidEvent != null) {
-            out.println(invalidEvent)
-          } else {
-            out.println(event)
-          }
+      def spanIds = invalidEvents*.event.spanId.toSet()
+      orderedEvents.findAll { event -> spanIds.contains(event.spanId) }.each { event ->
+        def invalidEvent = invalidEvents.find { it.event == event }
+        if (invalidEvent != null) {
+          out.println(invalidEvent)
+        } else {
+          out.println(event)
         }
       }
     }
