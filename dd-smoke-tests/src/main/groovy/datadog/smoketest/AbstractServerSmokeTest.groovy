@@ -102,17 +102,18 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
     // If expectedTraces returns an interpolated GString, then the map lookup will fail,
     // so coerce them to proper String instances
     def expected = expectedTraces(processIndex).collect { String.valueOf(it) }.toSet()
-    return assertTraceCounts(expected, traceCounts)
+    def remaining = assertTraceCounts(expected, traceCounts)
+    assert remaining.toList() == []
+    return remaining.isEmpty()
   }
 
-  private boolean assertTraceCounts(Set<String> expected, Map<String, AtomicInteger> traceCounts) {
-    boolean ok = traceCounts.size() == expected.size()
-    if (ok) {
-      for (Map.Entry<String, AtomicInteger> entry : traceCounts.entrySet()) {
-        ok &= expected.contains(entry.getKey())
-        ok &= entry.getValue().get() > 0
+  private Set<String> assertTraceCounts(Set<String> expected, Map<String, AtomicInteger> traceCounts) {
+    Set<String> remaining = expected.collect().toSet()
+    for (Map.Entry<String, AtomicInteger> entry : traceCounts.entrySet()) {
+      if (expected.contains(entry.getKey()) && entry.getValue().get() > 0) {
+        remaining.remove(entry.getKey())
       }
     }
-    return ok
+    return remaining
   }
 }

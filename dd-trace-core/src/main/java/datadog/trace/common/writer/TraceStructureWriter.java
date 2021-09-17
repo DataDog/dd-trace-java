@@ -21,6 +21,7 @@ public class TraceStructureWriter implements Writer {
 
   private final PrintStream out;
   private final boolean debugLog;
+  private final boolean includeResource;
   private final boolean includeService;
 
   public TraceStructureWriter() {
@@ -37,6 +38,7 @@ public class TraceStructureWriter implements Writer {
 
   public TraceStructureWriter(String outputFile, boolean debugLog) {
     boolean argsDebugLog = debugLog;
+    boolean argsIncludeResource = false;
     boolean argsIncludeService = false;
     if (null == outputFile) {
       outputFile = "";
@@ -53,6 +55,9 @@ public class TraceStructureWriter implements Writer {
               : new PrintStream(new FileOutputStream(new File(fileName)));
       for (int i = 1; i < args.length; i++) {
         switch (args[i].toLowerCase()) {
+          case "includeresource":
+            argsIncludeResource = true;
+            break;
           case "includeservice":
             argsIncludeService = true;
             break;
@@ -68,6 +73,7 @@ public class TraceStructureWriter implements Writer {
       throw new RuntimeException("Failed to create trace structure writer from " + outputFile, e);
     }
     this.debugLog = argsDebugLog;
+    this.includeResource = argsIncludeResource;
     this.includeService = argsIncludeService;
   }
 
@@ -84,7 +90,7 @@ public class TraceStructureWriter implements Writer {
         if (span.getLocalRootSpan() == span) {
           rootSpanId = span.getSpanId();
         }
-        nodesById.put(span.getSpanId(), new Node(span, includeService));
+        nodesById.put(span.getSpanId(), new Node(span, includeService, includeResource));
       }
       // build the tree
       for (DDSpan span : trace) {
@@ -173,11 +179,13 @@ public class TraceStructureWriter implements Writer {
 
   private static final class Node {
     private final CharSequence operationName;
+    private final CharSequence resourceName;
     private final CharSequence serviceName;
     private final List<Node> children = new ArrayList<>();
 
-    private Node(DDSpan span, boolean includeService) {
+    private Node(DDSpan span, boolean includeService, boolean includeResource) {
       this.operationName = span.getOperationName();
+      this.resourceName = includeResource ? span.getResourceName() : null;
       this.serviceName = includeService ? span.getServiceName() : null;
     }
 
@@ -188,15 +196,18 @@ public class TraceStructureWriter implements Writer {
     @Override
     public String toString() {
       StringBuilder sb = new StringBuilder();
-      sb.append("[");
+      sb.append('[');
       if (null != serviceName) {
-        sb.append(serviceName).append(":");
+        sb.append(serviceName).append(':');
       }
       sb.append(operationName);
+      if (null != resourceName) {
+        sb.append(':').append(resourceName);
+      }
       for (Node node : children) {
         sb.append(node);
       }
-      return sb.append("]").toString();
+      return sb.append(']').toString();
     }
   }
 }

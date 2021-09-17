@@ -94,21 +94,14 @@ public class RabbitDecorator extends ClientDecorator {
   }
 
   public void onGet(final AgentSpan span, final String queue) {
-    final String queueName = queue.startsWith("amq.gen-") ? "<generated>" : queue;
-    span.setResourceName("basic.get " + queueName);
+    span.setResourceName("basic.get " + normalizeQueueName(queue));
     // This span is created after the command has returned, so we need to set the tag here
     span.setTag(AMQP_COMMAND.toString(), "basic.get");
     span.setTag(AMQP_QUEUE, queue);
   }
 
   public void onDeliver(final AgentSpan span, final String queue, final Envelope envelope) {
-    String queueName = queue;
-    if (queue == null || queue.isEmpty()) {
-      queueName = "<default>";
-    } else if (queue.startsWith("amq.gen-")) {
-      queueName = "<generated>";
-    }
-    span.setResourceName("basic.deliver " + queueName);
+    span.setResourceName("basic.deliver " + normalizeQueueName(queue));
     // This span happens after any AMQP commands so we need to set the tag here
     span.setTag(AMQP_COMMAND.toString(), "basic.deliver");
     if (envelope != null) {
@@ -127,17 +120,20 @@ public class RabbitDecorator extends ClientDecorator {
   }
 
   public void onTimeInQueue(final AgentSpan span, final String queue, final byte[] body) {
-    String queueName = queue;
-    if (queue == null || queue.isEmpty()) {
-      queueName = "<default>";
-    } else if (queue.startsWith("amq.gen-")) {
-      queueName = "<generated>";
-    }
-    span.setResourceName("amqp.deliver " + queueName);
+    span.setResourceName("amqp.deliver " + normalizeQueueName(queue));
     if (null != body) {
       span.setTag("message.size", body.length);
     }
     span.setTag(AMQP_QUEUE, queue);
+  }
+
+  private String normalizeQueueName(String queueName) {
+    if (queueName == null || queueName.isEmpty()) {
+      return "<default>";
+    } else if (queueName.startsWith("amq.gen-")) {
+      return "<generated>";
+    }
+    return queueName;
   }
 
   public TracedDelegatingConsumer wrapConsumer(String queue, Consumer consumer) {
