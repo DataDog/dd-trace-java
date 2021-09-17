@@ -3,8 +3,6 @@ package mule4
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.trace.agent.test.base.WithHttpServer
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.HttpUrl
@@ -84,10 +82,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
   def "test mule client remote request"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def url = HttpUrl.get(address.resolve("/client-request")).newBuilder().build()
     def request = new Request.Builder().url(url).method("GET", null).build()
 
@@ -136,10 +130,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
   def "test parallel for each"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-
     def names = ["Alyssa", "Ben", "Cy", "Eva", "Lem", "Louis"]
     def jsonAdapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(List, String))
     def input = jsonAdapter.toJson(names)
