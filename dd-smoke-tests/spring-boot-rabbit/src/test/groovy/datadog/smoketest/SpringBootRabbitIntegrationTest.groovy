@@ -1,0 +1,103 @@
+package datadog.smoketest
+
+import okhttp3.Request
+import org.testcontainers.containers.RabbitMQContainer
+import spock.lang.Shared
+
+class SpringBootRabbitIntegrationTest extends AbstractServerSmokeTest {
+
+  @Shared
+  def rabbitMQContainer
+
+  @Shared
+  String rabbitHost
+
+  @Shared
+  Integer rabbitPort
+
+  def cleanupSpec() {
+    if (rabbitMQContainer) {
+      rabbitMQContainer.stop()
+    }
+  }
+
+  protected int numberOfProcesses() {
+    return 2
+  }
+
+  @Override
+  void beforeProcessBuilders() {
+    if ("true" == System.getenv("CI")) {
+      // CircleCI provides a rabbit image
+    } else {
+      rabbitMQContainer = new RabbitMQContainer("rabbitmq:latest")
+      rabbitMQContainer.start()
+      rabbitHost = rabbitMQContainer.getHost()
+      rabbitPort = rabbitMQContainer.getMappedPort(5672)
+    }
+  }
+
+  @Override
+  ProcessBuilder createProcessBuilder(int processIndex) {
+    String springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
+
+    List<String> command = new ArrayList<>()
+    command.add(javaPath())
+    command.addAll(defaultJavaProperties)
+    command.addAll((String[]) [
+      "-Ddd.service.name=spring-rabbit-${processIndex}",
+      "-Ddd.rabbit.legacy.tracing.enabled=false",
+      "-Ddd.writer.type=TraceStructureWriter:${outputs[processIndex].getAbsolutePath()}:includeService",
+      "-jar",
+      springBootShadowJar,
+      "--server.port=${httpPorts[processIndex]}",
+      "--rabbit.${processIndex == 0 ? "sender" : "receiver"}.queue=otherqueue",
+    ])
+    if (processIndex > 0) {
+      command.add("--rabbit.receiver.forward=true")
+    }
+    if (rabbitHost) {
+      command.add("--spring.rabbitmq.host=$rabbitHost".toString())
+    }
+    if (rabbitPort) {
+      command.add("--spring.rabbitmq.port=$rabbitPort".toString())
+    }
+    ProcessBuilder processBuilder = new ProcessBuilder(command)
+    processBuilder.directory(new File(buildDirectory))
+  }
+
+  @Override
+  File createTemporaryFile(int processIndex) {
+    return new File("${buildDirectory}/tmp/trace-structure-rabbit.${processIndex}.out")
+  }
+
+  @Override
+  protected Set<String> expectedTraces(int processIndex) {
+    def service = "spring-rabbit-${processIndex}"
+    Set<String> expected = ["[${service}:amqp.command]"]
+    if (processIndex == 0) {
+      expected.add("[${service}:servlet.request[${service}:spring.handler[${service}:amqp.command]]]")
+      expected.add("[rabbitmq:amqp.deliver[${service}:amqp.command[${service}:amqp.consume[${service}:trace.annotation]]]]")
+    } else {
+      expected.add("[rabbitmq:amqp.deliver[${service}:amqp.command[${service}:amqp.consume[${service}:trace.annotation[${service}:amqp.command]]]]]")
+    }
+    return expected
+  }
+
+  def "check message #message roundtrip"() {
+    setup:
+    String url = "http://localhost:${httpPort}/roundtrip/${message}"
+
+    when:
+    def request = new Request.Builder().url(url).get().build()
+    def response = client.newCall(request).execute()
+
+    then:
+    def responseBodyStr = response.body().string()
+    responseBodyStr == "Got: >${message}"
+    response.code() == 200
+
+    where:
+    message << ["foo", "bar", "baz"]
+  }
+}

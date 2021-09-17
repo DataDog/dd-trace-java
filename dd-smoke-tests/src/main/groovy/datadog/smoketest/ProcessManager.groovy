@@ -28,6 +28,17 @@ abstract class ProcessManager extends Specification {
   @Shared
   protected String[] defaultJavaProperties
 
+  protected int numberOfProcesses() {
+    return 1
+  }
+
+  @Shared
+  protected int numberOfProcesses = numberOfProcesses()
+
+  @Shared
+  protected Process[] testedProcesses = new Process[numberOfProcesses]
+
+  // Here for backwards compatibility with single process case
   @Shared
   protected Process testedProcess
 
@@ -39,15 +50,23 @@ abstract class ProcessManager extends Specification {
   def logHasErrors
 
   @Shared
-  def logFilePath = "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.log"
+  private String[] logFilePaths = (0..<numberOfProcesses).collect { idx ->
+    "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.${idx}.log"
+  }
+
+  // Here for backwards compatibility with single process case
+  @Shared
+  def logFilePath = logFilePaths[0]
 
   def setup() {
-    // TODO: once java7 support is dropped use testedProcess.isAlive() instead
-    try {
-      testedProcess.exitValue()
-      assert false: "Process not alive before test"
-    } catch (IllegalThreadStateException ignored) {
-      // expected
+    testedProcesses.each { tp ->
+      try {
+        // TODO: once java7 support is dropped use testedProcess.isAlive() instead
+        tp.exitValue()
+        assert false: "Process not alive before test"
+      } catch (IllegalThreadStateException ignored ) {
+        // expected
+      }
     }
   }
 
@@ -58,15 +77,21 @@ abstract class ProcessManager extends Specification {
     assert Files.isDirectory(Paths.get(buildDirectory))
     assert Files.isRegularFile(Paths.get(shadowJarPath))
 
-    ProcessBuilder processBuilder = createProcessBuilder()
+    beforeProcessBuilders()
 
-    processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
-    processBuilder.environment().put("DD_API_KEY", apiKey())
+    (0..<numberOfProcesses).each { idx ->
+      ProcessBuilder processBuilder = createProcessBuilder(idx)
 
-    processBuilder.redirectErrorStream(true)
-    processBuilder.redirectOutput(ProcessBuilder.Redirect.to(new File(logFilePath)))
 
-    testedProcess = processBuilder.start()
+      processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
+      processBuilder.environment().put("DD_API_KEY", apiKey())
+
+      processBuilder.redirectErrorStream(true)
+      processBuilder.redirectOutput(ProcessBuilder.Redirect.to(new File(logFilePaths[idx])))
+
+      testedProcesses[idx] = processBuilder.start()
+    }
+    testedProcess = numberOfProcesses == 1 ? testedProcesses[0] : null
   }
 
   String javaPath() {
@@ -75,30 +100,32 @@ abstract class ProcessManager extends Specification {
   }
 
   def cleanupSpec() {
-    int maxAttempts = 10
-    Integer exitValue
-    for (int attempt = 1; attempt <= maxAttempts != null; attempt++) {
-      try {
-        exitValue = testedProcess?.exitValue()
-        break
-      }
-      catch (Throwable e) {
-        if (attempt == 1) {
-          System.out.println("Destroying instrumented process")
-          testedProcess.destroy()
+    testedProcesses.each { tp ->
+      int maxAttempts = 10
+      Integer exitValue
+      for (int attempt = 1; attempt <= maxAttempts != null; attempt++) {
+        try {
+          exitValue = tp?.exitValue()
+          break
         }
-        if (attempt == maxAttempts - 1) {
-          System.out.println("Destroying instrumented process (forced)")
-          testedProcess.destroyForcibly()
+        catch (Throwable e) {
+          if (attempt == 1) {
+            System.out.println("Destroying instrumented process")
+            tp.destroy()
+          }
+          if (attempt == maxAttempts - 1) {
+            System.out.println("Destroying instrumented process (forced)")
+            tp.destroyForcibly()
+          }
+          sleep 1_000
         }
-        sleep 1_000
       }
-    }
 
-    if (exitValue != null) {
-      System.out.println("Instrumented process exited with " + exitValue)
-    } else if (testedProcess != null) {
-      throw new TimeoutException("Instrumented process failed to exit")
+      if (exitValue != null) {
+        System.out.println("Instrumented process exited with " + exitValue)
+      } else if (tp != null) {
+        throw new TimeoutException("Instrumented process failed to exit")
+      }
     }
   }
 
@@ -114,15 +141,18 @@ abstract class ProcessManager extends Specification {
    * @param checker custom closure to run on each log line
    */
   def checkLog(Closure checker) {
-    new File(logFilePath).eachLine {
-      if (it.contains("ERROR") || it.contains("ASSERTION FAILED")) {
-        println it
-        logHasErrors = true
+    logFilePaths.each { lfp ->
+      def hasError = false
+      new File(lfp).eachLine {
+        if (it.contains("ERROR") || it.contains("ASSERTION FAILED")) {
+          println it
+          hasError = logHasErrors = true
+        }
+        checker(it)
       }
-      checker(it)
-    }
-    if (logHasErrors) {
-      println "Test application log is containing errors. See full run logs in ${logFilePath}"
+      if (hasError) {
+        println "Test application log is containing errors. See full run logs in ${lfp}"
+      }
     }
   }
 
@@ -130,7 +160,18 @@ abstract class ProcessManager extends Specification {
     checkLog {}
   }
 
-  abstract ProcessBuilder createProcessBuilder()
+  protected void beforeProcessBuilders() {}
+
+  protected ProcessBuilder createProcessBuilder() {
+    throw new IllegalArgumentException("Override createProcessBuilder() for single process tests")
+  }
+
+  protected ProcessBuilder createProcessBuilder(int processIndex) {
+    if (processIndex > 0) {
+      throw new IllegalArgumentException("Override createProcessBuilder(int processIndex) for multi process tests")
+    }
+    return createProcessBuilder()
+  }
 
   String apiKey() {
     return "01234567890abcdef123456789ABCDEF"

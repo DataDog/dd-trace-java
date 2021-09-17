@@ -299,6 +299,8 @@ jobs:
 
     docker:
       - image: *default_container
+        # This is used by rabbitmq smoke tests
+      - image: rabbitmq
         # This is used by mongodb smoke tests
       - image: mongo
 

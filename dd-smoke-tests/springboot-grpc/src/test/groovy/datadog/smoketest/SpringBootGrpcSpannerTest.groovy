@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class SpringBootGrpcSpannerTest extends SpringBootWithGRPCTest {
 
   @Override
-  boolean isAcceptable(Map<String, AtomicInteger> traceCounts) {
+  boolean isAcceptable(int processIndex, Map<String, AtomicInteger> traceCounts) {
     // currently spring @Async instrumentation doesn't hold the trace back
     // if spans are created after the @Async span finishes - compensate for this
     for (Map.Entry<String, AtomicInteger> entry : traceCounts.entrySet()) {
