@@ -59,10 +59,16 @@ public class GrizzlyDecorator
     return GRIZZLY_FILTER_CHAIN_SERVER;
   }
 
+  public static void onHttpServerFilterPrepareResponseEnter(
+      FilterChainContext ctx, HttpResponsePacket responsePacket) {
+    AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
+    span.finishThreadMigration();
+    DECORATE.onResponse(span, responsePacket);
+  }
+
   public static void onHttpServerFilterPrepareResponseExit(
       FilterChainContext ctx, HttpResponsePacket responsePacket) {
     AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
-    DECORATE.onResponse(span, responsePacket);
     span.finish();
     ctx.getAttributes().removeAttribute(DD_SPAN_ATTRIBUTE);
     ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);
@@ -86,6 +92,7 @@ public class GrizzlyDecorator
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
     DECORATE.onRequest(span, httpRequest, httpRequest, context);
     scope.close();
+    span.startThreadMigration();
   }
 
   public static void onFilterChainFail(FilterChainContext ctx, Throwable throwable) {
