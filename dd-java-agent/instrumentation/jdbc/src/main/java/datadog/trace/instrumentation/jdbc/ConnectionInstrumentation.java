@@ -34,6 +34,8 @@ public class ConnectionInstrumentation extends AbstractConnectionInstrumentation
     "org.apache.pinot.client.PinotConnection",
     // complete
     "org.h2.jdbc.JdbcConnection",
+    // GridGain's fork of H2
+    "org.gridgain.internal.h2.jdbc.JdbcConnection",
     // complete
     "org.hsqldb.jdbc.JDBCConnection",
     "org.hsqldb.jdbc.jdbcConnection",
