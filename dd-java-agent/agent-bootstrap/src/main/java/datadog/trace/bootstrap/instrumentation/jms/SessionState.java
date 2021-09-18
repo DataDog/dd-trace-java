@@ -6,10 +6,14 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -31,9 +35,31 @@ public final class SessionState {
   private static final AtomicIntegerFieldUpdater<SessionState> TIME_IN_QUEUE_SPAN_COUNT =
       AtomicIntegerFieldUpdater.newUpdater(SessionState.class, "timeInQueueSpanCount");
 
+  private static final Comparator<Map.Entry<Thread, AgentScope>> YOUNGEST_SCOPE_FIRST =
+      new Comparator<Map.Entry<Thread, AgentScope>>() {
+        @Override
+        public int compare(Map.Entry<Thread, AgentScope> o1, Map.Entry<Thread, AgentScope> o2) {
+          // reverse natural order to sort start time by largest first (ie. youngest)
+          return Long.compare(
+              o2.getValue().span().getStartTime(), o1.getValue().span().getStartTime());
+        }
+      };
+
+  private static final Comparator<Map.Entry<Thread, TimeInQueue>> YOUNGEST_TIME_IN_QUEUE_FIRST =
+      new Comparator<Map.Entry<Thread, TimeInQueue>>() {
+        @Override
+        public int compare(Map.Entry<Thread, TimeInQueue> o1, Map.Entry<Thread, TimeInQueue> o2) {
+          // reverse natural order to sort start time by largest first (ie. youngest)
+          return Long.compare(o2.getValue().span.getStartTime(), o1.getValue().span.getStartTime());
+        }
+      };
+
   // hard bound at 8192 captured spans, degrade to finishing spans early
   // if transactions are very large, rather than use lots of space
   static final int MAX_CAPTURED_SPANS = 8192;
+
+  private static final int MAX_TRACKED_THREADS = 100;
+  private static final int MIN_EVICTED_THREADS = 10;
 
   private final int ackMode;
 
@@ -53,8 +79,12 @@ public final class SessionState {
   private boolean capturingFlipped = false;
 
   public SessionState(int ackMode) {
+    this(ackMode, Config.get().isJmsLegacyTracingEnabled());
+  }
+
+  SessionState(int ackMode, boolean legacyTracing) {
     this.ackMode = ackMode;
-    if (Config.get().isJmsLegacyTracingEnabled()) {
+    if (legacyTracing) {
       this.timeInQueueSpans = Collections.emptyMap();
     } else {
       this.timeInQueueSpans = new ConcurrentHashMap<>();
@@ -186,7 +216,7 @@ public final class SessionState {
 
   /** Closes the given message scope when the next message is consumed or the session is closed. */
   void closeOnIteration(AgentScope newScope) {
-    if (ACTIVE_SCOPE_COUNT.incrementAndGet(this) > 100) {
+    if (ACTIVE_SCOPE_COUNT.incrementAndGet(this) > MAX_TRACKED_THREADS) {
       closeStaleScopes();
     }
     maybeCloseScope(activeScopes.put(Thread.currentThread(), newScope));
@@ -208,12 +238,33 @@ public final class SessionState {
   }
 
   private void closeStaleScopes() {
+    Queue<Map.Entry<Thread, AgentScope>> oldestEntries =
+        new PriorityQueue<>(MIN_EVICTED_THREADS + 1, YOUNGEST_SCOPE_FIRST);
+
+    // first evict any scopes linked to stopped threads
+    int evictedThreads = 0;
     Iterator<Map.Entry<Thread, AgentScope>> itr = activeScopes.entrySet().iterator();
     while (itr.hasNext()) {
       Map.Entry<Thread, AgentScope> entry = itr.next();
       if (!entry.getKey().isAlive()) {
+        evictedThreads++;
         maybeCloseScope(entry.getValue());
         itr.remove();
+      } else if (evictedThreads < MIN_EVICTED_THREADS) {
+        // not evicted enough yet - sort scopes so far from youngest (head) to oldest (tail)
+        oldestEntries.offer(entry);
+        if (oldestEntries.size() > MIN_EVICTED_THREADS) {
+          oldestEntries.poll(); // discard the youngest scope to keep the oldest N scopes
+        }
+      }
+    }
+
+    // didn't find enough stopped threads, so evict oldest N spans
+    if (evictedThreads < MIN_EVICTED_THREADS) {
+      for (Map.Entry<Thread, AgentScope> entry : oldestEntries) {
+        if (((ConcurrentMap<?, ?>) activeScopes).remove(entry.getKey(), entry.getValue())) {
+          maybeCloseScope(entry.getValue());
+        }
       }
     }
   }
@@ -234,7 +285,7 @@ public final class SessionState {
 
   /** Starts tracking a new time-in-queue span. */
   void setTimeInQueueSpan(long batchId, AgentSpan span) {
-    if (TIME_IN_QUEUE_SPAN_COUNT.incrementAndGet(this) > 100) {
+    if (TIME_IN_QUEUE_SPAN_COUNT.incrementAndGet(this) > MAX_TRACKED_THREADS) {
       finishStaleTimeInQueueSpans();
     }
     // getTimeInQueueSpan will have already removed the time-in-queue span for the previous batch
@@ -263,12 +314,33 @@ public final class SessionState {
   }
 
   private void finishStaleTimeInQueueSpans() {
+    Queue<Map.Entry<Thread, TimeInQueue>> oldestEntries =
+        new PriorityQueue<>(MIN_EVICTED_THREADS + 1, YOUNGEST_TIME_IN_QUEUE_FIRST);
+
+    // first evict any time-in-queue spans linked to stopped threads
+    int evictedThreads = 0;
     Iterator<Map.Entry<Thread, TimeInQueue>> itr = timeInQueueSpans.entrySet().iterator();
     while (itr.hasNext()) {
       Map.Entry<Thread, TimeInQueue> entry = itr.next();
       if (!entry.getKey().isAlive()) {
+        evictedThreads++;
         maybeFinishTimeInQueueSpan(entry.getValue());
         itr.remove();
+      } else if (evictedThreads < MIN_EVICTED_THREADS) {
+        // not evicted enough yet - sort spans so far from youngest (head) to oldest (tail)
+        oldestEntries.offer(entry);
+        if (oldestEntries.size() > MIN_EVICTED_THREADS) {
+          oldestEntries.poll(); // discard the youngest span to keep the oldest N spans
+        }
+      }
+    }
+
+    // didn't find enough stopped threads, so evict oldest N time-in-queue spans
+    if (evictedThreads < MIN_EVICTED_THREADS) {
+      for (Map.Entry<Thread, TimeInQueue> entry : oldestEntries) {
+        if (((ConcurrentMap<?, ?>) timeInQueueSpans).remove(entry.getKey(), entry.getValue())) {
+          maybeFinishTimeInQueueSpan(entry.getValue());
+        }
       }
     }
   }
