@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = "org.apache.kafka"
     module = "kafka-streams"
-    versions = "[0.11.0.0,)"
+    versions = "[0.11.0.0,3)"
   }
 }
 
