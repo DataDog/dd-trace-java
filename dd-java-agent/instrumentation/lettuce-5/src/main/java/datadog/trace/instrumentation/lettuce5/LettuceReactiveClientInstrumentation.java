@@ -37,7 +37,7 @@ import net.bytebuddy.matcher.ElementMatchers;
  * When the response is received back from Redis server the subscription command is connected with
  * the incoming data and {@linkplain io.lettuce.core.RedisPublisher.SubscriptionCommand#complete()}
  * method is invoked to start processing the response. At this point the command span migration can
- * be finilized as the span processing resumes on this particular thread.
+ * be finalized as the span processing resumes on this particular thread.
  *
  * <p>When it is a set of commands that is being executed we want to have the information about the
  * number of processed commands - this can be achieved by hooking into {@linkplain
@@ -48,8 +48,6 @@ import net.bytebuddy.matcher.ElementMatchers;
  * </code> and <code>create*Flux</code> methods - capturing the parent span when {@linkplain
  * reactor.core.publisher.Mono} or {@linkplain reactor.core.publisher.Flux} instance is created and
  * reactivating each time they are subscribed.
- *
- * <p>Each command is transmitted to redis and the transnmission starts at
  */
 @AutoService(Instrumenter.class)
 public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing {
