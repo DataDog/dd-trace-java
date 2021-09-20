@@ -47,7 +47,7 @@ class SpringBootRabbitIntegrationTest extends AbstractServerSmokeTest {
     command.addAll((String[]) [
       "-Ddd.service.name=spring-rabbit-${processIndex}",
       "-Ddd.rabbit.legacy.tracing.enabled=false",
-      "-Ddd.writer.type=TraceStructureWriter:${outputs[processIndex].getAbsolutePath()}:includeService",
+      "-Ddd.writer.type=TraceStructureWriter:${outputs[processIndex].getAbsolutePath()}:includeService:includeResource",
       "-jar",
       springBootShadowJar,
       "--server.port=${httpPorts[processIndex]}",
@@ -74,12 +74,17 @@ class SpringBootRabbitIntegrationTest extends AbstractServerSmokeTest {
   @Override
   protected Set<String> expectedTraces(int processIndex) {
     def service = "spring-rabbit-${processIndex}"
-    Set<String> expected = ["[${service}:amqp.command]"]
+    Set<String> expected = [
+      "[${service}:amqp.command:basic.qos]",
+      "[${service}:amqp.command:basic.consume]",
+      "[${service}:amqp.command:basic.ack]",
+      "[${service}:amqp.command:queue.declare]"
+    ]
     if (processIndex == 0) {
-      expected.add("[${service}:servlet.request[${service}:spring.handler[${service}:amqp.command]]]")
-      expected.add("[rabbitmq:amqp.deliver[${service}:amqp.command[${service}:amqp.consume[${service}:trace.annotation]]]]")
+      expected.add("[${service}:servlet.request:GET /roundtrip/{message}[${service}:spring.handler:WebController.roundtrip[${service}:amqp.command:basic.publish <default> -> otherqueue]]]")
+      expected.add("[rabbitmq:amqp.deliver:amqp.deliver queue[${service}:amqp.command:basic.deliver queue[${service}:amqp.consume:amqp.consume[${service}:trace.annotation:Receiver.receiveMessage]]]]")
     } else {
-      expected.add("[rabbitmq:amqp.deliver[${service}:amqp.command[${service}:amqp.consume[${service}:trace.annotation[${service}:amqp.command]]]]]")
+      expected.add("[rabbitmq:amqp.deliver:amqp.deliver otherqueue[${service}:amqp.command:basic.deliver otherqueue[${service}:amqp.consume:amqp.consume[${service}:trace.annotation:Receiver.receiveMessage[${service}:amqp.command:basic.publish <default> -> queue]]]]]")
     }
     return expected
   }
