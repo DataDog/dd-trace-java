@@ -69,14 +69,8 @@ public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".rx.RedisSubscriptionSubscribeAdvice",
       packageName + ".rx.RedisSubscriptionSubscribeAdvice$State",
-      packageName + ".rx.RedisSubscriptionAdvanceAdvice",
       packageName + ".rx.RedisSubscriptionState",
-      packageName + ".rx.RedisSubscriptionDispatchCommandAdvice",
-      packageName + ".rx.RedisSubscriptionCommandCompleteAdvice",
-      packageName + ".rx.LettuceMonoCreationAdvice",
-      packageName + ".rx.LettuceFluxCreationAdvice",
       packageName + ".rx.LettuceFlowTracker",
       packageName + ".LettuceInstrumentationUtil",
       packageName + ".LettuceClientDecorator"
@@ -107,6 +101,16 @@ public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing {
                     named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
             .and(namedOneOf("complete", "cancel")),
         packageName + ".rx.RedisSubscriptionCommandCompleteAdvice");
+
+    // SubscriptionCommand structure has changed due to
+    // https://github.com/lettuce-io/lettuce-core/issues/1576 in 5.3.6
+    transformation.applyAdvice(
+        isMethod()
+            .and(
+                ElementMatchers.<MethodDescription>isDeclaredBy(
+                    named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
+            .and(namedOneOf("doOnComplete")),
+        packageName + ".rx.RedisSubscriptionCommandOnCompleteAdvice");
     transformation.applyAdvice(
         isMethod()
             .and(
