@@ -9,7 +9,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.event.CommandListener;
+import com.mongodb.internal.connection.CommandMessage;
+import com.mongodb.internal.connection.InternalStreamConnection;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.mongo4.RequestSpanMap.RequestSpan;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -24,8 +28,10 @@ public final class Mongo4ClientInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("com.mongodb.MongoClientSettings$Builder")
-        .and(declaresField(named("commandListeners")));
+    return (named("com.mongodb.MongoClientSettings$Builder")
+            .and(declaresField(named("commandListeners"))))
+        .or(named("com.mongodb.internal.connection.InternalStreamConnection"))
+        .or(named("com.mongodb.internal.connection.LoggingCommandEventSender"));
   }
 
   @Override
@@ -36,7 +42,9 @@ public final class Mongo4ClientInstrumentation extends Instrumenter.Tracing {
       packageName + ".BsonScrubber$1",
       packageName + ".BsonScrubber$2",
       packageName + ".Context",
-      packageName + ".Tracing4CommandListener"
+      packageName + ".Tracing4CommandListener",
+      packageName + ".RequestSpanMap",
+      packageName + ".RequestSpanMap$RequestSpan"
     };
   }
 
@@ -45,6 +53,12 @@ public final class Mongo4ClientInstrumentation extends Instrumenter.Tracing {
     transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("build")).and(takesArguments(0)),
         Mongo4ClientInstrumentation.class.getName() + "$Mongo4ClientAdvice");
+    transformation.applyAdvice(
+        isMethod().and(isPublic()).and(named("sendMessageAsync")),
+        Mongo4ClientInstrumentation.class.getName() + "$Mongo4Suspend");
+    transformation.applyAdvice(
+        isMethod().and(isPublic()).and(named("sendSucceededEvent").or(named("sendFailedEvent"))),
+        Mongo4ClientInstrumentation.class.getName() + "$Mongo4Resume");
   }
 
   public static class Mongo4ClientAdvice {
@@ -69,6 +83,33 @@ public final class Mongo4ClientInstrumentation extends Instrumenter.Tracing {
       // record this clients application name so we can apply it to command spans
       if (null != listener) {
         listener.setApplicationName(settings.getApplicationName());
+      }
+    }
+  }
+
+  public static class Mongo4Suspend {
+    @Advice.OnMethodExit
+    public static void injectTracking(
+        @Advice.This InternalStreamConnection self, @Advice.Argument(1) int rqId) {
+      if (self.isClosed()) {
+        return;
+      }
+      RequestSpan requestSpan = RequestSpanMap.getRequestSpan(rqId);
+      AgentSpan span = requestSpan != null ? requestSpan.span : null;
+      if (span != null) {
+        requestSpan.isAsync = true;
+        span.startThreadMigration();
+      }
+    }
+  }
+
+  public static class Mongo4Resume {
+    @Advice.OnMethodEnter
+    public static void injectTracking(@Advice.FieldValue("message") CommandMessage msg) {
+      RequestSpan requestSpan = RequestSpanMap.getRequestSpan(msg.getId());
+      AgentSpan span = requestSpan != null ? requestSpan.span : null;
+      if (span != null && requestSpan.isAsync) {
+        span.finishThreadMigration();
       }
     }
   }
