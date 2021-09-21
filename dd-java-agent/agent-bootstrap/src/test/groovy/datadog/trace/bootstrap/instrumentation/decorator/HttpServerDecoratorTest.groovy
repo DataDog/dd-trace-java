@@ -37,7 +37,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     [method: "test-method", url: URI.create("http://test-url?some=query"), path: '/']         | "http://test-url/"
     [method: "test-method", url: URI.create("http://a:80/"), path: '/']                       | "http://a/"
     [method: "test-method", url: URI.create("https://10.0.0.1:443"), path: '/']               | "https://10.0.0.1/"
-    [method: "test-method", url: URI.create("https://localhost:0/1/"), path: '/?/']           | "https://localhost/1/"
+    [method: "test-method", url: URI.create("https://localhost:0/1/"), path: '/?']           | "https://localhost/1/"
     [method: "test-method", url: URI.create("http://123:8080/some/path"), path: '/some/path'] | "http://123:8080/some/path"
   }
 

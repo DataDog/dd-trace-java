@@ -29,9 +29,13 @@ public class RouteHandlerDecorator {
       DDCaches.newFixedSizeCache(64);
 
   public final AgentSpan withRoute(
-      final AgentSpan span, final CharSequence method, final CharSequence route) {
+      final AgentSpan span, final CharSequence method, CharSequence route) {
     span.setTag(Tags.HTTP_ROUTE, route);
     if (Config.get().isHttpServerRouteBasedNaming()) {
+      int routeLastChar = route.length() - 1;
+      if (route.charAt(routeLastChar) == '/') {
+        route = route.subSequence(0, routeLastChar);
+      }
       final CharSequence resourceName =
           RESOURCE_NAME_CACHE.computeIfAbsent(Pair.of(method, route), RESOURCE_NAME_JOINER);
       span.setResourceName(resourceName);

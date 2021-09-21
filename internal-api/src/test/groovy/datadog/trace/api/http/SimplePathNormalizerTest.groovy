@@ -44,9 +44,9 @@ class SimplePathNormalizerTest extends DDSpecification {
     "/1"               | "/?"
     "/9999"            | "/?"
     "/user/1"          | "/user/?"
-    "/user/1/"         | "/user/?/"
+    "/user/1/"         | "/user/?"
     "/user/1/repo/50"  | "/user/?/repo/?"
-    "/user/1/repo/50/" | "/user/?/repo/?/"
+    "/user/1/repo/50/" | "/user/?/repo/?"
   }
 
   def "should replace segments with mixed-characters"() {
@@ -78,7 +78,7 @@ class SimplePathNormalizerTest extends DDSpecification {
 
     where:
     input      | _
-    "/v0/"     | _
+    "/v0"      | _
     "/v10/xyz" | _
     "/a-b"     | _
     "/a_b"     | _

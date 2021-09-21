@@ -102,7 +102,7 @@ class AWS0ClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "$server.address/"
+            "$Tags.HTTP_URL" "$server.address"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" server.address.port
@@ -142,7 +142,7 @@ class AWS0ClientTest extends AgentTestRunner {
 
     where:
     service | operation           | method | path                  | handlerCount | client                                                                      | additionalTags                    | call                                                                                                                                   | body
-    "S3"    | "CreateBucket"      | "PUT"  | "/testbucket/"        | 1            | new AmazonS3Client().withEndpoint("http://localhost:$server.address.port")  | ["aws.bucket.name": "testbucket"] | { client -> client.setS3ClientOptions(S3ClientOptions.builder().setPathStyleAccess(true).build()); client.createBucket("testbucket") } | ""
+    "S3"    | "CreateBucket"      | "PUT"  | "/testbucket"         | 1            | new AmazonS3Client().withEndpoint("http://localhost:$server.address.port")  | ["aws.bucket.name": "testbucket"] | { client -> client.setS3ClientOptions(S3ClientOptions.builder().setPathStyleAccess(true).build()); client.createBucket("testbucket") } | ""
     "S3"    | "GetObject"         | "GET"  | "/someBucket/someKey" | 1            | new AmazonS3Client().withEndpoint("http://localhost:$server.address.port")  | ["aws.bucket.name": "someBucket"] | { client -> client.getObject("someBucket", "someKey") }                                                                                | ""
     "EC2"   | "AllocateAddress"   | "POST" | "/"                   | 4            | new AmazonEC2Client().withEndpoint("http://localhost:$server.address.port") | [:]                               | { client -> client.allocateAddress() }                                                                                                 | """
             <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">

@@ -139,7 +139,7 @@ class AWS1ClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.HTTP_URL" "$server.address/"
+            "$Tags.HTTP_URL" "$server.address"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.HTTP_STATUS" 200
             "$Tags.PEER_PORT" server.address.port
@@ -179,7 +179,7 @@ class AWS1ClientTest extends AgentTestRunner {
 
     where:
     service      | operation           | method | path                  | client                                                                                                                                             | call                                                                            | additionalTags                    | body
-    "S3"         | "CreateBucket"      | "PUT"  | "/testbucket/"        | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { client -> client.createBucket("testbucket") }                                 | ["aws.bucket.name": "testbucket"] | ""
+    "S3"         | "CreateBucket"      | "PUT"  | "/testbucket"         | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { client -> client.createBucket("testbucket") }                                 | ["aws.bucket.name": "testbucket"] | ""
     "S3"         | "GetObject"         | "GET"  | "/someBucket/someKey" | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { client -> client.getObject("someBucket", "someKey") }                         | ["aws.bucket.name": "someBucket"] | ""
     "DynamoDBv2" | "CreateTable"       | "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.createTable(new CreateTableRequest("sometable", null)) }               | ["aws.table.name": "sometable"]   | ""
     "Kinesis"    | "DeleteStream"      | "POST" | "/"                   | AmazonKinesisClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("somestream")) } | ["aws.stream.name": "somestream"] | ""

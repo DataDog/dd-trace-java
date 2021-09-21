@@ -9,6 +9,7 @@ final class SimplePathNormalizer extends PathNormalizer {
     }
     StringBuilder sb = new StringBuilder();
     int inEncoding = 0;
+    int lastIndex = path.length() - 1;
     for (int i = 0; i < path.length(); ) {
       int nextSlash = path.indexOf('/', i);
       if (nextSlash != i) {
@@ -48,7 +49,7 @@ final class SimplePathNormalizer extends PathNormalizer {
       } else {
         ++i;
       }
-      if (nextSlash != -1) {
+      if ((nextSlash != -1) && (nextSlash != lastIndex)) {
         sb.append('/');
       }
     }
