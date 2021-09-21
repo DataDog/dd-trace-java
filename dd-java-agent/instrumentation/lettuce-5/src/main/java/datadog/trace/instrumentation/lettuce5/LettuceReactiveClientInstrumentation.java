@@ -19,7 +19,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 /**
- * The Lettuce reactive client is based on <a href=http://reactives-treams.org">Reactive
+ * The Lettuce reactive client is based on <a href="http://reactive-streams.org">Reactive
  * Streams</a>.<br>
  *
  * <p>The whole command execution process is driven by an associated {@linkplain
