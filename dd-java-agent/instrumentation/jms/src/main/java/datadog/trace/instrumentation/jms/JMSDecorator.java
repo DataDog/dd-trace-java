@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jms;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.Function;
 import datadog.trace.api.Functions.Join;
@@ -9,6 +10,7 @@ import datadog.trace.api.Functions.PrefixJoin;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -19,12 +21,16 @@ import javax.jms.Queue;
 import javax.jms.TemporaryQueue;
 import javax.jms.TemporaryTopic;
 import javax.jms.Topic;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class JMSDecorator extends ClientDecorator {
+  private static final Logger log = LoggerFactory.getLogger(JMSDecorator.class);
 
   public static final CharSequence JMS = UTF8BytesString.create("jms");
   public static final CharSequence JMS_CONSUME = UTF8BytesString.create("jms.consume");
   public static final CharSequence JMS_PRODUCE = UTF8BytesString.create("jms.produce");
+  public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
 
   private static final Join QUEUE_JOINER = PrefixJoin.of("Queue ");
   private static final Join TOPIC_JOINER = PrefixJoin.of("Topic ");
@@ -41,15 +47,32 @@ public final class JMSDecorator extends ClientDecorator {
   private final Function<CharSequence, CharSequence> topicResourceJoiner;
 
   private final String spanKind;
-  private final String spanType;
+  private final CharSequence spanType;
+  private final String serviceName;
 
   public static final JMSDecorator PRODUCER_DECORATE =
-      new JMSDecorator("Produced for ", Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
+      new JMSDecorator(
+          "Produced for ",
+          Tags.SPAN_KIND_PRODUCER,
+          InternalSpanTypes.MESSAGE_PRODUCER,
+          Config.get().isJmsLegacyTracingEnabled() ? "jms" : null /* inherit service name */);
 
   public static final JMSDecorator CONSUMER_DECORATE =
-      new JMSDecorator("Consumed from ", Tags.SPAN_KIND_CONSUMER, DDSpanTypes.MESSAGE_CONSUMER);
+      new JMSDecorator(
+          "Consumed from ",
+          Tags.SPAN_KIND_CONSUMER,
+          InternalSpanTypes.MESSAGE_CONSUMER,
+          Config.get().isJmsLegacyTracingEnabled() ? "jms" : Config.get().getServiceName());
 
-  public JMSDecorator(String resourcePrefix, String spanKind, String spanType) {
+  public static final JMSDecorator BROKER_DECORATE =
+      new JMSDecorator(
+          "",
+          Tags.SPAN_KIND_BROKER,
+          DDSpanTypes.MESSAGE_BROKER,
+          null /* will be set per-queue or topic */);
+
+  public JMSDecorator(
+      String resourcePrefix, String spanKind, CharSequence spanType, String serviceName) {
     this.resourcePrefix = resourcePrefix;
 
     this.queueTempResourceName = UTF8BytesString.create(resourcePrefix + "Temporary Queue");
@@ -60,6 +83,7 @@ public final class JMSDecorator extends ClientDecorator {
 
     this.spanKind = spanKind;
     this.spanType = spanType;
+    this.serviceName = serviceName;
   }
 
   @Override
@@ -74,7 +98,7 @@ public final class JMSDecorator extends ClientDecorator {
 
   @Override
   protected String service() {
-    return "jms";
+    return serviceName;
   }
 
   @Override
@@ -98,13 +122,23 @@ public final class JMSDecorator extends ClientDecorator {
         final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
         span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
       }
-    } catch (Exception ignored) {
+    } catch (Exception e) {
+      log.debug("Unable to get jms timestamp", e);
     }
   }
 
   public void onProduce(AgentSpan span, CharSequence resourceName) {
     if (null != resourceName) {
       span.setResourceName(resourceName);
+    }
+  }
+
+  public void onTimeInQueue(AgentSpan span, CharSequence resourceName, String serviceName) {
+    if (null != resourceName) {
+      span.setResourceName(resourceName);
+    }
+    if (null != serviceName) {
+      span.setServiceName(serviceName);
     }
   }
 
@@ -130,17 +164,34 @@ public final class JMSDecorator extends ClientDecorator {
     String name = null;
     try {
       if (destination instanceof Queue) {
-        if (!(destination instanceof TemporaryQueue)) {
+        // WebLogic mixes all JMS Destination interfaces in a single base type which means we can't
+        // rely on instanceof and have to instead check the result of getQueueName vs getTopicName
+        if (!(destination instanceof TemporaryQueue) || isWebLogicDestination(destination)) {
           name = ((Queue) destination).getQueueName();
         }
       }
-      if (destination instanceof Topic) {
-        if (!(destination instanceof TemporaryTopic)) {
+      // check Topic name if Queue name is null because this might be a WebLogic destination
+      if (null == name && destination instanceof Topic) {
+        if (!(destination instanceof TemporaryTopic) || isWebLogicDestination(destination)) {
           name = ((Topic) destination).getTopicName();
         }
       }
-    } catch (Exception ignored) {
+    } catch (Exception e) {
+      log.debug("Unable to get jms destination name", e);
     }
     return null != name && !name.startsWith(TIBCO_TMP_PREFIX) ? name : null;
+  }
+
+  public boolean isQueue(Destination destination) {
+    try {
+      // handle WebLogic by treating everything as a Queue unless it's a Topic with a name
+      return !(destination instanceof Topic) || null == ((Topic) destination).getTopicName();
+    } catch (Exception e) {
+      return true; // assume it's a Queue if we can't check the details
+    }
+  }
+
+  private static boolean isWebLogicDestination(Destination destination) {
+    return destination.getClass().getName().startsWith("weblogic.jms.common.");
   }
 }

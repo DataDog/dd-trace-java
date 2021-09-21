@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.jms;
 
+import static datadog.trace.instrumentation.jms.MessageInjectAdapter.JMS_BATCH_ID_KEY;
+import static datadog.trace.instrumentation.jms.MessageInjectAdapter.JMS_PRODUCED_KEY;
+
 import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -8,8 +11,11 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Enumeration;
 import javax.jms.JMSException;
 import javax.jms.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
+  private static final Logger log = LoggerFactory.getLogger(MessageExtractAdapter.class);
 
   private static final Function<String, String> KEY_MAPPER =
       new Function<String, String>() {
@@ -41,5 +47,27 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
     } catch (JMSException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public long extractTimeInQueueStart(final Message carrier) {
+    try {
+      if (carrier.propertyExists(JMS_PRODUCED_KEY)) {
+        return carrier.getLongProperty(JMS_PRODUCED_KEY);
+      }
+    } catch (Exception e) {
+      log.debug("Unable to get jms produced time", e);
+    }
+    return 0;
+  }
+
+  public long extractMessageBatchId(final Message carrier) {
+    try {
+      if (carrier.propertyExists(JMS_BATCH_ID_KEY)) {
+        return carrier.getLongProperty(JMS_BATCH_ID_KEY);
+      }
+    } catch (Exception e) {
+      log.debug("Unable to get jms batch id", e);
+    }
+    return 0;
   }
 }

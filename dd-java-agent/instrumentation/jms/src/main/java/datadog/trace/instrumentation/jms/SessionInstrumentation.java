@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -24,7 +25,6 @@ import java.util.Map;
 import javax.jms.Destination;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
-import javax.jms.Queue;
 import javax.jms.Session;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -107,7 +107,7 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
           sessionState = sessionStateStore.putIfAbsent(session, new SessionState(ackMode));
         }
 
-        boolean isQueue = null == destination || destination instanceof Queue;
+        boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
         String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
         CharSequence resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
 
@@ -146,15 +146,22 @@ public class SessionInstrumentation extends Instrumenter.Tracing {
           sessionState = sessionStateStore.putIfAbsent(session, new SessionState(ackMode));
         }
 
-        boolean isQueue = null == destination || destination instanceof Queue;
+        boolean isQueue = CONSUMER_DECORATE.isQueue(destination);
         String destinationName = CONSUMER_DECORATE.getDestinationName(destination);
-        CharSequence resourceName = CONSUMER_DECORATE.toResourceName(destinationName, isQueue);
+        CharSequence brokerResourceName =
+            Config.get().isJmsLegacyTracingEnabled()
+                ? "jms"
+                : BROKER_DECORATE.toResourceName(destinationName, isQueue);
+        CharSequence consumerResourceName =
+            CONSUMER_DECORATE.toResourceName(destinationName, isQueue);
 
         boolean propagationDisabled =
             Config.get().isJMSPropagationDisabledForDestination(destinationName);
 
         consumerStateStore.put(
-            consumer, new MessageConsumerState(sessionState, resourceName, propagationDisabled));
+            consumer,
+            new MessageConsumerState(
+                sessionState, brokerResourceName, consumerResourceName, propagationDisabled));
       }
     }
   }

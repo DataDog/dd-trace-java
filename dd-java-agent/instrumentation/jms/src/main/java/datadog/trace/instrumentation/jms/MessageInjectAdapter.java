@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jms;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.jms.MessageBatchState;
+import datadog.trace.bootstrap.instrumentation.jms.MessageProducerState;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import javax.jms.Message;
 import org.slf4j.Logger;
@@ -11,6 +13,9 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
 
   public static final MessageInjectAdapter SETTER = new MessageInjectAdapter();
 
+  public static final String JMS_PRODUCED_KEY = "x_datadog_jms_produced";
+  public static final String JMS_BATCH_ID_KEY = "x_datadog_jms_batch_id";
+
   @SuppressForbidden
   @Override
   public void set(final Message carrier, final String key, final String value) {
@@ -18,9 +23,21 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
     try {
       carrier.setStringProperty(propName, value);
     } catch (Exception e) {
-      if (log.isDebugEnabled()) {
-        log.debug("Failure setting jms property: " + propName, e);
+      log.debug("Failure setting jms property: {}", propName, e);
+    }
+  }
+
+  public void injectTimeInQueue(final Message carrier, final MessageProducerState producerState) {
+    try {
+      if (producerState.getSessionState().isTransactedSession()) {
+        MessageBatchState batchState = producerState.currentBatchState();
+        carrier.setLongProperty(JMS_BATCH_ID_KEY, batchState.getBatchId());
+        carrier.setLongProperty(JMS_PRODUCED_KEY, batchState.getStartMillis());
+      } else {
+        carrier.setLongProperty(JMS_PRODUCED_KEY, System.currentTimeMillis());
       }
+    } catch (Exception e) {
+      log.debug("Failure setting jms batch details", e);
     }
   }
 }

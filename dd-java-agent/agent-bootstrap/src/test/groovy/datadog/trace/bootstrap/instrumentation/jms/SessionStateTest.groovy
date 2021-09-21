@@ -4,11 +4,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.test.util.DDSpecification
 
+import java.util.concurrent.CountDownLatch
+
 class SessionStateTest extends DDSpecification {
 
   def "commit transaction"() {
     setup:
-    SessionState sessionState = new SessionState(0)
+    def sessionState = new SessionState(0)
     def span1 = Mock(AgentSpan)
     def span2 = Mock(AgentSpan)
     when:
@@ -28,9 +30,9 @@ class SessionStateTest extends DDSpecification {
 
   def "when buffer overflows, spans are finished eagerly"() {
     setup:
-    SessionState sessionState = new SessionState(0)
-    AgentSpan span1 = Mock(AgentSpan)
-    AgentSpan span2 = Mock(AgentSpan)
+    def sessionState = new SessionState(0)
+    def span1 = Mock(AgentSpan)
+    def span2 = Mock(AgentSpan)
     when: "fill the buffer"
     for (int i = 0; i < SessionState.MAX_CAPTURED_SPANS; ++i) {
       sessionState.finishOnCommit(span1)
@@ -51,18 +53,77 @@ class SessionStateTest extends DDSpecification {
     sessionState.capturedSpanCount == 1
   }
 
-  def "stale scopes are cleaned up from session"() {
+  def "stale scopes are evicted from session"() {
     setup:
-    SessionState sessionState = new SessionState(0)
-    when: "add thread scopes without triggering cleanup"
-    for (int i = 0; i < 100; ++i) {
-      Thread.start { sessionState.closeOnIteration(Mock(AgentScope)) }.join()
+    def started = new CountDownLatch(100)
+    def stopped = new CountDownLatch(1)
+    def sessionState = new SessionState(0)
+    def closingTimes = []
+    when: "add thread scopes without triggering eviction"
+    def workers = (1..100).collect {
+      def span = Mock(AgentSpan)
+      def scope = Mock(AgentScope)
+      def startMillis = it * 1000
+      scope.span() >> span
+      scope.close() >> { closingTimes += startMillis }
+      span.startTime >> startMillis
+      Thread.start {
+        sessionState.closeOnIteration(scope)
+        started.countDown()
+        stopped.await()
+      }
     }
-    then:
-    sessionState.scopeCount == 100
-    when: "trigger cleanup"
-    sessionState.closeOnIteration(Mock(AgentScope))
-    then:
-    sessionState.scopeCount == 1
+    started.await()
+    then: "nothing has been closed yet"
+    sessionState.activeScopeCount == 100
+    closingTimes == []
+    when: "trigger eviction of oldest scopes"
+    (1..1).each { Thread.start { sessionState.closeOnIteration(Mock(AgentScope)) }.join() }
+    then: "ten oldest scopes should have been closed"
+    sessionState.activeScopeCount == 91
+    closingTimes as Set == (1..10).collect { it * 1000 } as Set
+    when: "trigger eviction of stopped workers"
+    stopped.countDown()
+    workers.each { it.join() }
+    (1..10).each { Thread.start { sessionState.closeOnIteration(Mock(AgentScope)) }.join() }
+    then: "all worker scopes should have been closed"
+    sessionState.activeScopeCount == 1
+    closingTimes as Set == (1..100).collect { it * 1000 } as Set
+  }
+
+  def "stale time-in-queue spans are evicted from session"() {
+    setup:
+    def started = new CountDownLatch(100)
+    def stopped = new CountDownLatch(1)
+    def sessionState = new SessionState(0, false)
+    def finishingTimes = []
+    when: "add time-in-queue spans without triggering eviction"
+    def workers = (1..100).collect {
+      def span = Mock(AgentSpan)
+      def startMillis = it * 1000
+      span.finish() >> { finishingTimes += startMillis }
+      span.startTime >> startMillis
+      Thread.start {
+        sessionState.setTimeInQueueSpan(0, span)
+        started.countDown()
+        stopped.await()
+      }
+    }
+    started.await()
+    then: "nothing has been finished yet"
+    sessionState.timeInQueueSpanCount == 100
+    finishingTimes == []
+    when: "trigger eviction of oldest time-in-queue spans"
+    (1..1).each { Thread.start { sessionState.setTimeInQueueSpan(0, Mock(AgentSpan)) }.join() }
+    then: "ten oldest time-in-queue spans should have been finished"
+    sessionState.timeInQueueSpanCount == 91
+    finishingTimes as Set == (1..10).collect { it * 1000 } as Set
+    when: "trigger eviction of stopped workers"
+    stopped.countDown()
+    workers.each { it.join() }
+    (1..10).each { Thread.start { sessionState.setTimeInQueueSpan(0, Mock(AgentSpan)) }.join() }
+    then: "all worker time-in-queue spans should have been finished"
+    sessionState.timeInQueueSpanCount == 1
+    finishingTimes as Set == (1..100).collect { it * 1000 } as Set
   }
 }
