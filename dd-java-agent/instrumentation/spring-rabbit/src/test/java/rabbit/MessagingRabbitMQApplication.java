@@ -19,9 +19,9 @@ public class MessagingRabbitMQApplication {
   public static String hostName = "127.0.0.1";
   public static int port = 5672;
 
-  static final String topicExchangeName = "test";
+  static final String topicExchangeName = "test-exchange";
 
-  static final String queueName = "queue";
+  static final String queueName = "test-queue";
 
   @Bean
   Queue queue() {
