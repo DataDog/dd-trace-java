@@ -107,10 +107,13 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   void setSpanName(CharSequence spanName);
 
+  @Deprecated
   boolean hasResourceName();
 
   @Override
   AgentSpan setResourceName(final CharSequence resourceName);
+
+  AgentSpan setResourceName(final CharSequence resourceName, byte priority);
 
   boolean eligibleForDropping();
 

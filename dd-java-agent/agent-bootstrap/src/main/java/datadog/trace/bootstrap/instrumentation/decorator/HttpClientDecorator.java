@@ -11,6 +11,7 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -78,13 +79,14 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
             span.setTag(DDTags.HTTP_QUERY, url.getQuery());
             span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
           }
-          if (shouldSetResourceName() && !span.hasResourceName()) {
+          if (shouldSetResourceName()) {
             span.setResourceName(
                 RESOURCE_NAMES.computeIfAbsent(
                     Pair.of(method, SIMPLE_PATH_NORMALIZER.normalize(path)),
-                    PATH_BASED_RESOURCE_NAME));
+                    PATH_BASED_RESOURCE_NAME),
+                ResourceNamePriorities.HTTP_PATH_NORMALIZER);
           }
-        } else if (shouldSetResourceName() && !span.hasResourceName()) {
+        } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
       } catch (final Exception e) {

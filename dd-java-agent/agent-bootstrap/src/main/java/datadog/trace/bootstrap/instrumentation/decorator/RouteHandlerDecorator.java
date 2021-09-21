@@ -6,6 +6,7 @@ import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
@@ -34,16 +35,8 @@ public class RouteHandlerDecorator {
     if (Config.get().isHttpServerRouteBasedNaming()) {
       final CharSequence resourceName =
           RESOURCE_NAME_CACHE.computeIfAbsent(Pair.of(method, route), RESOURCE_NAME_JOINER);
-      span.setResourceName(resourceName);
+      span.setResourceName(resourceName, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
     }
     return span;
-  }
-
-  public final boolean hasRouteBasedResourceName(AgentSpan span) {
-    if (Config.get().isHttpServerRouteBasedNaming()) {
-      CharSequence route = (CharSequence) span.getTag(Tags.HTTP_ROUTE);
-      return route != null && span.getResourceName().toString().endsWith(route.toString());
-    }
-    return false;
   }
 }

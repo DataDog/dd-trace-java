@@ -53,6 +53,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
       ROUTE_HANDLER_DECORATOR.withRoute(
           span, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
     } else {
+      // TODO if this check stays it needs a comment because it's not clear why it is here
       if (!parent.getLocalRootSpan().hasResourceName()) {
         ROUTE_HANDLER_DECORATOR.withRoute(
             parent.getLocalRootSpan(), httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());

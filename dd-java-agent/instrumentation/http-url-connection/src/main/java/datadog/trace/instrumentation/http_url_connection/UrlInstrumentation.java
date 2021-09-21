@@ -16,6 +16,7 @@ import datadog.trace.bootstrap.InternalJarURLHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URL;
 import java.net.URLStreamHandler;
@@ -78,9 +79,9 @@ public class UrlInstrumentation extends Instrumenter.Tracing {
           if (Config.get().isHttpClientSplitByDomain() && null != host && !host.isEmpty()) {
             span.setServiceName(host);
           }
-          if (!span.hasResourceName()) {
-            span.setResourceName(SIMPLE_PATH_NORMALIZER.normalize(url.getPath()));
-          }
+          span.setResourceName(
+              SIMPLE_PATH_NORMALIZER.normalize(url.getPath()),
+              ResourceNamePriorities.HTTP_PATH_NORMALIZER);
 
           span.setError(true);
           span.addThrowable(throwable);

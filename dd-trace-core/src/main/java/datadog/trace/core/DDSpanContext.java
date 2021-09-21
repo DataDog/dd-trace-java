@@ -12,6 +12,7 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.taginterceptor.TagInterceptor;
@@ -76,6 +77,8 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
   private volatile String serviceName;
   /** The resource associated to the service (server_web, database, etc.) */
   private volatile CharSequence resourceName;
+
+  private volatile int resourceNamePriority = ResourceNamePriorities.DEFAULT;
   /** Each span have an operation name describing the current span */
   private volatile CharSequence operationName;
   /** The type of the span. If null, the Datadog Agent will report as a custom */
@@ -183,20 +186,24 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
   }
 
+  // TODO this logic is inconsistent with hasResourceName
   public CharSequence getResourceName() {
     return isResourceNameSet() ? resourceName : operationName;
-  }
-
-  public boolean isResourceNameSet() {
-    return resourceName != null && resourceName.length() != 0;
   }
 
   public boolean hasResourceName() {
     return isResourceNameSet() || getTag(DDTags.RESOURCE_NAME) != null;
   }
 
-  public void setResourceName(final CharSequence resourceName) {
-    this.resourceName = resourceName;
+  public void setResourceName(final CharSequence resourceName, int priority) {
+    if (priority >= this.resourceNamePriority) {
+      this.resourceNamePriority = priority;
+      this.resourceName = resourceName;
+    }
+  }
+
+  private boolean isResourceNameSet() {
+    return resourceName != null && resourceName.length() != 0;
   }
 
   public CharSequence getOperationName() {

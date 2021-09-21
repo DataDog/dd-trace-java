@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.api.http.UrlBasedResourceNameCalculator.RESOURCE_NAME_CALCULATOR;
-import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -20,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -145,11 +145,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
             span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
           callIGCallbackURI(span, url, method);
-          // TODO is this ever false?
-          if (SHOULD_SET_URL_RESOURCE_NAME && !span.hasResourceName()) {
+          if (SHOULD_SET_URL_RESOURCE_NAME) {
+            // TODO Change RESOURCE_NAME_CALCULATOR to a decorator so it can set the name priority
             span.setResourceName(RESOURCE_NAME_CALCULATOR.calculate(method, path, encoded));
           }
-        } else if (SHOULD_SET_URL_RESOURCE_NAME && !span.hasResourceName()) {
+        } else if (SHOULD_SET_URL_RESOURCE_NAME) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
       } catch (final Exception e) {
@@ -183,10 +183,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
       if (SERVER_ERROR_STATUSES.get(status)) {
         span.setError(true);
       }
-      if (SHOULD_SET_404_RESOURCE_NAME
-          && status == 404
-          && !ROUTE_HANDLER_DECORATOR.hasRouteBasedResourceName(span)) {
-        span.setResourceName(NOT_FOUND_RESOURCE_NAME);
+      if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
+        span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
       }
     }
     return span;
