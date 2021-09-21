@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.mule4;
+package datadog.trace.instrumentation.caffeine;
 
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import java.util.concurrent.ForkJoinPool;

@@ -73,6 +73,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
   testImplementation project(':dd-java-agent:instrumentation:grizzly-http-2.3.20')
   testImplementation project(':dd-java-agent:instrumentation:grizzly-client-1.9')
+  testImplementation project(':dd-java-agent:instrumentation:caffeine')
 
   testImplementation group: 'org.mule.runtime', name: 'mule-module-launcher', version: muleVersion
   testImplementation group: 'org.mule.runtime', name: 'mule-core', version: muleVersion

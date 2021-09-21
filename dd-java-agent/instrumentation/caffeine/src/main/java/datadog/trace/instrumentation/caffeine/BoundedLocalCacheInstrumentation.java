@@ -1,10 +1,13 @@
-package datadog.trace.instrumentation.mule4;
+package datadog.trace.instrumentation.caffeine;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import java.util.concurrent.ForkJoinPool;
+import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -12,12 +15,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public final class BoundedLocalCacheInstrumentation extends Instrumenter.Tracing {
 
   public BoundedLocalCacheInstrumentation() {
-    super("mule");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
+    super("caffeine");
   }
 
   @Override
@@ -29,6 +27,18 @@ public final class BoundedLocalCacheInstrumentation extends Instrumenter.Tracing
   public void adviceTransformations(AdviceTransformation transformation) {
     transformation.applyAdvice(
         named("scheduleDrainBuffers").and(takesArguments(0)),
-        packageName + ".BoundedLocalCacheAdvice");
+        getClass().getName() + "$ScheduleDrainBuffers");
+  }
+
+  public static class ScheduleDrainBuffers {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter() {
+      CallDepthThreadLocalMap.incrementCallDepth(ForkJoinPool.class);
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void onExit() {
+      CallDepthThreadLocalMap.decrementCallDepth(ForkJoinPool.class);
+    }
   }
 }
