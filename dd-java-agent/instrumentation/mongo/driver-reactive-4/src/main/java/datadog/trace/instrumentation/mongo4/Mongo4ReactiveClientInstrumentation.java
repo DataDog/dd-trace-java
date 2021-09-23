@@ -8,6 +8,7 @@ import com.google.auto.service.AutoService;
 import com.mongodb.event.CommandListener;
 import com.mongodb.internal.connection.CommandMessage;
 import com.mongodb.internal.connection.InternalStreamConnection;
+import com.mongodb.reactivestreams.client.MongoCollection;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -48,14 +49,21 @@ public class Mongo4ReactiveClientInstrumentation extends Instrumenter.Tracing {
         Mongo4ReactiveClientInstrumentation.class.getName() + "$Mongo4Resume");
   }
 
+  @Override
+  public boolean isEnabled() {
+    try {
+      Class.forName("com.mongodb.reactivestreams.client.MongoCollection");
+      return true;
+    } catch (ClassNotFoundException ignored) {}
+    return false;
+  }
+
   public static class Mongo4Suspend {
     @Advice.OnMethodExit
     public static void injectTracking(
         @Advice.This InternalStreamConnection self,
         @Advice.Argument(1) int rqId,
         @Advice.FieldValue("commandListener") CommandListener listener) {
-      System.err.println(
-          "===> suspend listener: " + (listener != null ? listener.getClass() : null));
       if (self.isClosed()) {
         return;
       }
@@ -74,8 +82,6 @@ public class Mongo4ReactiveClientInstrumentation extends Instrumenter.Tracing {
     public static void injectTracking(
         @Advice.FieldValue("commandListener") CommandListener listener,
         @Advice.FieldValue("message") CommandMessage msg) {
-      System.err.println(
-          "===> suspend listener: " + (listener != null ? listener.getClass() : null));
       AgentSpan span =
           (listener instanceof Tracing4CommandListener
               ? ((Tracing4CommandListener) listener).getSpan(msg.getId())

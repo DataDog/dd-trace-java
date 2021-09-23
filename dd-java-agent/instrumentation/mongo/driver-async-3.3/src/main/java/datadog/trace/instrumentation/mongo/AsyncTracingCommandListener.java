@@ -56,7 +56,6 @@ public class AsyncTracingCommandListener implements CommandListener {
   @Override
   public void commandSucceeded(final CommandSucceededEvent event) {
     final AgentSpan span = spanMap.get(event.getRequestId());
-    final AgentSpan activeSpan = activeSpan();
     if (span != null) {
       DECORATE.beforeFinish(span);
       span.finish();
