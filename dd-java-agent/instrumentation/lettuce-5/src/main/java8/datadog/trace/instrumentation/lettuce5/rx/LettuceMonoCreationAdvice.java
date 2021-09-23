@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.lettuce5.rx;
 
-import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.expectsResponse;
-
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.lettuce.core.protocol.RedisCommand;
 import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
@@ -18,15 +17,8 @@ public class LettuceMonoCreationAdvice {
   // throwables wouldn't matter here, because no spans have been started due to redis command not
   // being run until the user subscribes to the Mono publisher
   @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void monitorSpan(
-      @Advice.Enter final RedisCommand command,
-      @Advice.Return(readOnly = false) Mono<?> publisher) {
-    final boolean finishSpanOnClose = !expectsResponse(command);
-    final LettuceMonoDualConsumer mdc = new LettuceMonoDualConsumer(command, finishSpanOnClose);
-    publisher = publisher.doOnSubscribe(mdc);
-    // register the call back to close the span only if necessary
-    if (!finishSpanOnClose) {
-      publisher = publisher.doOnSuccessOrError(mdc);
-    }
+  public static void afterCreateMono(@Advice.Return(readOnly = false) Mono<?> publisher) {
+    LettuceFlowTracker tracker = new LettuceFlowTracker(AgentTracer.activeSpan());
+    publisher = publisher.doOnSubscribe(tracker);
   }
 }

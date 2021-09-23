@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.lettuce5.rx;
 
-import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.expectsResponse;
-
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.lettuce.core.protocol.RedisCommand;
 import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
@@ -15,22 +14,11 @@ public class LettuceFluxCreationAdvice {
     return supplier.get();
   }
 
-  // if there is an exception thrown, then don't make spans
+  // throwables wouldn't matter here, because no spans have been started due to redis command not
+  // being run until the user subscribes to the Mono publisher
   @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void monitorSpan(
-      @Advice.Enter final RedisCommand command,
-      @Advice.Return(readOnly = false) Flux<?> publisher) {
-
-    final boolean finishSpanOnClose = !expectsResponse(command);
-    final LettuceFluxTerminationRunnable handler =
-        new LettuceFluxTerminationRunnable(command, finishSpanOnClose);
-    publisher = publisher.doOnSubscribe(handler.getOnSubscribeConsumer());
-    // don't register extra callbacks to finish the spans if the command being instrumented is one
-    // of those that return
-    // Mono<Void> (In here a flux is created first and then converted to Mono<Void>)
-    if (!finishSpanOnClose) {
-      publisher = publisher.doOnEach(handler);
-      publisher = publisher.doOnCancel(handler);
-    }
+  public static void afterCreateFlux(@Advice.Return(readOnly = false) Flux<?> publisher) {
+    LettuceFlowTracker tracker = new LettuceFlowTracker(AgentTracer.activeSpan());
+    publisher = publisher.doOnSubscribe(tracker);
   }
 }
