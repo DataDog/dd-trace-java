@@ -80,7 +80,9 @@ class StringsTest extends DDSpecification {
     escaped == expected
 
     where:
+    // spotless:off
     string | expected
     '"' | '\\"'
+    // spotless:on
   }
 }
