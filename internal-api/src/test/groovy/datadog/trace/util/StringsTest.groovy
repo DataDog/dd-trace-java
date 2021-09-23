@@ -71,4 +71,16 @@ class StringsTest extends DDSpecification {
     "tetetetete" | "tet"     | "e"         | "eeeete"          | "eetetete"
     // spotless:on
   }
+
+  def "test escape javascript"() {
+    when:
+    String escaped = Strings.escapeJavaScript(string)
+
+    then:
+    escaped == expected
+
+    where:
+    string | expected
+    '"' | '\\"'
+  }
 }
