@@ -155,11 +155,4 @@ class VertxRedisAPIRedisConnectionForkedTest extends VertxRedisAPITestBase {
     latch.await(10, TimeUnit.SECONDS)
     assert redisAPI
   }
-
-  @Override
-  def setup() {
-    //    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-    //      CheckpointValidationMode.INTERVALS,
-    //      CheckpointValidationMode.THREAD_SEQUENCE)
-  }
 }
