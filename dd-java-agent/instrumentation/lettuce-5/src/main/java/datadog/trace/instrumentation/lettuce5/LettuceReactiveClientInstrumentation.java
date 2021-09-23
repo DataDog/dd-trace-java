@@ -67,6 +67,7 @@ public class LettuceReactiveClientInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".rx.RedisSubscriptionSubscribeAdvice",
       packageName + ".rx.RedisSubscriptionSubscribeAdvice$State",
       packageName + ".rx.RedisSubscriptionState",
       packageName + ".rx.LettuceFlowTracker",
