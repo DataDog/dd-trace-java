@@ -23,7 +23,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 public class RedisAPICallAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static boolean beforeCall(
-      @Advice.Origin() final Method currentMethod,
+      @Advice.Origin final Method currentMethod,
       @Advice.This final RedisAPI self,
       @Advice.Argument(
               value = 0,
@@ -106,6 +106,11 @@ public class RedisAPICallAdvice {
     final AgentSpan clientSpan = DECORATE.startAndDecorateSpan(method.getName());
     TraceScope.Continuation parentContinuation =
         null == parentSpan ? null : captureSpan(parentSpan);
+    /*
+    Opens a new scope.
+    The potential racy condition when the handler may be added to an already finished task is handled
+    by RedisAPIImplSendAdvice.
+    */
     activateSpan(clientSpan, true);
     ResponseHandlerWrapper respHandler =
         new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
@@ -130,11 +135,10 @@ public class RedisAPICallAdvice {
       default:
     }
 
+    /*
+    Store the response handler in the context so that it can be retrieved in RedisAPIImplSendAdvice
+    */
     InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).put(self, respHandler);
-
-    // We can not activate the clientSpan here for consistency reasons, since sometimes the Future
-    // that is returned from the inner `send` method, is completed before we add the handler, and
-    // then the handler will be executed immediately in the scope of this clientSpan
     return true;
   }
 
@@ -149,6 +153,7 @@ public class RedisAPICallAdvice {
 
     AgentTracer.activeScope().close();
 
+    // Clean the response handler from the context
     InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).put(self, null);
   }
 

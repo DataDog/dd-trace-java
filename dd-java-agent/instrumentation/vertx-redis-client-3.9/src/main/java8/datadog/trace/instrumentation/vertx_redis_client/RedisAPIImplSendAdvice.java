@@ -11,15 +11,22 @@ import net.bytebuddy.asm.Advice;
 public class RedisAPIImplSendAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterSend(@Advice.This RedisAPI self, @Advice.Return Future future) {
+    /*
+    Here we can safely set the handler for a command related Future instance.
+    We need to take some precautions due to a non-existent operation which would allow setting the handler
+    and in case the Future is complete immediately calling it.
+     */
+
+    // Get the handler from the context, set by RedisAPICallAdvice
     ResponseHandlerWrapper handler =
         InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).get(self);
     if (handler != null && !future.isComplete()) {
-      // add the handler only when the future is not already completed
+      // Add the handler only when the future is not already completed
       future.setHandler(handler);
     }
     if (handler != null && future.isComplete()) {
-      // check whether the future has completed some time when adding the handler
-      // this might lead to executing the handler twice so the handler must be able to deal with it
+      // Check whether the future has completed some time when adding the handler.
+      // This might lead to executing the handler twice so the handler must be able to deal with it.
       handler.handle(((AsyncResult) future.result()));
     }
   }
