@@ -3,11 +3,12 @@ package datadog.trace.instrumentation.trace_annotation;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isEquals;
 import static net.bytebuddy.matcher.ElementMatchers.isFinalizer;
 import static net.bytebuddy.matcher.ElementMatchers.isGetter;
 import static net.bytebuddy.matcher.ElementMatchers.isHashCode;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isSetter;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
 import static net.bytebuddy.matcher.ElementMatchers.isToString;
@@ -15,7 +16,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.api.Config;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
@@ -153,19 +153,21 @@ public class TraceConfigInstrumentation implements Instrumenter {
       for (String methodName : methodNames) {
         hasWildcard |= methodName.equals("*");
       }
-      transformation.applyAdvice(
-          hasWildcard
-              ? not(
-                  isHashCode()
-                      .or(isEquals())
-                      .or(isToString())
-                      .or(isFinalizer())
-                      .or(isGetter())
-                      .or(isConstructor())
-                      .or(isSetter())
-                      .or(isSynthetic()))
-              : NameMatchers.<MethodDescription>namedOneOf(methodNames),
-          packageName + ".TraceAdvice");
+      ElementMatcher<MethodDescription> methodFilter;
+      if (hasWildcard) {
+        methodFilter =
+            not(
+                isHashCode()
+                    .or(isEquals())
+                    .or(isToString())
+                    .or(isFinalizer())
+                    .or(isGetter())
+                    .or(isSetter())
+                    .or(isSynthetic()));
+      } else {
+        methodFilter = namedOneOf(methodNames);
+      }
+      transformation.applyAdvice(isMethod().and(methodFilter), packageName + ".TraceAdvice");
     }
   }
 }
