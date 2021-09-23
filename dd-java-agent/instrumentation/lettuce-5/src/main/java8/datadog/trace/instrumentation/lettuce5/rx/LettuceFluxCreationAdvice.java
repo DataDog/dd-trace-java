@@ -17,7 +17,7 @@ public class LettuceFluxCreationAdvice {
   // throwables wouldn't matter here, because no spans have been started due to redis command not
   // being run until the user subscribes to the Mono publisher
   @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void afterCreateMono(@Advice.Return(readOnly = false) Flux<?> publisher) {
+  public static void afterCreateFlux(@Advice.Return(readOnly = false) Flux<?> publisher) {
     LettuceFlowTracker tracker = new LettuceFlowTracker(AgentTracer.activeSpan());
     publisher = publisher.doOnSubscribe(tracker);
   }
