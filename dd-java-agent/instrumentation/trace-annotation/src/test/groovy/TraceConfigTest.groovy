@@ -80,6 +80,9 @@ class TraceConfigTest extends AgentTestRunner {
   }
 
   abstract class DictionaryElement{
+    static {
+      System.out.println("Static initializer (should not be included in wildcard)")
+    }
     abstract void produceDefinition()
   }
 
