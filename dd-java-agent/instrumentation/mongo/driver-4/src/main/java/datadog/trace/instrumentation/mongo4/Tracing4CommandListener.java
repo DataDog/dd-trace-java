@@ -19,12 +19,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Tracing4CommandListener implements CommandListener {
 
   private static final DDCache<String, UTF8BytesString> COMMAND_NAMES =
       DDCaches.newUnboundedCache(16);
 
+  private final Map<Integer, AgentSpan> spanMap = new ConcurrentHashMap<>();
   private String applicationName;
 
   public void setApplicationName(final String applicationName) {
@@ -57,15 +60,13 @@ public class Tracing4CommandListener implements CommandListener {
                 COMMAND_NAMES.computeIfAbsent(event.getCommandName(), UTF8_ENCODE));
       }
       DECORATE.onStatement(span, event.getCommand());
-      RequestSpanMap.addRequestSpan(event.getRequestId(), span);
+      spanMap.put(event.getRequestId(), span);
     }
   }
 
   @Override
   public void commandSucceeded(final CommandSucceededEvent event) {
-    final RequestSpanMap.RequestSpan requestSpan =
-        RequestSpanMap.removeRequestSpan(event.getRequestId());
-    final AgentSpan span = requestSpan != null ? requestSpan.span : null;
+    final AgentSpan span = spanMap.remove(event.getRequestId());
     if (span != null) {
       DECORATE.beforeFinish(span);
       span.finish();
@@ -74,13 +75,15 @@ public class Tracing4CommandListener implements CommandListener {
 
   @Override
   public void commandFailed(final CommandFailedEvent event) {
-    final RequestSpanMap.RequestSpan requestSpan =
-        RequestSpanMap.removeRequestSpan(event.getRequestId());
-    final AgentSpan span = requestSpan != null ? requestSpan.span : null;
+    final AgentSpan span = spanMap.remove(event.getRequestId());
     if (span != null) {
       DECORATE.onError(span, event.getThrowable());
       DECORATE.beforeFinish(span);
       span.finish();
     }
+  }
+
+  public AgentSpan getSpan(int requestId) {
+    return spanMap.get(requestId);
   }
 }

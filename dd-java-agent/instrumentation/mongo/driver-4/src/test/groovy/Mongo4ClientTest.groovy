@@ -47,11 +47,11 @@ class Mongo4ClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", renameService)
       }
     }
-    //    and: "synchronous checkpoints span the driver activity"
-    //    1 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    //    1 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
-    //    _ * TEST_CHECKPOINTER.onRootSpan(_, _)
-    //    0 * TEST_CHECKPOINTER._
+    and: "synchronous checkpoints span the driver activity"
+    1 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    1 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _)
+    0 * TEST_CHECKPOINTER._
 
     where:
     collectionName = randomCollectionName()
