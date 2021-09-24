@@ -524,6 +524,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan startSpan(final CharSequence spanName, boolean emitCheckpoint) {
+    if (null == spanName) {
+      System.err.println("--> SRSLY 1");
+      new IllegalArgumentException("WTF?").printStackTrace(System.err);
+    }
     AgentTracer.SpanBuilder builder = buildSpan(spanName);
     if (!emitCheckpoint) {
       builder = builder.suppressCheckpoints();

@@ -13,6 +13,7 @@ import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -25,7 +26,8 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends ServerDecorator {
+public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER>
+    extends ServerDecorator {
 
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
 
@@ -43,6 +45,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       Config.get().isRuleEnabled("URLAsResourceNameRule");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
+
+  protected abstract AgentPropagation.ContextVisitor<CARRIER> getter();
+
+  public abstract CharSequence spanName();
 
   protected abstract String method(REQUEST request);
 
@@ -62,6 +68,21 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   @Override
   protected boolean traceAnalyticsDefault() {
     return Config.get().isTraceAnalyticsEnabled();
+  }
+
+  public AgentSpan.Context.Extracted extract(CARRIER carrier) {
+    AgentPropagation.ContextVisitor<CARRIER> getter = getter();
+    if (null == carrier || null == getter) {
+      return null;
+    }
+    return AgentTracer.propagate().extract(carrier, getter);
+  }
+
+  public AgentSpan startSpan(CARRIER carrier, AgentSpan.Context.Extracted context) {
+    // TODO move AppSec header checks here after the span has been created, and also create the
+    //  RequestContext after the span has been created, or maybe even move it after the URL is
+    //  available?
+    return AgentTracer.startSpan(spanName(), context).setMeasured(true);
   }
 
   public AgentSpan onRequest(

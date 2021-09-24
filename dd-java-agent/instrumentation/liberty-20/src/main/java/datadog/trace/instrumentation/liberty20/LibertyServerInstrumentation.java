@@ -2,12 +2,9 @@ package datadog.trace.instrumentation.liberty20;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_EXTRACTED_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DECORATE;
-import static datadog.trace.instrumentation.liberty20.LibertyDecorator.SERVLET_REQUEST;
-import static datadog.trace.instrumentation.liberty20.RequestExtractAdapter.GETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -18,7 +15,6 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import javax.servlet.ServletRequest;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -73,10 +69,9 @@ public final class LibertyServerInstrumentation extends Instrumenter.Tracing {
       } catch (NullPointerException e) {
       }
 
-      final AgentSpan.Context.Extracted extractedContext = propagate().extract(request, GETTER);
+      final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(request);
       request.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
-      final AgentSpan span =
-          AgentTracer.startSpan(SERVLET_REQUEST, extractedContext).setMeasured(true);
+      final AgentSpan span = DECORATE.startSpan(request, extractedContext);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, extractedContext);

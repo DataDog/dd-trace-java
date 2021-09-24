@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -13,6 +14,10 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TA
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def span = Mock(AgentSpan)
+
+  def "test startSpan"() {
+    // TODO test it
+  }
 
   def "test onRequest"() {
     setup:
@@ -207,7 +212,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   @Override
   def newDecorator() {
-    return new HttpServerDecorator<Map, Map, Map>() {
+    return new HttpServerDecorator<Map, Map, Map, Map>() {
         @Override
         protected String[] instrumentationNames() {
           return ["test1", "test2"]
@@ -216,6 +221,16 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
         @Override
         protected CharSequence component() {
           return "test-component"
+        }
+
+        @Override
+        protected AgentPropagation.ContextVisitor<Map> getter() {
+          return null
+        }
+
+        @Override
+        CharSequence spanName() {
+          return "http-test-span"
         }
 
         @Override

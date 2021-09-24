@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.play23;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
+import static datadog.trace.instrumentation.play23.PlayHeaders.GETTER;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -10,11 +12,13 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 import play.api.Routes;
+import play.api.mvc.Headers;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
 import scala.Option;
 
-public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Request, Result> {
+public class PlayHttpServerDecorator
+    extends HttpServerDecorator<Request, Request, Result, Headers> {
   public static final boolean REPORT_HTTP_STATUS = Config.get().getPlayReportHttpStatus();
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
   public static final CharSequence PLAY_ACTION = UTF8BytesString.create("play-action");
@@ -28,6 +32,16 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   @Override
   protected CharSequence component() {
     return PLAY_ACTION;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<Headers> getter() {
+    return GETTER;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return PLAY_REQUEST;
   }
 
   @Override
