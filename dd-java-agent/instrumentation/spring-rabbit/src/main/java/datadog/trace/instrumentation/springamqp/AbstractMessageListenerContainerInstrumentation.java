@@ -77,6 +77,7 @@ public class AbstractMessageListenerContainerInstrumentation extends Instrumente
               AgentSpan span = startSpan(AMQP_CONSUME);
               span.setMeasured(true);
               DECORATE.afterStart(span);
+              DECORATE.onConsume(span, message.getMessageProperties().getConsumerQueue());
               return activateSpan(span);
             }
           }
