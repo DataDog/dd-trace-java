@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.vertx_redis_client;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
 import io.vertx.core.AsyncResult;
@@ -21,6 +23,8 @@ public class RedisAPICallAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static boolean beforeCall(
       @Advice.Origin final Method currentMethod,
+      @Advice.This final RedisAPI self,
+      @Advice.Local("callScope") TraceScope scope,
       @Advice.Argument(
               value = 0,
               readOnly = false,
@@ -102,7 +106,15 @@ public class RedisAPICallAdvice {
     final AgentSpan clientSpan = DECORATE.startAndDecorateSpan(method.getName());
     TraceScope.Continuation parentContinuation =
         null == parentSpan ? null : captureSpan(parentSpan);
-    handler = new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
+    /*
+    Opens a new scope.
+    The potential racy condition when the handler may be added to an already finished task is handled
+    by RedisAPIImplSendAdvice.
+    */
+    scope = activateSpan(clientSpan, true);
+    ResponseHandlerWrapper respHandler =
+        new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
+    handler = respHandler;
 
     switch (position) {
       case 1:
@@ -123,18 +135,27 @@ public class RedisAPICallAdvice {
       default:
     }
 
-    // We can not activate the clientSpan here for consistency reasons, since sometimes the Future
-    // that is returned from the inner `send` method, is completed before we add the handler, and
-    // then the handler will be executed immediately in the scope of this clientSpan
+    /*
+    Store the response handler in the context so that it can be retrieved in RedisAPIImplSendAdvice
+    */
+    InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).put(self, respHandler);
     return true;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterCall(
-      @Advice.Thrown final Throwable throwable, @Advice.Enter final boolean decrement) {
+      @Advice.Thrown final Throwable throwable,
+      @Advice.This final RedisAPI self,
+      @Advice.Local("callScope") TraceScope scope,
+      @Advice.Enter final boolean decrement) {
     if (decrement) {
       CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
     }
+
+    scope.close();
+
+    // Clean the response handler from the context
+    InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).put(self, null);
   }
 
   // Only apply this advice for versions that we instrument 3.9.x
