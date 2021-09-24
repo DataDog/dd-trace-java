@@ -7,13 +7,10 @@ import datadog.trace.api.GenericClassValue;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Function;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;
-import org.springframework.web.reactive.function.server.ServerRequest;
-import org.springframework.web.server.ServerWebExchange;
 import reactor.core.CoreSubscriber;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Operators;
@@ -55,35 +52,6 @@ public final class AdviceUtils {
       AgentSpan span) {
     return Operators.lift(
         (scannable, subscriber) -> new SpanFinishingSubscriber<>(subscriber, span));
-  }
-
-  public static void finishSpanIfPresent(ServerWebExchange exchange, Throwable throwable) {
-    if (exchange != null) {
-      finishSpanIfPresentInAttributes(exchange.getAttributes(), throwable);
-    }
-  }
-
-  public static void finishSpanIfPresent(ServerRequest serverRequest, Throwable throwable) {
-    if (serverRequest != null) {
-      finishSpanIfPresentInAttributes(serverRequest.attributes(), throwable);
-    }
-  }
-
-  private static void finishSpanIfPresentInAttributes(
-      Map<String, Object> attributes, Throwable throwable) {
-
-    AgentSpan span = (AgentSpan) attributes.remove(SPAN_ATTRIBUTE);
-    finishSpanIfPresent(span, throwable);
-  }
-
-  static void finishSpanIfPresent(AgentSpan span, Throwable throwable) {
-    if (span != null) {
-      if (throwable != null) {
-        span.setError(true);
-        span.addThrowable(throwable);
-      }
-      span.finish();
-    }
   }
 
   public static final class SpanFinishingSubscriber<T> implements CoreSubscriber<T>, Subscription {
