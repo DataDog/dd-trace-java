@@ -28,6 +28,7 @@ testSets {
 
 dependencies {
   compileOnly group: 'org.mongodb', name: 'mongodb-driver-core', version: '4.0.0'
+  implementation project(':dd-java-agent:instrumentation:mongo:driver-4-common')
 
   testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
   testImplementation group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '1.50.5'

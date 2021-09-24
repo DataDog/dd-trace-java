@@ -8,7 +8,6 @@ import com.google.auto.service.AutoService;
 import com.mongodb.event.CommandListener;
 import com.mongodb.internal.connection.CommandMessage;
 import com.mongodb.internal.connection.InternalStreamConnection;
-import com.mongodb.reactivestreams.client.MongoCollection;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -51,10 +50,13 @@ public class Mongo4ReactiveClientInstrumentation extends Instrumenter.Tracing {
 
   @Override
   public boolean isEnabled() {
-    try {
-      Class.forName("com.mongodb.reactivestreams.client.MongoCollection");
-      return true;
-    } catch (ClassNotFoundException ignored) {}
+    if (super.isEnabled()) {
+      try {
+        Class.forName("com.mongodb.reactivestreams.client.MongoCollection");
+        return true;
+      } catch (ClassNotFoundException ignored) {
+      }
+    }
     return false;
   }
 

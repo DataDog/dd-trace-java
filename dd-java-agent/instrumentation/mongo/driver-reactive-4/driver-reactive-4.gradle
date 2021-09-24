@@ -10,7 +10,6 @@ muzzle {
     module = "mongodb-driver-core"
     versions = "[3.8,)"
     assertInverse = true
-    extraDependency 'org.mongodb:mongodb-driver-reactivestreams:4.0.0'
   }
 }
 
@@ -27,9 +26,7 @@ testSets {
 dependencies {
   compileOnly group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.0.0'
 
-  compile(project(':dd-java-agent:instrumentation:mongo:driver-4')) {
-    transitive = false
-  }
+  implementation (project(':dd-java-agent:instrumentation:mongo:driver-4-common'))
 
   testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
   testImplementation group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '1.50.5'
