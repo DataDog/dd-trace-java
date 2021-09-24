@@ -4,6 +4,7 @@ import datadog.trace.api.DisableTestTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import datadog.trace.util.Strings;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 
@@ -53,7 +54,9 @@ public class JUnit4Decorator extends TestDecorator {
     if (!fullTestName.equals(normalizedTestName)) {
       // No public access to the test parameters map in JUnit4.
       // In this case, we store the fullTestName in the "metadata.test_name" object.
-      span.setTag(Tags.TEST_PARAMETERS, "{\"metadata\":{\"test_name\":\"" + fullTestName + "\"}}");
+      span.setTag(
+          Tags.TEST_PARAMETERS,
+          "{\"metadata\":{\"test_name\":\"" + Strings.escapeToJson(fullTestName) + "\"}}");
     }
 
     // We cannot set TEST_PASS status in onTestFinish(...) method because that method

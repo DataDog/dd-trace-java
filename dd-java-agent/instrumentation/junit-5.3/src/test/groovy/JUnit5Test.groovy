@@ -69,8 +69,8 @@ class JUnit5Test extends TestFrameworkTest {
     }
 
     where:
-    testTags_0 = ["$Tags.TEST_PARAMETERS": "{\"metadata\":{\"test_name\":\"[1] 0, 0, 0\"}}"]
-    testTags_1 = ["$Tags.TEST_PARAMETERS": "{\"metadata\":{\"test_name\":\"[2] 1, 1, 2\"}}"]
+    testTags_0 = ["$Tags.TEST_PARAMETERS": '{"metadata":{"test_name":"[1] 0, 0, 0, some:\\\"parameter\\\""}}']
+    testTags_1 = ["$Tags.TEST_PARAMETERS": '{"metadata":{"test_name":"[2] 1, 1, 2, some:\\\"parameter\\\""}}']
   }
 
   def "test repeated generates spans"() {

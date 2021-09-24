@@ -142,8 +142,8 @@ class JUnit4Test extends TestFrameworkTest {
     }
 
     where:
-    testTags_0 = ["$Tags.TEST_PARAMETERS": "{\"metadata\":{\"test_name\":\"parameterized_test_succeed[0]\"}}"]
-    testTags_1 = ["$Tags.TEST_PARAMETERS": "{\"metadata\":{\"test_name\":\"parameterized_test_succeed[1]\"}}"]
+    testTags_0 = ["$Tags.TEST_PARAMETERS": '{"metadata":{"test_name":"parameterized_test_succeed[0]"}}']
+    testTags_1 = ["$Tags.TEST_PARAMETERS": '{"metadata":{"test_name":"parameterized_test_succeed[1]"}}']
   }
 
   @Override

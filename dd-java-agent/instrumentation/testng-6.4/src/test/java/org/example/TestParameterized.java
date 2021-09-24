@@ -11,7 +11,7 @@ public class TestParameterized {
   public static Object[][] data() {
     return new Object[][] {
       {"hello", true},
-      {"goodbye", false}
+      {"\"goodbye\"", false}
     };
   }
 
