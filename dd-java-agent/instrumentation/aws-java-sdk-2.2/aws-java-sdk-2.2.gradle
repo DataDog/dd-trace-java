@@ -31,6 +31,7 @@ dependencies {
   testImplementation group: 'software.amazon.awssdk', name: 'rds', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'ec2', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '2.2.0'
+  testImplementation group: 'software.amazon.awssdk', name: 'sns', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: '2.2.0'
   testImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '2.2.0'
 
@@ -42,6 +43,7 @@ dependencies {
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'rds', version: '+'
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'ec2', version: '+'
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sqs', version: '+'
+  latestDepTestImplementation group: 'software.amazon.awssdk', name: 'sns', version: '+'
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'dynamodb', version: '+'
   latestDepTestImplementation group: 'software.amazon.awssdk', name: 'kinesis', version: '+'
 }

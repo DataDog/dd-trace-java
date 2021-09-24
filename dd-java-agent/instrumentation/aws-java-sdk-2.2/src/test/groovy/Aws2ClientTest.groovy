@@ -25,6 +25,8 @@ import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.sns.SnsClient
+import software.amazon.awssdk.services.sns.model.PublishRequest
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest
@@ -120,6 +122,8 @@ class Aws2ClientTest extends AgentTestRunner {
               "aws.queue.name" "somequeue"
             } else if (service == "Sqs" && operation == "SendMessage") {
               "aws.queue.url" "someurl"
+            } else if (service == "Sns" && operation == "Publish") {
+              "aws.topic.name" "some-topic"
             } else if (service == "DynamoDb") {
               "aws.table.name" "sometable"
             } else if (service == "Kinesis") {
@@ -178,6 +182,14 @@ class Aws2ClientTest extends AgentTestRunner {
             </SendMessageResult>
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
+        """
+    "Sns"      | "Publish"           | "POST" | "/"                   | "d74b8436-ae13-5ab4-a9ff-ce54dfea72a0" | SnsClient.builder()      | { c -> c.publish(PublishRequest.builder().topicArn("arn:aws:sns::123:some-topic").message("").build()) } | """
+        <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
+            <PublishResult>
+                <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
+            </PublishResult>
+            <ResponseMetadata><RequestId>d74b8436-ae13-5ab4-a9ff-ce54dfea72a0</RequestId></ResponseMetadata>
+        </PublishResponse>
         """
     "Ec2"      | "AllocateAddress"   | "POST" | "/"                   | "59dbff89-35bd-4eac-99ed-be587EXAMPLE" | Ec2Client.builder()      | { c -> c.allocateAddress() }                                                                     | """
         <AllocateAddressResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
