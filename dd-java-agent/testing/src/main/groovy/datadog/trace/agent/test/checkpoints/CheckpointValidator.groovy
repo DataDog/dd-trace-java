@@ -55,22 +55,7 @@ class CheckpointValidator {
       invalidEvents.addAll(perThreadValidator.invalidEvents)
     }
 
-    if (!invalidEvents.empty) {
-      out.println("=== Invalid checkpoint events encountered: ${invalidEvents*.mode.toSet().sort()}")
-      def spanIds = invalidEvents*.event.spanId.toSet()
-      orderedEvents.findAll { event -> spanIds.contains(event.spanId) }.each { event ->
-        def invalidEvent = invalidEvents.find { it.event == event }
-        if (invalidEvent != null) {
-          out.println(invalidEvent)
-        } else {
-          out.println(event)
-        }
-      }
-    }
-
-    return invalidEvents.collectEntries {
-      [(it) : !excludedValidations.contains(it.mode)]
-    }
+    return invalidEvents
   }
 
   static validationMode(String mode) {
