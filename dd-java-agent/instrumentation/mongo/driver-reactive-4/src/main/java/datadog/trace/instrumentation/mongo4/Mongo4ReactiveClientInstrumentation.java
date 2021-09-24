@@ -34,7 +34,7 @@ public class Mongo4ReactiveClientInstrumentation extends Instrumenter.Tracing {
       packageName + ".BsonScrubber$1",
       packageName + ".BsonScrubber$2",
       packageName + ".Context",
-      packageName + ".Tracing4CommandListener",
+      packageName + ".Tracing4CommandListener"
     };
   }
 
@@ -46,18 +46,6 @@ public class Mongo4ReactiveClientInstrumentation extends Instrumenter.Tracing {
     transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("sendSucceededEvent").or(named("sendFailedEvent"))),
         Mongo4ReactiveClientInstrumentation.class.getName() + "$Mongo4Resume");
-  }
-
-  @Override
-  public boolean isEnabled() {
-    if (super.isEnabled()) {
-      try {
-        Class.forName("com.mongodb.reactivestreams.client.MongoCollection");
-        return true;
-      } catch (ClassNotFoundException ignored) {
-      }
-    }
-    return false;
   }
 
   public static class Mongo4Suspend {

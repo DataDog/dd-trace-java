@@ -3,13 +3,10 @@ package datadog.trace.instrumentation.mongo;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.mongo.MongoClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.mongo.MongoClientDecorator.MONGO_QUERY;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.declaresField;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -22,11 +19,13 @@ import com.mongodb.async.SingleResultCallback;
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.connection.ConnectionId;
 import com.mongodb.event.CommandListener;
+import com.mongodb.event.ConnectionListener;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -55,6 +54,7 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
                 "com.mongodb.async.client.MongoClientSettings$Builder",
                 "com.mongodb.MongoClientSettings$Builder")
             .and(declaresField(named("commandListeners"))))
+        .or(named("com.mongodb.connection.DefaultClusterableServerFactory"))
         .or(named("com.mongodb.connection.CommandProtocol"))
         .or(named("com.mongodb.connection.WriteCommandProtocol"))
         .or(named("com.mongodb.connection.InternalStreamConnection"))
@@ -70,13 +70,17 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
       packageName + ".BsonScrubber$2",
       packageName + ".Context",
       packageName + ".AsyncTracingCommandListener",
-      packageName + ".ConnectionSpanMap"
+      packageName + ".InterceptingConnectionListener",
+      packageName + ".RequestSpanMap"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.bson.BsonDocument", "org.bson.ByteBuf");
+    Map<String, String> store = new HashMap<>(2);
+    store.put("org.bson.BsonDocument", "org.bson.ByteBuf");
+    store.put("com.mongodb.connection.ConnectionId", RequestSpanMap.class.getName());
+    return store;
   }
 
   @Override
@@ -89,10 +93,7 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
         MongoAsyncClientInstrumentation.class.getName() + "$MongoAsyncCommandAdvice");
     transformation.applyAdvice(
         isMethod().and(named("sendMessageAsync")).and(takesArgument(2, SingleResultCallback.class)),
-        MongoAsyncClientInstrumentation.class.getName() + "$MongoCommandAsyncResponseStartAdvice");
-    transformation.applyAdvice(
-        isMethod().and(named("writeAsync")),
-        MongoAsyncClientInstrumentation.class.getName() + "$DisableExecutorTaskPropagation");
+        MongoAsyncClientInstrumentation.class.getName() + "$SuspendSpanAdvice");
     transformation.applyAdvice(
         isConstructor()
             .and(
@@ -100,6 +101,17 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
                     named("com.mongodb.event.ConnectionMessageReceivedEvent")))
             .and(takesArgument(1, int.class)),
         MongoAsyncClientInstrumentation.class.getName() + "$RestoreSpanAdvice");
+    transformation.applyAdvice(
+        isConstructor()
+            .and(
+                ElementMatchers.<MethodDescription>isDeclaredBy(
+                    named("com.mongodb.connection.DefaultClusterableServerFactory")))
+            .and(takesArgument(7, ConnectionListener.class))
+            .and(takesArgument(9, CommandListener.class)),
+        MongoAsyncClientInstrumentation.class.getName() + "$PropagateConnectionIdAdvice");
+    transformation.applyAdvice(
+        isMethod().and(named("writeAsync")),
+        MongoAsyncClientInstrumentation.class.getName() + "$DisableExecutorTaskPropagation");
   }
 
   /*
@@ -132,11 +144,16 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
   */
   public static class MongoAsyncCommandAdvice {
     @Advice.OnMethodEnter
-    public static AgentScope onAsyncEnter() {
-      final AgentSpan span = startSpan(MONGO_QUERY);
-      AgentScope scope = activateSpan(span);
-      DECORATE.afterStart(span);
-      return scope;
+    public static AgentScope onAsyncEnter(
+        @Advice.FieldValue("commandListener") CommandListener listener) {
+      if (listener instanceof AsyncTracingCommandListener) {
+        final AgentSpan span = startSpan(MONGO_QUERY);
+        AgentScope scope = activateSpan(span);
+        DECORATE.afterStart(span);
+        ((AsyncTracingCommandListener) listener).storeCommandSpan(span);
+        return scope;
+      }
+      return null;
     }
 
     @Advice.OnMethodExit
@@ -162,39 +179,70 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
   public static class DisableExecutorTaskPropagation {
     @Advice.OnMethodEnter
     public static TraceScope before() {
-      TraceScope scope = activateSpan(noopSpan());
-      return scope;
+      return activateSpan(noopSpan());
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter TraceScope scope) {
-      TraceScope activeScope = activeScope();
       if (scope != null) {
         scope.close();
       }
     }
   }
 
-  public static class MongoCommandAsyncResponseStartAdvice {
+  /**
+   * When a mongo command is 'sent out', possibly over network, we intercept the call and use this
+   * advice to map the request id to an existing span and if the span is non-null we start the
+   * thread migration.
+   */
+  public static class SuspendSpanAdvice {
     @Advice.OnMethodEnter
     public static void before(
         @Advice.FieldValue("description") ConnectionDescription connection,
         @Advice.Argument(value = 1) int requestId) {
-      AgentSpan span = activeSpan();
+      RequestSpanMap map =
+          InstrumentationContext.get(ConnectionId.class, RequestSpanMap.class)
+              .get(connection.getConnectionId());
+      AgentSpan span = map != null ? map.get(requestId) : null;
       if (span != null) {
         span.startThreadMigration();
-        ConnectionSpanMap.addSpan(connection.getConnectionId(), requestId, span);
       }
     }
   }
 
+  /**
+   * When a response to mongo command is deserialized we insert this advice, retrieve the span
+   * corresponding to the request id and if not null we will finish the thread migration.
+   */
   public static class RestoreSpanAdvice {
     @Advice.OnMethodExit
     public static void after(
         @Advice.Argument(0) ConnectionId connection, @Advice.Argument(1) int requestId) {
-      AgentSpan span = ConnectionSpanMap.removeSpan(connection, requestId);
+      RequestSpanMap map =
+          InstrumentationContext.get(ConnectionId.class, RequestSpanMap.class).get(connection);
+      AgentSpan span = map != null ? map.get(requestId) : null;
       if (span != null) {
         span.finishThreadMigration();
+      }
+    }
+  }
+
+  /**
+   * A hook to allow configuring {@linkplain AsyncTracingCommandListener} when the associated mongo
+   * connection is open and closed.
+   */
+  public static class PropagateConnectionIdAdvice {
+    @Advice.OnMethodEnter
+    public static void before(
+        @Advice.Argument(value = 7, readOnly = false) ConnectionListener connectionListener,
+        @Advice.Argument(9) CommandListener commandListener) {
+      if (commandListener instanceof AsyncTracingCommandListener) {
+        // register a connection listener which will update the command listener with the correct
+        // span map when the conneciton is open
+        connectionListener =
+            new InterceptingConnectionListener(
+                InstrumentationContext.get(ConnectionId.class, RequestSpanMap.class),
+                (AsyncTracingCommandListener) commandListener);
       }
     }
   }

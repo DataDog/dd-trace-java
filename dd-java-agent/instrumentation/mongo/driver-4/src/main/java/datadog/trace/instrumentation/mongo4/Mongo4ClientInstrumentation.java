@@ -36,7 +36,7 @@ public final class Mongo4ClientInstrumentation extends Instrumenter.Tracing {
       packageName + ".BsonScrubber$1",
       packageName + ".BsonScrubber$2",
       packageName + ".Context",
-      packageName + ".Tracing4CommandListener",
+      packageName + ".Tracing4CommandListener"
     };
   }
 
