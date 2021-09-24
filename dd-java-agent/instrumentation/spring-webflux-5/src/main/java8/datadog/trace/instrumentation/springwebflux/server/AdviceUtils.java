@@ -102,26 +102,33 @@ public final class AdviceUtils {
       this.subscriber = subscriber;
       this.span = span;
       this.context = subscriber.currentContext().put(AgentSpan.class, span);
+
+      span.startThreadMigration();
     }
 
     @Override
     public void onSubscribe(Subscription s) {
       this.subscription = s;
       try (AgentScope scope = activateSpan(span)) {
+        span.finishThreadMigration();
         subscriber.onSubscribe(this);
+        span.startThreadMigration();
       }
     }
 
     @Override
     public void onNext(T t) {
       try (AgentScope scope = activateSpan(span)) {
+        span.finishThreadMigration();
         subscriber.onNext(t);
+        span.startThreadMigration();
       }
     }
 
     @Override
     public void onError(Throwable t) {
       if (null != span && COMPLETED.compareAndSet(this, 0, 1)) {
+        span.finishThreadMigration();
         span.setError(true);
         span.addThrowable(t);
         span.finish();
@@ -132,6 +139,7 @@ public final class AdviceUtils {
     @Override
     public void onComplete() {
       if (null != span && COMPLETED.compareAndSet(this, 0, 1)) {
+        span.finishThreadMigration();
         span.finish();
       }
       subscriber.onComplete();
@@ -150,6 +158,7 @@ public final class AdviceUtils {
     @Override
     public void cancel() {
       if (null != span && COMPLETED.compareAndSet(this, 0, 1)) {
+        span.finishThreadMigration();
         span.finish();
       }
       subscription.cancel();
