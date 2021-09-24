@@ -74,15 +74,26 @@ class StringsTest extends DDSpecification {
 
   def "test escape javascript"() {
     when:
-    String escaped = Strings.escapeJavaScript(string)
+    String escaped = Strings.escapeToJson(string)
 
     then:
     escaped == expected
 
     where:
-    // spotless:off
     string | expected
+    ((char)4096).toString() | '\\u1000'
+    ((char)256).toString() | '\\u0100'
+    ((char)128).toString() | '\\u0080'
+    "\b"|"\\b"
+    "\t"|"\\t"
+    "\n"|"\\n"
+    "\f"|"\\f"
+    "\r"|"\\r"
     '"' | '\\"'
-    // spotless:on
+    '\'' | '\\\''
+    '/' | '\\/'
+    '\\' | '\\\\'
+    "\u000b"|"\\u000B"
+    "a"|"a"
   }
 }

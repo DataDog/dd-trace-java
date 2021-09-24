@@ -5,7 +5,7 @@ import javax.annotation.Nonnull;
 
 public final class Strings {
 
-  public static String escapeJavaScript(String string) {
+  public static String escapeToJson(String string) {
     if (string == null) {
       return "";
     }
