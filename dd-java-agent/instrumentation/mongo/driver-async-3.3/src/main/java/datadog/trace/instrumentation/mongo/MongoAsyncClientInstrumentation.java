@@ -92,7 +92,7 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
         isMethod().and(named("executeAsync")),
         MongoAsyncClientInstrumentation.class.getName() + "$MongoAsyncCommandAdvice");
     transformation.applyAdvice(
-        isMethod().and(named("sendMessageAsync")).and(takesArgument(2, SingleResultCallback.class)),
+        isMethod().and(named("sendMessageAsync")).and(takesArgument(2, named("com.mongodb.async.SingleResultCallback"))),
         MongoAsyncClientInstrumentation.class.getName() + "$SuspendSpanAdvice");
     transformation.applyAdvice(
         isConstructor()
@@ -106,8 +106,8 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
             .and(
                 ElementMatchers.<MethodDescription>isDeclaredBy(
                     named("com.mongodb.connection.DefaultClusterableServerFactory")))
-            .and(takesArgument(7, ConnectionListener.class))
-            .and(takesArgument(9, CommandListener.class)),
+            .and(takesArgument(7, named("com.mongodb.event.ConnectionListener")))
+            .and(takesArgument(9, named("com.mongodb.event.CommandListener"))),
         MongoAsyncClientInstrumentation.class.getName() + "$PropagateConnectionIdAdvice");
     transformation.applyAdvice(
         isMethod().and(named("writeAsync")),
