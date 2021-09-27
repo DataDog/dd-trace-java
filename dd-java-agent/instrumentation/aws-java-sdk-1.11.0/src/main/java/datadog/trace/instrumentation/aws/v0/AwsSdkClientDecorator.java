@@ -52,7 +52,23 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setTag("aws.operation", awsOperation.getSimpleName());
     span.setTag("aws.endpoint", request.getEndpoint().toString());
 
-    span.setResourceName(cache.getQualifiedName(awsOperation, awsServiceName));
+    CharSequence awsRequestName = cache.getQualifiedName(awsOperation, awsServiceName);
+
+    span.setResourceName(awsRequestName);
+
+    switch (awsRequestName.toString()) {
+      case "SQS.SendMessage":
+      case "SQS.SendMessageBatch":
+      case "SQS.ReceiveMessage":
+        span.setServiceName("sqs");
+        break;
+      case "SNS.Publish":
+        span.setServiceName("sns");
+        break;
+      default:
+        span.setServiceName("java-aws-sdk");
+        break;
+    }
 
     RequestAccess access = RequestAccess.of(originalRequest);
     String bucketName = access.getBucketName(originalRequest);
@@ -95,11 +111,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected boolean shouldSetResourceName() {
     return false;
-  }
-
-  @Override
-  protected String service() {
-    return COMPONENT_NAME.toString();
   }
 
   @Override
