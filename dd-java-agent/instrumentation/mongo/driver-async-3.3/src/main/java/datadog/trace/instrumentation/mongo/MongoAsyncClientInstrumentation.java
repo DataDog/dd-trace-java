@@ -15,7 +15,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import com.mongodb.async.SingleResultCallback;
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.connection.ConnectionId;
 import com.mongodb.event.CommandListener;
@@ -92,7 +91,9 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
         isMethod().and(named("executeAsync")),
         MongoAsyncClientInstrumentation.class.getName() + "$MongoAsyncCommandAdvice");
     transformation.applyAdvice(
-        isMethod().and(named("sendMessageAsync")).and(takesArgument(2, named("com.mongodb.async.SingleResultCallback"))),
+        isMethod()
+            .and(named("sendMessageAsync"))
+            .and(takesArgument(2, named("com.mongodb.async.SingleResultCallback"))),
         MongoAsyncClientInstrumentation.class.getName() + "$SuspendSpanAdvice");
     transformation.applyAdvice(
         isConstructor()
