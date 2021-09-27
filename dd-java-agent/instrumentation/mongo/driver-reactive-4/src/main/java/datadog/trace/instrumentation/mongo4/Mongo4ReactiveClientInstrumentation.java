@@ -73,12 +73,17 @@ public class Mongo4ReactiveClientInstrumentation extends Instrumenter.Tracing {
       if (self.isClosed()) {
         return;
       }
+      System.err.println("===> listener: " + (listener != null ? listener.getClass() : null));
       AgentSpan span =
           (listener instanceof Tracing4CommandListener
               ? ((Tracing4CommandListener) listener).getSpan(rqId)
               : null);
+      System.err.println("===> span: " + (span != null ? span.getSpanId() : null));
       if (span != null) {
         span.startThreadMigration();
+      }
+      if (listener == null || span == null) {
+        Thread.dumpStack();
       }
     }
   }
