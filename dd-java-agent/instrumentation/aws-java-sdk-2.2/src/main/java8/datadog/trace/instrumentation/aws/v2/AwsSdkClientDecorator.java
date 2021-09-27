@@ -31,6 +31,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     request
         .getValueForField("QueueName", String.class)
         .ifPresent(name -> span.setTag("aws.queue.name", name));
+    // SNS
+    request
+        .getValueForField("TopicArn", String.class)
+        .ifPresent(
+            name -> span.setTag("aws.topic.name", name.substring(name.lastIndexOf(':') + 1)));
     // Kinesis
     request
         .getValueForField("StreamName", String.class)

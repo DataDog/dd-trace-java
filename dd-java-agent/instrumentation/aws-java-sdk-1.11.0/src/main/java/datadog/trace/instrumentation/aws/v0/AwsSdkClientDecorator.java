@@ -67,6 +67,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     if (null != queueName) {
       span.setTag("aws.queue.name", queueName);
     }
+    String topicArn = access.getTopicArn(originalRequest);
+    if (null != topicArn) {
+      span.setTag("aws.topic.name", topicArn.substring(topicArn.lastIndexOf(':') + 1));
+    }
     String streamName = access.getStreamName(originalRequest);
     if (null != streamName) {
       span.setTag("aws.stream.name", streamName);
