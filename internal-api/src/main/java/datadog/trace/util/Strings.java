@@ -6,7 +6,7 @@ import javax.annotation.Nonnull;
 public final class Strings {
 
   public static String escapeToJson(String string) {
-    if (string == null || "".equals(string)) {
+    if (string == null || string.isEmpty()) {
       return "";
     }
 
