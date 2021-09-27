@@ -8,6 +8,7 @@ import com.google.auto.service.AutoService;
 import com.mongodb.event.CommandListener;
 import com.mongodb.internal.connection.CommandMessage;
 import com.mongodb.internal.connection.InternalStreamConnection;
+import com.mongodb.reactivestreams.client.MongoClient;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -39,10 +40,25 @@ public class Mongo4ReactiveClientInstrumentation extends Instrumenter.Tracing {
   }
 
   @Override
+  public boolean isEnabled() {
+    if (super.isEnabled()) {
+      try {
+        // should be activated only when the reactive MongoClient is available
+        MongoClient.class.getName();
+        return true;
+      } catch (Throwable t) {
+      }
+    }
+    return false;
+  }
+
+  @Override
   public void adviceTransformations(AdviceTransformation transformation) {
+    // will start the command span thread migration
     transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("sendMessageAsync")),
         Mongo4ReactiveClientInstrumentation.class.getName() + "$Mongo4Suspend");
+    // will finish the command span thread migration
     transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("sendSucceededEvent").or(named("sendFailedEvent"))),
         Mongo4ReactiveClientInstrumentation.class.getName() + "$Mongo4Resume");

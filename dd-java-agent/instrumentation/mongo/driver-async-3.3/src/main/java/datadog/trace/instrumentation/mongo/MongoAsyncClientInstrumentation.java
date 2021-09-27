@@ -84,17 +84,34 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
 
   @Override
   public void adviceTransformations(AdviceTransformation transformation) {
+    /*
+    Once the mongo client is set up, register a custom command listener which will be used to
+    enhance the command span information.
+     */
     transformation.applyAdvice(
         isMethod().and(isPublic()).and(named("build")).and(takesArguments(0)),
         MongoAsyncClientInstrumentation.class.getName() + "$MongoAsyncClientAdvice");
+    /*
+    CommandProtocol.executeAsync() or WriteCommandProtocol.executeAsync() is intercepted
+    to create a new span for an async command - that span will be enhanced by the listener registered by the
+    previous advice.
+     */
     transformation.applyAdvice(
         isMethod().and(named("executeAsync")),
         MongoAsyncClientInstrumentation.class.getName() + "$MongoAsyncCommandAdvice");
+    /*
+    Once a command is outbound take care of properly starting the command span thread migration -
+    the command can proceed on a different thread once the response from server is received.
+     */
     transformation.applyAdvice(
         isMethod()
             .and(named("sendMessageAsync"))
             .and(takesArgument(2, named("com.mongodb.async.SingleResultCallback"))),
         MongoAsyncClientInstrumentation.class.getName() + "$SuspendSpanAdvice");
+    /*
+    Here we are intercepting the point where the command response is received and the command is
+    going to be further processed - hence finishing the command span thread migration process here.
+     */
     transformation.applyAdvice(
         isConstructor()
             .and(
@@ -102,6 +119,10 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
                     named("com.mongodb.event.ConnectionMessageReceivedEvent")))
             .and(takesArgument(1, int.class)),
         MongoAsyncClientInstrumentation.class.getName() + "$RestoreSpanAdvice");
+    /*
+    Set up the infrastructure for extracting and propagating connection ID which is used to retrieve the
+    associated request->span map.
+     */
     transformation.applyAdvice(
         isConstructor()
             .and(
@@ -110,6 +131,13 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Tracing 
             .and(takesArgument(7, named("com.mongodb.event.ConnectionListener")))
             .and(takesArgument(9, named("com.mongodb.event.CommandListener"))),
         MongoAsyncClientInstrumentation.class.getName() + "$PropagateConnectionIdAdvice");
+    /*
+    And, finally, prevent the Runnable instrumentation from hijacking the command span.
+    Unfortunately, the command work quanta does not correspond to the boundaries created by the Runnable
+    instrumentation and when that instrumentation is not 'suspended' here we end up with wrong parent spans.
+    'com.mongodb.connection.InternalStreamConnection.writeAsync()' method seems to be the right place to inject
+    the 'discconnecting' noop span.
+     */
     transformation.applyAdvice(
         isMethod().and(named("writeAsync")),
         MongoAsyncClientInstrumentation.class.getName() + "$DisableExecutorTaskPropagation");
