@@ -53,8 +53,8 @@ public class JFRCheckpointer implements Checkpointer {
 
     isEndpointCollectionEnabled =
         configProvider.getBoolean(
-            ProfilingConfig.DD_PROFILING_ENDPOINT_COLLECTION_ENABLED,
-            ProfilingConfig.DD_PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
+            ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED,
+            ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
   }
 
   @Override

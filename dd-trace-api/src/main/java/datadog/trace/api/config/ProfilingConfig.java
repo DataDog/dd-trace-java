@@ -51,9 +51,9 @@ public final class ProfilingConfig {
       "profiling.checkpoints.record.cpu.time";
   public static final String PROFILING_CHECKPOINTS_RATE_LIMIT = "profiling.checkpoints.rate.limit";
   public static final int PROFILING_CHECKPOINTS_RATE_LIMIT_DEFAULT = 50000;
-  public static final String DD_PROFILING_ENDPOINT_COLLECTION_ENABLED =
+  public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
-  public static final boolean DD_PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;
+  public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;
 
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
