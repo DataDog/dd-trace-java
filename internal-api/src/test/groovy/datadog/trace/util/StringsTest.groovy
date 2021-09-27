@@ -81,6 +81,8 @@ class StringsTest extends DDSpecification {
 
     where:
     string | expected
+    null | ""
+    "" | ""
     ((char)4096).toString() | '\\u1000'
     ((char)256).toString() | '\\u0100'
     ((char)128).toString() | '\\u0080'
