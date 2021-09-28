@@ -315,8 +315,9 @@ class ScopeEventTest extends DDSpecification {
     noProfilingTracer.close()
   }
 
-  def "checkpoint events written when checkpointer registered"() {
+  def "checkpoint events written when checkpointer registered with stackTrace=#stackTrace"() {
     setup:
+    injectSysConfig(ProfilingConfig.PROFILING_CHECKPOINTS_STACKTRACE_ENABLED, String.valueOf(stackTrace))
     addScopeEventFactory()
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
@@ -335,9 +336,13 @@ class ScopeEventTest extends DDSpecification {
       assert it.getLong("localRootSpanId") == span.getLocalRootSpan().getSpanId().toLong()
       if (it.eventType.name == "datadog.Checkpoint") {
         assert it.getLong("spanId") == span.getSpanId().toLong()
+        assert (it.getStackTrace() != null) == stackTrace
       } else {
         it.getString("endpoint") == "foo"
       }
     }
+
+    where:
+    stackTrace << [true, false]
   }
 }

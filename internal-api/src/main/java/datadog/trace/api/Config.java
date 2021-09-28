@@ -38,6 +38,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_COMPRESS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_CHECKPOINTS_STACKTRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
@@ -130,6 +131,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_ON_413;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CHECKPOINTS_STACKTRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
@@ -385,6 +387,7 @@ public class Config {
   private final int profilingExceptionHistogramMaxCollectionSize;
   private final boolean profilingExcludeAgentThreads;
   private final boolean profilingHotspotsEnabled;
+  private final boolean profilingCheckpointsStacktraceEnabled;
   private final boolean profilingUploadSummaryOn413Enabled;
 
   private final boolean appSecEnabled;
@@ -801,6 +804,8 @@ public class Config {
 
     // code hotspots are disabled by default because of potential perf overhead they can incur
     profilingHotspotsEnabled = configProvider.getBoolean(PROFILING_HOTSPOTS_ENABLED, false);
+
+    profilingCheckpointsStacktraceEnabled = configProvider.getBoolean(PROFILING_CHECKPOINTS_STACKTRACE_ENABLED, DEFAULT_PROFILING_CHECKPOINTS_STACKTRACE_ENABLED);
 
     profilingUploadSummaryOn413Enabled =
         configProvider.getBoolean(
@@ -1254,6 +1259,10 @@ public class Config {
 
   public boolean isProfilingHotspotsEnabled() {
     return profilingHotspotsEnabled;
+  }
+
+  public boolean isProfilingCheckpointsStacktraceEnabled() {
+    return profilingCheckpointsStacktraceEnabled;
   }
 
   public boolean isProfilingUploadSummaryOn413Enabled() {

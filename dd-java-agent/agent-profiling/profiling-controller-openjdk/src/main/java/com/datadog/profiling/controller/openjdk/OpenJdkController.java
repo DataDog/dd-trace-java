@@ -144,6 +144,11 @@ public final class OpenJdkController implements Controller {
       recordingSettings.put("jdk.ObjectAllocationOutsideTLAB#enabled", "true");
     }
 
+    if (config.isProfilingCheckpointsStacktraceEnabled()) {
+      log.debug("Enabling Checkpoint stacktraces with the config");
+      recordingSettings.put("datadog.Checkpoint#stackTrace", "true");
+    }
+
     this.recordingSettings = Collections.unmodifiableMap(recordingSettings);
 
     // Register periodic events
