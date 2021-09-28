@@ -16,9 +16,9 @@ testSets {
 }
 
 dependencies {
-  compileOnly group: 'org.eclipse.jetty', name: 'jetty-util', version: '9.4.31.v20200723'
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-util', version: '11.0.0'
 
   testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
-  testImplementation group: 'org.eclipse.jetty', name: 'jetty-util', version: '9.4.31.v20200723'
-  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-util', version: '9.+' // 10+ requires Java 11
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-util', version: '11.0.0'
+  latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-util', version: '11.+' // 10+ requires Java 11
 }

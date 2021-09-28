@@ -1,0 +1,26 @@
+muzzle {
+  pass {
+    group = "jakarta.ws.rs"
+    module = "jakarta.ws.rs-api"
+    versions = "[3.0.0,]"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  implementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
+
+  testImplementation project(':dd-java-agent:instrumentation:servlet:request-3')
+  testImplementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: '3.0.0'
+
+  latestDepTestImplementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: '3.+'
+}
