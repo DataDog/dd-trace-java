@@ -5,11 +5,13 @@ import jdk.jfr.Description;
 import jdk.jfr.Event;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
+import jdk.jfr.StackTrace;
 
 @Name("datadog.Endpoint")
 @Label("Endpoint")
 @Description("Datadog event corresponding to the endpoint of a trace root.")
 @Category("Datadog")
+@StackTrace(false)
 public class EndpointEvent extends Event {
 
   @Label("Endpoint")
