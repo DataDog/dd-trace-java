@@ -120,7 +120,10 @@ public class JFRCheckpointer implements Checkpointer {
   public final void onRootSpan(final AgentSpan rootSpan, final boolean published) {
     if (isEndpointCollectionEnabled) {
       new EndpointEvent(
-              rootSpan.getResourceName().toString(), rootSpan.getSpanId().toLong(), published)
+              rootSpan.getResourceName().toString(),
+              rootSpan.getTraceId().toLong(),
+              rootSpan.getSpanId().toLong(),
+              published)
           .commit();
     }
   }
