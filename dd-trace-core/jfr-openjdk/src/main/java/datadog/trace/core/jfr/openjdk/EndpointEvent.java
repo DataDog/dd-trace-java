@@ -15,6 +15,9 @@ public class EndpointEvent extends Event {
   @Label("Endpoint")
   private final String endpoint;
 
+  @Label("Trace Id")
+  private final long traceId;
+
   @Label("Local Root Span Id")
   private final long localRootSpanId;
 
@@ -25,8 +28,13 @@ public class EndpointEvent extends Event {
   @Label("Sampled")
   private final boolean sampled;
 
-  public EndpointEvent(final String endpoint, final long localRootSpanId, final boolean sampled) {
+  public EndpointEvent(
+      final String endpoint,
+      final long traceId,
+      final long localRootSpanId,
+      final boolean sampled) {
     this.endpoint = endpoint;
+    this.traceId = traceId;
     this.localRootSpanId = localRootSpanId;
     this.sampled = sampled;
   }
