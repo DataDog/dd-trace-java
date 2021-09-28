@@ -30,9 +30,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
 
     if (span != null && finishSpan) {
       try (final AgentScope scope = activateSpan(span)) {
-        if (scope.isAsyncPropagating()) {
-          span.finishThreadMigration();
-        }
+        span.finishThreadMigration();
         DECORATE.onResponse(span, (HttpResponse) msg);
         DECORATE.beforeFinish(span);
         span.finish();
@@ -56,9 +54,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
       // If an exception is passed to this point, it likely means it was unhandled and the
       // client span won't be finished with a proper response, so we should finish the span here.
       try (final AgentScope scope = activateSpan(span)) {
-        if (scope.isAsyncPropagating()) {
-          span.finishThreadMigration();
-        }
+        span.finishThreadMigration();
         DECORATE.onError(span, cause);
         DECORATE.beforeFinish(span);
         span.finish();

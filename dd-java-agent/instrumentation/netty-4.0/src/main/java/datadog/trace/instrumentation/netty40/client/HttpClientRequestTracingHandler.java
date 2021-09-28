@@ -82,9 +82,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         throw throwable;
       }
 
-      if (scope.isAsyncPropagating()) {
-        span.startThreadMigration();
-      }
+      span.startThreadMigration();
     } finally {
       if (null != parentScope) {
         parentScope.close();

@@ -73,9 +73,7 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
         throw throwable;
       }
 
-      if (scope.isAsyncPropagating()) {
-        span.startThreadMigration();
-      }
+      span.startThreadMigration();
     } finally {
       if (parentScope != null) {
         parentScope.close();
