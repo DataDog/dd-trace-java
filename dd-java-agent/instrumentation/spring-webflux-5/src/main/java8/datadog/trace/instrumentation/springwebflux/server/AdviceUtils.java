@@ -54,7 +54,7 @@ public final class AdviceUtils {
         (scannable, subscriber) -> new SpanFinishingSubscriber<>(subscriber, span));
   }
 
-  public static final class SpanFinishingSubscriber<T> implements CoreSubscriber<T>, Subscription {
+  static final class SpanFinishingSubscriber<T> implements CoreSubscriber<T>, Subscription {
 
     private final CoreSubscriber<? super T> subscriber;
     private final AgentSpan span;
