@@ -1,4 +1,4 @@
-package datadog.trace.api.http;
+package datadog.trace.bootstrap.instrumentation.decorator.http;
 
 import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
@@ -10,7 +10,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class AntPatternPathNormalizer extends PathNormalizer {
+final class AntPatternPathNormalizer extends PathNormalizer {
   private static final Logger log = LoggerFactory.getLogger(AntPatternPathNormalizer.class);
 
   private final Map<String, String> resourceNameMatchers;

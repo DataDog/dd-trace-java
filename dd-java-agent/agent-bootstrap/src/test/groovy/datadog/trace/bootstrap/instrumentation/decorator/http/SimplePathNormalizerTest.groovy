@@ -1,4 +1,4 @@
-package datadog.trace.api.http
+package datadog.trace.bootstrap.instrumentation.decorator.http
 
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared

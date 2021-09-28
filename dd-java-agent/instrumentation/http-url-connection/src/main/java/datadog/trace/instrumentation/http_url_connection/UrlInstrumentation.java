@@ -3,9 +3,9 @@ package datadog.trace.instrumentation.http_url_connection;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
-import static datadog.trace.api.http.UrlBasedResourceNameCalculator.SIMPLE_PATH_NORMALIZER;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
@@ -16,7 +16,6 @@ import datadog.trace.bootstrap.InternalJarURLHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URL;
 import java.net.URLStreamHandler;
@@ -79,9 +78,7 @@ public class UrlInstrumentation extends Instrumenter.Tracing {
           if (Config.get().isHttpClientSplitByDomain() && null != host && !host.isEmpty()) {
             span.setServiceName(host);
           }
-          span.setResourceName(
-              SIMPLE_PATH_NORMALIZER.normalize(url.getPath()),
-              ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+          HTTP_RESOURCE_DECORATOR.withSimplePath(span, null, url.getPath());
 
           span.setError(true);
           span.addThrowable(throwable);

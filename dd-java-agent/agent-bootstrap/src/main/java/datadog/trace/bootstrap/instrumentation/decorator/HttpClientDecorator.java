@@ -1,17 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.Functions.PATH_BASED_RESOURCE_NAME;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
-import static datadog.trace.api.http.UrlBasedResourceNameCalculator.SIMPLE_PATH_NORMALIZER;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.Pair;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -28,9 +23,6 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
   private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getHttpClientErrorStatuses();
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
-
-  private static final DDCache<Pair<String, String>, UTF8BytesString> RESOURCE_NAMES =
-      DDCaches.newFixedSizeCache(512);
 
   protected abstract String method(REQUEST request);
 
@@ -80,11 +72,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
             span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
           }
           if (shouldSetResourceName()) {
-            span.setResourceName(
-                RESOURCE_NAMES.computeIfAbsent(
-                    Pair.of(method, SIMPLE_PATH_NORMALIZER.normalize(path)),
-                    PATH_BASED_RESOURCE_NAME),
-                ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+            HTTP_RESOURCE_DECORATOR.withSimplePath(span, method, path);
           }
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);

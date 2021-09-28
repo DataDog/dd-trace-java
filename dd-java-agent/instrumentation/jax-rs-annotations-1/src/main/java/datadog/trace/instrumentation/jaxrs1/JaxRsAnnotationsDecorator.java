@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jaxrs1;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.agent.tooling.ClassHierarchyIterable;
 import datadog.trace.api.GenericClassValue;
@@ -50,12 +50,12 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     // When jax-rs is the root, we want to name using the path, otherwise use the class/method.
     final boolean isRootScope = parent == null;
     if (isRootScope) {
-      ROUTE_HANDLER_DECORATOR.withRoute(
+      HTTP_RESOURCE_DECORATOR.withRoute(
           span, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
     } else {
       // TODO if this check stays it needs a comment because it's not clear why it is here
       if (!parent.getLocalRootSpan().hasResourceName()) {
-        ROUTE_HANDLER_DECORATOR.withRoute(
+        HTTP_RESOURCE_DECORATOR.withRoute(
             parent.getLocalRootSpan(), httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
         parent.getLocalRootSpan().setTag(Tags.COMPONENT, "jax-rs");
       }

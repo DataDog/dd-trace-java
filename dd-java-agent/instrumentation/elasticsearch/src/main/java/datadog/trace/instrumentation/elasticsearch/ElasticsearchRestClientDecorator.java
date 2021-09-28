@@ -1,8 +1,7 @@
 package datadog.trace.instrumentation.elasticsearch;
 
-import static datadog.trace.api.Functions.PATH_BASED_RESOURCE_NAME;
-import static datadog.trace.api.http.UrlBasedResourceNameCalculator.SIMPLE_PATH_NORMALIZER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
@@ -77,10 +76,7 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
   public AgentSpan onRequest(final AgentSpan span, final String method, final String endpoint) {
     span.setTag(Tags.HTTP_METHOD, method);
     span.setTag(Tags.HTTP_URL, endpoint);
-    span.setResourceName(
-        RESOURCE_NAMES.computeIfAbsent(
-            Pair.of(method, SIMPLE_PATH_NORMALIZER.normalize(endpoint)), PATH_BASED_RESOURCE_NAME));
-    return span;
+    return HTTP_RESOURCE_DECORATOR.withSimplePath(span, method, endpoint);
   }
 
   public AgentSpan onResponse(final AgentSpan span, final Response response) {

@@ -1,6 +1,6 @@
-package datadog.trace.api.http;
+package datadog.trace.bootstrap.instrumentation.decorator.http;
 
-import static datadog.trace.api.Functions.PATH_BASED_RESOURCE_NAME;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.RESOURCE_NAME_JOINER;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
@@ -9,22 +9,22 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Map;
 
-public class UrlBasedResourceNameCalculator {
+class UrlBasedResourceNameCalculator {
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
 
   // Needs to be before static UrlBasedResourceNameCalculator instance because it is used in the
   // constructor
   // For access in decorators that don't use the calculator directly
-  public static final PathNormalizer SIMPLE_PATH_NORMALIZER = new SimplePathNormalizer();
+  static final PathNormalizer SIMPLE_PATH_NORMALIZER = new SimplePathNormalizer();
 
-  public static final UrlBasedResourceNameCalculator RESOURCE_NAME_CALCULATOR =
+  static final UrlBasedResourceNameCalculator RESOURCE_NAME_CALCULATOR =
       new UrlBasedResourceNameCalculator();
 
   private final boolean shouldSetUrlResourceName =
       Config.get().isRuleEnabled("URLAsResourceNameRule");
-  private final DDCache<Pair<String, String>, UTF8BytesString> resourceNames =
+  private final DDCache<Pair<CharSequence, CharSequence>, UTF8BytesString> resourceNames =
       shouldSetUrlResourceName
-          ? DDCaches.<Pair<String, String>, UTF8BytesString>newFixedSizeCache(512)
+          ? DDCaches.<Pair<CharSequence, CharSequence>, UTF8BytesString>newFixedSizeCache(512)
           : null;
 
   private final PathNormalizer pathNormalizer;
@@ -46,6 +46,7 @@ public class UrlBasedResourceNameCalculator {
       return DEFAULT_RESOURCE_NAME;
     }
     return resourceNames.computeIfAbsent(
-        Pair.of(method, pathNormalizer.normalize(path, encoded)), PATH_BASED_RESOURCE_NAME);
+        Pair.of((CharSequence) method, (CharSequence) pathNormalizer.normalize(path, encoded)),
+        RESOURCE_NAME_JOINER);
   }
 }

@@ -1,4 +1,4 @@
-package datadog.trace.api.http;
+package datadog.trace.bootstrap.instrumentation.decorator.http;
 
 final class SimplePathNormalizer extends PathNormalizer {
 

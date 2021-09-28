@@ -1,4 +1,4 @@
-package datadog.trace.api.http;
+package datadog.trace.bootstrap.instrumentation.decorator.http;
 
 import java.util.ArrayList;
 import java.util.Collection;

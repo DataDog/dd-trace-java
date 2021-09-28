@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.decorator
+package datadog.trace.bootstrap.instrumentation.decorator.http
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -6,9 +6,9 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
-import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR
+import static HttpResourceDecorator.HTTP_RESOURCE_DECORATOR
 
-class RouteHandlerDecoratorTest extends DDSpecification {
+class HttpResourceDecoratorTest extends DDSpecification {
 
   @Shared
   CoreTracer tracer
@@ -29,7 +29,7 @@ class RouteHandlerDecoratorTest extends DDSpecification {
 
     when:
     def scope = AgentTracer.activateSpan(span)
-    ROUTE_HANDLER_DECORATOR.withRoute(span, "GET", "/not-the-resource-name")
+    HTTP_RESOURCE_DECORATOR.withRoute(span, "GET", "/not-the-resource-name")
     scope.close()
     span.finish()
 
