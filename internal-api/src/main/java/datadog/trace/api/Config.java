@@ -25,6 +25,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_AGENTLESS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ALLOCATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_CHECKPOINTS_STACKTRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
@@ -38,7 +39,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_COMPRESS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_PERIOD;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_SUMMARY_ON_413;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_TIMEOUT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_CHECKPOINTS_STACKTRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
@@ -110,6 +110,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OL
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_OLD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CHECKPOINTS_STACKTRACE_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
@@ -131,7 +132,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_ON_413;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_CHECKPOINTS_STACKTRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
@@ -805,7 +805,10 @@ public class Config {
     // code hotspots are disabled by default because of potential perf overhead they can incur
     profilingHotspotsEnabled = configProvider.getBoolean(PROFILING_HOTSPOTS_ENABLED, false);
 
-    profilingCheckpointsStacktraceEnabled = configProvider.getBoolean(PROFILING_CHECKPOINTS_STACKTRACE_ENABLED, DEFAULT_PROFILING_CHECKPOINTS_STACKTRACE_ENABLED);
+    profilingCheckpointsStacktraceEnabled =
+        configProvider.getBoolean(
+            PROFILING_CHECKPOINTS_STACKTRACE_ENABLED,
+            DEFAULT_PROFILING_CHECKPOINTS_STACKTRACE_ENABLED);
 
     profilingUploadSummaryOn413Enabled =
         configProvider.getBoolean(

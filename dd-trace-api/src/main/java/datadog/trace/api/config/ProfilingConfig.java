@@ -56,7 +56,8 @@ public final class ProfilingConfig {
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;
 
   // Not intended for production use
-  public static final String PROFILING_CHECKPOINTS_STACKTRACE_ENABLED = "profiling.checkpoints.stacktrace";
+  public static final String PROFILING_CHECKPOINTS_STACKTRACE_ENABLED =
+      "profiling.checkpoints.stacktrace";
 
   // Not intended for production use
   public static final String PROFILING_AGENTLESS = "profiling.agentless";
