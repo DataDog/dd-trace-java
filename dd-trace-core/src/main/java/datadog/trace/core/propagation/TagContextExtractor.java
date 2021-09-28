@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Map;
 
 public class TagContextExtractor implements HttpCodec.Extractor {

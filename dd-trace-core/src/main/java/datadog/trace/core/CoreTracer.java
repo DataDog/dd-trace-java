@@ -28,6 +28,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -39,7 +40,6 @@ import datadog.trace.context.TraceScope;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
-import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
@@ -314,7 +314,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       sampler(Sampler.Builder.<DDSpan>forConfig(config));
       instrumentationGateway(new InstrumentationGateway());
       injector(HttpCodec.createInjector(config));
-      extractor(HttpCodec.createExtractor(config, config.getHeaderTags(), instrumentationGateway));
+      extractor(HttpCodec.createExtractor(config, config.getHeaderTags()));
       // Explicitly skip setting scope manager because it depends on statsDClient
       localRootSpanTags(config.getLocalRootSpanTags());
       defaultSpanTags(config.getMergedSpanTags());
@@ -524,10 +524,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public AgentSpan startSpan(final CharSequence spanName, boolean emitCheckpoint) {
-    if (null == spanName) {
-      System.err.println("--> SRSLY 1");
-      new IllegalArgumentException("WTF?").printStackTrace(System.err);
-    }
     AgentTracer.SpanBuilder builder = buildSpan(spanName);
     if (!emitCheckpoint) {
       builder = builder.suppressCheckpoints();

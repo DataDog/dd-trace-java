@@ -9,7 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
-import datadog.trace.core.propagation.TagContext
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import java.util.concurrent.TimeUnit

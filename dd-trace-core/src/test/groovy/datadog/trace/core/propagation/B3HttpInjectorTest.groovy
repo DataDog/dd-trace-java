@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.common.writer.ListWriter

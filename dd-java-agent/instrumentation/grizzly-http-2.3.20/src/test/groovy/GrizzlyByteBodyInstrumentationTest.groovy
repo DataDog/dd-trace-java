@@ -5,7 +5,7 @@ import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.core.propagation.TagContext
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.instrumentation.grizzlyhttp232.GrizzlyByteBodyInstrumentation
 import org.glassfish.grizzly.Buffer
 import org.glassfish.grizzly.attributes.AttributeHolder
@@ -37,8 +37,7 @@ class GrizzlyByteBodyInstrumentationTest extends AgentTestRunner {
     1 * attributeHolder.setAttribute('datadog.intercepted_request_body', Boolean.TRUE)
 
     RequestContext requestContext = Mock()
-    TagContext ctx = Mock(TagContext)
-    _ * ctx.requestContext >> requestContext
+    TagContext ctx = TagContext.empty().withRequestContext(requestContext)
     def agentSpan = AgentTracer.startSpan('test-span', ctx, true)
     this.scope = AgentTracer.activateSpan(agentSpan)
 

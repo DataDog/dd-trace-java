@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
-import datadog.trace.core.propagation.TagContext
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.core.test.DDCoreSpecification
 
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY

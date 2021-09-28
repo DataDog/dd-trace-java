@@ -353,7 +353,6 @@ public class DDSpanContext implements AgentSpan.Context {
     return trace;
   }
 
-  @Override
   public RequestContext getRequestContext() {
     return requestContext;
   }
