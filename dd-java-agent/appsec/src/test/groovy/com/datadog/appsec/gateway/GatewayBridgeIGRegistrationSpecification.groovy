@@ -6,9 +6,9 @@ import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.report.ReportService
 import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.SubscriptionService
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class GatewayBridgeIGRegistrationSpecification extends Specification {
+class GatewayBridgeIGRegistrationSpecification extends DDSpecification {
   SubscriptionService ig = Mock()
   EventDispatcher eventDispatcher = Mock()
   ReportService reportService = Mock()

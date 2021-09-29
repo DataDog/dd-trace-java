@@ -41,6 +41,8 @@ import org.slf4j.LoggerFactory;
 
 /** Bridges the instrumentation gateway and the reactive engine. */
 public class GatewayBridge {
+  private static final Events<AppSecRequestContext> EVENTS = Events.get();
+
   private static final Logger log = LoggerFactory.getLogger(GatewayBridge.class);
 
   private static final Pattern QUERY_PARAM_VALUE_SPLITTER = Pattern.compile("=");
@@ -65,12 +67,13 @@ public class GatewayBridge {
   }
 
   public void init() {
+    Events<AppSecRequestContext> events = Events.get();
     Collection<datadog.trace.api.gateway.EventType<?>> additionalIGEvents =
         IGAppSecEventDependencies.additionalIGEventTypes(
             producerService.allSubscribedEvents(), producerService.allSubscribedDataAddresses());
 
     subscriptionService.registerCallback(
-        Events.REQUEST_STARTED,
+        events.requestStarted(),
         () -> {
           RequestContextSupplier requestContextSupplier = new RequestContextSupplier();
           AppSecRequestContext ctx = requestContextSupplier.getResult();
@@ -80,9 +83,9 @@ public class GatewayBridge {
         });
 
     subscriptionService.registerCallback(
-        Events.REQUEST_ENDED,
-        (RequestContext ctx_, IGSpanInfo spanInfo) -> {
-          AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+        events.requestEnded(),
+        (RequestContext<AppSecRequestContext> ctx_, IGSpanInfo spanInfo) -> {
+          AppSecRequestContext ctx = ctx_.getData();
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
           Collection<Attack010> collectedAttacks = ctx.transferCollectedAttacks();
@@ -95,28 +98,28 @@ public class GatewayBridge {
           return NoopFlow.INSTANCE;
         });
 
-    subscriptionService.registerCallback(Events.REQUEST_HEADER, new NewHeaderCallback());
-    subscriptionService.registerCallback(Events.REQUEST_HEADER_DONE, new HeadersDoneCallback());
+    subscriptionService.registerCallback(EVENTS.requestHeader(), new NewHeaderCallback());
+    subscriptionService.registerCallback(EVENTS.requestHeaderDone(), new HeadersDoneCallback());
 
     subscriptionService.registerCallback(
-        Events.REQUEST_METHOD_URI_RAW, new MethodAndRawURICallback());
+        EVENTS.requestMethodUriRaw(), new MethodAndRawURICallback());
 
-    if (additionalIGEvents.contains(Events.REQUEST_BODY_START)) {
+    if (additionalIGEvents.contains(EVENTS.requestBodyStart())) {
       subscriptionService.registerCallback(
-          Events.REQUEST_BODY_START,
-          (RequestContext ctx_, StoredBodySupplier supplier) -> {
-            AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+          EVENTS.requestBodyStart(),
+          (RequestContext<AppSecRequestContext> ctx_, StoredBodySupplier supplier) -> {
+            AppSecRequestContext ctx = ctx_.getData();
             ctx.setStoredRequestBodySupplier(supplier);
             producerService.publishEvent(ctx, EventType.REQUEST_BODY_START);
             return null;
           });
     }
 
-    if (additionalIGEvents.contains(Events.REQUEST_BODY_DONE)) {
+    if (additionalIGEvents.contains(EVENTS.requestBodyDone())) {
       subscriptionService.registerCallback(
-          Events.REQUEST_BODY_DONE,
-          (RequestContext ctx_, StoredBodySupplier supplier) -> {
-            AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+          EVENTS.requestBodyDone(),
+          (RequestContext<AppSecRequestContext> ctx_, StoredBodySupplier supplier) -> {
+            AppSecRequestContext ctx = ctx_.getData();
             producerService.publishEvent(ctx, EventType.REQUEST_BODY_END);
 
             if (rawRequestBodySubInfo == null) {
@@ -137,9 +140,9 @@ public class GatewayBridge {
     }
 
     subscriptionService.registerCallback(
-        Events.REQUEST_CLIENT_SOCKET_ADDRESS,
+        EVENTS.requestClientSocketAddress(),
         (ctx_, ip, port) -> {
-          AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+          AppSecRequestContext ctx = ctx_.getData();
           ctx.setPeerAddress(ip);
           ctx.setPeerPort(port);
           if (isInitialRequestDataPublished(ctx)) {
@@ -156,7 +159,8 @@ public class GatewayBridge {
     this.reportService.close();
   }
 
-  private static class RequestContextSupplier implements Flow<RequestContext> {
+  private static class RequestContextSupplier
+      implements Flow<RequestContext<AppSecRequestContext>> {
     private final AppSecRequestContext appSecRequestContext = new AppSecRequestContext();
 
     @Override
@@ -170,10 +174,11 @@ public class GatewayBridge {
     }
   }
 
-  private static class NewHeaderCallback implements TriConsumer<RequestContext, String, String> {
+  private static class NewHeaderCallback
+      implements TriConsumer<RequestContext<AppSecRequestContext>, String, String> {
     @Override
-    public void accept(RequestContext ctx_, String name, String value) {
-      AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+    public void accept(RequestContext<AppSecRequestContext> ctx_, String name, String value) {
+      AppSecRequestContext ctx = ctx_.getData();
       if (name.equalsIgnoreCase("cookie")) {
         List<StringKVPair> cookies = CookieCutter.parseCookieHeader(value);
         for (StringKVPair cookie : cookies) {
@@ -186,10 +191,12 @@ public class GatewayBridge {
   }
 
   private class MethodAndRawURICallback
-      implements TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> {
+      implements TriFunction<
+          RequestContext<AppSecRequestContext>, String, URIDataAdapter, Flow<Void>> {
     @Override
-    public Flow<Void> apply(RequestContext ctx_, String method, URIDataAdapter uri) {
-      AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+    public Flow<Void> apply(
+        RequestContext<AppSecRequestContext> ctx_, String method, URIDataAdapter uri) {
+      AppSecRequestContext ctx = ctx_.getData();
       ctx.setMethod(method);
       ctx.setScheme(uri.scheme());
       if (uri.supportsRaw()) {
@@ -216,9 +223,10 @@ public class GatewayBridge {
     }
   }
 
-  private class HeadersDoneCallback implements Function<RequestContext, Flow<Void>> {
-    public Flow<Void> apply(RequestContext ctx_) {
-      AppSecRequestContext ctx = (AppSecRequestContext) ctx_;
+  private class HeadersDoneCallback
+      implements Function<RequestContext<AppSecRequestContext>, Flow<Void>> {
+    public Flow<Void> apply(RequestContext<AppSecRequestContext> ctx_) {
+      AppSecRequestContext ctx = ctx_.getData();
 
       ctx.finishHeaders();
 
@@ -355,11 +363,11 @@ public class GatewayBridge {
         DATA_DEPENDENCIES = new HashMap<>(2);
 
     static {
-      EVENT_DEPENDENCIES.put(EventType.REQUEST_BODY_START, l(Events.REQUEST_BODY_START));
-      EVENT_DEPENDENCIES.put(EventType.REQUEST_BODY_END, l(Events.REQUEST_BODY_DONE));
+      EVENT_DEPENDENCIES.put(EventType.REQUEST_BODY_START, l(EVENTS.requestBodyStart()));
+      EVENT_DEPENDENCIES.put(EventType.REQUEST_BODY_END, l(EVENTS.requestBodyDone()));
 
       DATA_DEPENDENCIES.put(
-          KnownAddresses.REQUEST_BODY_RAW, l(Events.REQUEST_BODY_START, Events.REQUEST_BODY_DONE));
+          KnownAddresses.REQUEST_BODY_RAW, l(EVENTS.requestBodyStart(), EVENTS.requestBodyDone()));
     }
 
     private static Collection<datadog.trace.api.gateway.EventType<?>> l(

@@ -22,7 +22,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private final String forwardedIp;
   private final String forwardedPort;
   private final Map<String, String> tags;
-  private RequestContext requestContext;
+  private RequestContext<Object> requestContext;
 
   public TagContext(
       final String origin,
@@ -92,11 +92,11 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return AgentTracer.NoopAgentTrace.INSTANCE;
   }
 
-  public RequestContext getRequestContext() {
+  public RequestContext<Object> getRequestContext() {
     return requestContext;
   }
 
-  public TagContext withRequestContext(RequestContext requestContext) {
+  public TagContext withRequestContext(RequestContext<Object> requestContext) {
     this.requestContext = requestContext;
     return this;
   }

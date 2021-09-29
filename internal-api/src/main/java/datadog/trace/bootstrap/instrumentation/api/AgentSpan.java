@@ -124,7 +124,7 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   void finishWork();
 
   /** RequestContext for the Instrumentation Gateway */
-  RequestContext getRequestContext();
+  RequestContext<Object> getRequestContext();
 
   interface Context {
     DDId getTraceId();

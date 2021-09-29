@@ -3,6 +3,7 @@ package com.datadog.appsec.report
 import com.datadog.appsec.report.raw.dtos.intake.IntakeBatch
 import datadog.communication.monitor.Counter
 import datadog.communication.monitor.Monitoring
+import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
 import datadog.trace.util.AgentThreadFactory
 import okhttp3.Call
@@ -14,14 +15,13 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.internal.http.RealResponseBody
 import okio.Buffer
-import spock.lang.Specification
 import spock.util.concurrent.BlockingVariable
 
 import java.nio.charset.Charset
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-class AppSecApiSpecification extends Specification {
+class AppSecApiSpecification extends DDSpecification {
   private static final HttpUrl EXPECTED_ENDPOINT_URL = HttpUrl.get('http://example.com/appsec/proxy/api/v2/appsecevts')
 
   AgentTaskScheduler scheduler = new AgentTaskScheduler(AgentThreadFactory.AgentThread.APPSEC_HTTP_DISPATCHER)

@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.function.BiFunction
-import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.http.StoredBodySupplier
@@ -15,6 +14,8 @@ import org.glassfish.grizzly.http.io.NIOInputStream
 import org.glassfish.grizzly.memory.ByteBufferWrapper
 
 import java.nio.ByteBuffer
+
+import static datadog.trace.api.gateway.Events.EVENTS
 
 /**
  * @see GrizzlyByteBodyInstrumentation
@@ -36,16 +37,18 @@ class GrizzlyByteBodyInstrumentationTest extends AgentTestRunner {
     }
     1 * attributeHolder.setAttribute('datadog.intercepted_request_body', Boolean.TRUE)
 
-    RequestContext requestContext = Mock()
+    RequestContext<Object> requestContext = Mock(RequestContext) {
+      getData() >> it
+    }
     TagContext ctx = TagContext.empty().withRequestContext(requestContext)
     def agentSpan = AgentTracer.startSpan('test-span', ctx, true)
     this.scope = AgentTracer.activateSpan(agentSpan)
 
-    ig.registerCallback(Events.REQUEST_BODY_START, { RequestContext reqContext, StoredBodySupplier sup ->
+    ig.registerCallback(EVENTS.requestBodyStart(), { RequestContext<Object> reqContext, StoredBodySupplier sup ->
       supplier = sup
       null
     } as BiFunction)
-    ig.registerCallback(Events.REQUEST_BODY_DONE, { RequestContext reqContext, StoredBodySupplier sup ->
+    ig.registerCallback(EVENTS.requestBodyDone(), { RequestContext<Object> reqContext, StoredBodySupplier sup ->
       bodyDone = true
       Flow.ResultFlow.empty()
     } as BiFunction)

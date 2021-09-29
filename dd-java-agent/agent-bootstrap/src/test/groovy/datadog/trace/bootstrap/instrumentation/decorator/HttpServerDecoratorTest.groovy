@@ -4,7 +4,6 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.Function
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
-import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.InstrumentationGateway
 import datadog.trace.api.gateway.RequestContext
@@ -20,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
+import static datadog.trace.api.gateway.Events.EVENTS
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
@@ -284,13 +284,13 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def ig = new InstrumentationGateway()
     def callbacks = new IGCallBacks(reqContext)
     if (reqStarted) {
-      ig.registerCallback(Events.REQUEST_STARTED, callbacks)
+      ig.registerCallback(EVENTS.requestStarted(), callbacks)
     }
     if (reqHeader) {
-      ig.registerCallback(Events.REQUEST_HEADER, callbacks)
+      ig.registerCallback(EVENTS.requestHeader(), callbacks)
     }
     if (reqHeaderDone) {
-      ig.registerCallback(Events.REQUEST_HEADER_DONE, callbacks)
+      ig.registerCallback(EVENTS.requestHeaderDone(), callbacks)
     }
     Map<String, String> headers = ["foo": "bar", "some": "thing", "another": "value"]
     def mSpan = Mock(AgentSpan) {
@@ -314,44 +314,48 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     where:
     // spotless:off
-    reqStarted | reqContext             | reqHeader | reqHeaderDone | reqStartedCount | reqHeaderCount | reqHeaderDoneCount
-    false      | null                   | false     | false         | 0               | 0              | 0
-    false      | new RequestContext(){} | false     | false         | 0               | 0              | 0
-    true       | null                   | false     | false         | 1               | 0              | 0
-    true       | new RequestContext(){} | false     | false         | 1               | 0              | 0
-    true       | new RequestContext(){} | true      | false         | 1               | 3              | 0
-    true       | new RequestContext(){} | true      | true          | 1               | 3              | 1
+    reqStarted | reqContext    | reqHeader | reqHeaderDone | reqStartedCount | reqHeaderCount | reqHeaderDoneCount
+    false      | null          | false     | false         | 0               | 0              | 0
+    false      | new ReqCtxt() | false     | false         | 0               | 0              | 0
+    true       | null          | false     | false         | 1               | 0              | 0
+    true       | new ReqCtxt() | false     | false         | 1               | 0              | 0
+    true       | new ReqCtxt() | true      | false         | 1               | 3              | 0
+    true       | new ReqCtxt() | true      | true          | 1               | 3              | 1
     // spotless:on
   }
 
-  private static final class IGCallBacks implements Supplier<Flow<RequestContext>>, TriConsumer<RequestContext, String, String>, Function<RequestContext, Flow<Void>> {
-    private final RequestContext requestContext
+  private static final class IGCallBacks implements
+  Supplier<Flow<RequestContext<Object>>>,
+  TriConsumer<RequestContext<Object>, String, String>,
+  Function<RequestContext<Object>, Flow<Void>> {
+
+    private final RequestContext<Object> requestContext
     private final Map<String, String> headers = new HashMap<>()
     private int reqStartedCount = 0
     private int reqHeaderDoneCount = 0
 
-    IGCallBacks(RequestContext requestContext) {
+    IGCallBacks(RequestContext<Object> requestContext) {
       this.requestContext = requestContext
     }
 
     // REQUEST_STARTED
     @Override
-    Flow<RequestContext> get() {
+    Flow<Object> get() {
       reqStartedCount++
       return null == requestContext ? Flow.ResultFlow.empty() : new Flow.ResultFlow(requestContext)
     }
 
     // REQUEST_HEADER
     @Override
-    void accept(RequestContext requestContext, String key, String value) {
-      assert (requestContext == this.requestContext)
+    void accept(RequestContext<Object> requestContext, String key, String value) {
+      assert (requestContext.data == this.requestContext)
       headers.put(key, value)
     }
 
     // REQUEST_HEADER_DONE
     @Override
-    Flow<Void> apply(RequestContext requestContext) {
-      assert (requestContext == this.requestContext)
+    Flow<Void> apply(RequestContext<Object> requestContext) {
+      assert (requestContext.data == this.requestContext)
       reqHeaderDoneCount++
       return null
     }
@@ -366,6 +370,13 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     int getReqHeaderDoneCount() {
       return reqHeaderDoneCount
+    }
+  }
+
+  private static final class ReqCtxt implements RequestContext<ReqCtxt> {
+    @Override
+    ReqCtxt getData() {
+      return this
     }
   }
 }

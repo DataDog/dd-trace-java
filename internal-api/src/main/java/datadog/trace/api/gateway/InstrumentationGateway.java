@@ -73,7 +73,7 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
   }
 
   /** Ensure that callbacks don't leak exceptions */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"})
   public static <C> C wrap(final EventType<C> eventType, final C callback) {
     switch (eventType.getId()) {
       case REQUEST_STARTED_ID:

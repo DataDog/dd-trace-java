@@ -15,7 +15,6 @@ import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.http.StoredBodySupplier
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
@@ -70,11 +69,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     // Register the Instrumentation Gateway callbacks
     def ig = get().instrumentationGateway()
     def callbacks = new IGCallbacks()
-    ig.registerCallback(Events.REQUEST_STARTED, callbacks.requestStartedCb)
-    ig.registerCallback(Events.REQUEST_HEADER, callbacks.requestHeaderCb)
-    ig.registerCallback(Events.REQUEST_METHOD_URI_RAW, callbacks.requestUriRawCb)
-    ig.registerCallback(Events.REQUEST_BODY_START, callbacks.requestBodyStartCb)
-    ig.registerCallback(Events.REQUEST_BODY_DONE, callbacks.requestBodyEndCb)
+    Events<IGCallbacks.Context> events = Events.get()
+    ig.registerCallback(events.requestStarted(), callbacks.requestStartedCb)
+    ig.registerCallback(events.requestHeader(), callbacks.requestHeaderCb)
+    ig.registerCallback(events.requestMethodUriRaw(), callbacks.requestUriRawCb)
+    ig.registerCallback(events.requestBodyStart(), callbacks.requestBodyStartCb)
+    ig.registerCallback(events.requestBodyDone(), callbacks.requestBodyEndCb)
   }
 
   @Shared
@@ -944,28 +944,34 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_TEST_HEADER = "x-ig-test-header"
 
   class IGCallbacks {
-    static class Context implements RequestContext {
+    static class Context implements RequestContext<Context> {
       String extraSpan
       StoredBodySupplier requestBodySupplier
+
+      Context getData() {
+        return this
+      }
     }
 
-    final Supplier<Flow<RequestContext>> requestStartedCb =
+    final Supplier<Flow<RequestContext<Context>>> requestStartedCb =
     ({
       ->
-      new Flow.ResultFlow<RequestContext>(new Context())
-    } as Supplier<Flow<RequestContext>>)
+      new Flow.ResultFlow<RequestContext<Context>>(new Context())
+    } as Supplier<Flow<RequestContext<Context>>>)
 
-    final TriConsumer<RequestContext, String, String> requestHeaderCb =
-    { Context context, String key, String value ->
-      if (HttpServerTest.IG_TEST_HEADER.equalsIgnoreCase(key)) {
+    final TriConsumer<RequestContext<Context>, String, String> requestHeaderCb =
+    { RequestContext<Context> rqCtxt, String key, String value ->
+      def context = rqCtxt.data
+      if (IG_TEST_HEADER.equalsIgnoreCase(key)) {
         context.extraSpan = value
       }
-    } as TriConsumer<RequestContext, String, String>
+    } as TriConsumer<RequestContext<Context>, String, String>
 
     private static final String EXPECTED = "${QUERY_ENCODED_BOTH.rawPath}?${QUERY_ENCODED_BOTH.rawQuery}"
 
-    final TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> requestUriRawCb =
-    ({ Context context, String method, URIDataAdapter uri ->
+    final TriFunction<RequestContext<Context>, String, URIDataAdapter, Flow<Void>> requestUriRawCb =
+    ({ RequestContext<Context> rqCtxt, String method, URIDataAdapter uri ->
+      def context = rqCtxt.data
       String raw = uri.supportsRaw() ? uri.raw() : ''
       raw = uri.hasPlusEncodedSpaces() ? raw.replace('+', '%20') : raw
       // Only trigger for query path without query parameters and with special header
@@ -976,21 +982,23 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         context.extraSpan = null
       }
       Flow.ResultFlow.empty()
-    } as TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>)
+    } as TriFunction<RequestContext<Context>, String, URIDataAdapter, Flow<Void>>)
 
-    final BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCb =
-    { Context context, StoredBodySupplier supplier ->
+    final BiFunction<RequestContext<Context>, StoredBodySupplier, Void> requestBodyStartCb =
+    { RequestContext<Context> rqCtxt, StoredBodySupplier supplier ->
+      def context = rqCtxt.data
       context.requestBodySupplier = supplier
       null
-    } as BiFunction<RequestContext, StoredBodySupplier, Void>
+    } as BiFunction<RequestContext<Context>, StoredBodySupplier, Void>
 
-    final BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyEndCb =
-    { Context context, StoredBodySupplier supplier ->
+    final BiFunction<RequestContext<Context>, StoredBodySupplier, Flow<Void>> requestBodyEndCb =
+    { RequestContext<Context> rqCtxt, StoredBodySupplier supplier ->
+      def context = rqCtxt.data
       if (!context.requestBodySupplier.is(supplier)) {
         throw new RuntimeException("Expected same instance: ${context.requestBodySupplier} and $supplier")
       }
-      AgentTracer.activeSpan().localRootSpan.setTag('request.body', supplier.get() as String)
+      activeSpan().localRootSpan.setTag('request.body', supplier.get() as String)
       Flow.ResultFlow.empty()
-    } as BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>
+    } as BiFunction<RequestContext<Context>, StoredBodySupplier, Flow<Void>>
   }
 }

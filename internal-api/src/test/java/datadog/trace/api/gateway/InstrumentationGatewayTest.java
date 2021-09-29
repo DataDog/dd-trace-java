@@ -17,79 +17,87 @@ import org.junit.Test;
 public class InstrumentationGatewayTest {
 
   private InstrumentationGateway gateway;
-  private RequestContext context;
+  private RequestContext<Object> context;
   private Flow<Void> flow;
   private Callback callback;
+  private Events<Object> events;
 
   @Before
   public void setUp() {
     gateway = new InstrumentationGateway();
-    context = new RequestContext() {};
+    context =
+        new RequestContext<Object>() {
+          @Override
+          public Object getData() {
+            return this;
+          }
+        };
     flow = new Flow.ResultFlow<>(null);
     callback = new Callback(context, flow);
+    events = Events.get();
   }
 
   @Test
   public void testGetCallback() {
-    gateway.registerCallback(Events.REQUEST_STARTED, callback);
+    gateway.registerCallback(events.requestStarted(), callback);
     // check event without registered callback
-    assertThat(gateway.getCallback(Events.REQUEST_ENDED)).isNull();
+    assertThat(gateway.getCallback(events.requestEnded())).isNull();
     // check event with registered callback
-    Supplier<Flow<RequestContext>> cback = gateway.getCallback(Events.REQUEST_STARTED);
+    Supplier<Flow<RequestContext<Object>>> cback = gateway.getCallback(events.requestStarted());
     assertThat(cback).isEqualTo(callback);
-    Flow<RequestContext> flow = cback.get();
+    Flow<RequestContext<Object>> flow = cback.get();
     assertThat(flow.getAction()).isEqualTo(Flow.Action.Noop.INSTANCE);
-    RequestContext ctxt = flow.getResult();
+    Object ctxt = flow.getResult();
     assertThat(ctxt).isEqualTo(context);
   }
 
   @Test
   public void testRegisterCallback() {
-    Subscription s1 = gateway.registerCallback(Events.REQUEST_STARTED, callback);
+    Subscription s1 = gateway.registerCallback(events.requestStarted(), callback);
     // check event without registered callback
-    assertThat(gateway.getCallback(Events.REQUEST_ENDED)).isNull();
+    assertThat(gateway.getCallback(events.requestEnded())).isNull();
     // check event with registered callback
-    assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isEqualTo(callback);
+    assertThat(gateway.getCallback(events.requestStarted())).isEqualTo(callback);
     // check that we can register a callback
     Callback cb = new Callback(context, flow);
-    Subscription s2 = gateway.registerCallback(Events.REQUEST_ENDED, cb);
-    assertThat(gateway.getCallback(Events.REQUEST_ENDED)).isEqualTo(cb);
+    Subscription s2 = gateway.registerCallback(events.requestEnded(), cb);
+    assertThat(gateway.getCallback(events.requestEnded())).isEqualTo(cb);
     // check that we can cancel a callback
     s1.cancel();
-    assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isNull();
+    assertThat(gateway.getCallback(events.requestStarted())).isNull();
     // check that we didn't remove the other callback
-    assertThat(gateway.getCallback(Events.REQUEST_ENDED)).isEqualTo(cb);
+    assertThat(gateway.getCallback(events.requestEnded())).isEqualTo(cb);
   }
 
   @Test
   public void testDoubleRegistration() {
-    gateway.registerCallback(Events.REQUEST_STARTED, callback);
+    gateway.registerCallback(events.requestStarted(), callback);
     // check event with registered callback
-    assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isEqualTo(callback);
+    assertThat(gateway.getCallback(events.requestStarted())).isEqualTo(callback);
     // check that we can't overwrite the callback
     assertThatThrownBy(
             new ThrowableAssert.ThrowingCallable() {
               @Override
               public void call() throws Throwable {
-                gateway.registerCallback(Events.REQUEST_STARTED, callback);
+                gateway.registerCallback(events.requestStarted(), callback);
               }
             })
         .isInstanceOf(IllegalStateException.class)
         .hasMessageStartingWith("Trying to overwrite existing callback ")
-        .hasMessageContaining(Events.REQUEST_STARTED.toString());
+        .hasMessageContaining(events.requestStarted().toString());
   }
 
   @Test
   public void testDoubleCancel() {
-    Subscription s1 = gateway.registerCallback(Events.REQUEST_STARTED, callback);
+    Subscription s1 = gateway.registerCallback(events.requestStarted(), callback);
     // check event with registered callback
-    assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isEqualTo(callback);
+    assertThat(gateway.getCallback(events.requestStarted())).isEqualTo(callback);
     // check that we can cancel a callback
     s1.cancel();
-    assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isNull();
+    assertThat(gateway.getCallback(events.requestStarted())).isNull();
     // check that we can cancel a callback
     s1.cancel();
-    assertThat(gateway.getCallback(Events.REQUEST_STARTED)).isNull();
+    assertThat(gateway.getCallback(events.requestStarted())).isNull();
   }
 
   @Test
@@ -107,25 +115,24 @@ public class InstrumentationGatewayTest {
   @Test
   public void testNormalCalls() {
     // check that we pass through normal calls
-    gateway.registerCallback(Events.REQUEST_STARTED, callback);
-    assertThat(gateway.getCallback(Events.REQUEST_STARTED).get().getResult()).isEqualTo(context);
-    gateway.registerCallback(Events.REQUEST_ENDED, callback);
-    assertThat(gateway.getCallback(Events.REQUEST_ENDED).apply(null, null)).isEqualTo(flow);
-    gateway.registerCallback(Events.REQUEST_HEADER, callback);
-    gateway.getCallback(Events.REQUEST_HEADER).accept(null, null, null);
-    gateway.registerCallback(Events.REQUEST_HEADER_DONE, callback);
-    assertThat(gateway.getCallback(Events.REQUEST_HEADER_DONE).apply(null)).isEqualTo(flow);
-    gateway.registerCallback(Events.REQUEST_METHOD_URI_RAW, callback);
-    assertThat(gateway.getCallback(Events.REQUEST_METHOD_URI_RAW).apply(null, null, null))
+    gateway.registerCallback(events.requestStarted(), callback);
+    assertThat(gateway.getCallback(events.requestStarted()).get().getResult()).isEqualTo(context);
+    gateway.registerCallback(events.requestEnded(), callback);
+    assertThat(gateway.getCallback(events.requestEnded()).apply(null, null)).isEqualTo(flow);
+    gateway.registerCallback(events.requestHeader(), callback);
+    gateway.getCallback(events.requestHeader()).accept(null, null, null);
+    gateway.registerCallback(events.requestHeaderDone(), callback);
+    assertThat(gateway.getCallback(events.requestHeaderDone()).apply(null)).isEqualTo(flow);
+    gateway.registerCallback(events.requestMethodUriRaw(), callback);
+    assertThat(gateway.getCallback(events.requestMethodUriRaw()).apply(null, null, null))
         .isEqualTo(flow);
-    gateway.registerCallback(
-        Events.REQUEST_CLIENT_SOCKET_ADDRESS, callback.asClientSocketAddress());
-    assertThat(gateway.getCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS).apply(null, null, null))
+    gateway.registerCallback(events.requestClientSocketAddress(), callback.asClientSocketAddress());
+    assertThat(gateway.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
         .isEqualTo(flow);
-    gateway.registerCallback(Events.REQUEST_BODY_START, callback.asRequestBodyStart());
-    assertThat(gateway.getCallback(Events.REQUEST_BODY_START).apply(null, null)).isNull();
-    gateway.registerCallback(Events.REQUEST_BODY_DONE, callback.asRequestBodyDone());
-    assertThat(gateway.getCallback(Events.REQUEST_BODY_DONE).apply(null, null).getAction())
+    gateway.registerCallback(events.requestBodyStart(), callback.asRequestBodyStart());
+    assertThat(gateway.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
+    gateway.registerCallback(events.requestBodyDone(), callback.asRequestBodyDone());
+    assertThat(gateway.getCallback(events.requestBodyDone()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     assertThat(callback.count).isEqualTo(Events.MAX_EVENTS);
   }
@@ -134,97 +141,97 @@ public class InstrumentationGatewayTest {
   public void testThrowableBlocking() {
     Throwback throwback = new Throwback();
     // check that we block the thrown exceptions
-    gateway.registerCallback(Events.REQUEST_STARTED, throwback);
-    assertThat(gateway.getCallback(Events.REQUEST_STARTED).get())
+    gateway.registerCallback(events.requestStarted(), throwback);
+    assertThat(gateway.getCallback(events.requestStarted()).get())
         .isEqualTo(Flow.ResultFlow.empty());
-    gateway.registerCallback(Events.REQUEST_ENDED, throwback);
-    assertThat(gateway.getCallback(Events.REQUEST_ENDED).apply(null, null))
+    gateway.registerCallback(events.requestEnded(), throwback);
+    assertThat(gateway.getCallback(events.requestEnded()).apply(null, null))
         .isEqualTo(Flow.ResultFlow.empty());
-    gateway.registerCallback(Events.REQUEST_HEADER, throwback);
-    gateway.getCallback(Events.REQUEST_HEADER).accept(null, null, null);
-    gateway.registerCallback(Events.REQUEST_HEADER_DONE, throwback);
-    assertThat(gateway.getCallback(Events.REQUEST_HEADER_DONE).apply(null))
+    gateway.registerCallback(events.requestHeader(), throwback);
+    gateway.getCallback(events.requestHeader()).accept(null, null, null);
+    gateway.registerCallback(events.requestHeaderDone(), throwback);
+    assertThat(gateway.getCallback(events.requestHeaderDone()).apply(null))
         .isEqualTo(Flow.ResultFlow.empty());
-    gateway.registerCallback(Events.REQUEST_METHOD_URI_RAW, throwback);
-    assertThat(gateway.getCallback(Events.REQUEST_METHOD_URI_RAW).apply(null, null, null))
+    gateway.registerCallback(events.requestMethodUriRaw(), throwback);
+    assertThat(gateway.getCallback(events.requestMethodUriRaw()).apply(null, null, null))
         .isEqualTo(Flow.ResultFlow.empty());
     gateway.registerCallback(
-        Events.REQUEST_CLIENT_SOCKET_ADDRESS, throwback.asClientSocketAddress());
-    assertThat(gateway.getCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS).apply(null, null, null))
+        events.requestClientSocketAddress(), throwback.asClientSocketAddress());
+    assertThat(gateway.getCallback(events.requestClientSocketAddress()).apply(null, null, null))
         .isEqualTo(Flow.ResultFlow.empty());
-    gateway.registerCallback(Events.REQUEST_BODY_START, throwback.asRequestBodyStart());
-    assertThat(gateway.getCallback(Events.REQUEST_BODY_START).apply(null, null)).isNull();
-    gateway.registerCallback(Events.REQUEST_BODY_DONE, throwback.asRequestBodyDone());
-    assertThat(gateway.getCallback(Events.REQUEST_BODY_DONE).apply(null, null).getAction())
+    gateway.registerCallback(events.requestBodyStart(), throwback.asRequestBodyStart());
+    assertThat(gateway.getCallback(events.requestBodyStart()).apply(null, null)).isNull();
+    gateway.registerCallback(events.requestBodyDone(), throwback.asRequestBodyDone());
+    assertThat(gateway.getCallback(events.requestBodyDone()).apply(null, null).getAction())
         .isEqualTo(Flow.Action.Noop.INSTANCE);
     assertThat(throwback.count).isEqualTo(Events.MAX_EVENTS);
   }
 
-  private static class Callback<T>
-      implements Supplier<Flow<RequestContext>>,
-          Function<RequestContext, Flow<Void>>,
-          BiConsumer<RequestContext, T>,
-          TriConsumer<RequestContext, T, T>,
-          BiFunction<RequestContext, T, Flow<Void>>,
-          TriFunction<RequestContext, T, T, Flow<Void>> {
+  private static class Callback<D, T>
+      implements Supplier<Flow<D>>,
+          Function<RequestContext<D>, Flow<Void>>,
+          BiConsumer<RequestContext<D>, T>,
+          TriConsumer<RequestContext<D>, T, T>,
+          BiFunction<RequestContext<D>, T, Flow<Void>>,
+          TriFunction<RequestContext<D>, T, T, Flow<Void>> {
 
-    private final RequestContext ctxt;
+    private final RequestContext<D> ctxt;
     private final Flow<Void> flow;
     private int count = 0;
 
-    public Callback(RequestContext ctxt, Flow<Void> flow) {
+    public Callback(RequestContext<D> ctxt, Flow<Void> flow) {
       this.ctxt = ctxt;
       this.flow = flow;
     }
 
     @Override
-    public Flow<Void> apply(RequestContext input) {
+    public Flow<Void> apply(RequestContext<D> input) {
       count++;
       return flow;
     }
 
     @Override
-    public Flow<Void> apply(RequestContext requestContext, T arg) {
+    public Flow<Void> apply(RequestContext<D> requestContext, T arg) {
       count++;
       return flow;
     }
 
     @Override
-    public Flow<RequestContext> get() {
+    public Flow<D> get() {
       count++;
-      return new Flow.ResultFlow<>(ctxt);
+      return new Flow.ResultFlow<>((D) ctxt);
     }
 
     @Override
-    public void accept(RequestContext requestContext, T s, T s2) {
+    public void accept(RequestContext<D> requestContext, T s, T s2) {
       count++;
     }
 
-    public TriFunction<RequestContext, String, Short, Flow<Void>> asClientSocketAddress() {
-      return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
+    public TriFunction<RequestContext<D>, String, Short, Flow<Void>> asClientSocketAddress() {
+      return new TriFunction<RequestContext<D>, String, Short, Flow<Void>>() {
         @Override
-        public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
+        public Flow<Void> apply(RequestContext<D> requestContext, String s, Short aShort) {
           count++;
           return flow;
         }
       };
     }
 
-    public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
+    public BiFunction<RequestContext<D>, StoredBodySupplier, Void> asRequestBodyStart() {
+      return new BiFunction<RequestContext<D>, StoredBodySupplier, Void>() {
         @Override
-        public Void apply(RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
+        public Void apply(RequestContext<D> requestContext, StoredBodySupplier storedBodySupplier) {
           count++;
           return null;
         }
       };
     }
 
-    public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
+    public BiFunction<RequestContext<D>, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
+      return new BiFunction<RequestContext<D>, StoredBodySupplier, Flow<Void>>() {
         @Override
         public Flow<Void> apply(
-            RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
+            RequestContext<D> requestContext, StoredBodySupplier storedBodySupplier) {
           count++;
           return new Flow.ResultFlow<>(null);
         }
@@ -232,82 +239,82 @@ public class InstrumentationGatewayTest {
     }
 
     @Override
-    public void accept(RequestContext requestContext, T t) {
+    public void accept(RequestContext<D> requestContext, T t) {
       count++;
     }
 
     @Override
-    public Flow<Void> apply(RequestContext requestContext, T t, T t2) {
+    public Flow<Void> apply(RequestContext<D> requestContext, T t, T t2) {
       count++;
       return flow;
     }
   }
 
-  private static class Throwback<T>
-      implements Supplier<Flow<RequestContext>>,
-          Function<RequestContext, Flow<Void>>,
-          BiConsumer<RequestContext, T>,
-          TriConsumer<RequestContext, T, T>,
-          BiFunction<RequestContext, T, Flow<Void>>,
-          TriFunction<RequestContext, T, T, Flow<Void>> {
+  private static class Throwback<D, T>
+      implements Supplier<Flow<D>>,
+          Function<RequestContext<D>, Flow<Void>>,
+          BiConsumer<RequestContext<D>, T>,
+          TriConsumer<RequestContext<D>, T, T>,
+          BiFunction<RequestContext<D>, T, Flow<Void>>,
+          TriFunction<RequestContext<D>, T, T, Flow<Void>> {
 
     private int count = 0;
 
     @Override
-    public Flow<Void> apply(RequestContext input) {
+    public Flow<Void> apply(RequestContext<D> input) {
       count++;
       throw new IllegalArgumentException();
     }
 
     @Override
-    public Flow<Void> apply(RequestContext requestContext, T arg) {
+    public Flow<Void> apply(RequestContext<D> requestContext, T arg) {
       count++;
       throw new IllegalArgumentException();
     }
 
     @Override
-    public Flow<RequestContext> get() {
+    public Flow<D> get() {
       count++;
       throw new IllegalArgumentException();
     }
 
     @Override
-    public void accept(RequestContext requestContext, T s, T s2) {
+    public void accept(RequestContext<D> requestContext, T s, T s2) {
       count++;
       throw new IllegalArgumentException();
     }
 
     @Override
-    public void accept(RequestContext requestContext, T t) {
+    public void accept(RequestContext<D> requestContext, T t) {
       count++;
       throw new IllegalArgumentException();
     }
 
-    public TriFunction<RequestContext, String, Short, Flow<Void>> asClientSocketAddress() {
-      return new TriFunction<RequestContext, String, Short, Flow<Void>>() {
+    public TriFunction<RequestContext<D>, String, Short, Flow<Void>> asClientSocketAddress() {
+      return new TriFunction<RequestContext<D>, String, Short, Flow<Void>>() {
         @Override
-        public Flow<Void> apply(RequestContext requestContext, String s, Short aShort) {
+        public Flow<Void> apply(RequestContext<D> requestContext, String s, Short aShort) {
           count++;
           throw new IllegalArgumentException();
         }
       };
     }
 
-    public BiFunction<RequestContext, StoredBodySupplier, Void> asRequestBodyStart() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Void>() {
+    public BiFunction<RequestContext<D>, StoredBodySupplier, Void> asRequestBodyStart() {
+      return new BiFunction<RequestContext<D>, StoredBodySupplier, Void>() {
         @Override
-        public Void apply(RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
+        public Void apply(RequestContext<D> requestContext, StoredBodySupplier storedBodySupplier) {
           count++;
           throw new IllegalArgumentException();
         }
       };
     }
 
-    public BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
-      return new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
+    public BiFunction<RequestContext<D>, StoredBodySupplier, Flow<Void>> asRequestBodyDone() {
+      return new BiFunction<RequestContext<D>, StoredBodySupplier, Flow<Void>>() {
         @Override
         public Flow<Void> apply(
-            RequestContext requestContext, StoredBodySupplier storedBodySupplier) {
+            RequestContext<D> requestContext, StoredBodySupplier storedBodySupplier) {
           count++;
           throw new IllegalArgumentException();
         }
@@ -319,7 +326,7 @@ public class InstrumentationGatewayTest {
     }
 
     @Override
-    public Flow<Void> apply(RequestContext requestContext, T t, T t2) {
+    public Flow<Void> apply(RequestContext<D> requestContext, T t, T t2) {
       count++;
       throw new IllegalArgumentException();
     }

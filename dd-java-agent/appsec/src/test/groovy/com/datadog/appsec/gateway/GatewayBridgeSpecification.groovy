@@ -13,7 +13,6 @@ import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
-import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
@@ -23,6 +22,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import datadog.trace.test.util.DDSpecification
+
+import static datadog.trace.api.gateway.Events.EVENTS
 
 class GatewayBridgeSpecification extends DDSpecification {
   SubscriptionService ig = Mock()
@@ -65,7 +66,9 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'request_end closes context reports attacks and publishes event'() {
     Attack010 attack = Mock()
-    AppSecRequestContext mockCtx = Mock()
+    AppSecRequestContext mockCtx = Mock(AppSecRequestContext) {
+      getData() >> it
+    }
     IGSpanInfo spanInfo = Mock()
 
     when:
@@ -231,14 +234,14 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * eventDispatcher.allSubscribedEvents() >> [EventType.REQUEST_BODY_START, EventType.REQUEST_BODY_END]
     1 * eventDispatcher.allSubscribedDataAddresses() >> []
 
-    1 * ig.registerCallback(Events.REQUEST_STARTED, _) >> { requestStartedCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_ENDED, _) >> { requestEndedCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_METHOD_URI_RAW, _) >> { requestMethodURICB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_HEADER, _) >> { headerCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_HEADER_DONE, _) >> { headersDoneCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS, _) >> { requestSocketAddressCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_BODY_START, _) >> { requestBodyStartCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_BODY_DONE, _) >> { requestBodyDoneCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestStarted(), _) >> { requestStartedCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestMethodUriRaw(), _) >> { requestMethodURICB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestHeader(), _) >> { headerCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestHeaderDone(), _) >> { headersDoneCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestClientSocketAddress(), _) >> { requestSocketAddressCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestBodyStart(), _) >> { requestBodyStartCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestBodyDone(), _) >> { requestBodyDoneCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()

@@ -1,5 +1,6 @@
 package datadog.appsec.benchmark;
 
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static java.util.concurrent.TimeUnit.*;
 
 import ch.qos.logback.classic.Logger;
@@ -36,8 +37,11 @@ public class AppSecBenchmark {
   // To exclude log messages printing influence onto the benchmark
   // we need suppress all log messages
   static {
-    Logger root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-    root.setLevel(ch.qos.logback.classic.Level.OFF);
+    org.slf4j.Logger root = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+    if (root instanceof Logger) {
+      Logger logBackRoot = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+      logBackRoot.setLevel(ch.qos.logback.classic.Level.OFF);
+    }
   }
 
   private InstrumentationGateway gw;
@@ -60,15 +64,15 @@ public class AppSecBenchmark {
   }
 
   private void maliciousRequest() throws Exception {
-    RequestContext context = gw.getCallback(Events.REQUEST_STARTED).get().getResult();
-    gw.getCallback(Events.REQUEST_METHOD_URI_RAW).apply(context, method, uri);
-    gw.getCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS).apply(context, ip, port);
-    gw.getCallback(Events.REQUEST_HEADER).accept(context, "User-Agent", "Arachni/v1");
-    Flow<?> flow = gw.getCallback(Events.REQUEST_HEADER_DONE).apply(context);
+    RequestContext<Object> context = gw.getCallback(EVENTS.requestStarted()).get().getResult();
+    gw.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
+    gw.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
+    gw.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Arachni/v1");
+    Flow<?> flow = gw.getCallback(EVENTS.requestHeaderDone()).apply(context);
     if (!flow.getAction().isBlocking()) {
       throw new Exception("Request should be blocked");
     }
-    gw.getCallback(Events.REQUEST_ENDED).apply(context, null);
+    gw.getCallback(EVENTS.requestEnded()).apply(context, null);
   }
 
   @Benchmark
@@ -83,12 +87,12 @@ public class AppSecBenchmark {
   }
 
   private void normalRequest() {
-    RequestContext context = gw.getCallback(Events.REQUEST_STARTED).get().getResult();
-    gw.getCallback(Events.REQUEST_METHOD_URI_RAW).apply(context, method, uri);
-    gw.getCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS).apply(context, ip, port);
-    gw.getCallback(Events.REQUEST_HEADER).accept(context, "User-Agent", "Mozilla/5.0");
-    gw.getCallback(Events.REQUEST_HEADER_DONE).apply(context);
-    gw.getCallback(Events.REQUEST_ENDED).apply(context, null);
+    RequestContext<Object> context = gw.getCallback(EVENTS.requestStarted()).get().getResult();
+    gw.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
+    gw.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
+    gw.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Mozilla/5.0");
+    Flow<?> flow = gw.getCallback(EVENTS.requestHeaderDone()).apply(context);
+    gw.getCallback(EVENTS.requestEnded()).apply(context, null);
   }
 
   @Benchmark

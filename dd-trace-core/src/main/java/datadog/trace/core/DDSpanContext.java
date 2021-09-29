@@ -100,7 +100,7 @@ public class DDSpanContext implements AgentSpan.Context {
   private volatile CharSequence origin;
 
   /** RequestContext for the Instrumentation Gateway */
-  private final RequestContext requestContext;
+  private final RequestContext<Object> requestContext;
 
   public DDSpanContext(
       final DDId traceId,
@@ -117,7 +117,7 @@ public class DDSpanContext implements AgentSpan.Context {
       final CharSequence spanType,
       final int tagsSize,
       final PendingTrace trace,
-      final RequestContext requestContext) {
+      final RequestContext<Object> requestContext) {
 
     assert trace != null;
     this.trace = trace;
@@ -353,7 +353,7 @@ public class DDSpanContext implements AgentSpan.Context {
     return trace;
   }
 
-  public RequestContext getRequestContext() {
+  public RequestContext<Object> getRequestContext() {
     return requestContext;
   }
 

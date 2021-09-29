@@ -1,8 +1,8 @@
 package com.datadog.appsec.event.data
 
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class StringKVPairSpecification extends Specification {
+class StringKVPairSpecification extends DDSpecification {
 
   void 'retrieval methods'() {
     def pair = new StringKVPair('a', 'b')

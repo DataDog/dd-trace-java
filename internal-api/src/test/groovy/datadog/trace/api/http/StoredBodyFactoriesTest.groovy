@@ -2,7 +2,6 @@ package datadog.trace.api.http
 
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
-import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.InstrumentationGateway
 import datadog.trace.api.gateway.RequestContext
@@ -10,13 +9,17 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.test.util.DDSpecification
 
+import static datadog.trace.api.gateway.Events.EVENTS
+
 class StoredBodyFactoriesTest extends DDSpecification {
   AgentTracer.TracerAPI originalTracer
 
   AgentTracer.TracerAPI tracerAPI = Mock()
   AgentSpan agentSpan
 
-  RequestContext requestContext = Mock()
+  RequestContext<Object> requestContext = Mock(RequestContext) {
+    getData() >> it
+  }
   InstrumentationGateway ig = Mock()
 
   def setup() {
@@ -74,16 +77,16 @@ class StoredBodyFactoriesTest extends DDSpecification {
 
     then:
     2 * agentSpan.requestContext >> requestContext
-    2 * ig.getCallback(Events.REQUEST_BODY_START) >> Mock(BiFunction)
-    2 * ig.getCallback(Events.REQUEST_BODY_DONE) >> Mock(BiFunction)
+    2 * ig.getCallback(EVENTS.requestBodyStart()) >> Mock(BiFunction)
+    2 * ig.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
 
     when:
     Flow f = StoredBodyFactories.maybeDeliverBodyInOneGo({ 'body' } as Supplier<CharSequence>)
 
     then:
     1 * agentSpan.requestContext >> requestContext
-    1 * ig.getCallback(Events.REQUEST_BODY_START) >> mockRequestBodyStart
-    1 * ig.getCallback(Events.REQUEST_BODY_DONE) >> mockRequestBodyDone
+    1 * ig.getCallback(EVENTS.requestBodyStart()) >> mockRequestBodyStart
+    1 * ig.getCallback(EVENTS.requestBodyDone()) >> mockRequestBodyDone
     1 * mockRequestBodyStart.apply(requestContext, _ as StoredBodySupplier) >> {
       bodySupplier1 = it[1]
       null
@@ -109,8 +112,8 @@ class StoredBodyFactoriesTest extends DDSpecification {
 
     then:
     1 * agentSpan.requestContext >> requestContext
-    1 * ig.getCallback(Events.REQUEST_BODY_START) >> mockRequestBodyStart
-    1 * ig.getCallback(Events.REQUEST_BODY_DONE) >> mockRequestBodyDone
+    1 * ig.getCallback(EVENTS.requestBodyStart()) >> mockRequestBodyStart
+    1 * ig.getCallback(EVENTS.requestBodyDone()) >> mockRequestBodyDone
     1 * mockRequestBodyDone.apply(requestContext, _ as StoredBodySupplier) >> {
       bodySupplier = it[1]
       mockFlow
@@ -128,8 +131,8 @@ class StoredBodyFactoriesTest extends DDSpecification {
 
     then:
     2 * agentSpan.requestContext >> requestContext
-    2 * ig.getCallback(Events.REQUEST_BODY_START) >> Mock(BiFunction)
-    2 * ig.getCallback(Events.REQUEST_BODY_DONE) >> Mock(BiFunction)
+    2 * ig.getCallback(EVENTS.requestBodyStart()) >> Mock(BiFunction)
+    2 * ig.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
   }
 
   void 'with correct content length int version'() {
@@ -141,8 +144,8 @@ class StoredBodyFactoriesTest extends DDSpecification {
 
     then:
     2 * agentSpan.requestContext >> requestContext
-    2 * ig.getCallback(Events.REQUEST_BODY_START) >> Mock(BiFunction)
-    2 * ig.getCallback(Events.REQUEST_BODY_DONE) >> Mock(BiFunction)
+    2 * ig.getCallback(EVENTS.requestBodyStart()) >> Mock(BiFunction)
+    2 * ig.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
   }
 
   void 'with bad content length'() {
@@ -154,7 +157,7 @@ class StoredBodyFactoriesTest extends DDSpecification {
 
     then:
     2 * agentSpan.requestContext >> requestContext
-    2 * ig.getCallback(Events.REQUEST_BODY_START) >> Mock(BiFunction)
-    2 * ig.getCallback(Events.REQUEST_BODY_DONE) >> Mock(BiFunction)
+    2 * ig.getCallback(EVENTS.requestBodyStart()) >> Mock(BiFunction)
+    2 * ig.getCallback(EVENTS.requestBodyDone()) >> Mock(BiFunction)
   }
 }

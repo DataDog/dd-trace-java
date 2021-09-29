@@ -24,7 +24,8 @@ import org.slf4j.LoggerFactory;
 
 // TODO: different methods to be called by different parts perhaps splitting it would make sense
 // or at least create separate interfaces
-public class AppSecRequestContext implements DataBundle, RequestContext, ReportService, Closeable {
+public class AppSecRequestContext
+    implements DataBundle, RequestContext<AppSecRequestContext>, ReportService, Closeable {
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
@@ -41,6 +42,11 @@ public class AppSecRequestContext implements DataBundle, RequestContext, ReportS
   private int peerPort;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
+
+  @Override
+  public AppSecRequestContext getData() {
+    return this;
+  }
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {

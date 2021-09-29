@@ -942,7 +942,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> rootSpanTags;
 
       final DDSpanContext context;
-      final RequestContext requestContext;
+      final RequestContext<Object> requestContext;
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context

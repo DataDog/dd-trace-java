@@ -2,9 +2,9 @@ package com.datadog.appsec.report
 
 import com.datadog.appsec.report.raw.events.attack.Attack010
 import com.datadog.appsec.util.JvmTime
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class DefaultReportStrategySpecification extends Specification {
+class DefaultReportStrategySpecification extends DDSpecification {
 
   JvmTime jvmTime = Mock(JvmTime)
   ReportStrategy testee = new ReportStrategy.Default(jvmTime)
