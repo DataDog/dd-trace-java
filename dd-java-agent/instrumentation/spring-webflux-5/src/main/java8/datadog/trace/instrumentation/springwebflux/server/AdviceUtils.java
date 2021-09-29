@@ -48,13 +48,17 @@ public final class AdviceUtils {
    * versions of reactor-core have easier way to access context but we want to support older
    * versions.
    */
-  public static <T> Function<? super Publisher<T>, ? extends Publisher<T>> finishSpanNextOrError(
+  private static <T> Function<? super Publisher<T>, ? extends Publisher<T>> finishSpanNextOrError(
       AgentSpan span) {
     return Operators.lift(
         (scannable, subscriber) -> new SpanFinishingSubscriber<>(subscriber, span));
   }
 
-  static final class SpanFinishingSubscriber<T> implements CoreSubscriber<T>, Subscription {
+  /**
+   * This makes sure any callback is wrapped in suspend/resume checkpoints. Otherwise, we may
+   * end up executing these callbacks in different threads without being resumed first.
+   */
+  private static final class SpanFinishingSubscriber<T> implements CoreSubscriber<T>, Subscription {
 
     private final CoreSubscriber<? super T> subscriber;
     private final AgentSpan span;
@@ -71,6 +75,7 @@ public final class AdviceUtils {
       this.span = span;
       this.context = subscriber.currentContext().put(AgentSpan.class, span);
 
+      // We set a suspend here similarly to capturing the continuation in FutureTask.<init> for example
       span.startThreadMigration();
     }
 
