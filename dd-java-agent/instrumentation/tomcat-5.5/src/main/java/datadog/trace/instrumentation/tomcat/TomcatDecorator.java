@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.tomcat;
 
+import static datadog.trace.instrumentation.tomcat.RequestExtractAdapter.GETTER;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -9,7 +12,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
-public class TomcatDecorator extends HttpServerDecorator<Request, Request, Response> {
+public class TomcatDecorator
+    extends HttpServerDecorator<Request, Request, Response, org.apache.coyote.Request> {
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence TOMCAT_SERVER = UTF8BytesString.create("tomcat-server");
   public static final TomcatDecorator DECORATE = new TomcatDecorator();
@@ -25,6 +29,16 @@ public class TomcatDecorator extends HttpServerDecorator<Request, Request, Respo
   @Override
   protected CharSequence component() {
     return TOMCAT_SERVER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<org.apache.coyote.Request> getter() {
+    return GETTER;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return SERVLET_REQUEST;
   }
 
   @Override

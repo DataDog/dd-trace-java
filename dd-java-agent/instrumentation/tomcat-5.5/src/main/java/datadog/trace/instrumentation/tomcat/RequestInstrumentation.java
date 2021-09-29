@@ -30,7 +30,9 @@ public final class RequestInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TomcatDecorator", packageName + ".RequestURIDataAdapter",
+      packageName + ".RequestExtractAdapter",
+      packageName + ".TomcatDecorator",
+      packageName + ".RequestURIDataAdapter",
     };
   }
 

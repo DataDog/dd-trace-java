@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.netty38.server;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.HOST;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -10,11 +12,12 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import org.jboss.netty.channel.Channel;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
 public class NettyHttpServerDecorator
-    extends HttpServerDecorator<HttpRequest, Channel, HttpResponse> {
+    extends HttpServerDecorator<HttpRequest, Channel, HttpResponse, HttpHeaders> {
   public static final CharSequence NETTY = UTF8BytesString.create("netty");
   public static final CharSequence NETTY_CONNECT = UTF8BytesString.create("netty.connect");
   public static final CharSequence NETTY_REQUEST = UTF8BytesString.create("netty.request");
@@ -28,6 +31,16 @@ public class NettyHttpServerDecorator
   @Override
   protected CharSequence component() {
     return NETTY;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpHeaders> getter() {
+    return ContextVisitors.stringValuesEntrySet();
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return NETTY_REQUEST;
   }
 
   @Override

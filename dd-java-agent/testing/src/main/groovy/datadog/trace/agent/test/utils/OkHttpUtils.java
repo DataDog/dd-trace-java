@@ -47,8 +47,17 @@ public class OkHttpUtils {
     return client(false);
   }
 
+  public static OkHttpClient client(long connectTimeout, long readTimeout, TimeUnit unit) {
+    return client(
+        clientBuilder().connectTimeout(connectTimeout, unit).readTimeout(readTimeout, unit), false);
+  }
+
   public static OkHttpClient client(final boolean followRedirects) {
-    return clientBuilder().followRedirects(followRedirects).build();
+    return client(clientBuilder(), followRedirects);
+  }
+
+  static OkHttpClient client(final OkHttpClient.Builder builder, final boolean followRedirects) {
+    return builder.followRedirects(followRedirects).build();
   }
 
   public static OkHttpClient client(

@@ -2,13 +2,10 @@ package datadog.trace.instrumentation.tomcat;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-import static datadog.trace.instrumentation.tomcat.RequestExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DD_EXTRACTED_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DECORATE;
-import static datadog.trace.instrumentation.tomcat.TomcatDecorator.SERVLET_REQUEST;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -19,7 +16,6 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
 import java.util.Collection;
@@ -47,8 +43,8 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TomcatDecorator",
       packageName + ".RequestExtractAdapter",
+      packageName + ".TomcatDecorator",
       packageName + ".RequestURIDataAdapter",
     };
   }
@@ -97,11 +93,10 @@ public final class TomcatServerInstrumentation extends Instrumenter.Tracing
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final AgentSpan.Context.Extracted extractedContext = propagate().extract(req, GETTER);
+      final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
       req.setAttribute(DD_EXTRACTED_CONTEXT_ATTRIBUTE, extractedContext);
 
-      final AgentSpan span =
-          AgentTracer.startSpan(SERVLET_REQUEST, extractedContext).setMeasured(true);
+      final AgentSpan span = DECORATE.startSpan(req, extractedContext);
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
       DECORATE.afterStart(span);
 

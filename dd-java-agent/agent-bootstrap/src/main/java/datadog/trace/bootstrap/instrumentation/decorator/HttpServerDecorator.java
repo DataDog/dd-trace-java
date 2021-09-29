@@ -6,16 +6,21 @@ import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDeco
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Function;
 import datadog.trace.api.function.BiFunction;
+import datadog.trace.api.function.Supplier;
+import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
@@ -25,7 +30,8 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends ServerDecorator {
+public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER>
+    extends ServerDecorator {
 
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
 
@@ -43,6 +49,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       Config.get().isRuleEnabled("URLAsResourceNameRule");
 
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
+
+  protected abstract AgentPropagation.ContextVisitor<CARRIER> getter();
+
+  public abstract CharSequence spanName();
 
   protected abstract String method(REQUEST request);
 
@@ -62,6 +72,26 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   @Override
   protected boolean traceAnalyticsDefault() {
     return Config.get().isTraceAnalyticsEnabled();
+  }
+
+  // Extract this to allow for easier testing
+  protected AgentTracer.TracerAPI tracer() {
+    return AgentTracer.get();
+  }
+
+  public AgentSpan.Context.Extracted extract(CARRIER carrier) {
+    AgentPropagation.ContextVisitor<CARRIER> getter = getter();
+    if (null == carrier || null == getter) {
+      return null;
+    }
+    return tracer().propagate().extract(carrier, getter);
+  }
+
+  public AgentSpan startSpan(CARRIER carrier, AgentSpan.Context.Extracted context) {
+    AgentSpan span =
+        tracer().startSpan(spanName(), callIGCallbackStart(context), true).setMeasured(true);
+    callIGCallbackHeaders(span, carrier);
+    return span;
   }
 
   public AgentSpan onRequest(
@@ -174,10 +204,51 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   //    return super.onError(span, throwable);
   //  }
 
-  private static void callIGCallbackURI(
+  private AgentSpan.Context.Extracted callIGCallbackStart(AgentSpan.Context.Extracted context) {
+    CallbackProvider cbp = tracer().instrumentationGateway();
+    if (null != cbp) {
+      Supplier<Flow<RequestContext>> startedCB = cbp.getCallback(Events.REQUEST_STARTED);
+      if (null != startedCB) {
+        RequestContext requestContext = startedCB.get().getResult();
+        if (null != requestContext) {
+          TagContext tagContext = null;
+          if (context == null) {
+            tagContext = TagContext.empty();
+          }
+          if (context instanceof TagContext) {
+            tagContext = (TagContext) context;
+          }
+          if (null != tagContext) {
+            context = tagContext.withRequestContext(requestContext);
+          }
+        }
+      }
+    }
+    return context;
+  }
+
+  private void callIGCallbackHeaders(AgentSpan span, CARRIER carrier) {
+    CallbackProvider cbp = tracer().instrumentationGateway();
+    RequestContext requestContext = span.getRequestContext();
+    AgentPropagation.ContextVisitor<CARRIER> getter = getter();
+    if (requestContext == null || cbp == null || getter == null) {
+      return;
+    }
+    IGKeyClassifier igKeyClassifier =
+        IGKeyClassifier.create(
+            requestContext,
+            cbp.getCallback(Events.REQUEST_HEADER),
+            cbp.getCallback(Events.REQUEST_HEADER_DONE));
+    if (null != igKeyClassifier) {
+      getter.forEachKey(carrier, igKeyClassifier);
+      igKeyClassifier.done();
+    }
+  }
+
+  private void callIGCallbackURI(
       @Nonnull final AgentSpan span, @Nonnull final URIDataAdapter url, final String method) {
     // TODO:appsec there must be some better way to do this?
-    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+    CallbackProvider cbp = tracer().instrumentationGateway();
     RequestContext requestContext = span.getRequestContext();
     if (requestContext == null || cbp == null) {
       return;
@@ -196,11 +267,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     return super.beforeFinish(span);
   }
 
-  private static void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
+  private void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
     if (span.getLocalRootSpan() != span) {
       return;
     }
-    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+    CallbackProvider cbp = tracer().instrumentationGateway();
     RequestContext requestContext = span.getRequestContext();
     if (cbp != null && requestContext != null) {
       BiFunction<RequestContext, IGSpanInfo, Flow<Void>> callback =
@@ -211,9 +282,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     }
   }
 
-  private static Flow<Void> callIGCallbackSocketAddress(
+  private Flow<Void> callIGCallbackSocketAddress(
       @Nonnull final AgentSpan span, @Nonnull final String ip, final int port) {
-    CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
+    CallbackProvider cbp = tracer().instrumentationGateway();
     if (cbp == null) {
       return Flow.ResultFlow.empty();
     }
@@ -226,5 +297,44 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       }
     }
     return Flow.ResultFlow.empty();
+  }
+
+  /** This passes the headers through to the InstrumentationGateway */
+  private static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
+
+    private static IGKeyClassifier create(
+        RequestContext requestContext,
+        TriConsumer<RequestContext, String, String> headerCallback,
+        Function<RequestContext, Flow<Void>> doneCallback) {
+      if (null == requestContext || null == headerCallback) {
+        return null;
+      }
+      return new IGKeyClassifier(requestContext, headerCallback, doneCallback);
+    }
+
+    private final RequestContext requestContext;
+    private final TriConsumer<RequestContext, String, String> headerCallback;
+    private final Function<RequestContext, Flow<Void>> doneCallback;
+
+    private IGKeyClassifier(
+        RequestContext requestContext,
+        TriConsumer<RequestContext, String, String> headerCallback,
+        Function<RequestContext, Flow<Void>> doneCallback) {
+      this.requestContext = requestContext;
+      this.headerCallback = headerCallback;
+      this.doneCallback = doneCallback;
+    }
+
+    @Override
+    public boolean accept(String key, String value) {
+      headerCallback.accept(requestContext, key, value);
+      return true;
+    }
+
+    public void done() {
+      if (null != doneCallback) {
+        doneCallback.apply(requestContext);
+      }
+    }
   }
 }

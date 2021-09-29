@@ -2,13 +2,7 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
-import datadog.trace.api.Function
-import datadog.trace.api.function.Supplier
-import datadog.trace.api.function.TriConsumer
-import datadog.trace.api.gateway.Events
-import datadog.trace.api.gateway.Flow
-import datadog.trace.api.gateway.InstrumentationGateway
-import datadog.trace.api.gateway.RequestContext
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
@@ -27,7 +21,7 @@ class HttpExtractorTest extends DDSpecification {
     Config config = Mock(Config) {
       getPropagationStylesToExtract() >> styles
     }
-    HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, ["SOME_HEADER": "some-tag"], null)
+    HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, ["SOME_HEADER": "some-tag"])
 
     final Map<String, String> actual = [:]
     if (datadogTraceId != null) {
@@ -89,90 +83,5 @@ class HttpExtractorTest extends DDSpecification {
     [DATADOG, B3] | "1"               | "2"               | outOfRangeTraceId | "b"               | "1"             | "2"            | true             | false               | false
     [DATADOG, B3] | "1"               | "2"               | "a"               | outOfRangeTraceId | "1"             | "2"            | true             | false               | false
     // spotless:on
-  }
-
-  def "send headers to instrumentation gateway"() {
-    setup:
-    def ig = new InstrumentationGateway()
-    def callbacks = new IGCallBacks(reqContext)
-    if (reqStarted) {
-      ig.registerCallback(Events.REQUEST_STARTED, callbacks)
-    }
-    if (reqHeader) {
-      ig.registerCallback(Events.REQUEST_HEADER, callbacks)
-    }
-    if (reqHeaderDone) {
-      ig.registerCallback(Events.REQUEST_HEADER_DONE, callbacks)
-    }
-    Map<String, String> headers = ["foo": "bar", "some": "thing", "another": "value"]
-    Config config = Mock(Config) {
-      getPropagationStylesToExtract() >> []
-    }
-    HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, Collections.emptyMap(), ig)
-
-    when:
-    extractor.extract(headers, ContextVisitors.stringValuesMap())
-
-    then:
-    reqStartedCount == callbacks.reqStartedCount
-    reqHeaderCount == callbacks.headers.size()
-    reqHeaderDoneCount == callbacks.reqHeaderDoneCount
-    reqHeaderCount == 0 ? true : headers == callbacks.headers
-
-    where:
-    // spotless:off
-    reqStarted | reqContext             | reqHeader | reqHeaderDone | reqStartedCount | reqHeaderCount | reqHeaderDoneCount
-    false      | null                   | false     | false         | 0               | 0              | 0
-    false      | new RequestContext(){} | false     | false         | 0               | 0              | 0
-    true       | null                   | false     | false         | 1               | 0              | 0
-    true       | new RequestContext(){} | false     | false         | 1               | 0              | 0
-    true       | new RequestContext(){} | true      | false         | 1               | 3              | 0
-    true       | new RequestContext(){} | true      | true          | 1               | 3              | 1
-    // spotless:on
-  }
-
-  private static final class IGCallBacks implements Supplier<Flow<RequestContext>>, TriConsumer<RequestContext, String, String>, Function<RequestContext, Flow<Void>> {
-    private final RequestContext requestContext
-    private final Map<String, String> headers = new HashMap<>()
-    private int reqStartedCount = 0
-    private int reqHeaderDoneCount = 0
-
-    IGCallBacks(RequestContext requestContext) {
-      this.requestContext = requestContext
-    }
-
-    // REQUEST_STARTED
-    @Override
-    Flow<RequestContext> get() {
-      reqStartedCount++
-      return null == requestContext ? Flow.ResultFlow.empty() : new Flow.ResultFlow(requestContext)
-    }
-
-    // REQUEST_HEADER
-    @Override
-    void accept(RequestContext requestContext, String key, String value) {
-      assert (requestContext == this.requestContext)
-      headers.put(key, value)
-    }
-
-    // REQUEST_HEADER_DONE
-    @Override
-    Flow<Void> apply(RequestContext requestContext) {
-      assert (requestContext == this.requestContext)
-      reqHeaderDoneCount++
-      return null
-    }
-
-    int getReqStartedCount() {
-      return reqStartedCount
-    }
-
-    Map<String, String> getHeaders() {
-      return headers
-    }
-
-    int getReqHeaderDoneCount() {
-      return reqHeaderDoneCount
-    }
   }
 }

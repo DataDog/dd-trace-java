@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.axway;
 
 import static java.lang.invoke.MethodType.methodType;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -19,7 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // request = is com.vordel.circuit.net.State,  connection = com.vordel.dwe.http.ServerTransaction
-public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object, Object> {
+public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object, Object, Void> {
   private static final Logger log = LoggerFactory.getLogger(AxwayHTTPPluginDecorator.class);
 
   public static final CharSequence AXWAY_REQUEST = UTF8BytesString.create("axway.request");
@@ -130,6 +131,16 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
   @Override
   protected String component() {
     return "axway-http";
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<Void> getter() {
+    return null;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return AXWAY_REQUEST;
   }
 
   @Override

@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.spray;
 
+import static datadog.trace.instrumentation.spray.SprayHeaders.GETTER;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -8,12 +11,22 @@ import spray.http.HttpResponse;
 import spray.routing.RequestContext;
 
 public class SprayHttpServerDecorator
-    extends HttpServerDecorator<HttpRequest, RequestContext, HttpResponse> {
+    extends HttpServerDecorator<HttpRequest, RequestContext, HttpResponse, HttpRequest> {
   public static final CharSequence SPRAY_HTTP_REQUEST =
       UTF8BytesString.create("spray-http.request");
   public static final CharSequence SPRAY_HTTP_SERVER = UTF8BytesString.create("spray-http-server");
 
   public static final SprayHttpServerDecorator DECORATE = new SprayHttpServerDecorator();
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpRequest> getter() {
+    return GETTER;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return SPRAY_HTTP_REQUEST;
+  }
 
   @Override
   protected String method(HttpRequest request) {

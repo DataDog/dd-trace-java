@@ -88,16 +88,16 @@ public class AgentTracer {
     return get().noopSpan();
   }
 
-  private static final TracerAPI DEFAULT = new NoopTracerAPI();
+  public static final TracerAPI NOOP_TRACER = new NoopTracerAPI();
 
-  private static volatile TracerAPI provider = DEFAULT;
+  private static volatile TracerAPI provider = NOOP_TRACER;
 
   public static boolean isRegistered() {
-    return provider != DEFAULT;
+    return provider != NOOP_TRACER;
   }
 
   public static synchronized void registerIfAbsent(final TracerAPI tracer) {
-    if (tracer != null && tracer != DEFAULT) {
+    if (tracer != null && tracer != NOOP_TRACER) {
       provider = tracer;
     }
   }
@@ -708,11 +708,6 @@ public class AgentTracer {
 
     @Override
     public String getForwardedPort() {
-      return null;
-    }
-
-    @Override
-    public RequestContext getRequestContext() {
       return null;
     }
   }

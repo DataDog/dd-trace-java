@@ -2,12 +2,8 @@ package datadog.trace.instrumentation.grizzly;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
-import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.GRIZZLY_REQUEST;
-import static datadog.trace.instrumentation.grizzly.GrizzlyRequestExtractAdapter.GETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -68,9 +64,8 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Tracing {
         return null;
       }
 
-      final Context.Extracted parentContext = propagate().extract(request, GETTER);
-      final AgentSpan span = startSpan(GRIZZLY_REQUEST, parentContext);
-      span.setMeasured(true);
+      final Context.Extracted parentContext = DECORATE.extract(request);
+      final AgentSpan span = DECORATE.startSpan(request, parentContext);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request, request, parentContext);
 
