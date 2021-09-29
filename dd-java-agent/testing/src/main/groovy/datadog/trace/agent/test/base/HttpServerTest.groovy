@@ -944,20 +944,16 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_TEST_HEADER = "x-ig-test-header"
 
   class IGCallbacks {
-    static class Context implements RequestContext<Context> {
+    static class Context {
       String extraSpan
       StoredBodySupplier requestBodySupplier
-
-      Context getData() {
-        return this
-      }
     }
 
-    final Supplier<Flow<RequestContext<Context>>> requestStartedCb =
+    final Supplier<Flow<Context>> requestStartedCb =
     ({
       ->
-      new Flow.ResultFlow<RequestContext<Context>>(new Context())
-    } as Supplier<Flow<RequestContext<Context>>>)
+      new Flow.ResultFlow<Context>(new Context())
+    } as Supplier<Flow<Context>>)
 
     final TriConsumer<RequestContext<Context>, String, String> requestHeaderCb =
     { RequestContext<Context> rqCtxt, String key, String value ->

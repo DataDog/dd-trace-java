@@ -159,8 +159,7 @@ public class GatewayBridge {
     this.reportService.close();
   }
 
-  private static class RequestContextSupplier
-      implements Flow<RequestContext<AppSecRequestContext>> {
+  private static class RequestContextSupplier implements Flow<AppSecRequestContext> {
     private final AppSecRequestContext appSecRequestContext = new AppSecRequestContext();
 
     @Override

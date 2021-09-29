@@ -207,10 +207,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
   private AgentSpan.Context.Extracted callIGCallbackStart(AgentSpan.Context.Extracted context) {
     CallbackProvider cbp = tracer().instrumentationGateway();
     if (null != cbp) {
-      Supplier<Flow<RequestContext<Object>>> startedCB = cbp.getCallback(EVENTS.requestStarted());
+      Supplier<Flow<Object>> startedCB = cbp.getCallback(EVENTS.requestStarted());
       if (null != startedCB) {
-        RequestContext<Object> requestContext = startedCB.get().getResult();
-        if (null != requestContext) {
+        Object requestContextData = startedCB.get().getResult();
+        if (null != requestContextData) {
           TagContext tagContext = null;
           if (context == null) {
             tagContext = TagContext.empty();
@@ -219,7 +219,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
             tagContext = (TagContext) context;
           }
           if (null != tagContext) {
-            context = tagContext.withRequestContext(requestContext);
+            context = tagContext.withRequestContextData(requestContextData);
           }
         }
       }

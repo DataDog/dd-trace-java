@@ -8,7 +8,6 @@ import com.datadog.appsec.event.data.StringKVPair;
 import com.datadog.appsec.report.ReportService;
 import com.datadog.appsec.report.raw.events.attack.Attack010;
 import com.datadog.appsec.util.StandardizedLogging;
-import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.http.StoredBodySupplier;
 import java.io.Closeable;
 import java.time.Instant;
@@ -24,8 +23,7 @@ import org.slf4j.LoggerFactory;
 
 // TODO: different methods to be called by different parts perhaps splitting it would make sense
 // or at least create separate interfaces
-public class AppSecRequestContext
-    implements DataBundle, RequestContext<AppSecRequestContext>, ReportService, Closeable {
+public class AppSecRequestContext implements DataBundle, ReportService, Closeable {
   private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
@@ -42,11 +40,6 @@ public class AppSecRequestContext
   private int peerPort;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
-
-  @Override
-  public AppSecRequestContext getData() {
-    return this;
-  }
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {

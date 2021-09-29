@@ -64,7 +64,8 @@ public class AppSecBenchmark {
   }
 
   private void maliciousRequest() throws Exception {
-    RequestContext<Object> context = gw.getCallback(EVENTS.requestStarted()).get().getResult();
+    RequestContext<Object> context =
+        new Context(gw.getCallback(EVENTS.requestStarted()).get().getResult());
     gw.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
     gw.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
     gw.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Arachni/v1");
@@ -87,7 +88,8 @@ public class AppSecBenchmark {
   }
 
   private void normalRequest() {
-    RequestContext<Object> context = gw.getCallback(EVENTS.requestStarted()).get().getResult();
+    RequestContext<Object> context =
+        new Context(gw.getCallback(EVENTS.requestStarted()).get().getResult());
     gw.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
     gw.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
     gw.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Mozilla/5.0");
@@ -199,6 +201,19 @@ public class AppSecBenchmark {
     @Override
     public boolean active() {
       return false;
+    }
+  }
+
+  static class Context implements RequestContext<Object> {
+    private final Object data;
+
+    public Context(Object data) {
+      this.data = data;
+    }
+
+    @Override
+    public Object getData() {
+      return data;
     }
   }
 }

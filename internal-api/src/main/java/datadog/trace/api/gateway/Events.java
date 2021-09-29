@@ -22,8 +22,8 @@ public final class Events<D> {
   private static final EventType REQUEST_STARTED = new ET<>("request.started", REQUEST_STARTED_ID);
   /** A request started */
   @SuppressWarnings("unchecked")
-  public EventType<Supplier<Flow<RequestContext<D>>>> requestStarted() {
-    return (EventType<Supplier<Flow<RequestContext<D>>>>) REQUEST_STARTED;
+  public EventType<Supplier<Flow<D>>> requestStarted() {
+    return (EventType<Supplier<Flow<D>>>) REQUEST_STARTED;
   }
 
   static final int REQUEST_ENDED_ID = 1;

@@ -282,7 +282,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
   def "test startSpan and InstrumentationGateway"() {
     setup:
     def ig = new InstrumentationGateway()
-    def callbacks = new IGCallBacks(reqContext)
+    def callbacks = new IGCallBacks(reqData)
     if (reqStarted) {
       ig.registerCallback(EVENTS.requestStarted(), callbacks)
     }
@@ -293,8 +293,11 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       ig.registerCallback(EVENTS.requestHeaderDone(), callbacks)
     }
     Map<String, String> headers = ["foo": "bar", "some": "thing", "another": "value"]
+    def reqCtxt = Mock(RequestContext) {
+      getData() >> reqData
+    }
     def mSpan = Mock(AgentSpan) {
-      getRequestContext() >> reqContext
+      getRequestContext() >> reqCtxt
     }
     def mTracer = Mock(TracerAPI) {
       startSpan(_, _, _) >> mSpan
@@ -314,48 +317,48 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     where:
     // spotless:off
-    reqStarted | reqContext    | reqHeader | reqHeaderDone | reqStartedCount | reqHeaderCount | reqHeaderDoneCount
-    false      | null          | false     | false         | 0               | 0              | 0
-    false      | new ReqCtxt() | false     | false         | 0               | 0              | 0
-    true       | null          | false     | false         | 1               | 0              | 0
-    true       | new ReqCtxt() | false     | false         | 1               | 0              | 0
-    true       | new ReqCtxt() | true      | false         | 1               | 3              | 0
-    true       | new ReqCtxt() | true      | true          | 1               | 3              | 1
+    reqStarted | reqData      | reqHeader | reqHeaderDone | reqStartedCount | reqHeaderCount | reqHeaderDoneCount
+    false      | null         | false     | false         | 0               | 0              | 0
+    false      | new Object() | false     | false         | 0               | 0              | 0
+    true       | null         | false     | false         | 1               | 0              | 0
+    true       | new Object() | false     | false         | 1               | 0              | 0
+    true       | new Object() | true      | false         | 1               | 3              | 0
+    true       | new Object() | true      | true          | 1               | 3              | 1
     // spotless:on
   }
 
   private static final class IGCallBacks implements
-  Supplier<Flow<RequestContext<Object>>>,
+  Supplier<Flow<Object>>,
   TriConsumer<RequestContext<Object>, String, String>,
   Function<RequestContext<Object>, Flow<Void>> {
 
-    private final RequestContext<Object> requestContext
+    private final Object data
     private final Map<String, String> headers = new HashMap<>()
     private int reqStartedCount = 0
     private int reqHeaderDoneCount = 0
 
-    IGCallBacks(RequestContext<Object> requestContext) {
-      this.requestContext = requestContext
+    IGCallBacks(Object data) {
+      this.data = data
     }
 
     // REQUEST_STARTED
     @Override
     Flow<Object> get() {
       reqStartedCount++
-      return null == requestContext ? Flow.ResultFlow.empty() : new Flow.ResultFlow(requestContext)
+      return null == data ? Flow.ResultFlow.empty() : new Flow.ResultFlow(data)
     }
 
     // REQUEST_HEADER
     @Override
     void accept(RequestContext<Object> requestContext, String key, String value) {
-      assert (requestContext.data == this.requestContext)
+      assert (requestContext.data == this.data)
       headers.put(key, value)
     }
 
     // REQUEST_HEADER_DONE
     @Override
     Flow<Void> apply(RequestContext<Object> requestContext) {
-      assert (requestContext.data == this.requestContext)
+      assert (requestContext.data == this.data)
       reqHeaderDoneCount++
       return null
     }
@@ -370,13 +373,6 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     int getReqHeaderDoneCount() {
       return reqHeaderDoneCount
-    }
-  }
-
-  private static final class ReqCtxt implements RequestContext<ReqCtxt> {
-    @Override
-    ReqCtxt getData() {
-      return this
     }
   }
 }

@@ -991,21 +991,23 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           baggage = null;
         }
 
+        final Object requestContextData;
         // Get header tags and set origin whether propagating or not.
         if (parentContext instanceof TagContext) {
           TagContext tc = (TagContext) parentContext;
           coreTags = tc.getTags();
           origin = tc.getOrigin();
-          requestContext = tc.getRequestContext();
+          requestContextData = tc.getRequestContextData();
         } else {
           coreTags = null;
           origin = null;
-          requestContext = null;
+          requestContextData = null;
         }
 
         rootSpanTags = localRootSpanTags;
 
         parentTrace = createTrace(traceId);
+        requestContext = DDRequestContext.create(requestContextData);
       }
 
       if (serviceName == null) {

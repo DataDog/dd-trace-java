@@ -43,9 +43,9 @@ public class InstrumentationGatewayTest {
     // check event without registered callback
     assertThat(gateway.getCallback(events.requestEnded())).isNull();
     // check event with registered callback
-    Supplier<Flow<RequestContext<Object>>> cback = gateway.getCallback(events.requestStarted());
+    Supplier<Flow<Object>> cback = gateway.getCallback(events.requestStarted());
     assertThat(cback).isEqualTo(callback);
-    Flow<RequestContext<Object>> flow = cback.get();
+    Flow<Object> flow = cback.get();
     assertThat(flow.getAction()).isEqualTo(Flow.Action.Noop.INSTANCE);
     Object ctxt = flow.getResult();
     assertThat(ctxt).isEqualTo(context);

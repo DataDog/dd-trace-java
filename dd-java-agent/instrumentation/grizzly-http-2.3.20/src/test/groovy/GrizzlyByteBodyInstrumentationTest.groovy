@@ -37,10 +37,7 @@ class GrizzlyByteBodyInstrumentationTest extends AgentTestRunner {
     }
     1 * attributeHolder.setAttribute('datadog.intercepted_request_body', Boolean.TRUE)
 
-    RequestContext<Object> requestContext = Mock(RequestContext) {
-      getData() >> it
-    }
-    TagContext ctx = TagContext.empty().withRequestContext(requestContext)
+    TagContext ctx = TagContext.empty().withRequestContextData(new Object())
     def agentSpan = AgentTracer.startSpan('test-span', ctx, true)
     this.scope = AgentTracer.activateSpan(agentSpan)
 
