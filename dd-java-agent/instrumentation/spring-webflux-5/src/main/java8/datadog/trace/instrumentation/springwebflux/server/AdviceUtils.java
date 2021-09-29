@@ -55,8 +55,8 @@ public final class AdviceUtils {
   }
 
   /**
-   * This makes sure any callback is wrapped in suspend/resume checkpoints. Otherwise, we may
-   * end up executing these callbacks in different threads without being resumed first.
+   * This makes sure any callback is wrapped in suspend/resume checkpoints. Otherwise, we may end up
+   * executing these callbacks in different threads without being resumed first.
    */
   private static final class SpanFinishingSubscriber<T> implements CoreSubscriber<T>, Subscription {
 
@@ -75,7 +75,8 @@ public final class AdviceUtils {
       this.span = span;
       this.context = subscriber.currentContext().put(AgentSpan.class, span);
 
-      // We set a suspend here similarly to capturing the continuation in FutureTask.<init> for example
+      // We set a suspend here similarly to capturing the continuation in FutureTask.<init> for
+      // example
       span.startThreadMigration();
     }
 
