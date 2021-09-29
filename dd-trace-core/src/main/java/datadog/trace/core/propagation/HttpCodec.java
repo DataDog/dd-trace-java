@@ -36,19 +36,22 @@ public class HttpCodec {
   public static Injector createInjector(final Config config) {
     final List<Injector> injectors = new ArrayList<>();
     for (final PropagationStyle style : config.getPropagationStylesToInject()) {
-      if (style == PropagationStyle.DATADOG) {
-        injectors.add(new DatadogHttpCodec.Injector());
-        continue;
+      switch (style) {
+        case DATADOG:
+          injectors.add(new DatadogHttpCodec.Injector());
+          break;
+        case B3:
+          injectors.add(new B3HttpCodec.Injector());
+          break;
+        case HAYSTACK:
+          injectors.add(new HaystackHttpCodec.Injector());
+          break;
+        case XRAY:
+          injectors.add(new XRayHttpCodec.Injector());
+          break;
+        default:
+          log.debug("No implementation found to inject propagation style: {}", style);
       }
-      if (style == PropagationStyle.B3) {
-        injectors.add(new B3HttpCodec.Injector());
-        continue;
-      }
-      if (style == PropagationStyle.HAYSTACK) {
-        injectors.add(new HaystackHttpCodec.Injector());
-        continue;
-      }
-      log.debug("No implementation found to inject propagation style: {}", style);
     }
     return new CompoundInjector(injectors);
   }
@@ -61,11 +64,14 @@ public class HttpCodec {
         case DATADOG:
           extractors.add(DatadogHttpCodec.newExtractor(taggedHeaders));
           break;
+        case B3:
+          extractors.add(B3HttpCodec.newExtractor(taggedHeaders));
+          break;
         case HAYSTACK:
           extractors.add(HaystackHttpCodec.newExtractor(taggedHeaders));
           break;
-        case B3:
-          extractors.add(B3HttpCodec.newExtractor(taggedHeaders));
+        case XRAY:
+          extractors.add(XRayHttpCodec.newExtractor(taggedHeaders));
           break;
         default:
           log.debug("No implementation found to extract propagation style: {}", style);
