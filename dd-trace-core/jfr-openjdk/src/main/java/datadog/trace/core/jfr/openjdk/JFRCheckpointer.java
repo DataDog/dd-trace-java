@@ -117,13 +117,15 @@ public class JFRCheckpointer implements Checkpointer {
   }
 
   @Override
-  public final void onRootSpan(final AgentSpan rootSpan, final boolean published) {
+  public final void onRootSpan(
+      final AgentSpan rootSpan, final boolean traceSampled, final boolean checkpointsSampled) {
     if (isEndpointCollectionEnabled) {
       new EndpointEvent(
               rootSpan.getResourceName().toString(),
               rootSpan.getTraceId().toLong(),
               rootSpan.getSpanId().toLong(),
-              published)
+              traceSampled,
+              checkpointsSampled)
           .commit();
     }
   }
