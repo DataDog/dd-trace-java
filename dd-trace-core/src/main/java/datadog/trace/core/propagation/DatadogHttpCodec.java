@@ -24,7 +24,9 @@ class DatadogHttpCodec {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  public static class Injector implements HttpCodec.Injector {
+  public static final HttpCodec.Injector INJECTOR = new Injector();
+
+  private static class Injector implements HttpCodec.Injector {
 
     @Override
     public <C> void inject(

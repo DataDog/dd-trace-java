@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  * A codec designed for AWS requests using the {@code X-Amzn-Trace-Id} tracing header.
  * https://docs.aws.amazon.com/xray/latest/devguide/xray-concepts.html#xray-concepts-tracingheader
  */
-public class XRayHttpCodec {
+class XRayHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(XRayHttpCodec.class);
 
   static final String X_AMZN_TRACE_ID = "X-Amzn-Trace-Id";
@@ -39,7 +39,9 @@ public class XRayHttpCodec {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  public static class Injector implements HttpCodec.Injector {
+  public static final HttpCodec.Injector INJECTOR = new Injector();
+
+  private static class Injector implements HttpCodec.Injector {
 
     @Override
     public <C> void inject(DDSpanContext context, C carrier, AgentPropagation.Setter<C> setter) {
