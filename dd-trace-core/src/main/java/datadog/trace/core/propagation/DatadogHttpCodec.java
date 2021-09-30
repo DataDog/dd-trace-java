@@ -97,8 +97,8 @@ class DatadogHttpCodec {
             classification = SAMPLING_PRIORITY;
           } else if (ORIGIN_KEY.equalsIgnoreCase(key)) {
             classification = ORIGIN;
-          } else if (X_AMZN_TRACE_ID.equalsIgnoreCase(key)
-              && Config.get().isAwsPropagationEnabled()) {
+          } else if (Config.get().isAwsPropagationEnabled()
+              && X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
             handleXRayTraceHeader(this, value);
             return true;
           } else if (handledForwarding(key, value)) {
