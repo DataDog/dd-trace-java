@@ -114,6 +114,7 @@ public class MuzzleVersionScanPlugin {
           System.err.println(
               "FAILED HELPER INJECTION. Are Helpers being injected in the correct order?");
           System.err.println(e.getMessage());
+          e.printStackTrace();
           throw e;
         }
       }
@@ -144,6 +145,7 @@ public class MuzzleVersionScanPlugin {
       }
       final ClassFileLocator locator =
           ClassFileLocator.ForClassLoader.of(instrumenter.getClass().getClassLoader());
+      ClassLoader cl = instrumenter.getClass().getClassLoader();
       final byte[] classBytes = locator.locate(helperName).resolve();
       helperMap.put(helperName, classBytes);
     }
