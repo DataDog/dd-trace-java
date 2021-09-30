@@ -942,7 +942,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> rootSpanTags;
 
       final DDSpanContext context;
-      final RequestContext requestContext;
+      final Object requestContextData;
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
@@ -974,7 +974,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         if (serviceName == null) {
           serviceName = parentServiceName;
         }
-        requestContext = ddsc.getRequestContext();
+        RequestContext<Object> requestContext = ddsc.getRequestContext();
+        requestContextData = null == requestContext ? null : requestContext.getData();
       } else {
         if (parentContext instanceof ExtractedContext) {
           // Propagate external trace
@@ -996,11 +997,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           TagContext tc = (TagContext) parentContext;
           coreTags = tc.getTags();
           origin = tc.getOrigin();
-          requestContext = tc.getRequestContext();
+          requestContextData = tc.getRequestContextData();
         } else {
           coreTags = null;
           origin = null;
-          requestContext = null;
+          requestContextData = null;
         }
 
         rootSpanTags = localRootSpanTags;
@@ -1037,7 +1038,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               spanType,
               tagsSize,
               parentTrace,
-              requestContext);
+              requestContextData);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

@@ -451,7 +451,7 @@ public class AgentTracer {
     public void finishWork() {}
 
     @Override
-    public RequestContext getRequestContext() {
+    public RequestContext<Object> getRequestContext() {
       return null;
     }
 

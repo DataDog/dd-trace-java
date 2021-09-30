@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDId;
-import datadog.trace.api.gateway.RequestContext;
 import java.util.Collections;
 import java.util.Map;
 
@@ -22,7 +21,7 @@ public class TagContext implements AgentSpan.Context.Extracted {
   private final String forwardedIp;
   private final String forwardedPort;
   private final Map<String, String> tags;
-  private RequestContext requestContext;
+  private Object requestContextData;
 
   public TagContext(
       final String origin,
@@ -92,12 +91,12 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return AgentTracer.NoopAgentTrace.INSTANCE;
   }
 
-  public RequestContext getRequestContext() {
-    return requestContext;
+  public Object getRequestContextData() {
+    return requestContextData;
   }
 
-  public TagContext withRequestContext(RequestContext requestContext) {
-    this.requestContext = requestContext;
+  public TagContext withRequestContextData(Object requestContextData) {
+    this.requestContextData = requestContextData;
     return this;
   }
 }

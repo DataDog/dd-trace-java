@@ -1,8 +1,8 @@
 package com.datadog.appsec.util
 
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class AppSecVersionSpecification extends Specification {
+class AppSecVersionSpecification extends DDSpecification {
   void 'all fields have a value'() {
     expect:
     AppSecVersion.JAVA_VERSION != null

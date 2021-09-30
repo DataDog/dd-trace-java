@@ -28,8 +28,7 @@ class AppSecSystemSpecification extends DDSpecification {
 
   void 'throws if custom config does not exist'() {
     setup:
-    System.setProperty('dd.appsec.rules', '/file/that/does/not/exist')
-    rebuildConfig()
+    injectSysConfig('dd.appsec.rules', '/file/that/does/not/exist')
 
     when:
     AppSecSystem.start(subService, sharedCommunicationObjects())
@@ -42,7 +41,7 @@ class AppSecSystemSpecification extends DDSpecification {
     setup:
     Path path = Files.createTempFile('dd-trace-', '.json')
     path.toFile() << '{'
-    System.setProperty('dd.appsec.rules', path as String)
+    injectSysConfig('dd.appsec.rules', path as String)
     rebuildConfig()
 
     when:

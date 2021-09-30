@@ -3,9 +3,9 @@ package com.datadog.appsec.powerwaf
 import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class DataBundleMapWrapperSpecification extends Specification {
+class DataBundleMapWrapperSpecification extends DDSpecification {
   // use ofDelegate with LinkedHashMap to ensure iteration order
   DataBundle dataBundle = MapDataBundle.ofDelegate([
     (KnownAddresses.REQUEST_URI_RAW): '/b',

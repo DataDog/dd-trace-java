@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.servlet.http;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -12,7 +13,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.function.BiFunction;
 import datadog.trace.api.gateway.CallbackProvider;
-import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.http.StoredBodySupplier;
@@ -89,16 +89,16 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
       if (alreadyWrapped != null || is instanceof ServletInputStreamWrapper) {
         return;
       }
-      RequestContext requestContext = agentSpan.getRequestContext();
+      RequestContext<Object> requestContext = agentSpan.getRequestContext();
       if (requestContext == null) {
         return;
       }
 
       CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-      BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
-          cbp.getCallback(Events.REQUEST_BODY_START);
-      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
-          cbp.getCallback(Events.REQUEST_BODY_DONE);
+      BiFunction<RequestContext<Object>, StoredBodySupplier, Void> requestStartCb =
+          cbp.getCallback(EVENTS.requestBodyStart());
+      BiFunction<RequestContext<Object>, StoredBodySupplier, Flow<Void>> requestEndedCb =
+          cbp.getCallback(EVENTS.requestBodyDone());
       if (requestStartCb == null || requestEndedCb == null) {
         return;
       }
@@ -153,15 +153,15 @@ public class ServletRequestBodyInstrumentation extends Instrumenter.AppSec {
       if (alreadyWrapped != null || reader instanceof BufferedReaderWrapper) {
         return;
       }
-      RequestContext requestContext = agentSpan.getRequestContext();
+      RequestContext<Object> requestContext = agentSpan.getRequestContext();
       if (requestContext == null) {
         return;
       }
       CallbackProvider cbp = AgentTracer.get().instrumentationGateway();
-      BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
-          cbp.getCallback(Events.REQUEST_BODY_START);
-      BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
-          cbp.getCallback(Events.REQUEST_BODY_DONE);
+      BiFunction<RequestContext<Object>, StoredBodySupplier, Void> requestStartCb =
+          cbp.getCallback(EVENTS.requestBodyStart());
+      BiFunction<RequestContext<Object>, StoredBodySupplier, Flow<Void>> requestEndedCb =
+          cbp.getCallback(EVENTS.requestBodyDone());
       if (requestStartCb == null || requestEndedCb == null) {
         return;
       }

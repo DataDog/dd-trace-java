@@ -4,15 +4,15 @@ import com.datadog.appsec.report.raw.dtos.intake.IntakeBatch
 import com.datadog.appsec.report.raw.events.attack.Attack010
 import com.datadog.appsec.test.JsonMatcher
 import com.squareup.moshi.JsonAdapter
+import datadog.trace.test.util.DDSpecification
 import datadog.trace.util.AgentTaskScheduler
-import spock.lang.Specification
 
 import javax.annotation.Nonnull
 import java.util.concurrent.TimeUnit
 
 import static org.hamcrest.MatcherAssert.assertThat
 
-class ReportServiceImplTests extends Specification {
+class ReportServiceImplTests extends DDSpecification {
 
   ReportServiceImpl testee
   AppSecApi api = Mock()
