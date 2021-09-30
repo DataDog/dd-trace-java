@@ -100,7 +100,7 @@ class XRayHttpCodec {
         });
   }
 
-  private static class XRayContextInterpreter extends ContextInterpreter {
+  static class XRayContextInterpreter extends ContextInterpreter {
 
     private XRayContextInterpreter(Map<String, String> taggedHeaders) {
       super(taggedHeaders);
@@ -116,38 +116,7 @@ class XRayHttpCodec {
       }
       try {
         if (X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
-          int startPart = 0;
-          int length = value.length();
-          while (startPart < length) {
-            int endPart = value.indexOf(';', startPart);
-            if (endPart < 0) {
-              endPart = length;
-            }
-            String part = value.substring(startPart, endPart).trim();
-            if (part.startsWith(DD_ROOT_PREFIX)) {
-              if (traceId == null || traceId == DDId.ZERO) {
-                traceId = DDId.fromHexWithOriginal(part.substring(DD_ROOT_PREFIX.length()));
-              }
-            } else if (part.startsWith(PARENT_PREFIX)) {
-              if (spanId == null || spanId == DDId.ZERO) {
-                spanId = DDId.fromHexWithOriginal(part.substring(PARENT_PREFIX.length()));
-              }
-            } else if (part.startsWith(SAMPLED_PREFIX)) {
-              if (samplingPriority == PrioritySampling.UNSET) {
-                samplingPriority = convertSamplingPriority(part.charAt(SAMPLED_PREFIX.length()));
-              }
-            } else if (part.startsWith(ORIGIN_PREFIX)) {
-              origin = part.substring(ORIGIN_PREFIX.length());
-            } else if (part.startsWith(SELF_PREFIX)) {
-              // Self is added by load-balancers and should be ignored
-            } else {
-              int eqIndex = part.indexOf('=');
-              if (eqIndex > 0) {
-                addBaggageItem(part.substring(0, eqIndex), part.substring(eqIndex + 1));
-              }
-            }
-            startPart = endPart + 1;
-          }
+          handleXRayTraceHeader(this, value);
         } else if (handledForwarding(key, value)) {
           return true;
         } else if (!taggedHeaders.isEmpty()) {
@@ -167,15 +136,51 @@ class XRayHttpCodec {
       return true;
     }
 
-    private int convertSamplingPriority(char samplingPriority) {
+    static void handleXRayTraceHeader(ContextInterpreter interpreter, String value) {
+      int startPart = 0;
+      int length = value.length();
+      while (startPart < length) {
+        int endPart = value.indexOf(';', startPart);
+        if (endPart < 0) {
+          endPart = length;
+        }
+        String part = value.substring(startPart, endPart).trim();
+        if (part.startsWith(DD_ROOT_PREFIX)) {
+          if (interpreter.traceId == null || interpreter.traceId == DDId.ZERO) {
+            interpreter.traceId = DDId.fromHexWithOriginal(part.substring(DD_ROOT_PREFIX.length()));
+          }
+        } else if (part.startsWith(PARENT_PREFIX)) {
+          if (interpreter.spanId == null || interpreter.spanId == DDId.ZERO) {
+            interpreter.spanId = DDId.fromHexWithOriginal(part.substring(PARENT_PREFIX.length()));
+          }
+        } else if (part.startsWith(SAMPLED_PREFIX)) {
+          if (interpreter.samplingPriority == PrioritySampling.UNSET) {
+            interpreter.samplingPriority =
+                convertSamplingPriority(part.charAt(SAMPLED_PREFIX.length()));
+          }
+        } else if (part.startsWith(ORIGIN_PREFIX)) {
+          interpreter.origin = part.substring(ORIGIN_PREFIX.length());
+        } else if (part.startsWith(SELF_PREFIX)) {
+          // Self is added by load-balancers and should be ignored
+        } else {
+          int eqIndex = part.indexOf('=');
+          if (eqIndex > 0) {
+            addBaggageItem(interpreter, part.substring(0, eqIndex), part.substring(eqIndex + 1));
+          }
+        }
+        startPart = endPart + 1;
+      }
+    }
+
+    private static int convertSamplingPriority(char samplingPriority) {
       return '1' == samplingPriority ? SAMPLER_KEEP : SAMPLER_DROP;
     }
 
-    private void addBaggageItem(String key, String value) {
-      if (baggage.isEmpty()) {
-        baggage = new TreeMap<>();
+    private static void addBaggageItem(ContextInterpreter interpreter, String key, String value) {
+      if (interpreter.baggage.isEmpty()) {
+        interpreter.baggage = new TreeMap<>();
       }
-      baggage.put(key, HttpCodec.decode(value));
+      interpreter.baggage.put(key, HttpCodec.decode(value));
     }
   }
 }

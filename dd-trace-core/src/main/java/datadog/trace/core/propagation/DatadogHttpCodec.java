@@ -1,7 +1,10 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
+import static datadog.trace.core.propagation.XRayHttpCodec.XRayContextInterpreter.handleXRayTraceHeader;
+import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -94,6 +97,10 @@ class DatadogHttpCodec {
             classification = SAMPLING_PRIORITY;
           } else if (ORIGIN_KEY.equalsIgnoreCase(key)) {
             classification = ORIGIN;
+          } else if (X_AMZN_TRACE_ID.equalsIgnoreCase(key)
+              && Config.get().isAwsPropagationEnabled()) {
+            handleXRayTraceHeader(this, value);
+            return true;
           } else if (handledForwarding(key, value)) {
             return true;
           }
