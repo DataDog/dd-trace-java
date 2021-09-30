@@ -137,6 +137,9 @@ class XRayHttpCodec {
     }
 
     static void handleXRayTraceHeader(ContextInterpreter interpreter, String value) {
+      if (null == value || !value.contains(DD_ROOT_PREFIX)) {
+        return; // header doesn't match our padded version, ignore it
+      }
       int startPart = 0;
       int length = value.length();
       while (startPart < length) {
@@ -158,10 +161,10 @@ class XRayHttpCodec {
             interpreter.samplingPriority =
                 convertSamplingPriority(part.charAt(SAMPLED_PREFIX.length()));
           }
-        } else if (part.startsWith(ORIGIN_PREFIX)) {
-          interpreter.origin = part.substring(ORIGIN_PREFIX.length());
         } else if (part.startsWith(SELF_PREFIX)) {
           // Self is added by load-balancers and should be ignored
+        } else if (part.startsWith(ORIGIN_PREFIX)) {
+          interpreter.origin = part.substring(ORIGIN_PREFIX.length());
         } else {
           int eqIndex = part.indexOf('=');
           if (eqIndex > 0) {
