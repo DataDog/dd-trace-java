@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -11,7 +12,7 @@ import ratpack.http.Request;
 import ratpack.http.Response;
 import ratpack.http.Status;
 
-public class RatpackServerDecorator extends HttpServerDecorator<Request, Request, Response> {
+public class RatpackServerDecorator extends HttpServerDecorator<Request, Request, Response, Void> {
   public static final CharSequence RATPACK_HANDLER = UTF8BytesString.create("ratpack.handler");
   public static final CharSequence RATPACK = UTF8BytesString.create("ratpack");
   public static final RatpackServerDecorator DECORATE = new RatpackServerDecorator();
@@ -29,6 +30,16 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
   @Override
   protected boolean traceAnalyticsDefault() {
     return false;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<Void> getter() {
+    return null;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return RATPACK_HANDLER;
   }
 
   @Override

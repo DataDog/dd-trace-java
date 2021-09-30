@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.jetty70;
 
+import static datadog.trace.instrumentation.jetty70.RequestExtractAdapter.GETTER;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -11,7 +14,7 @@ import org.eclipse.jetty.server.HttpConnection;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 
-public class JettyDecorator extends HttpServerDecorator<Request, Request, Response> {
+public class JettyDecorator extends HttpServerDecorator<Request, Request, Response, Request> {
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence JETTY_SERVER = UTF8BytesString.create("jetty-server");
   public static final JettyDecorator DECORATE = new JettyDecorator();
@@ -26,6 +29,16 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
   @Override
   protected CharSequence component() {
     return JETTY_SERVER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<Request> getter() {
+    return GETTER;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return SERVLET_REQUEST;
   }
 
   @Override

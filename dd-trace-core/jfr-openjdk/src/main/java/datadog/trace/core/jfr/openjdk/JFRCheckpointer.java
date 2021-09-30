@@ -26,6 +26,7 @@ public class JFRCheckpointer implements Checkpointer {
   private final LongAdder emitted = new LongAdder();
   private final LongAdder dropped = new LongAdder();
   private final int rateLimit;
+  private final boolean isEndpointCollectionEnabled;
 
   public JFRCheckpointer() {
     this(ConfigProvider.getInstance());
@@ -49,6 +50,11 @@ public class JFRCheckpointer implements Checkpointer {
     if (sampler != null) {
       FlightRecorder.addPeriodicEvent(CheckpointSummaryEvent.class, this::emitSummary);
     }
+
+    isEndpointCollectionEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED,
+            ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
   }
 
   @Override
@@ -100,7 +106,7 @@ public class JFRCheckpointer implements Checkpointer {
   }
 
   void emitCheckpoint(final AgentSpan span, final int flags) {
-    AgentSpan rootSpan = span.getLocalRootSpan();
+    final AgentSpan rootSpan = span.getLocalRootSpan();
     new CheckpointEvent(rootSpan.getSpanId().toLong(), span.getSpanId().toLong(), flags & MASK)
         .commit();
     emitted.increment();
@@ -111,10 +117,17 @@ public class JFRCheckpointer implements Checkpointer {
   }
 
   @Override
-  public final void onRootSpan(final AgentSpan rootSpan, final boolean published) {
-    new EndpointEvent(
-            rootSpan.getResourceName().toString(), rootSpan.getSpanId().toLong(), published)
-        .commit();
+  public final void onRootSpan(
+      final AgentSpan rootSpan, final boolean traceSampled, final boolean checkpointsSampled) {
+    if (isEndpointCollectionEnabled) {
+      new EndpointEvent(
+              rootSpan.getResourceName().toString(),
+              rootSpan.getTraceId().toLong(),
+              rootSpan.getSpanId().toLong(),
+              traceSampled,
+              checkpointsSampled)
+          .commit();
+    }
   }
 
   private void emitSummary() {

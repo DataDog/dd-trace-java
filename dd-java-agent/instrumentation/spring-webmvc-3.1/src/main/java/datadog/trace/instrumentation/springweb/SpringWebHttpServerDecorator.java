@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.springweb;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -17,9 +18,9 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.Controller;
 
 public class SpringWebHttpServerDecorator
-    extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
+    extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse, Void> {
 
-  public static final CharSequence SPRING_HANDLER = UTF8BytesString.create("spring.handler");
+  private static final CharSequence SPRING_HANDLER = UTF8BytesString.create("spring.handler");
   public static final CharSequence RESPONSE_RENDER = UTF8BytesString.create("response.render");
 
   private final CharSequence component;
@@ -46,6 +47,16 @@ public class SpringWebHttpServerDecorator
   @Override
   protected boolean traceAnalyticsDefault() {
     return false;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<Void> getter() {
+    return null;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return SPRING_HANDLER;
   }
 
   @Override

@@ -45,6 +45,7 @@ dependencies {
   testCompile group: 'com.amazonaws', name: 'aws-java-sdk-ec2', version: '[1.11,1.11.106]'
   testCompile group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '[1.11,1.11.106]'
   testCompile group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '[1.11,1.11.106]'
+  testCompile group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '[1.11,1.11.106]'
   testCompile group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '[1.11,1.11.106]'
 
   // needed for kinesis:
@@ -75,6 +76,11 @@ dependencies {
       strictly '1.11.0'
     }
   }
+  test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-sns') {
+    version {
+      strictly '1.11.0'
+    }
+  }
   test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb') {
     version {
       strictly '1.11.0'
@@ -86,6 +92,7 @@ dependencies {
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-ec2', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '+'
+  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '+'
 }
 

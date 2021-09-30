@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 import static datadog.trace.instrumentation.finatra.FinatraDecorator.DECORATE;
 import static datadog.trace.instrumentation.finatra.FinatraDecorator.FINATRA_CONTROLLER;
-import static datadog.trace.instrumentation.finatra.FinatraDecorator.FINATRA_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -75,7 +74,7 @@ public class FinatraInstrumentation extends Instrumenter.Tracing {
       final AgentSpan parent = activeSpan();
       ROUTE_HANDLER_DECORATOR.withRoute(parent, request.method().name(), path);
       parent.setTag(Tags.COMPONENT, "finatra");
-      parent.setSpanName(FINATRA_REQUEST);
+      parent.setSpanName(DECORATE.spanName());
 
       final AgentSpan span = startSpan(FINATRA_CONTROLLER);
       DECORATE.afterStart(span);

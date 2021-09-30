@@ -31,6 +31,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     request
         .getValueForField("QueueName", String.class)
         .ifPresent(name -> span.setTag("aws.queue.name", name));
+    // SNS
+    request
+        .getValueForField("TopicArn", String.class)
+        .ifPresent(
+            name -> span.setTag("aws.topic.name", name.substring(name.lastIndexOf(':') + 1)));
     // Kinesis
     request
         .getValueForField("StreamName", String.class)
@@ -45,14 +50,30 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   public AgentSpan onAttributes(final AgentSpan span, final ExecutionAttributes attributes) {
 
     final String awsServiceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
-    final String awsOperation = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
+    final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
+
+    String awsRequestName = awsServiceName + "." + awsOperationName;
 
     // Resource Name has to be set after the HTTP_URL because otherwise decorators overwrite it
-    span.setResourceName(awsServiceName + "." + awsOperation);
+    span.setResourceName(awsRequestName);
+
+    switch (awsRequestName) {
+      case "Sqs.SendMessage":
+      case "Sqs.SendMessageBatch":
+      case "Sqs.ReceiveMessage":
+        span.setServiceName("sqs");
+        break;
+      case "Sns.Publish":
+        span.setServiceName("sns");
+        break;
+      default:
+        span.setServiceName("java-aws-sdk");
+        break;
+    }
 
     span.setTag("aws.agent", COMPONENT_NAME);
     span.setTag("aws.service", awsServiceName);
-    span.setTag("aws.operation", awsOperation);
+    span.setTag("aws.operation", awsOperationName);
 
     return span;
   }
@@ -63,11 +84,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       span.setTag("aws.requestId", ((AwsResponse) response).responseMetadata().requestId());
     }
     return span;
-  }
-
-  @Override
-  protected String service() {
-    return COMPONENT_NAME.toString();
   }
 
   @Override

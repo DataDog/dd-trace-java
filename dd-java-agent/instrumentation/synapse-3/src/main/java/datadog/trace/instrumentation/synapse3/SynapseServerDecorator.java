@@ -2,7 +2,9 @@ package datadog.trace.instrumentation.synapse3;
 
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_PORT;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
+import static datadog.trace.instrumentation.synapse3.HttpRequestExtractAdapter.GETTER;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -14,7 +16,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.nio.NHttpConnection;
 
 public final class SynapseServerDecorator
-    extends HttpServerDecorator<HttpRequest, NHttpConnection, HttpResponse> {
+    extends HttpServerDecorator<HttpRequest, NHttpConnection, HttpResponse, HttpRequest> {
   public static final SynapseServerDecorator DECORATE = new SynapseServerDecorator();
 
   public static final CharSequence SYNAPSE_REQUEST = UTF8BytesString.create("http.request");
@@ -31,6 +33,16 @@ public final class SynapseServerDecorator
   @Override
   protected CharSequence component() {
     return SYNAPSE_SERVER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpRequest> getter() {
+    return GETTER;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return SYNAPSE_REQUEST;
   }
 
   @Override

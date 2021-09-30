@@ -1,10 +1,7 @@
-package datadog.trace.core.propagation;
+package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Collections;
 import java.util.Map;
 
@@ -95,13 +92,11 @@ public class TagContext implements AgentSpan.Context.Extracted {
     return AgentTracer.NoopAgentTrace.INSTANCE;
   }
 
-  @Override
   public RequestContext getRequestContext() {
     return requestContext;
   }
 
-  // Package reachable to allow setting from the {@code CompoundExtractor}
-  TagContext withRequestContext(RequestContext requestContext) {
+  public TagContext withRequestContext(RequestContext requestContext) {
     this.requestContext = requestContext;
     return this;
   }

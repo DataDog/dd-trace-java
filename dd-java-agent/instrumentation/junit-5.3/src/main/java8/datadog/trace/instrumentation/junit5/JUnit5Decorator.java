@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.junit5;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import datadog.trace.util.Strings;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestIdentifier;
@@ -36,7 +37,9 @@ public class JUnit5Decorator extends TestDecorator {
       // The test display name used to have the parameters.
       span.setTag(
           Tags.TEST_PARAMETERS,
-          "{\"metadata\":{\"test_name\":\"" + testIdentifier.getDisplayName() + "\"}}");
+          "{\"metadata\":{\"test_name\":\""
+              + Strings.escapeToJson(testIdentifier.getDisplayName())
+              + "\"}}");
     }
   }
 

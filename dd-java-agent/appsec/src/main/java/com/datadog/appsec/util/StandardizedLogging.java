@@ -123,17 +123,17 @@ public class StandardizedLogging {
 
   // D6, I5
   public static void attackDetected(Logger logger, Attack010 attack) {
-    String ruleName = "unknown rule";
+    String ruleId = "unknown rule";
     Rule010 rule = attack.getRule();
     if (rule != null) {
-      String name = rule.getName();
-      if (name != null) {
-        ruleName = name;
+      String id = rule.getId();
+      if (id != null) {
+        ruleId = id;
       }
     }
 
-    logger.info("Detected an attack from rule {}", ruleName);
-    logger.debug("Detecting an attack from rule {}: {}", ruleName, attack.getRuleMatch());
+    logger.info("Detected an attack from rule {}", ruleId);
+    logger.debug("Detecting an attack from rule {}: {}", ruleId, attack.getRuleMatch());
   }
 
   /*
