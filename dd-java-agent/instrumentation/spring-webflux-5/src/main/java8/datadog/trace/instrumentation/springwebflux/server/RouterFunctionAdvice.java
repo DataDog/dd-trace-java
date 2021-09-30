@@ -20,8 +20,6 @@ public class RouterFunctionAdvice {
       @Advice.Thrown final Throwable throwable) {
     if (throwable == null) {
       result = result.doOnSuccessOrError(new RouteOnSuccessOrError(thiz, serverRequest));
-    } else {
-      AdviceUtils.finishSpanIfPresent(serverRequest, throwable);
     }
   }
 }

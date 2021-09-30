@@ -2,8 +2,6 @@ package dd.trace.instrumentation.springwebflux.client
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -20,12 +18,6 @@ import reactor.core.publisher.Mono
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
-
-  @Override
-  def setup() {
-    // netty induced out-of-band span closes are causing the interval check to fail
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(CheckpointValidationMode.INTERVALS)
-  }
 
   @Override
   boolean useStrictTraceWrites() {
