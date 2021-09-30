@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.mule4;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import java.util.concurrent.CompletableFuture;
 import net.bytebuddy.asm.Advice;
-
 import org.mule.runtime.core.internal.connector.SchedulerController;
 
 public class HttpRequesterDoRequestAdvice {
