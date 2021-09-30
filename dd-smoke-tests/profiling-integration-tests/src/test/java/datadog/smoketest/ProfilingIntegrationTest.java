@@ -57,6 +57,8 @@ class ProfilingIntegrationTest {
   private static final String BOGUS_API_KEY = "bogus";
   private static final int PROFILING_START_DELAY_SECONDS = 1;
   private static final int PROFILING_UPLOAD_PERIOD_SECONDS = 5;
+  private static final boolean LEGACY_TRACING_INTEGRATION = true; // default
+  private static final boolean ENDPOINT_COLLECTION_ENABLED = true; // default
   // Set the request timeout value to the sum of the initial delay and the upload period
   // multiplied by a safety margin
   private static final int SAFETY_MARGIN = 3;
@@ -79,13 +81,13 @@ class ProfilingIntegrationTest {
   }
 
   @BeforeEach
-  void setup(TestInfo testInfo) throws Exception {
+  void setup(final TestInfo testInfo) throws Exception {
     tracingServer = new MockWebServer();
     profilingServer = new MockWebServer();
     tracingServer.setDispatcher(
         new Dispatcher() {
           @Override
-          public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
+          public MockResponse dispatch(final RecordedRequest request) throws InterruptedException {
             return new MockResponse().setResponseCode(200);
           }
         });
@@ -111,24 +113,51 @@ class ProfilingIntegrationTest {
 
   @Test
   @DisplayName("Test continuous recording - no jmx delay")
-  public void testContinuousRecording_no_jmx_delay(TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(0), testInfo, 5);
+  public void testContinuousRecording_no_jmx_delay(final TestInfo testInfo) throws Exception {
+    testWithRetry(
+        () -> testContinuousRecording(0, LEGACY_TRACING_INTEGRATION, ENDPOINT_COLLECTION_ENABLED),
+        testInfo,
+        5);
   }
 
   @Test
   @DisplayName("Test continuous recording - 1 sec jmx delay")
-  public void testContinuousRecording(TestInfo testInfo) throws Exception {
-    testWithRetry(() -> testContinuousRecording(1), testInfo, 5);
+  public void testContinuousRecording(final TestInfo testInfo) throws Exception {
+    testWithRetry(
+        () -> testContinuousRecording(1, LEGACY_TRACING_INTEGRATION, ENDPOINT_COLLECTION_ENABLED),
+        testInfo,
+        5);
   }
 
-  private void testContinuousRecording(int jmxFetchDelay) throws Exception {
-    try {
-      targetProcess = createDefaultProcessBuilder(jmxFetchDelay, logFilePath).start();
+  @Test
+  @DisplayName("Test continuous recording - checkpoint events")
+  public void testContinuousRecordingCheckpointEvents(final TestInfo testInfo) throws Exception {
+    testWithRetry(
+        () -> testContinuousRecording(0, false, ENDPOINT_COLLECTION_ENABLED), testInfo, 5);
+  }
 
-      RecordedRequest firstRequest = retrieveRequest();
+  @Test
+  @DisplayName("Test continuous recording - checkpoint events, endpoint events disabled")
+  public void testContinuousRecordingCheckpointEventsNoEndpointCollection(final TestInfo testInfo)
+      throws Exception {
+    testWithRetry(() -> testContinuousRecording(0, false, false), testInfo, 5);
+  }
+
+  private void testContinuousRecording(
+      final int jmxFetchDelay,
+      final boolean legacyTracingIntegration,
+      final boolean endpointCollectionEnabled)
+      throws Exception {
+    try {
+      targetProcess =
+          createDefaultProcessBuilder(
+                  jmxFetchDelay, legacyTracingIntegration, endpointCollectionEnabled, logFilePath)
+              .start();
+
+      final RecordedRequest firstRequest = retrieveRequest();
 
       assertNotNull(firstRequest);
-      Multimap<String, Object> firstRequestParameters =
+      final Multimap<String, Object> firstRequestParameters =
           ProfilingTestUtils.parseProfilingRequestParameters(firstRequest);
 
       assertEquals(profilingServer.getPort(), firstRequest.getRequestUrl().url().getPort());
@@ -136,18 +165,18 @@ class ProfilingIntegrationTest {
       assertEquals("jfr-continuous", getStringParameter("type", firstRequestParameters));
       assertEquals("jvm", getStringParameter("runtime", firstRequestParameters));
 
-      Instant firstStartTime =
+      final Instant firstStartTime =
           Instant.parse(getStringParameter("recording-start", firstRequestParameters));
-      Instant firstEndTime =
+      final Instant firstEndTime =
           Instant.parse(getStringParameter("recording-end", firstRequestParameters));
       assertNotNull(firstStartTime);
       assertNotNull(firstEndTime);
 
-      long duration = firstEndTime.toEpochMilli() - firstStartTime.toEpochMilli();
+      final long duration = firstEndTime.toEpochMilli() - firstStartTime.toEpochMilli();
       assertTrue(duration > TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS - 2));
       assertTrue(duration < TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS + 2));
 
-      Map<String, String> requestTags =
+      final Map<String, String> requestTags =
           ProfilingTestUtils.parseTags(firstRequestParameters.get("tags[]"));
       assertEquals("smoke-test-java-app", requestTags.get("service"));
       assertEquals("jvm", requestTags.get("language"));
@@ -161,8 +190,8 @@ class ProfilingIntegrationTest {
       IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
       assertTrue(events.hasItems());
       Pair<Instant, Instant> rangeStartAndEnd = getRangeStartAndEnd(events);
-      Instant firstRangeStart = rangeStartAndEnd.getLeft();
-      Instant firstRangeEnd = rangeStartAndEnd.getRight();
+      final Instant firstRangeStart = rangeStartAndEnd.getLeft();
+      final Instant firstRangeEnd = rangeStartAndEnd.getRight();
       assertTrue(
           firstStartTime.compareTo(firstRangeStart) <= 0,
           () ->
@@ -171,17 +200,17 @@ class ProfilingIntegrationTest {
                   + " is before first start time "
                   + firstStartTime);
 
-      RecordedRequest nextRequest = retrieveRequest();
+      final RecordedRequest nextRequest = retrieveRequest();
       assertNotNull(nextRequest);
 
-      Multimap<String, Object> secondRequestParameters =
+      final Multimap<String, Object> secondRequestParameters =
           ProfilingTestUtils.parseProfilingRequestParameters(nextRequest);
-      Instant secondStartTime =
+      final Instant secondStartTime =
           Instant.parse(getStringParameter("recording-start", secondRequestParameters));
-      Instant secondEndTime =
+      final Instant secondEndTime =
           Instant.parse(getStringParameter("recording-end", secondRequestParameters));
-      long period = secondStartTime.toEpochMilli() - firstStartTime.toEpochMilli();
-      long upperLimit = TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS) * 2;
+      final long period = secondStartTime.toEpochMilli() - firstStartTime.toEpochMilli();
+      final long upperLimit = TimeUnit.SECONDS.toMillis(PROFILING_UPLOAD_PERIOD_SECONDS) * 2;
       assertTrue(
           period > 0 && period <= upperLimit,
           () -> "Upload period = " + period + "ms, expected (0, " + upperLimit + "]ms");
@@ -191,8 +220,8 @@ class ProfilingIntegrationTest {
       events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(byteData));
       assertTrue(events.hasItems());
       rangeStartAndEnd = getRangeStartAndEnd(events);
-      Instant secondRangeStart = rangeStartAndEnd.getLeft();
-      Instant secondRangeEnd = rangeStartAndEnd.getRight();
+      final Instant secondRangeStart = rangeStartAndEnd.getLeft();
+      final Instant secondRangeEnd = rangeStartAndEnd.getRight();
       // So the OracleJdkOngoingRecording and underlying recording seems to
       // either lose precision in the reported times, or filter a bit differently
       // so we can't check these invariants =(
@@ -216,7 +245,7 @@ class ProfilingIntegrationTest {
       // Only non-Oracle JDK 8+ JVMs support custom DD events
       if (!System.getProperty("java.vendor").contains("Oracle")
           || !System.getProperty("java.version").contains("1.8")) {
-        assertRecordingEvents(events);
+        assertRecordingEvents(events, legacyTracingIntegration, endpointCollectionEnabled);
       }
     } finally {
       if (targetProcess != null) {
@@ -226,24 +255,25 @@ class ProfilingIntegrationTest {
     }
   }
 
-  private Instant convertFromQuantity(IQuantity instant) {
+  private Instant convertFromQuantity(final IQuantity instant) {
     Instant converted = null;
     try {
-      IQuantity rangeS = instant.in(UnitLookup.EPOCH_S);
-      long es = rangeS.longValue();
-      long ns = instant.longValueIn(UnitLookup.EPOCH_NS) - rangeS.longValueIn(UnitLookup.EPOCH_NS);
+      final IQuantity rangeS = instant.in(UnitLookup.EPOCH_S);
+      final long es = rangeS.longValue();
+      final long ns =
+          instant.longValueIn(UnitLookup.EPOCH_NS) - rangeS.longValueIn(UnitLookup.EPOCH_NS);
       converted = Instant.ofEpochSecond(es, ns);
-    } catch (QuantityConversionException ignore) {
+    } catch (final QuantityConversionException ignore) {
     }
     return converted;
   }
 
-  private Pair<Instant, Instant> getRangeStartAndEnd(IItemCollection events) {
+  private Pair<Instant, Instant> getRangeStartAndEnd(final IItemCollection events) {
     return events.getUnfilteredTimeRanges().stream()
         .map(
             range -> {
-              Instant convertedStart = convertFromQuantity(range.getStart());
-              Instant convertedEnd = convertFromQuantity(range.getEnd());
+              final Instant convertedStart = convertFromQuantity(range.getStart());
+              final Instant convertedEnd = convertFromQuantity(range.getEnd());
               return Pair.of(convertedStart, convertedEnd);
             })
         .reduce(
@@ -251,8 +281,8 @@ class ProfilingIntegrationTest {
             (send, newSend) -> {
               Instant start = send.getLeft();
               Instant end = send.getRight();
-              Instant newStart = newSend.getLeft();
-              Instant newEnd = newSend.getRight();
+              final Instant newStart = newSend.getLeft();
+              final Instant newEnd = newSend.getRight();
               start =
                   null == start
                       ? newStart
@@ -265,10 +295,11 @@ class ProfilingIntegrationTest {
 
   @Test
   @DisplayName("Test bogus API key")
-  void testBogusApiKey(TestInfo testInfo) throws Exception {
+  void testBogusApiKey(final TestInfo testInfo) throws Exception {
     testWithRetry(
         () -> {
-          int exitDelay = PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 2 + 1;
+          final int exitDelay =
+              PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 2 + 1;
 
           try {
             targetProcess =
@@ -277,6 +308,8 @@ class ProfilingIntegrationTest {
                         0,
                         PROFILING_START_DELAY_SECONDS,
                         PROFILING_UPLOAD_PERIOD_SECONDS,
+                        LEGACY_TRACING_INTEGRATION,
+                        ENDPOINT_COLLECTION_ENABLED,
                         exitDelay,
                         logFilePath)
                     .start();
@@ -287,7 +320,7 @@ class ProfilingIntegrationTest {
               that the profiling system is initializing and then assert for the presence of the expected message
               caused by the API key format error.
             */
-            long ts = System.nanoTime();
+            final long ts = System.nanoTime();
             while (!checkLogLines(
                 logFilePath, line -> line.contains("Registering scope event factory"))) {
               Thread.sleep(500);
@@ -319,10 +352,11 @@ class ProfilingIntegrationTest {
 
   @Test
   @DisplayName("Test shutdown")
-  void testShutdown(TestInfo testInfo) throws Exception {
+  void testShutdown(final TestInfo testInfo) throws Exception {
     testWithRetry(
         () -> {
-          int exitDelay = PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 4 + 1;
+          final int exitDelay =
+              PROFILING_START_DELAY_SECONDS + PROFILING_UPLOAD_PERIOD_SECONDS * 4 + 1;
           try {
             targetProcess =
                 createProcessBuilder(
@@ -330,11 +364,13 @@ class ProfilingIntegrationTest {
                         0,
                         PROFILING_START_DELAY_SECONDS,
                         PROFILING_UPLOAD_PERIOD_SECONDS,
+                        LEGACY_TRACING_INTEGRATION,
+                        ENDPOINT_COLLECTION_ENABLED,
                         exitDelay,
                         logFilePath)
                     .start();
 
-            RecordedRequest request = retrieveRequest();
+            final RecordedRequest request = retrieveRequest();
             assertNotNull(request);
             assertFalse(logHasErrors(logFilePath));
             assertTrue(request.getBodySize() > 0);
@@ -353,7 +389,8 @@ class ProfilingIntegrationTest {
         3);
   }
 
-  private void testWithRetry(TestBody test, TestInfo testInfo, int retries) throws Exception {
+  private void testWithRetry(final TestBody test, final TestInfo testInfo, final int retries)
+      throws Exception {
     int cnt = retries;
     Throwable lastThrowable = null;
     while (cnt >= 0) {
@@ -364,7 +401,7 @@ class ProfilingIntegrationTest {
       try {
         test.run();
         break;
-      } catch (Throwable t) {
+      } catch (final Throwable t) {
         lastThrowable = t;
         if (cnt > 0) {
           log.error("Test '{}' failed. Retrying.", testInfo.getDisplayName(), t);
@@ -384,34 +421,51 @@ class ProfilingIntegrationTest {
     return retrieveRequest(5 * REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS);
   }
 
-  private RecordedRequest retrieveRequest(long timeout, TimeUnit timeUnit) throws Exception {
-    long ts = System.nanoTime();
-    RecordedRequest request = profilingServer.takeRequest(timeout, timeUnit);
-    long dur = System.nanoTime() - ts;
+  private RecordedRequest retrieveRequest(final long timeout, final TimeUnit timeUnit)
+      throws Exception {
+    final long ts = System.nanoTime();
+    final RecordedRequest request = profilingServer.takeRequest(timeout, timeUnit);
+    final long dur = System.nanoTime() - ts;
     log.info(
         "Profiling request retrieved in {} seconds",
         TimeUnit.SECONDS.convert(dur, TimeUnit.NANOSECONDS));
     return request;
   }
 
-  private void assertRecordingEvents(IItemCollection events) {
-    IItemCollection scopeEvents = events.apply(ItemFilters.type("datadog.Scope"));
+  private void assertRecordingEvents(
+      final IItemCollection events,
+      final boolean legacyTracingIntegration,
+      final boolean expectEndpointEvents) {
 
-    assertTrue(scopeEvents.hasItems());
-    IAttribute<IQuantity> cpuTimeAttr = Attribute.attr("cpuTime", "cpuTime", UnitLookup.TIMESPAN);
+    if (legacyTracingIntegration) {
+      // Check scope events
+      final IItemCollection scopeEvents = events.apply(ItemFilters.type("datadog.Scope"));
 
-    // filter out scope events without CPU time data
-    IItemCollection filteredScopeEvents =
-        scopeEvents.apply(
-            ItemFilters.more(cpuTimeAttr, UnitLookup.NANOSECOND.quantity(Long.MIN_VALUE)));
-    // make sure there is at least one scope event with CPU time data
-    assertTrue(filteredScopeEvents.hasItems());
+      assertTrue(scopeEvents.hasItems());
+      final IAttribute<IQuantity> cpuTimeAttr =
+          Attribute.attr("cpuTime", "cpuTime", UnitLookup.TIMESPAN);
 
-    assertTrue(
-        ((IQuantity)
-                    filteredScopeEvents.getAggregate(Aggregators.min("datadog.Scope", cpuTimeAttr)))
-                .longValue()
-            >= 10_000L);
+      // filter out scope events without CPU time data
+      final IItemCollection filteredScopeEvents =
+          scopeEvents.apply(
+              ItemFilters.more(cpuTimeAttr, UnitLookup.NANOSECOND.quantity(Long.MIN_VALUE)));
+      // make sure there is at least one scope event with CPU time data
+      assertTrue(filteredScopeEvents.hasItems());
+
+      assertTrue(
+          ((IQuantity)
+                      filteredScopeEvents.getAggregate(
+                          Aggregators.min("datadog.Scope", cpuTimeAttr)))
+                  .longValue()
+              >= 10_000L);
+    } else {
+      // Check checkpoint events
+      final IItemCollection checkpointEvents = events.apply(ItemFilters.type("datadog.Checkpoint"));
+      assertTrue(checkpointEvents.hasItems());
+      // Check endpoint events
+      final IItemCollection endpointEvents = events.apply(ItemFilters.type("datadog.Endpoint"));
+      assertEquals(expectEndpointEvents, endpointEvents.hasItems());
+    }
 
     // check exception events
     assertTrue(events.apply(ItemFilters.type("datadog.ExceptionSample")).hasItems());
@@ -422,12 +476,12 @@ class ProfilingIntegrationTest {
     assertTrue(events.apply(ItemFilters.type("datadog.DeadlockedThread")).hasItems());
 
     // check available processor events
-    IItemCollection availableProcessorsEvents =
+    final IItemCollection availableProcessorsEvents =
         events.apply(ItemFilters.type("datadog.AvailableProcessorCores"));
     assertTrue(availableProcessorsEvents.hasItems());
-    IAttribute<IQuantity> cpuCountAttr =
+    final IAttribute<IQuantity> cpuCountAttr =
         Attribute.attr("availableProcessorCores", "availableProcessorCores", UnitLookup.NUMBER);
-    long val =
+    final long val =
         ((IQuantity)
                 availableProcessorsEvents.getAggregate(
                     Aggregators.min("datadog.AvailableProcessorCores", cpuCountAttr)))
@@ -435,34 +489,42 @@ class ProfilingIntegrationTest {
     assertEquals(Runtime.getRuntime().availableProcessors(), val);
   }
 
-  private static String getStringParameter(String name, Multimap<String, Object> parameters) {
+  private static String getStringParameter(
+      final String name, final Multimap<String, Object> parameters) {
     return getParameter(name, String.class, parameters);
   }
 
-  @SuppressWarnings("unchecked")
   private static <T> T getParameter(
-      String name, Class<T> type, Multimap<String, Object> parameters) {
-    List<?> vals = (List<?>) parameters.get(name);
+      final String name, final Class<T> type, final Multimap<String, Object> parameters) {
+    final List<?> vals = (List<?>) parameters.get(name);
     return (T) vals.get(0);
   }
 
-  private ProcessBuilder createDefaultProcessBuilder(int jmxFetchDelay, Path logFilePath) {
+  private ProcessBuilder createDefaultProcessBuilder(
+      final int jmxFetchDelay,
+      final boolean legacyTracingIntegration,
+      final boolean endpointCollectionEnabled,
+      final Path logFilePath) {
     return createProcessBuilder(
         VALID_API_KEY,
         jmxFetchDelay,
         PROFILING_START_DELAY_SECONDS,
         PROFILING_UPLOAD_PERIOD_SECONDS,
+        legacyTracingIntegration,
+        endpointCollectionEnabled,
         0,
         logFilePath);
   }
 
   private ProcessBuilder createProcessBuilder(
-      String apiKey,
-      int jmxFetchDelaySecs,
-      int profilingStartDelaySecs,
-      int profilingUploadPeriodSecs,
-      int exitDelay,
-      Path logFilePath) {
+      final String apiKey,
+      final int jmxFetchDelaySecs,
+      final int profilingStartDelaySecs,
+      final int profilingUploadPeriodSecs,
+      final boolean legacyTracingIntegration,
+      final boolean endpointCollectionEnabled,
+      final int exitDelay,
+      final Path logFilePath) {
     return createProcessBuilder(
         profilingServer.getPort(),
         tracingServer.getPort(),
@@ -470,23 +532,27 @@ class ProfilingIntegrationTest {
         jmxFetchDelaySecs,
         profilingStartDelaySecs,
         profilingUploadPeriodSecs,
+        legacyTracingIntegration,
+        endpointCollectionEnabled,
         exitDelay,
         logFilePath);
   }
 
   private static ProcessBuilder createProcessBuilder(
-      int profilerPort,
-      int tracerPort,
-      String apiKey,
-      int jmxFetchDelaySecs,
-      int profilingStartDelaySecs,
-      int profilingUploadPeriodSecs,
-      int exitDelay,
-      Path logFilePath) {
-    String templateOverride =
+      final int profilerPort,
+      final int tracerPort,
+      final String apiKey,
+      final int jmxFetchDelaySecs,
+      final int profilingStartDelaySecs,
+      final int profilingUploadPeriodSecs,
+      final boolean legacyTracingIntegration,
+      final boolean endpointCollectionEnabled,
+      final int exitDelay,
+      final Path logFilePath) {
+    final String templateOverride =
         ProfilingIntegrationTest.class.getClassLoader().getResource("overrides.jfp").getFile();
 
-    List<String> command =
+    final List<String> command =
         Arrays.asList(
             javaPath(),
             "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "512M"),
@@ -503,6 +569,8 @@ class ProfilingIntegrationTest {
             "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
             "-Ddd.profiling.url=http://localhost:" + profilerPort,
             "-Ddd.profiling.hotspots.enabled=true",
+            "-Ddd.profiling.legacy.tracing.integration=" + legacyTracingIntegration,
+            "-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled,
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
             "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
             "-XX:+IgnoreUnrecognizedVMOptions",
@@ -513,7 +581,7 @@ class ProfilingIntegrationTest {
             "-jar",
             profilingShadowJar(),
             Integer.toString(exitDelay));
-    ProcessBuilder processBuilder = new ProcessBuilder(command);
+    final ProcessBuilder processBuilder = new ProcessBuilder(command);
     processBuilder.directory(new File(buildDirectory()));
 
     processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"));
@@ -541,13 +609,13 @@ class ProfilingIntegrationTest {
     return System.getProperty("datadog.smoketest.profiling.shadowJar.path");
   }
 
-  private static boolean checkLogLines(Path logFilePath, Predicate<String> checker)
+  private static boolean checkLogLines(final Path logFilePath, final Predicate<String> checker)
       throws IOException {
     return Files.lines(logFilePath).anyMatch(checker);
   }
 
-  private static boolean logHasErrors(Path logFilePath) throws IOException {
-    boolean[] logHasErrors = new boolean[] {false};
+  private static boolean logHasErrors(final Path logFilePath) throws IOException {
+    final boolean[] logHasErrors = new boolean[] {false};
     Files.lines(logFilePath)
         .forEach(
             it -> {

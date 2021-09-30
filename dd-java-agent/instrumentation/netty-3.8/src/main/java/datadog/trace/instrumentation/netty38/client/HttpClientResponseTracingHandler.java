@@ -41,6 +41,7 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
 
     if (span != null && finishSpan) {
       try (final AgentScope scope = activateSpan(span)) {
+        span.finishThreadMigration();
         DECORATE.onResponse(span, (HttpResponse) msg.getMessage());
         DECORATE.beforeFinish(span);
         span.finish();
@@ -70,6 +71,7 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
       // If an exception is passed to this point, it likely means it was unhandled and the
       // client span won't be finished with a proper response, so we should finish the span here.
       try (final AgentScope scope = activateSpan(span)) {
+        span.finishThreadMigration();
         DECORATE.onError(span, e.getCause());
         DECORATE.beforeFinish(span);
         span.finish();

@@ -61,9 +61,6 @@ public class HandlerAdapterAdvice {
       @Advice.Argument(0) final ServerWebExchange exchange,
       @Advice.Enter final AgentScope scope,
       @Advice.Thrown final Throwable throwable) {
-    if (throwable != null) {
-      AdviceUtils.finishSpanIfPresent(exchange, throwable);
-    }
     if (scope != null) {
       scope.close();
       // span finished in SpanFinishingSubscriber

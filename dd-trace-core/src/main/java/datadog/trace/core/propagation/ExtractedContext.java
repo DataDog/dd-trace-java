@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.DDId;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 

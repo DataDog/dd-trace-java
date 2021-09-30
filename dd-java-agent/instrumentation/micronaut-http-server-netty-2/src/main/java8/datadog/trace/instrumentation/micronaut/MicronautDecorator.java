@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.micronaut;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -14,11 +15,9 @@ import io.micronaut.web.router.RouteMatch;
 import io.micronaut.web.router.UriRouteMatch;
 
 public class MicronautDecorator
-    extends HttpServerDecorator<HttpRequest, HttpRequest, MutableHttpResponse> {
-
-  public static final CharSequence MICRONAUT_CONTROLLER =
+    extends HttpServerDecorator<HttpRequest, HttpRequest, MutableHttpResponse, Void> {
+  private static final CharSequence MICRONAUT_CONTROLLER =
       UTF8BytesString.create("micronaut-controller");
-
   public static final String SPAN_ATTRIBUTE = "datadog.trace.instrumentation.micronaut-netty.Span";
   public static final String PARENT_SPAN_ATTRIBUTE =
       "datadog.trace.instrumentation.micronaut-netty.ParentSpan";
@@ -28,6 +27,16 @@ public class MicronautDecorator
   @Override
   protected String[] instrumentationNames() {
     return new String[0];
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<Void> getter() {
+    return null;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return MICRONAUT_CONTROLLER;
   }
 
   @Override

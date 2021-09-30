@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -15,7 +14,8 @@ import org.glassfish.grizzly.http.HttpRequestPacket;
 import org.glassfish.grizzly.http.HttpResponsePacket;
 
 public class GrizzlyDecorator
-    extends HttpServerDecorator<HttpRequestPacket, HttpRequestPacket, HttpResponsePacket> {
+    extends HttpServerDecorator<
+        HttpRequestPacket, HttpRequestPacket, HttpResponsePacket, HttpRequestPacket> {
 
   public static final CharSequence GRIZZLY_FILTER_CHAIN_SERVER =
       UTF8BytesString.create("grizzly-filterchain-server");
@@ -23,6 +23,16 @@ public class GrizzlyDecorator
   public static final CharSequence GRIZZLY_REQUEST = UTF8BytesString.create("grizzly.request");
 
   public static final GrizzlyDecorator DECORATE = new GrizzlyDecorator();
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpRequestPacket> getter() {
+    return ExtractAdapter.GETTER;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return GRIZZLY_REQUEST;
+  }
 
   @Override
   protected String method(final HttpRequestPacket httpRequest) {
@@ -83,8 +93,8 @@ public class GrizzlyDecorator
     }
     HttpRequestPacket httpRequest = (HttpRequestPacket) httpHeader;
     HttpResponsePacket httpResponse = httpRequest.getResponse();
-    AgentSpan.Context.Extracted context = propagate().extract(httpHeader, ExtractAdapter.GETTER);
-    AgentSpan span = startSpan(GRIZZLY_REQUEST, context);
+    AgentSpan.Context.Extracted context = DECORATE.extract(httpRequest);
+    AgentSpan span = DECORATE.startSpan(httpRequest, context);
     AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
     DECORATE.afterStart(span);

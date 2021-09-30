@@ -4,6 +4,7 @@ import datadog.trace.api.Function;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
@@ -13,7 +14,7 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.RoutingContext;
 
 public class VertxRouterDecorator
-    extends HttpServerDecorator<RoutingContext, RoutingContext, HttpServerResponse> {
+    extends HttpServerDecorator<RoutingContext, RoutingContext, HttpServerResponse, Void> {
 
   static final CharSequence INSTRUMENTATION_NAME = UTF8BytesString.create("vertx.route-handler");
 
@@ -34,6 +35,16 @@ public class VertxRouterDecorator
   @Override
   protected CharSequence component() {
     return COMPONENT_NAME;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<Void> getter() {
+    return null;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return INSTRUMENTATION_NAME;
   }
 
   @Override

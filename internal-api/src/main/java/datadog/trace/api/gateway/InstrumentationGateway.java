@@ -73,16 +73,16 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
   }
 
   /** Ensure that callbacks don't leak exceptions */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtypes"})
   public static <C> C wrap(final EventType<C> eventType, final C callback) {
     switch (eventType.getId()) {
       case REQUEST_STARTED_ID:
         return (C)
-            new Supplier<Flow<RequestContext>>() {
+            new Supplier<Flow<Object>>() {
               @Override
-              public Flow<RequestContext> get() {
+              public Flow<Object> get() {
                 try {
-                  return ((Supplier<Flow<RequestContext>>) callback).get();
+                  return ((Supplier<Flow<Object>>) callback).get();
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();

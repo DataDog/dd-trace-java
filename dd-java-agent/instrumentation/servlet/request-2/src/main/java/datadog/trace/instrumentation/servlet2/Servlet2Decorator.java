@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.servlet2;
 
+import static datadog.trace.instrumentation.servlet2.HttpServletRequestExtractAdapter.GETTER;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -7,7 +10,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import javax.servlet.http.HttpServletRequest;
 
 public class Servlet2Decorator
-    extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, Integer> {
+    extends HttpServerDecorator<
+        HttpServletRequest, HttpServletRequest, Integer, HttpServletRequest> {
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence JAVA_WEB_SERVLET = UTF8BytesString.create("java-web-servlet");
   public static final Servlet2Decorator DECORATE = new Servlet2Decorator();
@@ -20,6 +24,16 @@ public class Servlet2Decorator
   @Override
   protected CharSequence component() {
     return JAVA_WEB_SERVLET;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpServletRequest> getter() {
+    return GETTER;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return SERVLET_REQUEST;
   }
 
   @Override

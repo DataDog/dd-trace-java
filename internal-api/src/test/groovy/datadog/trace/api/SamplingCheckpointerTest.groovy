@@ -24,7 +24,7 @@ class SamplingCheckpointerTest extends DDSpecification {
     AgentSpan rootSpan = Stub(AgentSpan)
     rootSpan.getSpanId() >> localRootSpanId
     rootSpan.getResourceName() >> UTF8BytesString.create(resource)
-    rootSpan.isEmittingCheckpoints() >> true
+    rootSpan.isEmittingCheckpoints() >> emitCheckpoints
 
     AgentSpan span = Stub(AgentSpan)
     span.getSpanId() >> spanId
@@ -78,18 +78,22 @@ class SamplingCheckpointerTest extends DDSpecification {
     when:
     sut.onRootSpan(rootSpan, true)
     then:
-    rootSpanCount * checkpointer.onRootSpan(rootSpan, true)
+    rootSpanCount * checkpointer.onRootSpan(rootSpan, true, emitCheckpoints)
 
     when:
     sut.onRootSpan(rootSpan, false)
     then:
-    rootSpanCount * checkpointer.onRootSpan(rootSpan, false)
+    rootSpanCount * checkpointer.onRootSpan(rootSpan, false, emitCheckpoints)
 
     where:
-    drop  | register
-    true  | true
-    true  | false
-    false | true
-    false | false
+    drop  | register | emitCheckpoints
+    true  | true     | true
+    true  | true     | false
+    true  | false    | true
+    true  | false    | false
+    false | true     | true
+    false | true     | false
+    false | false    | true
+    false | false    | false
   }
 }

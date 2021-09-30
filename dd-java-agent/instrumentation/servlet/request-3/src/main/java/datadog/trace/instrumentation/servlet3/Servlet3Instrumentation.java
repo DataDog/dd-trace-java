@@ -36,9 +36,9 @@ public final class Servlet3Instrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".HttpServletRequestExtractAdapter",
       packageName + ".Servlet3Decorator",
       packageName + ".ServletRequestURIAdapter",
-      packageName + ".HttpServletRequestExtractAdapter",
       packageName + ".TagSettingAsyncListener"
     };
   }

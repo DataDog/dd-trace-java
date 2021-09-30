@@ -24,7 +24,9 @@ public class ResponseFinishInstrumentation extends Instrumenter.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".LibertyDecorator", packageName + ".RequestURIDataAdapter",
+      packageName + ".RequestExtractAdapter",
+      packageName + ".LibertyDecorator",
+      packageName + ".RequestURIDataAdapter",
     };
   }
 

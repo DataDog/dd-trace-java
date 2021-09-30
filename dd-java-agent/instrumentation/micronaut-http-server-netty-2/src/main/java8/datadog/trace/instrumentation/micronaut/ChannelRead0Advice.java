@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.DECORATE;
-import static datadog.trace.instrumentation.micronaut.MicronautDecorator.MICRONAUT_CONTROLLER;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.PARENT_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.SPAN_ATTRIBUTE;
 
@@ -23,11 +22,8 @@ public class ChannelRead0Advice {
       // Micronaut-netty uses Netty so there needs to be a Netty span
       return null;
     }
-    final AgentSpan span = startSpan(MICRONAUT_CONTROLLER);
+    final AgentSpan span = startSpan(DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(span);
-
-    span.setMeasured(true);
-
     request.setAttribute(SPAN_ATTRIBUTE, span);
     request.setAttribute(PARENT_SPAN_ATTRIBUTE, nettySpan);
 

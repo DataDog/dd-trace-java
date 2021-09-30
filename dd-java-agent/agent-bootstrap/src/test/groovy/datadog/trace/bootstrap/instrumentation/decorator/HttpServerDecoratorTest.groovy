@@ -1,7 +1,17 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.Function
+import datadog.trace.api.function.Supplier
+import datadog.trace.api.function.TriConsumer
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.InstrumentationGateway
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
@@ -9,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
+import static datadog.trace.api.gateway.Events.EVENTS
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
@@ -207,7 +218,20 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   @Override
   def newDecorator() {
-    return new HttpServerDecorator<Map, Map, Map>() {
+    return newDecorator(null)
+  }
+
+  def newDecorator(TracerAPI tracer) {
+    if (!tracer) {
+      tracer = AgentTracer.NOOP_TRACER
+    }
+
+    return new HttpServerDecorator<Map, Map, Map, Map<String, String>>() {
+        @Override
+        protected TracerAPI tracer() {
+          return tracer
+        }
+
         @Override
         protected String[] instrumentationNames() {
           return ["test1", "test2"]
@@ -216,6 +240,16 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
         @Override
         protected CharSequence component() {
           return "test-component"
+        }
+
+        @Override
+        protected AgentPropagation.ContextVisitor<Map<String, String>> getter() {
+          return ContextVisitors.stringValuesMap()
+        }
+
+        @Override
+        CharSequence spanName() {
+          return "http-test-span"
         }
 
         @Override
@@ -243,5 +277,102 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
           return m.status == null ? 0 : m.status
         }
       }
+  }
+
+  def "test startSpan and InstrumentationGateway"() {
+    setup:
+    def ig = new InstrumentationGateway()
+    def callbacks = new IGCallBacks(reqData)
+    if (reqStarted) {
+      ig.registerCallback(EVENTS.requestStarted(), callbacks)
+    }
+    if (reqHeader) {
+      ig.registerCallback(EVENTS.requestHeader(), callbacks)
+    }
+    if (reqHeaderDone) {
+      ig.registerCallback(EVENTS.requestHeaderDone(), callbacks)
+    }
+    Map<String, String> headers = ["foo": "bar", "some": "thing", "another": "value"]
+    def reqCtxt = Mock(RequestContext) {
+      getData() >> reqData
+    }
+    def mSpan = Mock(AgentSpan) {
+      getRequestContext() >> reqCtxt
+    }
+    def mTracer = Mock(TracerAPI) {
+      startSpan(_, _, _) >> mSpan
+      instrumentationGateway() >> ig
+    }
+    def decorator = newDecorator(mTracer)
+
+    when:
+    decorator.startSpan(headers, null)
+
+    then:
+    1 * mSpan.setMeasured(true) >> mSpan
+    reqStartedCount == callbacks.reqStartedCount
+    reqHeaderCount == callbacks.headers.size()
+    reqHeaderDoneCount == callbacks.reqHeaderDoneCount
+    reqHeaderCount == 0 ? true : headers == callbacks.headers
+
+    where:
+    // spotless:off
+    reqStarted | reqData      | reqHeader | reqHeaderDone | reqStartedCount | reqHeaderCount | reqHeaderDoneCount
+    false      | null         | false     | false         | 0               | 0              | 0
+    false      | new Object() | false     | false         | 0               | 0              | 0
+    true       | null         | false     | false         | 1               | 0              | 0
+    true       | new Object() | false     | false         | 1               | 0              | 0
+    true       | new Object() | true      | false         | 1               | 3              | 0
+    true       | new Object() | true      | true          | 1               | 3              | 1
+    // spotless:on
+  }
+
+  private static final class IGCallBacks implements
+  Supplier<Flow<Object>>,
+  TriConsumer<RequestContext<Object>, String, String>,
+  Function<RequestContext<Object>, Flow<Void>> {
+
+    private final Object data
+    private final Map<String, String> headers = new HashMap<>()
+    private int reqStartedCount = 0
+    private int reqHeaderDoneCount = 0
+
+    IGCallBacks(Object data) {
+      this.data = data
+    }
+
+    // REQUEST_STARTED
+    @Override
+    Flow<Object> get() {
+      reqStartedCount++
+      return null == data ? Flow.ResultFlow.empty() : new Flow.ResultFlow(data)
+    }
+
+    // REQUEST_HEADER
+    @Override
+    void accept(RequestContext<Object> requestContext, String key, String value) {
+      assert (requestContext.data == this.data)
+      headers.put(key, value)
+    }
+
+    // REQUEST_HEADER_DONE
+    @Override
+    Flow<Void> apply(RequestContext<Object> requestContext) {
+      assert (requestContext.data == this.data)
+      reqHeaderDoneCount++
+      return null
+    }
+
+    int getReqStartedCount() {
+      return reqStartedCount
+    }
+
+    Map<String, String> getHeaders() {
+      return headers
+    }
+
+    int getReqHeaderDoneCount() {
+      return reqHeaderDoneCount
+    }
   }
 }

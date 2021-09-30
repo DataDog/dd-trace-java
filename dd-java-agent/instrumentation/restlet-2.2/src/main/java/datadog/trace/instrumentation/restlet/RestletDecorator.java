@@ -1,12 +1,15 @@
 package datadog.trace.instrumentation.restlet;
 
+import static datadog.trace.instrumentation.restlet.RestletExtractAdapter.GETTER;
+
 import com.sun.net.httpserver.HttpExchange;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 
 public class RestletDecorator
-    extends HttpServerDecorator<HttpExchange, HttpExchange, HttpExchange> {
+    extends HttpServerDecorator<HttpExchange, HttpExchange, HttpExchange, HttpExchange> {
   public static final CharSequence RESTLET_REQUEST = UTF8BytesString.create("restlet-http.request");
   public static final CharSequence RESTLET_HTTP_SERVER =
       UTF8BytesString.create("restlet-http-server");
@@ -20,6 +23,16 @@ public class RestletDecorator
   @Override
   protected CharSequence component() {
     return RESTLET_HTTP_SERVER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpExchange> getter() {
+    return GETTER;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return RESTLET_REQUEST;
   }
 
   @Override

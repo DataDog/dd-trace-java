@@ -1,8 +1,8 @@
 package com.datadog.appsec.event.data
 
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class CaseInsensitiveMapSpecification extends Specification {
+class CaseInsensitiveMapSpecification extends DDSpecification {
   CaseInsensitiveMap<String> map
 
   void 'get and containsKey'() {

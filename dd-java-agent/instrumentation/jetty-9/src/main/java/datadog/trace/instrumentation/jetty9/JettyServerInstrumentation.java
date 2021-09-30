@@ -3,13 +3,9 @@ package datadog.trace.instrumentation.jetty9;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
-import static datadog.trace.instrumentation.jetty9.JettyDecorator.SERVLET_REQUEST;
-import static datadog.trace.instrumentation.jetty9.RequestExtractAdapter.GETTER;
 import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
@@ -105,9 +101,8 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
         return activateSpan((AgentSpan) existingSpan);
       }
 
-      final AgentSpan.Context.Extracted extractedContext = propagate().extract(req, GETTER);
-
-      final AgentSpan span = startSpan(SERVLET_REQUEST, extractedContext).setMeasured(true);
+      final AgentSpan.Context.Extracted extractedContext = DECORATE.extract(req);
+      final AgentSpan span = DECORATE.startSpan(req, extractedContext);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, req, req, extractedContext);
 

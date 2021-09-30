@@ -1,9 +1,12 @@
 package datadog.trace.instrumentation.liberty20;
 
+import static datadog.trace.instrumentation.liberty20.RequestExtractAdapter.GETTER;
+
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.ws.webcontainer.webapp.WebAppErrorReport;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -13,7 +16,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public class LibertyDecorator
-    extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
+    extends HttpServerDecorator<
+        HttpServletRequest, HttpServletRequest, HttpServletResponse, HttpServletRequest> {
 
   public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create("servlet.request");
   public static final CharSequence LIBERTY_SERVER = UTF8BytesString.create("liberty-server");
@@ -30,6 +34,16 @@ public class LibertyDecorator
   @Override
   protected CharSequence component() {
     return LIBERTY_SERVER;
+  }
+
+  @Override
+  protected AgentPropagation.ContextVisitor<HttpServletRequest> getter() {
+    return GETTER;
+  }
+
+  @Override
+  public CharSequence spanName() {
+    return SERVLET_REQUEST;
   }
 
   @Override

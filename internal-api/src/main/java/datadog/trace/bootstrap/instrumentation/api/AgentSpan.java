@@ -124,7 +124,7 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   void finishWork();
 
   /** RequestContext for the Instrumentation Gateway */
-  RequestContext getRequestContext();
+  RequestContext<Object> getRequestContext();
 
   interface Context {
     DDId getTraceId();
@@ -134,9 +134,6 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
     AgentTrace getTrace();
 
     Iterable<Map.Entry<String, String>> baggageItems();
-
-    /** RequestContext for the Instrumentation Gateway */
-    RequestContext getRequestContext();
 
     interface Extracted extends Context {
       String getForwarded();

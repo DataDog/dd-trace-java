@@ -28,6 +28,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -39,7 +40,6 @@ import datadog.trace.context.TraceScope;
 import datadog.trace.core.monitor.MonitoringImpl;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
-import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
@@ -314,7 +314,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       sampler(Sampler.Builder.<DDSpan>forConfig(config));
       instrumentationGateway(new InstrumentationGateway());
       injector(HttpCodec.createInjector(config));
-      extractor(HttpCodec.createExtractor(config, config.getHeaderTags(), instrumentationGateway));
+      extractor(HttpCodec.createExtractor(config, config.getHeaderTags()));
       // Explicitly skip setting scope manager because it depends on statsDClient
       localRootSpanTags(config.getLocalRootSpanTags());
       defaultSpanTags(config.getMergedSpanTags());
@@ -942,7 +942,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> rootSpanTags;
 
       final DDSpanContext context;
-      final RequestContext requestContext;
+      final Object requestContextData;
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
@@ -974,7 +974,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         if (serviceName == null) {
           serviceName = parentServiceName;
         }
-        requestContext = ddsc.getRequestContext();
+        RequestContext<Object> requestContext = ddsc.getRequestContext();
+        requestContextData = null == requestContext ? null : requestContext.getData();
       } else {
         if (parentContext instanceof ExtractedContext) {
           // Propagate external trace
@@ -996,11 +997,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           TagContext tc = (TagContext) parentContext;
           coreTags = tc.getTags();
           origin = tc.getOrigin();
-          requestContext = tc.getRequestContext();
+          requestContextData = tc.getRequestContextData();
         } else {
           coreTags = null;
           origin = null;
-          requestContext = null;
+          requestContextData = null;
         }
 
         rootSpanTags = localRootSpanTags;
@@ -1037,7 +1038,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               spanType,
               tagsSize,
               parentTrace,
-              requestContext);
+              requestContextData);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

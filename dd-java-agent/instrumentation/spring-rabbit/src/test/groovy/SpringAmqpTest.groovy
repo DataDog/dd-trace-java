@@ -54,7 +54,7 @@ class SpringAmqpTest extends AgentTestRunner {
         span(0) {
           childOf(span(1))
           operationName "amqp.command"
-          resourceName "basic.publish test -> foo.bar.foo"
+          resourceName "basic.publish test-exchange -> foo.bar.foo"
           spanType "queue"
         }
         span(1) {
@@ -64,12 +64,13 @@ class SpringAmqpTest extends AgentTestRunner {
       trace(3, true) {
         span(0) {
           operationName "amqp.command"
-          resourceName "basic.deliver queue"
+          resourceName "basic.deliver test-queue"
           spanType "queue"
         }
         span(1) {
           childOf(span(0))
           operationName "amqp.consume"
+          resourceName "amqp.consume test-queue"
         }
         span(2) {
           childOf(span(1))

@@ -42,6 +42,6 @@ class InvalidEvent {
 
   @Override
   String toString() {
-    return "${mode}\t${source}: ${message}\n${event}"
+    return "${mode}\t${source}: ${message}"
   }
 }

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.axway;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.AXWAY_REQUEST;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.DECORATE;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.SERVER_TRANSACTION_CLASS;
 
@@ -15,12 +14,11 @@ public class HTTPPluginAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(value = 2) final Object serverTransaction) {
-    final AgentSpan span = startSpan(AXWAY_REQUEST);
-    final AgentScope scope = activateSpan(span);
-    span.setMeasured(true);
+    final AgentSpan span = startSpan(DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(span);
     // serverTransaction is like request + connection in one object:
     DECORATE.onRequest(span, serverTransaction, serverTransaction, null);
+    final AgentScope scope = activateSpan(span);
     return scope;
   }
 

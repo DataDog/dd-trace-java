@@ -17,7 +17,7 @@ abstract class WithHttpServer<SERVER> extends AgentTestRunner {
   @Subject
   HttpServer server = server()
   @Shared
-  OkHttpClient client = OkHttpUtils.client()
+  OkHttpClient client = OkHttpUtils.client(15, 15, TimeUnit.SECONDS)
   @Shared
   URI address = null
 

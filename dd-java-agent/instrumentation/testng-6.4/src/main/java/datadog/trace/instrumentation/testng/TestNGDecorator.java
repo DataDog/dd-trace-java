@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.testng;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
+import datadog.trace.util.Strings;
 import org.testng.ITestResult;
 
 public class TestNGDecorator extends TestDecorator {
@@ -68,7 +69,11 @@ public class TestNGDecorator extends TestDecorator {
   private String buildParametersTagValue(final ITestResult result) {
     final StringBuilder sb = new StringBuilder("{\"arguments\":{");
     for (int i = 0; i < result.getParameters().length; i++) {
-      sb.append("\"").append(i).append("\":\"").append(result.getParameters()[i]).append("\"");
+      sb.append("\"")
+          .append(i)
+          .append("\":\"")
+          .append(Strings.escapeToJson(result.getParameters()[i].toString()))
+          .append("\"");
       if (i != result.getParameters().length - 1) {
         sb.append(",");
       }

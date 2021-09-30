@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE;
-import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.SPRING_HANDLER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -78,8 +77,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Tracing {
 
       // Now create a span for handler/controller execution.
 
-      final AgentSpan span = startSpan(SPRING_HANDLER);
-      span.setMeasured(true);
+      final AgentSpan span = startSpan(DECORATE.spanName()).setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onHandle(span, handler);
 

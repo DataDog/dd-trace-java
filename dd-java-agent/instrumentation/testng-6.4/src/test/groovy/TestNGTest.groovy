@@ -155,8 +155,8 @@ class TestNGTest extends TestFrameworkTest {
     }
 
     where:
-    testTags_0 = ["$Tags.TEST_PARAMETERS": "{\"arguments\":{\"0\":\"hello\",\"1\":\"true\"}}"]
-    testTags_1 = ["$Tags.TEST_PARAMETERS": "{\"arguments\":{\"0\":\"goodbye\",\"1\":\"false\"}}"]
+    testTags_0 = ["$Tags.TEST_PARAMETERS": '{"arguments":{"0":"hello","1":"true"}}']
+    testTags_1 = ["$Tags.TEST_PARAMETERS": '{"arguments":{"0":"\\\"goodbye\\\"","1":"false"}}']
   }
 
   @Override

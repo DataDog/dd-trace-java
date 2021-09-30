@@ -38,5 +38,5 @@ public interface Checkpointer {
    * @param rootSpan the local root span of the trace
    * @param published {@literal true} the trace and root span sampled and published
    */
-  void onRootSpan(AgentSpan rootSpan, boolean published);
+  void onRootSpan(AgentSpan rootSpan, boolean traceSampled, boolean checkpointsSampled);
 }

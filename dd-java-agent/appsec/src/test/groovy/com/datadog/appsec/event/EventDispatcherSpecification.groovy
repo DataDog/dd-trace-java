@@ -6,12 +6,12 @@ import com.datadog.appsec.event.data.DataBundle
 import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import datadog.trace.api.gateway.Flow
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
 import static org.hamcrest.Matchers.containsInAnyOrder
 import static spock.util.matcher.HamcrestSupport.expect
 
-class EventDispatcherSpecification extends Specification {
+class EventDispatcherSpecification extends DDSpecification {
   EventDispatcher dispatcher = new EventDispatcher()
   AppSecRequestContext ctx = Mock()
 

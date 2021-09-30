@@ -11,9 +11,9 @@ import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.report.raw.events.attack.Attack010
 import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.Parameter
 import com.datadog.appsec.test.StubAppSecConfigService
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class PowerWAFModuleSpecification extends Specification {
+class PowerWAFModuleSpecification extends DDSpecification {
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
   new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v0']))
 

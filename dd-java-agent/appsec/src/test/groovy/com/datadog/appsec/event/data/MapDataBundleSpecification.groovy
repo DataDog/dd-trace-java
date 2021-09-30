@@ -1,8 +1,8 @@
 package com.datadog.appsec.event.data
 
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class MapDataBundleSpecification extends Specification {
+class MapDataBundleSpecification extends DDSpecification {
 
   void 'three pairs variant'() {
     def bundle = MapDataBundle.of(

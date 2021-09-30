@@ -1,9 +1,9 @@
 package com.datadog.appsec.gateway
 
 import com.datadog.appsec.event.data.StringKVPair
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
-class CookieCutterSpecification extends Specification {
+class CookieCutterSpecification extends DDSpecification {
 
   void 'basic test'() {
     when:

@@ -13,7 +13,6 @@ import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
-import datadog.trace.api.gateway.Events
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
@@ -24,12 +23,19 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
 import datadog.trace.test.util.DDSpecification
 
+import static datadog.trace.api.gateway.Events.EVENTS
+
 class GatewayBridgeSpecification extends DDSpecification {
   SubscriptionService ig = Mock()
   EventDispatcher eventDispatcher = Mock()
   ReportService reportService = Mock()
-  AppSecRequestContext ctx = new AppSecRequestContext()
-
+  AppSecRequestContext arCtx = new AppSecRequestContext()
+  RequestContext<AppSecRequestContext> ctx = new RequestContext<AppSecRequestContext>() {
+    @Override
+    AppSecRequestContext getData() {
+      return arCtx
+    }
+  }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
     EventProducerService.DataSubscriberInfo i = Mock()
     i.empty >> false
@@ -38,7 +44,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   GatewayBridge bridge = new GatewayBridge(ig, eventDispatcher, reportService)
 
-  Supplier<Flow<RequestContext>> requestStartedCB
+  Supplier<Flow<AppSecRequestContext>> requestStartedCB
   BiFunction<RequestContext, AgentSpan, Flow<Void>> requestEndedCB
   TriConsumer<RequestContext, String, String> headerCB
   Function<RequestContext, Flow<Void>> headersDoneCB
@@ -53,29 +59,31 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void 'request_start produces appsec context and publishes event'() {
     when:
-    Flow<RequestContext> startFlow = requestStartedCB.get()
+    Flow<AppSecRequestContext> startFlow = requestStartedCB.get()
 
     then:
-    1 * eventDispatcher.publishEvent(
-      _ as AppSecRequestContext, EventType.REQUEST_START)
-    RequestContext producedCtx = startFlow.getResult()
+    1 * eventDispatcher.publishEvent(_ as AppSecRequestContext, EventType.REQUEST_START)
+    Object producedCtx = startFlow.getResult()
     producedCtx instanceof AppSecRequestContext
     startFlow.action == Flow.Action.Noop.INSTANCE
   }
 
   void 'request_end closes context reports attacks and publishes event'() {
     Attack010 attack = Mock()
-    AppSecRequestContext mockCtx = Mock()
+    AppSecRequestContext mockAppSecCtx = Mock(AppSecRequestContext)
+    RequestContext mockCtx = Mock(RequestContext) {
+      getData() >> mockAppSecCtx
+    }
     IGSpanInfo spanInfo = Mock()
 
     when:
     def flow = requestEndedCB.apply(mockCtx, spanInfo)
 
     then:
-    1 * mockCtx.transferCollectedAttacks() >> [attack]
-    1 * mockCtx.close()
+    1 * mockAppSecCtx.transferCollectedAttacks() >> [attack]
+    1 * mockAppSecCtx.close()
     1 * reportService.reportAttack(attack)
-    1 * eventDispatcher.publishEvent(mockCtx, EventType.REQUEST_END)
+    1 * eventDispatcher.publishEvent(mockAppSecCtx, EventType.REQUEST_END)
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
@@ -88,7 +96,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     headerCB.accept(ctx, 'header2', 'value 2')
 
     then:
-    def headers = ctx.collectedHeaders
+    def headers = ctx.data.collectedHeaders
     assert headers['header1'] == ['value 1.1', 'value 1.2', 'value 1.3']
     assert headers['header2'] == ['value 2']
   }
@@ -100,11 +108,11 @@ class GatewayBridgeSpecification extends DDSpecification {
     headerCB.accept(ctx, 'Another-Header', 'another value')
 
     then:
-    def collectedHeaders = ctx.collectedHeaders
+    def collectedHeaders = ctx.data.collectedHeaders
     assert collectedHeaders['another-header'] == ['another value']
     assert !collectedHeaders.containsKey('cookie')
 
-    def cookies = ctx.collectedCookies
+    def cookies = ctx.data.collectedCookies
     assert cookies.contains(new StringKVPair('foo', 'bar'))
     assert cookies.contains(new StringKVPair('foo2', 'bar2'))
     assert cookies.contains(new StringKVPair('foo3', 'bar3'))
@@ -114,10 +122,10 @@ class GatewayBridgeSpecification extends DDSpecification {
     DataBundle bundle
 
     when:
-    ctx.rawURI = '/'
-    ctx.peerAddress = '0.0.0.0'
+    ctx.data.rawURI = '/'
+    ctx.data.peerAddress = '0.0.0.0'
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -134,7 +142,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -152,7 +160,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -170,7 +178,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -201,7 +209,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_URI_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:
@@ -231,14 +239,14 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * eventDispatcher.allSubscribedEvents() >> [EventType.REQUEST_BODY_START, EventType.REQUEST_BODY_END]
     1 * eventDispatcher.allSubscribedDataAddresses() >> []
 
-    1 * ig.registerCallback(Events.REQUEST_STARTED, _) >> { requestStartedCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_ENDED, _) >> { requestEndedCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_METHOD_URI_RAW, _) >> { requestMethodURICB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_HEADER, _) >> { headerCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_HEADER_DONE, _) >> { headersDoneCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS, _) >> { requestSocketAddressCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_BODY_START, _) >> { requestBodyStartCB = it[1]; null }
-    1 * ig.registerCallback(Events.REQUEST_BODY_DONE, _) >> { requestBodyDoneCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestStarted(), _) >> { requestStartedCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestEnded(), _) >> { requestEndedCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestMethodUriRaw(), _) >> { requestMethodURICB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestHeader(), _) >> { headerCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestHeaderDone(), _) >> { headersDoneCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestClientSocketAddress(), _) >> { requestSocketAddressCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestBodyStart(), _) >> { requestBodyStartCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.requestBodyDone(), _) >> { requestBodyDoneCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()
@@ -353,14 +361,14 @@ class GatewayBridgeSpecification extends DDSpecification {
     supplier.get() >> 'foobar'
 
     expect:
-    ctx.storedRequestBody == null
+    ctx.data.storedRequestBody == null
 
     when:
     requestBodyStartCB.apply(ctx, supplier)
 
     then:
-    1 * eventDispatcher.publishEvent(ctx, EventType.REQUEST_BODY_START)
-    ctx.storedRequestBody == 'foobar'
+    1 * eventDispatcher.publishEvent(ctx.data, EventType.REQUEST_BODY_START)
+    ctx.data.storedRequestBody == 'foobar'
   }
 
   void 'forwards request body done events and distributes the body contents'() {
@@ -370,14 +378,14 @@ class GatewayBridgeSpecification extends DDSpecification {
     setup:
     supplier.get() >> 'foobar'
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_BODY_RAW in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     when:
     requestBodyDoneCB.apply(ctx, supplier)
 
     then:
-    1 * eventDispatcher.publishEvent(ctx, EventType.REQUEST_BODY_END)
+    1 * eventDispatcher.publishEvent(ctx.data, EventType.REQUEST_BODY_END)
     bundle.get(KnownAddresses.REQUEST_BODY_RAW) == 'foobar'
   }
 
@@ -387,7 +395,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     setup:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_METHOD in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     when:
@@ -405,7 +413,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     when:
     eventDispatcher.getDataSubscribers({ KnownAddresses.REQUEST_SCHEME in it }) >> nonEmptyDsInfo
-    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx, _ as DataBundle, false) >>
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, false) >>
     { bundle = it[2]; NoopFlow.INSTANCE }
 
     and:

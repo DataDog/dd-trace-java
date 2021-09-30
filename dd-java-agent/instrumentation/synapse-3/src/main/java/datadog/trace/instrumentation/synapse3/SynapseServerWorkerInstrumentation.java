@@ -36,7 +36,7 @@ public final class SynapseServerWorkerInstrumentation extends Instrumenter.Traci
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SynapseServerDecorator",
+      packageName + ".HttpRequestExtractAdapter", packageName + ".SynapseServerDecorator",
     };
   }
 
