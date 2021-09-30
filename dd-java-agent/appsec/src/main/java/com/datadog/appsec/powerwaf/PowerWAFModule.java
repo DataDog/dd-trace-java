@@ -30,16 +30,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +59,8 @@ public class PowerWAFModule implements AppSecModule {
 
   private static final JsonAdapter<Map<String, Object>> CONFIG_ADAPTER;
   private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
+
+  private static final Map<String, String> rulesTypeMap = new ConcurrentHashMap<>();
 
   static {
     try {
@@ -120,6 +114,16 @@ public class PowerWAFModule implements AppSecModule {
       try {
         String uniqueId = UUID.randomUUID().toString();
         newContext = Powerwaf.createContext(uniqueId, config.getRawConfig());
+
+        rulesTypeMap.clear();
+        config
+            .getEvents()
+            .forEach(
+                e -> {
+                  String type = e.getTags().getOrDefault("type", "waf");
+                  rulesTypeMap.put(e.getId(), type);
+                });
+
       } catch (RuntimeException | AbstractPowerwafException e) {
         throw new AppSecModuleActivationException("Error creating WAF rules", e);
       }
@@ -212,10 +216,12 @@ public class PowerWAFModule implements AppSecModule {
     }
     PowerWAFResultData.Filter filterData = powerWAFResultData.filter.get(0);
 
+    String type = rulesTypeMap.getOrDefault(powerWAFResultData.rule, "waf");
+
     Attack010 attack =
         new Attack010.Attack010Builder()
             .withBlocked(actionWithData.action == Powerwaf.Action.BLOCK)
-            .withType("waf")
+            .withType(type)
             .withRule(
                 new Rule010.Rule010Builder()
                     .withId(powerWAFResultData.rule) // XXX

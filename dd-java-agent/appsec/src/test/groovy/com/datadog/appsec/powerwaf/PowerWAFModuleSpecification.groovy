@@ -55,7 +55,7 @@ class PowerWAFModuleSpecification extends Specification {
     then:
     ctx.reportAttack(_ as Attack010) >> { attack = it[0] }
     attack.blocked == Boolean.FALSE
-    attack.type == 'waf'
+    attack.type == 'security_scanner'
 
     attack.rule.id == 'ua0-600-12x'
     attack.rule.name == 'security_scanner'
