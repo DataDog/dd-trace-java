@@ -30,7 +30,7 @@ class AppSecConfigServiceImplSpecification extends Specification {
   void 'can load from a different location'() {
     setup:
     Path p = Files.createTempFile('appsec', '.json')
-    p.toFile() << '{"waf": {"foo":"bar"}}'
+    p.toFile() << '{"waf": {"version":"0.1", "events": []}}'
     AppSecConfigService.SubconfigListener listener = Mock()
 
     when:
@@ -38,7 +38,9 @@ class AppSecConfigServiceImplSpecification extends Specification {
 
     then:
     1 * config.getAppSecRulesFile() >> (p as String)
-    appSecConfigService.addSubConfigListener('waf', listener).get() == [foo: 'bar']
+    def expected = AppSecConfig.createFromMap([version: '0.1', events: []])
+    def actual = appSecConfigService.addSubConfigListener('waf', listener).get()
+    actual == expected
   }
 
   void 'aborts if alt config location does not exist'() {
@@ -70,7 +72,7 @@ class AppSecConfigServiceImplSpecification extends Specification {
     appSecConfigService.init(false)
 
     expect:
-    appSecConfigService.addSubConfigListener("waf", listener).get() instanceof Map
+    appSecConfigService.addSubConfigListener("waf", listener).get() instanceof AppSecConfig
     appSecConfigService.addSubConfigListener("waf2", listener) == Optional.empty()
   }
 
@@ -93,16 +95,16 @@ class AppSecConfigServiceImplSpecification extends Specification {
     when:
     savedConfigurationListener.onNewConfiguration(
       new ByteArrayInputStream(
-      '{"waf": "my config", "foo": "another config"}'.bytes))
+      '{"waf": {"version": "my config"}, "foo": {"version": "another config"}}'.bytes))
 
     then:
-    1 * subconfigListener.onNewSubconfig('my config')
+    1 * subconfigListener.onNewSubconfig(AppSecConfig.createFromMap([version: 'my config']))
 
     when:
     def fooInitialConfig = appSecConfigService.addSubConfigListener('foo', Mock(AppSecConfigService.SubconfigListener))
 
     then:
-    fooInitialConfig.get() == 'another config'
+    fooInitialConfig.get() == AppSecConfig.createFromMap([version: 'another config'])
   }
 
   void 'error in one listener does not prevent others from running'() {
@@ -124,9 +126,9 @@ class AppSecConfigServiceImplSpecification extends Specification {
 
     when:
     savedConfigurationListener.onNewConfiguration(new ByteArrayInputStream(
-      '{"waf": "waf waf", "foo": "bar"}'.bytes))
+      '{"waf": {"version": "waf waf"}, "foo": {"version": "bar"}}'.bytes))
 
     then:
-    1 * fooListener.onNewSubconfig('bar')
+    1 * fooListener.onNewSubconfig(AppSecConfig.createFromMap([version: 'bar']))
   }
 }

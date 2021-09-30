@@ -3,6 +3,7 @@ package com.datadog.appsec.powerwaf;
 import static java.util.Collections.singletonList;
 
 import com.datadog.appsec.AppSecModule;
+import com.datadog.appsec.config.AppSecConfig;
 import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.event.ChangeableFlow;
 import com.datadog.appsec.event.data.Address;
@@ -94,19 +95,19 @@ public class PowerWAFModule implements AppSecModule {
   @Override
   public void config(AppSecConfigService appSecConfigService)
       throws AppSecModuleActivationException {
-    Optional<Object> initialConfig =
+    Optional<AppSecConfig> initialConfig =
         appSecConfigService.addSubConfigListener("waf", this::applyConfig);
     if (!initialConfig.isPresent()) {
       throw new AppSecModuleActivationException("No initial config for WAF");
     }
-
-    applyConfig(initialConfig.get());
+    Object conf = initialConfig.get();
+    if (!(conf instanceof AppSecConfig)) {
+      throw new AppSecModuleActivationException("Config expected to be AppSecConfig");
+    }
+    applyConfig((AppSecConfig) conf);
   }
 
-  private void applyConfig(Object config) throws AppSecModuleActivationException {
-    if (!(config instanceof Map)) {
-      throw new AppSecModuleActivationException("Expect config to be a map");
-    }
+  private void applyConfig(AppSecConfig config) throws AppSecModuleActivationException {
     log.info("Configuring WAF");
 
     PowerwafContext prevContext = this.ctx.get();
@@ -118,7 +119,7 @@ public class PowerWAFModule implements AppSecModule {
     } else {
       try {
         String uniqueId = UUID.randomUUID().toString();
-        newContext = Powerwaf.createContext(uniqueId, (Map<String, Object>) config);
+        newContext = Powerwaf.createContext(uniqueId, config.getRawConfig());
       } catch (RuntimeException | AbstractPowerwafException e) {
         throw new AppSecModuleActivationException("Error creating WAF rules", e);
       }
