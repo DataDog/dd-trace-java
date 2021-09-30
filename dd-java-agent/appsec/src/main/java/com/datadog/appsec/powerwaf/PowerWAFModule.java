@@ -33,6 +33,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,11 +54,10 @@ public class PowerWAFModule implements AppSecModule {
           ((long) Integer.MAX_VALUE) * 1000,
           ((long) Integer.MAX_VALUE) * 1000);
   private static final Class<?> PROXY_CLASS =
-      Proxy.getProxyClass(PowerWAFModule.class.getClassLoader(), new Class<?>[] {Set.class});
+      Proxy.getProxyClass(PowerWAFModule.class.getClassLoader(), Set.class);
   private static final Constructor<?> PROXY_CLASS_CONSTRUCTOR;
   private static final Set<Address<?>> ADDRESSES_OF_INTEREST;
 
-  private static final JsonAdapter<Map<String, Object>> CONFIG_ADAPTER;
   private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
 
   private static final Map<String, String> rulesTypeMap = new ConcurrentHashMap<>();
@@ -78,13 +78,11 @@ public class PowerWAFModule implements AppSecModule {
     ADDRESSES_OF_INTEREST.add(KnownAddresses.REQUEST_BODY_RAW);
 
     Moshi moshi = new Moshi.Builder().build();
-    CONFIG_ADAPTER =
-        moshi.adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
     RES_JSON_ADAPTER =
         moshi.adapter(Types.newParameterizedType(List.class, PowerWAFResultData.class));
   }
 
-  private AtomicReference<PowerwafContext> ctx = new AtomicReference<>();
+  private final AtomicReference<PowerwafContext> ctx = new AtomicReference<>();
 
   @Override
   public void config(AppSecConfigService appSecConfigService)
@@ -94,11 +92,11 @@ public class PowerWAFModule implements AppSecModule {
     if (!initialConfig.isPresent()) {
       throw new AppSecModuleActivationException("No initial config for WAF");
     }
-    Object conf = initialConfig.get();
-    if (!(conf instanceof AppSecConfig)) {
+    try {
+      applyConfig(initialConfig.get());
+    } catch (ClassCastException e) {
       throw new AppSecModuleActivationException("Config expected to be AppSecConfig");
     }
-    applyConfig((AppSecConfig) conf);
   }
 
   private void applyConfig(AppSecConfig config) throws AppSecModuleActivationException {
@@ -192,7 +190,7 @@ public class PowerWAFModule implements AppSecModule {
         log.warn("WAF signalled action {}: {}", actionWithData.action, actionWithData.data);
         flow.setAction(new Flow.Action.Throw(new RuntimeException("WAF wants to block")));
 
-        buildAttack(actionWithData).ifPresent(attack -> reqCtx.reportAttack(attack));
+        buildAttack(actionWithData).ifPresent(reqCtx::reportAttack);
       }
     }
   }
@@ -205,13 +203,13 @@ public class PowerWAFModule implements AppSecModule {
       throw new UndeclaredThrowableException(e);
     }
 
-    if (listResults.size() == 0) {
+    if (listResults == null || listResults.isEmpty()) {
       return Optional.empty();
     }
 
     // we only take the first match
     PowerWAFResultData powerWAFResultData = listResults.get(0);
-    if (powerWAFResultData.filter == null || powerWAFResultData.filter.size() == 0) {
+    if (powerWAFResultData.filter == null || powerWAFResultData.filter.isEmpty()) {
       return Optional.empty();
     }
     PowerWAFResultData.Filter filterData = powerWAFResultData.filter.get(0);
@@ -257,6 +255,7 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     // powerwaf only calls entrySet().iterator() and size()
+    @Nonnull
     @Override
     public Set<Entry<String, Object>> entrySet() {
       try {
@@ -345,7 +344,7 @@ public class PowerWAFModule implements AppSecModule {
     }
 
     @Override
-    public void putAll(Map<? extends String, ?> m) {
+    public void putAll(@Nonnull Map<? extends String, ?> m) {
       throw new UnsupportedOperationException();
     }
 

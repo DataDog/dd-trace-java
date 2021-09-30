@@ -80,7 +80,6 @@ abstract class DDSpecification extends Specification {
       configConstructor.setAccessible(true)
       isConfigInstanceModifiable = true
     } catch (ClassNotFoundException e) {
-      e.printStackTrace()
       if (e.getMessage() == CONFIG) {
         println("Config class not found in this classloader. Not transforming it")
       } else {
