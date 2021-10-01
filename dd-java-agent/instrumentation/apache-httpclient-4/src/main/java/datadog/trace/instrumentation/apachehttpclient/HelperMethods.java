@@ -7,6 +7,8 @@ import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDec
 import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.apachehttpclient.HttpHeadersInjectAdapter.SETTER;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.PropagationStyle;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -22,10 +24,12 @@ public class HelperMethods {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
 
-    final boolean awsClientCall = request.getHeaders("amz-sdk-invocation-id").length > 0;
+    final boolean awsClientCall = request.containsHeader("amz-sdk-invocation-id");
     // AWS calls are often signed, so we can't add headers without breaking the signature.
     if (!awsClientCall) {
       propagate().inject(span, request, SETTER);
+    } else if (Config.get().isAwsPropagationEnabled()) {
+      propagate().inject(span, request, SETTER, PropagationStyle.XRAY);
     }
     return scope;
   }

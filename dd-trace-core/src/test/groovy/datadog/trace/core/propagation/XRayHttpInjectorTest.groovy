@@ -1,0 +1,109 @@
+package datadog.trace.core.propagation
+
+import datadog.trace.api.DDId
+import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
+import datadog.trace.bootstrap.instrumentation.api.TagContext
+import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.DDSpanContext
+import datadog.trace.core.test.DDCoreSpecification
+
+import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
+
+class XRayHttpInjectorTest extends DDCoreSpecification {
+
+  HttpCodec.Injector injector = XRayHttpCodec.INJECTOR
+
+  def "inject http headers"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    final DDSpanContext mockedContext =
+      new DDSpanContext(
+      DDId.from("$traceId"),
+      DDId.from("$spanId"),
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      samplingPriority,
+      "fakeOrigin",
+      ["k": "v"],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE),
+      null)
+
+    final Map<String, String> carrier = Mock()
+
+    when:
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+
+    then:
+    1 * carrier.put('X-Amzn-Trace-Id', "$expectedTraceHeader")
+    0 * _
+
+    cleanup:
+    tracer.close()
+
+    where:
+    traceId          | spanId           | samplingPriority              | expectedTraceHeader
+    1G               | 2G               | PrioritySampling.UNSET        | 'Root=1-00000000-000000000000000000000001;Parent=0000000000000002;_dd.origin=fakeOrigin;k=v'
+    2G               | 3G               | PrioritySampling.SAMPLER_KEEP | 'Root=1-00000000-000000000000000000000002;Parent=0000000000000003;Sampled=1;_dd.origin=fakeOrigin;k=v'
+    4G               | 5G               | PrioritySampling.SAMPLER_DROP | 'Root=1-00000000-000000000000000000000004;Parent=0000000000000005;Sampled=0;_dd.origin=fakeOrigin;k=v'
+    5G               | 6G               | PrioritySampling.USER_KEEP    | 'Root=1-00000000-000000000000000000000005;Parent=0000000000000006;Sampled=1;_dd.origin=fakeOrigin;k=v'
+    6G               | 7G               | PrioritySampling.USER_DROP    | 'Root=1-00000000-000000000000000000000006;Parent=0000000000000007;Sampled=0;_dd.origin=fakeOrigin;k=v'
+    TRACE_ID_MAX     | TRACE_ID_MAX - 1 | PrioritySampling.UNSET        | 'Root=1-00000000-00000000ffffffffffffffff;Parent=fffffffffffffffe;_dd.origin=fakeOrigin;k=v'
+    TRACE_ID_MAX - 1 | TRACE_ID_MAX     | PrioritySampling.SAMPLER_KEEP | 'Root=1-00000000-00000000fffffffffffffffe;Parent=ffffffffffffffff;Sampled=1;_dd.origin=fakeOrigin;k=v'
+  }
+
+  def "inject http headers with extracted original"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = tracerBuilder().writer(writer).build()
+    def headers = [
+      'X-Amzn-Trace-Id' : "Root=1-00000000-00000000${traceId.padLeft(16, '0')};Parent=${spanId.padLeft(16, '0')}"
+    ]
+    HttpCodec.Extractor extractor = XRayHttpCodec.newExtractor(Collections.emptyMap())
+    final TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
+    final DDSpanContext mockedContext =
+      new DDSpanContext(
+      context.traceId,
+      context.spanId,
+      DDId.ZERO,
+      null,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      "fakeOrigin",
+      ["k": "v"],
+      false,
+      "fakeType",
+      0,
+      tracer.pendingTraceFactory.create(DDId.ONE),
+      null)
+    final Map<String, String> carrier = Mock()
+
+    when:
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+
+    then:
+    1 * carrier.put('X-Amzn-Trace-Id', "$expectedTraceHeader")
+    0 * _
+
+    cleanup:
+    tracer.close()
+
+    where:
+    traceId            | spanId             | expectedTraceHeader
+    "00001"            | "00001"            | 'Root=1-00000000-000000000000000000000001;Parent=0000000000000001;_dd.origin=fakeOrigin;k=v'
+    "463ac35c9f6413ad" | "463ac35c9f6413ad" | 'Root=1-00000000-00000000463ac35c9f6413ad;Parent=463ac35c9f6413ad;_dd.origin=fakeOrigin;k=v'
+    "48485a3953bb6124" | "1"                | 'Root=1-00000000-0000000048485a3953bb6124;Parent=0000000000000001;_dd.origin=fakeOrigin;k=v'
+    "f" * 16           | "1"                | 'Root=1-00000000-00000000ffffffffffffffff;Parent=0000000000000001;_dd.origin=fakeOrigin;k=v'
+    "a" * 8 + "f" * 8  | "1"                | 'Root=1-00000000-00000000aaaaaaaaffffffff;Parent=0000000000000001;_dd.origin=fakeOrigin;k=v'
+    "1"                | "f" * 16           | 'Root=1-00000000-000000000000000000000001;Parent=ffffffffffffffff;_dd.origin=fakeOrigin;k=v'
+  }
+}

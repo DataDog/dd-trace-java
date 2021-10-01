@@ -1,7 +1,10 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
+import static datadog.trace.core.propagation.XRayHttpCodec.XRayContextInterpreter.handleXRayTraceHeader;
+import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
@@ -24,7 +27,9 @@ class DatadogHttpCodec {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  public static class Injector implements HttpCodec.Injector {
+  public static final HttpCodec.Injector INJECTOR = new Injector();
+
+  private static class Injector implements HttpCodec.Injector {
 
     @Override
     public <C> void inject(
@@ -92,6 +97,10 @@ class DatadogHttpCodec {
             classification = SAMPLING_PRIORITY;
           } else if (ORIGIN_KEY.equalsIgnoreCase(key)) {
             classification = ORIGIN;
+          } else if (Config.get().isAwsPropagationEnabled()
+              && X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
+            handleXRayTraceHeader(this, value);
+            return true;
           } else if (handledForwarding(key, value)) {
             return true;
           }

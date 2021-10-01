@@ -16,7 +16,7 @@ import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY
 
 class B3HttpInjectorTest extends DDCoreSpecification {
 
-  HttpCodec.Injector injector = new B3HttpCodec.Injector()
+  HttpCodec.Injector injector = B3HttpCodec.INJECTOR
 
   def "inject http headers"() {
     setup:
