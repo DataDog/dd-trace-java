@@ -78,7 +78,7 @@ public class UrlInstrumentation extends Instrumenter.Tracing {
           if (Config.get().isHttpClientSplitByDomain() && null != host && !host.isEmpty()) {
             span.setServiceName(host);
           }
-          HTTP_RESOURCE_DECORATOR.withSimplePath(span, null, url.getPath());
+          HTTP_RESOURCE_DECORATOR.withClientPath(span, null, url.getPath());
 
           span.setError(true);
           span.addThrowable(throwable);

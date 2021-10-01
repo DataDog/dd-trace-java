@@ -28,6 +28,8 @@ public class VertxTestServer extends AbstractVerticle {
     final int port = config().getInteger(CONFIG_HTTP_SERVER_PORT);
     final Router router = Router.router(vertx);
 
+    customizeBeforeRoutes(router);
+
     router
         .route(SUCCESS.getPath())
         .handler(
@@ -113,6 +115,8 @@ public class VertxTestServer extends AbstractVerticle {
         .requestHandler(router::accept)
         .listen(port, event -> startFuture.complete());
   }
+
+  protected void customizeBeforeRoutes(Router router) {}
 
   private static void exception() {
     throw new RuntimeException(EXCEPTION.getBody());

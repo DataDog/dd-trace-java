@@ -78,7 +78,7 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
   /** The resource associated to the service (server_web, database, etc.) */
   private volatile CharSequence resourceName;
 
-  private volatile int resourceNamePriority = ResourceNamePriorities.DEFAULT;
+  private volatile byte resourceNamePriority = ResourceNamePriorities.DEFAULT;
   /** Each span have an operation name describing the current span */
   private volatile CharSequence operationName;
   /** The type of the span. If null, the Datadog Agent will report as a custom */
@@ -195,7 +195,11 @@ public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> 
     return isResourceNameSet() || getTag(DDTags.RESOURCE_NAME) != null;
   }
 
-  public void setResourceName(final CharSequence resourceName, int priority) {
+  public byte getResourceNamePriority() {
+    return resourceNamePriority;
+  }
+
+  public void setResourceName(final CharSequence resourceName, byte priority) {
     if (priority >= this.resourceNamePriority) {
       this.resourceNamePriority = priority;
       this.resourceName = resourceName;

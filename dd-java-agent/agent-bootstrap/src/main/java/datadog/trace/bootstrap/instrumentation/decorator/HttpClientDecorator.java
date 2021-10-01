@@ -72,7 +72,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
             span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
           }
           if (shouldSetResourceName()) {
-            HTTP_RESOURCE_DECORATOR.withSimplePath(span, method, path);
+            HTTP_RESOURCE_DECORATOR.withClientPath(span, method, path);
           }
         } else if (shouldSetResourceName()) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);

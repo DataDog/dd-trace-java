@@ -14,7 +14,6 @@ final class AntPatternPathNormalizer extends PathNormalizer {
   private static final Logger log = LoggerFactory.getLogger(AntPatternPathNormalizer.class);
 
   private final Map<String, String> resourceNameMatchers;
-  private final PathNormalizer fallback;
   private final AntPathMatcher matcher = new AntPathMatcher();
 
   private final DDCache<String, String> cache = DDCaches.newFixedSizeCache(512);
@@ -27,13 +26,12 @@ final class AntPatternPathNormalizer extends PathNormalizer {
               return resourceNameMatcher.getValue();
             }
           }
-          return fallback.normalize(path);
+          return null;
         }
       };
 
-  AntPatternPathNormalizer(Map<String, String> httpResourceNameMatchers, PathNormalizer fallback) {
+  AntPatternPathNormalizer(Map<String, String> httpResourceNameMatchers) {
     resourceNameMatchers = httpResourceNameMatchers;
-    this.fallback = fallback;
 
     // Clean up invalid patterns
     List<String> invalidPatterns = new ArrayList<>(httpResourceNameMatchers.keySet().size());

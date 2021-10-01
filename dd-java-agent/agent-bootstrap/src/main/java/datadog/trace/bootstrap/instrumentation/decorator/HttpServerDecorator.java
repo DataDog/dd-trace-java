@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.api.http.UrlBasedResourceNameCalculator.RESOURCE_NAME_CALCULATOR;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.Config;
@@ -147,7 +146,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
           }
           callIGCallbackURI(span, url, method);
           if (SHOULD_SET_URL_RESOURCE_NAME) {
-            HTTP_RESOURCE_DECORATOR.withPath(span, path, method, encoded);
+            HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
           }
         } else if (SHOULD_SET_URL_RESOURCE_NAME) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);

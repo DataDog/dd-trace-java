@@ -7,6 +7,7 @@ import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -53,8 +54,10 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
       HTTP_RESOURCE_DECORATOR.withRoute(
           span, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
     } else {
-      // TODO if this check stays it needs a comment because it's not clear why it is here
-      if (!parent.getLocalRootSpan().hasResourceName()) {
+      // This check ensures that we only use the route from the first JAX-RS annotated method that
+      // is executed
+      if (parent.getLocalRootSpan().getResourceNamePriority()
+          < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
         HTTP_RESOURCE_DECORATOR.withRoute(
             parent.getLocalRootSpan(), httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
         parent.getLocalRootSpan().setTag(Tags.COMPONENT, "jax-rs");

@@ -3,9 +3,6 @@ package datadog.trace.instrumentation.elasticsearch;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
-import datadog.trace.api.Pair;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -19,9 +16,6 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
       UTF8BytesString.create("elasticsearch.rest.query");
   public static final CharSequence ELASTICSEARCH_JAVA =
       UTF8BytesString.create("elasticsearch-java");
-
-  private static final DDCache<Pair<String, String>, UTF8BytesString> RESOURCE_NAMES =
-      DDCaches.newFixedSizeCache(256);
 
   public static final ElasticsearchRestClientDecorator DECORATE =
       new ElasticsearchRestClientDecorator();
@@ -76,7 +70,7 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
   public AgentSpan onRequest(final AgentSpan span, final String method, final String endpoint) {
     span.setTag(Tags.HTTP_METHOD, method);
     span.setTag(Tags.HTTP_URL, endpoint);
-    return HTTP_RESOURCE_DECORATOR.withSimplePath(span, method, endpoint);
+    return HTTP_RESOURCE_DECORATOR.withClientPath(span, method, endpoint);
   }
 
   public AgentSpan onResponse(final AgentSpan span, final Response response) {

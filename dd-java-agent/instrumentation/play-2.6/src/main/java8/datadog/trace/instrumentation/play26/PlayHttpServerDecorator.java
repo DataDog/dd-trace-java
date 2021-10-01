@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.play26;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.play26.PlayHeaders.GETTER;
 

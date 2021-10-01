@@ -18,7 +18,7 @@ class AntPatternPathNormalizerTest extends DDSpecification {
     matchers.removeAll {
       ignoreMatchers.contains(it.getKey())
     }
-    AntPatternPathNormalizer pathNormalizer = new AntPatternPathNormalizer(matchers, new FailingPathNormalizer())
+    AntPatternPathNormalizer pathNormalizer = new AntPatternPathNormalizer(matchers)
 
     when:
     String result = pathNormalizer.normalize(path)
@@ -65,7 +65,7 @@ class AntPatternPathNormalizerTest extends DDSpecification {
       "/com/datadoghq/dd-trace-java/**/*.jsp": "4",
       "/com/**/servlet/bla.jsp"              : "5",
     ]
-    AntPatternPathNormalizer pathNormalizer = new AntPatternPathNormalizer(matchers, new FailingPathNormalizer())
+    AntPatternPathNormalizer pathNormalizer = new AntPatternPathNormalizer(matchers)
 
     when:
     String result = pathNormalizer.normalize(path)
@@ -82,19 +82,12 @@ class AntPatternPathNormalizerTest extends DDSpecification {
     def matchers = [
       "/not/a/pattern": "1"
     ]
-    AntPatternPathNormalizer normalizer = new AntPatternPathNormalizer(matchers, new FailingPathNormalizer())
+    AntPatternPathNormalizer normalizer = new AntPatternPathNormalizer(matchers)
 
     when:
     String result = normalizer.normalize("/not/a/pattern")
 
     then:
     result == null
-  }
-
-  static class FailingPathNormalizer extends PathNormalizer {
-    @Override
-    String normalize(String path, boolean encoded) {
-      return null
-    }
   }
 }

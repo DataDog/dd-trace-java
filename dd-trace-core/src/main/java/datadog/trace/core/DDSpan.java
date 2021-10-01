@@ -541,9 +541,14 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     context.setOperationName(spanName);
   }
 
-  @Override
+  @Override // TODO remove for 1.0: No usages within dd-trace-java
   public boolean hasResourceName() {
     return context.hasResourceName();
+  }
+
+  @Override
+  public byte getResourceNamePriority() {
+    return context.getResourceNamePriority();
   }
 
   @Override

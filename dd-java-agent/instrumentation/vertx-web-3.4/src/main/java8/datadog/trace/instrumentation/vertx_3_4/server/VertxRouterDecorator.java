@@ -1,9 +1,7 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
-import datadog.trace.api.Function;
-import datadog.trace.api.Pair;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -19,11 +17,6 @@ public class VertxRouterDecorator
   static final CharSequence INSTRUMENTATION_NAME = UTF8BytesString.create("vertx.route-handler");
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("vertx");
-
-  private static final Function<Pair<String, Object>, CharSequence> RESOURCE_NAME_JOINER =
-      input -> UTF8BytesString.create(input.getLeft() + " " + input.getRight());
-  private static final DDCache<Pair<String, Object>, CharSequence> RESOURCE_NAME_CACHE =
-      DDCaches.newFixedSizeCache(64);
 
   static final VertxRouterDecorator DECORATE = new VertxRouterDecorator();
 
@@ -68,10 +61,7 @@ public class VertxRouterDecorator
       final String bestMatchingPattern = routingContext.currentRoute().getPath();
 
       if (method != null && bestMatchingPattern != null) {
-        final CharSequence resourceName =
-            RESOURCE_NAME_CACHE.computeIfAbsent(
-                Pair.of(method, bestMatchingPattern), RESOURCE_NAME_JOINER);
-        span.setResourceName(resourceName);
+        HTTP_RESOURCE_DECORATOR.withRoute(span, method, bestMatchingPattern, true);
       }
     }
     return span;
