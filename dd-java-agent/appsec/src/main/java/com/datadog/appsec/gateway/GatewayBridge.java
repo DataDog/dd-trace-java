@@ -151,6 +151,18 @@ public class GatewayBridge {
             return NoopFlow.INSTANCE;
           }
         });
+
+    subscriptionService.registerCallback(
+        EVENTS.responseStarted(),
+        (ctx_, status) -> {
+          AppSecRequestContext ctx = ctx_.getData();
+          ctx.setResponseStatus(status);
+
+          MapDataBundle bundle =
+              MapDataBundle.of(KnownAddresses.RESPONSE_STATUS, ctx.getResponseStatus());
+
+          ctx.addAll(bundle);
+        });
   }
 
   // currently unused; doesn't do anything useful

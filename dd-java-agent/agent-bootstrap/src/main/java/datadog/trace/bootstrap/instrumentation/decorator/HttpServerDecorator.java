@@ -8,10 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDeco
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Function;
-import datadog.trace.api.function.BiFunction;
-import datadog.trace.api.function.Supplier;
-import datadog.trace.api.function.TriConsumer;
-import datadog.trace.api.function.TriFunction;
+import datadog.trace.api.function.*;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
@@ -187,6 +184,18 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
           && status == 404
           && !ROUTE_HANDLER_DECORATOR.hasRouteBasedResourceName(span)) {
         span.setResourceName(NOT_FOUND_RESOURCE_NAME);
+      }
+
+      CallbackProvider cbp = tracer().instrumentationGateway();
+      if (null != cbp) {
+        RequestContext<Object> ctx = span.getRequestContext();
+        if (ctx != null) {
+          BiConsumer<RequestContext<Object>, Integer> addrCallback =
+              cbp.getCallback(EVENTS.responseStarted());
+          if (null != addrCallback) {
+            addrCallback.accept(ctx, status);
+          }
+        }
       }
     }
     return span;
