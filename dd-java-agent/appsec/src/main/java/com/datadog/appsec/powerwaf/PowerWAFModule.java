@@ -60,7 +60,23 @@ public class PowerWAFModule implements AppSecModule {
 
   private static final JsonAdapter<List<PowerWAFResultData>> RES_JSON_ADAPTER;
 
-  private static final Map<String, String> rulesTypeMap = new ConcurrentHashMap<>();
+  private static final Map<String, RuleInfo> rulesInfoMap = new ConcurrentHashMap<>();
+
+  private static class RuleInfo {
+    final String name;
+    final String type;
+
+    RuleInfo(AppSecConfig.Event event) {
+      this.name = event.getName();
+
+      String guessType = "waf";
+      Map<String, String> tags = event.getTags();
+      if (tags != null) {
+        guessType = tags.getOrDefault("type", guessType);
+      }
+      this.type = guessType;
+    }
+  }
 
   static {
     try {
@@ -113,14 +129,8 @@ public class PowerWAFModule implements AppSecModule {
         String uniqueId = UUID.randomUUID().toString();
         newContext = Powerwaf.createContext(uniqueId, config.getRawConfig());
 
-        rulesTypeMap.clear();
-        config
-            .getEvents()
-            .forEach(
-                e -> {
-                  String type = e.getTags().getOrDefault("type", "waf");
-                  rulesTypeMap.put(e.getId(), type);
-                });
+        rulesInfoMap.clear();
+        config.getEvents().forEach(e -> rulesInfoMap.put(e.getId(), new RuleInfo(e)));
 
       } catch (RuntimeException | AbstractPowerwafException e) {
         throw new AppSecModuleActivationException("Error creating WAF rules", e);
@@ -214,17 +224,17 @@ public class PowerWAFModule implements AppSecModule {
     }
     PowerWAFResultData.Filter filterData = powerWAFResultData.filter.get(0);
 
-    String type = rulesTypeMap.getOrDefault(powerWAFResultData.rule, "waf");
+    RuleInfo ruleInfo = rulesInfoMap.get(powerWAFResultData.rule);
 
     Attack010 attack =
         new Attack010.Attack010Builder()
             .withBlocked(actionWithData.action == Powerwaf.Action.BLOCK)
-            .withType(type)
+            .withType(ruleInfo.type)
             .withRule(
                 new Rule010.Rule010Builder()
-                    .withId(powerWAFResultData.rule) // XXX
-                    .withName(powerWAFResultData.flow) // XXX
-                    .withSet("waf") // XXX
+                    .withId(powerWAFResultData.rule)
+                    .withName(ruleInfo.name)
+                    .withSet(powerWAFResultData.flow)
                     .build())
             .withRuleMatch(
                 new RuleMatch010.RuleMatch010Builder()
