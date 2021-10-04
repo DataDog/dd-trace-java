@@ -44,12 +44,18 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
     for (Map.Entry<Address<?>, Object> entry : newData) {
-      Object prev = persistentData.putIfAbsent(entry.getKey(), entry.getValue());
+      Address<?> address = entry.getKey();
+      Object value = entry.getValue();
+      if (value == null) {
+        log.warn("Address {} ignored, because contains null value.", address);
+        continue;
+      }
+      Object prev = persistentData.putIfAbsent(address, value);
       if (prev != null) {
-        log.warn("Illegal attempt to replace context value for {}", entry.getKey());
+        log.warn("Illegal attempt to replace context value for {}", address);
       }
       if (log.isDebugEnabled()) {
-        StandardizedLogging.addressPushed(log, entry.getKey());
+        StandardizedLogging.addressPushed(log, address);
       }
     }
   }
