@@ -12,7 +12,7 @@ class BsonScrubber34Test extends AgentTestRunner {
     when:
     BsonScrubber34 scrubber = new BsonScrubber34()
     scrubber.pipe(new BsonDocumentReader(doc))
-    String resourceName = scrubber.toResourceName()
+    String resourceName = scrubber.getResourceName()
 
     then:
     resourceName == expected
