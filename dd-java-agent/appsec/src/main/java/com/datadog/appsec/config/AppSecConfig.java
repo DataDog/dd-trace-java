@@ -29,10 +29,6 @@ public class AppSecConfig {
     return config;
   }
 
-  public String getVersion() {
-    return version;
-  }
-
   public List<Event> getEvents() {
     return events;
   }
@@ -59,24 +55,6 @@ public class AppSecConfig {
 
     public Map<String, String> getTags() {
       return tags;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      Event event = (Event) o;
-      return Objects.equals(id, event.id)
-          && Objects.equals(name, event.name)
-          && Objects.equals(tags, event.tags)
-          && Objects.equals(conditions, event.conditions)
-          && Objects.equals(transformers, event.transformers)
-          && Objects.equals(action, event.action);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(id, name, tags, conditions, transformers, action);
     }
   }
 

@@ -58,8 +58,8 @@ class PowerWAFModuleSpecification extends Specification {
     attack.type == 'security_scanner'
 
     attack.rule.id == 'ua0-600-12x'
-    attack.rule.name == 'security_scanner'
-    attack.rule.set == 'waf'
+    attack.rule.name == 'Arachni'
+    attack.rule.set == 'security_scanner'
 
     attack.ruleMatch.highlight == ['Arachni/v']
     attack.ruleMatch.operator == 'match_regex'
