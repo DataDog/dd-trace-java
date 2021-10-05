@@ -4,7 +4,7 @@ import datadog.trace.test.util.DDSpecification
 
 class GitUtilsTest extends DDSpecification {
 
-  static def JANE_DOE_PERSON_INFO = new PersonInfo("Jane Doe", "jane.doe@email.com")
+  static janeDoePersonInfo = new PersonInfo("Jane Doe", "jane.doe@email.com")
 
   def "test split git author into name and email"() {
     when:
@@ -18,6 +18,6 @@ class GitUtilsTest extends DDSpecification {
     null | PersonInfo.NOOP
     ""|PersonInfo.NOOP
     "wrong-data"|PersonInfo.NOOP
-    "Jane Doe <jane.doe@email.com>"| JANE_DOE_PERSON_INFO
+    "Jane Doe <jane.doe@email.com>"| janeDoePersonInfo
   }
 }
