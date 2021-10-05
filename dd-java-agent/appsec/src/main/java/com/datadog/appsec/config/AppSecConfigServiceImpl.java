@@ -13,12 +13,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import okio.BufferedSource;
 import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +33,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
   private final FleetService fleetService;
   // for new subconfig subscribers
-  private final AtomicReference<Map<String, Object>> lastConfig =
+  private final AtomicReference<Map<String, AppSecConfig>> lastConfig =
       new AtomicReference<>(Collections.emptyMap());
   private final ConcurrentHashMap<String, SubconfigListener> subconfigListeners =
       new ConcurrentHashMap<>();
@@ -53,8 +51,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             FleetService.Product.APPSEC,
             is -> {
               try {
-                Map<String, Object> stringObjectMap =
-                    ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
+                Map<String, AppSecConfig> stringObjectMap =
+                    deserializeConfig(Okio.buffer(Okio.source(is)));
                 distributeSubConfigurations(stringObjectMap);
                 this.lastConfig.set(stringObjectMap);
               } catch (IOException e) {
@@ -63,7 +61,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
             });
   }
 
-  private void distributeSubConfigurations(Map<String, Object> newConfig) {
+  private void distributeSubConfigurations(Map<String, AppSecConfig> newConfig) {
     for (Map.Entry<String, SubconfigListener> entry : subconfigListeners.entrySet()) {
       String key = entry.getKey();
       if (!newConfig.containsKey(key)) {
@@ -80,7 +78,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
   @Override
   public void init(boolean initFleetService) {
-    Map<String, Object> config;
+    Map<String, AppSecConfig> config;
     try {
       config = loadUserConfig(tracerConfig);
     } catch (Exception e) {
@@ -102,13 +100,32 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   @Override
-  public Optional<Object> addSubConfigListener(String key, SubconfigListener listener) {
+  public Optional<AppSecConfig> addSubConfigListener(String key, SubconfigListener listener) {
     this.subconfigListeners.put(key, listener);
-    Map<String, Object> lastConfig = this.lastConfig.get();
+    Map<String, AppSecConfig> lastConfig = this.lastConfig.get();
     return Optional.ofNullable(lastConfig.get(key));
   }
 
-  private static Map<String, Object> loadDefaultConfig() throws IOException {
+  private static Map<String, AppSecConfig> deserializeConfig(BufferedSource src)
+      throws IOException {
+    Map<String, Object> rawConfig = ADAPTER.fromJson(src);
+    if (rawConfig == null) {
+      throw new IOException("Unable deserialize Json config");
+    }
+
+    Map<String, AppSecConfig> ret = new LinkedHashMap<>();
+    for (Map.Entry<String, Object> entry : rawConfig.entrySet()) {
+      String key = entry.getKey();
+      Object value = entry.getValue();
+      if (!(value instanceof Map)) {
+        throw new IOException("Expect config to be a map");
+      }
+      ret.put(key, AppSecConfig.createFromMap((Map<String, Object>) value));
+    }
+    return ret;
+  }
+
+  private static Map<String, AppSecConfig> loadDefaultConfig() throws IOException {
     try (InputStream is =
         AppSecConfigServiceImpl.class
             .getClassLoader()
@@ -117,7 +134,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         throw new IOException("Resource " + DEFAULT_CONFIG_LOCATION + " not found");
       }
 
-      Map<String, Object> ret = ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
+      Map<String, AppSecConfig> ret = deserializeConfig(Okio.buffer(Okio.source(is)));
 
       StandardizedLogging._initialConfigSourceAndLibddwafVersion(log, "<bundled config>");
       if (log.isInfoEnabled()) {
@@ -128,13 +145,13 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
   }
 
-  private static Map<String, Object> loadUserConfig(Config tracerConfig) throws IOException {
+  private static Map<String, AppSecConfig> loadUserConfig(Config tracerConfig) throws IOException {
     String filename = tracerConfig.getAppSecRulesFile();
     if (filename == null) {
       return null;
     }
     try (InputStream is = new FileInputStream(filename)) {
-      Map<String, Object> ret = ADAPTER.fromJson(Okio.buffer(Okio.source(is)));
+      Map<String, AppSecConfig> ret = deserializeConfig(Okio.buffer(Okio.source(is)));
 
       StandardizedLogging._initialConfigSourceAndLibddwafVersion(log, filename);
       if (log.isInfoEnabled()) {
@@ -151,16 +168,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
   }
 
-  private static int countRules(Map<String, Object> config) {
-    Object waf = config.get("waf");
-    if (!(waf instanceof Map)) {
-      return 0;
-    }
-    Object events = ((Map<?, ?>) waf).get("events");
-    if (events == null || !(events instanceof Collection)) {
-      return 0;
-    }
-    return ((Collection<?>) events).size();
+  /** Provide total amount of all events from all configs */
+  private static int countRules(Map<String, AppSecConfig> config) {
+    // get sum for each config->AppSecConfig.getEvents().size()
+    return config.values().stream().map(AppSecConfig::getEvents).mapToInt(List::size).sum();
   }
 
   @Override

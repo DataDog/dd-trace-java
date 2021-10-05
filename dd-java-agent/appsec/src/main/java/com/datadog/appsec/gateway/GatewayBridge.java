@@ -89,6 +89,11 @@ public class GatewayBridge {
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
           Collection<Attack010> collectedAttacks = ctx.transferCollectedAttacks();
+          // If detected any attacks - mark span at appsec.event
+          if (!collectedAttacks.isEmpty() && spanInfo != null) {
+            spanInfo.setTag("appsec.event", true);
+          }
+
           for (Attack010 attack : collectedAttacks) {
             EventEnrichment.enrich(attack, spanInfo, ctx);
             reportService.reportAttack(attack);
