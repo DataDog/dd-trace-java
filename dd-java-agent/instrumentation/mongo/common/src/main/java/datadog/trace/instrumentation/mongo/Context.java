@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.mongo;
 
-public final class Context {
+final class Context {
 
   private final StringBuilder buffer = new StringBuilder();
 

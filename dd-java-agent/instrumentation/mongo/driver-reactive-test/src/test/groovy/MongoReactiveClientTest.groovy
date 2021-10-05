@@ -22,7 +22,7 @@ import java.util.concurrent.CountDownLatch
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Timeout(10)
-class Mongo4ReactiveClientTest extends MongoBaseTest {
+class MongoReactiveClientTest extends MongoBaseTest {
 
   @Shared
   MongoClient client

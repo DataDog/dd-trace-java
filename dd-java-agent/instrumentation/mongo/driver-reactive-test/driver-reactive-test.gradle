@@ -28,10 +28,6 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
   testImplementation group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '1.50.5'
 
-  testImplementation group: 'org.mongodb', name: 'bson', version: '4.0.0'
-  testImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.0.0'
   testImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.0.0'
-  latestDepTestImplementation group: 'org.mongodb', name: 'bson', version: '4.+'
-  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.2+'
   latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.2+'
 }

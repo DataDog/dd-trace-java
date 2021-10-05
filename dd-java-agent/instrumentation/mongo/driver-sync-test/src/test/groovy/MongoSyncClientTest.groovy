@@ -18,7 +18,7 @@ import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
-class Mongo4ClientTest extends MongoBaseTest {
+class MongoSyncClientTest extends MongoBaseTest {
 
   @Shared
   MongoClient client

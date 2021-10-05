@@ -15,28 +15,18 @@ muzzle {
   pass {
     group = "org.mongodb"
     module = "mongodb-driver-async"
-    versions = "[3.0,)"
-    extraDependency 'org.mongodb:mongo-java-driver:3.4.0'
+    versions = "[3.4,)"
     assertInverse = true
   }
   fail {
     group = "org.mongodb"
     module = "mongodb-driver-async"
-    versions = "[3.0,)"
-    extraDependency 'org.mongodb:mongo-java-driver:3.1.0'
+    versions = "[3.1,3.4)"
   }
   pass {
     group = "org.mongodb"
     module = "mongodb-driver-sync"
-    versions = "[3.0,)"
-    extraDependency 'org.mongodb:mongo-java-driver:3.4.0'
-    assertInverse = true
-  }
-  fail {
-    group = "org.mongodb"
-    module = "mongodb-driver-sync"
-    versions = "[3.0,)"
-    extraDependency 'org.mongodb:mongo-java-driver:3.1.0'
+    versions = "[3.10,)"
   }
   pass {
     group = "org.mongodb"
@@ -63,7 +53,6 @@ testSets {
 dependencies {
   compileOnly group: 'org.mongodb', name: 'mongo-java-driver', version: '3.4.0'
   compileOnly group: 'org.mongodb', name: 'mongodb-driver-core', version: '3.4.0'
-  compileOnly group: 'org.mongodb', name: 'mongodb-driver-async', version: '3.4.0'
 
   implementation(project(':dd-java-agent:instrumentation:mongo:common')) {
     transitive = false
@@ -81,6 +70,4 @@ dependencies {
 
   testImplementation group: 'org.mongodb', name: 'mongo-java-driver', version: '3.4.0'
   latestDepTestImplementation group: 'org.mongodb', name: 'mongo-java-driver', version: '3.+'
-  testImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '3.4.0'
-  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '3.+'
 }
