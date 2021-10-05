@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * across Span boundaries and (2) any Datadog fields that are needed to identify or contextualize
  * the associated Span instance
  */
-public class DDSpanContext implements AgentSpan.Context {
+public class DDSpanContext implements AgentSpan.Context, RequestContext<Object> {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
 
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
@@ -99,8 +99,8 @@ public class DDSpanContext implements AgentSpan.Context {
   /** The origin of the trace. (eg. Synthetics, CI App) */
   private volatile CharSequence origin;
 
-  /** RequestContext for the Instrumentation Gateway */
-  private final RequestContext requestContext;
+  /** RequestContext data for the InstrumentationGateway */
+  private final Object requestContextData;
 
   public DDSpanContext(
       final DDId traceId,
@@ -117,7 +117,7 @@ public class DDSpanContext implements AgentSpan.Context {
       final CharSequence spanType,
       final int tagsSize,
       final PendingTrace trace,
-      final RequestContext requestContext) {
+      final Object requestContextData) {
 
     assert trace != null;
     this.trace = trace;
@@ -136,7 +136,7 @@ public class DDSpanContext implements AgentSpan.Context {
       this.baggageItems = new ConcurrentHashMap<>(baggageItems);
     }
 
-    this.requestContext = requestContext;
+    this.requestContextData = requestContextData;
 
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
@@ -353,8 +353,8 @@ public class DDSpanContext implements AgentSpan.Context {
     return trace;
   }
 
-  public RequestContext getRequestContext() {
-    return requestContext;
+  public RequestContext<Object> getRequestContext() {
+    return null == requestContextData ? null : this;
   }
 
   public CoreTracer getTracer() {
@@ -502,5 +502,11 @@ public class DDSpanContext implements AgentSpan.Context {
       s.append(" tags=").append(new TreeMap<>(getTags()));
     }
     return s.toString();
+  }
+
+  /** RequestContext Implementation */
+  @Override
+  public Object getData() {
+    return requestContextData;
   }
 }

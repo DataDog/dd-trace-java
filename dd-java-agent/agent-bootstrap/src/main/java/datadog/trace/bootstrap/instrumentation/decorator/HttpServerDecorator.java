@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
+import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.api.http.UrlBasedResourceNameCalculator.RESOURCE_NAME_CALCULATOR;
 import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
 
@@ -12,7 +13,6 @@ import datadog.trace.api.function.Supplier;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.CallbackProvider;
-import datadog.trace.api.gateway.Events;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
@@ -207,10 +207,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
   private AgentSpan.Context.Extracted callIGCallbackStart(AgentSpan.Context.Extracted context) {
     CallbackProvider cbp = tracer().instrumentationGateway();
     if (null != cbp) {
-      Supplier<Flow<RequestContext>> startedCB = cbp.getCallback(Events.REQUEST_STARTED);
+      Supplier<Flow<Object>> startedCB = cbp.getCallback(EVENTS.requestStarted());
       if (null != startedCB) {
-        RequestContext requestContext = startedCB.get().getResult();
-        if (null != requestContext) {
+        Object requestContextData = startedCB.get().getResult();
+        if (null != requestContextData) {
           TagContext tagContext = null;
           if (context == null) {
             tagContext = TagContext.empty();
@@ -219,7 +219,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
             tagContext = (TagContext) context;
           }
           if (null != tagContext) {
-            context = tagContext.withRequestContext(requestContext);
+            context = tagContext.withRequestContextData(requestContextData);
           }
         }
       }
@@ -229,7 +229,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
 
   private void callIGCallbackHeaders(AgentSpan span, CARRIER carrier) {
     CallbackProvider cbp = tracer().instrumentationGateway();
-    RequestContext requestContext = span.getRequestContext();
+    RequestContext<Object> requestContext = span.getRequestContext();
     AgentPropagation.ContextVisitor<CARRIER> getter = getter();
     if (requestContext == null || cbp == null || getter == null) {
       return;
@@ -237,8 +237,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
     IGKeyClassifier igKeyClassifier =
         IGKeyClassifier.create(
             requestContext,
-            cbp.getCallback(Events.REQUEST_HEADER),
-            cbp.getCallback(Events.REQUEST_HEADER_DONE));
+            cbp.getCallback(EVENTS.requestHeader()),
+            cbp.getCallback(EVENTS.requestHeaderDone()));
     if (null != igKeyClassifier) {
       getter.forEachKey(carrier, igKeyClassifier);
       igKeyClassifier.done();
@@ -249,13 +249,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
       @Nonnull final AgentSpan span, @Nonnull final URIDataAdapter url, final String method) {
     // TODO:appsec there must be some better way to do this?
     CallbackProvider cbp = tracer().instrumentationGateway();
-    RequestContext requestContext = span.getRequestContext();
+    RequestContext<Object> requestContext = span.getRequestContext();
     if (requestContext == null || cbp == null) {
       return;
     }
 
-    TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> callback =
-        cbp.getCallback(Events.REQUEST_METHOD_URI_RAW);
+    TriFunction<RequestContext<Object>, String, URIDataAdapter, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.requestMethodUriRaw());
     if (callback != null) {
       callback.apply(requestContext, method, url);
     }
@@ -272,10 +272,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
       return;
     }
     CallbackProvider cbp = tracer().instrumentationGateway();
-    RequestContext requestContext = span.getRequestContext();
+    RequestContext<Object> requestContext = span.getRequestContext();
     if (cbp != null && requestContext != null) {
-      BiFunction<RequestContext, IGSpanInfo, Flow<Void>> callback =
-          cbp.getCallback(Events.REQUEST_ENDED);
+      BiFunction<RequestContext<Object>, IGSpanInfo, Flow<Void>> callback =
+          cbp.getCallback(EVENTS.requestEnded());
       if (callback != null) {
         callback.apply(requestContext, span);
       }
@@ -288,10 +288,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
     if (cbp == null) {
       return Flow.ResultFlow.empty();
     }
-    RequestContext ctx = span.getRequestContext();
+    RequestContext<Object> ctx = span.getRequestContext();
     if (ctx != null) {
-      TriFunction<RequestContext, String, Integer, Flow<Void>> addrCallback =
-          cbp.getCallback(Events.REQUEST_CLIENT_SOCKET_ADDRESS);
+      TriFunction<RequestContext<Object>, String, Integer, Flow<Void>> addrCallback =
+          cbp.getCallback(EVENTS.requestClientSocketAddress());
       if (null != addrCallback) {
         return addrCallback.apply(ctx, ip != null ? ip : "0.0.0.0", port);
       }
@@ -303,23 +303,23 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, CARRIER
   private static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
 
     private static IGKeyClassifier create(
-        RequestContext requestContext,
-        TriConsumer<RequestContext, String, String> headerCallback,
-        Function<RequestContext, Flow<Void>> doneCallback) {
+        RequestContext<Object> requestContext,
+        TriConsumer<RequestContext<Object>, String, String> headerCallback,
+        Function<RequestContext<Object>, Flow<Void>> doneCallback) {
       if (null == requestContext || null == headerCallback) {
         return null;
       }
       return new IGKeyClassifier(requestContext, headerCallback, doneCallback);
     }
 
-    private final RequestContext requestContext;
-    private final TriConsumer<RequestContext, String, String> headerCallback;
-    private final Function<RequestContext, Flow<Void>> doneCallback;
+    private final RequestContext<Object> requestContext;
+    private final TriConsumer<RequestContext<Object>, String, String> headerCallback;
+    private final Function<RequestContext<Object>, Flow<Void>> doneCallback;
 
     private IGKeyClassifier(
-        RequestContext requestContext,
-        TriConsumer<RequestContext, String, String> headerCallback,
-        Function<RequestContext, Flow<Void>> doneCallback) {
+        RequestContext<Object> requestContext,
+        TriConsumer<RequestContext<Object>, String, String> headerCallback,
+        Function<RequestContext<Object>, Flow<Void>> doneCallback) {
       this.requestContext = requestContext;
       this.headerCallback = headerCallback;
       this.doneCallback = doneCallback;

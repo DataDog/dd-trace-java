@@ -5,9 +5,8 @@ class TimelinePrinter {
 
   static void print(def spanEvents, def threadEvents, def orderedEvents, def invalidEvents, PrintStream out) {
     if (!orderedEvents.isEmpty()) {
-      out.println("=== Activity checkpoints by thread ordered by time")
       if (!invalidEvents.empty) {
-        out.println("===== Invalid event sequences were detected. " +
+        out.println("Invalid event sequences were detected. " +
           "Affected spans are highlited by '***'")
       }
       // allows rendering threads top to bottom by when they were first encountered

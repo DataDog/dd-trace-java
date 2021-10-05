@@ -87,7 +87,7 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
   public void onRootSpan(final AgentSpan rootSpan, final boolean published) {
     final Boolean emittingCheckpoints = rootSpan.isEmittingCheckpoints();
     checkpointer.onRootSpan(
-        rootSpan, published && emittingCheckpoints != null && emittingCheckpoints);
+        rootSpan, published, emittingCheckpoints != null && emittingCheckpoints);
   }
 
   private static final class NoOpCheckpointer implements Checkpointer {
@@ -98,6 +98,7 @@ public final class SamplingCheckpointer implements SpanCheckpointer {
     public void checkpoint(final AgentSpan span, final int flags) {}
 
     @Override
-    public void onRootSpan(final AgentSpan rootSpan, final boolean published) {}
+    public void onRootSpan(
+        final AgentSpan rootSpan, final boolean traceSampled, final boolean checkpointsSampled) {}
   }
 }

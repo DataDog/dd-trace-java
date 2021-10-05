@@ -28,7 +28,7 @@ class TimelineCheckpointer implements Checkpointer {
   }
 
   @Override
-  void onRootSpan(AgentSpan rootSpan, boolean published) {
+  void onRootSpan(AgentSpan rootSpan, boolean traceSampled, boolean checkpointsSampled) {
   }
 
   void throwOnInvalidSequence(Collection<DDId> trackedSpanIds) {
@@ -36,9 +36,9 @@ class TimelineCheckpointer implements Checkpointer {
     ByteArrayOutputStream baostream = new ByteArrayOutputStream()
     PrintStream out = new PrintStream(baostream, false, charset)
 
-    out.println("=== Tracking spans ${trackedSpanIds*.toLong()}\n")
+    out.println("=== Spans: ${trackedSpanIds*.toLong()}\n")
 
-    def validatedEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents, trackedSpanIds, out)
+    def invalidEvents = CheckpointValidator.validate(spanEvents, threadEvents, orderedEvents, trackedSpanIds, out)
 
     // The set of excluded validations
     def excludedValidations = CheckpointValidator.excludedValidations.clone()
@@ -49,22 +49,21 @@ class TimelineCheckpointer implements Checkpointer {
 
     // The set of included validations that failed
     def includedAndFailedValidations = includedValidations.clone()
-    includedAndFailedValidations.retainAll(validatedEvents*.key.mode)
-
-    // The set of excluded validations that failed
-    def excludedAndFailedValidations = excludedValidations.clone()
-    excludedAndFailedValidations.retainAll(validatedEvents*.key.mode)
-
-    // The set of excluded validations that passed
-    def excludedAndPassedValidations = excludedValidations.clone()
-    excludedAndPassedValidations.removeAll(validatedEvents*.key.mode)
+    includedAndFailedValidations.retainAll(invalidEvents*.mode)
 
     out.println(
-      "=== Checkpoint validator is running with the following checks excluded: ${excludedValidations.sort()}\n" +
-      "Included & Failed: ${includedAndFailedValidations.sort()}\n" +
-      "Excluded & Passed: ${excludedAndPassedValidations.sort()}\n")
+      "=== Validations:\n" +
+      "Excluded: ${excludedValidations.sort()}\n" +
+      "Failed: ${includedAndFailedValidations.sort()}\n")
 
-    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, validatedEvents*.key.event, out)
+    out.println("=== Timeline:")
+    TimelinePrinter.print(spanEvents, threadEvents, orderedEvents, invalidEvents*.event, out)
+
+    out.println("=== Checkpoints:")
+    orderedEvents.each { event ->
+      invalidEvents.findAll { it.event == event }.each { out.println(it) }
+      out.println(event)
+    }
 
     out.flush()
 
@@ -73,16 +72,6 @@ class TimelineCheckpointer implements Checkpointer {
 
     if (!includedAndFailedValidations.empty) {
       throw new IllegalStateException("Checkpoints validations: included and failed\n\n${msg}")
-    }
-    if (CheckpointValidator.validationMode("strict")) {
-      if (!excludedAndPassedValidations.empty) {
-        throw new IllegalStateException("Checkpoints validations: excluded and passed\n\n${msg}")
-      }
-    }
-    if (CheckpointValidator.validationMode("all-failed")) {
-      if (!excludedAndFailedValidations.empty) {
-        throw new IllegalStateException("Checkpoints validations: excluded and failed\n\n${msg}")
-      }
     }
 
     System.err.print(msg)

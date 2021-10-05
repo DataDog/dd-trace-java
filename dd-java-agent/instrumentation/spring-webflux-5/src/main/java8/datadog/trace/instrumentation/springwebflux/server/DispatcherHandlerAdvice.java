@@ -45,8 +45,6 @@ public class DispatcherHandlerAdvice {
       @Advice.Return(readOnly = false) Mono<Void> mono) {
     if (throwable == null && mono != null) {
       mono = AdviceUtils.setPublisherSpan(mono, scope.span());
-    } else if (throwable != null) {
-      AdviceUtils.finishSpanIfPresent(exchange, throwable);
     }
     scope.close();
     // span finished in SpanFinishingSubscriber

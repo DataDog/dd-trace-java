@@ -7,13 +7,10 @@ import datadog.trace.api.GenericClassValue;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Function;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscription;
-import org.springframework.web.reactive.function.server.ServerRequest;
-import org.springframework.web.server.ServerWebExchange;
 import reactor.core.CoreSubscriber;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Operators;
@@ -51,42 +48,17 @@ public final class AdviceUtils {
    * versions of reactor-core have easier way to access context but we want to support older
    * versions.
    */
-  public static <T> Function<? super Publisher<T>, ? extends Publisher<T>> finishSpanNextOrError(
+  private static <T> Function<? super Publisher<T>, ? extends Publisher<T>> finishSpanNextOrError(
       AgentSpan span) {
     return Operators.lift(
         (scannable, subscriber) -> new SpanFinishingSubscriber<>(subscriber, span));
   }
 
-  public static void finishSpanIfPresent(ServerWebExchange exchange, Throwable throwable) {
-    if (exchange != null) {
-      finishSpanIfPresentInAttributes(exchange.getAttributes(), throwable);
-    }
-  }
-
-  public static void finishSpanIfPresent(ServerRequest serverRequest, Throwable throwable) {
-    if (serverRequest != null) {
-      finishSpanIfPresentInAttributes(serverRequest.attributes(), throwable);
-    }
-  }
-
-  private static void finishSpanIfPresentInAttributes(
-      Map<String, Object> attributes, Throwable throwable) {
-
-    AgentSpan span = (AgentSpan) attributes.remove(SPAN_ATTRIBUTE);
-    finishSpanIfPresent(span, throwable);
-  }
-
-  static void finishSpanIfPresent(AgentSpan span, Throwable throwable) {
-    if (span != null) {
-      if (throwable != null) {
-        span.setError(true);
-        span.addThrowable(throwable);
-      }
-      span.finish();
-    }
-  }
-
-  public static final class SpanFinishingSubscriber<T> implements CoreSubscriber<T>, Subscription {
+  /**
+   * This makes sure any callback is wrapped in suspend/resume checkpoints. Otherwise, we may end up
+   * executing these callbacks in different threads without being resumed first.
+   */
+  private static final class SpanFinishingSubscriber<T> implements CoreSubscriber<T>, Subscription {
 
     private final CoreSubscriber<? super T> subscriber;
     private final AgentSpan span;
@@ -102,26 +74,35 @@ public final class AdviceUtils {
       this.subscriber = subscriber;
       this.span = span;
       this.context = subscriber.currentContext().put(AgentSpan.class, span);
+
+      // We set a suspend here similarly to capturing the continuation in FutureTask.<init> for
+      // example
+      span.startThreadMigration();
     }
 
     @Override
     public void onSubscribe(Subscription s) {
       this.subscription = s;
       try (AgentScope scope = activateSpan(span)) {
+        span.finishThreadMigration();
         subscriber.onSubscribe(this);
+        span.startThreadMigration();
       }
     }
 
     @Override
     public void onNext(T t) {
       try (AgentScope scope = activateSpan(span)) {
+        span.finishThreadMigration();
         subscriber.onNext(t);
+        span.startThreadMigration();
       }
     }
 
     @Override
     public void onError(Throwable t) {
       if (null != span && COMPLETED.compareAndSet(this, 0, 1)) {
+        span.finishThreadMigration();
         span.setError(true);
         span.addThrowable(t);
         span.finish();
@@ -132,6 +113,7 @@ public final class AdviceUtils {
     @Override
     public void onComplete() {
       if (null != span && COMPLETED.compareAndSet(this, 0, 1)) {
+        span.finishThreadMigration();
         span.finish();
       }
       subscriber.onComplete();
@@ -150,6 +132,7 @@ public final class AdviceUtils {
     @Override
     public void cancel() {
       if (null != span && COMPLETED.compareAndSet(this, 0, 1)) {
+        span.finishThreadMigration();
         span.finish();
       }
       subscription.cancel();

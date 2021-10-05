@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Alex Antonov
  */
-public class HaystackHttpCodec {
+class HaystackHttpCodec {
 
   private static final Logger log = LoggerFactory.getLogger(HaystackHttpCodec.class);
 
@@ -42,7 +42,9 @@ public class HaystackHttpCodec {
     // This class should not be created. This also makes code coverage checks happy.
   }
 
-  public static class Injector implements HttpCodec.Injector {
+  public static final HttpCodec.Injector INJECTOR = new Injector();
+
+  private static class Injector implements HttpCodec.Injector {
 
     @Override
     public <C> void inject(

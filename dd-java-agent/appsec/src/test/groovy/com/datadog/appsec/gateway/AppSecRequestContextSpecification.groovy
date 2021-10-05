@@ -5,11 +5,11 @@ import com.datadog.appsec.event.data.KnownAddresses
 import com.datadog.appsec.event.data.MapDataBundle
 import com.datadog.appsec.event.data.StringKVPair
 import com.datadog.appsec.report.raw.events.attack.Attack010
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
 import java.time.Instant
 
-class AppSecRequestContextSpecification extends Specification {
+class AppSecRequestContextSpecification extends DDSpecification {
 
   void 'implements DataBundle'() {
     DataBundle ctx = new AppSecRequestContext()

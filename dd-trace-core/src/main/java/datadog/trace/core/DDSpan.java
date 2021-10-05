@@ -454,7 +454,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   }
 
   @Override
-  public RequestContext getRequestContext() {
+  public RequestContext<Object> getRequestContext() {
     return context.getRequestContext();
   }
 

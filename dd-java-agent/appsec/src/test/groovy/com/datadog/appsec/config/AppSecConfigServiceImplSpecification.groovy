@@ -4,12 +4,12 @@ import com.datadog.appsec.util.AbortStartupException
 import datadog.communication.fleet.FleetService
 import datadog.communication.fleet.FleetServiceImpl
 import datadog.trace.api.Config
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
 
 import java.nio.file.Files
 import java.nio.file.Path
 
-class AppSecConfigServiceImplSpecification extends Specification {
+class AppSecConfigServiceImplSpecification extends DDSpecification {
 
   FleetServiceImpl fleetService = Mock()
   Config config = Mock()
