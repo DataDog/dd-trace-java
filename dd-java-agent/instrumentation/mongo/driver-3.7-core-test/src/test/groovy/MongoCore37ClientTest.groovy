@@ -81,7 +81,7 @@ class MongoCore37ClientTest extends MongoBaseTest {
     MongoDatabase db = client.getDatabase(databaseName)
 
     when:
-    int count = db.getCollection(collectionName).estimatedDocumentCount()
+    int count = db.getCollection(collectionName).count()
     TEST_WRITER.waitForTraces(1)
     then:
     count == 0
@@ -112,7 +112,7 @@ class MongoCore37ClientTest extends MongoBaseTest {
 
     when:
     collection.insertOne(new Document("password", "SECRET"))
-    def estimatedCount = collection.estimatedDocumentCount()
+    def estimatedCount = collection.count()
     TEST_WRITER.waitForTraces(2)
 
     then:
@@ -125,7 +125,7 @@ class MongoCore37ClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
-    and: "syncronous checkpoints span the driver activity"
+    and: "synchronous checkpoints span the driver activity"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
@@ -151,7 +151,7 @@ class MongoCore37ClientTest extends MongoBaseTest {
     def result = collection.updateOne(
       new BsonDocument("password", new BsonString("OLDPW")),
       new BsonDocument('$set', new BsonDocument("password", new BsonString("NEWPW"))))
-    def estimatedCount = collection.estimatedDocumentCount()
+    def estimatedCount = collection.count()
     TEST_WRITER.waitForTraces(2)
 
     then:
@@ -165,7 +165,7 @@ class MongoCore37ClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
-    and: "syncronous checkpoints span the driver activity"
+    and: "synchronous checkpoints span the driver activity"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
@@ -189,7 +189,7 @@ class MongoCore37ClientTest extends MongoBaseTest {
 
     when:
     def result = collection.deleteOne(new BsonDocument("password", new BsonString("SECRET")))
-    def estimatedCount = collection.estimatedDocumentCount()
+    def estimatedCount = collection.count()
     TEST_WRITER.waitForTraces(2)
 
     then:
@@ -203,7 +203,7 @@ class MongoCore37ClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
-    and: "syncronous checkpoints span the driver activity"
+    and: "synchronous checkpoints span the driver activity"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
     _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)

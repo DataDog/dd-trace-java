@@ -1,3 +1,9 @@
+// Set properties before any plugins get loaded
+ext {
+  // Mongo async driver requires Java 8 minimum
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 apply plugin: 'org.unbroken-dome.test-sets'
