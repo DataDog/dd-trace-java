@@ -2,41 +2,26 @@ muzzle {
   pass {
     group = "org.mongodb"
     module = "mongodb-driver-core"
-    versions = "[3.1,)"
+    versions = "[3.4,)"
     assertInverse = true
-    extraDependency 'org.mongodb:mongo-java-driver:3.4.0'
-  }
-  fail {
-    group = "org.mongodb"
-    module = "mongodb-driver-core"
-    versions = "[3.1,)"
-    extraDependency 'org.mongodb:mongo-java-driver:3.3.0'
   }
   pass {
     group = "org.mongodb"
     module = "mongodb-driver-async"
     versions = "[3.4,)"
     assertInverse = true
-  }
-  fail {
-    group = "org.mongodb"
-    module = "mongodb-driver-async"
-    versions = "[3.1,3.4)"
   }
   pass {
     group = "org.mongodb"
     module = "mongodb-driver-sync"
-    versions = "[3.10,)"
+    versions = "[3.4,)"
+    assertInverse = true
   }
   pass {
     group = "org.mongodb"
     module = "mongo-java-driver"
     versions = "[3.4,)"
-  }
-  fail {
-    group = "org.mongodb"
-    module = "mongo-java-driver"
-    versions = "[,3.4)"
+    assertInverse = true
   }
 }
 

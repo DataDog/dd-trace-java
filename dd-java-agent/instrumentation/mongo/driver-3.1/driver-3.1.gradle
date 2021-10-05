@@ -8,14 +8,12 @@ muzzle {
   pass {
     group = "org.mongodb"
     module = "mongodb-driver-async"
-    versions = "[3.0,)"
-    assertInverse = true
+    versions = "[3.1,)"
   }
   pass {
     group = "org.mongodb"
     module = "mongodb-driver-core"
     versions = "[3.1,)"
-    extraDependency 'org.mongodb:mongo-java-driver:3.1.0'
     assertInverse = true
   }
 }
@@ -32,7 +30,7 @@ testSets {
 
 dependencies {
   compileOnly group: 'org.mongodb', name: 'mongo-java-driver', version: '3.1.0'
-  compileOnly group: 'org.mongodb', name: 'mongodb-driver-core', version: '3.3.0'
+  compileOnly group: 'org.mongodb', name: 'mongodb-driver-core', version: '3.1.0'
 
   implementation(project(':dd-java-agent:instrumentation:mongo:common')) {
     transitive = false
@@ -41,8 +39,8 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
   testImplementation group: 'de.flapdoodle.embed', name: 'de.flapdoodle.embed.mongo', version: '1.50.5'
 
+  testImplementation project(':dd-java-agent:instrumentation:mongo:bson-document')
+
   testImplementation group: 'org.mongodb', name: 'mongo-java-driver', version: '3.1.0'
   latestDepTestImplementation group: 'org.mongodb', name: 'mongo-java-driver', version: '+'
-  testImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '3.3.0'
-  latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '+'
 }
