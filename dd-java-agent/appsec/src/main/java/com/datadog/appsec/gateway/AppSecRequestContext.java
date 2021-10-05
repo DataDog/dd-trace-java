@@ -1,6 +1,5 @@
 package com.datadog.appsec.gateway;
 
-import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.CaseInsensitiveMap;
 import com.datadog.appsec.event.data.DataBundle;
@@ -24,7 +23,7 @@ import org.slf4j.LoggerFactory;
 // TODO: different methods to be called by different parts perhaps splitting it would make sense
 // or at least create separate interfaces
 public class AppSecRequestContext implements DataBundle, ReportService, Closeable {
-  private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
+  private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
   private Collection<Attack010> collectedAttacks; // guarded by this
@@ -40,6 +39,8 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
   private int peerPort;
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
+
+  private int responseStatus;
 
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
@@ -169,6 +170,14 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
 
   void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
     this.storedRequestBodySupplier = storedRequestBodySupplier;
+  }
+
+  public int getResponseStatus() {
+    return responseStatus;
+  }
+
+  public void setResponseStatus(int responseStatus) {
+    this.responseStatus = responseStatus;
   }
 
   @Override

@@ -43,6 +43,7 @@ class EventEnrichmentSpecification extends DDSpecification {
         host: ['example.com:8888']])
     1 * dataBundle.get(KnownAddresses.REQUEST_CLIENT_IP) >> '1.2.3.4'
     1 * dataBundle.get(KnownAddresses.REQUEST_CLIENT_PORT) >> 1234
+    1 * dataBundle.get(KnownAddresses.RESPONSE_STATUS) >> 200
 
     1 * spanInfo.spanId >> spanId
     1 * spanInfo.tags >> [foo: 'bar']
