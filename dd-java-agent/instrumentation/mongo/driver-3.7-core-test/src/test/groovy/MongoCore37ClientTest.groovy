@@ -1,7 +1,6 @@
-import com.mongodb.MongoClient
-import com.mongodb.MongoClientOptions
 import com.mongodb.MongoTimeoutException
-import com.mongodb.ServerAddress
+import com.mongodb.client.MongoClient
+import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -15,18 +14,17 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.Checkpointer.END
+import static datadog.trace.api.Checkpointer.SPAN
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
-class MongoClientTest extends MongoBaseTest {
+class MongoCore37ClientTest extends MongoBaseTest {
 
   @Shared
   MongoClient client
 
   def setup() throws Exception {
-    client = new MongoClient(new ServerAddress("localhost", port),
-      MongoClientOptions.builder()
-      .description("some-description")
-      .build())
+    client = MongoClients.create("mongodb://localhost:$port/?appname=some-instance")
   }
 
   def cleanup() throws Exception {
@@ -41,6 +39,7 @@ class MongoClientTest extends MongoBaseTest {
 
     when:
     db.createCollection(collectionName)
+    TEST_WRITER.waitForTraces(1)
 
     then:
     assertTraces(1) {
@@ -48,6 +47,11 @@ class MongoClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", renameService)
       }
     }
+    and: "synchronous checkpoints span the driver activity"
+    1 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    1 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    0 * TEST_CHECKPOINTER._
 
     where:
     collectionName = randomCollectionName()
@@ -56,7 +60,7 @@ class MongoClientTest extends MongoBaseTest {
 
   def "test create collection no description"() {
     setup:
-    MongoDatabase db = new MongoClient("localhost", port).getDatabase(databaseName)
+    MongoDatabase db = MongoClients.create("mongodb://localhost:$port").getDatabase(databaseName)
 
     when:
     db.createCollection(collectionName)
@@ -64,7 +68,7 @@ class MongoClientTest extends MongoBaseTest {
     then:
     assertTraces(1) {
       trace(1) {
-        mongoSpan(it, 0, "create","{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, databaseName)
+        mongoSpan(it, 0, "create", "{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, databaseName)
       }
     }
 
@@ -77,8 +81,8 @@ class MongoClientTest extends MongoBaseTest {
     MongoDatabase db = client.getDatabase(databaseName)
 
     when:
-    int count = db.getCollection(collectionName).count()
-
+    int count = db.getCollection(collectionName).estimatedDocumentCount()
+    TEST_WRITER.waitForTraces(1)
     then:
     count == 0
     assertTraces(1) {
@@ -86,6 +90,11 @@ class MongoClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
+    and: "synchronous checkpoints span the driver activity"
+    1 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    1 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    0 * TEST_CHECKPOINTER._
 
     where:
     collectionName = randomCollectionName()
@@ -103,9 +112,11 @@ class MongoClientTest extends MongoBaseTest {
 
     when:
     collection.insertOne(new Document("password", "SECRET"))
+    def estimatedCount = collection.estimatedDocumentCount()
+    TEST_WRITER.waitForTraces(2)
 
     then:
-    collection.count() == 1
+    estimatedCount == 1
     assertTraces(2) {
       trace(1) {
         mongoSpan(it, 0, "insert", "{\"insert\":\"$collectionName\",\"ordered\":true,\"documents\":[]}")
@@ -114,6 +125,11 @@ class MongoClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
+    and: "syncronous checkpoints span the driver activity"
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    0 * TEST_CHECKPOINTER._
 
     where:
     collectionName = randomCollectionName()
@@ -135,10 +151,12 @@ class MongoClientTest extends MongoBaseTest {
     def result = collection.updateOne(
       new BsonDocument("password", new BsonString("OLDPW")),
       new BsonDocument('$set', new BsonDocument("password", new BsonString("NEWPW"))))
+    def estimatedCount = collection.estimatedDocumentCount()
+    TEST_WRITER.waitForTraces(2)
 
     then:
     result.modifiedCount == 1
-    collection.count() == 1
+    estimatedCount == 1
     assertTraces(2) {
       trace(1) {
         mongoSpan(it, 0, "update", "{\"update\":\"$collectionName\",\"ordered\":true,\"updates\":[]}")
@@ -147,6 +165,11 @@ class MongoClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
+    and: "syncronous checkpoints span the driver activity"
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    0 * TEST_CHECKPOINTER._
 
     where:
     collectionName = randomCollectionName()
@@ -166,10 +189,12 @@ class MongoClientTest extends MongoBaseTest {
 
     when:
     def result = collection.deleteOne(new BsonDocument("password", new BsonString("SECRET")))
+    def estimatedCount = collection.estimatedDocumentCount()
+    TEST_WRITER.waitForTraces(2)
 
     then:
     result.deletedCount == 1
-    collection.count() == 0
+    estimatedCount == 0
     assertTraces(2) {
       trace(1) {
         mongoSpan(it, 0, "delete", "{\"delete\":\"$collectionName\",\"ordered\":true,\"deletes\":[]}")
@@ -178,6 +203,11 @@ class MongoClientTest extends MongoBaseTest {
         mongoSpan(it, 0, "count", "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
+    and: "syncronous checkpoints span the driver activity"
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
+    2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
+    0 * TEST_CHECKPOINTER._
 
     where:
     collectionName = randomCollectionName()
@@ -207,8 +237,7 @@ class MongoClientTest extends MongoBaseTest {
 
   def "test client failure"() {
     setup:
-    def options = MongoClientOptions.builder().serverSelectionTimeout(10).build()
-    def client = new MongoClient(new ServerAddress("localhost", UNUSABLE_PORT), [], options)
+    def client = MongoClients.create("mongodb://localhost:$UNUSABLE_PORT/?serverselectiontimeoutms=10")
 
     when:
     MongoDatabase db = client.getDatabase(databaseName)
@@ -223,7 +252,7 @@ class MongoClientTest extends MongoBaseTest {
     collectionName = randomCollectionName()
   }
 
-  def mongoSpan(TraceAssert trace, int index, String operation, String statement, boolean renameService = false, String instance = "some-description", Object parentSpan = null, Throwable exception = null) {
+  def mongoSpan(TraceAssert trace, int index, String operation, String statement, boolean renameService = false, String instance = "some-instance", Object parentSpan = null, Throwable exception = null) {
     trace.span {
       serviceName renameService ? instance : "mongo"
       operationName "mongo.query"

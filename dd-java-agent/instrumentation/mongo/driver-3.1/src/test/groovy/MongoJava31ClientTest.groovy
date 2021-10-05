@@ -17,7 +17,7 @@ import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
-class MongoClientTest extends MongoBaseTest {
+class MongoJava31ClientTest extends MongoBaseTest {
 
   @Shared
   MongoClient client
