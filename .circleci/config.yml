@@ -561,8 +561,9 @@ workflows:
   nightly:
     triggers:
       - schedule:
-          # Run this job at 00:05 UTC every day
-          cron: "5 0 * * *"
+          # Run this job at 00:35 UTC every day
+          # The 30 minutes will allow weekly to finish before nightly is triggered on Mondays
+          cron: "35 0 * * *"
           filters:
             branches:
               only:
@@ -573,7 +574,7 @@ workflows:
   weekly:
     triggers:
       - schedule:
-          # Run this job at 00:05 UTC on Monday
+          # Run this job at 00:05 UTC every Monday
           cron: "5 0 * * 1"
           filters:
             branches:
