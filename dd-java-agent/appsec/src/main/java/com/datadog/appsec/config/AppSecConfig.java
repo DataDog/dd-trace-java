@@ -1,5 +1,6 @@
 package com.datadog.appsec.config;
 
+import com.datadog.appsec.util.Generated;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import java.util.List;
@@ -58,6 +59,7 @@ public class AppSecConfig {
     }
   }
 
+  @Generated
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -68,6 +70,7 @@ public class AppSecConfig {
         && Objects.equals(rawConfig, config.rawConfig);
   }
 
+  @Generated
   @Override
   public int hashCode() {
     return Objects.hash(version, events, rawConfig);

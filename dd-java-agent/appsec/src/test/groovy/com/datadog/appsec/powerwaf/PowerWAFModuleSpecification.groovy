@@ -11,9 +11,10 @@ import com.datadog.appsec.gateway.AppSecRequestContext
 import com.datadog.appsec.report.raw.events.attack.Attack010
 import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.Parameter
 import com.datadog.appsec.test.StubAppSecConfigService
-import spock.lang.Specification
+import datadog.trace.test.util.DDSpecification
+import io.sqreen.powerwaf.Powerwaf
 
-class PowerWAFModuleSpecification extends Specification {
+class PowerWAFModuleSpecification extends DDSpecification {
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
   new CaseInsensitiveMap<List<String>>(['user-agent': 'Arachni/v0']))
 
@@ -139,7 +140,7 @@ class PowerWAFModuleSpecification extends Specification {
     0 * ctx._
   }
 
-  void 'rule data not a map'() {
+  void 'rule data not a config'() {
     def confService = new StubAppSecConfigService(waf: [])
 
     when:
@@ -151,6 +152,30 @@ class PowerWAFModuleSpecification extends Specification {
 
     then:
     pwafModule.ctx.get() == null
+  }
+
+  void 'bad ActionWithData - empty list'() {
+    def waf = new PowerWAFModule()
+    Powerwaf.ActionWithData actionWithData = new Powerwaf.ActionWithData(null, "[]")
+    Optional ret
+
+    when:
+    ret = waf.buildAttack(actionWithData)
+
+    then:
+    !ret.isPresent()
+  }
+
+  void 'bad ActionWithData - empty object'() {
+    def waf = new PowerWAFModule()
+    Powerwaf.ActionWithData actionWithData = new Powerwaf.ActionWithData(null, "[{}]")
+    Optional ret
+
+    when:
+    ret = waf.buildAttack(actionWithData)
+
+    then:
+    !ret.isPresent()
   }
 
   private Map<String, Object> getDefaultConfig() {

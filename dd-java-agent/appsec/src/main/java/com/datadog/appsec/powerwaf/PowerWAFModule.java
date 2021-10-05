@@ -68,13 +68,7 @@ public class PowerWAFModule implements AppSecModule {
 
     RuleInfo(AppSecConfig.Event event) {
       this.name = event.getName();
-
-      String guessType = "waf";
-      Map<String, String> tags = event.getTags();
-      if (tags != null) {
-        guessType = tags.getOrDefault("type", guessType);
-      }
-      this.type = guessType;
+      this.type = event.getTags().getOrDefault("type", "waf");
     }
   }
 
@@ -111,7 +105,7 @@ public class PowerWAFModule implements AppSecModule {
     try {
       applyConfig(initialConfig.get());
     } catch (ClassCastException e) {
-      throw new AppSecModuleActivationException("Config expected to be AppSecConfig");
+      throw new AppSecModuleActivationException("Config expected to be AppSecConfig", e);
     }
   }
 

@@ -131,4 +131,14 @@ class AppSecConfigServiceImplSpecification extends Specification {
     then:
     1 * fooListener.onNewSubconfig(AppSecConfig.createFromMap([version: 'bar']))
   }
+
+  void 'config should not be created'() {
+    def conf
+
+    when:
+    conf = AppSecConfig.createFromMap(null)
+
+    then:
+    conf == null
+  }
 }
