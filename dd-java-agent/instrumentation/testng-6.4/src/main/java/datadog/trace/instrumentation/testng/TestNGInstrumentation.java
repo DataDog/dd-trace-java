@@ -13,7 +13,7 @@ import org.testng.TestNG;
 import org.testng.annotations.DataProvider;
 
 @AutoService(Instrumenter.class)
-public class TestNGInstrumentation extends Instrumenter.Tracing {
+public class TestNGInstrumentation extends Instrumenter.CiVisibility {
 
   public TestNGInstrumentation() {
     super("testng");

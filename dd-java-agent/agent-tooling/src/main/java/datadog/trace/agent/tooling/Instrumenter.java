@@ -53,12 +53,14 @@ public interface Instrumenter {
    *   <li>{@link TargetSystem#TRACING tracing}
    *   <li>{@link TargetSystem#PROFILING profiling}
    *   <li>{@link TargetSystem#APPSEC appsec}
+   *   <li>{@link TargetSystem#CIVISIBILITY ciVisibility}
    * </ul>
    */
   enum TargetSystem {
     TRACING,
     PROFILING,
-    APPSEC
+    APPSEC,
+    CIVISIBILITY
   }
 
   /**
@@ -399,6 +401,18 @@ public interface Instrumenter {
     @Override
     public boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.APPSEC);
+    }
+  }
+
+  /** Parent class for all ciVisibility related instrumentations */
+  abstract class CiVisibility extends Default {
+    public CiVisibility(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.CIVISIBILITY);
     }
   }
 

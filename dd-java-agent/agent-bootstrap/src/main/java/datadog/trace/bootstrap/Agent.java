@@ -78,122 +78,145 @@ public class Agent {
   private static boolean profilingEnabled = false;
   private static boolean appSecEnabled = false;
   private static boolean cwsEnabled = false;
+  private static boolean ciVisibilityEnabled = false;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createSharedClassloader(bootstrapURL);
+    ciVisibilityEnabled = isCiVisibilityEnabled();
 
-    jmxFetchEnabled = isJmxFetchEnabled();
-    profilingEnabled = isProfilingEnabled();
-    appSecEnabled = isAppSecEnabled();
-    cwsEnabled = isCwsEnabled();
+    if (ciVisibilityEnabled) {
+      AgentTaskScheduler.initialize();
+      startDatadogAgent(inst, bootstrapURL);
 
-    if (profilingEnabled) {
-      if (!isOracleJDK8()) {
-        // Profiling agent startup code is written in a way to allow `startProfilingAgent` be called
-        // multiple times
-        // If early profiling is enabled then this call will start profiling.
-        // If early profiling is disabled then later call will do this.
-        startProfilingAgent(bootstrapURL, true);
+      final EnumSet<Library> libraries = detectLibraries(log);
+      final boolean appUsingCustomLogManager = isAppUsingCustomLogManager(libraries);
+
+      InstallDatadogTracerCallback installDatadogTracerCallback =
+          new InstallDatadogTracerCallback(bootstrapURL);
+      if (isJavaBefore9WithJFR() && appUsingCustomLogManager) {
+        log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
+        registerLogManagerCallback(installDatadogTracerCallback);
       } else {
-        log.debug("Oracle JDK 8 detected. Delaying profiler initialization.");
-        // Profiling can not run early on Oracle JDK 8 because it will cause JFR initialization
-        // deadlock.
-        // Oracle JDK 8 JFR controller requires JMX so register an 'after-jmx-initialized' callback.
-        PROFILER_INIT_AFTER_JMX =
-            new AgentTaskScheduler.Task<URL>() {
-              @Override
-              public void run(URL target) {
-                startProfilingAgent(target, false);
-              }
-            };
+        installDatadogTracerCallback.execute();
       }
-    }
 
-    if (cwsEnabled) {
-      startCwsAgent();
-    }
-
-    /*
-     * Force the task scheduler init early. The exception profiling instrumentation may get in way of the initialization
-     * when it will happen after the class transformers were added.
-     */
-    AgentTaskScheduler.initialize();
-    startDatadogAgent(inst, bootstrapURL);
-
-    if (appSecEnabled) {
-      if (isJavaVersionAtLeast(8)) {
-        try {
-          APPSEC_CLASSLOADER =
-              createDelegateClassLoader("appsec", bootstrapURL, SHARED_CLASSLOADER);
-        } catch (Exception e) {
-          log.error("Error creating appsec classloader", e);
-        }
-      } else {
-        log.warn("AppSec System requires Java 8 or later to run");
-      }
-    }
-
-    final EnumSet<Library> libraries = detectLibraries(log);
-
-    final boolean appUsingCustomLogManager = isAppUsingCustomLogManager(libraries);
-    final boolean appUsingCustomJMXBuilder = isAppUsingCustomJMXBuilder(libraries);
-
-    /*
-     * java.util.logging.LogManager maintains a final static LogManager, which is created during class initialization.
-     *
-     * JMXFetch uses jre bootstrap classes which touch this class. This means applications which require a custom log
-     * manager may not have a chance to set the global log manager if jmxfetch runs first. JMXFetch will incorrectly
-     * set the global log manager in cases where the app sets the log manager system property or when the log manager
-     * class is not on the system classpath.
-     *
-     * Our solution is to delay the initialization of jmxfetch when we detect a custom log manager being used.
-     *
-     * Once we see the LogManager class loading, it's safe to start jmxfetch because the application is already setting
-     * the global log manager and jmxfetch won't be able to touch it due to classloader locking.
-     *
-     * Likewise if a custom JMX builder is configured which is not on the system classpath then we delay starting
-     * JMXFetch until we detect the custom MBeanServerBuilder is being used. This takes precedence over the custom
-     * log manager check because any custom log manager will be installed before any custom MBeanServerBuilder.
-     */
-    if (jmxFetchEnabled || profilingEnabled) { // both features use JMX
-      int jmxStartDelay = getJmxStartDelay();
-      if (appUsingCustomJMXBuilder) {
-        log.debug("Custom JMX builder detected. Delaying JMXFetch initialization.");
-        registerMBeanServerBuilderCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay));
-        // one minute fail-safe in case nothing touches JMX and and callback isn't triggered
-        scheduleJmxStart(bootstrapURL, 60 + jmxStartDelay);
-      } else if (appUsingCustomLogManager) {
-        log.debug("Custom logger detected. Delaying JMXFetch initialization.");
-        registerLogManagerCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay));
-      } else {
-        scheduleJmxStart(bootstrapURL, jmxStartDelay);
-      }
-    }
-
-    /*
-     * Similar thing happens with DatadogTracer on (at least) zulu-8 because it uses OkHttp which indirectly loads JFR
-     * events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different
-     * logging facility.
-     */
-    InstallDatadogTracerCallback installDatadogTracerCallback =
-        new InstallDatadogTracerCallback(bootstrapURL);
-    if (isJavaBefore9WithJFR() && appUsingCustomLogManager) {
-      log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
-      registerLogManagerCallback(installDatadogTracerCallback);
     } else {
-      installDatadogTracerCallback.execute();
-    }
+      jmxFetchEnabled = isJmxFetchEnabled();
+      profilingEnabled = isProfilingEnabled();
+      appSecEnabled = isAppSecEnabled();
+      cwsEnabled = isCwsEnabled();
 
-    /*
-     * Similar thing happens with Profiler on zulu-8 because it is using OkHttp which indirectly loads JFR events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different logging facility.
-     */
-    if (profilingEnabled && !isOracleJDK8()) {
-      if (!isJavaVersionAtLeast(9) && appUsingCustomLogManager) {
-        log.debug("Custom logger detected. Delaying JMXFetch initialization.");
-        registerLogManagerCallback(new StartProfilingAgentCallback(bootstrapURL));
+
+      if (profilingEnabled) {
+        if (!isOracleJDK8()) {
+          // Profiling agent startup code is written in a way to allow `startProfilingAgent` be
+          // called
+          // multiple times
+          // If early profiling is enabled then this call will start profiling.
+          // If early profiling is disabled then later call will do this.
+          startProfilingAgent(bootstrapURL, true);
+        } else {
+          log.debug("Oracle JDK 8 detected. Delaying profiler initialization.");
+          // Profiling can not run early on Oracle JDK 8 because it will cause JFR initialization
+          // deadlock.
+          // Oracle JDK 8 JFR controller requires JMX so register an 'after-jmx-initialized'
+          // callback.
+          PROFILER_INIT_AFTER_JMX =
+              new AgentTaskScheduler.Task<URL>() {
+                @Override
+                public void run(URL target) {
+                  startProfilingAgent(target, false);
+                }
+              };
+        }
+      }
+
+      if (cwsEnabled) {
+        startCwsAgent();
+      }
+
+      /*
+       * Force the task scheduler init early. The exception profiling instrumentation may get in way of the initialization
+       * when it will happen after the class transformers were added.
+       */
+      AgentTaskScheduler.initialize();
+      startDatadogAgent(inst, bootstrapURL);
+
+      if (appSecEnabled) {
+        if (isJavaVersionAtLeast(8)) {
+          try {
+            APPSEC_CLASSLOADER =
+                createDelegateClassLoader("appsec", bootstrapURL, SHARED_CLASSLOADER);
+          } catch (Exception e) {
+            log.error("Error creating appsec classloader", e);
+          }
+        } else {
+          log.warn("AppSec System requires Java 8 or later to run");
+        }
+      }
+
+      final EnumSet<Library> libraries = detectLibraries(log);
+
+      final boolean appUsingCustomLogManager = isAppUsingCustomLogManager(libraries);
+      final boolean appUsingCustomJMXBuilder = isAppUsingCustomJMXBuilder(libraries);
+
+      /*
+       * java.util.logging.LogManager maintains a final static LogManager, which is created during class initialization.
+       *
+       * JMXFetch uses jre bootstrap classes which touch this class. This means applications which require a custom log
+       * manager may not have a chance to set the global log manager if jmxfetch runs first. JMXFetch will incorrectly
+       * set the global log manager in cases where the app sets the log manager system property or when the log manager
+       * class is not on the system classpath.
+       *
+       * Our solution is to delay the initialization of jmxfetch when we detect a custom log manager being used.
+       *
+       * Once we see the LogManager class loading, it's safe to start jmxfetch because the application is already setting
+       * the global log manager and jmxfetch won't be able to touch it due to classloader locking.
+       *
+       * Likewise if a custom JMX builder is configured which is not on the system classpath then we delay starting
+       * JMXFetch until we detect the custom MBeanServerBuilder is being used. This takes precedence over the custom
+       * log manager check because any custom log manager will be installed before any custom MBeanServerBuilder.
+       */
+      if (jmxFetchEnabled || profilingEnabled) { // both features use JMX
+        int jmxStartDelay = getJmxStartDelay();
+        if (appUsingCustomJMXBuilder) {
+          log.debug("Custom JMX builder detected. Delaying JMXFetch initialization.");
+          registerMBeanServerBuilderCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay));
+          // one minute fail-safe in case nothing touches JMX and and callback isn't triggered
+          scheduleJmxStart(bootstrapURL, 60 + jmxStartDelay);
+        } else if (appUsingCustomLogManager) {
+          log.debug("Custom logger detected. Delaying JMXFetch initialization.");
+          registerLogManagerCallback(new StartJmxCallback(bootstrapURL, jmxStartDelay));
+        } else {
+          scheduleJmxStart(bootstrapURL, jmxStartDelay);
+        }
+      }
+
+      /*
+       * Similar thing happens with DatadogTracer on (at least) zulu-8 because it uses OkHttp which indirectly loads JFR
+       * events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different
+       * logging facility.
+       */
+      InstallDatadogTracerCallback installDatadogTracerCallback =
+          new InstallDatadogTracerCallback(bootstrapURL);
+      if (isJavaBefore9WithJFR() && appUsingCustomLogManager) {
+        log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
+        registerLogManagerCallback(installDatadogTracerCallback);
       } else {
-        // Anything above 8 is OpenJDK implementation and is safe to run synchronously
-        startProfilingAgent(bootstrapURL, false);
+        installDatadogTracerCallback.execute();
+      }
+
+      /*
+       * Similar thing happens with Profiler on zulu-8 because it is using OkHttp which indirectly loads JFR events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different logging facility.
+       */
+      if (profilingEnabled && !isOracleJDK8()) {
+        if (!isJavaVersionAtLeast(9) && appUsingCustomLogManager) {
+          log.debug("Custom logger detected. Delaying JMXFetch initialization.");
+          registerLogManagerCallback(new StartProfilingAgentCallback(bootstrapURL));
+        } else {
+          // Anything above 8 is OpenJDK implementation and is safe to run synchronously
+          startProfilingAgent(bootstrapURL, false);
+        }
       }
     }
   }
@@ -774,6 +797,17 @@ public class Agent {
     }
     // assume false unless it's explicitly set to "true"
     return "true".equalsIgnoreCase(cwsEnabled);
+  }
+
+  /** @return {@code true} if ciVisibility is enabled */
+  private static boolean isCiVisibilityEnabled() {
+    final String ciVisibilityEnabledSysprop = "dd.civisibility.enabled";
+    String ciVisibilityEnabled = System.getProperty(ciVisibilityEnabledSysprop);
+    if (ciVisibilityEnabled == null) {
+      ciVisibilityEnabled = ddGetEnv(ciVisibilityEnabledSysprop);
+    }
+    // assume false unless it's explicitly set to "true"
+    return "true".equalsIgnoreCase(ciVisibilityEnabled);
   }
 
   /** @return configured JMX start delay in seconds */

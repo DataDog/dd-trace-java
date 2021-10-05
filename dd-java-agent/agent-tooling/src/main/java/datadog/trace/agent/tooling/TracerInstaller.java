@@ -4,6 +4,8 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.ci.CITracer;
+import datadog.trace.ci.CITracerFactory;
 import datadog.trace.core.CoreTracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +15,14 @@ public class TracerInstaller {
   /** Register a global tracer if no global tracer is already registered. */
   public static synchronized void installGlobalTracer(
       SharedCommunicationObjects sharedCommunicationObjects) {
-    if (Config.get().isTraceEnabled()) {
+    if (Config.get().isCiVisibilityEnabled()) {
+      if (!(GlobalTracer.get() instanceof CITracer)) {
+        installGlobalTracer(
+            CITracerFactory.createCITracer(Config.get(), sharedCommunicationObjects));
+      } else {
+        log.debug("GlobalTracer already registered.");
+      }
+    } else if (Config.get().isTraceEnabled()) {
       if (!(GlobalTracer.get() instanceof CoreTracer)) {
         installGlobalTracer(
             CoreTracer.builder().sharedCommunicationObjects(sharedCommunicationObjects).build());
@@ -25,7 +34,7 @@ public class TracerInstaller {
     }
   }
 
-  public static void installGlobalTracer(final CoreTracer tracer) {
+  public static void installGlobalTracer(final AgentTracer.TracerAPI tracer) {
     try {
       GlobalTracer.registerIfAbsent(tracer);
       AgentTracer.registerIfAbsent(tracer);
