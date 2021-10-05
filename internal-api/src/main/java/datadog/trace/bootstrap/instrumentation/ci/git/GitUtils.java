@@ -1,7 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.ci.git;
 
+import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.decode;
+import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.nextLF;
+
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 
 public class GitUtils {
@@ -58,5 +62,44 @@ public class GitUtils {
     } catch (final URISyntaxException ex) {
       return urlStr;
     }
+  }
+
+  /**
+   * Splits the git author in the form `John Doe <john.doe@email.com>` in a PersonInfo with name:
+   * John Doe and email: john.doe@email.com
+   *
+   * @param rawAuthor
+   * @return PersonInfo
+   */
+  public static PersonInfo splitAuthorAndEmail(String rawAuthor) {
+    if (rawAuthor == null || rawAuthor.isEmpty()) {
+      return PersonInfo.NOOP;
+    }
+
+    final byte[] raw = rawAuthor.getBytes(StandardCharsets.UTF_8);
+    final int nameB = 0;
+
+    // First, we find the index where the email starts and ends:
+    final int emailB = nextLF(raw, nameB, '<');
+    final int emailE = nextLF(raw, emailB, '>');
+    if (emailB >= raw.length
+        || raw[emailB] == '\n'
+        || (emailE >= raw.length - 1 && raw[emailE - 1] != '>')) {
+      return PersonInfo.NOOP;
+    }
+
+    // We need to find which is the index where the name ends,
+    // using the relative position where the email starts.
+    final int nameEnd = emailB - 2 >= nameB && raw[emailB - 2] == ' ' ? emailB - 2 : emailB - 1;
+
+    // Once we have the indexes where the name starts and ends
+    // we can extract the name.
+    final String name = decode(raw, nameB, nameEnd);
+
+    // Same approach to extract the email, using the indexes
+    // where the email starts and ends.
+    final String email = decode(raw, emailB, emailE - 1);
+
+    return new PersonInfo(name, email);
   }
 }
