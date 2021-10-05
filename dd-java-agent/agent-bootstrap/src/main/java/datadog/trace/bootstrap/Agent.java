@@ -92,7 +92,7 @@ public class Agent {
       final boolean appUsingCustomLogManager = isAppUsingCustomLogManager(libraries);
 
       InstallDatadogTracerCallback installDatadogTracerCallback =
-          new InstallDatadogTracerCallback(bootstrapURL);
+          new InstallDatadogTracerCallback(bootstrapURL, ciVisibilityEnabled);
       if (isJavaBefore9WithJFR() && appUsingCustomLogManager) {
         log.debug("Custom logger detected. Delaying Datadog Tracer initialization.");
         registerLogManagerCallback(installDatadogTracerCallback);
@@ -318,8 +318,16 @@ public class Agent {
   }
 
   protected static class InstallDatadogTracerCallback extends ClassLoadCallBack {
+    private final boolean ciVisibilityEnabled;
+
+    InstallDatadogTracerCallback(final URL bootstrapURL, final boolean ciVisibilityEnabled) {
+      super(bootstrapURL);
+      this.ciVisibilityEnabled = ciVisibilityEnabled;
+    }
+
     InstallDatadogTracerCallback(final URL bootstrapURL) {
       super(bootstrapURL);
+      this.ciVisibilityEnabled = false;
     }
 
     @Override
@@ -345,7 +353,10 @@ public class Agent {
       }
 
       installDatadogTracer(scoClass, sco);
-      maybeStartAppSec(scoClass, sco);
+
+      if (!ciVisibilityEnabled) {
+        maybeStartAppSec(scoClass, sco);
+      }
     }
   }
 
