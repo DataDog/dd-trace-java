@@ -125,13 +125,6 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         @Advice.Argument(0) final Destination destination,
         @Advice.Argument(1) final Message message,
         @Advice.This final MessageProducer producer) {
-      MessageProducerState producerState =
-          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-              .get(producer);
-      if (null == producerState) {
-        return null;
-      }
-
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
       if (callDepth > 0) {
         return null;
@@ -149,7 +142,12 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         propagate().inject(span, message, SETTER);
       }
       if (!Config.get().isJmsLegacyTracingEnabled()) {
-        SETTER.injectTimeInQueue(message, producerState);
+        MessageProducerState producerState =
+            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
+                .get(producer);
+        if (null != producerState) {
+          SETTER.injectTimeInQueue(message, producerState);
+        }
       }
       return activateSpan(span);
     }
