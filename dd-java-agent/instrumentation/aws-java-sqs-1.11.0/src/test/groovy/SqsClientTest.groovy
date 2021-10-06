@@ -55,11 +55,7 @@ class SqsClientTest extends AgentTestRunner {
     def messages = client.receiveMessage(queueUrl).messages
 
     then:
-    def sendSpan = TEST_WRITER.get(0).get(2)
-    assert messages[0].attributes['AWSTraceHeader'] ==
-    "Root=1-00000000-00000000${sendSpan.traceId.toHexStringPadded(16)};" +
-    "Parent=${sendSpan.spanId.toHexStringPadded(16)};Sampled=1"
-
+    def sendSpan
     assertTraces(2) {
       trace(3) {
         basicSpan(it, "parent")
@@ -105,6 +101,7 @@ class SqsClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
+        sendSpan = span(2)
       }
       trace(2) {
         span {
@@ -152,6 +149,10 @@ class SqsClientTest extends AgentTestRunner {
       }
     }
 
+    assert messages[0].attributes['AWSTraceHeader'] ==
+    "Root=1-00000000-00000000${sendSpan.traceId.toHexStringPadded(16)};" +
+    "Parent=${sendSpan.spanId.toHexStringPadded(16)};Sampled=1"
+
     cleanup:
     client.shutdown()
   }
@@ -181,12 +182,7 @@ class SqsClientTest extends AgentTestRunner {
     consumer.receiveNoWait()
 
     then:
-    def expectedTraceProperty = 'X-Amzn-Trace-Id'.toLowerCase(Locale.ENGLISH).replace('-', '__dash__')
-    def sendSpan = TEST_WRITER.get(0).get(2)
-    assert message.getStringProperty(expectedTraceProperty) ==
-    "Root=1-00000000-00000000${sendSpan.traceId.toHexStringPadded(16)};" +
-    "Parent=${sendSpan.spanId.toHexStringPadded(16)};Sampled=1"
-
+    def sendSpan
     assertTraces(3) {
       trace(2) {
         span {
@@ -276,6 +272,7 @@ class SqsClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
+        sendSpan = span(2)
       }
       trace(2) {
         span {
@@ -322,6 +319,11 @@ class SqsClientTest extends AgentTestRunner {
         }
       }
     }
+
+    def expectedTraceProperty = 'X-Amzn-Trace-Id'.toLowerCase(Locale.ENGLISH).replace('-', '__dash__')
+    assert message.getStringProperty(expectedTraceProperty) ==
+    "Root=1-00000000-00000000${sendSpan.traceId.toHexStringPadded(16)};" +
+    "Parent=${sendSpan.spanId.toHexStringPadded(16)};Sampled=1"
 
     cleanup:
     session.close()
