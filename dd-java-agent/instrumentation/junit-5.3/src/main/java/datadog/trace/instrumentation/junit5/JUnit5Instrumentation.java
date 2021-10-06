@@ -47,7 +47,7 @@ public class JUnit5Instrumentation extends Instrumenter.CiVisibility {
 
   @Override
   protected boolean defaultEnabled() {
-    return false;
+    return true;
   }
 
   public static class JUnit5Advice {

@@ -502,9 +502,19 @@ public class Config {
         configProvider.getString(
             SERVLET_ROOT_CONTEXT_SERVICE_NAME, DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
 
+    ciVisibilityEnabled =
+        configProvider.getBoolean(CIVISIBLITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
+
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
+
+    boolean defaultIntegrationsEnabled = !ciVisibilityEnabled && DEFAULT_INTEGRATIONS_ENABLED;
     integrationsEnabled =
-        configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
+        configProvider.getBoolean(INTEGRATIONS_ENABLED, defaultIntegrationsEnabled);
+    if (ciVisibilityEnabled) {
+      log.warn(
+          "All integrations except the supported testing frameworks are disabled by default using CI Visibility mode.");
+    }
+
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
 
     idGenerationStrategy =
@@ -677,9 +687,10 @@ public class Config {
 
     boolean runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
 
+    boolean defaultJmxFetchEnabled = !ciVisibilityEnabled && DEFAULT_JMX_FETCH_ENABLED;
     jmxFetchEnabled =
         runtimeMetricsEnabled
-            && configProvider.getBoolean(JMX_FETCH_ENABLED, DEFAULT_JMX_FETCH_ENABLED);
+            && configProvider.getBoolean(JMX_FETCH_ENABLED, defaultJmxFetchEnabled);
     jmxFetchConfigDir = configProvider.getString(JMX_FETCH_CONFIG_DIR);
     jmxFetchConfigs = tryMakeImmutableList(configProvider.getList(JMX_FETCH_CONFIG));
     jmxFetchMetricsConfigs =
@@ -826,9 +837,6 @@ public class Config {
 
     appSecEnabled = configProvider.getBoolean(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
-
-    ciVisibilityEnabled =
-        configProvider.getBoolean(CIVISIBLITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
 
     jdbcPreparedStatementClassName =
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");

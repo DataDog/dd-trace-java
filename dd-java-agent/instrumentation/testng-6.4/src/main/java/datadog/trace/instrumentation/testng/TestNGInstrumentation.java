@@ -38,7 +38,7 @@ public class TestNGInstrumentation extends Instrumenter.CiVisibility {
 
   @Override
   protected boolean defaultEnabled() {
-    return false;
+    return true;
   }
 
   public static class TestNGAdvice {
