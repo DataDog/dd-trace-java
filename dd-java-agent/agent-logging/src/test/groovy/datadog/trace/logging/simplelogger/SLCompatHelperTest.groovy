@@ -70,7 +70,7 @@ class SLCompatHelperTest extends Specification {
     def printStream = new PrintStream(outputStream, true)
     def settings = new SLCompatSettings(new Properties(), new Properties(), printStream)
     def helper = new SLCompatHelper(name, settings)
-    helper.log(level, msg, null)
+    helper.log(level, null, msg, null)
 
     then:
     outputStream.toString() == expected
@@ -91,7 +91,7 @@ class SLCompatHelperTest extends Specification {
     def settings = new SLCompatSettings(new Properties(), new Properties(), printStream)
     def helper = new SLCompatHelper("foo", settings)
     def exception = new NoStackException("wrong")
-    helper.log(LogLevel.ERROR, "log", exception)
+    helper.log(LogLevel.ERROR, null, "log", exception)
 
     expect:
     outputStream.toString() == "[$thread] ERROR foo - log\n${NoStackException.getName()}: wrong\n"
@@ -108,7 +108,7 @@ class SLCompatHelperTest extends Specification {
     try {
       throw new IOException("wrong")
     } catch(Exception exception) {
-      helper.log(level, "log", exception)
+      helper.log(level, null, "log", exception)
     }
 
     expect:
@@ -127,7 +127,7 @@ class SLCompatHelperTest extends Specification {
     props.setProperty(SLCompatSettings.Keys.SHOW_DATE_TIME, "true")
     def settings = new SLCompatSettings(props, new Properties(), printStream)
     def helper = new SLCompatHelper("foo", settings)
-    helper.log(LogLevel.ERROR, "log", null)
+    helper.log(LogLevel.ERROR, null, "log", null)
 
     expect:
     outputStream.toString() ==~ /^\d+ ERROR foo - log\n$/
@@ -141,7 +141,7 @@ class SLCompatHelperTest extends Specification {
     def dateTimeFormatter = SLCompatSettings.DTFormatter.create(dateTFS)
     def settings = new SLCompatSettings(props, props, warnS, showB, printStream, showS, showL, showT, dateTimeFormatter, showDT, LogLevel.INFO, false)
     def helper = new SLCompatHelper("foo.bar", settings)
-    helper.log(level, 0, 4711, "thread", "log", null)
+    helper.log(level, null, 0, 4711, "thread", "log", null)
 
     then:
     outputStream.toString() == expected

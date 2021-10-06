@@ -359,7 +359,6 @@ public class DDLogger implements Logger {
   }
 
   private void alwaysLog(LogLevel level, Marker marker, String msg, Throwable t) {
-    // TODO Ignoring Marker for now since SLCompatHelper ignores it as well
-    helper.log(level, msg, t);
+    helper.log(level, marker, msg, t);
   }
 }

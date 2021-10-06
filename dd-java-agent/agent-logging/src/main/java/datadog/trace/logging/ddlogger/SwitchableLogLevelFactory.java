@@ -50,8 +50,8 @@ public final class SwitchableLogLevelFactory extends LoggerHelperFactory
     }
 
     @Override
-    public void log(LogLevel level, String message, Throwable t) {
-      delegate.log(level, message, t);
+    public void log(LogLevel level, Marker marker, String message, Throwable t) {
+      delegate.log(level, marker, message, t);
     }
   }
 
