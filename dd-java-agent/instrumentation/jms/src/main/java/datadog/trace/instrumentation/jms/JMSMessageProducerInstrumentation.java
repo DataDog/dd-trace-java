@@ -80,26 +80,42 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beforeSend(
         @Advice.Argument(0) final Message message, @Advice.This final MessageProducer producer) {
-      MessageProducerState producerState =
-          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-              .get(producer);
-      if (null == producerState) {
-        return null;
-      }
-
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
       if (callDepth > 0) {
         return null;
       }
 
+      MessageProducerState producerState =
+          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
+              .get(producer);
+
+      CharSequence resourceName;
+      if (null != producerState) {
+        resourceName = producerState.getResourceName();
+      } else {
+        try {
+          Destination destination = producer.getDestination();
+          boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
+          String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
+          resourceName =
+              PRODUCER_DECORATE.toResourceName(destinationName, isQueue) + " (null state)";
+        } catch (Exception e) {
+          resourceName = "Unknown destination (" + e + ")";
+        }
+      }
+
       final AgentSpan span = startSpan(JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, producerState.getResourceName());
-      if (Config.get().isJMSPropagationEnabled() && !producerState.isPropagationDisabled()) {
+      PRODUCER_DECORATE.onProduce(span, resourceName);
+      if (Config.get().isJMSPropagationEnabled()
+          && null != producerState
+          && !producerState.isPropagationDisabled()) {
         propagate().inject(span, message, SETTER);
       }
       if (!Config.get().isJmsLegacyTracingEnabled()) {
-        SETTER.injectTimeInQueue(message, producerState);
+        if (null != producerState) {
+          SETTER.injectTimeInQueue(message, producerState);
+        }
       }
       return activateSpan(span);
     }
