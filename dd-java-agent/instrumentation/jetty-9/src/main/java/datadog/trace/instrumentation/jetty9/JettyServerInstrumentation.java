@@ -111,6 +111,8 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
       req.setAttribute(DD_SPAN_ATTRIBUTE, span);
       req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
+      // request may be processed on any thread; signal thread migration
+      span.startThreadMigration();
       return scope;
     }
 
@@ -133,6 +135,8 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
         final AgentSpan span = (AgentSpan) spanObj;
         DECORATE.onResponse(span, channel);
         DECORATE.beforeFinish(span);
+        // span could have been originated on a different thread and migrated
+        span.finishThreadMigration();
         span.finish();
       }
     }
