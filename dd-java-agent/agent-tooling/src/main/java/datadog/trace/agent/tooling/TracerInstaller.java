@@ -3,10 +3,14 @@ package datadog.trace.agent.tooling;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.ci.CITracer;
-import datadog.trace.ci.CITracerFactory;
+import datadog.trace.common.sampling.ForcePrioritySampler;
+import datadog.trace.common.writer.DDAgentWriter;
+import datadog.trace.common.writer.Writer;
+import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.core.CoreTracer;
+import datadog.trace.core.DDSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,17 +19,21 @@ public class TracerInstaller {
   /** Register a global tracer if no global tracer is already registered. */
   public static synchronized void installGlobalTracer(
       SharedCommunicationObjects sharedCommunicationObjects) {
-    if (Config.get().isCiVisibilityEnabled()) {
-      if (!(GlobalTracer.get() instanceof CITracer)) {
-        installGlobalTracer(
-            CITracerFactory.createCITracer(Config.get(), sharedCommunicationObjects));
-      } else {
-        log.debug("GlobalTracer already registered.");
-      }
-    } else if (Config.get().isTraceEnabled()) {
+    if (Config.get().isTraceEnabled() || Config.get().isCiVisibilityEnabled()) {
       if (!(GlobalTracer.get() instanceof CoreTracer)) {
-        installGlobalTracer(
-            CoreTracer.builder().sharedCommunicationObjects(sharedCommunicationObjects).build());
+        final CoreTracer.CoreTracerBuilder tracerBuilder =
+            CoreTracer.builder().sharedCommunicationObjects(sharedCommunicationObjects);
+
+        if (Config.get().isCiVisibilityEnabled()) {
+          final Writer ciWriter =
+              DDAgentWriter.builder().prioritization(Prioritization.ENSURE_TRACE).build();
+          tracerBuilder
+              .writer(ciWriter)
+              .sampler(new ForcePrioritySampler<DDSpan>(PrioritySampling.SAMPLER_KEEP));
+
+          log.debug("Configuring tracer for CI Visibility.");
+        }
+        installGlobalTracer(tracerBuilder.build());
       } else {
         log.debug("GlobalTracer already registered.");
       }
@@ -34,7 +42,7 @@ public class TracerInstaller {
     }
   }
 
-  public static void installGlobalTracer(final AgentTracer.TracerAPI tracer) {
+  public static void installGlobalTracer(final CoreTracer tracer) {
     try {
       GlobalTracer.registerIfAbsent(tracer);
       AgentTracer.registerIfAbsent(tracer);
