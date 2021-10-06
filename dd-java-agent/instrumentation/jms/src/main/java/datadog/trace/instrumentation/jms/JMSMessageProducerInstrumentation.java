@@ -80,15 +80,15 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beforeSend(
         @Advice.Argument(0) final Message message, @Advice.This final MessageProducer producer) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
       MessageProducerState producerState =
           InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
               .get(producer);
       if (null == producerState) {
+        return null;
+      }
+
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
+      if (callDepth > 0) {
         return null;
       }
 
@@ -125,15 +125,15 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         @Advice.Argument(0) final Destination destination,
         @Advice.Argument(1) final Message message,
         @Advice.This final MessageProducer producer) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
       MessageProducerState producerState =
           InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
               .get(producer);
       if (null == producerState) {
+        return null;
+      }
+
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
+      if (callDepth > 0) {
         return null;
       }
 
