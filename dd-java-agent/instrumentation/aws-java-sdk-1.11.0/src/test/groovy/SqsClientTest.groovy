@@ -2,13 +2,8 @@ import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
 import com.amazon.sqs.javamessaging.message.SQSTextMessage
 import com.amazonaws.SDKGlobalConfiguration
-import com.amazonaws.auth.AWSCredentialsProviderChain
 import com.amazonaws.auth.AWSStaticCredentialsProvider
 import com.amazonaws.auth.AnonymousAWSCredentials
-import com.amazonaws.auth.EnvironmentVariableCredentialsProvider
-import com.amazonaws.auth.InstanceProfileCredentialsProvider
-import com.amazonaws.auth.SystemPropertiesCredentialsProvider
-import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.client.builder.AwsClientBuilder
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder
 import datadog.trace.agent.test.AgentTestRunner
@@ -21,15 +16,8 @@ import spock.lang.Shared
 import javax.jms.Session
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class SqsClientTest extends AgentTestRunner {
-
-  private static final CREDENTIALS_PROVIDER_CHAIN = new AWSCredentialsProviderChain(
-  new EnvironmentVariableCredentialsProvider(),
-  new SystemPropertiesCredentialsProvider(),
-  new ProfileCredentialsProvider(),
-  new InstanceProfileCredentialsProvider())
 
   def setup() {
     System.setProperty(SDKGlobalConfiguration.ACCESS_KEY_SYSTEM_PROPERTY, "my-access-key")
