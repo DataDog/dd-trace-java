@@ -132,7 +132,7 @@ public class StandardizedLogging {
       }
     }
 
-    logger.info("Detected an attack from rule {}", ruleId);
+    logger.info("Detecting an attack from rule {}", ruleId);
     logger.debug("Detecting an attack from rule {}: {}", ruleId, attack.getRuleMatch());
   }
 
