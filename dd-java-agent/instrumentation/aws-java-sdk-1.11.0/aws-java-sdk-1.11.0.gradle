@@ -36,8 +36,6 @@ testSets {
 
 dependencies {
   compileOnly group: 'com.amazonaws', name: 'aws-java-sdk-core', version: '1.11.0'
-  compileOnly group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '1.11.0'
-  compileOnly group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '1.0.0'
 
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient-4')
@@ -52,10 +50,6 @@ dependencies {
 
   // needed for kinesis:
   testImplementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: versions.jackson
-
-  // SQS x-ray testing:
-  testImplementation group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.13', version: '1.2.3'
-  testImplementation group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '1.0.8'
 
   test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-s3') {
     version {
