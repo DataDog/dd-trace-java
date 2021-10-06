@@ -19,7 +19,7 @@ class IntervalValidator extends AbstractValidator {
 
     def close(int tick) {
       endTick = tick
-      state = IntervalState.CLOSED
+      state = state != IntervalState.INACTIVE ? IntervalState.CLOSED : state
     }
 
     String toString() {
@@ -27,7 +27,7 @@ class IntervalValidator extends AbstractValidator {
     }
   }
 
-  def openIntervalsBySpan = new HashMap<Long, SpanInterval>()
+  def openIntervalsBySpan = new HashMap<Long, Deque<SpanInterval>>()
   def intervalsByTime = new ArrayList<>()
   def tick = 0
 
@@ -43,9 +43,14 @@ class IntervalValidator extends AbstractValidator {
   def startSpan(def spanId) {
     tick++
 
-    def interval = openIntervalsBySpan.get(spanId)
-    if (interval == null) {
-      openIntervalsBySpan.put(spanId, (interval = new SpanInterval(spanId,  event, tick)))
+    def spanIntervals = openIntervalsBySpan.get(spanId)
+    if (spanIntervals == null) {
+      spanIntervals = new ArrayDeque<SpanInterval>()
+      openIntervalsBySpan.put(spanId, spanIntervals)
+    }
+    if (spanIntervals.empty) {
+      def interval = new SpanInterval(spanId,  event, tick)
+      spanIntervals.push(interval)
       intervalsByTime.add(interval)
       return Result.OK
     }
@@ -80,13 +85,20 @@ class IntervalValidator extends AbstractValidator {
     }
     def interval = new SpanInterval(spanId, event, tick)
     interval.state = IntervalState.INACTIVE
-    openIntervalsBySpan.put(spanId, interval)
+    openIntervalsBySpan.get(spanId)?.push(interval)
     intervalsByTime.add(interval)
     return Result.OK
   }
 
   def closeInterval(def spanId, def requireExisting = false) {
-    def interval = openIntervalsBySpan.remove(spanId)
+    def spanIntervals = openIntervalsBySpan.get(spanId)
+    if (spanIntervals == null || spanIntervals.empty) {
+      if (requireExisting) {
+        return Result.FAILED.withMessage("Attempting to close an interval for a non-existing span ${spanId}")
+      }
+      return Result.OK
+    }
+    def interval = spanIntervals.pop()
     if (interval == null) {
       if (requireExisting) {
         return Result.FAILED.withMessage("Attempting to close an interval for a non-existing span ${spanId}")
@@ -95,6 +107,9 @@ class IntervalValidator extends AbstractValidator {
     }
 
     interval.close(tick)
+    if (interval.state == IntervalState.INACTIVE) {
+      return Result.OK
+    }
 
     for (def it : intervalsByTime) {
       if (it.spanId == spanId) {
@@ -103,6 +118,11 @@ class IntervalValidator extends AbstractValidator {
       if (it.state != IntervalState.INACTIVE) {
         if ((it.startTick <= interval.startTick && it.endTick >= interval.startTick && it.endTick <= tick) ||
         (it.endTick >= tick && it.startTick >= interval.startTick && it.startTick <= tick)) {
+          //          System.err.println("===> checking: ${interval.spanId} (${interval.startTick}, ${interval.endTick})")
+          //          intervalsByTime.findAll {x -> x.state != IntervalState.INACTIVE}.each {x ->
+          //            System.err.println("===> against: ${x.spanId} (${x.startTick}, ${x.endTick})")
+          //          }
+          //          System.err.println("===> -----------------------------------")
           return Result.FAILED.withMessage("Overlapping spans: ${spanId}, ${it.spanId}")
         }
       }
@@ -117,20 +137,26 @@ class IntervalValidator extends AbstractValidator {
 
   def resumeSpan(def spanId) {
     tick++
-    def interval = openIntervalsBySpan.get(spanId)
+    def spanIntervals = openIntervalsBySpan.get(spanId)
+    if (spanIntervals == null) {
+      spanIntervals = new ArrayDeque<SpanInterval>()
+      openIntervalsBySpan.put(spanId, spanIntervals)
+    }
+    def interval = spanIntervals.peek()
     if (interval != null) {
       switch (interval.state) {
         case IntervalState.INACTIVE:
-          interval = openIntervalsBySpan.remove(spanId)
+          interval = spanIntervals.pop()
           intervalsByTime.remove(interval)
           break
         case IntervalState.ACTIVE:
-          return Result.OK
+          break
         case IntervalState.CLOSED:
-          reutrn Result.FAILED.withMessage("Trying to resume an already closed interval for span ${spanId}")
+          return Result.FAILED.withMessage("Trying to resume an already closed interval for span ${spanId}")
       }
     }
-    openIntervalsBySpan.put(spanId, interval = new SpanInterval(spanId, event, tick))
+    interval = new SpanInterval(spanId, event, tick)
+    spanIntervals.push(interval)
     intervalsByTime.add(interval)
     return Result.OK
   }
