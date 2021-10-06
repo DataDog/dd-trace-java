@@ -53,6 +53,9 @@ dependencies {
   // needed for kinesis:
   testImplementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: versions.jackson
 
+  // SQS x-ray testing:
+  testImplementation group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.13', version: '1.2.3'
+
   test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-s3') {
     version {
       strictly '1.11.0'
