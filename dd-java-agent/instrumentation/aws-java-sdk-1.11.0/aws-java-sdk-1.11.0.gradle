@@ -55,6 +55,7 @@ dependencies {
 
   // SQS x-ray testing:
   testImplementation group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.13', version: '1.2.3'
+  testImplementation group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '1.0.8'
 
   test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-s3') {
     version {
