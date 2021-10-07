@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.ratpack;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -81,7 +81,7 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
       description = "/" + description;
     }
 
-    ROUTE_HANDLER_DECORATOR.withRoute(span, ctx.getRequest().getMethod().getName(), description);
+    HTTP_RESOURCE_DECORATOR.withRoute(span, ctx.getRequest().getMethod().getName(), description);
 
     return span;
   }

@@ -65,16 +65,4 @@ class FunctionsTest extends DDSpecification {
     then:
     null == func.apply("")
   }
-
-  def "test create path based resource name"() {
-    when:
-    UTF8BytesString resourceName = Functions.PATH_BASED_RESOURCE_NAME.apply(Pair.of(method, path))
-    then:
-    resourceName as String == expected
-    where:
-    method | path    | expected
-    "GET"  | "/"     | "GET /"
-    "GET"  | "/path" | "GET /path"
-    null   | "/path" | "/path"
-  }
 }

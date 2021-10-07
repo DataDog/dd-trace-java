@@ -1,6 +1,6 @@
-package datadog.trace.api.http;
+package datadog.trace.bootstrap.instrumentation.decorator.http;
 
-public abstract class PathNormalizer {
+abstract class PathNormalizer {
   public final String normalize(String path) {
     return normalize(path, false);
   }

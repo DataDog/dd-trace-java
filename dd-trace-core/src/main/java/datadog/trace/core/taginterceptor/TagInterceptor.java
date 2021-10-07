@@ -16,6 +16,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpanContext;
 import java.util.Set;
@@ -96,9 +97,9 @@ public class TagInterceptor {
   private boolean interceptResourceName(DDSpanContext span, Object value) {
     if (ruleFlags.isEnabled(RESOURCE_NAME)) {
       if (value instanceof CharSequence) {
-        span.setResourceName((CharSequence) value);
+        span.setResourceName((CharSequence) value, ResourceNamePriorities.TAG_INTERCEPTOR);
       } else {
-        span.setResourceName(String.valueOf(value));
+        span.setResourceName(String.valueOf(value), ResourceNamePriorities.TAG_INTERCEPTOR);
       }
       return true;
     }
@@ -109,7 +110,7 @@ public class TagInterceptor {
     if (value instanceof CharSequence) {
       CharSequence resourceName = (CharSequence) value;
       if (resourceName.length() > 0) {
-        span.setResourceName(resourceName);
+        span.setResourceName(resourceName, ResourceNamePriorities.TAG_INTERCEPTOR);
       }
     }
     return true;

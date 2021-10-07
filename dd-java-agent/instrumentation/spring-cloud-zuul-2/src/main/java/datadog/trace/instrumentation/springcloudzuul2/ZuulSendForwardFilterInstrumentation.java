@@ -2,15 +2,13 @@ package datadog.trace.instrumentation.springcloudzuul2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
-import static datadog.trace.instrumentation.springcloudzuul2.ResourceNameCache.RESOURCE_NAME_CACHE;
-import static datadog.trace.instrumentation.springcloudzuul2.ResourceNameCache.RESOURCE_NAME_JOINER;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import com.netflix.zuul.context.RequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
@@ -26,13 +24,6 @@ public class ZuulSendForwardFilterInstrumentation extends Instrumenter.Tracing {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return named("org.springframework.cloud.netflix.zuul.filters.route.SendForwardFilter");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ResourceNameCache", packageName + ".ResourceNameCache$1",
-    };
   }
 
   @Override
@@ -76,10 +67,7 @@ public class ZuulSendForwardFilterInstrumentation extends Instrumenter.Tracing {
             request.getAttribute(
                 "org.springframework.web.servlet.HandlerMapping.bestMatchingPattern");
         if (method != null && bestMatchingPattern != null) {
-          final CharSequence resourceName =
-              RESOURCE_NAME_CACHE.computeIfAbsent(
-                  Pair.of(method, bestMatchingPattern), RESOURCE_NAME_JOINER);
-          parentSpan.setResourceName(resourceName);
+          HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, method, bestMatchingPattern.toString());
         }
       }
     }

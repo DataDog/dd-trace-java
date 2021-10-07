@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.restlet;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -51,12 +51,12 @@ public class ResourceDecorator extends BaseDecorator {
     // class.method.
     final boolean isRootScope = parent == null;
     if (isRootScope) {
-      ROUTE_HANDLER_DECORATOR.withRoute(span, serverResource.getMethod().getName(), route);
+      HTTP_RESOURCE_DECORATOR.withRoute(span, serverResource.getMethod().getName(), route);
     } else {
       span.setResourceName(DECORATE.spanNameForMethod(method));
 
       if (parent == parent.getLocalRootSpan()) {
-        ROUTE_HANDLER_DECORATOR.withRoute(parent, serverResource.getMethod().getName(), route);
+        HTTP_RESOURCE_DECORATOR.withRoute(parent, serverResource.getMethod().getName(), route);
       }
     }
   }

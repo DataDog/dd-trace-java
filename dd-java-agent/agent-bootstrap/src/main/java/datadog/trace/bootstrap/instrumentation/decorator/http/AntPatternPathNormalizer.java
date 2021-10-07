@@ -1,4 +1,4 @@
-package datadog.trace.api.http;
+package datadog.trace.bootstrap.instrumentation.decorator.http;
 
 import datadog.trace.api.Function;
 import datadog.trace.api.cache.DDCache;
@@ -10,11 +10,10 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class AntPatternPathNormalizer extends PathNormalizer {
+final class AntPatternPathNormalizer extends PathNormalizer {
   private static final Logger log = LoggerFactory.getLogger(AntPatternPathNormalizer.class);
 
   private final Map<String, String> resourceNameMatchers;
-  private final PathNormalizer fallback;
   private final AntPathMatcher matcher = new AntPathMatcher();
 
   private final DDCache<String, String> cache = DDCaches.newFixedSizeCache(512);
@@ -27,13 +26,12 @@ class AntPatternPathNormalizer extends PathNormalizer {
               return resourceNameMatcher.getValue();
             }
           }
-          return fallback.normalize(path);
+          return null;
         }
       };
 
-  AntPatternPathNormalizer(Map<String, String> httpResourceNameMatchers, PathNormalizer fallback) {
+  AntPatternPathNormalizer(Map<String, String> httpResourceNameMatchers) {
     resourceNameMatchers = httpResourceNameMatchers;
-    this.fallback = fallback;
 
     // Clean up invalid patterns
     List<String> invalidPatterns = new ArrayList<>(httpResourceNameMatchers.keySet().size());

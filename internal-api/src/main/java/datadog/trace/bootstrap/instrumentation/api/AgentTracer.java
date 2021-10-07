@@ -441,6 +441,11 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentSpan setResourceName(final CharSequence resourceName, byte priority) {
+      return this;
+    }
+
+    @Override
     public boolean eligibleForDropping() {
       return true;
     }
@@ -581,6 +586,11 @@ public class AgentTracer {
     @Override
     public boolean hasResourceName() {
       return false;
+    }
+
+    @Override
+    public byte getResourceNamePriority() {
+      return Byte.MAX_VALUE;
     }
 
     @Override

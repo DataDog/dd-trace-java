@@ -9,6 +9,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -422,7 +423,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   @Override
   public final DDSpan setResourceName(final CharSequence resourceName) {
-    context.setResourceName(resourceName);
+    return setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
+  }
+
+  @Override
+  public final DDSpan setResourceName(final CharSequence resourceName, byte priority) {
+    context.setResourceName(resourceName, priority);
     return this;
   }
 
@@ -535,9 +541,14 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     context.setOperationName(spanName);
   }
 
-  @Override
+  @Override // TODO remove for 1.0: No usages within dd-trace-java
   public boolean hasResourceName() {
     return context.hasResourceName();
+  }
+
+  @Override
+  public byte getResourceNamePriority() {
+    return context.getResourceNamePriority();
   }
 
   @Override
