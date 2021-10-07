@@ -3,7 +3,6 @@ package server
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
@@ -14,7 +13,6 @@ import io.vertx.core.Vertx
 import io.vertx.core.VertxOptions
 import io.vertx.core.impl.VertxInternal
 import io.vertx.core.json.JsonObject
-import spock.lang.Ignore
 
 import java.util.concurrent.CompletableFuture
 
@@ -31,6 +29,11 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   private class VertxServer implements HttpServer {
     private VertxInternal server
     private int port = 0
+    private String routerBasePath
+
+    VertxServer(String routerBasePath) {
+      this.routerBasePath = routerBasePath
+    }
 
     @Override
     void start() {
@@ -59,17 +62,21 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
 
     @Override
     URI address() {
-      return new URI("http://localhost:$port/")
+      return new URI("http://localhost:$port$routerBasePath")
     }
   }
 
   @Override
   HttpServer server() {
-    return new VertxServer()
+    return new VertxServer(routerBasePath())
   }
 
   protected Class<AbstractVerticle> verticle() {
     VertxTestServer
+  }
+
+  String routerBasePath() {
+    return "/"
   }
 
   @Override
@@ -148,51 +155,6 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
         "$Tags.COMPONENT" VertxRouterDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.HTTP_STATUS" Integer
-        if (endpoint == EXCEPTION && this.testExceptionTag()) {
-          errorTags(RuntimeException, EXCEPTION.body)
-        }
-        defaultTags()
-      }
-    }
-  }
-}
-
-@Ignore("Route matching doesn't work with a handler before the controller")
-class VertxChainingHttpServerForkedTest extends VertxHttpServerForkedTest {
-  @Override
-  protected Class<AbstractVerticle> verticle() {
-    VertxChainingTestServer
-  }
-
-  @Override
-  boolean hasDecodedResource() {
-    // copied from HttpServerTest since super overrides it
-    return !Config.get().isHttpServerRawResource() || !supportsRaw()
-  }
-
-  @Override
-  String testPathParam() {
-    null
-  }
-
-  @Override
-  int spanCount(ServerEndpoint endpoint) {
-    return 2 + (hasHandlerSpan() ? 1 : 0) + (hasResponseSpan(endpoint) ? 1 : 0)
-  }
-
-  @Override
-  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
-    trace.span {
-      serviceName expectedServiceName()
-      operationName "vertx.route-handler"
-      spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint == ERROR || endpoint == EXCEPTION
-      childOfPrevious()
-      tags {
-        "$Tags.COMPONENT" VertxRouterDecorator.DECORATE.component()
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.HTTP_STATUS" Integer
-        "chain" true
         if (endpoint == EXCEPTION && this.testExceptionTag()) {
           errorTags(RuntimeException, EXCEPTION.body)
         }
