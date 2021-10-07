@@ -39,6 +39,7 @@ public class Tags {
   public static final String TEST_NAME = "test.name";
   public static final String TEST_STATUS = "test.status";
   public static final String TEST_FRAMEWORK = "test.framework";
+  public static final String TEST_FRAMEWORK_VERSION = "test.framework_version";
   public static final String TEST_SKIP_REASON = "test.skip_reason";
   public static final String TEST_TYPE = "test.type";
   public static final String TEST_PARAMETERS = "test.parameters";

@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
 import datadog.trace.util.Strings;
+import junit.runner.Version;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 
@@ -47,6 +48,7 @@ public class JUnit4Decorator extends TestDecorator {
     // "parameterized_test[0]" must be "parameterized_test".
     final String normalizedTestName = JUnit4Utils.normalizeTestName(fullTestName);
     span.setResourceName(testSuite + "." + normalizedTestName);
+    span.setTag(Tags.TEST_FRAMEWORK_VERSION, Version.id());
     span.setTag(Tags.TEST_SUITE, testSuite);
     span.setTag(Tags.TEST_NAME, normalizedTestName);
 
