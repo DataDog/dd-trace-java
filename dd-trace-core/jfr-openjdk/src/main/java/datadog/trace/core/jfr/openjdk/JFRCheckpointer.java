@@ -59,11 +59,7 @@ public class JFRCheckpointer implements Checkpointer {
 
   @Override
   public final void checkpoint(final AgentSpan span, final int flags) {
-    if (sampler != null) {
-      tryEmitCheckpoint(span, flags);
-    } else {
-      emitCheckpoint(span, flags);
-    }
+    tryEmitCheckpoint(span, flags);
   }
 
   private void tryEmitCheckpoint(final AgentSpan span, final int flags) {
@@ -81,7 +77,7 @@ public class JFRCheckpointer implements Checkpointer {
       checkpoint emission flag being properly published (eg. via 'volatile').
        */
       // if the flag hasn't been set yet consult the sampler
-      checkpointed = sampler.sample();
+      checkpointed = sampler != null ? sampler.sample() : true;
       // store the decision in the span
       span.setEmittingCheckpoints(checkpointed);
       if (log.isDebugEnabled()) {
