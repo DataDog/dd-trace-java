@@ -168,7 +168,6 @@ class SqsClientTest extends AgentTestRunner {
     def connection = connectionFactory.createConnection()
     def session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
     def queue = session.createQueue('somequeue')
-    def producer = session.createProducer(queue)
     def consumer = session.createConsumer(queue)
 
     TEST_WRITER.clear()
@@ -176,14 +175,14 @@ class SqsClientTest extends AgentTestRunner {
     when:
     connection.start()
     TraceUtils.runUnderTrace('parent', {
-      producer.send(new SQSTextMessage('sometext'))
+      client.sendMessage(queue.queueUrl, 'sometext')
     })
     def message = consumer.receive()
     consumer.receiveNoWait()
 
     then:
     def sendSpan
-    assertTraces(3) {
+    assertTraces(4) {
       trace(2) {
         span {
           serviceName "sqs"
@@ -315,6 +314,22 @@ class SqsClientTest extends AgentTestRunner {
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
             defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "jms"
+          operationName "jms.consume"
+          resourceName "Consumed from Queue somequeue"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          childOf(sendSpan)
+          tags {
+            "$Tags.COMPONENT" "jms"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            defaultTags(true)
           }
         }
       }
