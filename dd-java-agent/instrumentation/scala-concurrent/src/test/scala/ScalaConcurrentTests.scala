@@ -1,9 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
-  activeScope,
-  activeSpan
-}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeScope, activeSpan}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -55,9 +52,9 @@ class ScalaConcurrentTests {
   @Trace
   def traceWithPromises(): Integer = {
     activeScope().setAsyncPropagation(true)
-    val keptPromise = Promise[Boolean]()
+    val keptPromise   = Promise[Boolean]()
     val brokenPromise = Promise[Boolean]()
-    val afterPromise = keptPromise.future
+    val afterPromise  = keptPromise.future
     val afterPromise2 = keptPromise.future
 
     val failedAfterPromise = brokenPromise.future

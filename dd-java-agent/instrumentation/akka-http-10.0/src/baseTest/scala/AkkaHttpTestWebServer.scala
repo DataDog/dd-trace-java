@@ -31,8 +31,8 @@ class AkkaHttpTestWebServer(binder: Binder) extends HttpServer {
       case Some(config) => ActorSystem(name, config)
     }
   }
-  implicit val materializer = ActorMaterializer()
-  private var port: Int = 0
+  implicit val materializer                      = ActorMaterializer()
+  private var port: Int                          = 0
   private var portBinding: Future[ServerBinding] = null
 
   override def start(): Unit = {
@@ -148,7 +148,7 @@ object AkkaHttpTestWebServer {
     def handleException: PartialFunction[Throwable, Future[RouteResult]] =
       exceptionHandler andThen (_(ctx.withAcceptAll))
 
-    val uri = ctx.request.uri
+    val uri      = ctx.request.uri
     val endpoint = HttpServerTest.ServerEndpoint.forPath(uri.path.toString())
     HttpServerTest.controller(
       endpoint,
@@ -218,7 +218,7 @@ object AkkaHttpTestWebServer {
 
   val syncHandler: HttpRequest => HttpResponse = {
     case HttpRequest(GET, uri: Uri, _, _, _) => {
-      val path = uri.path.toString()
+      val path     = uri.path.toString()
       val endpoint = HttpServerTest.ServerEndpoint.forPath(path)
       HttpServerTest.controller(
         endpoint,
@@ -239,7 +239,7 @@ object AkkaHttpTestWebServer {
                   val groups = path.split('/')
                   if (groups.size == 4) { // The path starts with a / and has 3 segments
                     val traceId = AgentTracer.activeSpan().getTraceId
-                    val id = groups(3).toInt
+                    val id      = groups(3).toInt
                     groups(2) match {
                       case "ping" =>
                         return HttpResponse(entity = s"pong $id -> $traceId")

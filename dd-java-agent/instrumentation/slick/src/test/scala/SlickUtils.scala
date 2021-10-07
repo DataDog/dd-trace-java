@@ -1,9 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
-  activeScope,
-  activeSpan
-}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeScope, activeSpan}
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import slick.jdbc.H2Profile.api._
@@ -57,12 +54,12 @@ class SlickUtils(TEST_WRITER: ListWriter) {
 
 object SlickUtils {
 
-  val Driver = "h2"
-  val Db = "test"
-  val Username = "TESTUSER"
-  val Url = s"jdbc:${Driver}:mem:${Db}"
-  val TestValue = 3
-  val TestQuery = "SELECT 3"
+  val Driver              = "h2"
+  val Db                  = "test"
+  val Username            = "TESTUSER"
+  val Url                 = s"jdbc:${Driver}:mem:${Db}"
+  val TestValue           = 3
+  val TestQuery           = "SELECT 3"
   val ObfuscatedTestQuery = "SELECT ?"
 
   val SleepQuery = "CALL SLEEP(3000)"

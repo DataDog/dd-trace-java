@@ -40,7 +40,7 @@ spotless {
 
   scala {
     toggleOffOn()
-    scalafmt()
+    scalafmt("2.0.1").configFile(configPath + '/enforcement/spotless-scalafmt.conf')
   }
 
   kotlin {
