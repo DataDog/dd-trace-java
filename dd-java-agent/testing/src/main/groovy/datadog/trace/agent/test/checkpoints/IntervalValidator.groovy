@@ -118,11 +118,6 @@ class IntervalValidator extends AbstractValidator {
       if (it.state != IntervalState.INACTIVE) {
         if ((it.startTick <= interval.startTick && it.endTick >= interval.startTick && it.endTick <= tick) ||
         (it.endTick >= tick && it.startTick >= interval.startTick && it.startTick <= tick)) {
-          //          System.err.println("===> checking: ${interval.spanId} (${interval.startTick}, ${interval.endTick})")
-          //          intervalsByTime.findAll {x -> x.state != IntervalState.INACTIVE}.each {x ->
-          //            System.err.println("===> against: ${x.spanId} (${x.startTick}, ${x.endTick})")
-          //          }
-          //          System.err.println("===> -----------------------------------")
           return Result.FAILED.withMessage("Overlapping spans: ${spanId}, ${it.spanId}")
         }
       }
