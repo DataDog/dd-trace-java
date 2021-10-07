@@ -49,6 +49,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_IN
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SQS_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
@@ -168,6 +169,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONU
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
@@ -393,6 +395,7 @@ public class Config {
   private final String appSecRulesFile;
 
   private final boolean awsPropagationEnabled;
+  private final boolean sqsPropagationEnabled;
 
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
@@ -820,6 +823,9 @@ public class Config {
 
     awsPropagationEnabled =
         configProvider.getBoolean(AWS_PROPAGATION_ENABLED, DEFAULT_AWS_PROPAGATION_ENABLED);
+    sqsPropagationEnabled =
+        awsPropagationEnabled
+            && configProvider.getBoolean(SQS_PROPAGATION_ENABLED, DEFAULT_SQS_PROPAGATION_ENABLED);
 
     kafkaClientPropagationEnabled =
         configProvider.getBoolean(
@@ -1281,6 +1287,10 @@ public class Config {
 
   public boolean isAwsPropagationEnabled() {
     return awsPropagationEnabled;
+  }
+
+  public boolean isSqsPropagationEnabled() {
+    return sqsPropagationEnabled;
   }
 
   public boolean isKafkaClientPropagationEnabled() {
@@ -2052,6 +2062,8 @@ public class Config {
         + profilingExcludeAgentThreads
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
+        + ", sqsPropagationEnabled="
+        + sqsPropagationEnabled
         + ", kafkaClientPropagationEnabled="
         + kafkaClientPropagationEnabled
         + ", kafkaClientPropagationDisabledTopics="
