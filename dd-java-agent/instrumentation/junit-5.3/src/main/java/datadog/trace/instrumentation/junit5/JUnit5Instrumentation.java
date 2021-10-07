@@ -7,9 +7,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.ServiceLoader;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.junit.platform.commons.util.ClassLoaderUtils;
+import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService;
 import org.junit.platform.launcher.Launcher;
 
@@ -51,7 +54,10 @@ public class JUnit5Instrumentation extends Instrumenter.Tracing {
 
     @Advice.OnMethodExit
     public static void addTracingListener(@Advice.This final Launcher launcher) {
-      final TracingListener listener = new TracingListener();
+      // There is no public API to access to the discovered test engines from the Launcher API.
+      final Iterable<TestEngine> testEngines =
+          ServiceLoader.load(TestEngine.class, ClassLoaderUtils.getDefaultClassLoader());
+      final TracingListener listener = new TracingListener(testEngines);
       launcher.registerTestExecutionListeners(listener);
     }
 

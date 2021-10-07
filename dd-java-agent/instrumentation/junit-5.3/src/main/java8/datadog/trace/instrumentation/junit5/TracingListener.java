@@ -9,15 +9,34 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestExecutionResult;
+import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestIdentifier;
 
 public class TracingListener implements TestExecutionListener {
+
+  private final Map<String, String> versionsByEngineId;
+
+  public TracingListener(Iterable<TestEngine> testEngines) {
+    super();
+
+    Map<String, String> versions = new HashMap<>();
+    testEngines.forEach(
+        testEngine ->
+            testEngine
+                .getVersion()
+                .ifPresent(version -> versions.put(testEngine.getId(), version)));
+    versionsByEngineId = Collections.unmodifiableMap(versions);
+  }
 
   @Override
   public void executionStarted(final TestIdentifier testIdentifier) {
@@ -44,8 +63,13 @@ public class TracingListener implements TestExecutionListener {
               final AgentScope scope = activateSpan(span);
               scope.setAsyncPropagation(true);
 
+              final String version =
+                  UniqueId.parse(testIdentifier.getUniqueId())
+                      .getEngineId()
+                      .map(versionsByEngineId::get)
+                      .orElse(null);
               DECORATE.afterStart(span);
-              DECORATE.onTestStart(span, methodSource, testIdentifier);
+              DECORATE.onTestStart(span, methodSource, testIdentifier, version);
             });
   }
 
@@ -83,17 +107,23 @@ public class TracingListener implements TestExecutionListener {
         .getSource()
         .ifPresent(
             testSource -> {
+              final String version =
+                  UniqueId.parse(testIdentifier.getUniqueId())
+                      .getEngineId()
+                      .map(versionsByEngineId::get)
+                      .orElse(null);
               if (testSource instanceof ClassSource) {
                 // The annotation @Disabled is kept at type level.
-                executionSkipped((ClassSource) testSource, reason);
+                executionSkipped((ClassSource) testSource, version, reason);
               } else if (testSource instanceof MethodSource) {
                 // The annotation @Disabled is kept at method level.
-                executionSkipped((MethodSource) testSource, reason);
+                executionSkipped((MethodSource) testSource, version, reason);
               }
             });
   }
 
-  private void executionSkipped(final ClassSource classSource, final String reason) {
+  private void executionSkipped(
+      final ClassSource classSource, final String version, final String reason) {
     // If @Disabled annotation is kept at type level, the instrumentation
     // reports every method annotated with @Test as skipped test.
     final String testSuite = classSource.getClassName();
@@ -103,19 +133,20 @@ public class TracingListener implements TestExecutionListener {
     for (final String testName : testNames) {
       final AgentSpan span = startSpan("junit.test");
       DECORATE.afterStart(span);
-      DECORATE.onTestIgnore(span, testSuite, testName, reason);
+      DECORATE.onTestIgnore(span, version, testSuite, testName, reason);
       DECORATE.beforeFinish(span);
       span.finish(span.getStartTime());
     }
   }
 
-  private void executionSkipped(final MethodSource methodSource, final String reason) {
+  private void executionSkipped(
+      final MethodSource methodSource, final String version, final String reason) {
     final String testSuite = methodSource.getClassName();
     final String testName = methodSource.getMethodName();
 
     final AgentSpan span = startSpan("junit.test");
     DECORATE.afterStart(span);
-    DECORATE.onTestIgnore(span, testSuite, testName, reason);
+    DECORATE.onTestIgnore(span, version, testSuite, testName, reason);
     DECORATE.beforeFinish(span);
     span.finish(span.getStartTime());
   }
