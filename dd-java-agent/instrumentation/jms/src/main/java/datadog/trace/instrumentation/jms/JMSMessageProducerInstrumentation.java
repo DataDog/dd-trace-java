@@ -80,15 +80,15 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beforeSend(
         @Advice.Argument(0) final Message message, @Advice.This final MessageProducer producer) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
       MessageProducerState producerState =
           InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
               .get(producer);
       if (null == producerState) {
+        return null;
+      }
+
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
+      if (callDepth > 0) {
         return null;
       }
 
@@ -130,13 +130,6 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         return null;
       }
 
-      MessageProducerState producerState =
-          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-              .get(producer);
-      if (null == producerState) {
-        return null;
-      }
-
       boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
       String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
       CharSequence resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
@@ -149,7 +142,12 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Tracin
         propagate().inject(span, message, SETTER);
       }
       if (!Config.get().isJmsLegacyTracingEnabled()) {
-        SETTER.injectTimeInQueue(message, producerState);
+        MessageProducerState producerState =
+            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
+                .get(producer);
+        if (null != producerState) {
+          SETTER.injectTimeInQueue(message, producerState);
+        }
       }
       return activateSpan(span);
     }
