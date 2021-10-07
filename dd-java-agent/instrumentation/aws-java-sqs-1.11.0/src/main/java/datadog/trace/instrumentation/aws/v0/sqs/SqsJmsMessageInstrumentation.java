@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.aws.v0;
+package datadog.trace.instrumentation.aws.v0.sqs;
 
 import static com.amazon.sqs.javamessaging.SQSMessagingClientConstants.STRING;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
