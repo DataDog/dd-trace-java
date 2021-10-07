@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.aws.v0.sqs;
+package datadog.trace.instrumentation.aws.v1.sqs;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;

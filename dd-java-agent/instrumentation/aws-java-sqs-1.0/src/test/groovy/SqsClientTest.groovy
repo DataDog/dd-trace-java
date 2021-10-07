@@ -1,6 +1,5 @@
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
-import com.amazon.sqs.javamessaging.message.SQSTextMessage
 import com.amazonaws.SDKGlobalConfiguration
 import com.amazonaws.auth.AWSStaticCredentialsProvider
 import com.amazonaws.auth.AnonymousAWSCredentials
