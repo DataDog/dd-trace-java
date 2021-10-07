@@ -11,8 +11,8 @@ abstract class AbstractSAction[A](
 ) extends Action[A] {
   def apply(request: Request[A]): Future[Result] = {
     val tracer = GlobalTracer.get
-    val span = tracer.buildSpan(operationName).start
-    val scope = tracer.scopeManager.activate(span)
+    val span   = tracer.buildSpan(operationName).start
+    val scope  = tracer.scopeManager.activate(span)
     try return action(request)
     finally {
       scope.close
@@ -20,12 +20,10 @@ abstract class AbstractSAction[A](
     }
   }
 
-  override def parser = action.parser
+  override def parser           = action.parser
   override def executionContext = action.executionContext
 }
 
-case class SAction1[A](action: Action[A])
-    extends AbstractSAction[A](action, "action1") {}
+case class SAction1[A](action: Action[A]) extends AbstractSAction[A](action, "action1") {}
 
-case class SAction2[A](action: Action[A])
-    extends AbstractSAction[A](action, "action2") {}
+case class SAction2[A](action: Action[A]) extends AbstractSAction[A](action, "action2") {}

@@ -16,9 +16,9 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class SprayHttpTestWebServer extends HttpServer {
-  var port: Int = 0
+  var port: Int                    = 0
   implicit var system: ActorSystem = null
-  implicit val timeout: Timeout = Timeout(5.seconds)
+  implicit val timeout: Timeout    = Timeout(5.seconds)
 
   override def start(): Unit = synchronized {
     start(PortUtils.randomOpenPort())
@@ -153,7 +153,6 @@ class ControllerHttpRedirectResponseToClosureAdapter(
   }
 }
 
-class BlockClosureAdapter(block: () => HttpResponse)
-    extends Closure[HttpResponse] {
+class BlockClosureAdapter(block: () => HttpResponse) extends Closure[HttpResponse] {
   override def call(): HttpResponse = block()
 }

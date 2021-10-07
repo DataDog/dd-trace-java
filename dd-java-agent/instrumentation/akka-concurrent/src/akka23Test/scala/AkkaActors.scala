@@ -40,10 +40,10 @@ class AkkaActors extends AutoCloseable {
 
   private val actors =
     Map(
-      "tell" -> tellGreeter,
-      "ask" -> askGreeter,
+      "tell"    -> tellGreeter,
+      "ask"     -> askGreeter,
       "forward" -> forwardGreeter,
-      "route" -> routerGreeter
+      "route"   -> routerGreeter
     )
 
   def block(name: String): Semaphore = {
