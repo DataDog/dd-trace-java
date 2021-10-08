@@ -44,6 +44,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
       final TracingServerCall<ReqT, RespT> tracingServerCall = new TracingServerCall<>(span, call);
       // call other interceptors
       result = next.startCall(tracingServerCall, headers);
+      // the span related work can continue on any thread
+      span.startThreadMigration();
     } catch (final Throwable e) {
       if (span.phasedFinish()) {
         DECORATE.onError(span, e);
