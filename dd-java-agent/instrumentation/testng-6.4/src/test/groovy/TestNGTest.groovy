@@ -170,6 +170,11 @@ class TestNGTest extends TestFrameworkTest {
   }
 
   @Override
+  String expectedTestFrameworkVersion() {
+    return null
+  }
+
+  @Override
   String component() {
     return TestNGDecorator.DECORATE.component()
   }

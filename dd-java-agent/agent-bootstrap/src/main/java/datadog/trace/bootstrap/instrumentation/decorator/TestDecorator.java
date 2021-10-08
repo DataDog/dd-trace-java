@@ -109,6 +109,13 @@ public abstract class TestDecorator extends BaseDecorator {
     return super.afterStart(span);
   }
 
+  public AgentSpan afterStart(final AgentSpan span, final String version) {
+    if (version != null) {
+      span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
+    }
+    return afterStart(span);
+  }
+
   public List<String> testNames(
       final Class<?> testClass, final Class<? extends Annotation> testAnnotation) {
     final List<String> testNames = new ArrayList<>();

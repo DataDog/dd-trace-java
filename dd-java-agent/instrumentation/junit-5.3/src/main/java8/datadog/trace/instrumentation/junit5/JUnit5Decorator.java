@@ -28,11 +28,8 @@ public class JUnit5Decorator extends TestDecorator {
   }
 
   public void onTestStart(
-      final AgentSpan span,
-      final MethodSource methodSource,
-      final TestIdentifier testIdentifier,
-      final String version) {
-    onTestStart(span, methodSource.getClassName(), methodSource.getMethodName(), version);
+      final AgentSpan span, final MethodSource methodSource, final TestIdentifier testIdentifier) {
+    onTestStart(span, methodSource.getClassName(), methodSource.getMethodName());
 
     if (hasParameters(methodSource)) {
       // No public access to the test parameters map in JUnit5.
@@ -46,10 +43,8 @@ public class JUnit5Decorator extends TestDecorator {
     }
   }
 
-  public void onTestStart(
-      final AgentSpan span, final String testSuite, final String testName, final String version) {
+  public void onTestStart(final AgentSpan span, final String testSuite, final String testName) {
     span.setResourceName(testSuite + "." + testName);
-    span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
     span.setTag(Tags.TEST_SUITE, testSuite);
     span.setTag(Tags.TEST_NAME, testName);
     span.setTag(Tags.TEST_STATUS, TEST_PASS);
@@ -75,12 +70,8 @@ public class JUnit5Decorator extends TestDecorator {
   }
 
   public void onTestIgnore(
-      final AgentSpan span,
-      final String version,
-      final String testSuite,
-      final String testName,
-      final String reason) {
-    onTestStart(span, testSuite, testName, version);
+      final AgentSpan span, final String testSuite, final String testName, final String reason) {
+    onTestStart(span, testSuite, testName);
     span.setTag(Tags.TEST_STATUS, TEST_SKIP);
     span.setTag(Tags.TEST_SKIP_REASON, reason);
   }

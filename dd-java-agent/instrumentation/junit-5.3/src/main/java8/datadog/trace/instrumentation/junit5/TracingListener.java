@@ -27,9 +27,7 @@ public class TracingListener implements TestExecutionListener {
   private final Map<String, String> versionsByEngineId;
 
   public TracingListener(Iterable<TestEngine> testEngines) {
-    super();
-
-    Map<String, String> versions = new HashMap<>();
+    final Map<String, String> versions = new HashMap<>();
     testEngines.forEach(
         testEngine ->
             testEngine
@@ -68,8 +66,8 @@ public class TracingListener implements TestExecutionListener {
                       .getEngineId()
                       .map(versionsByEngineId::get)
                       .orElse(null);
-              DECORATE.afterStart(span);
-              DECORATE.onTestStart(span, methodSource, testIdentifier, version);
+              DECORATE.afterStart(span, version);
+              DECORATE.onTestStart(span, methodSource, testIdentifier);
             });
   }
 
@@ -132,8 +130,8 @@ public class TracingListener implements TestExecutionListener {
 
     for (final String testName : testNames) {
       final AgentSpan span = startSpan("junit.test");
-      DECORATE.afterStart(span);
-      DECORATE.onTestIgnore(span, version, testSuite, testName, reason);
+      DECORATE.afterStart(span, version);
+      DECORATE.onTestIgnore(span, testSuite, testName, reason);
       DECORATE.beforeFinish(span);
       span.finish(span.getStartTime());
     }
@@ -145,8 +143,8 @@ public class TracingListener implements TestExecutionListener {
     final String testName = methodSource.getMethodName();
 
     final AgentSpan span = startSpan("junit.test");
-    DECORATE.afterStart(span);
-    DECORATE.onTestIgnore(span, version, testSuite, testName, reason);
+    DECORATE.afterStart(span, version);
+    DECORATE.onTestIgnore(span, testSuite, testName, reason);
     DECORATE.beforeFinish(span);
     span.finish(span.getStartTime());
   }

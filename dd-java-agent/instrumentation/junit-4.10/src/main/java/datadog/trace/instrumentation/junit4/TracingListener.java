@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import java.util.ArrayList;
 import java.util.List;
+import junit.runner.Version;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.Description;
@@ -17,6 +18,12 @@ import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
 
 public class TracingListener extends RunListener {
+
+  private final String version;
+
+  public TracingListener() {
+    this.version = Version.id();
+  }
 
   @Override
   public void testStarted(final Description description) throws Exception {
@@ -37,7 +44,7 @@ public class TracingListener extends RunListener {
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
-    DECORATE.afterStart(span);
+    DECORATE.afterStart(span, version);
     DECORATE.onTestStart(span, description);
   }
 
