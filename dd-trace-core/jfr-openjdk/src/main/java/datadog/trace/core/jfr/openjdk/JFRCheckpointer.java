@@ -186,13 +186,8 @@ public class JFRCheckpointer implements Checkpointer {
     }
     Duration windowSize = Duration.of(getSamplerWindowMs(configProvider), ChronoUnit.MILLIS);
 
-    /*
-    Due to coarse grained sampling (at the level of a local root span) and extremely high variability of
-    the number of checkpoints generated from such a root span, anywhere between 1 and 100000 seems to be
-    quite common - with both fat tails, the expected limit must be somewhat adjusted since it will be
-    almost always 'overshot' by a large margin.
-    '0.6' seems to be the magic number to do the trick ...
-    */
+    // the rate limit is defined per 1 minute (recording length) - need to divide it by 60000 to get
+    // the value per ms
     final float limitPerMs = limit / 60000f;
     float samplesPerWindow = limitPerMs * windowSize.toMillis();
 
@@ -219,8 +214,8 @@ public class JFRCheckpointer implements Checkpointer {
   private static int getRateLimit(final ConfigProvider configProvider) {
     return Math.min(
         configProvider.getInteger(
-            ProfilingConfig.PROFILING_CHECKPOINTS_RATE_LIMIT,
-            ProfilingConfig.PROFILING_CHECKPOINTS_RATE_LIMIT_DEFAULT),
+            ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT,
+            ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT_DEFAULT),
         MAX_SAMPLER_RATE);
   }
 
@@ -228,8 +223,8 @@ public class JFRCheckpointer implements Checkpointer {
     return Math.max(
         Math.min(
             configProvider.getInteger(
-                ProfilingConfig.PROFILING_CHECKPOINTS_RATE_SENSITIVITY_MS,
-                ProfilingConfig.PROFILING_CHECKPOINTS_RATE_SENSITIVITY_MS_DEFAULT),
+                ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS,
+                ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS_DEFAULT),
             MAX_SAMPLER_WINDOW_SIZE_MS),
         MIN_SAMPLER_WINDOW_SIZE_MS);
   }

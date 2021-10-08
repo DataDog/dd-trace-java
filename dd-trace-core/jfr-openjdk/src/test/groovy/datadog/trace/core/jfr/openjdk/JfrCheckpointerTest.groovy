@@ -40,8 +40,8 @@ class JfrCheckpointerTest extends DDSpecification {
   def "test sampler configuration"() {
     setup:
     Properties props = new Properties()
-    props.put(ProfilingConfig.PROFILING_CHECKPOINTS_RATE_LIMIT, String.valueOf(rateLimit))
-    props.put(ProfilingConfig.PROFILING_CHECKPOINTS_RATE_SENSITIVITY_MS, String.valueOf(sensitivity))
+    props.put(ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT, String.valueOf(rateLimit))
+    props.put(ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS, String.valueOf(sensitivity))
     def configProvider = ConfigProvider.withPropertiesOverride(props)
     when:
     def config = JFRCheckpointer.getSamplerConfiguration(configProvider)
