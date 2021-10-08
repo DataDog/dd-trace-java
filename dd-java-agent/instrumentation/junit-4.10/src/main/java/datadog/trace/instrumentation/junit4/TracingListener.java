@@ -117,7 +117,7 @@ public class TracingListener extends RunListener {
 
     for (final String testName : testNames) {
       final AgentSpan span = startSpan("junit.test");
-      DECORATE.afterStart(span);
+      DECORATE.afterStart(span, version);
       DECORATE.onTestIgnored(span, description, testName, reason);
       DECORATE.beforeFinish(span);
       span.finish(span.getStartTime());
