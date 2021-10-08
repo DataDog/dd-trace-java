@@ -3,6 +3,8 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
 
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
@@ -36,7 +38,11 @@ public final class ConcurrentState {
 
   public static <K> ConcurrentState captureScope(
       ContextStore<K, ConcurrentState> contextStore, K key, TraceScope scope) {
-    if (scope != null) {
+    if (scope != null && scope.isAsyncPropagating()) {
+      if (scope instanceof AgentScope
+          && ((AgentScope) scope).span() instanceof AgentTracer.NoopAgentSpan) {
+        return null;
+      }
       final ConcurrentState state = contextStore.putIfAbsent(key, FACTORY);
       if (!state.captureAndSetContinuation(scope) && log.isDebugEnabled()) {
         log.debug(
