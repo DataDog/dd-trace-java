@@ -12,11 +12,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Platform;
-import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -55,14 +53,8 @@ public class JavaForkJoinPoolInstrumentation extends Instrumenter.Tracing {
   public static final class ExternalPush {
     @Advice.OnMethodEnter
     public static <T> void externalPush(@Advice.Argument(0) ForkJoinTask<T> task) {
-      try {
-        if (CallDepthThreadLocalMap.incrementCallDepth(ForkJoinPool.class) == 0) {
-          if (!exclude(FORK_JOIN_TASK, task)) {
-            capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
-          }
-        }
-      } finally {
-        CallDepthThreadLocalMap.decrementCallDepth(ForkJoinPool.class);
+      if (!exclude(FORK_JOIN_TASK, task)) {
+        capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task, true);
       }
     }
 

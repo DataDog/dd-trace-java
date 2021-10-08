@@ -1,17 +1,20 @@
 package datadog.trace.instrumentation.caffeine;
 
-import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import java.util.concurrent.ForkJoinPool;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
 public class BoundedLocalCacheAdvice {
+
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void onEnter() {
-    CallDepthThreadLocalMap.incrementCallDepth(ForkJoinPool.class);
+  public static AgentScope enter() {
+    return activateSpan(noopSpan());
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-  public static void onExit() {
-    CallDepthThreadLocalMap.decrementCallDepth(ForkJoinPool.class);
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+  public static void exit(@Advice.Enter final AgentScope scope) {
+    scope.close();
   }
 }

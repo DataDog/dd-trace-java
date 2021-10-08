@@ -19,7 +19,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
-import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -128,13 +127,7 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodExit
     public static <T> void captureScope(@Advice.This RunnableFuture<T> task) {
-      try {
-        if (CallDepthThreadLocalMap.incrementCallDepth(RunnableFuture.class) == 0) {
-          capture(InstrumentationContext.get(RunnableFuture.class, State.class), task, true);
-        }
-      } finally {
-        CallDepthThreadLocalMap.decrementCallDepth(RunnableFuture.class);
-      }
+      capture(InstrumentationContext.get(RunnableFuture.class, State.class), task, true);
     }
   }
 

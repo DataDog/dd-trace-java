@@ -3,7 +3,6 @@ package java.util.concurrent;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.concurrent.CompletableFuture.ASYNC;
 
-import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
@@ -17,17 +16,11 @@ public final class CompletableFutureAdvice {
   public static final class UniConstructor {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterInit(@Advice.This UniCompletion zis) {
-      try {
-        if (CallDepthThreadLocalMap.incrementCallDepth(CompletableFuture.class) == 0) {
-          TraceScope scope = activeScope();
-          if (zis.isLive() && scope != null) {
-            ContextStore<UniCompletion, ConcurrentState> contextStore =
-                InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
-            ConcurrentState.captureScope(contextStore, zis, scope);
-          }
-        }
-      } finally {
-        CallDepthThreadLocalMap.decrementCallDepth(CompletableFuture.class);
+      TraceScope scope = activeScope();
+      if (zis.isLive() && scope != null) {
+        ContextStore<UniCompletion, ConcurrentState> contextStore =
+            InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
+        ConcurrentState.captureScope(contextStore, zis, scope);
       }
     }
 
