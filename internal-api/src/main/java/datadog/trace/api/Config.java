@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AWS_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DOGSTATSD_START_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -48,6 +49,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_IN
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SQS_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
@@ -130,6 +132,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_PERIOD;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_SUMMARY_ON_413;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AWS_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
@@ -166,6 +169,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONU
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TEMP_JARS_CLEAN_ON_BOOT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
@@ -389,6 +393,9 @@ public class Config {
 
   private final boolean appSecEnabled;
   private final String appSecRulesFile;
+
+  private final boolean awsPropagationEnabled;
+  private final boolean sqsPropagationEnabled;
 
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
@@ -813,6 +820,12 @@ public class Config {
         configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
 
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
+
+    awsPropagationEnabled =
+        configProvider.getBoolean(AWS_PROPAGATION_ENABLED, DEFAULT_AWS_PROPAGATION_ENABLED);
+    sqsPropagationEnabled =
+        awsPropagationEnabled
+            && configProvider.getBoolean(SQS_PROPAGATION_ENABLED, DEFAULT_SQS_PROPAGATION_ENABLED);
 
     kafkaClientPropagationEnabled =
         configProvider.getBoolean(
@@ -1270,6 +1283,14 @@ public class Config {
 
   public String getAppSecRulesFile() {
     return appSecRulesFile;
+  }
+
+  public boolean isAwsPropagationEnabled() {
+    return awsPropagationEnabled;
+  }
+
+  public boolean isSqsPropagationEnabled() {
+    return sqsPropagationEnabled;
   }
 
   public boolean isKafkaClientPropagationEnabled() {
@@ -2039,6 +2060,10 @@ public class Config {
         + profilingExceptionHistogramMaxCollectionSize
         + ", profilingExcludeAgentThreads="
         + profilingExcludeAgentThreads
+        + ", awsPropagationEnabled="
+        + awsPropagationEnabled
+        + ", sqsPropagationEnabled="
+        + sqsPropagationEnabled
         + ", kafkaClientPropagationEnabled="
         + kafkaClientPropagationEnabled
         + ", kafkaClientPropagationDisabledTopics="

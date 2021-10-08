@@ -14,6 +14,7 @@ import datadog.trace.api.Checkpointer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SamplingCheckpointer;
 import datadog.trace.api.StatsDClient;
 import datadog.trace.api.config.GeneralConfig;
@@ -617,22 +618,34 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {
-
-    inject(span.context(), carrier, setter);
+    inject(span.context(), carrier, setter, null);
   }
 
   @Override
   public <C> void inject(final AgentSpan.Context context, final C carrier, final Setter<C> setter) {
+    inject(context, carrier, setter, null);
+  }
+
+  @Override
+  public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {
+    inject(span.context(), carrier, setter, style);
+  }
+
+  private <C> void inject(
+      AgentSpan.Context context, C carrier, Setter<C> setter, PropagationStyle style) {
     if (!(context instanceof DDSpanContext)) {
       return;
     }
 
     final DDSpanContext ddSpanContext = (DDSpanContext) context;
-
     final DDSpan rootSpan = ddSpanContext.getTrace().getRootSpan();
     setSamplingPriorityIfNecessary(rootSpan);
 
-    injector.inject(ddSpanContext, carrier, setter);
+    if (null == style) {
+      injector.inject(ddSpanContext, carrier, setter);
+    } else {
+      HttpCodec.inject(ddSpanContext, carrier, setter, style);
+    }
   }
 
   @Override

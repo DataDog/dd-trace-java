@@ -12,6 +12,7 @@ import com.datadog.appsec.report.raw.events.attack.Attack010
 import com.datadog.appsec.report.raw.events.attack._definitions.rule_match.Parameter
 import com.datadog.appsec.test.StubAppSecConfigService
 import datadog.trace.test.util.DDSpecification
+import io.sqreen.powerwaf.Powerwaf
 
 class PowerWAFModuleSpecification extends DDSpecification {
   private static final DataBundle ATTACK_BUNDLE = MapDataBundle.of(KnownAddresses.HEADERS_NO_COOKIES,
@@ -55,11 +56,11 @@ class PowerWAFModuleSpecification extends DDSpecification {
     then:
     ctx.reportAttack(_ as Attack010) >> { attack = it[0] }
     attack.blocked == Boolean.FALSE
-    attack.type == 'waf'
+    attack.type == 'security_scanner'
 
     attack.rule.id == 'ua0-600-12x'
-    attack.rule.name == 'security_scanner'
-    attack.rule.set == 'waf'
+    attack.rule.name == 'Arachni'
+    attack.rule.set == 'security_scanner'
 
     attack.ruleMatch.highlight == ['Arachni/v']
     attack.ruleMatch.operator == 'match_regex'
@@ -139,7 +140,7 @@ class PowerWAFModuleSpecification extends DDSpecification {
     0 * ctx._
   }
 
-  void 'rule data not a map'() {
+  void 'rule data not a config'() {
     def confService = new StubAppSecConfigService(waf: [])
 
     when:
@@ -151,6 +152,30 @@ class PowerWAFModuleSpecification extends DDSpecification {
 
     then:
     pwafModule.ctx.get() == null
+  }
+
+  void 'bad ActionWithData - empty list'() {
+    def waf = new PowerWAFModule()
+    Powerwaf.ActionWithData actionWithData = new Powerwaf.ActionWithData(null, "[]")
+    Optional ret
+
+    when:
+    ret = waf.buildAttack(actionWithData)
+
+    then:
+    !ret.isPresent()
+  }
+
+  void 'bad ActionWithData - empty object'() {
+    def waf = new PowerWAFModule()
+    Powerwaf.ActionWithData actionWithData = new Powerwaf.ActionWithData(null, "[{}]")
+    Optional ret
+
+    when:
+    ret = waf.buildAttack(actionWithData)
+
+    then:
+    !ret.isPresent()
   }
 
   private Map<String, Object> getDefaultConfig() {

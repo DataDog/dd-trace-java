@@ -107,10 +107,23 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
 
   void setSpanName(CharSequence spanName);
 
+  /**
+   * Deprecated in favor of setResourceName(final CharSequence resourceName, byte priority) or using
+   * getResourceNamePriority() for comparisons.
+   */
+  @Deprecated
   boolean hasResourceName();
+
+  byte getResourceNamePriority();
 
   @Override
   AgentSpan setResourceName(final CharSequence resourceName);
+
+  /**
+   * Implementation note: two calls with the same priority will result in the second resource name
+   * being used
+   */
+  AgentSpan setResourceName(final CharSequence resourceName, byte priority);
 
   boolean eligibleForDropping();
 

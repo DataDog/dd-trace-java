@@ -212,8 +212,8 @@ class TomcatServletTest extends AbstractServletTest<Embedded, Context> {
     TEST_WRITER.waitForTraces(1)
     then: "2 synchronous spans"
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
-    0 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
-    0 * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
     0 * TEST_CHECKPOINTER.checkpoint(_, CPU | END)
     2 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
 

@@ -108,6 +108,17 @@ public final class Events<D> {
         REQUEST_BODY_DONE;
   }
 
+  static final int RESPONSE_STARTED_ID = 8;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType RESPONSE_STARTED =
+      new ET<>("response.started", RESPONSE_STARTED_ID);
+  /** A response started */
+  @SuppressWarnings("unchecked")
+  public EventType<BiConsumer<RequestContext<D>, Integer>> responseStarted() {
+    return (EventType<BiConsumer<RequestContext<D>, Integer>>) RESPONSE_STARTED;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {

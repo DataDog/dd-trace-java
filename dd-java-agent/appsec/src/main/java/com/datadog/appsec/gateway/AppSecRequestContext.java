@@ -1,6 +1,5 @@
 package com.datadog.appsec.gateway;
 
-import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.CaseInsensitiveMap;
 import com.datadog.appsec.event.data.DataBundle;
@@ -24,7 +23,7 @@ import org.slf4j.LoggerFactory;
 // TODO: different methods to be called by different parts perhaps splitting it would make sense
 // or at least create separate interfaces
 public class AppSecRequestContext implements DataBundle, ReportService, Closeable {
-  private static final Logger log = LoggerFactory.getLogger(AppSecSystem.class);
+  private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
 
   private final ConcurrentHashMap<Address<?>, Object> persistentData = new ConcurrentHashMap<>();
   private Collection<Attack010> collectedAttacks; // guarded by this
@@ -41,15 +40,23 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
 
   private volatile StoredBodySupplier storedRequestBodySupplier;
 
+  private int responseStatus;
+
   // to be called by the Event Dispatcher
   public void addAll(DataBundle newData) {
     for (Map.Entry<Address<?>, Object> entry : newData) {
-      Object prev = persistentData.putIfAbsent(entry.getKey(), entry.getValue());
+      Address<?> address = entry.getKey();
+      Object value = entry.getValue();
+      if (value == null) {
+        log.warn("Address {} ignored, because contains null value.", address);
+        continue;
+      }
+      Object prev = persistentData.putIfAbsent(address, value);
       if (prev != null) {
-        log.warn("Illegal attempt to replace context value for {}", entry.getKey());
+        log.warn("Illegal attempt to replace context value for {}", address);
       }
       if (log.isDebugEnabled()) {
-        StandardizedLogging.addressPushed(log, entry.getKey());
+        StandardizedLogging.addressPushed(log, address);
       }
     }
   }
@@ -163,6 +170,14 @@ public class AppSecRequestContext implements DataBundle, ReportService, Closeabl
 
   void setStoredRequestBodySupplier(StoredBodySupplier storedRequestBodySupplier) {
     this.storedRequestBodySupplier = storedRequestBodySupplier;
+  }
+
+  public int getResponseStatus() {
+    return responseStatus;
+  }
+
+  public void setResponseStatus(int responseStatus) {
+    this.responseStatus = responseStatus;
   }
 
   @Override

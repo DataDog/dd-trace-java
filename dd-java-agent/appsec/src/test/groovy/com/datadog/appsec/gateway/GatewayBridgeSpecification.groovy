@@ -9,6 +9,7 @@ import com.datadog.appsec.event.data.StringKVPair
 import com.datadog.appsec.report.ReportService
 import com.datadog.appsec.report.raw.events.attack.Attack010
 import datadog.trace.api.Function
+import datadog.trace.api.function.BiConsumer
 import datadog.trace.api.function.BiFunction
 import datadog.trace.api.function.Supplier
 import datadog.trace.api.function.TriConsumer
@@ -52,6 +53,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   TriFunction<RequestContext, String, Integer, Flow<Void>> requestSocketAddressCB
   BiFunction<RequestContext, StoredBodySupplier, Void> requestBodyStartCB
   BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestBodyDoneCB
+  BiConsumer<RequestContext, Integer> responseStartedCB
 
   void setup() {
     callInitAndCaptureCBs()
@@ -247,6 +249,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.requestClientSocketAddress(), _) >> { requestSocketAddressCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyStart(), _) >> { requestBodyStartCB = it[1]; null }
     1 * ig.registerCallback(EVENTS.requestBodyDone(), _) >> { requestBodyDoneCB = it[1]; null }
+    1 * ig.registerCallback(EVENTS.responseStarted(), _) >> { responseStartedCB = it[1]; null }
     0 * ig.registerCallback(_, _)
 
     bridge.init()

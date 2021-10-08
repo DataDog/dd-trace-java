@@ -25,8 +25,8 @@ class SController @Inject()(
       SAction2 {
         Action.async { implicit request: Request[AnyContent] =>
           val tracer = GlobalTracer.get
-          val span = tracer.buildSpan("do-get").start
-          val scope = tracer.scopeManager.activate(span)
+          val span   = tracer.buildSpan("do-get").start
+          val scope  = tracer.scopeManager.activate(span)
 
           try {
             val idVal = id.getOrElse(0)

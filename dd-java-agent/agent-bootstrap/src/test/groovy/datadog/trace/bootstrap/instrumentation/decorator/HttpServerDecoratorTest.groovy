@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
@@ -37,8 +38,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * span.setTag(Tags.HTTP_METHOD, "test-method")
       1 * span.setTag(Tags.HTTP_URL, url)
       1 * span.getRequestContext()
-      1 * span.hasResourceName() >> false
-      1 * span.setResourceName({ it as String == req.method + " " + req.path })
+      1 * span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
     }
     0 * _
 
@@ -69,8 +69,11 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)
       1 * span.setTag(DDTags.HTTP_FRAGMENT, expectedFragment)
     }
-    1 * span.hasResourceName() >> false
-    1 * span.setResourceName({ it as String == expectedPath })
+    if (url != null) {
+      1 * span.setResourceName({ it as String == expectedPath }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
+    } else {
+      1 * span.setResourceName({ it as String == expectedPath })
+    }
     1 * span.setTag(Tags.HTTP_METHOD, null)
     0 * _
 
@@ -108,8 +111,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)
     1 * span.setTag(DDTags.HTTP_FRAGMENT, null)
     1 * span.getRequestContext()
-    1 * span.hasResourceName() >> false
-    1 * span.setResourceName({ it as String == expectedResource })
+    1 * span.setResourceName({ it as String == expectedResource }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
     1 * span.setTag(Tags.HTTP_METHOD, null)
     0 * _
 
@@ -197,8 +199,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       1 * span.setError(true)
     }
     if (status == 404) {
-      1 * span.getTag('http.route')
-      1 * span.setResourceName({ it as String == "404" })
+      1 * span.setResourceName({ it as String == "404" }, ResourceNamePriorities.HTTP_404)
     }
     0 * _
 

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aws.v2;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -18,6 +19,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   public static final CharSequence AWS_HTTP = UTF8BytesString.create("aws.http");
 
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
+
+  // We only want tag interceptor to take priority
+  private static final byte RESOURCE_NAME_PRIORITY = ResourceNamePriorities.TAG_INTERCEPTOR - 1;
 
   public AgentSpan onSdkRequest(final AgentSpan span, final SdkRequest request) {
     // S3
@@ -53,9 +57,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     final String awsOperationName = attributes.getAttribute(SdkExecutionAttribute.OPERATION_NAME);
 
     String awsRequestName = awsServiceName + "." + awsOperationName;
-
-    // Resource Name has to be set after the HTTP_URL because otherwise decorators overwrite it
-    span.setResourceName(awsRequestName);
+    span.setResourceName(awsRequestName, RESOURCE_NAME_PRIORITY);
 
     switch (awsRequestName) {
       case "Sqs.SendMessage":

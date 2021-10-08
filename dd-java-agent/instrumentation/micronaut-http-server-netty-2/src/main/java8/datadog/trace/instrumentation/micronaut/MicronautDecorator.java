@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.micronaut;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -94,7 +94,7 @@ public class MicronautDecorator
     }
 
     if (null != route) {
-      ROUTE_HANDLER_DECORATOR.withRoute(parent, request.getMethod().name(), route);
+      HTTP_RESOURCE_DECORATOR.withRoute(parent, request.getMethod().name(), route);
     }
     span.setResourceName(resourceName);
   }

@@ -7,10 +7,10 @@ import java.util.Optional;
 public interface AppSecConfigService extends Closeable {
   void init(boolean initFleetService);
 
-  Optional<Object> addSubConfigListener(String key, SubconfigListener listener);
+  Optional<AppSecConfig> addSubConfigListener(String key, SubconfigListener listener);
 
   interface SubconfigListener {
-    void onNewSubconfig(Object newConfig) throws AppSecModule.AppSecModuleActivationException;
+    void onNewSubconfig(AppSecConfig newConfig) throws AppSecModule.AppSecModuleActivationException;
   }
 
   void close();

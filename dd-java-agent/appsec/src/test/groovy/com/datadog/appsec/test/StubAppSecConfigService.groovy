@@ -1,13 +1,15 @@
 package com.datadog.appsec.test
 
+import com.datadog.appsec.config.AppSecConfig
 import com.datadog.appsec.config.AppSecConfigService
 import com.datadog.appsec.config.AppSecConfigServiceImpl
 import com.squareup.moshi.Moshi
+import okio.Okio
 
 class StubAppSecConfigService implements AppSecConfigService {
   Map<String, SubconfigListener> listeners = [:]
 
-  Map<String, Object> lastConfig
+  Map<String, AppSecConfig> lastConfig
   final String location
 
   private final Map hardcodedConfig
@@ -27,13 +29,14 @@ class StubAppSecConfigService implements AppSecConfigService {
     } else {
       def loader = getClass().classLoader
       def stream = loader.getResourceAsStream(location)
-      def adapter = new Moshi.Builder().build().adapter(Map)
-      lastConfig = adapter.fromJson(stream.text)
+      //def adapter = new Moshi.Builder().build().adapter(Map)
+      //lastConfig = adapter.fromJson(stream.text)
+      lastConfig = AppSecConfigServiceImpl.deserializeConfig(Okio.buffer(Okio.source(stream)))
     }
   }
 
   @Override
-  Optional<Object> addSubConfigListener(String key, SubconfigListener listener) {
+  Optional<AppSecConfig> addSubConfigListener(String key, SubconfigListener listener) {
     listeners[key] = listener
 
     Optional.ofNullable(lastConfig[key])

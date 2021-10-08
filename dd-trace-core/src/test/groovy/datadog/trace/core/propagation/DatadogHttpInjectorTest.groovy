@@ -15,7 +15,7 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY
 
 class DatadogHttpInjectorTest extends DDCoreSpecification {
 
-  HttpCodec.Injector injector = new DatadogHttpCodec.Injector()
+  HttpCodec.Injector injector = DatadogHttpCodec.INJECTOR
 
   def "inject http headers"() {
     setup:

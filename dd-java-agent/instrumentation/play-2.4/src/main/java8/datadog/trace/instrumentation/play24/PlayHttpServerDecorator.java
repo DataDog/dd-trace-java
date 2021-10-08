@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.play24;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.RouteHandlerDecorator.ROUTE_HANDLER_DECORATOR;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.play24.PlayHeaders.GETTER;
 
 import datadog.trace.api.Config;
@@ -81,7 +81,7 @@ public class PlayHttpServerDecorator
       final Option pathOption = request.tags().get("ROUTE_PATTERN");
       if (!pathOption.isEmpty()) {
         final String path = (String) pathOption.get();
-        ROUTE_HANDLER_DECORATOR.withRoute(span, request.method(), path);
+        HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path);
       }
     }
     return span;

@@ -1,7 +1,5 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
 import org.eclipse.jetty.server.Request
@@ -228,13 +226,6 @@ class JettyServlet3TestAsync extends JettyServlet3Test {
   boolean testTimeout() {
     true
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-  }
 }
 
 class JettyServlet3TestFakeAsync extends JettyServlet3Test {
@@ -363,12 +354,5 @@ class JettyServlet3TestDispatchAsync extends JettyServlet3Test {
     super.setupServlets(context)
     setupDispatchServlets(context, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
-  }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

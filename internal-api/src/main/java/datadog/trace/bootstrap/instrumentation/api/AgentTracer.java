@@ -4,6 +4,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.DDId;
+import datadog.trace.api.PropagationStyle;
 import datadog.trace.api.SpanCheckpointer;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
@@ -294,6 +295,9 @@ public class AgentTracer {
     public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
 
     @Override
+    public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {}
+
+    @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {
       return null;
     }
@@ -433,6 +437,11 @@ public class AgentTracer {
 
     @Override
     public AgentSpan setResourceName(final CharSequence resourceName) {
+      return this;
+    }
+
+    @Override
+    public AgentSpan setResourceName(final CharSequence resourceName, byte priority) {
       return this;
     }
 
@@ -580,6 +589,11 @@ public class AgentTracer {
     }
 
     @Override
+    public byte getResourceNamePriority() {
+      return Byte.MAX_VALUE;
+    }
+
+    @Override
     public void setEmittingCheckpoints(boolean value) {}
 
     @Override
@@ -641,6 +655,9 @@ public class AgentTracer {
 
     @Override
     public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
+
+    @Override
+    public <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style) {}
 
     @Override
     public <C> Context.Extracted extract(final C carrier, final ContextVisitor<C> getter) {

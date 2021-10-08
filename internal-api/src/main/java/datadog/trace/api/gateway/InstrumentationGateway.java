@@ -1,20 +1,9 @@
 package datadog.trace.api.gateway;
 
-import static datadog.trace.api.gateway.Events.MAX_EVENTS;
-import static datadog.trace.api.gateway.Events.REQUEST_BODY_DONE_ID;
-import static datadog.trace.api.gateway.Events.REQUEST_BODY_START_ID;
-import static datadog.trace.api.gateway.Events.REQUEST_CLIENT_SOCKET_ADDRESS_ID;
-import static datadog.trace.api.gateway.Events.REQUEST_ENDED_ID;
-import static datadog.trace.api.gateway.Events.REQUEST_HEADER_DONE_ID;
-import static datadog.trace.api.gateway.Events.REQUEST_HEADER_ID;
-import static datadog.trace.api.gateway.Events.REQUEST_METHOD_URI_RAW_ID;
-import static datadog.trace.api.gateway.Events.REQUEST_STARTED_ID;
+import static datadog.trace.api.gateway.Events.*;
 
 import datadog.trace.api.Function;
-import datadog.trace.api.function.BiFunction;
-import datadog.trace.api.function.Supplier;
-import datadog.trace.api.function.TriConsumer;
-import datadog.trace.api.function.TriFunction;
+import datadog.trace.api.function.*;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -212,6 +201,18 @@ public class InstrumentationGateway implements CallbackProvider, SubscriptionSer
                 } catch (Throwable t) {
                   log.warn("Callback for {} threw.", eventType, t);
                   return Flow.ResultFlow.empty();
+                }
+              }
+            };
+      case RESPONSE_STARTED_ID:
+        return (C)
+            new BiConsumer<RequestContext, Integer>() {
+              @Override
+              public void accept(RequestContext ctx, Integer status) {
+                try {
+                  ((BiConsumer<RequestContext, Integer>) callback).accept(ctx, status);
+                } catch (Throwable t) {
+                  log.warn("Callback for {} threw.", eventType, t);
                 }
               }
             };

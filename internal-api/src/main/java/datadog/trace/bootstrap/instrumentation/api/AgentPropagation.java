@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.PropagationStyle;
 import datadog.trace.context.TraceScope;
 
 public interface AgentPropagation {
@@ -9,6 +10,8 @@ public interface AgentPropagation {
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter);
 
   <C> void inject(AgentSpan.Context context, C carrier, Setter<C> setter);
+
+  <C> void inject(AgentSpan span, C carrier, Setter<C> setter, PropagationStyle style);
 
   interface Setter<C> {
     void set(C carrier, String key, String value);

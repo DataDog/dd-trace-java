@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
 
@@ -29,8 +30,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
       1 * span.setTag(Tags.HTTP_URL, "$req.url")
       1 * span.setTag(Tags.PEER_HOSTNAME, req.url.host)
       1 * span.setTag(Tags.PEER_PORT, req.url.port)
-      1 * span.hasResourceName() >> false
-      1 * span.setResourceName({ it as String == req.method + " " + req.path })
+      1 * span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
       if (renameService) {
         1 * span.setServiceName(req.url.host)
       }
@@ -68,8 +68,11 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     if (port) {
       1 * span.setTag(Tags.PEER_PORT, port)
     }
-    1 * span.hasResourceName() >> false
-    1 * span.setResourceName({ it as String == expectedPath })
+    if (url != null) {
+      1 * span.setResourceName({ it as String == expectedPath }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
+    } else {
+      1 * span.setResourceName({ it as String == expectedPath })
+    }
     0 * _
 
     where:

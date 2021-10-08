@@ -89,6 +89,11 @@ public class GatewayBridge {
           producerService.publishEvent(ctx, EventType.REQUEST_END);
 
           Collection<Attack010> collectedAttacks = ctx.transferCollectedAttacks();
+          // If detected any attacks - mark span at appsec.event
+          if (!collectedAttacks.isEmpty() && spanInfo != null) {
+            spanInfo.setTag("appsec.event", true);
+          }
+
           for (Attack010 attack : collectedAttacks) {
             EventEnrichment.enrich(attack, spanInfo, ctx);
             reportService.reportAttack(attack);
@@ -150,6 +155,18 @@ public class GatewayBridge {
           } else {
             return NoopFlow.INSTANCE;
           }
+        });
+
+    subscriptionService.registerCallback(
+        EVENTS.responseStarted(),
+        (ctx_, status) -> {
+          AppSecRequestContext ctx = ctx_.getData();
+          ctx.setResponseStatus(status);
+
+          MapDataBundle bundle =
+              MapDataBundle.of(KnownAddresses.RESPONSE_STATUS, ctx.getResponseStatus());
+
+          ctx.addAll(bundle);
         });
   }
 

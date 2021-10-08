@@ -60,6 +60,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       case "SQS.SendMessage":
       case "SQS.SendMessageBatch":
       case "SQS.ReceiveMessage":
+      case "SQS.DeleteMessage":
         span.setServiceName("sqs");
         break;
       case "SNS.Publish":

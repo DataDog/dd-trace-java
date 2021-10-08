@@ -65,7 +65,7 @@ class MongoBaseTest extends AgentTestRunner {
 
   def matchesStatement(statement) {
     return {
-      assert it.replace(" ", "").replace(",\"\$db\":\"$databaseName\"", "").replace(',"lsid":{"id":"?"}', '').replace(',"readPreference":{"node":"?"}', '') == statement
+      assert it.replace(" ", "").replace(",\"\$db\":\"$databaseName\"", "").replace(',"lsid":{"id":"?"}', '').replace(',"readPreference":{"node":"?"}', '').replace(',"autoIndexId":"?"', '').replace(',"$readPreference":{"mode":"?"}', '') == statement
       return true
     }
   }

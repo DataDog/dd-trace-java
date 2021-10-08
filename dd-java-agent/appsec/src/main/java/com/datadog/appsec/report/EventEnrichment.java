@@ -14,6 +14,7 @@ import com.datadog.appsec.report.raw.contexts.host.Host010;
 import com.datadog.appsec.report.raw.contexts.http.Http010;
 import com.datadog.appsec.report.raw.contexts.http.HttpHeaders;
 import com.datadog.appsec.report.raw.contexts.http.HttpRequest;
+import com.datadog.appsec.report.raw.contexts.http.HttpResponse;
 import com.datadog.appsec.report.raw.contexts.service_stack.Service;
 import com.datadog.appsec.report.raw.contexts.service_stack.ServiceStack010;
 import com.datadog.appsec.report.raw.contexts.span.Span010;
@@ -170,6 +171,19 @@ public class EventEnrichment {
       if (headersNoCookies != null) {
         request.setHeaders(new HttpHeaders(headersNoCookies));
       }
+    }
+
+    HttpResponse response = http.getResponse();
+    if (response == null) {
+      response = new HttpResponse();
+      http.setResponse(response);
+    }
+    if (response.getStatus() == null) {
+      Integer status = appSecCtx.get(KnownAddresses.RESPONSE_STATUS);
+      response.setStatus(status);
+    }
+    if (response.getBlocked() == null) {
+      response.setBlocked(attack.getBlocked());
     }
 
     Tracer010 tracer = (Tracer010) eventCtx.getTracer();
