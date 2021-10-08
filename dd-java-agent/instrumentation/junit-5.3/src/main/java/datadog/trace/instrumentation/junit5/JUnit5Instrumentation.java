@@ -54,7 +54,9 @@ public class JUnit5Instrumentation extends Instrumenter.Tracing {
 
     @Advice.OnMethodExit
     public static void addTracingListener(@Advice.This final Launcher launcher) {
-      // There is no public API to access to the discovered test engines from the Launcher API.
+      // No public API found to get a TestEngine instance from the testEngineId
+      // We follow the same approach that the Launcher is using to find all the
+      // available TestEngines (ServiceLocator pattern).
       final Iterable<TestEngine> testEngines =
           ServiceLoader.load(TestEngine.class, ClassLoaderUtils.getDefaultClassLoader());
       final TracingListener listener = new TracingListener(testEngines);

@@ -110,6 +110,7 @@ public abstract class TestDecorator extends BaseDecorator {
   }
 
   public AgentSpan afterStart(final AgentSpan span, final String version) {
+    // Version can be null. The testing framework extraction is best-effort basis.
     if (version != null) {
       span.setTag(Tags.TEST_FRAMEWORK_VERSION, version);
     }
