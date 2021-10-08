@@ -5,10 +5,16 @@ import com.datadog.appsec.report.raw.events.attack.Attack010;
 import com.datadog.appsec.report.raw.events.attack._definitions.rule.Rule010;
 import io.sqreen.powerwaf.Powerwaf;
 import org.slf4j.Logger;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
 public class StandardizedLogging {
+
+  private static final Marker CRITICAL = MarkerFactory.getMarker("CRITICAL");
+
   public static void appSecStartupError(Logger logger, Throwable t) { // C1
     logger.error(
+        CRITICAL,
         "AppSec could not start because of an unexpected error. "
             + "No security activities will be collected. Please contact support at "
             + "https://docs.datadoghq.com/help/ for help.",
@@ -30,6 +36,7 @@ public class StandardizedLogging {
   // C3
   public static void libddwafCannotBeLoaded(Logger logger, String libc) {
     logger.error(
+        CRITICAL,
         "AppSec could not load libddwaf native library, as a result, "
             + "AppSec could not start. No security activities will be collected. "
             + "Please contact support at https://docs.datadoghq.com/help/ for help. "
@@ -44,6 +51,7 @@ public class StandardizedLogging {
   // C4:
   public static void rulesFileNotFound(Logger logger, String filename) {
     logger.error(
+        CRITICAL,
         "AppSec could not find the rules file in path {}. "
             + "AppSec will not run any protections in this application. No security activities will be collected.",
         filename);
@@ -69,6 +77,7 @@ public class StandardizedLogging {
   /* C5: Cannot be fully implemented: notice that all rules are invalid needs cooperation from libddwaf */
   public static void rulesFileInvalid(Logger logger, String filename, RulesInvalidReason reason) {
     logger.error(
+        CRITICAL,
         "AppSec could not read the rule file {} as it was invalid: {}. "
             + "AppSec will not run any protections in this application.",
         filename,

@@ -20,8 +20,9 @@ public abstract class LoggerHelper {
    * {@code enabled}.
    *
    * @param level the {@link LogLevel} to log at
+   * @param marker the {@link Marker} to log
    * @param message the message to log
    * @param t the {@link Throwable} to log
    */
-  public abstract void log(LogLevel level, String message, Throwable t);
+  public abstract void log(LogLevel level, Marker marker, String message, Throwable t);
 }
