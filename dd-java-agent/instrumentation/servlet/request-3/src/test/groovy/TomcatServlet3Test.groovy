@@ -1,8 +1,6 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator
@@ -358,13 +356,6 @@ class TomcatServlet3TestAsync extends TomcatServlet3Test {
     // The exception will just cause an async timeout
     false
   }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
-  }
 }
 
 class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {
@@ -496,12 +487,5 @@ class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
     super.setupServlets(context)
     setupDispatchServlets(context, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
-  }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }

@@ -24,29 +24,36 @@ class SLCompatHelper extends LoggerHelper {
 
   @Override
   public boolean enabled(LogLevel level, Marker marker) {
-    // SimpleLogger ignores markers
+    // Due to limited Marker support we assume it's depends on LogLevel only
     return level.isEnabled(this.logLevel);
   }
 
   @Override
-  public void log(LogLevel level, String message, Throwable t) {
+  public void log(LogLevel level, Marker marker, String message, Throwable t) {
     long timeMillis = Integer.MIN_VALUE;
     if (settings.showDateTime) {
       timeMillis = System.currentTimeMillis();
     }
-    log(level, SLCompatFactory.START_TIME, timeMillis, message, t);
-  }
-
-  void log(LogLevel level, long startTimeMillis, long timeMillis, String message, Throwable t) {
-    String threadName = null;
-    if (settings.showThreadName) {
-      threadName = Thread.currentThread().getName();
-    }
-    log(level, startTimeMillis, timeMillis, threadName, message, t);
+    log(level, marker, SLCompatFactory.START_TIME, timeMillis, message, t);
   }
 
   void log(
       LogLevel level,
+      Marker marker,
+      long startTimeMillis,
+      long timeMillis,
+      String message,
+      Throwable t) {
+    String threadName = null;
+    if (settings.showThreadName) {
+      threadName = Thread.currentThread().getName();
+    }
+    log(level, marker, startTimeMillis, timeMillis, threadName, message, t);
+  }
+
+  void log(
+      LogLevel level,
+      Marker marker,
       long startTimeMillis,
       long timeMillis,
       String threadName,
@@ -71,6 +78,8 @@ class SLCompatHelper extends LoggerHelper {
 
     if (settings.warnLevelString != null && level == LogLevel.WARN) {
       buf.append(settings.warnLevelString);
+    } else if (marker != null) {
+      buf.append(marker.getName());
     } else {
       buf.append(level.name());
     }

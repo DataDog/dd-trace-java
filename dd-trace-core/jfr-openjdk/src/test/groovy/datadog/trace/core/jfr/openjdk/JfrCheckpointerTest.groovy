@@ -1,6 +1,7 @@
 package datadog.trace.core.jfr.openjdk
 
 import datadog.trace.api.DDId
+import datadog.trace.api.config.ProfilingConfig
 import datadog.trace.api.sampling.AdaptiveSampler
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -34,6 +35,31 @@ class JfrCheckpointerTest extends DDSpecification {
     true         | false   | 1           | 0           | 0
     false        | true    | 0           | 0           | 0
     false        | false   | 0           | 0           | 0
+  }
+
+  def "test sampler configuration"() {
+    setup:
+    Properties props = new Properties()
+    props.put(ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT, String.valueOf(rateLimit))
+    props.put(ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS, String.valueOf(sensitivity))
+    def configProvider = ConfigProvider.withPropertiesOverride(props)
+    when:
+    def config = JFRCheckpointer.getSamplerConfiguration(configProvider)
+
+    then:
+    config.windowSize.toMillis() == windowSize
+    config.samplesPerWindow == samplesPerWindow
+
+    where:
+    rateLimit   | sensitivity | windowSize                                  | samplesPerWindow
+    // linearly scaled parameters
+    100000L     | 10000L      | 10000L                                      | Math.round(rateLimit * windowSize / 60000f)
+    100000L     | 1L          | JFRCheckpointer.MIN_SAMPLER_WINDOW_SIZE_MS  | Math.round(rateLimit * windowSize / 60000f)
+    100000L     | 60000L      | JFRCheckpointer.MAX_SAMPLER_WINDOW_SIZE_MS  | Math.round(rateLimit * windowSize / 60000f)
+    // too hight rate limit value is clipped
+    100000000L  | 10000L      | 10000L                                      | Math.round(JFRCheckpointer.MAX_SAMPLER_RATE * windowSize / 60000f)
+    // unreasonably low rate limit value is extended
+    1L          | 10000L      | JFRCheckpointer.MAX_SAMPLER_WINDOW_SIZE_MS  | 1
   }
 
   def stubbedSampler(def sampled) {
