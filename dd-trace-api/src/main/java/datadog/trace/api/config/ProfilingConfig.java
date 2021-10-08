@@ -49,8 +49,12 @@ public final class ProfilingConfig {
       "profiling.legacy.tracing.integration";
   public static final String PROFILING_CHECKPOINTS_RECORD_CPU_TIME =
       "profiling.checkpoints.record.cpu.time";
-  public static final String PROFILING_CHECKPOINTS_RATE_LIMIT = "profiling.checkpoints.rate.limit";
-  public static final int PROFILING_CHECKPOINTS_RATE_LIMIT_DEFAULT = 50000;
+  public static final String PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT =
+      "profiling.checkpoints.sampler.rate-limit";
+  public static final int PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT_DEFAULT = 100000;
+  public static final String PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS =
+      "profiling.checkpoints.sampler.sliding-window.ms";
+  public static final int PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS_DEFAULT = 5000;
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;
