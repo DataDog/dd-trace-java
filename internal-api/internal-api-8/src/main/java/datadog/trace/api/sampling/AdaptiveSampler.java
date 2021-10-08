@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.LongAdder;
  * to compensate for too rapid changes in the incoming events rate and maintain the target average
  * number of samples per window.
  */
-public class AdaptiveSampler {
+public class AdaptiveSampler implements Sampler {
 
   /*
    * Number of windows to look back when computing carried over budget.
@@ -142,11 +142,7 @@ public class AdaptiveSampler {
     this(windowDuration, samplesPerWindow, lookback, AgentTaskScheduler.INSTANCE);
   }
 
-  /**
-   * Provides binary answer whether the current event is to be sampled
-   *
-   * @return {@literal true} if the event should be sampled
-   */
+  @Override
   public boolean sample() {
     final Counts counts = countsRef.get();
     counts.addTest();
@@ -157,11 +153,7 @@ public class AdaptiveSampler {
     return false;
   }
 
-  /**
-   * Force the sampling decision to keep this item
-   *
-   * @return always {@literal true}
-   */
+  @Override
   public boolean keep() {
     final AdaptiveSampler.Counts counts = countsRef.get();
     counts.addTest();
@@ -169,11 +161,7 @@ public class AdaptiveSampler {
     return true;
   }
 
-  /**
-   * Force the sampling decision to drop this item
-   *
-   * @return always {@literal false}
-   */
+  @Override
   public boolean drop() {
     final AdaptiveSampler.Counts counts = countsRef.get();
     counts.addTest();

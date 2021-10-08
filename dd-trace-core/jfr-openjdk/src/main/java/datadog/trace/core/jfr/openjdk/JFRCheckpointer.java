@@ -3,10 +3,13 @@ package datadog.trace.core.jfr.openjdk;
 import datadog.trace.api.Checkpointer;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.sampling.AdaptiveSampler;
+import datadog.trace.api.sampling.ConstantSampler;
+import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 import java.util.concurrent.atomic.LongAdder;
 import jdk.jfr.EventType;
 import jdk.jfr.FlightRecorder;
@@ -21,7 +24,7 @@ public class JFRCheckpointer implements Checkpointer {
   private static final int SAMPLER_LOOKBACK = 11;
   private static final int SAMPLER_WINDOW_SIZE_MS = 800;
 
-  private final AdaptiveSampler sampler;
+  private final Sampler sampler;
 
   private final LongAdder emitted = new LongAdder();
   private final LongAdder dropped = new LongAdder();
@@ -36,7 +39,7 @@ public class JFRCheckpointer implements Checkpointer {
     this(prepareSampler(configProvider), configProvider);
   }
 
-  JFRCheckpointer(final AdaptiveSampler sampler, final ConfigProvider configProvider) {
+  JFRCheckpointer(final Sampler sampler, final ConfigProvider configProvider) {
     ExcludedVersions.checkVersionExclusion();
     // Note: Loading CheckpointEvent when JFRCheckpointer is loaded is important because it also
     // loads JFR classes - which may not be present on some JVMs
@@ -45,7 +48,7 @@ public class JFRCheckpointer implements Checkpointer {
     EventType.getEventType(CheckpointSummaryEvent.class);
 
     rateLimit = getRateLimit(configProvider);
-    this.sampler = sampler;
+    this.sampler = Objects.requireNonNull(sampler);
 
     if (sampler != null) {
       FlightRecorder.addPeriodicEvent(CheckpointSummaryEvent.class, this::emitSummary);
@@ -77,7 +80,7 @@ public class JFRCheckpointer implements Checkpointer {
       checkpoint emission flag being properly published (eg. via 'volatile').
        */
       // if the flag hasn't been set yet consult the sampler
-      checkpointed = sampler != null ? sampler.sample() : true;
+      checkpointed = sampler.sample();
       // store the decision in the span
       span.setEmittingCheckpoints(checkpointed);
       if (log.isDebugEnabled()) {
@@ -130,12 +133,12 @@ public class JFRCheckpointer implements Checkpointer {
     new CheckpointSummaryEvent(rateLimit, emitted.sumThenReset(), dropped.sumThenReset()).commit();
   }
 
-  private static AdaptiveSampler prepareSampler(final ConfigProvider configProvider) {
+  private static Sampler prepareSampler(final ConfigProvider configProvider) {
     final int limit = getRateLimit(configProvider);
     if (limit <= 0) {
       // adaptive sampling disabled
       log.debug("Checkpoint adaptive sampling is disabled");
-      return null;
+      return new ConstantSampler(true);
     }
     Duration windowSize = Duration.of(SAMPLER_WINDOW_SIZE_MS, ChronoUnit.MILLIS);
 
