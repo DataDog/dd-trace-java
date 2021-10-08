@@ -91,7 +91,7 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
 
   @Override
   String testPathParam() {
-    "/path/:id/param"
+    routerBasePath() + "path/:id/param"
   }
 
   @Override
@@ -136,7 +136,7 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
       case PATH_PARAM:
         return testPathParam()
       default:
-        return endpoint.path
+        return routerBasePath() + endpoint.relativePath()
     }
   }
 

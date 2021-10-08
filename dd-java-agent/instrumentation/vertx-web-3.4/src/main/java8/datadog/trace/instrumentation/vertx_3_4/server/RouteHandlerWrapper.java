@@ -10,11 +10,16 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RouteHandlerWrapper implements Handler<RoutingContext> {
+  private static final Logger log = LoggerFactory.getLogger(RouteHandlerWrapper.class);
+
   private final Handler<RoutingContext> actual;
 
   public RouteHandlerWrapper(final Handler<RoutingContext> handler) {
+    log.info("Wrapping {}", handler.getClass().getName());
     actual = handler;
   }
 

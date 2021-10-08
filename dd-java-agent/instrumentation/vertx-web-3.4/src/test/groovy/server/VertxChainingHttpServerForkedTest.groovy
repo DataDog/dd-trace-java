@@ -7,11 +7,13 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.vertx_3_4.server.VertxRouterDecorator
 import io.vertx.core.AbstractVerticle
+import spock.lang.Ignore
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
+@Ignore
 class VertxChainingHttpServerForkedTest extends VertxHttpServerForkedTest {
   @Override
   protected Class<AbstractVerticle> verticle() {

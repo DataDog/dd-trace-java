@@ -2,12 +2,18 @@ package datadog.trace.instrumentation.vertx_3_4.server;
 
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.impl.RouterImpl;
 import net.bytebuddy.asm.Advice;
 
 public class RouteHandlerWrapperAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void wrapHandler(
       @Advice.Argument(value = 0, readOnly = false) Handler<RoutingContext> handler) {
-    handler = new RouteHandlerWrapper(handler);
+    // When mounting a sub router, the handler is a method reference to the routers handleContext
+    // method,
+    // this skips that
+    if (!handler.getClass().getName().startsWith(RouterImpl.class.getName())) {
+      handler = new RouteHandlerWrapper(handler);
+    }
   }
 }
