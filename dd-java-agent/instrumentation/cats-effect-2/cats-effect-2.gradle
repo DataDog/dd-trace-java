@@ -1,0 +1,12 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala'
+
+dependencies {
+  main_java8CompileOnly deps.scala212
+  main_java8CompileOnly group: 'org.typelevel', name: 'cats-effect_2.12', version: '2.5.1'
+}
