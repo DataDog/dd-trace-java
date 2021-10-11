@@ -76,6 +76,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
 
   private final boolean withCheckpoints;
 
+  private volatile boolean resumable = false;
+
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
@@ -110,6 +112,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (this.durationNano.compareAndSet(0, Math.max(1, durationNano))) {
+      if (isResumable()) {
+        finishThreadMigration();
+      }
       context.getTrace().onFinish(this);
       PendingTrace.PublishState publishState = context.getTrace().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
@@ -441,6 +446,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
   @Override
   public void startThreadMigration() {
     if (hasCheckpoints()) {
+      resumable = true;
       context.getTracer().onStartThreadMigration(this);
     }
   }
@@ -457,6 +463,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan> {
     if (hasCheckpoints()) {
       context.getTracer().onFinishWork(this);
     }
+  }
+
+  @Override
+  public boolean isResumable() {
+    return resumable;
   }
 
   @Override

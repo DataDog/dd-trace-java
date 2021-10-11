@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.api.Checkpointer.END
 import static datadog.trace.api.Checkpointer.SPAN
+import static datadog.trace.api.Checkpointer.THREAD_MIGRATION
 import static datadog.trace.core.scopemanager.EVENT.ACTIVATE
 import static datadog.trace.core.scopemanager.EVENT.CLOSE
 import static datadog.trace.test.util.GCUtils.awaitGC
@@ -463,6 +464,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     assertEvents([ACTIVATE, ACTIVATE])
     2 * checkpointer.checkpoint(_, SPAN) // two spans started by test
     1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
+    1 * checkpointer.checkpoint(_, THREAD_MIGRATION)
     1 * statsDClient.incrementCounter("scope.close.error")
     0 * _
 
@@ -473,6 +475,7 @@ class ScopeManagerTest extends DDCoreSpecification {
     then:
     1 * checkpointer.checkpoint(_, SPAN | END) // span ended by test
     1 * checkpointer.onRootSpan(_, _, _)
+    1 * checkpointer.checkpoint(_, THREAD_MIGRATION)
     assertEvents([ACTIVATE, ACTIVATE, CLOSE, CLOSE])
     0 * _
 

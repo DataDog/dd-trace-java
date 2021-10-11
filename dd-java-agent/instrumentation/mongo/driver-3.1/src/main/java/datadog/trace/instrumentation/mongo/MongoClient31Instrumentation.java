@@ -50,8 +50,7 @@ public final class MongoClient31Instrumentation extends Instrumenter.Tracing {
       packageName + ".MongoDecorator",
       packageName + ".MongoDecorator31",
       packageName + ".Context",
-      packageName + ".MongoCommandListener",
-      packageName + ".MongoCommandListener$SpanEntry"
+      packageName + ".MongoCommandListener"
     };
   }
 

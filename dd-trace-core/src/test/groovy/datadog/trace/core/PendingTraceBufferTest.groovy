@@ -77,6 +77,8 @@ class PendingTraceBufferTest extends DDSpecification {
     trace.pendingReferenceCount == 1
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
+    1 * tracer.onStartThreadMigration(span)
+    1 * tracer.onFinishThreadMigration(span)
     1 * tracer.onFinish(span)
     0 * _
 
@@ -139,6 +141,8 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * tracer.mapServiceName(_)
     _ * tracer.onStart(_)
+    _ * tracer.onStartThreadMigration(_)
+    _ * tracer.onFinishThreadMigration(_)
     _ * tracer.onFinish(_)
     0 * _
 
@@ -152,6 +156,8 @@ class PendingTraceBufferTest extends DDSpecification {
     _ * tracer.getPartialFlushMinSpans() >> 10
     _ * tracer.mapServiceName(_)
     1 * tracer.onStart(_)
+    1 * tracer.onStartThreadMigration(_)
+    1 * tracer.onFinishThreadMigration(_)
     1 * tracer.onFinish(_)
     0 * _
   }
@@ -161,21 +167,25 @@ class PendingTraceBufferTest extends DDSpecification {
     def latch = new CountDownLatch(1)
 
     def trace = factory.create(DDId.ONE)
-    def parent = addContinuation(newSpanOf(trace))
-    TraceScope.Continuation continuation = continuations[0]
+    def parent = newSpanOf(trace)
 
     expect:
-    continuations.size() == 1
+    parent != null
 
     when:
+    addContinuation(parent)
+    TraceScope.Continuation continuation = continuations.size() == 1 ? continuations[0] : null
     parent.finish() // This should enqueue
 
     then:
+    continuation != null
     trace.size() == 1
     trace.pendingReferenceCount == 1
     !trace.rootSpanWritten
     1 * bufferSpy.enqueue(trace)
     _ * tracer.getPartialFlushMinSpans() >> 10
+    1 * tracer.onStartThreadMigration(parent)
+    1 * tracer.onFinishThreadMigration(parent)
     1 * tracer.onFinish(parent)
     0 * _
 

@@ -36,7 +36,6 @@ public class TagSettingAsyncListener implements AsyncListener {
   @Override
   public void onComplete(final AsyncEvent event) throws IOException {
     if (activated.compareAndSet(false, true)) {
-      span.finishThreadMigration();
       if (!isDispatch) {
         DECORATE.onResponse(span, (HttpServletResponse) event.getSuppliedResponse());
       }
@@ -48,7 +47,6 @@ public class TagSettingAsyncListener implements AsyncListener {
   @Override
   public void onTimeout(final AsyncEvent event) throws IOException {
     if (activated.compareAndSet(false, true)) {
-      span.finishThreadMigration();
       if (Config.get().isServletAsyncTimeoutError()) {
         span.setError(true);
       }
@@ -61,7 +59,6 @@ public class TagSettingAsyncListener implements AsyncListener {
   @Override
   public void onError(final AsyncEvent event) throws IOException {
     if (event.getThrowable() != null && activated.compareAndSet(false, true)) {
-      span.finishThreadMigration();
       if (!isDispatch) {
         DECORATE.onResponse(span, (HttpServletResponse) event.getSuppliedResponse());
         if (((HttpServletResponse) event.getSuppliedResponse()).getStatus()

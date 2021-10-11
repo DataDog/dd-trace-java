@@ -136,6 +136,8 @@ public interface AgentSpan extends MutableSpan, IGSpanInfo {
   /** Mark the end of a task associated with the span */
   void finishWork();
 
+  boolean isResumable();
+
   /** RequestContext for the Instrumentation Gateway */
   RequestContext<Object> getRequestContext();
 

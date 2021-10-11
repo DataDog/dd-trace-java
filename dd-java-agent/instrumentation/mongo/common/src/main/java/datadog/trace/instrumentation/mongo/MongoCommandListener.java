@@ -27,24 +27,11 @@ import org.bson.BsonDocument;
 import org.bson.ByteBuf;
 
 public final class MongoCommandListener implements CommandListener {
-  public static final class SpanEntry {
-    public final AgentSpan span;
-    public volatile boolean suspended = false;
-
-    public SpanEntry(AgentSpan span) {
-      this.span = span;
-    }
-
-    @Override
-    public String toString() {
-      return "SpanEntry{" + "span=" + span + ", suspended=" + suspended + '}';
-    }
-  }
 
   private static final DDCache<String, UTF8BytesString> COMMAND_NAMES =
       DDCaches.newUnboundedCache(16);
 
-  private final Map<Integer, SpanEntry> spanMap = new ConcurrentHashMap<>();
+  private final Map<Integer, AgentSpan> spanMap = new ConcurrentHashMap<>();
   private final ContextStore<BsonDocument, ByteBuf> byteBufAccessor;
   private final MongoDecorator decorator;
   private final ContextStore<ConnectionDescription, CommandListener> listenerAccessor;
@@ -138,7 +125,7 @@ public final class MongoCommandListener implements CommandListener {
                 COMMAND_NAMES.computeIfAbsent(event.getCommandName(), UTF8_ENCODE));
       }
       decorator.onStatement(span, event.getCommand(), byteBufAccessor);
-      spanMap.put(event.getRequestId(), new SpanEntry(span));
+      spanMap.put(event.getRequestId(), span);
     }
   }
 
@@ -153,26 +140,20 @@ public final class MongoCommandListener implements CommandListener {
   }
 
   private void finishSpah(int requestId, Throwable t) {
-    final SpanEntry entry = spanMap.remove(requestId);
-    final AgentSpan span = entry != null ? entry.span : null;
+    final AgentSpan span = spanMap.remove(requestId);
     if (span != null) {
       if (t != null) {
         decorator.onError(span, t);
       }
       decorator.beforeFinish(span);
-      if (entry.suspended) {
-        // the span has been suspended but not resumed yet
-        span.finishThreadMigration();
-      }
       span.finish();
     }
   }
 
   public void suspendSpan(int requestId) {
-    SpanEntry entry = spanMap.get(requestId);
-    if (entry != null && entry.span != null) {
-      entry.span.startThreadMigration();
-      entry.suspended = true;
+    AgentSpan span = spanMap.get(requestId);
+    if (span != null) {
+      span.startThreadMigration();
     }
   }
 }

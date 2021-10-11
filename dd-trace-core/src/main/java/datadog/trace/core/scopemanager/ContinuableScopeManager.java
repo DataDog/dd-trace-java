@@ -226,6 +226,14 @@ public class ContinuableScopeManager implements AgentScopeManager {
         return;
       }
 
+      if (span.isResumable()) {
+        span.finishWork();
+      } else {
+        if (isAsyncPropagating) {
+          span.startThreadMigration();
+        }
+      }
+
       scopeStack.cleanup();
 
       if (null != continuation) {

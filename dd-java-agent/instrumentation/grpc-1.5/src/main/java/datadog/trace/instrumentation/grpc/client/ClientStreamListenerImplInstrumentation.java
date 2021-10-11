@@ -104,8 +104,6 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
       AgentSpan span =
           InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
       if (span != null) {
-        // Make sure the span thread migration is finished
-        span.finishThreadMigration();
         return activateSpan(span);
       }
       return null;
@@ -114,7 +112,7 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter AgentScope scope) {
       if (null != scope) {
-        scope.span().finishWork();
+        //        scope.span().finishWork();
         scope.close();
       }
     }
@@ -135,8 +133,6 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
       AgentSpan span =
           InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
       if (span != null) {
-        // Make sure the span thread migration is finished
-        span.finishThreadMigration();
         return activateSpan(span);
       }
       return null;
@@ -145,9 +141,6 @@ public class ClientStreamListenerImplInstrumentation extends Instrumenter.Tracin
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter AgentScope scope) {
       if (null != scope) {
-        // The span must be 'suspended' here so the `messageRead` instrumentation can properly
-        // 'resume' it
-        scope.span().startThreadMigration();
         scope.close();
       }
     }

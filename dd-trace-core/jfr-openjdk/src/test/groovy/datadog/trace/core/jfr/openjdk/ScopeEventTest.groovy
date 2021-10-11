@@ -325,8 +325,8 @@ class ScopeEventTest extends DDSpecification {
     when: "span goes through lifecycle without activation"
     AgentSpan span = tracer.startSpan("test", true)
     span.startThreadMigration()
-    span.finishThreadMigration()
     span.setResourceName("foo")
+    // span.finishThreadMigration() is called implicitly by span.finish() here
     span.finish()
     then: "checkpoints emitted"
     def events = filterEvents(JfrHelper.stopRecording(recording), ["datadog.Checkpoint", "datadog.Endpoint"])

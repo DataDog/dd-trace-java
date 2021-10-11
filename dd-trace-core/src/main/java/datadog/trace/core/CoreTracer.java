@@ -570,16 +570,25 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
+    if (span.isResumable()) {
+      span.finishThreadMigration();
+    }
     return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
   }
 
   @Override
   public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
+    if (span.isResumable()) {
+      span.finishThreadMigration();
+    }
     return scopeManager.activate(span, source);
   }
 
   @Override
   public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
+    if (span.isResumable()) {
+      span.finishThreadMigration();
+    }
     return scopeManager.activate(span, source, isAsyncPropagating);
   }
 

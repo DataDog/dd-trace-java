@@ -36,8 +36,7 @@ public final class MongoSuspendSpanInstrumentation extends Instrumenter.Tracing 
       packageName + ".BsonScrubber",
       packageName + ".MongoDecorator",
       packageName + ".Context",
-      packageName + ".MongoCommandListener",
-      packageName + ".MongoCommandListener$SpanEntry"
+      packageName + ".MongoCommandListener"
     };
   }
 

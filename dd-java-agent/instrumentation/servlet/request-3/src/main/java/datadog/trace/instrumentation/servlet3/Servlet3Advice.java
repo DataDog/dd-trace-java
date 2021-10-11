@@ -39,8 +39,6 @@ public class Servlet3Advice {
       // Activate the dispatch span as the request span so it can be finished with the request.
       // We don't want to create a new servlet.request span since this is internal processing.
       AgentSpan castDispatchSpan = (AgentSpan) dispatchSpan;
-      // span could have been originated on a different thread and migrated
-      castDispatchSpan.finishThreadMigration();
       return activateSpan(castDispatchSpan);
     }
 

@@ -460,6 +460,11 @@ public class AgentTracer {
     public void finishWork() {}
 
     @Override
+    public boolean isResumable() {
+      return false;
+    }
+
+    @Override
     public RequestContext<Object> getRequestContext() {
       return null;
     }

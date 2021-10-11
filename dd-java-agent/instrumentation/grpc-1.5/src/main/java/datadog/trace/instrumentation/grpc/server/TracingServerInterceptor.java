@@ -52,6 +52,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
       }
       throw e;
     }
+    //    span.startThreadMigration();
 
     // This ensures the server implementation can see the span in scope
     return new TracingServerCallListener<>(span, result);
@@ -141,6 +142,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
         DECORATE.onError(span, e);
         throw e;
       } finally {
+        //        span.finishWork();
         if (span.phasedFinish()) {
           DECORATE.beforeFinish(span);
           span.publish();
@@ -157,6 +159,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
         DECORATE.onError(span, e);
         throw e;
       } finally {
+        //        span.finishWork();
         /**
          * grpc has quite a few states that can finish the span. rather than track down the correct
          * combination of them to exclusively finish the span, use phasedFinish.
@@ -179,6 +182,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
           span.publish();
         }
         throw e;
+      } finally {
+        //        span.finishWork();
       }
     }
   }
