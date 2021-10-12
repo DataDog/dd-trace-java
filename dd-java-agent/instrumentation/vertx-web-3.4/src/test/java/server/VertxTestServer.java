@@ -129,6 +129,6 @@ public class VertxTestServer extends AbstractVerticle {
       runnable.run();
       return;
     }
-    runnableUnderTrace("controller", runnable);
+    runnableUnderTrace("controller", true, runnable);
   }
 }

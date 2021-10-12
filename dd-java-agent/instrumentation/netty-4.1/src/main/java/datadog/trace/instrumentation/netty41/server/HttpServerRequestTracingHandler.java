@@ -39,6 +39,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     final AgentSpan span = DECORATE.startSpan(headers, extractedContext);
 
     try (final AgentScope scope = activateSpan(span)) {
+      span.startThreadMigration();
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, ctx.channel(), request, extractedContext);
 

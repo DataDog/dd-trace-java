@@ -26,6 +26,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       DECORATE.onRequest(parentSpan, routingContext, routingContext, null);
 
       span = startSpan(INSTRUMENTATION_NAME);
+      span.startThreadMigration();
       routingContext.put(AgentSpan.class.getName(), span);
 
       routingContext.response().endHandler(new EndHandlerWrapper(span, routingContext.response()));
@@ -34,6 +35,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     }
 
     try (final AgentScope scope = activateSpan(span)) {
+      span.finishThreadMigration();
       scope.setAsyncPropagation(true);
       try {
         actual.handle(routingContext);

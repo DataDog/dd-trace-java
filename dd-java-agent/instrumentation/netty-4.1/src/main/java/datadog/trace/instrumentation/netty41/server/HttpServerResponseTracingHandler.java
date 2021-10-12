@@ -37,6 +37,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       }
       DECORATE.onResponse(span, response);
       DECORATE.beforeFinish(span);
+      span.finishThreadMigration();
       span.finish(); // Finish the span manually since finishSpanOnClose was false
     }
   }

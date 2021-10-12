@@ -31,9 +31,9 @@ class Netty38ClientTest extends HttpClientTest {
 
   @Override
   def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+    //    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+    //      CheckpointValidationMode.INTERVALS,
+    //      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 
   @Override
