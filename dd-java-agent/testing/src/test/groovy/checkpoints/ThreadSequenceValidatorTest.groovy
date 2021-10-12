@@ -123,7 +123,7 @@ class ThreadSequenceValidatorTest extends Specification {
     Signal.RESUME_SPAN  | SpanState.ENDED       | TaskState.INACTIVE    || SpanState.RESUMED    | TaskState.ACTIVE
     Signal.RESUME_SPAN  | SpanState.ENDED       | TaskState.INIT        || SpanState.INVALID    | _
     Signal.RESUME_SPAN  | SpanState.ENDED       | TaskState.ACTIVE      || SpanState.INVALID    | _
-    Signal.RESUME_SPAN  | SpanState.ENDED       | TaskState.FINISHED    || SpanState.INVALID    | _
+    Signal.RESUME_SPAN  | SpanState.ENDED       | TaskState.FINISHED    || SpanState.RESUMED    | TaskState.ACTIVE
     Signal.START_TASK   | _                     | TaskState.INIT        || _                    | TaskState.ACTIVE
     Signal.START_TASK   | _                     | TaskState.INACTIVE    || _                    | TaskState.ACTIVE
     Signal.START_TASK   | _                     | TaskState.ACTIVE      || _                    | TaskState.INVALID

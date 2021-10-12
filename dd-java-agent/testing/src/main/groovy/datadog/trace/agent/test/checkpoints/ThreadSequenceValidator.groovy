@@ -179,7 +179,7 @@ class ThreadSequenceValidator {
             }
             break
             case SpanState.ENDED:
-            if (taskState == TaskState.INACTIVE) {
+            if (taskState == TaskState.INACTIVE || taskState == TaskState.FINISHED) {
               newSpanState = SpanState.RESUMED
               newTaskState = TaskState.ACTIVE
             } else {
