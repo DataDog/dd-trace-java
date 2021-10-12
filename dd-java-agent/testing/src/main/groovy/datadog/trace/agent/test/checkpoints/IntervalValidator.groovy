@@ -105,11 +105,6 @@ class IntervalValidator extends AbstractValidator {
       }
       return Result.OK
     }
-    def prevInterval = intervalsByTime.peek()
-    if (prevInterval != null && (prevInterval.state == IntervalState.INACTIVE || prevInterval.state == IntervalState.CLOSED) && prevInterval.spanId == interval.spanId) {
-      // collapse the subsequent closings of the same span interval
-      return Result.OK
-    }
 
     interval.close(tick)
     if (interval.state == IntervalState.INACTIVE) {
