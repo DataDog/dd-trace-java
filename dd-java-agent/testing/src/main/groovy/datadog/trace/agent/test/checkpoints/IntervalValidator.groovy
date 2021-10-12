@@ -28,7 +28,7 @@ class IntervalValidator extends AbstractValidator {
   }
 
   def openIntervalsBySpan = new HashMap<Long, Deque<SpanInterval>>()
-  def intervalsByTime = new ArrayList<>()
+  def intervalsByTime = new ArrayDeque<>()
   def tick = 0
 
   IntervalValidator() {
@@ -51,7 +51,7 @@ class IntervalValidator extends AbstractValidator {
     if (spanIntervals.empty) {
       def interval = new SpanInterval(spanId,  event, tick)
       spanIntervals.push(interval)
-      intervalsByTime.add(interval)
+      intervalsByTime.push(interval)
       return Result.OK
     }
     return Result.FAILED.withMessage("There is already an open interval for span ${spanId}")
@@ -86,7 +86,7 @@ class IntervalValidator extends AbstractValidator {
     def interval = new SpanInterval(spanId, event, tick)
     interval.state = IntervalState.INACTIVE
     openIntervalsBySpan.get(spanId)?.push(interval)
-    intervalsByTime.add(interval)
+    intervalsByTime.push(interval)
     return Result.OK
   }
 
@@ -103,6 +103,11 @@ class IntervalValidator extends AbstractValidator {
       if (requireExisting) {
         return Result.FAILED.withMessage("Attempting to close an interval for a non-existing span ${spanId}")
       }
+      return Result.OK
+    }
+    def prevInterval = intervalsByTime.peek()
+    if (prevInterval != null && (prevInterval.state == IntervalState.INACTIVE || prevInterval.state == IntervalState.CLOSED) && prevInterval.spanId == interval.spanId) {
+      // collapse the subsequent closings of the same span interval
       return Result.OK
     }
 
@@ -145,6 +150,11 @@ class IntervalValidator extends AbstractValidator {
           intervalsByTime.remove(interval)
           break
         case IntervalState.ACTIVE:
+          def prevInterval = intervalsByTime.peek()
+          if (prevInterval != null && prevInterval.state == IntervalState.ACTIVE && prevInterval.spanId == interval.spanId) {
+            // just extend the preceding interval
+            return Result.OK
+          }
           break
         case IntervalState.CLOSED:
           return Result.FAILED.withMessage("Trying to resume an already closed interval for span ${spanId}")
@@ -152,7 +162,7 @@ class IntervalValidator extends AbstractValidator {
     }
     interval = new SpanInterval(spanId, event, tick)
     spanIntervals.push(interval)
-    intervalsByTime.add(interval)
+    intervalsByTime.push(interval)
     return Result.OK
   }
 
