@@ -61,6 +61,7 @@ public final class TraceInstrumentationConfig {
   public static final String RABBIT_PROPAGATION_DISABLED_EXCHANGES =
       "rabbit.propagation.disabled.exchanges";
 
+  public static final String GRPC_IGNORED_INBOUND_METHODS = "trace.grpc.ignored.inbound.methods";
   public static final String GRPC_IGNORED_OUTBOUND_METHODS = "trace.grpc.ignored.outbound.methods";
   public static final String GRPC_SERVER_TRIM_PACKAGE_RESOURCE =
       "trace.grpc.server.trim-package-resource";

@@ -134,6 +134,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_URL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AWS_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_INBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_IGNORED_OUTBOUND_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_TRIM_PACKAGE_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
@@ -440,6 +441,7 @@ public class Config {
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
 
+  private final Set<String> grpcIgnoredInboundMethods;
   private final Set<String> grpcIgnoredOutboundMethods;
   private final boolean grpcServerTrimPackageResource;
 
@@ -859,6 +861,8 @@ public class Config {
     rabbitPropagationDisabledExchanges =
         tryMakeImmutableSet(configProvider.getList(RABBIT_PROPAGATION_DISABLED_EXCHANGES));
 
+    grpcIgnoredInboundMethods =
+        tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_INBOUND_METHODS));
     grpcIgnoredOutboundMethods =
         tryMakeImmutableSet(configProvider.getList(GRPC_IGNORED_OUTBOUND_METHODS));
     grpcServerTrimPackageResource =
@@ -1395,6 +1399,10 @@ public class Config {
 
   public String getJdbcConnectionClassName() {
     return jdbcConnectionClassName;
+  }
+
+  public Set<String> getGrpcIgnoredInboundMethods() {
+    return grpcIgnoredInboundMethods;
   }
 
   public Set<String> getGrpcIgnoredOutboundMethods() {
@@ -2119,6 +2127,8 @@ public class Config {
         + ", jdbcConnectionClassName='"
         + jdbcConnectionClassName
         + '\''
+        + ", grpcIgnoredInboundMethods="
+        + grpcIgnoredInboundMethods
         + ", grpcIgnoredOutboundMethods="
         + grpcIgnoredOutboundMethods
         + ", configProvider="

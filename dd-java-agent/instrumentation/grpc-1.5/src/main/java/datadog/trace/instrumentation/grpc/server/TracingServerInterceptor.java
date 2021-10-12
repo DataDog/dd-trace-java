@@ -8,6 +8,7 @@ import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.DECO
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC_MESSAGE;
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC_SERVER;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -19,11 +20,13 @@ import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import java.util.concurrent.CancellationException;
+import java.util.Set;
 
 public class TracingServerInterceptor implements ServerInterceptor {
 
   public static final TracingServerInterceptor INSTANCE = new TracingServerInterceptor();
-
+  private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredInboundMethods();
+  
   private TracingServerInterceptor() {}
 
   @Override
@@ -31,6 +34,9 @@ public class TracingServerInterceptor implements ServerInterceptor {
       final ServerCall<ReqT, RespT> call,
       final Metadata headers,
       final ServerCallHandler<ReqT, RespT> next) {
+    if (IGNORED_METHODS.contains(call.getMethodDescriptor().getFullMethodName())) {
+      return next.startCall(call, headers);
+    }
 
     final Context spanContext = propagate().extract(headers, GETTER);
     final AgentSpan span = startSpan(GRPC_SERVER, spanContext).setMeasured(true);
