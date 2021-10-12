@@ -27,11 +27,23 @@ class TraceUtils {
     }
   }
 
-  static <T> T runUnderTrace(final String rootOperationName, boolean async = false, final Callable<T> r) {
-    return runUnderTrace(rootOperationName, true, async, r)
+  static <T> T runUnderTraceAsync(final String rootOperationName, final Callable<T> r) {
+    return runUnderTrace(rootOperationName, true, true, r)
   }
 
-  static <T> T runUnderTrace(final String rootOperationName, final boolean inheritCurrent, boolean async, final Callable<T> r) {
+  static <T> T runUnderTrace(final String rootOperationName, final Callable<T> r) {
+    return runUnderTrace(rootOperationName, true, r)
+  }
+
+  static <T> T runUnderTraceAsync(final String rootOperationName, final boolean inheritCurrent, final Callable<T> r) {
+    return runUnderTrace(rootOperationName, inheritCurrent, true, r)
+  }
+
+  static <T> T runUnderTrace(final String rootOperationName, final boolean inheritCurrent, final Callable<T> r) {
+    return runUnderTrace(rootOperationName, inheritCurrent, false, r)
+  }
+
+  static <T> T runUnderTrace(final String rootOperationName, final boolean inheritCurrent, final boolean async, final Callable<T> r) {
     final AgentSpan span = inheritCurrent ? startSpan(rootOperationName, true) : startSpan(rootOperationName, null, true)
     DECORATOR.afterStart(span)
 
@@ -53,8 +65,18 @@ class TraceUtils {
     }
   }
 
-  static <T> void runnableUnderTrace(final String rootOperationName, boolean async = false, final Runnable r) {
-    runUnderTrace(rootOperationName, async, new Callable<T>() {
+  static <T> void runnableUnderTraceAsync(final String rootOperationName, final Runnable r) {
+    runUnderTraceAsync(rootOperationName, new Callable<T>() {
+        @Override
+        T call() throws Exception {
+          r.run()
+          return null
+        }
+      })
+  }
+
+  static <T> void runnableUnderTrace(final String rootOperationName, final Runnable r) {
+    runUnderTrace(rootOperationName, new Callable<T>() {
         @Override
         T call() throws Exception {
           r.run()
