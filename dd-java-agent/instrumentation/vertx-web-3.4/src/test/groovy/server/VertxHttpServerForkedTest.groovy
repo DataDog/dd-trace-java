@@ -6,7 +6,7 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
-import datadog.trace.instrumentation.vertx_3_4.server.VertxRouterDecorator
+import datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.DeploymentOptions
 import io.vertx.core.Vertx
@@ -152,7 +152,7 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
       errored endpoint == ERROR || endpoint == EXCEPTION
       childOfPrevious()
       tags {
-        "$Tags.COMPONENT" VertxRouterDecorator.DECORATE.component()
+        "$Tags.COMPONENT" VertxDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.HTTP_STATUS" Integer
         if (endpoint == EXCEPTION && this.testExceptionTag()) {

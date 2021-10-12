@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -10,18 +8,14 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.RoutingContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class VertxRouterDecorator
+public class VertxDecorator
     extends HttpServerDecorator<RoutingContext, RoutingContext, HttpServerResponse, Void> {
-  public static final Logger log = LoggerFactory.getLogger(VertxRouterDecorator.class);
-
   static final CharSequence INSTRUMENTATION_NAME = UTF8BytesString.create("vertx.route-handler");
 
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("vertx");
 
-  static final VertxRouterDecorator DECORATE = new VertxRouterDecorator();
+  static final VertxDecorator DECORATE = new VertxDecorator();
 
   @Override
   protected String[] instrumentationNames() {
@@ -59,18 +53,6 @@ public class VertxRouterDecorator
       final RoutingContext connection,
       final RoutingContext routingContext,
       AgentSpan.Context.Extracted context) {
-    if (routingContext != null) {
-      final String method = routingContext.request().rawMethod();
-      final String mountPoint = routingContext.mountPoint();
-      String path = routingContext.currentRoute().getPath();
-      if (mountPoint != null) {
-        path = mountPoint + path;
-      }
-
-      if (method != null && path != null) {
-        HTTP_RESOURCE_DECORATOR.withRoute(span, method, path, true);
-      }
-    }
     return span;
   }
 

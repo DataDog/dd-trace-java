@@ -1,34 +1,19 @@
 package server
 
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.vertx_3_4.server.VertxRouterDecorator
+import datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator
 import io.vertx.core.AbstractVerticle
-import spock.lang.Ignore
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-@Ignore
-class VertxChainingHttpServerForkedTest extends VertxHttpServerForkedTest {
+class VertxMiddlewareHttpServerForkedTest extends VertxHttpServerForkedTest {
   @Override
   protected Class<AbstractVerticle> verticle() {
-    VertxChainingTestServer
-  }
-
-  @Override
-  boolean hasDecodedResource() {
-    // copied from HttpServerTest since super overrides it
-    return !Config.get().isHttpServerRawResource() || !supportsRaw()
-  }
-
-  @Override
-  String testPathParam() {
-    null
+    VertxMiddlewareTestServer
   }
 
   @Override
@@ -45,10 +30,10 @@ class VertxChainingHttpServerForkedTest extends VertxHttpServerForkedTest {
       errored endpoint == ERROR || endpoint == EXCEPTION
       childOfPrevious()
       tags {
-        "$Tags.COMPONENT" VertxRouterDecorator.DECORATE.component()
+        "$Tags.COMPONENT" VertxDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.HTTP_STATUS" Integer
-        "chain" true
+        "before" true
         if (endpoint == EXCEPTION && this.testExceptionTag()) {
           errorTags(RuntimeException, EXCEPTION.body)
         }
