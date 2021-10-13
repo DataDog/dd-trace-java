@@ -242,6 +242,11 @@ class JUnit5Test extends TestFrameworkTest {
   }
 
   @Override
+  String expectedTestFrameworkVersion() {
+    return "5.3.0"
+  }
+
+  @Override
   String component() {
     return JUnit5Decorator.DECORATE.component()
   }

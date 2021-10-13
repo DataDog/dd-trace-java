@@ -1,7 +1,5 @@
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
 import datadog.trace.api.DDId
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
@@ -41,9 +39,9 @@ class GrpcTest extends AgentTestRunner {
 
   def "test request-response"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
+    //    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
+    //      CheckpointValidationMode.INTERVALS,
+    //      CheckpointValidationMode.THREAD_SEQUENCE)
 
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
@@ -255,6 +253,8 @@ class GrpcTest extends AgentTestRunner {
 
     3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
     _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
@@ -274,9 +274,6 @@ class GrpcTest extends AgentTestRunner {
 
   def "test error thrown - #name"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     def error = status.asRuntimeException()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
@@ -352,6 +349,8 @@ class GrpcTest extends AgentTestRunner {
 
     3 * TEST_CHECKPOINTER.checkpoint(_, SPAN)
     3 * TEST_CHECKPOINTER.checkpoint(_, SPAN | END)
+    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION)
+    _ * TEST_CHECKPOINTER.checkpoint(_, THREAD_MIGRATION | END)
     _ * TEST_CHECKPOINTER.onRootSpan(_, _, _)
     0 * TEST_CHECKPOINTER._
 
@@ -392,9 +391,6 @@ class GrpcTest extends AgentTestRunner {
 
   def "test ignore ignored methods"() {
     setup:
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.INTERVALS,
-      CheckpointValidationMode.THREAD_SEQUENCE)
 
     ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {

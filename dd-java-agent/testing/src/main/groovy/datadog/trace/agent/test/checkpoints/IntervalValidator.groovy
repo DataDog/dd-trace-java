@@ -19,7 +19,7 @@ class IntervalValidator extends AbstractValidator {
 
     def close(int tick) {
       endTick = tick
-      state = IntervalState.CLOSED
+      state = state != IntervalState.INACTIVE ? IntervalState.CLOSED : state
     }
 
     String toString() {
@@ -27,8 +27,8 @@ class IntervalValidator extends AbstractValidator {
     }
   }
 
-  def openIntervalsBySpan = new HashMap<Long, SpanInterval>()
-  def intervalsByTime = new ArrayList<>()
+  def openIntervalsBySpan = new HashMap<Long, Deque<SpanInterval>>()
+  def intervalsByTime = new ArrayDeque<>()
   def tick = 0
 
   IntervalValidator() {
@@ -43,10 +43,15 @@ class IntervalValidator extends AbstractValidator {
   def startSpan(def spanId) {
     tick++
 
-    def interval = openIntervalsBySpan.get(spanId)
-    if (interval == null) {
-      openIntervalsBySpan.put(spanId, (interval = new SpanInterval(spanId,  event, tick)))
-      intervalsByTime.add(interval)
+    def spanIntervals = openIntervalsBySpan.get(spanId)
+    if (spanIntervals == null) {
+      spanIntervals = new ArrayDeque<SpanInterval>()
+      openIntervalsBySpan.put(spanId, spanIntervals)
+    }
+    if (spanIntervals.empty) {
+      def interval = new SpanInterval(spanId,  event, tick)
+      spanIntervals.push(interval)
+      intervalsByTime.push(interval)
       return Result.OK
     }
     return Result.FAILED.withMessage("There is already an open interval for span ${spanId}")
@@ -80,13 +85,20 @@ class IntervalValidator extends AbstractValidator {
     }
     def interval = new SpanInterval(spanId, event, tick)
     interval.state = IntervalState.INACTIVE
-    openIntervalsBySpan.put(spanId, interval)
-    intervalsByTime.add(interval)
+    openIntervalsBySpan.get(spanId)?.push(interval)
+    intervalsByTime.push(interval)
     return Result.OK
   }
 
   def closeInterval(def spanId, def requireExisting = false) {
-    def interval = openIntervalsBySpan.remove(spanId)
+    def spanIntervals = openIntervalsBySpan.get(spanId)
+    if (spanIntervals == null || spanIntervals.empty) {
+      if (requireExisting) {
+        return Result.FAILED.withMessage("Attempting to close an interval for a non-existing span ${spanId}")
+      }
+      return Result.OK
+    }
+    def interval = spanIntervals.pop()
     if (interval == null) {
       if (requireExisting) {
         return Result.FAILED.withMessage("Attempting to close an interval for a non-existing span ${spanId}")
@@ -95,6 +107,9 @@ class IntervalValidator extends AbstractValidator {
     }
 
     interval.close(tick)
+    if (interval.state == IntervalState.INACTIVE) {
+      return Result.OK
+    }
 
     for (def it : intervalsByTime) {
       if (it.spanId == spanId) {
@@ -117,21 +132,32 @@ class IntervalValidator extends AbstractValidator {
 
   def resumeSpan(def spanId) {
     tick++
-    def interval = openIntervalsBySpan.get(spanId)
+    def spanIntervals = openIntervalsBySpan.get(spanId)
+    if (spanIntervals == null) {
+      spanIntervals = new ArrayDeque<SpanInterval>()
+      openIntervalsBySpan.put(spanId, spanIntervals)
+    }
+    def interval = spanIntervals.peek()
     if (interval != null) {
       switch (interval.state) {
         case IntervalState.INACTIVE:
-          interval = openIntervalsBySpan.remove(spanId)
+          interval = spanIntervals.pop()
           intervalsByTime.remove(interval)
           break
         case IntervalState.ACTIVE:
-          return Result.OK
+          def prevInterval = intervalsByTime.peek()
+          if (prevInterval != null && prevInterval.state == IntervalState.ACTIVE && prevInterval.spanId == interval.spanId) {
+            // just extend the preceding interval
+            return Result.OK
+          }
+          break
         case IntervalState.CLOSED:
-          reutrn Result.FAILED.withMessage("Trying to resume an already closed interval for span ${spanId}")
+          return Result.FAILED.withMessage("Trying to resume an already closed interval for span ${spanId}")
       }
     }
-    openIntervalsBySpan.put(spanId, interval = new SpanInterval(spanId, event, tick))
-    intervalsByTime.add(interval)
+    interval = new SpanInterval(spanId, event, tick)
+    spanIntervals.push(interval)
+    intervalsByTime.push(interval)
     return Result.OK
   }
 

@@ -7,7 +7,9 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 import java.util.concurrent.atomic.LongAdder;
+import javax.annotation.Nonnull;
 import jdk.jfr.EventType;
 import jdk.jfr.FlightRecorder;
 import org.slf4j.Logger;
@@ -16,10 +18,38 @@ import org.slf4j.LoggerFactory;
 public class JFRCheckpointer implements Checkpointer {
   private static final Logger log = LoggerFactory.getLogger(JFRCheckpointer.class);
 
+  static class AdaptiveSamplerConfig {
+    final Duration windowSize;
+    final int samplesPerWindow;
+    final int lookBackWindows;
+
+    AdaptiveSamplerConfig(@Nonnull Duration windowSize, int samplesPerWindow, int lookBackWindows) {
+      this.windowSize = windowSize;
+      this.samplesPerWindow = samplesPerWindow;
+      this.lookBackWindows = lookBackWindows;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      AdaptiveSamplerConfig that = (AdaptiveSamplerConfig) o;
+      return samplesPerWindow == that.samplesPerWindow
+          && lookBackWindows == that.lookBackWindows
+          && Objects.equals(windowSize, that.windowSize);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(windowSize, samplesPerWindow, lookBackWindows);
+    }
+  }
+
   private static final int MASK = ~CPU;
-  // these sampler parameters were chosen experimentally to prevent large 'overshoot'
-  private static final int SAMPLER_LOOKBACK = 11;
-  private static final int SAMPLER_WINDOW_SIZE_MS = 800;
+  private static final int MIN_SAMPLER_LOOKBACK = 3;
+  static final int MIN_SAMPLER_WINDOW_SIZE_MS = 100;
+  static final int MAX_SAMPLER_WINDOW_SIZE_MS = 30000;
+  static final int MAX_SAMPLER_RATE = 1000000; // max 1M checkpoints per recording
 
   private final AdaptiveSampler sampler;
 
@@ -135,39 +165,67 @@ public class JFRCheckpointer implements Checkpointer {
   }
 
   private static AdaptiveSampler prepareSampler(final ConfigProvider configProvider) {
-    final int limit = getRateLimit(configProvider);
-    if (limit <= 0) {
+    AdaptiveSamplerConfig config = getSamplerConfiguration(configProvider);
+    if (config == null) {
       // adaptive sampling disabled
       log.debug("Checkpoint adaptive sampling is disabled");
       return null;
     }
-    Duration windowSize = Duration.of(SAMPLER_WINDOW_SIZE_MS, ChronoUnit.MILLIS);
-
-    /*
-    Due to coarse grained sampling (at the level of a local root span) and extremely high variability of
-    the number of checkpoints generated from such a root span, anywhere between 1 and 100000 seems to be
-    quite common - with both fat tails, the expected limit must be somewhat adjusted since it will be
-    almost always 'overshot' by a large margin.
-    '0.6' seems to be the magic number to do the trick ...
-    */
-    final float limitPerMs = limit / 100000f; // (limit * 0.6f) / (60 * 1000)
-    float samplesPerWindow = limitPerMs * windowSize.toMillis();
-
-    if (samplesPerWindow < 1) {
-      samplesPerWindow = 1;
-      windowSize = Duration.of(1, ChronoUnit.MINUTES);
-    }
     log.debug(
         "Using checkpoint adaptive sampling with parameters: windowSize(ms)={}, windowSamples={}, lookback={}",
-        windowSize,
-        samplesPerWindow,
-        SAMPLER_LOOKBACK);
-    return new AdaptiveSampler(windowSize, (int) samplesPerWindow, SAMPLER_LOOKBACK);
+        config.windowSize.toMillis(),
+        config.samplesPerWindow,
+        config.lookBackWindows);
+    return new AdaptiveSampler(config.windowSize, config.samplesPerWindow, config.lookBackWindows);
+  }
+
+  static AdaptiveSamplerConfig getSamplerConfiguration(ConfigProvider configProvider) {
+    final int limit = getRateLimit(configProvider);
+    if (limit <= 0) {
+      return null;
+    }
+    Duration windowSize = Duration.of(getSamplerWindowMs(configProvider), ChronoUnit.MILLIS);
+
+    // the rate limit is defined per 1 minute (recording length) - need to divide it by 60000 to get
+    // the value per ms
+    final float limitPerMs = limit / 60000f;
+    float samplesPerWindow = limitPerMs * windowSize.toMillis();
+
+    if (samplesPerWindow > 0) {
+      while (samplesPerWindow < 10) {
+        samplesPerWindow *= 10;
+        windowSize = windowSize.multipliedBy(10);
+      }
+    }
+    if (windowSize.toMillis() > MAX_SAMPLER_WINDOW_SIZE_MS) {
+      // the requested sampling rate is very low; default to the max sampler window size and 1
+      // sample
+      windowSize = Duration.of(MAX_SAMPLER_WINDOW_SIZE_MS, ChronoUnit.MILLIS);
+      samplesPerWindow = 1;
+    }
+
+    // adjust the lookback parameter to represent ~80% of the requested rate
+    int samplerLookback =
+        Math.round(Math.max((0.8f * limit) / samplesPerWindow, MIN_SAMPLER_LOOKBACK));
+
+    return new AdaptiveSamplerConfig(windowSize, Math.round(samplesPerWindow), samplerLookback);
   }
 
   private static int getRateLimit(final ConfigProvider configProvider) {
-    return configProvider.getInteger(
-        ProfilingConfig.PROFILING_CHECKPOINTS_RATE_LIMIT,
-        ProfilingConfig.PROFILING_CHECKPOINTS_RATE_LIMIT_DEFAULT);
+    return Math.min(
+        configProvider.getInteger(
+            ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT,
+            ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_RATE_LIMIT_DEFAULT),
+        MAX_SAMPLER_RATE);
+  }
+
+  private static int getSamplerWindowMs(final ConfigProvider configProvider) {
+    return Math.max(
+        Math.min(
+            configProvider.getInteger(
+                ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS,
+                ProfilingConfig.PROFILING_CHECKPOINTS_SAMPLER_WINDOW_MS_DEFAULT),
+            MAX_SAMPLER_WINDOW_SIZE_MS),
+        MIN_SAMPLER_WINDOW_SIZE_MS);
   }
 }

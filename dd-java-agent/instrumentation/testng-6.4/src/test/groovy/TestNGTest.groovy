@@ -170,6 +170,13 @@ class TestNGTest extends TestFrameworkTest {
   }
 
   @Override
+  String expectedTestFrameworkVersion() {
+    // For the TestNG version used for tests (minimum supported)
+    // it's not possible to extract the version.
+    return null
+  }
+
+  @Override
   String component() {
     return TestNGDecorator.DECORATE.component()
   }

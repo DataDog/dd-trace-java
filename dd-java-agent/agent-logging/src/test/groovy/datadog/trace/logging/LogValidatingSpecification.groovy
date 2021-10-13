@@ -1,5 +1,6 @@
 package datadog.trace.logging
 
+import org.slf4j.Marker
 import spock.lang.Specification
 
 abstract class LogValidatingSpecification extends Specification {
@@ -11,11 +12,11 @@ abstract class LogValidatingSpecification extends Specification {
     new NoStackException(emsg)
   }
 
-  private static validateLogLine(LogValidator validator, boolean enabled, String level, String msg, String emsg) {
+  private static validateLogLine(LogValidator validator, boolean enabled, String level, String marker, String msg, String emsg) {
     def current = validator.outputStream.toString()
     def expected = ""
     if (enabled) {
-      expected = "$level ${validator.name} - $msg\n"
+      expected = marker == null ? "$level ${validator.name} - $msg\n" : "$marker ${validator.name} - $msg\n"
       expected = emsg == null ? expected : "$expected${NoStackException.getName()}: $emsg\n"
     }
     assert current == expected
@@ -43,56 +44,80 @@ abstract class LogValidatingSpecification extends Specification {
       new LogValidator(name, this.output)
     }
 
-    void log(boolean enabled, String level, String msg) {
-      LogValidatingSpecification.validateLogLine(this, enabled, level, msg, null)
+    void log(boolean enabled, String level, String marker, String msg) {
+      LogValidatingSpecification.validateLogLine(this, enabled, level, marker, msg, null)
     }
 
-    void log(boolean enabled, String level, String msg, String emsg) {
-      LogValidatingSpecification.validateLogLine(this, enabled, level, msg, emsg)
+    void log(boolean enabled, String level, String marker, String msg, String emsg) {
+      LogValidatingSpecification.validateLogLine(this, enabled, level, marker, msg, emsg)
+    }
+
+    void trace(boolean enabled, Marker marker, String msg) {
+      log(enabled, "TRACE", marker.getName(), msg)
     }
 
     void trace(boolean enabled, String msg) {
-      log(enabled, "TRACE", msg)
+      log(enabled, "TRACE", null, msg)
     }
 
     void trace(boolean enabled, String msg, String emsg) {
-      log(enabled, "TRACE", msg, emsg)
+      log(enabled, "TRACE", null, msg, emsg)
+    }
+
+    void debug(boolean enabled, Marker marker, String msg) {
+      log(enabled, "DEBUG", marker.getName(), msg)
     }
 
     void debug(boolean enabled, String msg) {
-      log(enabled, "DEBUG", msg)
+      log(enabled, "DEBUG", null, msg)
     }
 
     void debug(boolean enabled, String msg, String emsg) {
-      log(enabled, "DEBUG", msg, emsg)
+      log(enabled, "DEBUG", null, msg, emsg)
+    }
+
+    void info(boolean enabled, Marker marker, String msg) {
+      log(enabled, "INFO", marker.getName(), msg)
     }
 
     void info(boolean enabled, String msg) {
-      log(enabled, "INFO", msg)
+      log(enabled, "INFO", null, msg)
     }
 
     void info(boolean enabled, String msg, String emsg) {
-      log(enabled, "INFO", msg, emsg)
+      log(enabled, "INFO", null, msg, emsg)
+    }
+
+    void warn(boolean enabled, Marker marker, String msg) {
+      log(enabled, "WARN", marker.getName(), msg)
     }
 
     void warn(boolean enabled, String msg) {
-      log(enabled, "WARN", msg)
+      log(enabled, "WARN", null, msg)
+    }
+
+    void warn(boolean enabled, Marker marker, String msg, String emsg) {
+      log(enabled, "WARN", marker.getName(), msg, emsg)
     }
 
     void warn(boolean enabled, String msg, String emsg) {
-      log(enabled, "WARN", msg, emsg)
+      log(enabled, "WARN", null, msg, emsg)
+    }
+
+    void error(boolean enabled, Marker marker, String msg) {
+      log(enabled, "ERROR", marker.getName(), msg)
     }
 
     void error(boolean enabled, String msg) {
-      log(enabled, "ERROR", msg)
+      log(enabled, "ERROR", null, msg)
     }
 
     void error(boolean enabled, String msg, String emsg) {
-      log(enabled, "ERROR", msg, emsg)
+      log(enabled, "ERROR", null, msg, emsg)
     }
 
     void nothing() {
-      log(false, "IGNORED", null, null)
+      log(false, "IGNORED", null, null, null)
     }
   }
 

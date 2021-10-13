@@ -8,8 +8,6 @@ import com.datadog.appsec.event.data.CaseInsensitiveMap;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.appsec.report.raw.contexts._definitions.AllContext;
-import com.datadog.appsec.report.raw.contexts.actor.Actor010;
-import com.datadog.appsec.report.raw.contexts.actor.Ip;
 import com.datadog.appsec.report.raw.contexts.host.Host010;
 import com.datadog.appsec.report.raw.contexts.http.Http010;
 import com.datadog.appsec.report.raw.contexts.http.HttpHeaders;
@@ -69,23 +67,16 @@ public class EventEnrichment {
       log.warn("Event rule match not available for {}", attack);
     }
 
-    AllContext eventCtx = (AllContext) attack.getContext();
-    if (eventCtx == null) {
-      eventCtx = new AllContext();
-      attack.setContext(eventCtx);
+    AllContext context = (AllContext) attack.getContext();
+    if (context == null) {
+      context = new AllContext();
+      attack.setContext(context);
     }
 
-    Actor010 actor = (Actor010) eventCtx.getActor();
-    if (actor == null) {
-      actor = new Actor010();
-      eventCtx.setActor(actor);
-    }
-    actor.setContextVersion("0.1.0");
-
-    Http010 http = (Http010) eventCtx.getHttp();
+    Http010 http = (Http010) context.getHttp();
     if (http == null) {
       http = new Http010();
-      eventCtx.setHttp(http);
+      context.setHttp(http);
     }
     if (http.getContextVersion() == null) {
       http.setContextVersion("0.1.0");
@@ -152,13 +143,6 @@ public class EventEnrichment {
         remoteIp = "0.0.0.0"; // remote IP is mandatory
       }
       request.setRemoteIp(remoteIp);
-
-      Ip ip = actor.getIp();
-      if (ip == null) {
-        ip = new Ip();
-        actor.setIp(ip);
-      }
-      ip.setAddress(remoteIp);
     }
     if (request.getRemotePort() == null) {
       Integer remotePort = appSecCtx.get(KnownAddresses.REQUEST_CLIENT_PORT);
@@ -186,10 +170,10 @@ public class EventEnrichment {
       response.setBlocked(attack.getBlocked());
     }
 
-    Tracer010 tracer = (Tracer010) eventCtx.getTracer();
+    Tracer010 tracer = (Tracer010) context.getTracer();
     if (tracer == null) {
       tracer = new Tracer010();
-      eventCtx.setTracer(tracer);
+      context.setTracer(tracer);
     }
     if (tracer.getContextVersion() == null) {
       tracer.setContextVersion("0.1.0");
@@ -204,7 +188,7 @@ public class EventEnrichment {
       tracer.setLibVersion(AppSecVersion.VERSION);
     }
 
-    Service service = (Service) eventCtx.getService();
+    Service service = (Service) context.getService();
     if (service == null) {
       service =
           new Service.ServiceBuilder()
@@ -213,13 +197,13 @@ public class EventEnrichment {
               .withProperty("environment", Config.get().getEnv())
               .withProperty("version", Config.get().getVersion())
               .build();
-      eventCtx.setService(service);
+      context.setService(service);
     }
 
-    ServiceStack010 serviceStack = (ServiceStack010) eventCtx.getServiceStack();
+    ServiceStack010 serviceStack = (ServiceStack010) context.getServiceStack();
     if (serviceStack == null) {
       serviceStack = new ServiceStack010();
-      eventCtx.setServiceStack(serviceStack);
+      context.setServiceStack(serviceStack);
     }
     if (serviceStack.getContextVersion() == null) {
       serviceStack.setContextVersion("0.1.0");
@@ -229,10 +213,10 @@ public class EventEnrichment {
       serviceStack.setServices(Collections.singletonList(service));
     }
 
-    Span010 span = (Span010) eventCtx.getSpan();
+    Span010 span = (Span010) context.getSpan();
     if (span == null && spanInfo != null) {
       span = new Span010();
-      eventCtx.setSpan(span);
+      context.setSpan(span);
       span.setContextVersion("0.1.0");
       DDId spanId = spanInfo.getSpanId();
       if (spanId == null) {
@@ -241,10 +225,10 @@ public class EventEnrichment {
       span.setId(spanId.toString());
     }
 
-    Tags010 tags = (Tags010) eventCtx.getTags();
+    Tags010 tags = (Tags010) context.getTags();
     if (tags == null && spanInfo != null) {
       tags = new Tags010();
-      eventCtx.setTags(tags);
+      context.setTags(tags);
       tags.setContextVersion("0.1.0");
       Map<String, Object> tagsMap = spanInfo.getTags();
       if (tagsMap != null) {
@@ -262,10 +246,10 @@ public class EventEnrichment {
       }
     }
 
-    Trace010 trace = (Trace010) eventCtx.getTrace();
+    Trace010 trace = (Trace010) context.getTrace();
     if (trace == null && spanInfo != null) {
       trace = new Trace010();
-      eventCtx.setTrace(trace);
+      context.setTrace(trace);
       trace.setContextVersion("0.1.0");
       DDId traceId = spanInfo.getTraceId();
       if (traceId == null) {
@@ -274,10 +258,10 @@ public class EventEnrichment {
       trace.setId(traceId.toString());
     }
 
-    Host010 host = (Host010) eventCtx.getHost();
+    Host010 host = (Host010) context.getHost();
     if (host == null) {
       host = new Host010();
-      eventCtx.setHost(host);
+      context.setHost(host);
     }
     if (host.getContextVersion() == null) {
       host.setContextVersion("0.1.0");

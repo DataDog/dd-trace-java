@@ -3,6 +3,7 @@ import datadog.trace.api.DisableTestTrace
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import datadog.trace.instrumentation.junit4.JUnit4Decorator
+import junit.runner.Version
 import org.example.TestAssumption
 import org.example.TestError
 import org.example.TestFailed
@@ -154,6 +155,11 @@ class JUnit4Test extends TestFrameworkTest {
   @Override
   String expectedTestFramework() {
     return JUnit4Decorator.DECORATE.testFramework()
+  }
+
+  @Override
+  String expectedTestFrameworkVersion() {
+    return Version.id()
   }
 
   @Override

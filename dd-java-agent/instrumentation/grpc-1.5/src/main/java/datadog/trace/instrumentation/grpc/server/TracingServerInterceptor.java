@@ -44,6 +44,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
       final TracingServerCall<ReqT, RespT> tracingServerCall = new TracingServerCall<>(span, call);
       // call other interceptors
       result = next.startCall(tracingServerCall, headers);
+      // the span related work can continue on any thread
+      span.startThreadMigration();
     } catch (final Throwable e) {
       if (span.phasedFinish()) {
         DECORATE.onError(span, e);
@@ -70,6 +72,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
     public void close(final Status status, final Metadata trailers) {
       DECORATE.onClose(span, status);
       try (final AgentScope scope = activateSpan(span)) {
+        // resume the span related work on this thread
+        span.finishThreadMigration();
         delegate().close(status, trailers);
       } catch (final Throwable e) {
         DECORATE.onError(span, e);
