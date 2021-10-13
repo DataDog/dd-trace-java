@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
+import javax.annotation.Nullable;
 
 /**
  * An adaptive streaming (non-remembering) sampler.
@@ -32,12 +33,6 @@ import java.util.concurrent.atomic.LongAdder;
  * number of samples per window.
  */
 public class AdaptiveSampler {
-
-  /*
-   * Number of windows to look back when computing carried over budget.
-   * This value is `approximate' since we use EMA to keep running average.
-   */
-  private static final int CARRIED_OVER_BUDGET_LOOK_BACK = 16;
 
   private static final class Counts {
     private final LongAdder testCount = new LongAdder();
@@ -102,6 +97,7 @@ public class AdaptiveSampler {
   private double totalCountRunningAverage = 0d;
   private double avgSamples;
 
+  private final int budgetLookback;
   private final double budgetAlpha;
 
   // accessed exclusively from the window maintenance task - does not require any synchronization
@@ -116,6 +112,8 @@ public class AdaptiveSampler {
    * @param windowDuration the sampling window duration
    * @param samplesPerWindow the maximum number of samples in the sampling window
    * @param averageLookback the number of windows to consider in averaging the sampling rate
+   * @param budgetLookback the number of windows to consider when computing the sampling budget
+   * @param listener an optional listener receiving the sampler config changes
    * @param taskScheduler agent task scheduler to use for periodic rolls
    */
   protected AdaptiveSampler(
@@ -123,10 +121,17 @@ public class AdaptiveSampler {
       final int samplesPerWindow,
       final int averageLookback,
       final int budgetLookback,
-      final ConfigListener listener,
+      final @Nullable ConfigListener listener,
       final AgentTaskScheduler taskScheduler) {
 
+    if (averageLookback < 1) {
+      throw new IllegalArgumentException("'averageLookback' argument must be at least 1");
+    }
+    if (budgetLookback < 1) {
+      throw new IllegalArgumentException("'budgetLookback' argument must be at least 1");
+    }
     this.samplesPerWindow = samplesPerWindow;
+    this.budgetLookback = budgetLookback;
     samplesBudget = samplesPerWindow + (long) budgetLookback * samplesPerWindow;
     emaAlpha = computeIntervalAlpha(averageLookback);
     budgetAlpha = computeIntervalAlpha(budgetLookback);
@@ -150,6 +155,7 @@ public class AdaptiveSampler {
    * @param windowDuration the sampling window duration
    * @param samplesPerWindow the maximum number of samples in the sampling window
    * @param averageLookback the number of windows to consider in averaging the sampling rate
+   * @param budgetLookback the number of windows to consider when computing the sampling budget
    */
   public AdaptiveSampler(
       final Duration windowDuration,
@@ -159,6 +165,15 @@ public class AdaptiveSampler {
     this(windowDuration, samplesPerWindow, averageLookback, budgetLookback, null);
   }
 
+  /**
+   * Create a new sampler instance with automatic window roll.
+   *
+   * @param windowDuration the sampling window duration
+   * @param samplesPerWindow the maximum number of samples in the sampling window
+   * @param averageLookback the number of windows to consider in averaging the sampling rate
+   * @param budgetLookback the number of windows to consider when computing the sampling budget
+   * @param listener an optional listener receiving the sampler config changes
+   */
   public AdaptiveSampler(
       final Duration windowDuration,
       final int samplesPerWindow,
@@ -234,7 +249,7 @@ public class AdaptiveSampler {
 
       samplesBudget = calculateBudgetEma(sampledCount);
 
-      if (totalCountRunningAverage == 0) {
+      if (totalCountRunningAverage == 0 || emaAlpha <= 0.0d) {
         totalCountRunningAverage = totalCount;
       } else {
         totalCountRunningAverage =
@@ -258,10 +273,10 @@ public class AdaptiveSampler {
 
   private long calculateBudgetEma(final long sampledCount) {
     avgSamples =
-        Double.isNaN(avgSamples)
+        Double.isNaN(avgSamples) || budgetAlpha <= 0.0d
             ? sampledCount
             : avgSamples + budgetAlpha * (sampledCount - avgSamples);
-    return Math.round(Math.max(samplesPerWindow - avgSamples, 0) * CARRIED_OVER_BUDGET_LOOK_BACK);
+    return Math.round(Math.max(samplesPerWindow - avgSamples, 0) * budgetLookback);
   }
 
   private static double computeIntervalAlpha(final int lookback) {
