@@ -3,8 +3,6 @@ import com.ning.http.client.AsyncHttpClient
 import com.ning.http.client.AsyncHttpClientConfig
 import com.ning.http.client.Response
 import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator
 import spock.lang.AutoCleanup
@@ -28,13 +26,6 @@ class Netty38ClientTest extends HttpClientTest {
   @Shared
   @AutoCleanup
   AsyncHttpClient asyncHttpClient = new AsyncHttpClient(clientConfig)
-
-  @Override
-  def setup() {
-    //    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-    //      CheckpointValidationMode.INTERVALS,
-    //      CheckpointValidationMode.THREAD_SEQUENCE)
-  }
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {

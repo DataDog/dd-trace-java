@@ -26,16 +26,19 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       DECORATE.onRequest(parentSpan, routingContext, routingContext, null);
 
       span = startSpan(INSTRUMENTATION_NAME);
-      span.startThreadMigration();
       routingContext.put(AgentSpan.class.getName(), span);
+      // span is stored in the context and the span related work may proceed on any thread
+      span.startThreadMigration();
 
       routingContext.response().endHandler(new EndHandlerWrapper(span, routingContext.response()));
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.className(actual.getClass()));
+    } else {
+      // the span was retrieved from the context in 'suspended' state - need to be resumed
+      span.finishThreadMigration();
     }
 
     try (final AgentScope scope = activateSpan(span)) {
-      span.finishThreadMigration();
       scope.setAsyncPropagation(true);
       try {
         actual.handle(routingContext);

@@ -25,6 +25,11 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
     }
 
     try (final AgentScope scope = activateSpan(span)) {
+      /*
+      The span was retrieved from the channel related context and is currently 'suspended' -
+      we need to 'resume' it before proceeding with the span related work.
+       */
+      span.finishThreadMigration();
       final HttpResponse response = (HttpResponse) msg;
 
       try {
@@ -37,7 +42,6 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       }
       DECORATE.onResponse(span, response);
       DECORATE.beforeFinish(span);
-      span.finishThreadMigration();
       span.finish(); // Finish the span manually since finishSpanOnClose was false
     }
   }
