@@ -1,6 +1,8 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.DisableTestTrace
 import datadog.trace.instrumentation.junit4.JUnit4Utils
 
+@DisableTestTrace(reason = "avoid self-tracing")
 class JUnit4UtilsTest extends AgentTestRunner {
 
   def "test remove trailing brackets from test name"() {
