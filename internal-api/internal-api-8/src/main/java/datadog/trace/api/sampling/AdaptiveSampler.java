@@ -72,6 +72,12 @@ public class AdaptiveSampler {
     }
   }
 
+  @FunctionalInterface
+  public interface ConfigListener {
+    void onWindowRoll(
+        long totalCount, long sampledCount, long budget, double totalAverage, double probability);
+  }
+
   /*
    * Exponential Moving Average (EMA) last element weight.
    * Check out papers about using EMA for streaming data - eg.
@@ -102,25 +108,33 @@ public class AdaptiveSampler {
   private int countsSlotIdx = 0;
   private final Counts[] countsSlots = new Counts[] {new Counts(), new Counts()};
 
+  private final ConfigListener listener;
+
   /**
    * Create a new sampler instance
    *
    * @param windowDuration the sampling window duration
    * @param samplesPerWindow the maximum number of samples in the sampling window
-   * @param lookback the number of windows to consider in averaging the sampling rate
+   * @param averageLookback the number of windows to consider in averaging the sampling rate
    * @param taskScheduler agent task scheduler to use for periodic rolls
    */
-  public AdaptiveSampler(
+  protected AdaptiveSampler(
       final Duration windowDuration,
       final int samplesPerWindow,
-      final int lookback,
+      final int averageLookback,
+      final int budgetLookback,
+      final ConfigListener listener,
       final AgentTaskScheduler taskScheduler) {
 
     this.samplesPerWindow = samplesPerWindow;
-    samplesBudget = samplesPerWindow + (long) CARRIED_OVER_BUDGET_LOOK_BACK * samplesPerWindow;
-    emaAlpha = computeIntervalAlpha(lookback);
-    budgetAlpha = computeIntervalAlpha(CARRIED_OVER_BUDGET_LOOK_BACK);
+    samplesBudget = samplesPerWindow + (long) budgetLookback * samplesPerWindow;
+    emaAlpha = computeIntervalAlpha(averageLookback);
+    budgetAlpha = computeIntervalAlpha(budgetLookback);
     countsRef = new AtomicReference<>(countsSlots[0]);
+    this.listener = listener;
+    if (listener != null) {
+      listener.onWindowRoll(0, 0, samplesBudget, totalCountRunningAverage, probability);
+    }
 
     taskScheduler.weakScheduleAtFixedRate(
         RollWindowTask.INSTANCE,
@@ -135,11 +149,29 @@ public class AdaptiveSampler {
    *
    * @param windowDuration the sampling window duration
    * @param samplesPerWindow the maximum number of samples in the sampling window
-   * @param lookback the number of windows to consider in averaging the sampling rate
+   * @param averageLookback the number of windows to consider in averaging the sampling rate
    */
   public AdaptiveSampler(
-      final Duration windowDuration, final int samplesPerWindow, final int lookback) {
-    this(windowDuration, samplesPerWindow, lookback, AgentTaskScheduler.INSTANCE);
+      final Duration windowDuration,
+      final int samplesPerWindow,
+      final int averageLookback,
+      final int budgetLookback) {
+    this(windowDuration, samplesPerWindow, averageLookback, budgetLookback, null);
+  }
+
+  public AdaptiveSampler(
+      final Duration windowDuration,
+      final int samplesPerWindow,
+      final int averageLookback,
+      final int budgetLookback,
+      final ConfigListener listener) {
+    this(
+        windowDuration,
+        samplesPerWindow,
+        averageLookback,
+        budgetLookback,
+        listener,
+        AgentTaskScheduler.INSTANCE);
   }
 
   /**
@@ -213,6 +245,10 @@ public class AdaptiveSampler {
         probability = 1;
       } else {
         probability = Math.min(samplesBudget / totalCountRunningAverage, 1d);
+      }
+      if (listener != null) {
+        listener.onWindowRoll(
+            totalCount, sampledCount, samplesBudget, totalCountRunningAverage, probability);
       }
     } finally {
       // Reset the previous counts slot

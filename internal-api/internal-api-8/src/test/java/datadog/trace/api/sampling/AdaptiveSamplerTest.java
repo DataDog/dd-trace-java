@@ -176,7 +176,8 @@ class AdaptiveSamplerTest {
   private static final StandardDeviation STANDARD_DEVIATION = new StandardDeviation();
   private static final int WINDOWS = 120;
   private static final int SAMPLES_PER_WINDOW = 100;
-  private static final int LOOKBACK = 30;
+  private static final int AVERAGE_LOOKBACK = 30;
+  private static final int BUDGET_LOOKBACK = 16;
 
   @Mock AgentTaskScheduler taskScheduler;
   @Captor ArgumentCaptor<Task<AdaptiveSampler>> rollWindowTaskCaptor;
@@ -258,7 +259,8 @@ class AdaptiveSamplerTest {
 
   @Test
   public void testKeep() {
-    final AdaptiveSampler sampler = new AdaptiveSampler(WINDOW_DURATION, 1, 0, taskScheduler);
+    final AdaptiveSampler sampler =
+        new AdaptiveSampler(WINDOW_DURATION, 1, 0, 0, null, taskScheduler);
     long tests = sampler.testCount();
     long samples = sampler.sampleCount();
     assertTrue(sampler.keep());
@@ -268,7 +270,8 @@ class AdaptiveSamplerTest {
 
   @Test
   public void testDrop() {
-    final AdaptiveSampler sampler = new AdaptiveSampler(WINDOW_DURATION, 1, 0, taskScheduler);
+    final AdaptiveSampler sampler =
+        new AdaptiveSampler(WINDOW_DURATION, 1, 0, 0, null, taskScheduler);
     long tests = sampler.testCount();
     long samples = sampler.sampleCount();
     assertFalse(sampler.drop());
@@ -293,9 +296,15 @@ class AdaptiveSamplerTest {
       final IntSupplier windowEventsSupplier, final int maxErrorPercent) {
     log.info(
         "> mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}%",
-        windowEventsSupplier, WINDOWS, SAMPLES_PER_WINDOW, LOOKBACK, maxErrorPercent);
+        windowEventsSupplier, WINDOWS, SAMPLES_PER_WINDOW, AVERAGE_LOOKBACK, maxErrorPercent);
     final AdaptiveSampler sampler =
-        new AdaptiveSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
+        new AdaptiveSampler(
+            WINDOW_DURATION,
+            SAMPLES_PER_WINDOW,
+            AVERAGE_LOOKBACK,
+            BUDGET_LOOKBACK,
+            null,
+            taskScheduler);
 
     // simulate event generation and sampling for the given number of sampling windows
     final long expectedSamples = WINDOWS * SAMPLES_PER_WINDOW;
@@ -438,7 +447,7 @@ class AdaptiveSamplerTest {
         windowEventsSupplier,
         WINDOWS,
         SAMPLES_PER_WINDOW,
-        LOOKBACK,
+        AVERAGE_LOOKBACK,
         maxErrorPercent);
 
     /*
@@ -450,7 +459,13 @@ class AdaptiveSamplerTest {
     final AtomicLong receivedEvents = new AtomicLong(0);
 
     final AdaptiveSampler sampler =
-        new AdaptiveSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
+        new AdaptiveSampler(
+            WINDOW_DURATION,
+            SAMPLES_PER_WINDOW,
+            AVERAGE_LOOKBACK,
+            BUDGET_LOOKBACK,
+            null,
+            taskScheduler);
     final CyclicBarrier startBarrier = new CyclicBarrier(threadCount);
     final CyclicBarrier endBarrier = new CyclicBarrier(threadCount, this::rollWindow);
     final Mean[] means = new Mean[threadCount];
