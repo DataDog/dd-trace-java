@@ -31,6 +31,8 @@ import java.util.Arrays;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Extracts git information from the local filesystem. Typically, we will use this extractor using
@@ -41,6 +43,8 @@ import java.util.zip.Inflater;
  * https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/util/RawParseUtils.java
  */
 public class LocalFSGitInfoExtractor implements GitInfoExtractor {
+
+  private static final Logger log = LoggerFactory.getLogger(LocalFSGitInfoExtractor.class);
 
   private static final int SHA_INDEX = 1;
 
@@ -299,15 +303,34 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       // Git objects are compressed with ZLib.
       // We need to decompress it using Inflater.
       final Inflater ifr = new Inflater();
-      ifr.setInput(bytes);
+      try {
+        ifr.setInput(bytes);
+        final byte[] tmp = new byte[4 * 1024];
+        while (!ifr.finished()) {
+          final int size = ifr.inflate(tmp);
+          if (size != 0) {
+            baos.write(tmp, 0, size);
+          } else {
+            // Inflater can return !finished but 0 bytes inflated.
+            if (ifr.needsDictionary()) {
+              logErrorInflating(
+                  "The data was compressed using a preset dictionary. We cannot decompress it.");
+              return null;
+            } else if (ifr.needsInput()) {
+              logErrorInflating("The provided data is not enough. It might be corrupted");
+              return null;
+            } else {
+              // At this point, neither dictionary nor input is needed.
+              // We break the loop and we will use the decompressed data that we already have.
+              break;
+            }
+          }
+        }
 
-      final byte[] tmp = new byte[4 * 1024];
-      while (!ifr.finished()) {
-        final int size = ifr.inflate(tmp);
-        baos.write(tmp, 0, size);
+        return baos.toByteArray();
+      } finally {
+        ifr.end();
       }
-
-      return baos.toByteArray();
     } catch (final IOException e) {
       return null;
     }
@@ -453,5 +476,9 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     } else {
       return null;
     }
+  }
+
+  private void logErrorInflating(final String reason) {
+    log.warn("Could not decompressed git object: Reason {}", reason);
   }
 }
