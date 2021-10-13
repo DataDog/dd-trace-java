@@ -56,12 +56,6 @@ class EventEnrichmentSpecification extends DDSpecification {
     attack.eventVersion == '0.1.0'
     attack.detectedAt <= Instant.now()
     with(attack.context) {
-      with(actor) {
-        contextVersion == '0.1.0'
-        with(ip) {
-          address == '1.2.3.4'
-        }
-      }
       with(http) {
         contextVersion == '0.1.0'
         with(request) {

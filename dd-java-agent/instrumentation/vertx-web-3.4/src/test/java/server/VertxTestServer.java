@@ -11,7 +11,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN;
-import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTrace;
+import static datadog.trace.agent.test.utils.TraceUtils.runnableUnderTraceAsync;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
@@ -129,6 +129,6 @@ public class VertxTestServer extends AbstractVerticle {
       runnable.run();
       return;
     }
-    runnableUnderTrace("controller", runnable);
+    runnableUnderTraceAsync("controller", runnable);
   }
 }

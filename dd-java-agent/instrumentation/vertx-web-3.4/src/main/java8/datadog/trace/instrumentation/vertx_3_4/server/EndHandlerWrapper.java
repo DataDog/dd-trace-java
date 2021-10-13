@@ -25,6 +25,7 @@ public class EndHandlerWrapper implements Handler<Void> {
       }
     } finally {
       DECORATE.onResponse(span, response);
+      span.finishThreadMigration();
       span.finish();
     }
   }
