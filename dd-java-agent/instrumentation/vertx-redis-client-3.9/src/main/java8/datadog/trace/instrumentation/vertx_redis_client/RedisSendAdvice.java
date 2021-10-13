@@ -57,13 +57,13 @@ public class RedisSendAdvice {
     final AgentSpan clientSpan =
         DECORATE.startAndDecorateSpan(
             request.command(), InstrumentationContext.get(Command.class, UTF8BytesString.class));
+    handler = new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
+
     /*
     The handler wrapper is escaping this scope and becomes available to other parts of the redis client.
     We need to 'suspend' the span first such that it can be later processed by the handler wrapper.
     */
     clientSpan.startThreadMigration();
-    handler = new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
-
     // activate the 'suspended' span
     clientSpan.finishThreadMigration();
     return activateSpan(clientSpan, true);
