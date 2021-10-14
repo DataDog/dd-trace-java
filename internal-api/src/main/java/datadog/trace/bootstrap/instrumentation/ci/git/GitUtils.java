@@ -3,10 +3,16 @@ package datadog.trace.bootstrap.instrumentation.ci.git;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.decode;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.nextLF;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
+import java.util.zip.DataFormatException;
+import java.util.zip.Inflater;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GitUtils {
 
@@ -14,6 +20,8 @@ public class GitUtils {
   private static final Pattern REFS_HEADS_PATTERN = Pattern.compile("refs/heads/", Pattern.LITERAL);
   private static final Pattern REFS_TAGS_PATTERN = Pattern.compile("refs/tags/", Pattern.LITERAL);
   private static final Pattern TAGS_PATTERN = Pattern.compile("tags/", Pattern.LITERAL);
+
+  private static final Logger log = LoggerFactory.getLogger(LocalFSGitInfoExtractor.class);
 
   /**
    * Normalizes the Git references origin/my-branch -> my-branch refs/heads/my-branch -> my-branch
@@ -101,5 +109,59 @@ public class GitUtils {
     final String email = decode(raw, emailB, emailE - 1);
 
     return new PersonInfo(name, email);
+  }
+
+  /**
+   * Decompress the byte array passed as argument using Java Inflater. The git objects are stored
+   * using ZLib compression.
+   *
+   * <p>If the decompression process requires a preset dictionary or the input is not enough, we
+   * return null.
+   *
+   * @param bytes compress data
+   * @return decompressed data or null
+   * @throws DataFormatException
+   */
+  public static byte[] inflate(final byte[] bytes) throws DataFormatException {
+    try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+
+      // Git objects are compressed with ZLib.
+      // We need to decompress it using Inflater.
+      final Inflater ifr = new Inflater();
+      try {
+        ifr.setInput(bytes);
+        final byte[] tmp = new byte[4 * 1024];
+        while (!ifr.finished()) {
+          final int size = ifr.inflate(tmp);
+          if (size != 0) {
+            baos.write(tmp, 0, size);
+          } else {
+            // Inflater can return !finished but 0 bytes inflated.
+            if (ifr.needsDictionary()) {
+              logErrorInflating(
+                  "The data was compressed using a preset dictionary. We cannot decompress it.");
+              return null;
+            } else if (ifr.needsInput()) {
+              logErrorInflating("The provided data is not enough. It might be corrupted");
+              return null;
+            } else {
+              // At this point, neither dictionary nor input is needed.
+              // We break the loop and we will use the decompressed data that we already have.
+              break;
+            }
+          }
+        }
+
+        return baos.toByteArray();
+      } finally {
+        ifr.end();
+      }
+    } catch (final IOException e) {
+      return null;
+    }
+  }
+
+  private static void logErrorInflating(final String reason) {
+    log.warn("Could not decompressed git object: Reason {}", reason);
   }
 }
