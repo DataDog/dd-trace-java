@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.ci.git;
 import static datadog.trace.bootstrap.instrumentation.ci.git.GitObject.COMMIT_TYPE;
 import static datadog.trace.bootstrap.instrumentation.ci.git.GitObject.TAG_TYPE;
 import static datadog.trace.bootstrap.instrumentation.ci.git.GitObject.UNKNOWN_TYPE;
+import static datadog.trace.bootstrap.instrumentation.ci.git.GitUtils.inflate;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.author;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.commitMessage;
 import static datadog.trace.bootstrap.instrumentation.ci.git.RawParseUtils.committer;
@@ -20,7 +21,6 @@ import datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackObject;
 import datadog.trace.bootstrap.instrumentation.ci.git.pack.GitPackUtils;
 import datadog.trace.bootstrap.instrumentation.ci.git.pack.V2PackGitInfoExtractor;
 import datadog.trace.bootstrap.instrumentation.ci.git.pack.VersionedPackGitInfoExtractor;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -30,9 +30,6 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
-import java.util.zip.Inflater;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Extracts git information from the local filesystem. Typically, we will use this extractor using
@@ -43,8 +40,6 @@ import org.slf4j.LoggerFactory;
  * https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/util/RawParseUtils.java
  */
 public class LocalFSGitInfoExtractor implements GitInfoExtractor {
-
-  private static final Logger log = LoggerFactory.getLogger(LocalFSGitInfoExtractor.class);
 
   private static final int SHA_INDEX = 1;
 
@@ -297,45 +292,6 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     }
   }
 
-  private byte[] inflate(final byte[] bytes) throws DataFormatException {
-    try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-
-      // Git objects are compressed with ZLib.
-      // We need to decompress it using Inflater.
-      final Inflater ifr = new Inflater();
-      try {
-        ifr.setInput(bytes);
-        final byte[] tmp = new byte[4 * 1024];
-        while (!ifr.finished()) {
-          final int size = ifr.inflate(tmp);
-          if (size != 0) {
-            baos.write(tmp, 0, size);
-          } else {
-            // Inflater can return !finished but 0 bytes inflated.
-            if (ifr.needsDictionary()) {
-              logErrorInflating(
-                  "The data was compressed using a preset dictionary. We cannot decompress it.");
-              return null;
-            } else if (ifr.needsInput()) {
-              logErrorInflating("The provided data is not enough. It might be corrupted");
-              return null;
-            } else {
-              // At this point, neither dictionary nor input is needed.
-              // We break the loop and we will use the decompressed data that we already have.
-              break;
-            }
-          }
-        }
-
-        return baos.toByteArray();
-      } finally {
-        ifr.end();
-      }
-    } catch (final IOException e) {
-      return null;
-    }
-  }
-
   private String extractSha(final Path gitFolder, final String head) throws IOException {
     if (head == null) {
       return null;
@@ -476,9 +432,5 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     } else {
       return null;
     }
-  }
-
-  private void logErrorInflating(final String reason) {
-    log.warn("Could not decompressed git object: Reason {}", reason);
   }
 }
