@@ -187,14 +187,14 @@ public final class ReferenceMatcher {
               missingField.getSources().toArray(EMPTY_SOURCES),
               reference.getClassName(),
               missingField.getName(),
-              missingField.getType().getInternalName()));
+              missingField.getFieldType()));
     }
     for (Reference.Method missingMethod : indexedMethods.values()) {
       mismatches.add(
           new Reference.Mismatch.MissingMethod(
               missingMethod.getSources().toArray(EMPTY_SOURCES),
               missingMethod.getName(),
-              missingMethod.getDescriptor()));
+              missingMethod.getMethodType()));
     }
 
     return mismatches.isEmpty();
@@ -204,7 +204,7 @@ public final class ReferenceMatcher {
       final Set<Reference.Field> fields) {
     Map<Pair<String, String>, Reference.Field> map = new HashMap<>(fields.size() * 4 / 3);
     for (Reference.Field field : fields) {
-      map.put(Pair.of(field.getName(), field.getType().getInternalName()), field);
+      map.put(Pair.of(field.getName(), field.getFieldType()), field);
     }
     return map;
   }
@@ -213,7 +213,7 @@ public final class ReferenceMatcher {
       final Set<Reference.Method> methods) {
     Map<Pair<String, String>, Reference.Method> map = new HashMap<>(methods.size() * 4 / 3);
     for (Reference.Method method : methods) {
-      map.put(Pair.of(method.getName(), method.getDescriptor()), method);
+      map.put(Pair.of(method.getName(), method.getMethodType()), method);
     }
     return map;
   }
@@ -242,17 +242,14 @@ public final class ReferenceMatcher {
       final List<Reference.Mismatch> flagMismatches) {
     if (!fieldsToFind.isEmpty()) {
       for (final FieldDescription.InDefinedShape fieldType : typeOnClasspath.getDeclaredFields()) {
-        String internalName = fixupInternalName(fieldType.getType().asErasure().getInternalName());
-        Pair<String, String> key = Pair.of(fieldType.getInternalName(), internalName);
+        String descriptor = fixupDescriptor(fieldType.getType().asErasure().getDescriptor());
+        Pair<String, String> key = Pair.of(fieldType.getInternalName(), descriptor);
         Reference.Field found = fieldsToFind.remove(key);
         if (null != found) {
           for (final Reference.Flag flag : found.getFlags()) {
             if (!flag.matches(fieldType.getModifiers())) {
               final String desc =
-                  reference.getClassName()
-                      + "#"
-                      + found.getName()
-                      + found.getType().getInternalName();
+                  reference.getClassName() + "#" + found.getName() + found.getFieldType();
               flagMismatches.add(
                   new Mismatch.MissingFlag(
                       found.getSources().toArray(EMPTY_SOURCES),
@@ -270,7 +267,7 @@ public final class ReferenceMatcher {
     }
   }
 
-  private static String fixupInternalName(String orig) {
+  private static String fixupDescriptor(String orig) {
     // see https://github.com/raphw/byte-buddy/issues/1083
     // arrays of primitive types need no substitution
     if (orig.contains("/") || orig.charAt(0) == '[') {
@@ -333,7 +330,7 @@ public final class ReferenceMatcher {
           for (final Reference.Flag flag : found.getFlags()) {
             if (!flag.matches(methodDescription.getModifiers())) {
               final String desc =
-                  reference.getClassName() + "#" + found.getName() + found.getDescriptor();
+                  reference.getClassName() + "#" + found.getName() + found.getMethodType();
               flagMismatches.add(
                   new Mismatch.MissingFlag(
                       found.getSources().toArray(EMPTY_SOURCES),

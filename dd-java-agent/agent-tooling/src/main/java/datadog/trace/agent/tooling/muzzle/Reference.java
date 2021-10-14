@@ -435,16 +435,16 @@ public class Reference {
     private final Set<Source> sources;
     private final Set<Flag> flags;
     private final String name;
-    private final Type returnType;
-    private final List<Type> parameterTypes;
+    private final String returnType;
+    private final List<String> parameterTypes;
 
     public Method(final String name, final String descriptor) {
       this(
           new Source[0],
           new Flag[0],
           name,
-          Type.getMethodType(descriptor).getReturnType(),
-          Type.getMethodType(descriptor).getArgumentTypes());
+          getDescriptor(Type.getMethodType(descriptor).getReturnType()),
+          getDescriptors(Type.getMethodType(descriptor).getArgumentTypes()));
     }
 
     public Method(
@@ -453,6 +453,15 @@ public class Reference {
         final String name,
         final Type returnType,
         final Type[] parameterTypes) {
+      this(sources, flags, name, getDescriptor(returnType), getDescriptors(parameterTypes));
+    }
+
+    public Method(
+        final Source[] sources,
+        final Flag[] flags,
+        final String name,
+        final String returnType,
+        final String[] parameterTypes) {
       this(
           new LinkedHashSet<>(Arrays.asList(sources)),
           new LinkedHashSet<>(Arrays.asList(flags)),
@@ -465,8 +474,8 @@ public class Reference {
         final Set<Source> sources,
         final Set<Flag> flags,
         final String name,
-        final Type returnType,
-        final List<Type> parameterTypes) {
+        final String returnType,
+        final List<String> parameterTypes) {
       this.sources = sources;
       this.flags = flags;
       this.name = name;
@@ -486,11 +495,11 @@ public class Reference {
       return name;
     }
 
-    public Type getReturnType() {
+    public String getReturnType() {
       return returnType;
     }
 
-    public List<Type> getParameterTypes() {
+    public List<String> getParameterTypes() {
       return parameterTypes;
     }
 
@@ -512,18 +521,22 @@ public class Reference {
 
     @Override
     public String toString() {
-      return name + getDescriptor();
+      return name + getMethodType();
     }
 
-    public String getDescriptor() {
-      return Type.getMethodType(returnType, parameterTypes.toArray(new Type[0])).getDescriptor();
+    public String getMethodType() {
+      StringBuilder buf = new StringBuilder().append('(');
+      for (String parameterType : parameterTypes) {
+        buf.append(parameterType);
+      }
+      return buf.append(')').append(returnType).toString();
     }
 
     @Override
     public boolean equals(final Object o) {
       if (o instanceof Method) {
         final Method m = (Method) o;
-        return name.equals(m.name) && getDescriptor().equals(m.getDescriptor());
+        return name.equals(m.name) && getMethodType().equals(m.getMethodType());
       }
       return false;
     }
@@ -538,10 +551,15 @@ public class Reference {
     private final Set<Source> sources;
     private final Set<Flag> flags;
     private final String name;
-    private final Type type;
+    private final String type;
 
     public Field(
         final Source[] sources, final Flag[] flags, final String name, final Type fieldType) {
+      this(sources, flags, name, getDescriptor(fieldType));
+    }
+
+    public Field(
+        final Source[] sources, final Flag[] flags, final String name, final String fieldType) {
       this.sources = new LinkedHashSet<>(Arrays.asList(sources));
       this.flags = new LinkedHashSet<>(Arrays.asList(flags));
       this.name = name;
@@ -560,7 +578,7 @@ public class Reference {
       return flags;
     }
 
-    public Type getType() {
+    public String getFieldType() {
       return type;
     }
 
@@ -577,7 +595,7 @@ public class Reference {
 
     @Override
     public String toString() {
-      return "FieldRef:" + name + type.getInternalName();
+      return "FieldRef:" + name + type;
     }
 
     @Override
@@ -633,6 +651,14 @@ public class Reference {
         final Flag[] fieldFlags,
         final String fieldName,
         final Type fieldType) {
+      return withField(sources, fieldFlags, fieldName, getDescriptor(fieldType));
+    }
+
+    public Builder withField(
+        final Source[] sources,
+        final Flag[] fieldFlags,
+        final String fieldName,
+        final String fieldType) {
       final Field field = new Field(sources, fieldFlags, fieldName, fieldType);
       final int existingIndex = fields.indexOf(field);
       if (existingIndex == -1) {
@@ -648,8 +674,23 @@ public class Reference {
         final Flag[] methodFlags,
         final String methodName,
         final Type returnType,
-        final Type... methodArgs) {
-      final Method method = new Method(sources, methodFlags, methodName, returnType, methodArgs);
+        final Type... parameterTypes) {
+      return withMethod(
+          sources,
+          methodFlags,
+          methodName,
+          getDescriptor(returnType),
+          getDescriptors(parameterTypes));
+    }
+
+    public Builder withMethod(
+        final Source[] sources,
+        final Flag[] methodFlags,
+        final String methodName,
+        final String returnType,
+        final String... parameterTypes) {
+      final Method method =
+          new Method(sources, methodFlags, methodName, returnType, parameterTypes);
       final int existingIndex = methods.indexOf(method);
       if (existingIndex == -1) {
         methods.add(method);
@@ -669,5 +710,17 @@ public class Reference {
           new LinkedHashSet<>(fields),
           new LinkedHashSet<>(methods));
     }
+  }
+
+  static String getDescriptor(Type type) {
+    return type.getDescriptor();
+  }
+
+  static String[] getDescriptors(Type[] types) {
+    String[] descriptors = new String[types.length];
+    for (int i = 0; i < types.length; i++) {
+      descriptors[i] = types[i].getDescriptor();
+    }
+    return descriptors;
   }
 }

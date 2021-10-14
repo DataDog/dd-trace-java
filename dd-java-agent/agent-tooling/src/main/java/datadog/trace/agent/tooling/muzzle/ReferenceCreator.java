@@ -156,7 +156,6 @@ public class ReferenceCreator extends ClassVisitor {
   private final Map<String, Reference> references = new LinkedHashMap<>();
   private String refSourceClassName;
   private String refSourceTypeInternalName;
-  private Type refSourceType;
 
   private ReferenceCreator(final ClassVisitor classVisitor) {
     super(Opcodes.ASM7, classVisitor);
@@ -186,7 +185,7 @@ public class ReferenceCreator extends ClassVisitor {
       final String superName,
       final String[] interfaces) {
     refSourceClassName = getClassName(name);
-    refSourceType = Type.getType("L" + name + ";");
+    Type refSourceType = Type.getType("L" + name + ";");
     refSourceTypeInternalName = refSourceType.getInternalName();
 
     // Add references to each of the interfaces.

@@ -336,16 +336,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
             }
 
             mv.visitLdcInsn(field.getName());
-
-            { // field type
-              mv.visitLdcInsn(field.getType().getDescriptor());
-              mv.visitMethodInsn(
-                  Opcodes.INVOKESTATIC,
-                  Type.getInternalName(Type.class),
-                  "getType",
-                  Type.getMethodDescriptor(Type.class.getMethod("getType", String.class)),
-                  false);
-            }
+            mv.visitLdcInsn(field.getFieldType());
 
             mv.visitMethodInsn(
                 Opcodes.INVOKEVIRTUAL,
@@ -357,7 +348,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
                         Reference.Source[].class,
                         Reference.Flag[].class,
                         String.class,
-                        Type.class)),
+                        String.class)),
                 false);
           }
           for (Reference.Method method : references[i].getMethods()) {
@@ -401,32 +392,15 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
             }
 
             mv.visitLdcInsn(method.getName());
-
-            { // return type
-              mv.visitLdcInsn(method.getReturnType().getDescriptor());
-              mv.visitMethodInsn(
-                  Opcodes.INVOKESTATIC,
-                  Type.getInternalName(Type.class),
-                  "getType",
-                  Type.getMethodDescriptor(Type.class.getMethod("getType", String.class)),
-                  false);
-            }
+            mv.visitLdcInsn(method.getReturnType());
 
             mv.visitLdcInsn(method.getParameterTypes().size());
-            mv.visitTypeInsn(Opcodes.ANEWARRAY, Type.getInternalName(Type.class));
+            mv.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/String");
             j = 0;
-            for (Type parameterType : method.getParameterTypes()) {
+            for (String parameterType : method.getParameterTypes()) {
               mv.visitInsn(Opcodes.DUP);
               mv.visitLdcInsn(j);
-
-              mv.visitLdcInsn(parameterType.getDescriptor());
-              mv.visitMethodInsn(
-                  Opcodes.INVOKESTATIC,
-                  Type.getInternalName(Type.class),
-                  "getType",
-                  Type.getMethodDescriptor(Type.class.getMethod("getType", String.class)),
-                  false);
-
+              mv.visitLdcInsn(parameterType);
               mv.visitInsn(Opcodes.AASTORE);
               j++;
             }
@@ -441,8 +415,8 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
                         Reference.Source[].class,
                         Reference.Flag[].class,
                         String.class,
-                        Type.class,
-                        Type[].class)),
+                        String.class,
+                        String[].class)),
                 false);
           }
           mv.visitMethodInsn(
