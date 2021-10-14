@@ -88,6 +88,7 @@ import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_HOST;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_STATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.SITE;
@@ -457,15 +458,18 @@ public class Config {
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
-    this(
-        INSTANCE != null ? INSTANCE.runtimeId : UUID.randomUUID().toString(),
-        ConfigProvider.createDefault());
+    this(ConfigProvider.createDefault());
   }
 
-  private Config(final String runtimeId, final ConfigProvider configProvider) {
+  private Config(final ConfigProvider configProvider) {
     this.configProvider = configProvider;
     configFile = findConfigurationFile();
-    this.runtimeId = runtimeId;
+    runtimeId =
+        null != INSTANCE
+            ? INSTANCE.runtimeId
+            : configProvider.getBoolean(RUNTIME_ID_ENABLED, true)
+                ? UUID.randomUUID().toString()
+                : "";
 
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here
@@ -1548,9 +1552,7 @@ public class Config {
    * @return A map of tag-name -> tag-value
    */
   private Map<String, String> getRuntimeTags() {
-    final Map<String, String> result = newHashMap(2);
-    result.put(RUNTIME_ID_TAG, runtimeId);
-    return Collections.unmodifiableMap(result);
+    return Collections.singletonMap(RUNTIME_ID_TAG, runtimeId);
   }
 
   public String getFinalProfilingUrl() {
@@ -1863,7 +1865,7 @@ public class Config {
     if (properties == null || properties.isEmpty()) {
       return INSTANCE;
     } else {
-      return new Config(INSTANCE.runtimeId, ConfigProvider.withPropertiesOverride(properties));
+      return new Config(ConfigProvider.withPropertiesOverride(properties));
     }
   }
 

@@ -1656,7 +1656,7 @@ class ConfigTest extends DDSpecification {
       properties.setProperty(TRACE_AGENT_PORT, propertyPort)
     }
 
-    def childConfig = new Config(Config.get().runtimeId, ConfigProvider.withPropertiesOverride(properties))
+    def childConfig = new Config(ConfigProvider.withPropertiesOverride(properties))
 
     then:
     childConfig.isAgentConfiguredUsingDefault() == childConfiguredUsingDefault
