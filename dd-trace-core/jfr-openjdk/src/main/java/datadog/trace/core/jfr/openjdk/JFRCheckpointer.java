@@ -20,35 +20,53 @@ import org.slf4j.LoggerFactory;
 public class JFRCheckpointer implements Checkpointer {
   private static final Logger log = LoggerFactory.getLogger(JFRCheckpointer.class);
 
-  static class AdaptiveSamplerConfig {
+  static class SamplerConfig {
     final Duration windowSize;
     final int samplesPerWindow;
-    final int lookBackWindows;
+    final int averageLookback;
+    final int budgetLookback;
 
-    AdaptiveSamplerConfig(@Nonnull Duration windowSize, int samplesPerWindow, int lookBackWindows) {
+    SamplerConfig(
+        @Nonnull Duration windowSize,
+        int samplesPerWindow,
+        int averageLookback,
+        int budgetLookback) {
       this.windowSize = windowSize;
       this.samplesPerWindow = samplesPerWindow;
-      this.lookBackWindows = lookBackWindows;
+      this.averageLookback = averageLookback;
+      this.budgetLookback = budgetLookback;
     }
 
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      AdaptiveSamplerConfig that = (AdaptiveSamplerConfig) o;
+      SamplerConfig that = (SamplerConfig) o;
       return samplesPerWindow == that.samplesPerWindow
-          && lookBackWindows == that.lookBackWindows
-          && Objects.equals(windowSize, that.windowSize);
+          && averageLookback == that.averageLookback
+          && budgetLookback == that.budgetLookback
+          && windowSize.equals(that.windowSize);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(windowSize, samplesPerWindow, lookBackWindows);
+      return Objects.hash(windowSize, samplesPerWindow, averageLookback, budgetLookback);
+    }
+  }
+
+  static class ConfiguredSampler {
+    final SamplerConfig config;
+    final Sampler sampler;
+
+    ConfiguredSampler(SamplerConfig config, Sampler sampler) {
+      this.config = config;
+      this.sampler = sampler;
     }
   }
 
   private static final int MASK = ~CPU;
   private static final int MIN_SAMPLER_LOOKBACK = 3;
+  private static final int DEFAULT_AVERAGE_LOOKBACK = 16;
   static final int MIN_SAMPLER_WINDOW_SIZE_MS = 100;
   static final int MAX_SAMPLER_WINDOW_SIZE_MS = 30000;
   static final int MAX_SAMPLER_RATE = 1000000; // max 1M checkpoints per recording
@@ -59,6 +77,7 @@ public class JFRCheckpointer implements Checkpointer {
   private final LongAdder dropped = new LongAdder();
   private final int rateLimit;
   private final boolean isEndpointCollectionEnabled;
+  private final SamplerConfig samplerConfig;
 
   public JFRCheckpointer() {
     this(ConfigProvider.getInstance());
@@ -68,7 +87,18 @@ public class JFRCheckpointer implements Checkpointer {
     this(prepareSampler(configProvider), configProvider);
   }
 
+  private JFRCheckpointer(final ConfiguredSampler sampler, final ConfigProvider configProvider) {
+    this(sampler.sampler, sampler.config, configProvider);
+  }
+
   JFRCheckpointer(final Sampler sampler, final ConfigProvider configProvider) {
+    this(sampler, null, configProvider);
+  }
+
+  JFRCheckpointer(
+      final Sampler sampler,
+      final SamplerConfig samplerConfig,
+      final ConfigProvider configProvider) {
     ExcludedVersions.checkVersionExclusion();
     // Note: Loading CheckpointEvent when JFRCheckpointer is loaded is important because it also
     // loads JFR classes - which may not be present on some JVMs
@@ -76,10 +106,12 @@ public class JFRCheckpointer implements Checkpointer {
     EventType.getEventType(EndpointEvent.class);
     EventType.getEventType(CheckpointSummaryEvent.class);
 
+    this.samplerConfig = samplerConfig;
     rateLimit = getRateLimit(configProvider);
     this.sampler = Objects.requireNonNull(sampler);
 
     if (sampler != null) {
+      FlightRecorder.addPeriodicEvent(CheckpointSamplerConfigEvent.class, this::emitSamplerConfig);
       FlightRecorder.addPeriodicEvent(CheckpointSummaryEvent.class, this::emitSummary);
     }
 
@@ -162,22 +194,44 @@ public class JFRCheckpointer implements Checkpointer {
     new CheckpointSummaryEvent(rateLimit, emitted.sumThenReset(), dropped.sumThenReset()).commit();
   }
 
-  private static Sampler prepareSampler(final ConfigProvider configProvider) {
-    AdaptiveSamplerConfig config = getSamplerConfiguration(configProvider);
+  private void emitSamplerConfig() {
+    new CheckpointSamplerConfigEvent(
+            samplerConfig.windowSize.toMillis(),
+            samplerConfig.samplesPerWindow,
+            samplerConfig.averageLookback,
+            samplerConfig.budgetLookback)
+        .commit();
+  }
+
+  private static ConfiguredSampler prepareSampler(final ConfigProvider configProvider) {
+    SamplerConfig config = getSamplerConfiguration(configProvider);
     if (config == null) {
       // adaptive sampling disabled
       log.debug("Checkpoint adaptive sampling is disabled");
-      return new ConstantSampler(true);
+      return new ConfiguredSampler(null, new ConstantSampler(true));
     }
     log.debug(
         "Using checkpoint adaptive sampling with parameters: windowSize(ms)={}, windowSamples={}, lookback={}",
         config.windowSize.toMillis(),
         config.samplesPerWindow,
-        config.lookBackWindows);
-    return new AdaptiveSampler(config.windowSize, config.samplesPerWindow, config.lookBackWindows);
+        config.budgetLookback);
+    return new ConfiguredSampler(
+        config,
+        new AdaptiveSampler(
+            config.windowSize,
+            config.samplesPerWindow,
+            8,
+            config.budgetLookback,
+            JFRCheckpointer::emitWindowConfig));
   }
 
-  static AdaptiveSamplerConfig getSamplerConfiguration(ConfigProvider configProvider) {
+  private static void emitWindowConfig(
+      long totalCount, long sampledCount, long budget, double totalAverage, double probability) {
+    new CheckpointSamplerReconfigEvent(totalCount, sampledCount, budget, totalAverage, probability)
+        .commit();
+  }
+
+  static SamplerConfig getSamplerConfiguration(ConfigProvider configProvider) {
     final int limit = getRateLimit(configProvider);
     if (limit <= 0) {
       return null;
@@ -203,10 +257,11 @@ public class JFRCheckpointer implements Checkpointer {
     }
 
     // adjust the lookback parameter to represent ~80% of the requested rate
-    int samplerLookback =
+    int budgetLookback =
         Math.round(Math.max((0.8f * limit) / samplesPerWindow, MIN_SAMPLER_LOOKBACK));
 
-    return new AdaptiveSamplerConfig(windowSize, Math.round(samplesPerWindow), samplerLookback);
+    return new SamplerConfig(
+        windowSize, Math.round(samplesPerWindow), DEFAULT_AVERAGE_LOOKBACK, budgetLookback);
   }
 
   private static int getRateLimit(final ConfigProvider configProvider) {

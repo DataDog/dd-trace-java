@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.IntSupplier;
 import org.apache.commons.math3.distribution.PoissonDistribution;
@@ -176,7 +177,8 @@ class AdaptiveSamplerTest {
   private static final StandardDeviation STANDARD_DEVIATION = new StandardDeviation();
   private static final int WINDOWS = 120;
   private static final int SAMPLES_PER_WINDOW = 100;
-  private static final int LOOKBACK = 30;
+  private static final int AVERAGE_LOOKBACK = 30;
+  private static final int BUDGET_LOOKBACK = 16;
 
   @Mock AgentTaskScheduler taskScheduler;
   @Captor ArgumentCaptor<Task<AdaptiveSampler>> rollWindowTaskCaptor;
@@ -258,7 +260,8 @@ class AdaptiveSamplerTest {
 
   @Test
   public void testKeep() {
-    final AdaptiveSampler sampler = new AdaptiveSampler(WINDOW_DURATION, 1, 0, taskScheduler);
+    final AdaptiveSampler sampler =
+        new AdaptiveSampler(WINDOW_DURATION, 1, 1, 1, null, taskScheduler);
     long tests = sampler.testCount();
     long samples = sampler.sampleCount();
     assertTrue(sampler.keep());
@@ -268,12 +271,99 @@ class AdaptiveSamplerTest {
 
   @Test
   public void testDrop() {
-    final AdaptiveSampler sampler = new AdaptiveSampler(WINDOW_DURATION, 1, 0, taskScheduler);
+    final AdaptiveSampler sampler =
+        new AdaptiveSampler(WINDOW_DURATION, 1, 1, 1, null, taskScheduler);
     long tests = sampler.testCount();
     long samples = sampler.sampleCount();
     assertFalse(sampler.drop());
     assertEquals(tests + 1, sampler.testCount());
     assertEquals(samples, sampler.sampleCount());
+  }
+
+  @Test
+  void testConfigListener() throws Exception {
+    AtomicInteger counter = new AtomicInteger(0);
+    final AdaptiveSampler sampler =
+        new AdaptiveSampler(
+            WINDOW_DURATION,
+            2,
+            1,
+            1,
+            new AdaptiveSampler.ConfigListener() {
+              @Override
+              public void onWindowRoll(
+                  long totalCount,
+                  long sampledCount,
+                  long budget,
+                  double totalAverage,
+                  double probability) {
+                switch (counter.getAndIncrement()) {
+                  case 0:
+                    {
+                      // initial config at the sampler instantiation
+                      assertEquals(0, totalCount);
+                      assertEquals(0, sampledCount);
+                      assertEquals(4, budget);
+                      assertEquals(0.0d, totalAverage);
+                      assertEquals(1.0d, probability);
+                      break;
+                    }
+                  case 1:
+                    {
+                      // after first roll window
+                      assertEquals(2, totalCount);
+                      assertEquals(1, sampledCount);
+                      assertEquals(1, budget);
+                      assertEquals(2.0d, totalAverage);
+                      assertEquals(0.5d, probability);
+                      break;
+                    }
+                  case 2:
+                    {
+                      // after second roll window
+                      assertEquals(3, totalCount);
+                      assertEquals(2, sampledCount);
+                      assertEquals(0, budget);
+                      assertEquals(3.0d, totalAverage);
+                      assertEquals(0.0d, probability);
+                      break;
+                    }
+                  case 3:
+                    {
+                      // after third roll window
+                      assertEquals(3, totalCount);
+                      assertEquals(0, sampledCount);
+                      assertEquals(2, budget);
+                      assertEquals(3.0d, totalAverage);
+                      assertEquals(0.6666d, probability, 0.00007d);
+                      System.err.println(
+                          "==> "
+                              + totalCount
+                              + ", "
+                              + sampledCount
+                              + ", "
+                              + budget
+                              + ", "
+                              + totalAverage
+                              + ", "
+                              + probability);
+                      break;
+                    }
+                }
+              }
+            },
+            taskScheduler);
+    sampler.keep();
+    sampler.drop();
+    rollWindow();
+    sampler.keep();
+    sampler.keep();
+    sampler.drop();
+    rollWindow();
+    sampler.drop();
+    sampler.drop();
+    sampler.drop();
+    rollWindow();
   }
 
   private void testSampler(final IntSupplier windowEventsSupplier, final int maxErrorPercent)
@@ -293,9 +383,15 @@ class AdaptiveSamplerTest {
       final IntSupplier windowEventsSupplier, final int maxErrorPercent) {
     log.info(
         "> mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}%",
-        windowEventsSupplier, WINDOWS, SAMPLES_PER_WINDOW, LOOKBACK, maxErrorPercent);
+        windowEventsSupplier, WINDOWS, SAMPLES_PER_WINDOW, AVERAGE_LOOKBACK, maxErrorPercent);
     final AdaptiveSampler sampler =
-        new AdaptiveSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
+        new AdaptiveSampler(
+            WINDOW_DURATION,
+            SAMPLES_PER_WINDOW,
+            AVERAGE_LOOKBACK,
+            BUDGET_LOOKBACK,
+            null,
+            taskScheduler);
 
     // simulate event generation and sampling for the given number of sampling windows
     final long expectedSamples = WINDOWS * SAMPLES_PER_WINDOW;
@@ -438,7 +534,7 @@ class AdaptiveSamplerTest {
         windowEventsSupplier,
         WINDOWS,
         SAMPLES_PER_WINDOW,
-        LOOKBACK,
+        AVERAGE_LOOKBACK,
         maxErrorPercent);
 
     /*
@@ -450,7 +546,13 @@ class AdaptiveSamplerTest {
     final AtomicLong receivedEvents = new AtomicLong(0);
 
     final AdaptiveSampler sampler =
-        new AdaptiveSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
+        new AdaptiveSampler(
+            WINDOW_DURATION,
+            SAMPLES_PER_WINDOW,
+            AVERAGE_LOOKBACK,
+            BUDGET_LOOKBACK,
+            null,
+            taskScheduler);
     final CyclicBarrier startBarrier = new CyclicBarrier(threadCount);
     final CyclicBarrier endBarrier = new CyclicBarrier(threadCount, this::rollWindow);
     final Mean[] means = new Mean[threadCount];
