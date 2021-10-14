@@ -1,8 +1,6 @@
 package server
 
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.agent.test.checkpoints.CheckpointValidator
-import datadog.trace.agent.test.checkpoints.CheckpointValidationMode
 import io.vertx.circuitbreaker.CircuitBreakerOptions
 import io.vertx.core.Future
 import io.vertx.reactivex.circuitbreaker.CircuitBreaker
@@ -170,11 +168,5 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
         .requestHandler { router.accept(it) }
         .listen(port) { startFuture.complete() }
     }
-  }
-
-  @Override
-  def setup() {
-    CheckpointValidator.excludeValidations_DONOTUSE_I_REPEAT_DO_NOT_USE(
-      CheckpointValidationMode.THREAD_SEQUENCE)
   }
 }
