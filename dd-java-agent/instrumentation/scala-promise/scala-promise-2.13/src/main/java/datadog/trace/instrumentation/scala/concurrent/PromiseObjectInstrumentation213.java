@@ -76,6 +76,7 @@ public class PromiseObjectInstrumentation213 extends Instrumenter.Tracing {
           contextStore.put(next, span);
           resolved = next;
         }
+        span.startThreadMigration();
       }
     }
 

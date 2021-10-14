@@ -50,9 +50,11 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
 
     // We want the callback in the scope of the parent, not the client span
     try (final AgentScope scope = activateSpan(parent)) {
+      parent.finishThreadMigration();
       scope.setAsyncPropagation(true);
       ctx.sendUpstream(msg);
     }
+    parent.finishWork();
   }
 
   @Override

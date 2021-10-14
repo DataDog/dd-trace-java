@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.scala.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -13,6 +14,7 @@ import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -83,6 +85,9 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
         State state = State.FACTORY.create();
         state.captureAndSetContinuation(scope);
         InstrumentationContext.get(Transformation.class, State.class).put(task, state);
+        if (scope instanceof AgentScope) {
+          ((AgentScope) scope).span().startThreadMigration();
+        }
       }
     }
   }
@@ -90,12 +95,24 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
   public static final class Run {
     @Advice.OnMethodEnter
     public static <F, T> TraceScope before(@Advice.This Transformation<F, T> task) {
-      return AdviceUtils.startTaskScope(
-          InstrumentationContext.get(Transformation.class, State.class), task);
+      ContextStore<Transformation, State> store =
+          InstrumentationContext.get(Transformation.class, State.class);
+      AgentSpan capturedSpan = AdviceUtils.getCapturedSpan(store, task);
+      AgentSpan activeSpan = activeSpan();
+      TraceScope scope =
+          AdviceUtils.startTaskScope(
+              InstrumentationContext.get(Transformation.class, State.class), task);
+      if (capturedSpan != null && !capturedSpan.equals(activeSpan)) {
+        capturedSpan.finishThreadMigration();
+      }
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter TraceScope scope) {
+      if (scope instanceof AgentScope) {
+        ((AgentScope) scope).span().finishWork();
+      }
       AdviceUtils.endTaskScope(scope);
     }
   }
@@ -122,7 +139,9 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
           InstrumentationContext.get(Transformation.class, State.class);
       State state = contextStore.get(task);
       if (PromiseHelper.completionPriority) {
+        AgentSpan capturedSpan = AdviceUtils.getCapturedSpan(contextStore, task);
         final AgentSpan span = InstrumentationContext.get(Try.class, AgentSpan.class).get(resolved);
+
         State oldState = state;
         state = PromiseHelper.handleSpan(span, state);
         if (state != oldState) {
@@ -136,6 +155,9 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
           state = State.FACTORY.create();
           state.captureAndSetContinuation(scope);
           contextStore.put(task, state);
+          if (scope instanceof AgentScope) {
+            ((AgentScope) scope).span().startThreadMigration();
+          }
         }
       }
     }

@@ -23,5 +23,7 @@ public interface AgentScope extends TraceScope, Closeable {
      * continuation will be created, awaited, and closed all on the same thread.
      */
     void migrate();
+
+    AgentSpan getSpan();
   }
 }

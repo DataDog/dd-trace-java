@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.scala.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
@@ -13,6 +14,7 @@ import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -84,12 +86,22 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Tracing
   public static final class Run {
     @Advice.OnMethodEnter
     public static <T> TraceScope before(@Advice.This CallbackRunnable<T> task) {
-      return AdviceUtils.startTaskScope(
-          InstrumentationContext.get(CallbackRunnable.class, State.class), task);
+      ContextStore<CallbackRunnable, State> store =
+          InstrumentationContext.get(CallbackRunnable.class, State.class);
+      AgentSpan capturedSpan = AdviceUtils.getCapturedSpan(store, task);
+      AgentSpan activeSpan = activeSpan();
+      TraceScope scope = AdviceUtils.startTaskScope(store, task);
+      if (capturedSpan != null && !capturedSpan.equals(activeSpan)) {
+        capturedSpan.finishThreadMigration();
+      }
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter TraceScope scope) {
+      if (scope instanceof AgentScope) {
+        ((AgentScope) scope).span().finishWork();
+      }
       endTaskScope(scope);
     }
   }
