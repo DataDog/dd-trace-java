@@ -37,6 +37,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (req) {
       1 * span.setTag(Tags.HTTP_METHOD, "test-method")
       1 * span.setTag(Tags.HTTP_URL, url)
+      1 * span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
       1 * span.getRequestContext()
       1 * span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
     }
@@ -71,6 +72,9 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     }
     if (url != null) {
       1 * span.setResourceName({ it as String == expectedPath }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
+      if (req.url.host != null) {
+        1 * span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
+      }
     } else {
       1 * span.setResourceName({ it as String == expectedPath })
     }
@@ -108,6 +112,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     then:
     1 * span.setTag(Tags.HTTP_URL, expectedUrl)
+    1 * span.setTag(Tags.HTTP_HOSTNAME, req.url.host)
     1 * span.setTag(DDTags.HTTP_QUERY, expectedQuery)
     1 * span.setTag(DDTags.HTTP_FRAGMENT, null)
     1 * span.getRequestContext()
