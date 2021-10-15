@@ -98,6 +98,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
       Object existingSpan = req.getAttribute(DD_SPAN_ATTRIBUTE);
       if (existingSpan instanceof AgentSpan) {
         // Request already gone through initial processing, so just activate the span.
+        ((AgentSpan) existingSpan).finishThreadMigration();
         return activateSpan((AgentSpan) existingSpan);
       }
 
@@ -118,6 +119,7 @@ public final class JettyServerInstrumentation extends Instrumenter.Tracing
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void closeScope(@Advice.Enter final AgentScope scope) {
+      scope.span().finishWork();
       scope.close();
     }
   }

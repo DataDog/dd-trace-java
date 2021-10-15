@@ -1,30 +1,40 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
-import static datadog.trace.instrumentation.vertx_3_4.server.VertxRouterDecorator.DECORATE;
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
+import static datadog.trace.instrumentation.vertx_3_4.server.RouteHandlerWrapper.HANDLER_SPAN_CONTEXT_KEY;
+import static datadog.trace.instrumentation.vertx_3_4.server.RouteHandlerWrapper.PARENT_SPAN_CONTEXT_KEY;
+import static datadog.trace.instrumentation.vertx_3_4.server.RouteHandlerWrapper.ROUTE_CONTEXT_KEY;
+import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.Handler;
-import io.vertx.core.http.HttpServerResponse;
+import io.vertx.ext.web.RoutingContext;
 
 public class EndHandlerWrapper implements Handler<Void> {
-  private final AgentSpan span;
-  private final HttpServerResponse response;
+  private final RoutingContext routingContext;
 
   Handler<Void> actual;
 
-  EndHandlerWrapper(final AgentSpan span, final HttpServerResponse response) {
-    this.span = span;
-    this.response = response;
+  EndHandlerWrapper(RoutingContext routingContext) {
+    this.routingContext = routingContext;
   }
 
   @Override
   public void handle(final Void event) {
+    AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+    AgentSpan parentSpan = routingContext.get(PARENT_SPAN_CONTEXT_KEY);
+    String path = routingContext.get(ROUTE_CONTEXT_KEY);
     try {
+      span.finishThreadMigration();
       if (actual != null) {
         actual.handle(event);
       }
     } finally {
-      DECORATE.onResponse(span, response);
+      if (path != null) {
+        HTTP_RESOURCE_DECORATOR.withRoute(
+            parentSpan, routingContext.request().rawMethod(), path, true);
+      }
+      DECORATE.onResponse(span, routingContext.response());
       span.finish();
     }
   }

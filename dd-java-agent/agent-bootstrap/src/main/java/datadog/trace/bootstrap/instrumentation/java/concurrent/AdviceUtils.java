@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
 
 /** Helper utils for Runnable/Callable instrumentation */
@@ -48,6 +49,14 @@ public class AdviceUtils {
     if (null != state) {
       state.closeContinuation();
     }
+  }
+
+  public static <T> AgentSpan getCapturedSpan(ContextStore<T, State> contextStore, final T task) {
+    State state = contextStore.get(task);
+    if (null != state) {
+      return state.getSpan();
+    }
+    return null;
   }
 
   public static <T> void capture(

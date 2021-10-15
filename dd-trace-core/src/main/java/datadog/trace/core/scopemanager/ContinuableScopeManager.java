@@ -120,7 +120,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       final boolean isAsyncPropagating) {
     assert span != null;
 
-    // Inherit the async propagation from the active scope unless the a value is overridden
+    // Inherit the async propagation from the active scope unless the value is overridden
     boolean asyncPropagation =
         overrideAsyncPropagation
             ? isAsyncPropagating
@@ -486,6 +486,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     @Override
+    public AgentSpan getSpan() {
+      return spanUnderScope;
+    }
+
+    @Override
     void cancelFromContinuedScopeClose() {
       trace.cancelContinuation(this);
     }
@@ -573,6 +578,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public void migrate() {
       // This has no meaning for a concurrent continuation
+    }
+
+    @Override
+    public AgentSpan getSpan() {
+      return spanUnderScope;
     }
 
     @Override

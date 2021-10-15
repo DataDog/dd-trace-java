@@ -156,6 +156,11 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
         break;
       case 'o' - 'a':
         if (name.startsWith("org.")) {
+          if (name.startsWith("org.apache.felix.framework.URLHandlers")
+              || name.startsWith("org.eclipse.osgi.framework.internal.protocol.")
+              || name.startsWith("org.eclipse.osgi.internal.url.")) {
+            return true;
+          }
           if (name.startsWith("org.aspectj.") || name.startsWith("org.jinspired.")) {
             return true;
           }

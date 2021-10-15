@@ -14,6 +14,12 @@ import org.testng.ITestResult;
 
 public class TracingListener implements ITestListener {
 
+  private final String version;
+
+  public TracingListener(final String version) {
+    this.version = version;
+  }
+
   @Override
   public void onTestStart(final ITestResult result) {
     // If there is an active span that represents a test
@@ -29,7 +35,7 @@ public class TracingListener implements ITestListener {
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
-    DECORATE.afterStart(span);
+    DECORATE.afterStart(span, version);
     DECORATE.onTestStart(span, result);
   }
 

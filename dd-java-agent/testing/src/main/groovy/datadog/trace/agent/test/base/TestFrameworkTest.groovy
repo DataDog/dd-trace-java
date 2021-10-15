@@ -20,6 +20,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
 
   void testSpan(TraceAssert trace, int index, final String testSuite, final String testName, final String testStatus, final Map<String, String> testTags = null, final Throwable exception = null) {
     def testFramework = expectedTestFramework()
+    def testFrameworkVersion = expectedTestFrameworkVersion()
 
     trace.span {
       parent()
@@ -34,6 +35,9 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         "$Tags.TEST_SUITE" testSuite
         "$Tags.TEST_NAME" testName
         "$Tags.TEST_FRAMEWORK" testFramework
+        if(testFrameworkVersion){
+          "$Tags.TEST_FRAMEWORK_VERSION" testFrameworkVersion
+        }
         "$Tags.TEST_STATUS" testStatus
         if (testTags) {
           testTags.each { key, val -> tag(key, val) }
@@ -72,6 +76,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   abstract String expectedOperationName()
 
   abstract String expectedTestFramework()
+
+  abstract String expectedTestFrameworkVersion()
 
   abstract String component()
 

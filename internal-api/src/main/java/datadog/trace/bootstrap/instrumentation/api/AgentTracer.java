@@ -678,6 +678,11 @@ public class AgentTracer {
 
     @Override
     public void migrate() {}
+
+    @Override
+    public AgentSpan getSpan() {
+      return NoopAgentSpan.INSTANCE;
+    }
   }
 
   public static class NoopContext implements Context.Extracted {

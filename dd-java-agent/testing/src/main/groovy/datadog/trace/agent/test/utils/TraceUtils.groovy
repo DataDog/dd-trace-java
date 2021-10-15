@@ -27,15 +27,30 @@ class TraceUtils {
     }
   }
 
+  static <T> T runUnderTraceAsync(final String rootOperationName, final Callable<T> r) {
+    return runUnderTrace(rootOperationName, true, true, r)
+  }
+
   static <T> T runUnderTrace(final String rootOperationName, final Callable<T> r) {
     return runUnderTrace(rootOperationName, true, r)
   }
 
+  static <T> T runUnderTraceAsync(final String rootOperationName, final boolean inheritCurrent, final Callable<T> r) {
+    return runUnderTrace(rootOperationName, inheritCurrent, true, r)
+  }
+
   static <T> T runUnderTrace(final String rootOperationName, final boolean inheritCurrent, final Callable<T> r) {
+    return runUnderTrace(rootOperationName, inheritCurrent, false, r)
+  }
+
+  static <T> T runUnderTrace(final String rootOperationName, final boolean inheritCurrent, final boolean async, final Callable<T> r) {
     final AgentSpan span = inheritCurrent ? startSpan(rootOperationName, true) : startSpan(rootOperationName, null, true)
     DECORATOR.afterStart(span)
 
     AgentScope scope = activateSpan(span)
+    if (async) {
+      span.startThreadMigration()
+    }
     scope.setAsyncPropagation(true)
 
     try {
@@ -48,6 +63,16 @@ class TraceUtils {
       scope.close()
       span.finish()
     }
+  }
+
+  static <T> void runnableUnderTraceAsync(final String rootOperationName, final Runnable r) {
+    runUnderTraceAsync(rootOperationName, new Callable<T>() {
+        @Override
+        T call() throws Exception {
+          r.run()
+          return null
+        }
+      })
   }
 
   static <T> void runnableUnderTrace(final String rootOperationName, final Runnable r) {

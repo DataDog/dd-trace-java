@@ -50,7 +50,12 @@ public class TestNGInstrumentation extends Instrumenter.Tracing {
         }
       }
 
-      final TracingListener tracingListener = new TracingListener();
+      final Package pkg = TestNG.class.getPackage();
+      final String version =
+          pkg.getImplementationVersion() != null
+              ? pkg.getImplementationVersion()
+              : pkg.getSpecificationVersion();
+      final TracingListener tracingListener = new TracingListener(version);
       testNG.addListener((ITestNGListener) tracingListener);
     }
 
