@@ -305,6 +305,10 @@ public class ReferenceCreator extends ClassVisitor {
         final String name,
         final String descriptor,
         final boolean isInterface) {
+      if (owner.startsWith("org/slf4j/")) {
+        return; // ignore instrumentation's use of SLF4J API (which will be relocated)
+      }
+
       // Additional references we could check
       // * DONE name of method owner's class
       //   * DONE is the owner an interface?

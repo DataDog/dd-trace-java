@@ -104,7 +104,7 @@ class ReferenceCreatorTest extends DDSpecification {
 
   private static Reference.Method findMethod(Set<Reference.Method> methods, String methodName, String methodDesc) {
     for (Reference.Method method : methods) {
-      if (method == new Reference.Method(methodName, methodDesc)) {
+      if (method == new Reference.Method([] as Set, [] as Set, methodName, methodDesc)) {
         return method
       }
     }

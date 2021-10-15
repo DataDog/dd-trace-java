@@ -381,19 +381,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
             }
 
             mv.visitLdcInsn(method.name);
-            mv.visitLdcInsn(method.returnType);
-
-            mv.visitLdcInsn(method.parameterTypes.size());
-            mv.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/String");
-            j = 0;
-            for (String parameterType : method.parameterTypes) {
-              mv.visitInsn(Opcodes.DUP);
-              mv.visitLdcInsn(j);
-              mv.visitLdcInsn(parameterType);
-              mv.visitInsn(Opcodes.AASTORE);
-              j++;
-            }
-
+            mv.visitLdcInsn(method.methodType);
             mv.visitMethodInsn(
                 Opcodes.INVOKEVIRTUAL,
                 "datadog/trace/agent/tooling/muzzle/Reference$Builder",
@@ -404,8 +392,7 @@ public class MuzzleVisitor implements AsmVisitorWrapper {
                         Reference.Source[].class,
                         Reference.Flag[].class,
                         String.class,
-                        String.class,
-                        String[].class)),
+                        String.class)),
                 false);
           }
           mv.visitMethodInsn(

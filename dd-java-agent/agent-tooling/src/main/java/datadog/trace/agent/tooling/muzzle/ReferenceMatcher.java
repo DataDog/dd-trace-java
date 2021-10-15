@@ -193,7 +193,7 @@ public final class ReferenceMatcher {
           new Reference.Mismatch.MissingMethod(
               missingMethod.sources.toArray(EMPTY_SOURCES),
               missingMethod.name,
-              missingMethod.getMethodType()));
+              missingMethod.methodType));
     }
 
     return mismatches.isEmpty();
@@ -212,7 +212,7 @@ public final class ReferenceMatcher {
       final Set<Reference.Method> methods) {
     Map<Pair<String, String>, Reference.Method> map = new HashMap<>(methods.size() * 4 / 3);
     for (Reference.Method method : methods) {
-      map.put(Pair.of(method.name, method.getMethodType()), method);
+      map.put(Pair.of(method.name, method.methodType), method);
     }
     return map;
   }
@@ -298,7 +298,7 @@ public final class ReferenceMatcher {
           // will stop looking for this one now, but check it has the right flags
           for (final Reference.Flag flag : found.flags) {
             if (!flag.matches(methodDescription.getModifiers())) {
-              final String desc = reference.className + "#" + found.name + found.getMethodType();
+              final String desc = reference.className + "#" + found.name + found.methodType;
               flagMismatches.add(
                   new Mismatch.MissingFlag(
                       found.sources.toArray(EMPTY_SOURCES),

@@ -230,11 +230,6 @@ public class Reference {
     public final String fieldType;
 
     public Field(
-        final Source[] sources, final Flag[] flags, final String name, final Type fieldType) {
-      this(sources, flags, name, getDescriptor(fieldType));
-    }
-
-    public Field(
         final Source[] sources, final Flag[] flags, final String name, final String fieldType) {
       this.sources = new LinkedHashSet<>(Arrays.asList(sources));
       this.flags = new LinkedHashSet<>(Arrays.asList(flags));
@@ -277,52 +272,26 @@ public class Reference {
     public final Set<Source> sources;
     public final Set<Flag> flags;
     public final String name;
-    public final String returnType;
-    public final List<String> parameterTypes;
-
-    public Method(final String name, final String descriptor) {
-      this(
-          new Source[0],
-          new Flag[0],
-          name,
-          getDescriptor(Type.getMethodType(descriptor).getReturnType()),
-          getDescriptors(Type.getMethodType(descriptor).getArgumentTypes()));
-    }
+    public final String methodType;
 
     public Method(
-        final Source[] sources,
-        final Flag[] flags,
-        final String name,
-        final Type returnType,
-        final Type[] parameterTypes) {
-      this(sources, flags, name, getDescriptor(returnType), getDescriptors(parameterTypes));
-    }
-
-    public Method(
-        final Source[] sources,
-        final Flag[] flags,
-        final String name,
-        final String returnType,
-        final String[] parameterTypes) {
+        final Source[] sources, final Flag[] flags, final String name, final String methodType) {
       this(
           new LinkedHashSet<>(Arrays.asList(sources)),
           new LinkedHashSet<>(Arrays.asList(flags)),
           name,
-          returnType,
-          Arrays.asList(parameterTypes));
+          methodType);
     }
 
     public Method(
         final Set<Source> sources,
         final Set<Flag> flags,
         final String name,
-        final String returnType,
-        final List<String> parameterTypes) {
+        final String methodType) {
       this.sources = sources;
       this.flags = flags;
       this.name = name;
-      this.returnType = returnType;
-      this.parameterTypes = parameterTypes;
+      this.methodType = methodType;
     }
 
     public Method merge(final Method anotherMethod) {
@@ -338,27 +307,19 @@ public class Reference {
       mergedFlags.addAll(flags);
       mergedFlags.addAll(anotherMethod.flags);
 
-      return new Method(mergedSources, mergedFlags, name, returnType, parameterTypes);
+      return new Method(mergedSources, mergedFlags, name, methodType);
     }
 
     @Override
     public String toString() {
-      return name + getMethodType();
-    }
-
-    public String getMethodType() {
-      StringBuilder buf = new StringBuilder().append('(');
-      for (String parameterType : parameterTypes) {
-        buf.append(parameterType);
-      }
-      return buf.append(')').append(returnType).toString();
+      return name + methodType;
     }
 
     @Override
     public boolean equals(final Object o) {
       if (o instanceof Method) {
         final Method m = (Method) o;
-        return name.equals(m.name) && getMethodType().equals(m.getMethodType());
+        return name.equals(m.name) && methodType.equals(m.methodType);
       }
       return false;
     }
@@ -431,37 +392,6 @@ public class Reference {
       }
     }
 
-    /** Fallback mismatch in case an unexpected exception occurs during reference checking. */
-    public static class ReferenceCheckError extends Mismatch {
-      private final Exception referenceCheckException;
-      private final Reference referenceBeingChecked;
-      private final ClassLoader classLoaderBeingChecked;
-
-      public ReferenceCheckError(
-          final Exception e,
-          final Reference referenceBeingChecked,
-          final ClassLoader classLoaderBeingChecked) {
-        super(new Source[0]);
-        referenceCheckException = e;
-        this.referenceBeingChecked = referenceBeingChecked;
-        this.classLoaderBeingChecked = classLoaderBeingChecked;
-      }
-
-      @Override
-      String getMismatchDetails() {
-        final StringWriter sw = new StringWriter();
-        sw.write("Failed to generate reference check for: ");
-        sw.write(referenceBeingChecked.toString());
-        sw.write(" on classloader ");
-        sw.write(classLoaderBeingChecked.toString());
-        sw.write("\n");
-        // add exception message and stack trace
-        final PrintWriter pw = new PrintWriter(sw);
-        referenceCheckException.printStackTrace(pw);
-        return sw.toString();
-      }
-    }
-
     public static class MissingField extends Mismatch {
       private final String className;
       private final String fieldName;
@@ -497,6 +427,37 @@ public class Reference {
       @Override
       String getMismatchDetails() {
         return "Missing method " + className + "#" + method;
+      }
+    }
+
+    /** Fallback mismatch in case an unexpected exception occurs during reference checking. */
+    public static class ReferenceCheckError extends Mismatch {
+      private final Exception referenceCheckException;
+      private final Reference referenceBeingChecked;
+      private final ClassLoader classLoaderBeingChecked;
+
+      public ReferenceCheckError(
+          final Exception referenceCheckException,
+          final Reference referenceBeingChecked,
+          final ClassLoader classLoaderBeingChecked) {
+        super(new Source[0]);
+        this.referenceCheckException = referenceCheckException;
+        this.referenceBeingChecked = referenceBeingChecked;
+        this.classLoaderBeingChecked = classLoaderBeingChecked;
+      }
+
+      @Override
+      String getMismatchDetails() {
+        final StringWriter sw = new StringWriter();
+        sw.write("Failed to generate reference check for: ");
+        sw.write(referenceBeingChecked.toString());
+        sw.write(" on classloader ");
+        sw.write(classLoaderBeingChecked.toString());
+        sw.write("\n");
+        // add exception message and stack trace
+        final PrintWriter pw = new PrintWriter(sw);
+        referenceCheckException.printStackTrace(pw);
+        return sw.toString();
       }
     }
   }
@@ -576,9 +537,21 @@ public class Reference {
         final Flag[] methodFlags,
         final String methodName,
         final String returnType,
-        final String... parameterTypes) {
-      final Method method =
-          new Method(sources, methodFlags, methodName, returnType, parameterTypes);
+        final String[] parameterTypes) {
+      StringBuilder methodType = new StringBuilder().append('(');
+      for (String parameterType : parameterTypes) {
+        methodType.append(parameterType);
+      }
+      methodType.append(')').append(returnType);
+      return withMethod(sources, methodFlags, methodName, methodType.toString());
+    }
+
+    public Builder withMethod(
+        final Source[] sources,
+        final Flag[] methodFlags,
+        final String methodName,
+        final String methodType) {
+      final Method method = new Method(sources, methodFlags, methodName, methodType);
       final int existingIndex = methods.indexOf(method);
       if (existingIndex == -1) {
         methods.add(method);
