@@ -99,7 +99,7 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
           InstrumentationContext.get(Transformation.class, State.class);
       AgentSpan capturedSpan = AdviceUtils.getCapturedSpan(store, task);
       AgentSpan activeSpan = activeSpan();
-      if (capturedSpan != null && !capturedSpan.equals(activeSpan)) {
+      if (capturedSpan != null && capturedSpan != activeSpan) {
         // the active span is changed - signal span resume
         capturedSpan.finishThreadMigration();
       }
