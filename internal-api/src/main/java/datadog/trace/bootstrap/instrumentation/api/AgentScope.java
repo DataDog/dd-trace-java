@@ -24,9 +24,7 @@ public interface AgentScope extends TraceScope, Closeable {
      */
     void migrate();
 
-    /**
-     * Provide access to the captured span
-     */
+    /** Provide access to the captured span */
     AgentSpan getSpan();
   }
 }

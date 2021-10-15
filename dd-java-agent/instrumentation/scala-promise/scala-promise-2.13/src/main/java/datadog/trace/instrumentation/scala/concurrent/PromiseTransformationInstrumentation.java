@@ -104,7 +104,7 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Tra
         capturedSpan.finishThreadMigration();
       }
       return AdviceUtils.startTaskScope(
-              InstrumentationContext.get(Transformation.class, State.class), task);;
+          InstrumentationContext.get(Transformation.class, State.class), task);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
