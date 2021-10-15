@@ -18,7 +18,7 @@ import datadog.trace.api.DDId;
  * <p>It associates and keep current threadId with spanId/traceId in a memory area that can be read
  * from the CWS eBPF code.
  */
-public class CwsErpcTls implements CwsTls {
+public class ErpcTls implements Tls {
   public static final byte REGISTER_SPAN_TLS_OP = 6;
   public static final long TLS_FORMAT = 0;
   static final long ENTRY_SIZE = Native.LONG_SIZE * 2;
@@ -53,7 +53,7 @@ public class CwsErpcTls implements CwsTls {
     return thread;
   }
 
-  public CwsErpcTls(int maxThreads, int refresh) {
+  public ErpcTls(int maxThreads, int refresh) {
     Memory tls = new Memory(maxThreads * ENTRY_SIZE);
     tls.clear();
 

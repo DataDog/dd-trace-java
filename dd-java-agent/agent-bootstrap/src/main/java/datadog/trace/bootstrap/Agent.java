@@ -541,7 +541,7 @@ public class Agent {
                 ScopeListener scopeListener =
                 (ScopeListener)
                     AGENT_CLASSLOADER
-                        .loadClass("datadog.cws.tls.CwsTlsScopeListener")
+                        .loadClass("datadog.cws.tls.TlsScopeListener")
                         .getDeclaredConstructor()
                         .newInstance();
             tracer.addScopeListener(scopeListener);
@@ -551,7 +551,7 @@ public class Agent {
               SpanCheckpointer checkpointer =
               (SpanCheckpointer)
                   AGENT_CLASSLOADER
-                      .loadClass("datadog.cws.tls.CwsTlsCheckpointer")
+                      .loadClass("datadog.cws.tls.TlsCheckpointer")
                       .getDeclaredConstructor()
                       .newInstance();
 

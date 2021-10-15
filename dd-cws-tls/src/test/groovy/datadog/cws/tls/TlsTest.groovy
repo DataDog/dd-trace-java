@@ -5,7 +5,7 @@ import com.sun.jna.Native
 import datadog.trace.api.DDId
 import datadog.trace.test.util.DDSpecification
 
-class CwsTlsTest extends DDSpecification {
+class TlsTest extends DDSpecification {
   def "register trace and span to tls"() {
     setup:
     DummyErpcTls tls = new DummyErpcTls(1000)

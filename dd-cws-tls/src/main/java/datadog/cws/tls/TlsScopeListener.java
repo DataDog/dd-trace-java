@@ -3,9 +3,9 @@ package datadog.cws.tls;
 import datadog.trace.api.DDId;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 
-public class CwsTlsScopeListener implements ExtendedScopeListener {
+public class TlsScopeListener implements ExtendedScopeListener {
 
-  private final CwsTlsSpanTracker spanTracker = new CwsTlsSpanTracker();
+  private final TlsSpanTracker spanTracker = new TlsSpanTracker();
 
   @Override
   public void afterScopeActivated() {

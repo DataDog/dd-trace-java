@@ -2,7 +2,7 @@ package datadog.cws.tls;
 
 import datadog.trace.api.DDId;
 
-public interface CwsTls {
+public interface Tls {
 
   public void registerSpan(DDId traceId, DDId spanId);
 

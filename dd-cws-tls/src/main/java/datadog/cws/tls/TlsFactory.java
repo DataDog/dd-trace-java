@@ -5,9 +5,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class TlsFactory {
-  private static final Logger log = LoggerFactory.getLogger(CwsTlsFactory.class);
+  private static final Logger log = LoggerFactory.getLogger(TlsFactory.class);
 
-  public static CwsTls newTls(int maxThreads) {
+  public static Tls newTls(int maxThreads) {
     if (Config.get().isCwsEnabled()) {
       if (ErpcTls.isSupported()) {
         int refresh = Config.get().getCwsTlsRefresh();

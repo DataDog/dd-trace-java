@@ -2,7 +2,7 @@ package datadog.cws.tls;
 
 import datadog.cws.erpc.Request;
 
-class DummyErpcTls extends CwsErpcTls {
+class DummyErpcTls extends ErpcTls {
   Request lastRequest;
 
   public DummyErpcTls(int maxThread) {

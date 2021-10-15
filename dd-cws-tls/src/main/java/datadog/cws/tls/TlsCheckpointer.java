@@ -3,9 +3,9 @@ package datadog.cws.tls;
 import datadog.trace.api.SpanCheckpointer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-public class CwsTlsCheckpointer implements SpanCheckpointer {
+public class TlsCheckpointer implements SpanCheckpointer {
 
-  private final CwsTlsSpanTracker spanTracker = new CwsTlsSpanTracker();
+  private final TlsSpanTracker spanTracker = new TlsSpanTracker();
 
   private void onFinish() {
     spanTracker.poll();
@@ -30,7 +30,7 @@ public class CwsTlsCheckpointer implements SpanCheckpointer {
 
   @Override
   public final void onFinishThreadMigration(final AgentSpan span) {
-    spanTracker.push(span.getTraceId(), span.getSpanId());
+    spanTracker.threadMigrated(span.getTraceId(), span.getSpanId());
   }
 
   @Override
